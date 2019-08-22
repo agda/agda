@@ -45,5 +45,5 @@ hopefully enable the ``--count-clusters`` flag by giving the
 Installing Emacs under Windows
 ==============================
 
-A precompiled version of Emacs 24.3, with the necessary mathematical
+A precompiled version of Emacs 26.1, with the necessary mathematical
 fonts, is available at http://www.cs.uiowa.edu/~astump/agda.
