@@ -176,6 +176,7 @@ data WarningName
   | CoverageIssue_
   | CoverageNoExactSplit_
   | DeprecationWarning_
+  | FixityInRenamingModule_
   | GenericNonFatalError_
   | GenericWarning_
   | IllformedAsClause_
@@ -184,7 +185,7 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
-  | FixityInRenamingModule_
+  | NotInScope_
   | NotStrictlyPositive_
   | OldBuiltin_
   | PragmaCompileErased_
@@ -308,6 +309,7 @@ warningNameDescription w = case w of
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
+  NotInScope_                      -> "Out of scope name"
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."

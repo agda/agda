@@ -3002,6 +3002,8 @@ data Warning
     --   rewrite rules
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol
+  | NotInScopeW [C.QName]
+    -- ^ Out of scope error we can recover from
   deriving (Show , Data)
 
 
@@ -3023,11 +3025,12 @@ warningName w = case w of
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
   InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
+  FixityInRenamingModule{}     -> FixityInRenamingModule_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   ModuleDoesntExport{}         -> ModuleDoesntExport_
-  FixityInRenamingModule{}     -> FixityInRenamingModule_
+  NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   OldBuiltin{}                 -> OldBuiltin_
   SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_

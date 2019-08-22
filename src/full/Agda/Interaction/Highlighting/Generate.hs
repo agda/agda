@@ -663,6 +663,7 @@ warningHighlighting w = case tcWarning w of
   RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
   PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
+  NotInScopeW{}              -> deadcodeHighlighting $ getRange w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we

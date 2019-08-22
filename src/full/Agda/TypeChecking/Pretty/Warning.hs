@@ -3,6 +3,7 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
+import Data.Char ( toLower )
 import Data.Function
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -11,11 +12,14 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Scope.Base ( concreteNamesInScope )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -24,6 +28,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
+import Agda.Utils.List ( editDistance )
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 
@@ -232,6 +237,35 @@ prettyWarning wng = case wng of
     PragmaCompileErased bn qn -> fsep $
       pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
       ++ pwords "so the COMPILE pragma will be ignored."
+
+    NotInScopeW xs -> do
+      inscope <- Set.toList . concreteNamesInScope <$> getScope
+      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
+      where
+      name inscope x =
+        fsep [ pretty x
+             , "at" <+> prettyTCM (getRange x)
+             , suggestion inscope x
+             ]
+      suggestion inscope x = nest 2 $ par $
+        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
+        [ "did you forget space around the '->'?" | List.isInfixOf "->" s ] ++
+        [ sep [ "did you mean"
+              , nest 2 $ vcat (punctuate " or"
+                       $ map (\ y -> text $ "'" ++ y ++ "'") ys)
+              <> "?" ]
+          | not $ null ys ]
+        where
+          s = P.prettyShow x
+          par []  = empty
+          par [d] = parens d
+          par ds  = parens $ vcat ds
+
+          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
+          maxDist n = div n 3
+          close a b = editDistance a b <= maxDist (length a)
+          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+
 
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
