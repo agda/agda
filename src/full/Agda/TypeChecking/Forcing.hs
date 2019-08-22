@@ -277,7 +277,8 @@ rebindForcedPattern ps toRebind = do
     mkPat' :: (IsForced, Term) -> TCM (Maybe DeBruijnPattern)
     mkPat' (Forced, _) = return Nothing
     mkPat' (NotForced, v) | targetDotP == v = return (Just toRebind)
-    mkPat' (NotForced, v) =
+    mkPat' (NotForced, v) = do
+      v <- reduce v
       case v of
         Con c co es -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
