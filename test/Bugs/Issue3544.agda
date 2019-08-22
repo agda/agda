@@ -1,4 +1,7 @@
 
+-- Fails (gracefully) after #3903 damage control.
+-- Should succeed once #3903 is fixed properly.
+
 data Nat : Set where
   succ : Nat → Nat
 
