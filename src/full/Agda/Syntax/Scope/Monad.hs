@@ -5,7 +5,8 @@
 
 module Agda.Syntax.Scope.Monad where
 
-import Prelude hiding (mapM, any, all)
+import Prelude hiding (mapM, any, all, null)
+
 import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
@@ -46,7 +47,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null (unlessNull)
+import Agda.Utils.Null
 import Agda.Utils.NonemptyList as NonemptyList
 import Agda.Utils.Pretty
 
@@ -283,32 +284,27 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
 
 tryResolveName
   :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
-  => KindsOfNames -> Maybe (Set A.Name) -> C.QName
-  -> m ResolvedName
+  => KindsOfNames       -- ^ Restrict search to these kinds of names.
+  -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
+  -> C.QName            -- ^ Name to be resolved
+  -> m ResolvedName     -- ^ If illegally ambiguous, throw error with the ambiguous name.
 tryResolveName kinds names x = do
   scope <- getScope
   let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
-      retVar y = return . VarName y{ nameConcrete = unqualify x }
-      aName    = A.qnameName . anameName
   case lookup x vars of
-    -- Case: we have a local variable x.
-    Just (LocalVar y b []) -> retVar y b
-    -- Case: ... but is (perhaps) shadowed by some imports.
-    Just (LocalVar y b ys) -> case names of
-      Nothing -> shadowed ys
-      Just ns -> case filter (\ y -> aName y `Set.member` ns) ys of
-        [] -> retVar y b
-        ys -> shadowed ys
-      where
-      shadowed ys =
-        throwError $ A.qualify_ y :! map anameName ys
+    -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
+    Just (LocalVar y b ys) ->
+      -- We may ignore the imports filtered out by the @names@ filter.
+      ifNull (filterNames id ys)
+        {-then-} (return $ VarName y{ nameConcrete = unqualify x } b)
+        {-else-} $ \ ys' ->
+          throwError $ A.qualify_ y :! map anameName ys'
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
-      let filtKind = filter $ \ y -> anameKind (fst y) `elemKindsOfNames` kinds
+      let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
       -- Consider only names in the given set of names
-          filtName = filter $ \ y -> maybe True (Set.member (aName (fst y))) names
-      caseListNe (filtKind $ filtName $ scopeLookup' x scope) (return UnknownName) $ \ case
+      caseListNe (filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
         ds       | all ((ConName ==) . anameKind . fst) ds ->
           return $ ConstructorName $ fmap (upd . fst) ds
 
@@ -323,6 +319,14 @@ tryResolveName kinds names x = do
 
         ds -> throwError $ fmap (anameName . fst) ds
   where
+  -- @names@ intended semantics: a filter on names.
+  -- @Nothing@: don't filter out anything.
+  -- @Just ns@: filter by membership in @ns@.
+  filterNames :: forall a. (a -> AbstractName) -> [a] -> [a]
+  filterNames = case names of
+    Nothing -> \ f -> id
+    Just ns -> \ f -> filter $ (`Set.member` ns) . A.qnameName . anameName . f
+    -- lambda-dropped style by intention
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
