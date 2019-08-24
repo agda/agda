@@ -307,6 +307,9 @@ instance Match Type NLPat Term where
           let k' = ExtendTel a (Abs (absName b) k)
           match r gamma k' () (absBody pb) (absBody b)
         _ -> no ""
+      PSort ps -> case v of
+        Sort s -> match r gamma k () ps s
+        _ -> no ""
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
           let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i

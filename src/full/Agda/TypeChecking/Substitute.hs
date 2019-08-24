@@ -859,6 +859,7 @@ instance DeBruijn NLPat where
     PDef{}      -> Nothing
     PLam{}      -> Nothing
     PPi{}       -> Nothing
+    PSort{}     -> Nothing
     PBoundVar{} -> Nothing -- or... ?
     PTerm{}     -> Nothing -- or... ?
 
@@ -872,6 +873,7 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
       PDef f es      -> __IMPOSSIBLE__
       PLam i u       -> __IMPOSSIBLE__
       PPi a b        -> __IMPOSSIBLE__
+      PSort s        -> __IMPOSSIBLE__
       PBoundVar i es -> __IMPOSSIBLE__
 
 applyNLSubstToDom :: Subst NLPat a => Substitution' NLPat -> Dom a -> Dom a
@@ -883,6 +885,7 @@ instance Subst NLPat NLPat where
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
+    PSort s -> PSort $ applySubst rho s
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applyNLPatSubst rho u
 
@@ -894,6 +897,7 @@ instance Subst NLPat NLPat where
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__
+        PSort s        -> __IMPOSSIBLE__
         PBoundVar i es -> __IMPOSSIBLE__
 
 instance Subst NLPat NLPType where

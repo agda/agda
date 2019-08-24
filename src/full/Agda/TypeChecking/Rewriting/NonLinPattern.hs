@@ -166,7 +166,7 @@ instance PatternFrom Type Term NLPat where
         pa <- patternFrom r k () a
         pb <- addContext a (patternFrom r (k+1) () $ absBody b)
         return $ PPi pa (Abs (absName b) pb)
-      (_ , Sort s)     -> done
+      (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> done
       (_ , MetaV{})    -> __IMPOSSIBLE__
@@ -201,6 +201,7 @@ instance NLPatToTerm NLPat Term where
       _                            -> Def f <$> nlPatToTerm es
     PLam i u       -> Lam i <$> nlPatToTerm u
     PPi a b        -> Pi <$> nlPatToTerm a <*> nlPatToTerm b
+    PSort s        -> Sort <$> nlPatToTerm s
     PBoundVar i es -> Var i <$> nlPatToTerm es
 
 instance NLPatToTerm NLPat Level where
@@ -242,6 +243,7 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVarsUnder k es
       PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
       PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
+      PSort s   -> nlPatVarsUnder k s
       PBoundVar _ es -> nlPatVarsUnder k es
       PTerm{}   -> empty
 
@@ -268,11 +270,19 @@ instance GetMatchables NLPat where
       PDef f _       -> singleton f
       PLam _ x       -> getMatchables x
       PPi a b        -> getMatchables (a,b)
+      PSort s        -> getMatchables s
       PBoundVar i es -> getMatchables es
       PTerm u        -> getMatchables u
 
 instance GetMatchables NLPType where
   getMatchables = getMatchables . nlpTypeUnEl
+
+instance GetMatchables NLPSort where
+  getMatchables = \case
+    PType l   -> getMatchables l
+    PProp l   -> getMatchables l
+    PInf      -> empty
+    PSizeUniv -> empty
 
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
@@ -287,6 +297,7 @@ instance Free NLPat where
     PDef _ es -> freeVars' es
     PLam _ u -> freeVars' u
     PPi a b -> freeVars' (a,b)
+    PSort s -> freeVars' s
     PBoundVar _ es -> freeVars' es
     PTerm t -> freeVars' t
 
