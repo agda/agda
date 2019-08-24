@@ -277,7 +277,7 @@ getLibrariesFile Nothing = do
 --   Returns none if there is no @libraries@ file.
 --
 getInstalledLibraries
-  :: Maybe FilePath  -- ^ Override the default @libraries@ file?
+  :: Maybe FilePath     -- ^ Override the default @libraries@ file?
   -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     file <- lift $ getLibrariesFile overrideLibFile

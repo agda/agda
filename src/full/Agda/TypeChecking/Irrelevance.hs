@@ -109,7 +109,7 @@ workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m)
             => m a -> m a
 workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
-  verboseBracket "tc.irr" 20 "workOnTypes" $ workOnTypes' allowed cont
+  verboseBracket "tc.irr" 60 "workOnTypes" $ workOnTypes' allowed cont
 
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.

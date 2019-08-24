@@ -8,6 +8,7 @@
     It also contains the function that puts parenthesis back given the
     precedence of the context.
 -}
+
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseModuleApplication
@@ -80,18 +81,17 @@ type FlatScope = Map QName [AbstractName]
 -- | Compute all defined names in scope and their fixities/notations.
 -- Note that overloaded names (constructors) can have several
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
-getDefinedNames :: [KindOfName] -> FlatScope -> [[NewNotation]]
+getDefinedNames :: KindsOfNames -> FlatScope -> [[NewNotation]]
 getDefinedNames kinds names =
-  [ mergeNotations $
-      map (\d -> namesToNotation x (A.qnameName $ anameName d)) ds
+  [ mergeNotations $ map (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
-  , any ((`elem` kinds) . anameKind) ds
+  , any ((`elemKindsOfNames` kinds) . anameKind) ds
   , not (null ds)
+  ]
   -- Andreas, 2013-03-21 see Issue 822
   -- Names can have different kinds, i.e., 'defined' and 'constructor'.
   -- We need to consider all names that have *any* matching kind,
   -- not only those whose first appearing kind is matching.
-  ]
 
 -- | Compute all names (first component) and operators/notations
 -- (second component) in scope.
@@ -258,7 +258,7 @@ buildParsers r flat kind exprNames = do
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames
-                       [ConName, FldName, PatternSynName] flat
+                       (someKindsOfNames [ConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . head) cons
@@ -321,7 +321,7 @@ buildParsers r flat kind exprNames = do
 
         -- The triples have the form (level, operators). The lowest
         -- level comes first.
-        relatedOperators :: [(Integer, [NotationSection])]
+        relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
           map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
           List.groupBy ((==) `on` fst) .
@@ -389,7 +389,7 @@ buildParsers r flat kind exprNames = do
 
     return (parseSections, everything, g)
     where
-        level :: NewNotation -> PrecedenceLevel
+        level :: NewNotation -> FixityLevel
         level = fixityLevel . notaFixity
 
         nonfix, isinfix, isprefix, ispostfix :: NewNotation -> Bool
@@ -408,7 +408,7 @@ buildParsers r flat kind exprNames = do
              &&
           fixityAssoc (notaFixity (sectNotation s)) == ass
 
-        mkP :: Either Integer Integer
+        mkP :: PrecedenceKey
                -- ^ Memoisation key.
             -> ParseSections
             -> Parser e e
@@ -614,8 +614,8 @@ parseLHS' lhsOrPatSyn top p = do
                in  foldr seq () result `seq` result
 
     -- Classify parse results.
-    let cons = getNames [ConName, PatternSynName] flat
-    let flds = getNames [FldName] flat
+    let cons = getNames (someKindsOfNames [ConName, PatternSynName]) flat
+    let flds = getNames (someKindsOfNames [FldName]) flat
     let conf = PatternCheckConfig top cons flds
     case mapMaybe (validPattern conf) ps of
         -- Unique result.

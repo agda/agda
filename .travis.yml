@@ -30,6 +30,52 @@ cache:
 
 matrix:
   include:
+
+    # Andreas, 2019-08-20, run faster test first.
+
+    # The just-compilation tests using stackage fast (< 10 min).
+    # This allows for quick feedback should compilation break on one of the ghc versions.
+
+    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.4.4
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.2.2
+          sources:
+            - hvr-ghc
+
+    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+      addons:
+        apt:
+          packages:
+            - ghc-8.0.2
+          sources:
+            - hvr-ghc
+
+    # Converting the user manual to html and pdf is fast (< 2min).
+
+    - env: TEST=USER_MANUAL BUILD=NOTHING
+      language: python
+      python: "3.4"
+
+    # The builds involving the testsuite (60-80min) are run then.
+
     - env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -70,37 +116,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.6.5
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.4.4
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.2.2
-          sources:
-            - hvr-ghc
-
-    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.2
-          sources:
-            - hvr-ghc
+    # Finally, test documentation: haddock, user-manual.
 
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
@@ -112,10 +128,6 @@ matrix:
             - ghc-8.6.5
           sources:
             - hvr-ghc
-
-    - env: TEST=USER_MANUAL BUILD=NOTHING
-      language: python
-      python: "3.4"
 
   allow_failures:
     # - env: TEST=USER_MANUAL BUILD=NOTHING
@@ -354,7 +366,9 @@ script:
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
-  - if [[ $TEST = "MAIN" ]]; then
+  # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
+  # making the whole travis run fail.
+  - if [[ $TEST = "MAIN" && $GHC_VER != "8.0.2" ]]; then
        make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 

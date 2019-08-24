@@ -18,7 +18,8 @@ module Agda.Termination.RecCheck
  where
 
 import Data.Graph
-import Data.List (nub)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 
 import Agda.Syntax.Internal
@@ -26,11 +27,13 @@ import Agda.Syntax.Internal.Defs
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Functor ((<.>))
+import Agda.Utils.List    (hasElem)
+import Agda.Utils.Pretty  (prettyShow)
 
 recursive :: [QName] -> TCM Bool
 recursive names = do
-  graph <- zip names <$> mapM (\ d -> nub <$> recDef names d) names
+  graph <- zip names <$> mapM (Set.toList <.> recDef (names `hasElem`)) names
   reportSLn "rec.graph" 20 $ show graph
   return $ cyclic graph
 
@@ -41,18 +44,18 @@ cyclic g = or [ True | CyclicSCC _ <- stronglyConnComp g' ]
 
 -- | @recDef names name@ returns all definitions from @names@
 --   that are used in the type and body of @name@.
-recDef :: [QName] -> QName -> TCM [QName]
-recDef names name = do
+recDef :: (QName -> Bool) -> QName -> TCM (Set QName)
+recDef include name = do
   -- Retrieve definition
   def <- getConstInfo name
 
   -- Get names in type
-  ns1 <- anyDefs names (defType def)
+  ns1 <- anyDefs include (defType def)
 
   -- Get names in body
   ns2 <- case theDef def of
-    Function{ funClauses = cls } -> anyDefs names cls
-    _ -> return []
+    Function{ funClauses = cls } -> anyDefs include cls
+    _ -> return mempty
 
   reportS "rec.graph" 20
     [ "recDef " ++ prettyShow name
@@ -63,14 +66,14 @@ recDef names name = do
 
 -- | @anysDef names a@ returns all definitions from @names@
 --   that are used in @a@.
-anyDefs :: GetDefs a => [QName] -> a -> TCM [QName]
-anyDefs names a = do
+anyDefs :: GetDefs a => (QName -> Bool) -> a -> TCM (Set QName)
+anyDefs include a = do
   -- Prepare function to lookup metas outside of TCM
   st <- getMetaStore
   let lookup (MetaId x) = case mvInstantiation <$> IntMap.lookup x st of
         Just (InstV _ v) -> Just v    -- TODO: ignoring the lambdas might be bad?
         _                -> Nothing
       -- we collect only those used definitions that are in @names@
-      emb d = if d `elem` names then [d] else []
+      emb d = if include d then Set.singleton d else Set.empty
   -- get all the Defs that are in names
   return $ getDefs' lookup emb a

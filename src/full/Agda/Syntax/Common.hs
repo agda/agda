@@ -12,13 +12,15 @@ module Agda.Syntax.Common where
 import Prelude hiding (null)
 
 import Control.DeepSeq
+import Control.Arrow ((&&&))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
 #endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable ()
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
@@ -1813,6 +1815,8 @@ data DataOrRecord = IsData | IsRecord
 data IsInfix = InfixDef | PrefixDef
     deriving (Data, Show, Eq, Ord)
 
+-- ** private blocks, public imports
+
 -- | Access modifier.
 data Access
   = PrivateAccess Origin
@@ -1838,12 +1842,45 @@ instance HasRange Access where
 instance KillRange Access where
   killRange = id
 
--- | Abstract or concrete
+-- ** abstract blocks
+
+-- | Abstract or concrete.
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Data, Show, Eq, Ord)
 
+-- | Semigroup computes if any of several is an 'AbstractDef'.
+instance Semigroup IsAbstract where
+  AbstractDef <> _ = AbstractDef
+  ConcreteDef <> a = a
+
+-- | Default is 'ConcreteDef'.
+instance Monoid IsAbstract where
+  mempty  = ConcreteDef
+  mappend = (<>)
+
 instance KillRange IsAbstract where
   killRange = id
+
+class LensIsAbstract a where
+  lensIsAbstract :: Lens' IsAbstract a
+
+instance LensIsAbstract IsAbstract where
+  lensIsAbstract = id
+
+-- | Is any element of a collection an 'AbstractDef'.
+class AnyIsAbstract a where
+  anyIsAbstract :: a -> IsAbstract
+
+  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstract
+  anyIsAbstract = Fold.foldMap anyIsAbstract
+
+instance AnyIsAbstract IsAbstract where
+  anyIsAbstract = id
+
+instance AnyIsAbstract a => AnyIsAbstract [a] where
+instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
+
+-- ** instance blocks
 
 -- | Is this definition eligible for instance search?
 data IsInstance = InstanceDef | NotInstanceDef
@@ -1985,9 +2022,85 @@ instance Pretty InteractionId where
 
 instance KillRange InteractionId where killRange = id
 
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * Fixity
+---------------------------------------------------------------------------
+
+-- | Precedence levels for operators.
+
+type PrecedenceLevel = Double
+
+data FixityLevel
+  = Unrelated
+    -- ^ No fixity declared.
+  | Related !PrecedenceLevel
+    -- ^ Fixity level declared as the number.
+  deriving (Eq, Ord, Show, Data)
+
+instance Null FixityLevel where
+  null Unrelated = True
+  null Related{} = False
+  empty = Unrelated
+
+-- | Associativity.
+
+data Associativity = NonAssoc | LeftAssoc | RightAssoc
+   deriving (Eq, Ord, Show, Data)
+
+-- | Fixity of operators.
+
+data Fixity = Fixity
+  { fixityRange :: Range
+    -- ^ Range of the whole fixity declaration.
+  , fixityLevel :: !FixityLevel
+  , fixityAssoc :: !Associativity
+  }
+  deriving (Data, Show)
+
+-- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
+
+instance Eq Fixity where
+  f1 == f2 = compare f1 f2 == EQ
+
+instance Ord Fixity where
+  compare = compare `on` (fixityLevel &&& fixityAssoc)
+
+instance Null Fixity where
+  null  = null . fixityLevel
+  empty = noFixity
+
+noFixity :: Fixity
+noFixity = Fixity noRange Unrelated NonAssoc
+
+defaultFixity :: Fixity
+defaultFixity = Fixity noRange (Related 20) NonAssoc
+
+instance HasRange Fixity where
+  getRange = fixityRange
+
+instance KillRange Fixity where
+  killRange f = f { fixityRange = noRange }
+
+instance NFData Fixity where
+  rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
+
+-- lenses
+
+_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
+
+_fixityLevel :: Lens' FixityLevel Fixity
+_fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
+
+class LensFixity a where
+  lensFixity :: Lens' Fixity a
+
+instance LensFixity Fixity where
+  lensFixity = id
+
+---------------------------------------------------------------------------
 -- * Import directive
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
@@ -2000,7 +2113,26 @@ data ImportDirective' n m = ImportDirective
   }
   deriving (Data, Eq)
 
-data Using' n m = UseEverything | Using [ImportedName' n m]
+-- | @null@ for import directives holds when everything is imported unchanged
+--   (no names are hidden or renamed).
+instance Null (ImportDirective' n m) where
+  null = \case
+    ImportDirective _ UseEverything [] [] _ -> True
+    _ -> False
+  empty = defaultImportDir
+
+-- | Default is directive is @private@ (use everything, but do not export).
+defaultImportDir :: ImportDirective' n m
+defaultImportDir = ImportDirective noRange UseEverything [] [] Nothing
+
+-- | @isDefaultImportDir@ implies @null@, but not the other way round.
+isDefaultImportDir :: ImportDirective' n m -> Bool
+isDefaultImportDir dir = null dir && null (publicOpen dir)
+
+-- | The @using@ clause of import directive.
+data Using' n m
+  = UseEverything              -- ^ No @using@ clause given.
+  | Using [ImportedName' n m]  -- ^ @using@ the specified names.
   deriving (Data, Eq)
 
 instance Semigroup (Using' n m) where
@@ -2012,13 +2144,15 @@ instance Monoid (Using' n m) where
   mempty  = UseEverything
   mappend = (<>)
 
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] Nothing
+instance Null (Using' n m) where
+  null UseEverything = True
+  null Using{}       = False
+  empty = mempty
 
-isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] Nothing) = True
-isDefaultImportDir _                                               = False
+mapUsing :: ([ImportedName' n1 m1] -> [ImportedName' n2 m2]) -> Using' n1 m1 -> Using' n2 m2
+mapUsing f = \case
+  UseEverything -> UseEverything
+  Using xs      -> Using $ f xs
 
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m
@@ -2044,6 +2178,8 @@ data Renaming' n m = Renaming
     -- ^ Rename from this name.
   , renTo      :: ImportedName' n m
     -- ^ To this one.  Must be same kind as 'renFrom'.
+  , renFixity  :: Maybe Fixity
+    -- ^ New fixity of 'renTo' (optional).
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
@@ -2076,7 +2212,7 @@ instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange UseEverything = UseEverything
 
 instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
+  killRange (Renaming i n mf _to) = killRange3 (\ i n mf -> Renaming i n mf noRange) i n mf
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRange1 ImportedModule n
@@ -2096,7 +2232,7 @@ instance (NFData a, NFData b) => NFData (Using' a b) where
 -- | Ranges are not forced.
 
 instance (NFData a, NFData b) => NFData (Renaming' a b) where
-  rnf (Renaming a b _) = rnf a `seq` rnf b
+  rnf (Renaming a b c _) = rnf a `seq` rnf b `seq` rnf c
 
 instance (NFData a, NFData b) => NFData (ImportedName' a b) where
   rnf (ImportedModule a) = rnf a
@@ -2136,7 +2272,21 @@ instance NFData a => NFData (TerminationCheck a) where
 -----------------------------------------------------------------------------
 
 -- | Positivity check? (Default = True).
-type PositivityCheck = Bool
+data PositivityCheck = YesPositivityCheck | NoPositivityCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange PositivityCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup PositivityCheck where
+  NoPositivityCheck <> _ = NoPositivityCheck
+  _ <> NoPositivityCheck = NoPositivityCheck
+  _ <> _ = YesPositivityCheck
+
+instance Monoid PositivityCheck where
+  mempty  = YesPositivityCheck
+  mappend = (<>)
 
 -----------------------------------------------------------------------------
 -- * Universe checking
@@ -2148,6 +2298,27 @@ data UniverseCheck = YesUniverseCheck | NoUniverseCheck
 
 instance KillRange UniverseCheck where
   killRange = id
+
+-----------------------------------------------------------------------------
+-- * Universe checking
+-----------------------------------------------------------------------------
+
+-- | Coverage check? (Default is yes).
+data CoverageCheck = YesCoverageCheck | NoCoverageCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange CoverageCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup CoverageCheck where
+  NoCoverageCheck <> _ = NoCoverageCheck
+  _ <> NoCoverageCheck = NoCoverageCheck
+  _ <> _ = YesCoverageCheck
+
+instance Monoid CoverageCheck where
+  mempty  = YesCoverageCheck
+  mappend = (<>)
 
 -----------------------------------------------------------------------------
 -- * Rewrite Directives on the LHS

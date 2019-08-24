@@ -6,7 +6,7 @@ module Agda.Interaction.Options
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
-    , Verbosity
+    , Verbosity, VerboseKey, VerboseLevel
     , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
@@ -77,7 +77,9 @@ import Paths_Agda ( getDataFileName )
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type Verbosity = Trie String Int
+type VerboseKey   = String
+type VerboseLevel = Int
+type Verbosity    = Trie VerboseKey VerboseLevel
 
 data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
   deriving (Show, Eq)
@@ -134,6 +136,7 @@ data PragmaOptions = PragmaOptions
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optAllowUnsolved             :: Bool
+  , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
@@ -244,6 +247,7 @@ defaultPragmaOptions = PragmaOptions
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
+  , optAllowIncompleteMatch      = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
@@ -368,6 +372,7 @@ checkOpts opts
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+  [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
@@ -392,6 +397,7 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
@@ -515,6 +521,13 @@ allowUnsolvedFlag o = do
   let upd = over warningSet (Set.\\ unsolvedWarnings)
   return $ o { optAllowUnsolved = True
              , optWarningMode   = upd (optWarningMode o)
+             }
+
+allowIncompleteMatchFlag :: Flag PragmaOptions
+allowIncompleteMatchFlag o = do
+  let upd = over warningSet (Set.\\ incompleteMatchWarnings)
+  return $ o { optAllowIncompleteMatch = True
+             , optWarningMode          = upd (optWarningMode o)
              }
 
 showImplicitFlag :: Flag PragmaOptions
@@ -727,7 +740,9 @@ libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o = do
   ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s
+                         , optUseLibs = True
+                         })
     {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
@@ -861,6 +876,8 @@ pragmaOptions =
                     "set verbosity level to N"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
+    , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
+                    "succeed and create interface file regardless of incomplete pattern matches"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"
     , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)

@@ -191,22 +191,6 @@ data Declaration
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show)
 
-class GetDefInfo a where
-  getDefInfo :: a -> Maybe DefInfo
-
-instance GetDefInfo Declaration where
-  getDefInfo (Axiom _ i _ _ _ _)    = Just i
-  getDefInfo (Generalize _ i _ _ _) = Just i
-  getDefInfo (Field i _ _)          = Just i
-  getDefInfo (Primitive i _ _)      = Just i
-  getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
-  getDefInfo (FunDef i _ _ _)       = Just i
-  getDefInfo (DataSig i _ _ _)      = Just i
-  getDefInfo (DataDef i _ _ _ _)    = Just i
-  getDefInfo (RecSig i _ _ _)       = Just i
-  getDefInfo (RecDef i _ _ _ _ _ _ _ _) = Just i
-  getDefInfo _ = Nothing
-
 type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
 type ImportedName    = ImportedName'    QName ModuleName

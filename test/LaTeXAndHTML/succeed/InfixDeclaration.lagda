@@ -32,4 +32,12 @@ A fixity declaration can preceed the actual declaration of the names.
   postulate _+_ _*_ : Set
 \end{code}
 
+Fixity declarations can also occur when renaming during import.
+
+\begin{code}
+open SurroundingText renaming (_+_ to infixl 5 _+_;  _*_ to infixl 10 _&_)
+\end{code}
+
+
+
 \end{document}

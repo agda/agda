@@ -97,6 +97,9 @@ hsInt n = HS.Lit (HS.Int n)
 hsTypedInt :: Integral a => a -> HS.Exp
 hsTypedInt n = HS.ExpTypeSig (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsName "Integer"))
 
+hsTypedDouble :: Real a => a -> HS.Exp
+hsTypedDouble n = HS.ExpTypeSig (HS.Lit (HS.Frac $ toRational n)) (HS.TyCon (hsName "Double"))
+
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
   HS.Let (HS.BDecls [HS.FunBind [HS.Match x [] (HS.UnGuardedRhs e) emptyBinds]]) b

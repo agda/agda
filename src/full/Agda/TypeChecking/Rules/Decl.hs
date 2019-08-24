@@ -27,6 +27,7 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -127,8 +128,6 @@ checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
   reportSLn "tc.decl" 45 $ "Checking " ++ show (length ds) ++ " declarations..."
   mapM_ checkDecl ds
-  -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
-  -- whenM onTopLevel unfreezeMetas
 
 -- | Type check a single declaration.
 
@@ -138,10 +137,6 @@ checkDecl d = setCurrentRange d $ do
     debugPrintDecl d
     reportSDoc "tc.decl" 90 $ (text . show) (deepUnscopeDecl d)
     reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
-
-    -- Issue 418 fix: freeze metas before checking an abstract thing
-    -- when_ isAbstract freezeMetas -- WAS IN PLACE 2012-2016, but too crude
-    -- applyWhen isAbstract withFreezeMetas $ do -- WRONG
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
@@ -195,8 +190,13 @@ checkDecl d = setCurrentRange d $ do
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
-      A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
-      A.UnquoteDef i x e       -> impossible $ checkUnquoteDef i x e
+      -- Andreas, 2019-08-19, issue #4010, observe @abstract@ also for unquoting.
+      -- TODO: is it possible that some of the unquoted declarations/definitions
+      -- are abstract and some are not?  Then allowing all to look into abstract things,
+      -- as we do here, will leak information about the implementation of abstract things.
+      -- TODO: Benchmarking for unquote.
+      A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
+      A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -224,18 +224,22 @@ checkDecl d = setCurrentRange d $ do
     checkSig i x gtel t = checkTypeSignature' (Just gtel) $
       A.Axiom A.NoFunSig i defaultArgInfo Nothing x t
 
+    -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
+    check :: forall m i a
+          . ( MonadTCEnv m, MonadPretty m, MonadDebug m, MonadBench Phase m
+            , AnyIsAbstract i )
+          => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
       reportSDoc "tc.decl" 5 $ ("Checking" <+> prettyTCM x) <> "."
-      reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
-      r <- abstract (Info.defAbstract i) m
+      reportSLn "tc.decl.abstract" 25 $ show $ anyIsAbstract i
+      r <- checkMaybeAbstractly i m
       reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
 
-    isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
-
-    -- Concrete definitions cannot use information about abstract things.
-    abstract ConcreteDef = inConcreteMode
-    abstract AbstractDef = inAbstractMode
+    -- | Switch to AbstractMode if any of the i is AbstractDef.
+    checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
+                         => i -> m a -> m a
+    checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
 
 -- Some checks that should be run at the end of a mutual block. The
 -- set names contains the names defined in the mutual block.
@@ -419,11 +423,9 @@ highlight_ hlmod d = do
 checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  termErrs <- termDecl d
-  -- If there are some termination errors, we collect them in the
-  -- state. The termination checker already marked non-terminating
-  -- functions as such.
-  unless (null termErrs) $ do
+  -- If there are some termination errors, we throw a warning.
+  -- The termination checker already marked non-terminating functions as such.
+  unlessNullM (termDecl d) $ \ termErrs -> do
     warning $ TerminationIssue termErrs
 
 -- | Check a set of mutual names for positivity.
@@ -433,9 +435,8 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
   checkStrictlyPositive mi names
 
-  -- Andreas, 2012-02-13: Polarity computation uses info from
-  -- positivity check, so it needs happen after positivity
-  -- check.
+  -- Andreas, 2012-02-13: Polarity computation uses information from the
+  -- positivity check, so it needs happen after the positivity check.
   computePolarity $ Set.toList names
 
 -- | Check that all coinductive records are actually recursive.
@@ -632,9 +633,6 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     checkingWhere <- asksTC envCheckingWhere
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
-  -- Andreas, 2011-05-31, that freezing below is probably wrong:
-  -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas
-
 -- | Type check a primitive function declaration.
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
@@ -721,13 +719,13 @@ checkPragma r p =
 checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
 checkMutual i ds = inMutualBlock $ \ blockId -> do
 
-  verboseS "tc.decl.mutual" 20 $ do
-    reportSDoc "tc.decl.mutual" 20 $ vcat $
+  reportSDoc "tc.decl.mutual" 20 $ vcat $
       (("Checking mutual block" <+> text (show blockId)) <> ":") :
       map (nest 2 . prettyA) ds
 
   insertMutualBlockInfo blockId i
-  localTC (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
+  localTC ( set eTerminationCheck (() <$ Info.mutualTerminationCheck i)
+          . set eCoverageCheck (Info.mutualCoverageCheck i)) $
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId

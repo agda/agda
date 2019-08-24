@@ -505,6 +505,9 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
 instance KillRange a => KillRange (Maybe a) where
   killRange = fmap killRange
 
+instance KillRange a => KillRange (Strict.Maybe a) where
+  killRange = fmap killRange
+
 instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x

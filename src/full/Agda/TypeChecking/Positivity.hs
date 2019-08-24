@@ -154,7 +154,7 @@ checkStrictlyPositive mi qset = do
         -- ASR (23 December 2015). We don't raise a strictly positive
         -- error if the NO_POSITIVITY_CHECK pragma was set on in the
         -- mutual block. See Issue 1614.
-        when (Info.mutualPositivityCheck mi) $
+        when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
           whenM positivityCheckEnabled $
             case loop of
             Just o | o <= JustPos ->
@@ -187,7 +187,7 @@ checkStrictlyPositive mi qset = do
       -- ASR (01 January 2016). We don't raise this error if the
       -- NO_POSITIVITY_CHECK pragma was set on in the record. See
       -- Issue 1760.
-      when (Info.mutualPositivityCheck mi) $
+      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
         whenM positivityCheckEnabled $ do
         -- Check whether the recursive record has been declared as
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.

@@ -1,0 +1,3 @@
+-- Make sure we are getting syntax highlighting
+-- for the empty blocks
+IOTCM currentFile NonInteractive Direct (Cmd_load currentFile [])

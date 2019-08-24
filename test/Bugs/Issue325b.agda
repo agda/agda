@@ -1,4 +1,5 @@
-{-# OPTIONS -v tc.meta:20  #-}
+-- {-# OPTIONS -v tc.meta:20  #-}
+
 -- Andreas, 2011-04-15
 -- source: Conor's post "foldl Miller magic" on the Agda list (2008)
 
@@ -42,4 +43,3 @@ a) _43 x y := suc x  failing
 b) _43 x y := suc y  succeeding
 but this only complete in the absence of recursion.
 -}
-

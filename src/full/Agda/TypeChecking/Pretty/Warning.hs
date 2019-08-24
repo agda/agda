@@ -180,6 +180,12 @@ prettyWarning wng = case wng of
     SafeFlagNoUniverseCheck -> fsep $
       pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
 
+    SafeFlagInjective -> fsep $
+      pwords "Cannot use INJECTIVE pragma with safe flag."
+
+    SafeFlagNoCoverageCheck -> fsep $
+      pwords "Cannot use NON_COVERING pragma with safe flag."
+
     ParseWarning pw -> pretty pw
 
     DeprecationWarning old new version -> fsep $
@@ -193,6 +199,8 @@ prettyWarning wng = case wng of
     ModuleDoesntExport m xs -> fsep $
       pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
       punctuate comma (map pretty xs)
+
+    FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 
     LibraryWarning lw -> pretty lw
 

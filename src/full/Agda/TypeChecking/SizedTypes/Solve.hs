@@ -53,6 +53,7 @@ import Prelude hiding (null)
 import Control.Monad hiding (forM, forM_)
 import Control.Monad.Trans.Maybe
 
+import Data.Either
 import Data.Foldable (foldMap, forM_)
 import qualified Data.Foldable as Fold
 import Data.Function
@@ -83,7 +84,6 @@ import Agda.TypeChecking.SizedTypes.Utils
 import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
 
 import Agda.Utils.Cluster
-import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -146,7 +146,7 @@ solveSizeConstraints flag =  do
   let classify :: (a, [b]) -> Either a (a, NonemptyList b)
       classify (cl, [])     = Left  cl
       classify (cl, (x:xs)) = Right (cl, x :! xs)
-  let (clcs, othercs) = List.mapEither classify cms
+  let (clcs, othercs) = partitionEithers $ map classify cms
 
   -- We cluster the constraints by their metas.
   let ccs = cluster' othercs
@@ -468,7 +468,7 @@ solveCluster flag ccs = do
   -- Construct the hypotheses graph.
   let hyps = map (fmap (metaId . sizeMetaId)) hs
   -- There cannot be negative cycles in hypotheses graph due to scoping.
-  let hg = fromRight __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
+  let hg = either __IMPOSSIBLE__ id $ hypGraph (rigids csF) hyps
 
   -- -- Construct the constraint graph.
   -- --    g :: Size.Graph NamedRigid Int Label

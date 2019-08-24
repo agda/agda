@@ -230,7 +230,7 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage n s = AbsToCon $ displayDebugMessage n s
+  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
   formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
   verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
 
@@ -1321,7 +1321,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        runExceptT (tryResolveName [FldName] Nothing (C.QName cn)) >>= \case
+        runExceptT (tryResolveName (someKindsOfNames [FldName]) Nothing (C.QName cn)) >>= \case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
@@ -1360,7 +1360,7 @@ instance ToConcrete A.Pattern C.Pattern where
       -- we take off the exceeding arguments first
       -- and apply them pointwise with C.AppP later.
       let (args1, args2) = splitAt (numHoles x) args
-      let funCtx = if null args2 then id else withPrecedence FunctionCtx
+      let funCtx = applyUnless (null args2) (withPrecedence FunctionCtx)
       tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x

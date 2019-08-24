@@ -627,6 +627,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedMetaVariables rs   -> metasHighlighting rs
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
   ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
+  FixityInRenamingModule rs    -> Fold.foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
@@ -648,6 +649,8 @@ warningHighlighting w = case tcWarning w of
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
   SafeFlagWithoutKFlagPrimEraseEquality -> mempty
+  SafeFlagInjective          -> mempty
+  SafeFlagNoCoverageCheck    -> mempty
   WithoutKFlagPrimEraseEquality -> mempty
   SafeFlagNoPositivityCheck  -> mempty
   SafeFlagPolarity           -> mempty
@@ -664,33 +667,35 @@ warningHighlighting w = case tcWarning w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual{} -> deadcodeHighlighting $ getRange w
-    EmptyAbstract{}      -> deadcodeHighlighting $ getRange w
-    EmptyInstance{}      -> deadcodeHighlighting $ getRange w
-    EmptyMacro{}         -> deadcodeHighlighting $ getRange w
-    EmptyMutual{}        -> deadcodeHighlighting $ getRange w
-    EmptyPostulate{}     -> deadcodeHighlighting $ getRange w
-    EmptyPrivate{}       -> deadcodeHighlighting $ getRange w
-    EmptyGeneralize{}    -> deadcodeHighlighting $ getRange w
-    EmptyField{}         -> deadcodeHighlighting $ getRange w
-    UselessAbstract{}    -> deadcodeHighlighting $ getRange w
-    UselessInstance{}    -> deadcodeHighlighting $ getRange w
-    UselessPrivate{}     -> deadcodeHighlighting $ getRange w
-    OpenPublicAbstract{} -> deadcodeHighlighting $ getRange w
-    OpenPublicPrivate{}  -> deadcodeHighlighting $ getRange w
+    NotAllowedInMutual{}             -> deadcodeHighlighting $ getRange w
+    EmptyAbstract{}                  -> deadcodeHighlighting $ getRange w
+    EmptyInstance{}                  -> deadcodeHighlighting $ getRange w
+    EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
+    EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
+    EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
+    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
+    EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w
+    EmptyGeneralize{}                -> deadcodeHighlighting $ getRange w
+    EmptyField{}                     -> deadcodeHighlighting $ getRange w
+    UselessAbstract{}                -> deadcodeHighlighting $ getRange w
+    UselessInstance{}                -> deadcodeHighlighting $ getRange w
+    UselessPrivate{}                 -> deadcodeHighlighting $ getRange w
+    InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting $ getRange w
+    InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
+    InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
+    InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
+    OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
+    OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
+    ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
-    EmptyPrimitive{} -> mempty
-    InvalidCatchallPragma{} -> mempty
-    InvalidNoPositivityCheckPragma{} -> mempty
-    InvalidNoUniverseCheckPragma{} -> mempty
-    InvalidTerminationCheckPragma{} -> mempty
-    MissingDefinitions{} -> mempty
+    InvalidCatchallPragma{}           -> mempty
+    MissingDefinitions{}              -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
-    PragmaNoTerminationCheck{} -> mempty
-    PragmaCompiled{} -> mempty
-    UnknownFixityInMixfixDecl{} -> mempty
-    UnknownNamesInFixityDecl{} -> mempty
-    UnknownNamesInPolarityPragmas{} -> mempty
+    PragmaNoTerminationCheck{}        -> mempty
+    PragmaCompiled{}                  -> mempty
+    UnknownFixityInMixfixDecl{}       -> mempty
+    UnknownNamesInFixityDecl{}        -> mempty
+    UnknownNamesInPolarityPragmas{}   -> mempty
 
 
 -- | Generate syntax highlighting for termination errors.
@@ -723,6 +728,11 @@ coverageErrorHighlighting :: Range -> File
 coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
+shadowingTelHighlighting :: [Range] -> File
+shadowingTelHighlighting =
+  -- we do not want to highlight the one variable in scope as deadcode
+  -- so we take the @init@ segment of the ranges in question
+  Fold.foldMap deadcodeHighlighting . init
 
 catchallHighlighting :: Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m

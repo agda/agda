@@ -170,10 +170,10 @@ whenConstraints action handler =
     handler
 
 -- | Wake constraints matching the given predicate (and aren't instance
---   constraints if 'isConsideringInstance').
+--   constraints if 'shouldPostponeInstanceSearch').
 wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
 wakeConstraints' p = do
-  skipInstance <- isConsideringInstance
+  skipInstance <- shouldPostponeInstanceSearch
   wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
 
 -- | Wake up the constraints depending on the given meta.

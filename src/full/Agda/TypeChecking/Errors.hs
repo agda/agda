@@ -52,6 +52,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
+import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -970,7 +971,7 @@ instance PrettyTCM TypeError where
              (case sectLevel sect of
                 Nothing          -> ""
                 Just Unrelated   -> ", unrelated"
-                Just (Related n) -> ", level " ++ show n) ++
+                Just (Related l) -> ", level " ++ toStringWithoutDotZero l) ++
              ")")
             Boxes.//
           strut

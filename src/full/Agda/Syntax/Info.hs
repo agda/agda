@@ -21,6 +21,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
 import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Null
 
 {--------------------------------------------------------------------------
@@ -110,9 +111,7 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Data, Eq)
-
-deriving instance Show ModuleInfo
+  deriving (Data, Eq, Show)
 
 instance HasRange ModuleInfo where
   getRange = minfoRange
@@ -166,6 +165,13 @@ instance SetRange DefInfo where
 instance KillRange DefInfo where
   killRange i = i { defInfo = killRange $ defInfo i }
 
+instance LensIsAbstract DefInfo where
+  lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
+
+instance AnyIsAbstract DefInfo where
+  anyIsAbstract = defAbstract
+
+
 {--------------------------------------------------------------------------
     General declaration information
  --------------------------------------------------------------------------}
@@ -190,15 +196,16 @@ instance KillRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data MutualInfo = MutualInfo
-  { mutualTermCheck       :: TerminationCheck Name
-  , mutualPositivityCheck :: PositivityCheck
-  , mutualRange           :: Range
+  { mutualTerminationCheck :: TerminationCheck Name
+  , mutualCoverageCheck    :: CoverageCheck
+  , mutualPositivityCheck  :: PositivityCheck
+  , mutualRange            :: Range
   }
   deriving (Data, Show, Eq)
 
 -- | Default value for 'MutualInfo'.
 instance Null MutualInfo where
-  empty = MutualInfo TerminationCheck True noRange
+  empty = MutualInfo TerminationCheck YesCoverageCheck YesPositivityCheck noRange
 
 instance HasRange MutualInfo where
   getRange = mutualRange

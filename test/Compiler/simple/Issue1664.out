@@ -1,8 +1,8 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > infixr 5
-out > infixl -1729
-out > infix 4
+out > infixr 5.0
+out > infixl -1729.0
+out > infix 4.0
 out > (no fixity)
 out >

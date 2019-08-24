@@ -98,7 +98,13 @@ parseExprIn ii rng s = do
     updateMetaVarRange mId rng
     mi  <- getMetaInfo <$> lookupMeta mId
     e   <- parseExpr rng s
-    concreteToAbstract (clScope mi) e
+    -- Andreas, 2019-08-19, issue #4007
+    -- We need to be in the TCEnv of the meta variable
+    -- such that the scope checker can label the clause
+    -- of a parsed extended lambda as IsAbstract if the
+    -- interaction point was created in AbstractMode.
+    withMetaInfo mi $
+      concreteToAbstract (clScope mi) e
 
 giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM ()
 -- When translator from internal to abstract is given, this function might return
@@ -108,10 +114,9 @@ giveExpr force mii mi e = do
     -- In the context (incl. signature) of the meta variable,
     -- type check expression and assign meta
     withMetaInfo (getMetaInfo mv) $ do
-      metaTypeCheck mv (mvJudgement mv)
-  where
-    metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
-    metaTypeCheck mv (HasType _ t) = do
+      let t = case mvJudgement mv of
+                IsSort{}    -> __IMPOSSIBLE__
+                HasType _ t -> t
       reportSDoc "interaction.give" 20 $
         "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.
@@ -119,8 +124,12 @@ giveExpr force mii mi e = do
       ctx <- getContextArgs
       t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
       traceCall (CheckExprCall CmpLeq e t') $ do
-        reportSDoc "interaction.give" 20 $
-          "give: instantiated meta type =" TP.<+> prettyTCM t'
+        reportSDoc "interaction.give" 20 $ do
+          a <- asksTC envAbstractMode
+          TP.hsep
+            [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
+            , prettyTCM t'
+            ]
         v <- checkExpr e t'
         case mvInstantiation mv of
 
@@ -392,7 +401,8 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (Set.toList pids) <$> reify c)
+  reify (PConstr pids cl) = withClosure cl $ \ c ->
+    OutputForm (getRange c) (Set.toList pids) <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr e = case e of
@@ -433,7 +443,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           BlockedConst t -> do
             e  <- reify t
             return $ Assign m' e
-          PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
+          PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \case
             CheckExpr cmp e a -> do
                 a  <- reify a
                 return $ TypedAssign m' e a

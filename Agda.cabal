@@ -563,46 +563,38 @@ library
                -fspecialise-aggressively
                -- Initially, we disable all the warnings.
                -w
--- L-T Chen (2019-07-16): It looks like a GHC bug that
--- -Wwarn=<wflag> does not affect the GHC's behaviour at all but
--- I'd like to have unused binds as warning not errors. Hence,
---  1. warnings are made into errors by `-Werror=<wflag>` instead of
--- `-Werror` and
---  2. warnings are enabled by `-W<wflag>`.
-               -- -Werror
+               -Werror
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
-               -Wunused-imports
-               -Wunused-top-binds
-               -Werror=unrecognised-warning-flags
-               -Werror=deprecated-flags
-               -Werror=deriving-typeable
-               -Werror=dodgy-exports
-               -Werror=dodgy-foreign-imports
-               -Werror=dodgy-imports
-               -Werror=duplicate-exports
-               -Werror=empty-enumerations
-               -Werror=hi-shadowing
-               -Werror=identities
-               -Werror=incomplete-patterns
-               -Werror=inline-rule-shadowing
-               -Werror=missing-fields
-               -Werror=missing-methods
-               -Werror=missing-pattern-synonym-signatures
-               -Werror=missing-signatures
-               -Werror=noncanonical-monad-instances
-               -Werror=noncanonical-monoid-instances
-               -Werror=overflowed-literals
-               -Werror=overlapping-patterns
-               -Werror=semigroup
-               -Werror=tabs
-               -Werror=typed-holes
-               -Werror=unrecognised-pragmas
-               -Werror=unticked-promoted-constructors
-               -Werror=unused-do-bind
-               -Werror=unused-foralls
-               -Werror=warnings-deprecations
-               -Werror=wrong-do-bind
+               -Wunrecognised-warning-flags
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Whi-shadowing
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
 
   -- NOTE: If adding flags, also add to `.ghci820`
   if impl(ghc >= 8.2)
@@ -728,6 +720,7 @@ test-suite agda-tests
                     , Internal.TypeChecking.SizedTypes
                     , Internal.TypeChecking.SizedTypes.Syntax
                     , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.Utils.AssocList
                     , Internal.Utils.Bag
                     , Internal.Utils.BiMap
                     , Internal.Utils.Cluster

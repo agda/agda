@@ -67,6 +67,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -244,11 +245,10 @@ coverageCheck f t cs = do
       return False
 
   -- report a warning if there are uncovered cases,
-  -- generate a catch-all clause with a metavariable as its body to avoid
-  -- internal errors in the reduction machinery.
-  unless (null pss) $
-      setCurrentRange cs $
-        warning $ CoverageIssue f pss
+  unless (null pss) $ do
+    stLocalPartialDefs `modifyTCLens` Set.insert f
+    whenM ((YesCoverageCheck ==) <$> viewTC eCoverageCheck) $
+      setCurrentRange cs $ warning $ CoverageIssue f pss
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
