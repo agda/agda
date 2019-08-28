@@ -211,15 +211,20 @@ options =
   -- 'noInternalError'. Note that this function is not idempotent.
 
   fixOptions :: Options -> Options
-  fixOptions opt
-    | noInternalError opt = opt
-        { mustSucceed   = False
-        , mustNotOutput = internalErrorString : mustNotOutput opt
-        }
-    | defaultCabalOptions opt = opt
-        { cabalOptions = defaultCabalFlags ++ cabalOptions opt
-        }
-    | otherwise = opt
+  fixOptions = fix2 . fix1
+    where
+    fix1 opt
+      | noInternalError opt = opt
+          { mustSucceed   = False
+          , mustNotOutput = internalErrorString : mustNotOutput opt
+          }
+      | otherwise = opt
+
+    fix2 opt
+      | defaultCabalOptions opt = opt
+          { cabalOptions = defaultCabalFlags ++ cabalOptions opt
+          }
+      | otherwise = opt
 
   paragraph ss      = fillSep (map string $ words $ unlines ss)
   d1 `newline` d2   = d1 PP.<> hardline PP.<> d2
