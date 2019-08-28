@@ -24,7 +24,7 @@ import Data.Product.Function.Dependent.Propositional as Σ
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Data.Sum.Relation.Pointwise
 open import Data.Sum.Function.Propositional using (_⊎-cong_)
-open import Function
+open import Function hiding (_↔_; _⇔_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
 open import Function.Inverse as Inv using (_↔_; module Inverse)
