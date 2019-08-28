@@ -117,7 +117,8 @@ options =
              (long "timeout" <>
               metavar "N" <>
               help ("The command must finish in less than " ++
-                    "(approximately) N seconds")))
+                    "(approximately) N seconds; implies " ++
+                    "--no-default-cabal-options")))
     <*> (not <$>
          switch (long "no-extra-arguments" <>
                  help "Do not give any extra arguments to Agda"))
@@ -211,7 +212,7 @@ options =
   -- 'noInternalError'. Note that this function is not idempotent.
 
   fixOptions :: Options -> Options
-  fixOptions = fix2 . fix1
+  fixOptions = fix3 . fix2 . fix1
     where
     fix1 opt
       | noInternalError opt = opt
@@ -220,7 +221,11 @@ options =
           }
       | otherwise = opt
 
-    fix2 opt
+    fix2 opt = case mustFinishWithin opt of
+      Nothing -> opt
+      Just _  -> opt { defaultCabalOptions = False }
+
+    fix3 opt
       | defaultCabalOptions opt = opt
           { cabalOptions = defaultCabalFlags ++ cabalOptions opt
           }
