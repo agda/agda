@@ -300,12 +300,16 @@ instance Match Type NLPat Term where
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no ""
       PPi pa pb -> case v of
         Pi a b -> do
           match r gamma k () pa a
           let k' = ExtendTel a (Abs (absName b) k)
           match r gamma k' () (absBody pb) (absBody b)
+        _ -> no ""
+      PSort ps -> case v of
+        Sort s -> match r gamma k () ps s
         _ -> no ""
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do

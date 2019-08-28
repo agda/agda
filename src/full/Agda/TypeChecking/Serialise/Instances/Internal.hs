@@ -204,16 +204,18 @@ instance EmbPrj NLPat where
   icod_ (PDef a b)      = icodeN 1 PDef a b
   icod_ (PLam a b)      = icodeN 2 PLam a b
   icod_ (PPi a b)       = icodeN 3 PPi a b
-  icod_ (PBoundVar a b) = icodeN 4 PBoundVar a b
-  icod_ (PTerm a)       = icodeN 5 PTerm a
+  icod_ (PSort a)       = icodeN 4 PSort a
+  icod_ (PBoundVar a b) = icodeN 5 PBoundVar a b
+  icod_ (PTerm a)       = icodeN 6 PTerm a
 
   value = vcase valu where
     valu [0, a, b]    = valuN PVar a b
     valu [1, a, b]    = valuN PDef a b
     valu [2, a, b]    = valuN PLam a b
     valu [3, a, b]    = valuN PPi a b
-    valu [4, a, b]    = valuN PBoundVar a b
-    valu [5, a]       = valuN PTerm a
+    valu [4, a]       = valuN PSort a
+    valu [5, a, b]    = valuN PBoundVar a b
+    valu [6, a]       = valuN PTerm a
     valu _            = malformed
 
 instance EmbPrj NLPType where
