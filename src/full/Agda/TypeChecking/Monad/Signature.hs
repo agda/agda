@@ -689,7 +689,7 @@ instance HasConstInfo (TCMT IO) where
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
       Left (SigUnknown err) -> fail err
-      Left SigAbstract      -> notInScope $ qnameToConcrete q
+      Left SigAbstract      -> notInScopeError $ qnameToConcrete q
 
 defaultGetConstInfo
   :: (HasOptions m, MonadDebug m, MonadTCEnv m)

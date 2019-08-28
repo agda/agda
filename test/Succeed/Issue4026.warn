@@ -1,0 +1,15 @@
+Issue4026.agda:1,1-30
+Not in scope:
+  myNat
+  at Issue4026.agda:1,17-22
+when scope checking the declaration
+  {-# COMPILE GHC myNat = 0 #-}
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4026.agda:1,1-30
+Not in scope:
+  myNat
+  at Issue4026.agda:1,17-22
+when scope checking the declaration
+  {-# COMPILE GHC myNat = 0 #-}

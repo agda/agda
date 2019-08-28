@@ -497,9 +497,16 @@ data NewName a = NewName
   , newName     :: a
   } deriving (Functor)
 
-data OldQName     = OldQName C.QName (Maybe (Set A.Name))
-  -- ^ If a set is given, then the first name must correspond to one
-  -- of the names in the set.
+data OldQName = OldQName
+  C.QName              -- ^ Concrete name to be resolved
+  (Maybe (Set A.Name)) -- ^ If a set is given, then the first name must
+                       --   correspond to one of the names in the set.
+
+-- | We sometimes do not want to fail hard if the name is not actually
+--   in scope because we have a strategy to recover from this problem
+--   (e.g. drop the offending COMPILE pragma)
+data MaybeOldQName = MaybeOldQName OldQName
+
 newtype OldName a = OldName a
 
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
@@ -522,11 +529,15 @@ instance ToAbstract (NewName C.BoundName) A.BindName where
     return $ A.BindName y
 
 instance ToAbstract OldQName A.Expr where
-  toAbstract (OldQName x ns) = do
+  toAbstract q@(OldQName x _) =
+    fromMaybeM (notInScopeError x) $ toAbstract (MaybeOldQName q)
+
+instance ToAbstract MaybeOldQName (Maybe A.Expr) where
+  toAbstract (MaybeOldQName (OldQName x ns)) = do
     qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
-      VarName x' _         -> return $ A.Var x'
+      VarName x' _         -> return $ Just $ A.Var x'
       DefinedName _ d      -> do
         -- In case we find a defined name, we start by checking whether there's
         -- a warning attached to it
@@ -547,15 +558,15 @@ instance ToAbstract OldQName A.Expr where
               text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
           _ -> return ()
         -- and then we return the name
-        return $ nameToExpr d
-      FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
-      ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
-      UnknownName          -> notInScope x
-      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (fmap anameName ds)
+        return $ Just $ nameToExpr d
+      FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
+      ConstructorName ds   -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
+      UnknownName          -> pure Nothing
+      PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
-    UnknownName -> notInScope x
+    UnknownName -> notInScopeError x
     q -> return q
 
 data APatName = VarPatName A.Name
@@ -613,7 +624,7 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       FieldName ds         -> return $ anameName (headNe ds)
       PatternSynResName ds -> return $ anameName (headNe ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
-      UnknownName          -> notInScope (toQName x)
+      UnknownName          -> notInScopeError (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -2033,9 +2044,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
       _       -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
   toAbstract (C.CompilePragma _ b x s) = do
-    e <- toAbstract $ OldQName x Nothing
-    let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
-    y <- case e of
+    me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
+    case me of
+      Nothing -> [] <$ notInScopeWarning x
+      Just e  -> do
+        let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
+        y <- case e of
           A.Def x             -> return x
           A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x          -> err "ambiguous projection"
@@ -2044,7 +2058,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
           _                   -> __IMPOSSIBLE__
-    return [ A.CompilePragma b y s ]
+        return [ A.CompilePragma b y s ]
 
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2127,7 +2141,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         ConstructorName (d :! [])   -> return . (False,) $ anameName d
         ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        UnknownName                 -> notInScope top
+        UnknownName                 -> notInScopeError top
         PatternSynResName (d :! []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
@@ -2379,7 +2393,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds
-                UnknownName -> notInScope d
+                UnknownName -> notInScopeError d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ prettyShow d ++ " isn't one"
