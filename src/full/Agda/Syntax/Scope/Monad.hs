@@ -5,7 +5,8 @@
 
 module Agda.Syntax.Scope.Monad where
 
-import Prelude hiding (mapM, any, all)
+import Prelude hiding (mapM, any, all, null)
+
 import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
 import Control.Monad.Writer hiding (mapM, forM)
@@ -39,7 +40,6 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
-import Agda.Utils.Applicative ((?$>))
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Except
 import Agda.Utils.Functor
@@ -47,7 +47,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null (unlessNull)
+import Agda.Utils.Null
 import Agda.Utils.NonemptyList as NonemptyList
 import Agda.Utils.Pretty
 
@@ -174,15 +174,11 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
--- | Check that the newly added variable have unique names
+-- | Check that the newly added variable have unique names.
 
 withCheckNoShadowing :: ScopeM a -> ScopeM a
-withCheckNoShadowing m = do
-  lvars0 <- getLocalVars
-  v <- m
-  lvars1 <- getLocalVars
-  checkNoShadowing lvars0 lvars1
-  pure v
+withCheckNoShadowing = bracket_ getLocalVars $ \ lvarsOld ->
+  checkNoShadowing lvarsOld =<< getLocalVars
 
 checkNoShadowing :: LocalVars  -- ^ Old local scope
                  -> LocalVars  -- ^ New local scope
@@ -191,16 +187,16 @@ checkNoShadowing old new = do
   -- LocalVars is currnently an AssocList so the difference between
   -- two local scope is the left part of the new one.
   let diff = dropEnd (length old) new
-  let nameParts = mapMaybe extractName $ AssocList.keys diff
-  let conflicts = Map.filter atLeastTwo $ Map.fromListWith (++) nameParts
-  unless (Map.null conflicts) $ do
-    warning $ NicifierIssue $ ShadowingInTelescope
-            $ Map.toList conflicts
-
+  -- Filter out the underscores.
+  let newNames = filter (not . isNoName) $ AssocList.keys diff
+  -- Associate each name to its occurrences.
+  let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+  -- Warn if we have two or more occurrences of the same name.
+  unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
+    warning $ NicifierIssue $ ShadowingInTelescope conflicts
   where
-
-    extractName :: C.Name -> Maybe (C.Name, [Range])
-    extractName n = not (isNoName n) ?$> (n, [getRange n])
+    pairWithRange :: C.Name -> (C.Name, [Range])
+    pairWithRange n = (n, [getRange n])
 
     atLeastTwo :: [a] -> Bool
     atLeastTwo (_ : _ : _) = True
@@ -288,32 +284,27 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
 
 tryResolveName
   :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
-  => KindsOfNames -> Maybe (Set A.Name) -> C.QName
-  -> m ResolvedName
+  => KindsOfNames       -- ^ Restrict search to these kinds of names.
+  -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
+  -> C.QName            -- ^ Name to be resolved
+  -> m ResolvedName     -- ^ If illegally ambiguous, throw error with the ambiguous name.
 tryResolveName kinds names x = do
   scope <- getScope
   let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
-      retVar y = return . VarName y{ nameConcrete = unqualify x }
-      aName    = A.qnameName . anameName
   case lookup x vars of
-    -- Case: we have a local variable x.
-    Just (LocalVar y b []) -> retVar y b
-    -- Case: ... but is (perhaps) shadowed by some imports.
-    Just (LocalVar y b ys) -> case names of
-      Nothing -> shadowed ys
-      Just ns -> case filter (\ y -> aName y `Set.member` ns) ys of
-        [] -> retVar y b
-        ys -> shadowed ys
-      where
-      shadowed ys =
-        throwError $ A.qualify_ y :! map anameName ys
+    -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
+    Just (LocalVar y b ys) ->
+      -- We may ignore the imports filtered out by the @names@ filter.
+      ifNull (filterNames id ys)
+        {-then-} (return $ VarName y{ nameConcrete = unqualify x } b)
+        {-else-} $ \ ys' ->
+          throwError $ A.qualify_ y :! map anameName ys'
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
-      let filtKind = filter $ \ y -> anameKind (fst y) `elemKindsOfNames` kinds
+      let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
       -- Consider only names in the given set of names
-          filtName = filter $ \ y -> maybe True (Set.member (aName (fst y))) names
-      caseListNe (filtKind $ filtName $ scopeLookup' x scope) (return UnknownName) $ \ case
+      caseListNe (filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
         ds       | all ((ConName ==) . anameKind . fst) ds ->
           return $ ConstructorName $ fmap (upd . fst) ds
 
@@ -328,6 +319,14 @@ tryResolveName kinds names x = do
 
         ds -> throwError $ fmap (anameName . fst) ds
   where
+  -- @names@ intended semantics: a filter on names.
+  -- @Nothing@: don't filter out anything.
+  -- @Just ns@: filter by membership in @ns@.
+  filterNames :: forall a. (a -> AbstractName) -> [a] -> [a]
+  filterNames = case names of
+    Nothing -> \ f -> id
+    Just ns -> \ f -> filter $ (`Set.member` ns) . A.qnameName . anameName . f
+    -- lambda-dropped style by intention
   upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
@@ -419,7 +418,7 @@ bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM
 bindName' acc kind meta x y = do
   when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
-  ys <- case r of
+  y' <- case r of
     -- Binding an anonymous declaration always succeeds.
     -- In case it's not the first one, we simply remove the one that came before
     _ | isNoName x      -> success
@@ -430,9 +429,9 @@ bindName' acc kind meta x y = do
     PatternSynResName n -> ambiguous PatternSynName n
     UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  modifyCurrentScope $ addNamesToScope ns x ys
+  modifyCurrentScope $ addNameToScope ns x y'
   where
-    success = return [ AbsName y kind Defined meta ]
+    success = return $ AbsName y kind Defined meta
     clash   = typeError . ClashingDefinition (C.QName x)
 
     ambiguous k ds =
@@ -584,8 +583,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             -- Ulf (issue 1985): If copying a reexported module we put it at the
             -- top-level, to make sure we don't mess up the invariant that all
             -- (abstract) names M.f share the argument telescope of M.
-            let newM | x `isSubModuleOf` old = newL
-                     | otherwise             = mnameToList new0
+            let newM = if x `isLtChildModuleOf` old then newL else mnameToList new0
 
             y <- do
                -- Andreas, Jesper, 2015-07-02: Issue 1597
@@ -828,9 +826,9 @@ openModule :: OpenKind -> Maybe A.ModuleName  -> C.QName -> C.ImportDirective ->
 openModule kind mam cm dir = do
   current <- getCurrentModule
   m <- caseMaybe mam (amodName <$> resolveModule cm) return
-  let acc | not (publicOpen dir)      = PrivateNS
-          | m `isSubModuleOf` current = PublicNS
-          | otherwise                 = ImportedNS
+  let acc | not (publicOpen dir)          = PrivateNS
+          | m `isLtChildModuleOf` current = PublicNS
+          | otherwise                     = ImportedNS
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .

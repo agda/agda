@@ -1077,7 +1077,7 @@ treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env = case envAbstractMode env of
   ConcreteMode       -> True
   IgnoreAbstractMode -> False
-  AbstractMode       -> not $ current == m || current `isSubModuleOf` m
+  AbstractMode       -> not $ current `isLeChildModuleOf` m
   where
     current = dropAnon $ envCurrentModule env
     m       = dropAnon $ qnameModule q
