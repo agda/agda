@@ -59,7 +59,7 @@ QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 QUICK_STACK_BUILD_WORK_DIR = .stack-work-quick
 QUICK_STACK_BUILD = $(STACK_BUILD) \
 										--ghc-options=-O0 \
-										--work-dir=$(QUICK_STACK_BUILD_WORK_DIR) 
+										--work-dir=$(QUICK_STACK_BUILD_WORK_DIR)
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
@@ -219,7 +219,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail bugs interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
+test : check-whitespace succeed fail bugs interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test stdlib-compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -351,7 +351,14 @@ compiler-test :
 	@echo "======================================================================"
 	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib
+
+.PHONY : stdlib-compiler-test
+stdlib-compiler-test :
+	@echo "======================================================================"
+	@echo "================== Standard Library Compiler tests ==================="
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib
 
 .PHONY : api-test
 api-test :
