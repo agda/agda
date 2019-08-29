@@ -71,6 +71,7 @@ instance EmbPrj Warning where
   icod_ (RewriteMaybeNonConfluent a b c) = icodeN 24 RewriteMaybeNonConfluent a b c
   icod_ (PragmaCompileErased a b)        = icodeN 25 PragmaCompileErased a b
   icod_ (FixityInRenamingModule a)       = icodeN 26 FixityInRenamingModule a
+  icod_ (NotInScopeW ns)                 = icodeN 27 NotInScopeW ns
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -100,6 +101,7 @@ instance EmbPrj Warning where
       valu [24, a, b, c]    = valuN RewriteMaybeNonConfluent a b c
       valu [25, a, b]   = valuN PragmaCompileErased a b
       valu [26, a]      = valuN FixityInRenamingModule a
+      valu [27, ns]     = valuN NotInScopeW ns
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where

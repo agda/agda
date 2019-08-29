@@ -127,7 +127,7 @@ stdlibTests comp = do
 
   let rtsOptions :: [String]
 -- See Issue #3792.
-      rtsOptions = [ "+RTS", "-H2G", "-M3G", "-RTS" ]
+      rtsOptions = [ "+RTS", "-H2G", "-M4G", "-RTS" ]
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
