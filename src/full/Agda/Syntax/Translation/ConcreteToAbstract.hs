@@ -197,9 +197,9 @@ recordConstructorType decls =
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
         C.NiceOpen r m dir -> do
-          mkLet $ C.NiceOpen r m dir{ publicOpen = False }
+          mkLet $ C.NiceOpen r m dir{ publicOpen = Nothing }
         C.NiceModuleMacro r p x modapp open dir -> do
-          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = False }
+          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = Nothing }
 
         -- Do some rudimentary matching here to get NotValidBeforeField instead
         -- of NotAValidLetDecl.
@@ -305,7 +305,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
       ]
-    notPublicWithoutOpen open dir
+    dir <- notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
     reportSDoc "scope.decl" 90 $ "NewModuleName: m0 =" <+> prettyA m0
@@ -317,7 +317,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     -- "public" is always applied to the "open".
     let (moduleDir, openDir) = case (open, isNoName x) of
           (DoOpen,   False) -> (defaultImportDir, dir)
-          (DoOpen,   True)  -> ( dir { publicOpen = False }
+          (DoOpen,   True)  -> ( dir { publicOpen = Nothing }
                                , defaultImportDir { publicOpen = publicOpen dir }
                                )
           (DontOpen, _)     -> (dir, defaultImportDir)
@@ -370,10 +370,12 @@ checkModuleMacro apply kind r p x modapp open dir = do
 
 -- | The @public@ keyword must only be used together with @open@.
 
-notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM ()
-notPublicWithoutOpen DoOpen   dir = return ()
-notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ genericError
-    "The public keyword must only be used together with the open keyword"
+notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
+notPublicWithoutOpen DoOpen   dir = return dir
+notPublicWithoutOpen DontOpen dir = do
+  whenJust (publicOpen dir) $ \ r ->
+    setCurrentRange r $ warning UselessPublic
+  return $ dir { publicOpen = Nothing }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
@@ -398,9 +400,9 @@ checkOpen r mam x dir = do
       , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
-  when (publicOpen dir) $ do
+  whenJust (publicOpen dir) $ \ r -> do
     whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
-      warning $ UselessPublic
+      setCurrentRange r $ warning UselessPublic
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 20 $ "opening " ++ prettyShow x
@@ -1075,7 +1077,7 @@ scopeCheckNiceModule r p name tel checkDs
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
         openModule TopOpenModule (Just aname) (C.QName name) $
-          defaultImportDir { publicOpen = p == PublicAccess }
+          defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) noRange }
       return ds
 
 -- | Check whether a telescope has open declarations or module macros.
@@ -1439,7 +1441,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
-        when (publicOpen dirs) $ warning UselessPublic
+        whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
         m    <- toAbstract (OldModuleName x)
         adir <- openModule_ LetOpenModule x dirs
         let minfo = ModuleInfo
@@ -1452,7 +1454,7 @@ instance ToAbstract LetDef [A.LetBinding] where
         return [A.LetOpen minfo m adir]
 
       NiceModuleMacro r p x modapp open dir -> do
-        when (publicOpen dir) $ warning UselessPublic
+        whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
@@ -1743,7 +1745,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return $ map (A.Pragma r) ps
 
     NiceImport r x as open dir -> setCurrentRange r $ do
-      notPublicWithoutOpen open dir
+      dir <- notPublicWithoutOpen open dir
 
       -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
       let illformedAs s = traceCall (SetRange $ getRange as) $ do
@@ -2258,7 +2260,7 @@ whereToAbstract r whname whds inner = do
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule TopOpenModule (Just am) (C.QName m) $
-      defaultImportDir { publicOpen = True }
+      defaultImportDir { publicOpen = Just noRange }
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide

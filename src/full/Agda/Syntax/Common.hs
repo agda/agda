@@ -2109,7 +2109,7 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: [ImportedName' n m]
   , impRenaming    :: [Renaming' n m]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
 
@@ -2123,14 +2123,13 @@ instance Null (ImportDirective' n m) where
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
+defaultImportDir = ImportDirective noRange UseEverything [] [] Nothing
 
 -- | @isDefaultImportDir@ implies @null@, but not the other way round.
 isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir dir = null dir && not (publicOpen dir)
+isDefaultImportDir dir = null dir && null (publicOpen dir)
 
 -- | The @using@ clause of import directive.
-
 data Using' n m
   = UseEverything              -- ^ No @using@ clause given.
   | Using [ImportedName' n m]  -- ^ @using@ the specified names.

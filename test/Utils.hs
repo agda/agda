@@ -240,6 +240,7 @@ cleanOutput inp = do
           , (T.pack pwd `T.append` ".test", "..")
           , ("\\\\", "/")
           , (":[[:digit:]]+:$", "")
+          , ("\\.hs:[[:digit:]]+", ".hs")
           , ("[^ (]*lib.prim", "agda-default-include-path")
           , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
           ]

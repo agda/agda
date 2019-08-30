@@ -634,7 +634,7 @@ warningHighlighting w = case tcWarning w of
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
-  UselessPublic{}            -> mempty
+  UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty
   WrongInstanceDeclaration{} -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
@@ -685,6 +685,8 @@ warningHighlighting w = case tcWarning w of
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
+    OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
+    OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
     ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty

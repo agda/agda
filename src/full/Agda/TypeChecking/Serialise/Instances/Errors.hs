@@ -132,6 +132,8 @@ instance EmbPrj DeclarationWarning where
     EmptyField r                      -> icodeN 23 EmptyField r
     ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
     InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
+    OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
+    OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -160,6 +162,8 @@ instance EmbPrj DeclarationWarning where
     [23,r]   -> valuN EmptyField r
     [24,nrs] -> valuN ShadowingInTelescope nrs
     [25,r]   -> valuN InvalidCoverageCheckPragma r
+    [26,r]   -> valuN OpenPublicAbstract r
+    [27,r]   -> valuN OpenPublicPrivate r
     _ -> malformed
 
 instance EmbPrj LibWarning where
