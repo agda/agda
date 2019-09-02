@@ -257,7 +257,7 @@ instance Match Type NLPat Term where
         case ok of
           Left b         -> block b
           Right Nothing  -> no ""
-          Right (Just v) -> tellSub r (i-n) t $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
+          Right (Just v) -> tellSub r (i-n) (telePi tel t) $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
