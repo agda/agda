@@ -298,6 +298,13 @@ options =
         ]
 
     , paragraph
+        [ "By default Agda is compiled without optimisation (to reduce"
+        , "compilation times). For this reason a separate cache is used"
+        , "when --timeout is active. When --timeout is not active"
+        , "programs from either cache can be used."
+        ]
+
+    , paragraph
         [ "You should install suitable versions of the following"
         , "commands before running the script (in addition to any"
         , "programs invoked by cabal install):"
@@ -577,11 +584,16 @@ installAgda :: Options -> IO (Maybe FilePath)
 installAgda opts
   | cacheBuilds opts = do
       commit <- currentCommit
-      agda   <- cachedAgda commit
-      exists <- doesFileExist agda
-      if not exists then install else do
-        copyDataFiles opts
-        return (Just agda)
+      agdas  <- forM (True : if timeout opts then [] else [False])
+                     (\timeout -> do
+                       agda <- cachedAgda commit timeout
+                       b    <- doesFileExist agda
+                       return $ if b then Just agda else Nothing)
+      case catMaybes agdas of
+        []       -> install
+        agda : _ -> do
+          copyDataFiles opts
+          return (Just agda)
   | otherwise = install
   where
   install =
@@ -611,7 +623,8 @@ cabalInstall opts file = do
     , "--force-reinstalls"
     , "--disable-library-profiling"
     , "--disable-documentation"
-    ] ++ (if cacheBuilds opts then ["--program-suffix=-" ++ commit]
+    ] ++ (if cacheBuilds opts then ["--program-suffix=" ++
+                                    programSuffix commit (timeout opts)]
                               else [])
       ++ compilerFlag opts
       ++ cabalOptions opts ++
@@ -619,7 +632,7 @@ cabalInstall opts file = do
     ]
   case (ok, cacheBuilds opts) of
     (True, False) -> Just <$> compiledAgda
-    (True, True)  -> Just <$> cachedAgda commit
+    (True, True)  -> Just <$> cachedAgda commit (timeout opts)
     (False, _)    -> return Nothing
 
 -- | Tries to copy data files to the correct location.
@@ -634,12 +647,29 @@ copyDataFiles opts = do
   callProcessWithResult "cabal" ["copy", "-v"]
   return ()
 
--- | An absolute path to the cached Agda binary (if any) for a certain
--- commit.
+-- | The suffix of the Agda binary.
 
-cachedAgda :: String -> IO FilePath
-cachedAgda commit =
-   (\agda -> agda ++ "-" ++ commit) <$> compiledAgda
+programSuffix
+  :: String  -- ^ The commit hash.
+  -> Bool    -- ^ Is the @--timeout@ option active?
+  -> String
+programSuffix commit timeout =
+  (if timeout then "-timeout" else "") ++
+  "-" ++ commit
+
+-- | Is the @--timeout@ option active?
+
+timeout :: Options -> Bool
+timeout opts = isJust (mustFinishWithin opts)
+
+-- | An absolute path to the cached Agda binary (if any).
+
+cachedAgda
+  :: String
+  -> Bool
+  -> IO FilePath
+cachedAgda commit timeout =
+   (\agda -> agda ++ programSuffix commit timeout) <$> compiledAgda
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.
