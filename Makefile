@@ -46,7 +46,7 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
+CABAL_INSTALL_HELPER = $(CABAL_CMD) v1-install --disable-documentation
 STACK_BUILD = $(STACK_CMD) build Agda --no-haddock
 
 # 2016-07-15. We use a different build directory in the quick
@@ -430,7 +430,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
 else
-	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
+	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) v1-build
 endif
 
 ## size-solver standalone program #########################################
