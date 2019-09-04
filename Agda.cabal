@@ -531,7 +531,6 @@ library
                     Agda.Utils.NonemptyList
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
-                    Agda.Utils.Parser.ReadP
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
                     Agda.Utils.Pointer
