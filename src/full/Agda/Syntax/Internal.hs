@@ -1057,9 +1057,6 @@ suggests :: [Suggestion] -> String
 suggests []     = "x"
 suggests (Suggestion x : xs) = fromMaybe (suggests xs) $ suggestName x
 
-suggest :: (Suggest a) => a -> String
-suggest = suggests . singleton . Suggestion
-
 ---------------------------------------------------------------------------
 -- * Eliminations.
 ---------------------------------------------------------------------------
