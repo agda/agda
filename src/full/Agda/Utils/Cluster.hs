@@ -11,7 +11,7 @@ module Agda.Utils.Cluster
 import Control.Monad
 
 -- An imperative union-find library:
-import Data.Equivalence.Monad (runEquivM, equateAll, classDesc)
+import Data.Equivalence.Monad (runEquivT, equateAll, classDesc)
 
 import qualified Data.IntMap as IntMap
 #if __GLASGOW_HASKELL__ < 804
@@ -21,6 +21,7 @@ import Data.Semigroup
 import Agda.Utils.Functor
 import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
+import Agda.Utils.Fail
 
 -- | Characteristic identifiers.
 type C = Int
@@ -37,7 +38,7 @@ cluster f as = cluster' $ map (\ a -> (a, f a)) as
 --   such that each element in a group shares at least one characteristic
 --   with at least one other element of the group.
 cluster' :: [(a, NonemptyList C)] -> [NonemptyList a]
-cluster' acs = runEquivM id const $ do
+cluster' acs = runFail_ $ runEquivT id const $ do
   -- Construct the equivalence classes of characteristics.
   forM_ acs $ \ (_, c :! cs) -> equateAll $ c:cs
   -- Pair each element with its class.

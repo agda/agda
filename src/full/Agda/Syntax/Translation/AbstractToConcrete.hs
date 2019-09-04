@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
@@ -205,7 +206,9 @@ instance Applicative AbsToCon where
 
 instance Monad AbsToCon where
   m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+#if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
+#endif
 
 instance Fail.MonadFail AbsToCon where
   fail = error

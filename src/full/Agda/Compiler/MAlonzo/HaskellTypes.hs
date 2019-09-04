@@ -9,6 +9,7 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   ) where
 
 import Control.Monad (zipWithM)
+import Control.Monad.Fail (MonadFail)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
 
@@ -129,7 +130,7 @@ getHsType x = do
     Just HsData{}      -> namedType
     _                  -> throwError $ NoPragmaFor x
 
-getHsVar :: MonadTCM tcm => Nat -> tcm HS.Name
+getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i = HS.Ident . encodeName <$> nameOfBV i
   where
     encodeName x = "x" ++ concatMap encode (prettyShow x)

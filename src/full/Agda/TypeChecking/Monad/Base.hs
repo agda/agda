@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -3531,7 +3532,9 @@ instance Monad ReduceM where
   return = pure
   (>>=) = bindReduce
   (>>) = (*>)
+#if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
+#endif
 
 instance Fail.MonadFail ReduceM where
   fail = error
@@ -3812,7 +3815,9 @@ instance MonadIO m => Monad (TCMT m) where
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
+#if __GLASGOW_HASKELL__ < 808
     fail   = Fail.fail
+#endif
 
 instance MonadIO m => Fail.MonadFail (TCMT m) where
   fail = internalError
