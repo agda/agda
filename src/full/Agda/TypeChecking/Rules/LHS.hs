@@ -1720,7 +1720,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
       Right def -> do
-        let con = conSrcCon $ theDef def
+        let con = conSrcCon (theDef def) `withRangeOf` c
         unless (conName con `elem` cons) $ wrongDatatype c d
 
         -- Andreas, 2013-03-22 fixing issue 279
