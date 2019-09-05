@@ -89,7 +89,7 @@ mkSucceedTest extraOpts dir inp =
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
-  if t1 == t2
+  if T.words t1 == T.words t2
     then
       return Equal
     else

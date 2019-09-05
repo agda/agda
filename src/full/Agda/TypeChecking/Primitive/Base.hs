@@ -1,5 +1,6 @@
 module Agda.TypeChecking.Primitive.Base where
 
+import Control.Monad.Fail (MonadFail)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -54,7 +55,7 @@ hPi, nPi :: (MonadAddContext m, MonadDebug m)
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadAddContext m, MonadDebug m)
+hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
            => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)

@@ -1,9 +1,9 @@
 SHELL=bash
 
-# TOP=../../
+TOP=../../
 # include $(TOP)/mk/versions.mk
 
-CABAL_CMD=cabal
+include $(TOP)/mk/cabal.mk
 
 .PHONY : install-bin
 install-bin :
@@ -12,7 +12,7 @@ ifneq ("$(wildcard ../../stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p dist/build/size-solver
 	cp $(shell stack path --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
 else
-	$(CABAL_CMD) install
+	$(CABAL_CMD) $(CABAL_INSTALL_CMD)
 endif
 
 # Tested with shelltestrunner 1.9.

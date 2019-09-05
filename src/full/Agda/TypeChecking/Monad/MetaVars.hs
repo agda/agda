@@ -7,6 +7,7 @@ import Prelude hiding (null)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.Fail (MonadFail)
 
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -133,12 +134,12 @@ metasCreatedBy m = do
 lookupMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupMeta' m = IntMap.lookup (metaId m) <$> getMetaStore
 
-lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
+lookupMeta :: (MonadFail m, ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
 
 -- | Type of a term or sort meta.
-metaType :: (ReadTCState m) => MetaId -> m Type
+metaType :: (MonadFail m, ReadTCState m) => MetaId -> m Type
 metaType x = jMetaType . mvJudgement <$> lookupMeta x
 
 -- | Update the information associated with a meta variable.
@@ -149,10 +150,10 @@ updateMetaVarTCM m f = modifyMetaStore $ IntMap.adjust f $ metaId m
 insertMetaVar :: MetaId -> MetaVariable -> TCM ()
 insertMetaVar m mv = modifyMetaStore $ IntMap.insert (metaId m) mv
 
-getMetaPriority :: ReadTCState m => MetaId -> m MetaPriority
+getMetaPriority :: (MonadFail m, ReadTCState m) => MetaId -> m MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
 
-isSortMeta :: ReadTCState m => MetaId -> m Bool
+isSortMeta :: (MonadFail m, ReadTCState m) => MetaId -> m Bool
 isSortMeta m = isSortMeta_ <$> lookupMeta m
 
 isSortMeta_ :: MetaVariable -> Bool
@@ -160,7 +161,7 @@ isSortMeta_ mv = case mvJudgement mv of
     HasType{} -> False
     IsSort{}  -> True
 
-getMetaType :: ReadTCState m => MetaId -> m Type
+getMetaType :: (MonadFail m, ReadTCState m) => MetaId -> m Type
 getMetaType m = do
   mv <- lookupMeta m
   return $ case mvJudgement mv of
@@ -175,7 +176,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
   return $ permute (takeP (length args) p) args
 
 -- | Given a meta, return the type applied to the current context.
-getMetaTypeInContext :: (MonadTCEnv m, ReadTCState m, MonadReduce m)
+getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m)
                      => MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupMeta m
@@ -186,7 +187,7 @@ getMetaTypeInContext m = do
 -- | Check whether all metas are instantiated.
 --   Precondition: argument is a meta (in some form) or a list of metas.
 class IsInstantiatedMeta a where
-  isInstantiatedMeta :: (ReadTCState m) => a -> m Bool
+  isInstantiatedMeta :: (MonadFail m, ReadTCState m) => a -> m Bool
 
 instance IsInstantiatedMeta MetaId where
   isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
@@ -226,7 +227,7 @@ instance IsInstantiatedMeta a => IsInstantiatedMeta (Arg a) where
 instance IsInstantiatedMeta a => IsInstantiatedMeta (Abs a) where
   isInstantiatedMeta = isInstantiatedMeta . unAbs
 
-isInstantiatedMeta' :: (ReadTCState m) => MetaId -> m (Maybe Term)
+isInstantiatedMeta' :: (MonadFail m, ReadTCState m) => MetaId -> m (Maybe Term)
 isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
@@ -294,7 +295,7 @@ setValueMetaName v s = do
         "cannot set meta name; newMeta returns " ++ show u
       return ()
 
-getMetaNameSuggestion :: ReadTCState m => MetaId -> m MetaNameSuggestion
+getMetaNameSuggestion :: (MonadFail m, ReadTCState m) => MetaId -> m MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
 setMetaNameSuggestion :: MonadMetaSolver m => MetaId -> MetaNameSuggestion -> m ()
@@ -424,7 +425,7 @@ isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 -- | Get the information associated to an interaction point.
 {-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
 lookupInteractionPoint
-  :: (ReadTCState m, MonadError TCErr m)
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m)
   => InteractionId -> m InteractionPoint
 lookupInteractionPoint ii =
   fromMaybeM err $ Map.lookup ii <$> useR stInteractionPoints
@@ -434,7 +435,7 @@ lookupInteractionPoint ii =
 -- | Get 'MetaId' for an interaction point.
 --   Precondition: interaction point is connected.
 lookupInteractionId
-  :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m)
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m)
   => InteractionId -> m MetaId
 lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
@@ -475,12 +476,12 @@ newMetaTCM' inst frozen mi p perm j = do
 -- | Get the 'Range' for an interaction point.
 {-# SPECIALIZE getInteractionRange :: InteractionId -> TCM Range #-}
 getInteractionRange
-  :: (MonadInteractionPoints m, MonadError TCErr m)
+  :: (MonadInteractionPoints m, MonadFail m, MonadError TCErr m)
   => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
-getMetaRange :: ReadTCState m => MetaId -> m Range
+getMetaRange :: (MonadFail m, ReadTCState m) => MetaId -> m Range
 getMetaRange = getRange <.> lookupMeta
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
@@ -532,7 +533,7 @@ unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
 -- | Get the listeners to a meta.
-getMetaListeners :: ReadTCState m => MetaId -> m [Listener]
+getMetaListeners :: (MonadFail m, ReadTCState m) => MetaId -> m [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
 clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
@@ -579,7 +580,7 @@ unfreezeMetas' cond = modifyMetaStore $ IntMap.mapWithKey $ unfreeze . MetaId
     | cond m    = mvar { mvFrozen = Instantiable }
     | otherwise = mvar
 
-isFrozen :: ReadTCState m => MetaId -> m Bool
+isFrozen :: (MonadFail m, ReadTCState m) => MetaId -> m Bool
 isFrozen x = do
   mvar <- lookupMeta x
   return $ mvFrozen mvar == Frozen
