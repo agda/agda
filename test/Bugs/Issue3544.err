@@ -1,7 +1,7 @@
 AGDA_FAILURE
 
 ret > ExitFailure 1
-out > Issue3544.agda:25,1-56
+out > Issue3544.agda:25,23-27
 out > Uh oh. I can't figure out where to move the forced pattern
 out > (zero @0).
 out > See [Issue 3903](https://github.com/agda/agda/issues/3903).

@@ -70,6 +70,7 @@ import Data.Monoid
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -241,12 +242,22 @@ rebindForcedPattern ps toRebind = do
     1 -> do
       reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
       return ps'
-    _ ->
+    _ -> setCurrentRange patRange $
       genericDocError =<< sep [ fwords "Uh oh. I can't figure out where to move the forced pattern"
                               , prettyTCM toRebind <> "."
                               , fwords "See [Issue 3903](https://github.com/agda/agda/issues/3903)." ]
   where
     targetDotP = patternToTerm toRebind
+
+    patRange =
+      case toRebind of
+        VarP{}     -> noRange
+        DotP{}     -> noRange
+        ConP c _ _ -> getRange c
+        LitP l     -> getRange l
+        ProjP _ f  -> getRange f
+        IApplyP{}  -> noRange
+        DefP{}     -> noRange
 
     rebindingVar = case toRebind of
                      VarP{} -> True
