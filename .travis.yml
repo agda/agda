@@ -430,4 +430,5 @@ branches:
     - future
     - maint-2.4
     - stable-2.5
-    - release-2.5.1
+    - release-2.5.4.2
+    - release-2.6.0.1
