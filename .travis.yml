@@ -1,4 +1,5 @@
-# Adapted from https://github.com/haskell-CI/haskell-ci
+# Liang-Ting Chen 2019-09-07: 
+# Switched to Build Stages
 
 # NB: don't set `language: haskell` here.
 language: c
@@ -25,7 +26,7 @@ branches:
     - maint-2.4
     - stable-2.5
     - release-2.5.4.2
-    - release-2.6.0.1
+    - release-2.6.0.1 
     - revised-travis  # TODO: remove this line 
 
 ##############################################################################
@@ -35,15 +36,32 @@ branches:
 # * `kpsewhich` (included in texlive-binaries)
 
 ##############################################################################
-# Tests
-
-# We use the word 'test' in a broad sense (e.g. it includes the Agda
-# test suite, the benchmark suite, the compilation with a specific set
-# of dependencies, the testing of other programs like `hTags`, etc.)
+# Stages (Liang-Ting Chen, 2019-07-09, suggested by Andreas)
+# 
+# - Compilation only: Agda, user manual, and haddock are compiled (via Stack,
+#   python, cabal, respectively) against all supported. 
+#
+#   The rationale is based on the comment:
+#     Andreas, 2019-08-20, run faster test first.
+#     The just-compilation tests using stackage fast (< 10 min).
+#     This allows for quick feedback should compilation break on one of the ghc versions.
+#
+#
+# - Full tests: Agda is compiled via Cabal and tested, including the test
+#   suite, the benchmark suite, and the compilation with a specific set of
+#   dependencies, the testing of other programs like `hTags`, etc.)
+#
 
 # Travis runs the builds on this order.
 
-matrix:
+stages:
+  - name: stackage
+  - name: main
+    if: branch != master OR commit_message =~ main_tests|full_tests
+  - name: documentation
+    if: commit_message =~ doc_tests|full_tests
+
+jobs:
   allow_failures:
     # - env: TEST=USER_MANUAL BUILD=NOTHING
     #   language: python
@@ -52,19 +70,29 @@ matrix:
   fast_finish: true
 
   include:
-    # Andreas, 2019-08-20, run faster test first.
-    # The just-compilation tests using stackage fast (< 10 min).
-    # This allows for quick feedback should compilation break on one of the ghc versions.
-
-    - env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
+    - &no-test-job
+      stage: stackage
+      env: GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
       addons:
         apt:
           packages:
             - ghc-8.6.5
           sources:
             - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
+        - mkdir -p ~/.local/bin
+        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        - export PATH=$HOME/.local/bin:$PATH
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+        - .travis/stack_install
+      script:
+        skip
 
-    - env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
+    - <<: *no-test-job
+      env: GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -72,7 +100,8 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+    - <<: *no-test-job
+      env: GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -80,23 +109,18 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+    - <<: *no-test-job
+      env: GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
         apt:
           packages:
             - ghc-8.0.2
           sources:
             - hvr-ghc
-
-    # Converting the user manual to html and pdf is fast (< 2min).
-
-    - env: TEST=USER_MANUAL BUILD=NOTHING
-      language: python
-      python: "3.4"
-
     # The builds involving the testsuite (60-80min) are run then.
-
-    - env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+    - &complete-job
+      stage: main
+      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
@@ -105,8 +129,25 @@ matrix:
             - texlive-binaries
           sources:
             - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+      install:
+        - export BUILD_DIR=$HOME/dist
 
-    - env: TEST=MAIN GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
+        - export PARALLEL_TESTS=2
+        - export PATH=$HOME/.cabal/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - export AGDA_HOME=`pwd`
+        - export NODE_VERSION=v0.12.16
+        - export NODE_DIR=node-${NODE_VERSION}-linux-x64
+        - export NODE_TARBALL=${NODE_DIR}.tar.xz
+        - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
+        - .travis/cabal_install
+      ##############################################################################
+      script: .travis/cabal_script
+
+    - <<: *complete-job
+      env: GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
       addons:
         apt:
           packages:
@@ -116,7 +157,8 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
+    - <<: *complete-job
+      env: GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
       addons:
         apt:
           packages:
@@ -126,7 +168,8 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+    - <<: *complete-job
+      env: GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
           packages:
@@ -136,11 +179,31 @@ matrix:
           sources:
             - hvr-ghc
 
-    # Finally, test documentation: haddock, user-manual.
+    # Converting the user manual to html and pdf is fast (< 2min).
+    - stage: documentation
+      name: User Manual
+      env: BUILD=NOTHING
+      language: python
+      python: "3.4"
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - export PATH=$HOME/.local/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - .travis/manual_install
+      ##############################################################################
+      # Making the user manual
 
+      # Not running `make user-manual-linkcheck`.
+      script:
+        - make user-manual-html
+        - make user-manual-pdf
+
+    # Test documentation: haddock, user-manual.
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - env: TEST=HADDOCK GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+    - stage: documentation
+      name: Haddock 
+      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
@@ -148,68 +211,13 @@ matrix:
             - ghc-8.6.5
           sources:
             - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - .travis/haddock_install
 
-##############################################################################
-before_install:
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
-    elif [[ $TEST = "STACKAGE" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
-    fi
-
-  - if [[ $BUILD = "STACK" ]]; then
-       mkdir -p ~/.local/bin &&
-       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack' &&
-       export PATH=$HOME/.local/bin:$PATH;
-    fi
-
-##############################################################################
-install:
-  - export BUILD_DIR=$HOME/dist
-
-  - if [[ $BUILD = "CABAL" ]]; then
-      export PARALLEL_TESTS=2 &&
-      export PATH=$HOME/.cabal/bin:$PATH &&
-      export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
-      export AGDA_HOME=`pwd` &&
-      export NODE_VERSION=v0.12.16 &&
-      export NODE_DIR=node-${NODE_VERSION}-linux-x64 &&
-      export NODE_TARBALL=${NODE_DIR}.tar.xz &&
-      export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
-      .travis/cabal_install;
-    elif [[ $BUILD = "STACK" ]]; then
-      export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting" &&
-      .travis/stack_install;
-    elif [[ $TEST = "USER_MANUAL" ]]; then
-      export PATH=$HOME/.local/bin:$PATH &&
-      export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
-      .travis/manual_install;
-    elif [[ $TEST = "HADDOCK" ]]; then 
-      .travis/haddock_install;
-    fi
-
-##############################################################################
-script:
-
-##############################################################################
-  - if [[ $TEST = "MAIN" ]]; then
-      .travis/cabal_script;
-    fi
-
-##############################################################################
-# Testing Haddock [Issue 1773]
-
-  - if [[ $TEST = "HADDOCK" ]]; then
-       make BUILD_DIR=$BUILD_DIR haddock;
-    fi
-
-##############################################################################
-# Making the user manual
-
-# Not running `make user-manual-linkcheck`.
-
-  - if [[ $TEST = "USER_MANUAL" ]]; then
-       make user-manual-html &&
-       make user-manual-pdf ;
-    fi
-
+      ##############################################################################
+      # Testing Haddock [Issue 1773]
+      script: 
+        - make BUILD_DIR=$BUILD_DIR haddock
