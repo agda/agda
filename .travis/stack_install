@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -ev
+source .travis/header.sh
+
+# Show build environment
+vmInfo
+ghcInfo
+echo "*** Stack version ***"
+stack --version
+
+
+##############################################################################
+# Installing the dependencies
+
+stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0;
+
+##############################################################################
+# Some tests
+
+# ASR (2016-09-17). Running the following tests, which use stack, here
+# instead of in the `script` section is faster because Agda's
+# dependencies are not installed again.
+
+##############################################################################
+
+travis_wait 35 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0

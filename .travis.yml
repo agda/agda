@@ -14,6 +14,21 @@ cache:
   - $HOME/.stack
 
 ##############################################################################
+# Every master and maintenance branches >= 2.5 or >= maint-2.4 must
+# be here. You can also add your private branches if you want travis to
+# test them.
+
+branches:
+  only:
+    - master
+    - future
+    - maint-2.4
+    - stable-2.5
+    - release-2.5.4.2
+    - release-2.6.0.1
+    - revised-travis  # TODO: remove this line 
+
+##############################################################################
 # Required Ubuntu packages
 
 # The LaTeX/HTML test-suite requires:
@@ -29,10 +44,15 @@ cache:
 # Travis runs the builds on this order.
 
 matrix:
+  allow_failures:
+    # - env: TEST=USER_MANUAL BUILD=NOTHING
+    #   language: python
+    #   python: "3.4"
+  # Builds are loooong, we want to send an email as fast as possible.
+  fast_finish: true
+
   include:
-
     # Andreas, 2019-08-20, run faster test first.
-
     # The just-compilation tests using stackage fast (< 10 min).
     # This allows for quick feedback should compilation break on one of the ghc versions.
 
@@ -129,21 +149,12 @@ matrix:
           sources:
             - hvr-ghc
 
-  allow_failures:
-    # - env: TEST=USER_MANUAL BUILD=NOTHING
-    #   language: python
-    #   python: "3.4"
-
-  # Builds are loooong, we want to send an email as fast as possible.
-  fast_finish: true
-
 ##############################################################################
 before_install:
-
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
     elif [[ $TEST = "STACKAGE" ]]; then
-         export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
+       export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     fi
 
   - if [[ $BUILD = "STACK" ]]; then
@@ -154,252 +165,35 @@ before_install:
 
 ##############################################################################
 install:
-  # How much memory we have.
-  - vmstat -s
-
-  # Asking for the shell.
-  - echo $SHELL
-
-  # Node is pre-installed.
-  - echo "*** Node version ***"
-  - node --version
-
-  # The container environment reports a wrong number of cores. We use
-  # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
-  # commenting out `jobs: $ncpus` in the Cabal configuration file.
-
-  - if [[ $BUILD = "CABAL" ]]; then
-       echo "*** Cabal version ***" &&
-       cabal --version &&
-       echo "*** GHC version ***" &&
-       ghc --version &&
-       echo "*** Haddock version ***" &&
-       haddock --version &&
-       echo "*** Emacs version ***" &&
-       emacs --version &&
-       export PARALLEL_TESTS=2 &&
-       travis_retry cabal update &&
-       sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
-       cat $HOME/.cabal/config &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       travis_retry cabal update &&
-       travis_retry cabal fetch alex happy &&
-       cabal install -v0 alex happy &&
-       echo "*** Alex version ***" &&
-       alex --version &&
-       echo "*** Happy version ***" &&
-       happy --version ;
-    fi
-
-  # We test on Stackage the non-default Agda flags.
-  #
-  # Default flags: `cpp` instead of `cpphs`, `debug` off and
-  # `enable-cluster-counting` off.
-  #
-  # Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
-  # and the `debug` flag [Issue #2070].
-  - if [[ $BUILD = "STACK" ]]; then
-       echo "*** GHC version ***" &&
-       ghc --version &&
-       echo "*** Haddock version ***" &&
-       haddock --version &&
-       echo "*** Emacs version ***" &&
-       emacs --version &&
-       echo "*** Stack version ***" &&
-       stack --version &&
-       export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting" ;
-    fi
-
-##############################################################################
-# Installing the dependencies
-
-# N.B. that `cabal install` doesn't set up the number of jobs by default
-# (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
-
-# TODO (2016-02-21): Split the long lines (`\` doesn't work).
-
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-# We are using `make CABAL_OPTS...` because we are including the
-# options to `cabal install` set up in the `Makefile`.
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
-       travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
-       make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin;
-    elif [[ $TEST = "STACKAGE" ]]; then
-       stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0;
-    fi
-
-##############################################################################
-# Installing Agda
-
   - export BUILD_DIR=$HOME/dist
 
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin;
-    fi
-
-##############################################################################
-# Getting the standard library
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make up-to-date-std-lib;
-    fi
-
-##############################################################################
-# Installing Sphinx
-
-# Required for making the user manual.
-
-# Note that the `--user` option put the Sphinx binaries in
-# `$HOME/.local/bin`.
-
-  - if [[ $TEST = "USER_MANUAL" ]]; then
-       pip3 install -r doc/user-manual/requirements.txt &&
-       export PATH=$HOME/.local/bin:$PATH &&
-       echo "*** sphinx-build version ***" &&
-       sphinx-build --version ;
-    fi
-
-##############################################################################
-# Installing TeX Live and LaTeX packages (required by the user manual)
-
-# A *recent* version of TeX Live is required for making the user
-# manual. The installation of TeX Live was based on the instructions
-# used by Travis when the build environment is `language : r`.
-
-  - if [[ $TEST = "USER_MANUAL" ]]; then
-       travis_retry curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz &&
-       tar xzf /tmp/texlive.tar.gz -C ~ &&
-       export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
-       tlmgr update --self &&
-       tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace &&
-       echo "*** pdfLaTeX version ***" &&
-       pdflatex --version &&
-       echo "*** Latexmk version ***" &&
-       latexmk --version ;
-    fi
-
-##############################################################################
-# Installing a recent version of Node (see Issue #2192)
-
-  - if [[ $TEST = "MAIN" ]]; then
-       export AGDA_HOME=`pwd` &&
-       export NODE_VERSION=v0.12.16 &&
-       export NODE_DIR=node-${NODE_VERSION}-linux-x64 &&
-       export NODE_TARBALL=${NODE_DIR}.tar.xz &&
-       cd $HOME &&
-       travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
-       tar xJf ${NODE_TARBALL} &&
-       export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
-       cd $AGDA_HOME &&
-       echo "*** Node version ***" &&
-       node --version ;
-    fi
-
-##############################################################################
-# Some tests
-
-# ASR (2016-09-17). Running the following tests, which use stack, here
-# instead of in the `script` section is faster because Agda's
-# dependencies are not installed again.
-
-##############################################################################
-
-  - if [[ $TEST = "STACKAGE" ]]; then
-       travis_wait 35 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0;
+  - if [[ $BUILD = "CABAL" ]]; then
+      export PARALLEL_TESTS=2 &&
+      export PATH=$HOME/.cabal/bin:$PATH &&
+      export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
+      export AGDA_HOME=`pwd` &&
+      export NODE_VERSION=v0.12.16 &&
+      export NODE_DIR=node-${NODE_VERSION}-linux-x64 &&
+      export NODE_TARBALL=${NODE_DIR}.tar.xz &&
+      export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
+      .travis/cabal_install;
+    elif [[ $BUILD = "STACK" ]]; then
+      export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting" &&
+      .travis/stack_install;
+    elif [[ $TEST = "USER_MANUAL" ]]; then
+      export PATH=$HOME/.local/bin:$PATH &&
+      export PATH=$HOME/texlive/bin/x86_64-linux:$PATH &&
+      .travis/manual_install;
+    elif [[ $TEST = "HADDOCK" ]]; then 
+      .travis/haddock_install;
     fi
 
 ##############################################################################
 script:
 
 ##############################################################################
-
   - if [[ $TEST = "MAIN" ]]; then
-       make check-whitespace;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR interaction;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR interactive;
-    fi
-
-# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
-# #1675), but we still compare the generated tex/html files with the
-# golden files.
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR examples;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR library-test;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR api-test;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test;
-    fi
-
-  # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
-  # making the whole travis run fail.
-  # Ulf, 2019-08-29: only disable the stdlib compiler test
-  - if [[ $TEST = "MAIN" && $GHC_VER != "8.0.2" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR lib-interaction;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR TAGS;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       cabal install -v0 --ghc-option=-w shelltestrunner &&
-       make test-size-solver;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make BUILD_DIR=$BUILD_DIR testing-emacs-mode;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       make install-agda-bisect;
+      .travis/cabal_script;
     fi
 
 ##############################################################################
@@ -419,17 +213,3 @@ script:
        make user-manual-pdf ;
     fi
 
-##############################################################################
-# Every master and maintenance branches >= 2.5 or >= maint-2.4 must
-# be here. You can also add your private branches if you want travis to
-# test them.
-
-branches:
-  only:
-    - master
-    - future
-    - maint-2.4
-    - stable-2.5
-    - release-2.5.4.2
-    - release-2.6.0.1
-    - revised-travis  # TODO: remove this line 
