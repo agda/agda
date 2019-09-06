@@ -1,7 +1,7 @@
 #!/bin/bash
  
-set -ev
 source .travis/header.sh
+set -ev
 
 # Show build environment
 vmInfo

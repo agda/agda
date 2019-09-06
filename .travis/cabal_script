@@ -1,5 +1,5 @@
 #!/bin/bash
-
+source .travis/header.sh
 set -ev
 
 make check-whitespace
