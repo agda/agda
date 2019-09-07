@@ -12,6 +12,10 @@ sudo: required
 cache:
   directories:
   - $HOME/.stack
+  # try to cache `~/.cabal` and `~/.ghc`
+  # see https://www.fpcomplete.com/blog/2016/02/updated-haskell-travis-config
+  - $HOME/.cabal
+  - $HOME/.ghc
 
 ##############################################################################
 # Required Ubuntu packages
