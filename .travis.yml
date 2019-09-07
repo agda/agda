@@ -1,4 +1,4 @@
-# Liang-Ting Chen 2019-09-07: 
+# Liang-Ting Chen 2019-09-07:
 # Switched to Build Stages
 
 # NB: don't set `language: haskell` here.
@@ -26,7 +26,7 @@ branches:
     - maint-2.4
     - stable-2.5
     - release-2.5.4.2
-    - release-2.6.0.1 
+    - release-2.6.0.1
 
 ##############################################################################
 # Required Ubuntu packages
@@ -36,9 +36,9 @@ branches:
 
 ##############################################################################
 # Stages (Liang-Ting Chen, 2019-07-09, suggested by Andreas)
-# 
+#
 # - Compilation only: Agda, user manual, and haddock are compiled (via Stack,
-#   python, cabal, respectively) against all supported. 
+#   python, cabal, respectively) against all supported.
 #
 #   The rationale is based on the comment:
 #     Andreas, 2019-08-20, run faster test first.
@@ -58,7 +58,7 @@ stages:
   - name: main
     if: branch != master OR commit_message =~ main_tests|full_tests
   - name: documentation
-    if: commit_message =~ doc_tests|full_tests
+    if: branch = master OR commit_message =~ doc_tests|full_tests
 
 jobs:
   allow_failures:
@@ -201,7 +201,7 @@ jobs:
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - stage: documentation
-      name: Haddock 
+      name: Haddock
       env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -218,5 +218,5 @@ jobs:
 
       ##############################################################################
       # Testing Haddock [Issue 1773]
-      script: 
+      script:
         - make BUILD_DIR=$BUILD_DIR haddock
