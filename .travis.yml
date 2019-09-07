@@ -235,7 +235,7 @@ jobs:
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
 
-        - cabal install -v0 --ghc-option=-w --force-reinstalls shelltestrunner && make test-size-solver
+        - cabal install -v0 --ghc-option=-w shelltestrunner && make test-size-solver
 
     - <<: *complete-job
       env: GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
