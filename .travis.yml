@@ -71,7 +71,7 @@ jobs:
   include:
     - &no-test-job
       stage: stackage
-      env: GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
+      env: GHC_VER=8.6.5 BUILD=STACK
       addons:
         apt:
           packages:
@@ -84,6 +84,7 @@ jobs:
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
       install:
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --system-ghc"
         - export BUILD_DIR=$HOME/dist
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
         - .travis/stack_install
@@ -91,7 +92,7 @@ jobs:
         skip
 
     - <<: *no-test-job
-      env: GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
+      env: GHC_VER=8.4.4 BUILD=STACK
       addons:
         apt:
           packages:
@@ -100,7 +101,7 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+      env: GHC_VER=8.2.2 BUILD=STACK
       addons:
         apt:
           packages:
@@ -109,13 +110,14 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+      env: GHC_VER=8.0.2 BUILD=STACK
       addons:
         apt:
           packages:
             - ghc-8.0.2
           sources:
             - hvr-ghc
+
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
       stage: main
