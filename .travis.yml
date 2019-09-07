@@ -55,8 +55,8 @@ branches:
 # Travis runs the builds on this order.
 
 stages:
-  - name: compilation only
-  - name: full tests
+  - name: stackage
+  - name: main
     if: branch != master OR commit_message =~ full_tests
   - name: documentation
     if: commit_message =~ doc_tests
@@ -71,8 +71,8 @@ jobs:
 
   include:
     - &no-test-job
-      stage: compilation only
-      env: TEST=STACKAGE GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
+      stage: stackage
+      env: GHC_VER=8.6.5 BUILD=STACK ARGS="--stack-yaml stack-8.6.5.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -92,7 +92,7 @@ jobs:
         skip
 
     - <<: *no-test-job
-      env: TEST=STACKAGE GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
+      env: GHC_VER=8.4.4 BUILD=STACK ARGS="--stack-yaml stack-8.4.4.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -101,7 +101,7 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: TEST=STACKAGE GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
+      env: GHC_VER=8.2.2 BUILD=STACK ARGS="--stack-yaml stack-8.2.2.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -110,7 +110,7 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: TEST=STACKAGE GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
+      env: GHC_VER=8.0.2 BUILD=STACK ARGS="--stack-yaml stack-8.0.2.yaml --system-ghc"
       addons:
         apt:
           packages:
@@ -119,8 +119,8 @@ jobs:
             - hvr-ghc
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
-      stage: full tests
-      env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+      stage: main
+      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
@@ -147,7 +147,7 @@ jobs:
       script: .travis/cabal_script
 
     - <<: *complete-job
-      env: TEST=MAIN GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
+      env: GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
       addons:
         apt:
           packages:
@@ -158,7 +158,7 @@ jobs:
             - hvr-ghc
 
     - <<: *complete-job
-      env: TEST=MAIN GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
+      env: GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
       addons:
         apt:
           packages:
@@ -169,7 +169,7 @@ jobs:
             - hvr-ghc
 
     - <<: *complete-job
-      env: TEST=MAIN GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+      env: GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
       addons:
         apt:
           packages:
@@ -181,7 +181,8 @@ jobs:
 
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: documentation
-      env: TEST=USER_MANUAL BUILD=NOTHING
+      name: User Manual
+      env: BUILD=NOTHING
       language: python
       python: "3.4"
       install:
@@ -201,7 +202,8 @@ jobs:
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - stage: documentation
-      env: TEST=HADDOCK GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+      name: Haddock 
+      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
           packages:
