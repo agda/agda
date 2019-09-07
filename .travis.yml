@@ -27,6 +27,10 @@ branches:
     - stable-2.5
     - release-2.5.4.2
     - release-2.6.0.1
+##############################################################################
+# The submodule is only needed by stdlib compiler test
+git:
+  submodules: false
 
 ##############################################################################
 # Required Ubuntu packages
@@ -160,6 +164,8 @@ jobs:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
       install:
         - export BUILD_DIR=$HOME/dist
+        - export PARALLEL_TESTS=2
+        - export PATH=$HOME/.cabal/bin:$PATH
         - .travis/haddock_install
 
       ##############################################################################
@@ -186,7 +192,6 @@ jobs:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
       install:
         - export BUILD_DIR=$HOME/dist
-
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
@@ -197,7 +202,7 @@ jobs:
         - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
         - .travis/cabal_install
       ##############################################################################
-      script: 
+      script:
         - make check-whitespace
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
@@ -220,12 +225,12 @@ jobs:
         - if [[ $GHC_VER != "8.0.2" ]]; then
             make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test;
           fi
+
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
         - make BUILD_DIR=$BUILD_DIR lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
 
-        - cabal install -v0 --ghc-option=-w shelltestrunner &&
-        - make test-size-solver
+        - cabal install -v0 --ghc-option=-w shelltestrunner && make test-size-solver
 
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect

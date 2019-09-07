@@ -12,11 +12,9 @@ echo "*** Haddock version ***"
 haddock --version
 echo "*** Emacs version ***"
 emacs --version
-export PARALLEL_TESTS=2
 travis_retry cabal update
 sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config
 cat $HOME/.cabal/config
-export PATH=$HOME/.cabal/bin:$PATH
 travis_retry cabal update
 travis_retry cabal fetch alex happy
 cabal install -v0 alex happy

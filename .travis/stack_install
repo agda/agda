@@ -14,7 +14,7 @@ stack --version
 ##############################################################################
 # Installing the dependencies
 
-stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0;
+stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
 
 ##############################################################################
 # Some tests
