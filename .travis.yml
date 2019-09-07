@@ -390,16 +390,16 @@ script:
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
+       cabal install -v0 --ghc-option=-w shelltestrunner &&
+       make test-size-solver;
+    fi
+
+  - if [[ $TEST = "MAIN" ]]; then
        make BUILD_DIR=$BUILD_DIR testing-emacs-mode;
     fi
 
   - if [[ $TEST = "MAIN" ]]; then
        make install-agda-bisect;
-    fi
-
-  - if [[ $TEST = "MAIN" ]]; then
-       cabal install -v0 --ghc-option=-w --force-reinstalls shelltestrunner &&
-       make test-size-solver;
     fi
 
 ##############################################################################

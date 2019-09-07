@@ -1,4 +1,3 @@
-
 CABAL_CMD=cabal
 
 CABAL_VERSION := $(shell $(CABAL_CMD) --numeric-version | cut -d. -f1-2)
@@ -17,12 +16,37 @@ CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 
+
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
                           $(SLOW_CABAL_INSTALL_OPTS)
+
+# The following options are used in several invocations of cabal
+# install/configure below. They are always the last options given to
+# the command.
+CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+
+CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+                         $(CABAL_INSTALL_OPTS)
+
+CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
+                       $(CABAL_INSTALL_BIN_OPTS)
+
+CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
                           $(SLOW_CABAL_INSTALL_OPTS)
+
+# The following options are used in several invocations of cabal
+# install/configure below. They are always the last options given to
+# the command.
+CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+
+CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+                         $(CABAL_INSTALL_OPTS)
+
+CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
+                       $(CABAL_INSTALL_BIN_OPTS)

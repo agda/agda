@@ -6,20 +6,17 @@ SHELL=bash
 # Profiling verbosity for library-test
 PROFVERB=7
 
-# 2016-07-15. We use a different build directory in the quick
-# installation for avoiding recompilation (see Issue #2083 and
-# https://github.com/haskell/cabal/issues/1893).
-
-QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
-
 # Various paths and commands
 
 TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-# cabal.mk & stack.mk uses QUICK_BUILD_DIR, so include after the definition of
-# QUICK_BUILD_DIR.
+# 2016-07-15. We use a different build directory in the quick
+# installation for avoiding recompilation (see Issue #2083 and
+# https://github.com/haskell/cabal/issues/1893).
+QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
+
 include ./mk/cabal.mk
 include ./mk/stack.mk
 
