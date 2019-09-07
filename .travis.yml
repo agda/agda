@@ -57,9 +57,9 @@ branches:
 stages:
   - name: stackage
   - name: main
-    if: branch != master OR commit_message =~ full_tests
+    if: branch != master OR commit_message =~ main_tests|full_tests
   - name: documentation
-    if: commit_message =~ doc_tests
+    if: commit_message =~ doc_tests|full_tests
 
 jobs:
   allow_failures:
