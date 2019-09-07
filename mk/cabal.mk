@@ -12,3 +12,17 @@ else
 	CABAL_INSTALL_CMD=install
 	CABAL_BUILD_CMD=build
 endif
+
+CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
+
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
+CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
+                          $(SLOW_CABAL_INSTALL_OPTS)
+
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
+CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
+                          $(SLOW_CABAL_INSTALL_OPTS)
