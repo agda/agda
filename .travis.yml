@@ -75,6 +75,8 @@ jobs:
     - &no-test-job
       stage: stackage
       env: GHC_VER=8.6.5 BUILD=STACK
+      git:
+        submodules: false
       addons:
         apt:
           packages:
@@ -127,6 +129,8 @@ jobs:
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: documentation
       name: User Manual
+      git:
+        submodules: false
       env: BUILD=NOTHING
       language: python
       python: "3.4"
@@ -148,6 +152,8 @@ jobs:
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - stage: documentation
       name: Haddock
+      git:
+        submodules: false
       env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -186,7 +192,6 @@ jobs:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
       install:
         - export BUILD_DIR=$HOME/dist
-
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
@@ -224,7 +229,7 @@ jobs:
         - make BUILD_DIR=$BUILD_DIR lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
 
-        - cabal install -v0 --ghc-option=-w shelltestrunner &&
+        - cabal install -v0 --ghc-option=-w shelltestrunner
         - make test-size-solver
 
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode

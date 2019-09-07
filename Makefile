@@ -234,7 +234,7 @@ internal-tests :
 .PHONY : succeed
 succeed :
 	@echo "======================================================================"
-	@echo "===================== Suite of successfull tests ====================="
+	@echo "===================== Suite of successful tests ======================"
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed
