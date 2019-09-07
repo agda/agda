@@ -12,13 +12,8 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-# 2016-07-15. We use a different build directory in the quick
-# installation for avoiding recompilation (see Issue #2083 and
-# https://github.com/haskell/cabal/issues/1893).
-QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
-
 include ./mk/cabal.mk
-include ./mk/stack.mk
+STACK_CMD=stack
 
 # Run in interactive and parallel mode by default
 
@@ -50,6 +45,42 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY : prof
 prof : install-prof-bin
+
+CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
+STACK_BUILD = $(STACK_CMD) build Agda --no-haddock
+
+# 2016-07-15. We use a different build directory in the quick
+# installation for avoiding recompilation (see Issue #2083 and
+# https://github.com/haskell/cabal/issues/1893).
+
+QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+
+QUICK_STACK_BUILD_WORK_DIR = .stack-work-quick
+QUICK_STACK_BUILD = $(STACK_BUILD) \
+										--ghc-options=-O0 \
+										--work-dir=$(QUICK_STACK_BUILD_WORK_DIR)
+
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
+CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
+                          $(SLOW_CABAL_INSTALL_OPTS)
+
+# The following options are used in several invocations of cabal
+# install/configure below. They are always the last options given to
+# the command.
+CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+
+CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+                         $(CABAL_INSTALL_OPTS)
+
+CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
+                       $(CABAL_INSTALL_BIN_OPTS)
+
+STACK_INSTALL_OPTS     = --flag Agda:enable-cluster-counting $(STACK_OPTS)
+STACK_INSTALL_BIN_OPTS = --test \
+												 --no-run-tests \
+												 --no-library-profiling \
+                         $(STACK_INSTALL_OPTS)
 
 # Ensures that the Git hash that is sometimes displayed by --version
 # is correct (#2988).
