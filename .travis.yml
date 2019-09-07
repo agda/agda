@@ -57,7 +57,9 @@ branches:
 stages:
   - name: compilation only
   - name: full tests
-    if: branch != master OR commit_message =~ run_tests
+    if: branch != master OR commit_message =~ full_tests
+  - name: documentation
+    if: commit_message =~ doc_tests
 
 jobs:
   allow_failures:
@@ -115,25 +117,6 @@ jobs:
             - ghc-8.0.2
           sources:
             - hvr-ghc
-
-    # Converting the user manual to html and pdf is fast (< 2min).
-    - stage: compilation only
-      env: TEST=USER_MANUAL BUILD=NOTHING
-      language: python
-      python: "3.4"
-      install:
-        - export BUILD_DIR=$HOME/dist
-        - export PATH=$HOME/.local/bin:$PATH
-        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        - .travis/manual_install
-      ##############################################################################
-      # Making the user manual
-
-      # Not running `make user-manual-linkcheck`.
-      script:
-        - make user-manual-html
-        - make user-manual-pdf
-
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
       stage: full tests
@@ -196,10 +179,28 @@ jobs:
           sources:
             - hvr-ghc
 
+    # Converting the user manual to html and pdf is fast (< 2min).
+    - stage: documentation
+      env: TEST=USER_MANUAL BUILD=NOTHING
+      language: python
+      python: "3.4"
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - export PATH=$HOME/.local/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - .travis/manual_install
+      ##############################################################################
+      # Making the user manual
+
+      # Not running `make user-manual-linkcheck`.
+      script:
+        - make user-manual-html
+        - make user-manual-pdf
+
     # Test documentation: haddock, user-manual.
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - stage: full tests
+    - stage: documentation
       env: TEST=HADDOCK GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -218,4 +219,3 @@ jobs:
       # Testing Haddock [Issue 1773]
       script: 
         - make BUILD_DIR=$BUILD_DIR haddock
-
