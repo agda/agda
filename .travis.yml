@@ -43,19 +43,18 @@ git:
 ##############################################################################
 # Stages (Liang-Ting Chen, 2019-07-09, suggested by Andreas)
 #
-# - Compilation only: Agda, user manual, and haddock are compiled (via Stack,
-#   python, cabal, respectively) against all supported.
+# - Stackage: Agda is compiled via Stack on all supported GHC versions.
 #
 #   The rationale is based on the comment:
 #     Andreas, 2019-08-20, run faster test first.
 #     The just-compilation tests using stackage fast (< 10 min).
 #     This allows for quick feedback should compilation break on one of the ghc versions.
 #
-#
-# - Full tests: Agda is compiled via Cabal and tested, including the test
+# - Main: Agda is compiled via Cabal and tested, including the test
 #   suite, the benchmark suite, and the compilation with a specific set of
 #   dependencies, the testing of other programs like `hTags`, etc.)
 #
+# - Documentation: User manual and Haddock are compiled.
 
 # Travis runs the builds on this order.
 
@@ -80,7 +79,7 @@ jobs:
   #
     - &no-test-job
       stage: stackage
-      env: GHC_VER=8.6.5 BUILD=STACK
+      env: GHC_VER=8.6.5
       addons:
         apt:
           packages:
@@ -101,7 +100,7 @@ jobs:
         skip
 
     - <<: *no-test-job
-      env: GHC_VER=8.4.4 BUILD=STACK
+      env: GHC_VER=8.4.4
       addons:
         apt:
           packages:
@@ -110,7 +109,7 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: GHC_VER=8.2.2 BUILD=STACK
+      env: GHC_VER=8.2.2
       addons:
         apt:
           packages:
@@ -119,7 +118,7 @@ jobs:
             - hvr-ghc
 
     - <<: *no-test-job
-      env: GHC_VER=8.0.2 BUILD=STACK
+      env: GHC_VER=8.0.2
       addons:
         apt:
           packages:
@@ -133,7 +132,6 @@ jobs:
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: documentation
       name: User Manual
-      env: BUILD=NOTHING
       language: python
       python: "3.4"
       install:
@@ -154,7 +152,7 @@ jobs:
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
     - stage: documentation
       name: Haddock
-      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
       addons:
         apt:
           packages:
@@ -181,7 +179,7 @@ jobs:
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
       stage: main
-      env: GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
       addons:
         apt:
           packages:
@@ -221,9 +219,9 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
         - make BUILD_DIR=$BUILD_DIR benchmark-without-logs
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
-        - # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
-        - # making the whole travis run fail.
-        - # Ulf, 2019-08-29: only disable the stdlib compiler test
+        # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
+        # making the whole travis run fail.
+        # Ulf, 2019-08-29: only disable the stdlib compiler test
         - if [[ $GHC_VER != "8.0.2" ]]; then
             make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test;
           fi
@@ -238,7 +236,7 @@ jobs:
         - make install-agda-bisect
 
     - <<: *complete-job
-      env: GHC_VER=8.4.4 BUILD=CABAL CABAL_VER=2.2
+      env: GHC_VER=8.4.4 CABAL_VER=2.2
       addons:
         apt:
           packages:
@@ -249,7 +247,7 @@ jobs:
             - hvr-ghc
 
     - <<: *complete-job
-      env: GHC_VER=8.2.2 BUILD=CABAL CABAL_VER=2.0
+      env: GHC_VER=8.2.2 CABAL_VER=2.0
       addons:
         apt:
           packages:
@@ -260,7 +258,7 @@ jobs:
             - hvr-ghc
 
     - <<: *complete-job
-      env: GHC_VER=8.0.2 BUILD=CABAL CABAL_VER=1.24
+      env: GHC_VER=8.0.2 CABAL_VER=1.24
       addons:
         apt:
           packages:
