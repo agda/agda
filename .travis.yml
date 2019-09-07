@@ -28,7 +28,9 @@ branches:
     - release-2.5.4.2
     - release-2.6.0.1
 ##############################################################################
-# The submodule is only needed by stdlib compiler test
+# The submodule is only needed by stdlib compiler test, so
+# it is fetched manually in the `install` section.
+#
 git:
   submodules: false
 
