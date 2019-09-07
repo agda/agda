@@ -1,6 +1,6 @@
 #!/bin/bash
 source .travis/header.sh
-set -ev
+set -e
 
 make check-whitespace
 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed

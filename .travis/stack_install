@@ -1,14 +1,15 @@
 #!/bin/bash
 
 source .travis/header.sh
-set -ev
+set -e
 
+##############################################################################
 # Show build environment
+
 vmInfo
 ghcInfo
 echo "*** Stack version ***"
 stack --version
-
 
 ##############################################################################
 # Installing the dependencies

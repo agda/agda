@@ -54,6 +54,11 @@ branches:
 
 # Travis runs the builds on this order.
 
+stages:
+  - name: compilation only
+  - name: full tests
+    if: branch != master OR commit_message =~ run_tests
+
 jobs:
   allow_failures:
     # - env: TEST=USER_MANUAL BUILD=NOTHING
@@ -129,32 +134,9 @@ jobs:
         - make user-manual-html
         - make user-manual-pdf
 
-    # Test documentation: haddock, user-manual.
-    # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - stage: compilation only
-      env: TEST=HADDOCK GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.4
-            - ghc-8.6.5
-          sources:
-            - hvr-ghc
-      before_install:
-        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-      install:
-        - export BUILD_DIR=$HOME/dist
-        - .travis/haddock_install
-
-      ##############################################################################
-      # Testing Haddock [Issue 1773]
-      script: 
-        - make BUILD_DIR=$BUILD_DIR haddock
-
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
-      stage: Full tests
+      stage: full tests
       env: TEST=MAIN GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
       addons:
         apt:
@@ -213,4 +195,27 @@ jobs:
             - texlive-binaries
           sources:
             - hvr-ghc
+
+    # Test documentation: haddock, user-manual.
+    # Since `stack haddock` compiles Agda but `cabal haddock` does
+    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
+    - stage: full tests
+      env: TEST=HADDOCK GHC_VER=8.6.5 BUILD=CABAL CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - .travis/haddock_install
+
+      ##############################################################################
+      # Testing Haddock [Issue 1773]
+      script: 
+        - make BUILD_DIR=$BUILD_DIR haddock
 
