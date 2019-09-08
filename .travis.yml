@@ -12,7 +12,10 @@ sudo: required
 
 cache:
   directories:
-    - $HOME/.stack
+    - $HOME/.cabal/store
+    - $HOME/.stack"
+    - $TRAVIS_BUILD_DIR/.stack-work
+
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
 # be here. You can also add your private branches if you want travis to
