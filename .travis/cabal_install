@@ -69,12 +69,12 @@ make up-to-date-std-lib
 
 travis_fold end "fetch.std-lib"
 
-##############################################################################
-# Installing a recent version of Node (see Issue #2192)
-
-cd $HOME
-travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL}
-tar xJf ${NODE_TARBALL}
-cd $AGDA_HOME
-echo "*** Node version ***"
-node --version
+###############################################################################
+## Installing a recent version of Node (see Issue #2192)
+#
+#cd $HOME
+#travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL}
+#tar xJf ${NODE_TARBALL}
+#cd $AGDA_HOME
+#echo "*** Node version ***"
+#node --version

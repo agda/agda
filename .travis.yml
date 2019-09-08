@@ -198,10 +198,10 @@ jobs:
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         - export AGDA_HOME=`pwd`
-        - export NODE_VERSION=v0.12.16
-        - export NODE_DIR=node-${NODE_VERSION}-linux-x64
-        - export NODE_TARBALL=${NODE_DIR}.tar.xz
-        - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
+          #        - export NODE_VERSION=v0.12.16
+          #        - export NODE_DIR=node-${NODE_VERSION}-linux-x64
+          #        - export NODE_TARBALL=${NODE_DIR}.tar.xz
+          #        - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
         - .travis/cabal_install
       ##############################################################################
       script:
