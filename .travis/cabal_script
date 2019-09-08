@@ -95,7 +95,7 @@ title "Testing the size-solver program"
 travis_fold start "test.size.solver"
 travis_timer_start 
 
-cabal v1-install --allow-newer=ansi-terminal -v0 --ghc-option=-w --force-reinstalls shelltestrunner
+stack install shelltestrunner
 make test-size-solver
 
 travis_fold end "test.size.solver"

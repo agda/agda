@@ -12,8 +12,7 @@ sudo: required
 
 cache:
   directories:
-  - $HOME/.stack
-
+    - $HOME/.stack
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
 # be here. You can also add your private branches if you want travis to
@@ -131,6 +130,70 @@ jobs:
             - hvr-ghc
 
     ##############################################################################
+    # Main stage
+    #
+    # The builds involving the testsuite (60-80min) are run then.
+    - &complete-job
+      stage: main
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - travis_retry sudo apt-get install happy alex
+        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        - export PATH=$HOME/.local/bin:$PATH
+      install:
+        - export BUILD_DIR=$HOME/dist
+        - export PARALLEL_TESTS=2
+        - export PATH=$HOME/.cabal/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - export AGDA_HOME=`pwd`
+        - .travis/cabal_install
+      ##############################################################################
+      script:
+        - .travis/cabal_script
+
+    - <<: *complete-job
+      env: GHC_VER=8.4.4 CABAL_VER=2.2
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.2
+            - ghc-8.4.4
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - <<: *complete-job
+      env: GHC_VER=8.2.2 CABAL_VER=2.0
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.0
+            - ghc-8.2.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - <<: *complete-job
+      env: GHC_VER=8.0.2 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    ##############################################################################
     # Documentation stage
     #
     # Converting the user manual to html and pdf is fast (< 2min).
@@ -177,68 +240,3 @@ jobs:
       script:
         - make BUILD_DIR=$BUILD_DIR haddock
 
-    ##############################################################################
-    # Main stage
-    #
-    # The builds involving the testsuite (60-80min) are run then.
-    - &complete-job
-      stage: main
-      env: GHC_VER=8.6.5 CABAL_VER=2.4
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.4
-            - ghc-8.6.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-      before_install:
-        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-        - travis_retry sudo apt-get install happy alex
-      install:
-        - export BUILD_DIR=$HOME/dist
-        - export PARALLEL_TESTS=2
-        - export PATH=$HOME/.cabal/bin:$PATH
-        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        - export AGDA_HOME=`pwd`
-          #        - export NODE_VERSION=v0.12.16
-          #        - export NODE_DIR=node-${NODE_VERSION}-linux-x64
-          #        - export NODE_TARBALL=${NODE_DIR}.tar.xz
-          #        - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
-        - .travis/cabal_install
-      ##############################################################################
-      script:
-        - .travis/cabal_script
-
-    - <<: *complete-job
-      env: GHC_VER=8.4.4 CABAL_VER=2.2
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.2
-            - ghc-8.4.4
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - <<: *complete-job
-      env: GHC_VER=8.2.2 CABAL_VER=2.0
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.0
-            - ghc-8.2.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - <<: *complete-job
-      env: GHC_VER=8.0.2 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.24
-            - ghc-8.0.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
