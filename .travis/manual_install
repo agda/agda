@@ -2,14 +2,15 @@
 
 source .travis/header.sh
 set -ev
+
 ##############################################################################
 # Installing Sphinx
 # Required for making the user manual.
 # Note that the `--user` option put the Sphinx binaries in
 # `$HOME/.local/bin`.
 
-pip3 install -r doc/user-manual/requirements.txt &&
-echo "*** sphinx-build version ***" &&
+pip3 install -r doc/user-manual/requirements.txt
+echo "*** sphinx-build version ***"
 sphinx-build --version
 
 ##############################################################################
@@ -18,11 +19,11 @@ sphinx-build --version
 # manual. The installation of TeX Live was based on the instructions
 # used by Travis when the build environment is `language : r`.
 
-travis_retry curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz &&
-tar xzf /tmp/texlive.tar.gz -C ~ &&
-tlmgr update --self &&
-tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace &&
-echo "*** pdfLaTeX version ***" &&
-pdflatex --version &&
-echo "*** Latexmk version ***" &&
+travis_retry curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz
+tar xzf /tmp/texlive.tar.gz -C ~
+tlmgr update --self
+tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace
+echo "*** pdfLaTeX version ***"
+pdflatex --version
+echo "*** Latexmk version ***"
 latexmk --version

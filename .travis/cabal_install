@@ -5,10 +5,14 @@ set -ev
 ##############################################################################
 # Build environment information
 
-vmInfo
-ghcInfo
+echo "*** GHC version ***"
+ghc --version
 echo "*** Cabal version ***"
 cabal --version
+echo "*** Haddock version ***"
+haddock --version
+echo "*** Emacs version ***"
+emacs --version
 
 # The container environment reports a wrong number of cores. We use
 # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
@@ -34,9 +38,9 @@ happy --version
 
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
-travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"` &&
+travis_retry cabal fetch \
+  `cabal install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
 make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin
-
 
 ##############################################################################
 # Installing Agda
@@ -51,9 +55,9 @@ make up-to-date-std-lib
 ##############################################################################
 # Installing a recent version of Node (see Issue #2192)
 
-cd $HOME &&
-travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
-tar xJf ${NODE_TARBALL} &&
-cd $AGDA_HOME &&
-echo "*** Node version ***" &&
+cd $HOME
+travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL}
+tar xJf ${NODE_TARBALL}
+cd $AGDA_HOME
+echo "*** Node version ***"
 node --version

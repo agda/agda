@@ -3,13 +3,25 @@
 source .travis/header.sh
 set -ev
 
+# We test on Stackage the non-default Agda flags.
+#
+# Default flags: `cpp` instead of `cpphs`, `debug` off and
+# `enable-cluster-counting` off.
+#
+# Issues related to the flags: `cpp` instead of `cpphs` [Issue #1647]
+# and the `debug` flag [Issue #2070].
+
 ##############################################################################
 # Show build environment
 
-vmInfo
-ghcInfo
-echo "*** Stack version ***"
+echo "*** GHC version ***"
+ghc --version 
+echo "*** Stack version ***" 
 stack --version
+echo "*** Haddock version ***"
+haddock --version
+echo "*** Emacs version ***"
+emacs --version
 
 ##############################################################################
 # Installing the dependencies
