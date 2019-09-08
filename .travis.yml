@@ -146,9 +146,13 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-        - travis_retry sudo apt-get install happy alex
+
+        # use stack to install alex, happy, and shelltestrunner
+        - mkdir -p ~/.local/bin
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
+
+        - stack install --system-ghc alex happy
       install:
         - export BUILD_DIR=$HOME/dist
         - export PARALLEL_TESTS=2
