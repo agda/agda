@@ -42,7 +42,9 @@ git:
 # * `kpsewhich` (included in texlive-binaries)
 
 ##############################################################################
-# Stages (Liang-Ting Chen, 2019-07-09, suggested by Andreas)
+# Stages:
+#
+# Liang-Ting, 2019-07-09 (suggested by Andreas)
 #
 # - Stackage: Agda is compiled via Stack on all supported GHC versions.
 #
@@ -192,6 +194,7 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - travis_retry sudo apt-get install happy alex
       install:
         - export BUILD_DIR=$HOME/dist
         - export PARALLEL_TESTS=2
