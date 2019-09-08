@@ -14,7 +14,7 @@ cabal --version
 subtitle "*** Alex version ***"
 alex --version
 subtitle "*** Happy version ***"
-happy --version
+happy --version | sed 2q
 subtitle "*** Haddock version ***"
 haddock --version
 subtitle "*** Emacs version ***"
