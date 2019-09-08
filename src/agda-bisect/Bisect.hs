@@ -38,7 +38,7 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | Default flags given to cabal install (excludes some flags that
+-- | Default flags given to cabal v1-install (excludes some flags that
 -- cannot be overridden).
 
 defaultCabalFlags :: [String]
@@ -132,14 +132,15 @@ options =
            (long "no-default-cabal-options" <>
             help (unwords
               [ "Do not (by default) give certain options to cabal"
-              , "install"
+              , "v1-install"
               ])))
     <*> many
-          (strOption (long "cabal-option" <>
-                      help "Additional option given to cabal install" <>
-                      metavar "OPTION" <>
-                      completer (commandCompleter "cabal"
-                                   ["install", "--list-options"])))
+          (strOption
+             (long "cabal-option" <>
+              help "Additional option given to cabal v1-install" <>
+              metavar "OPTION" <>
+              completer (commandCompleter "cabal"
+                           ["v1-install", "--list-options"])))
     <*> ((\skip -> if skip then ciSkipStrings else []) <$>
          switch (long "skip-skipped" <>
                  help ("Skip commits with commit messages " ++
@@ -260,13 +261,13 @@ options =
         ]
 
     , paragraph
-        [ "The script gives the following options to cabal install,"
+        [ "The script gives the following options to cabal v1-install,"
         , "unless --no-default-cabal-options has been given:"
         ] `newline`
       indent 2 (foldr1 newline $ map string defaultCabalFlags)
         `newline`
       paragraph
-        [ "(Other options are also given to cabal install.)"
+        [ "(Other options are also given to cabal v1-install.)"
         ]
 
     , paragraph
@@ -307,7 +308,7 @@ options =
     , paragraph
         [ "You should install suitable versions of the following"
         , "commands before running the script (in addition to any"
-        , "programs invoked by cabal install):"
+        , "programs invoked by cabal v1-install):"
         ] PP.<$>
       indent 2 (fillSep $ map string ["cabal", "git", "sed", "timeout"])
 
@@ -407,9 +408,9 @@ validRevision rev = do
 setupSandbox :: IO ()
 setupSandbox = do
   sandboxExists <- callProcessWithResultSilently
-                     "cabal" ["sandbox", "list-sources"]
+                     "cabal" ["v1-sandbox", "list-sources"]
   unless sandboxExists $
-    callProcess "cabal" ["sandbox", "init"]
+    callProcess "cabal" ["v1-sandbox", "init"]
 
 -- | Performs the bisection process.
 
@@ -619,7 +620,7 @@ cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
 cabalInstall opts file = do
   commit <- currentCommit
   ok <- callProcessWithResult "cabal" $
-    [ "install"
+    [ "v1-install"
     , "--force-reinstalls"
     , "--disable-library-profiling"
     , "--disable-documentation"
@@ -643,8 +644,8 @@ cabalInstall opts file = do
 
 copyDataFiles :: Options -> IO ()
 copyDataFiles opts = do
-  callProcessWithResult "cabal" (["configure"] ++ compilerFlag opts)
-  callProcessWithResult "cabal" ["copy", "-v"]
+  callProcessWithResult "cabal" (["v1-configure"] ++ compilerFlag opts)
+  callProcessWithResult "cabal" ["v1-copy", "-v"]
   return ()
 
 -- | The suffix of the Agda binary.
