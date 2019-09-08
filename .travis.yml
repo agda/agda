@@ -27,6 +27,7 @@ branches:
     - stable-2.5
     - release-2.5.4.2
     - release-2.6.0.1
+    - revised-travis # TODO: remove this line before merging
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
