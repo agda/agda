@@ -2,7 +2,7 @@
 source .travis/header.sh
 set -e
 
-travis_fold start "env_info"
+travis_fold start "env.info"
 
 echo "*** GHC version ***"
 ghc --version
@@ -13,7 +13,7 @@ haddock --version
 echo "*** Emacs version ***"
 emacs --version
 
-travis_fold end "env_info"
+travis_fold end "env.info"
 
 ##############################################################################
 # Installing the dependencies

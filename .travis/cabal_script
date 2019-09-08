@@ -5,22 +5,22 @@ set -e
 
 fold_timer_cmd "check.whitespace" make check-whitespace
 
-fold_timer_cmd "successful_tests" \
+fold_timer_cmd "successful.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
 
-fold_timer_cmd "failing_tests" \
+fold_timer_cmd "failing.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
 
-fold_timer_cmd "interaction_tests" \
+fold_timer_cmd "interaction.tests" \
   make BUILD_DIR=$BUILD_DIR interaction
 
-fold_timer_cmd "interactive_tests" \
+fold_timer_cmd "interactive.tests" \
   make BUILD_DIR=$BUILD_DIR interactive
 # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
 # #1675), but we still compare the generated tex/html files with the
 # golden files.
 
-fold_timer_cmd "latex_html_tests" \
+fold_timer_cmd "latex_html.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
     TASTY_ANSI_TRICKS=false \
     BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" \
@@ -29,19 +29,19 @@ fold_timer_cmd "latex_html_tests" \
 fold_timer_cmd "examples" \
   make BUILD_DIR=$BUILD_DIR examples
 
-fold_timer_cmd "library_tests" \
+fold_timer_cmd "library.tests" \
   make BUILD_DIR=$BUILD_DIR library-test
 
-fold_timer_cmd "library_tests" \
+fold_timer_cmd "library.tests" \
 make BUILD_DIR=$BUILD_DIR api-test
 
-fold_timer_cmd "user_manual_tests" \
+fold_timer_cmd "user.manual.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
     TASTY_ANSI_TRICKS=false \
     BUILD_DIR=$BUILD_DIR \
     user-manual-test
 
-fold_timer_cmd "library_tests" \
+fold_timer_cmd "library.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"\
   TASTY_ANSI_TRICKS=false \
   BUILD_DIR=$BUILD_DIR \
@@ -55,7 +55,7 @@ fold_timer_cmd "benchmark" \
 # making the whole travis run fail.
 # Ulf, 2019-08-29: only disable the stdlib compiler test
 
-travis_fold start "compiler_tests"
+travis_fold start "compiler.tests"
 travis_timer_start 
 
 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
@@ -64,28 +64,28 @@ if [[ $GHC_VER != "8.0.2" ]]; then
 fi
 
 travis_timer_finish
-travis_fold end "compiler_test"
+travis_fold end "compiler.test"
 
-fold_timer_cmd "lib_successful_tests" \
+fold_timer_cmd "lib.successful.tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
 
-fold_timer_cmd "library_interaction_tests" \
+fold_timer_cmd "library.interaction.tests" \
   make BUILD_DIR=$BUILD_DIR lib-interaction
 
-fold_timer_cmd "tag_tests" \
+fold_timer_cmd "tag.tests" \
   make BUILD_DIR=$BUILD_DIR TAGS
 
-travis_fold start "test.size_solver"
+travis_fold start "test.size.solver"
 travis_timer_start 
 
 cabal v1-install --allow-newer=ansi-terminal -v0 --ghc-option=-w --force-reinstalls shelltestrunner
 make test-size-solver
 
-travis_fold end "test.size_solver"
+travis_fold end "test.size.solver"
 travis_timer_finish 
 
-fold_timer_cmd "emacs_mode_tests" \
+fold_timer_cmd "emacs.mode.tests" \
   make BUILD_DIR=$BUILD_DIR testing-emacs-mode
 
-fold_timer_cmd "build.agda_bisect" \
+fold_timer_cmd "build.agda.bisect" \
   make install-agda-bisect
