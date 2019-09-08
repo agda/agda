@@ -135,8 +135,10 @@ fold_timer_cmd() {
 
   travis_fold start ${name} 
   travis_time_start
+
   "${cmd[@]}"
   local result="${?}"
+
   travis_time_finish
   travis_fold end ${name}
 

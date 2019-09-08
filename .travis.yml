@@ -204,7 +204,7 @@ jobs:
         - export PATH=${HOME}/${NODE_DIR}/bin:$PATH
         - .travis/cabal_install
       ##############################################################################
-      script: 
+      script:
         - .travis/cabal_script
 
     - <<: *complete-job

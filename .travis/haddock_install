@@ -1,6 +1,8 @@
 #!/bin/bash
 source .travis/header.sh
-set -ev
+set -e
+
+travis_fold start "env_info"
 
 echo "*** GHC version ***"
 ghc --version
@@ -10,6 +12,8 @@ echo "*** Haddock version ***"
 haddock --version
 echo "*** Emacs version ***"
 emacs --version
+
+travis_fold end "env_info"
 
 ##############################################################################
 # Installing the dependencies
@@ -21,6 +25,8 @@ emacs --version
 
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
+
+travis_fold start "build.dependencies"
 
 travis_retry cabal update
 sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config
@@ -36,3 +42,5 @@ happy --version
 travis_retry cabal fetch \
   `cabal v1-install --dependencies-only --enable-tests --force-reinstalls --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
 make CABAL_OPTS='-v0 --only-dependencies --force-reinstalls' install-bin
+
+travis_fold end "build.dependencies"
