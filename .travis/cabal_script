@@ -1,0 +1,44 @@
+#!/bin/bash
+
+source .travis/header.sh
+set -ev
+
+fold_timer_cmd "check.whitespace" \
+  make check-whitespace
+
+fold_timer_cmd "check.successful.tests" \
+  make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
+
+fold_timer_cmd "check.failing.tests" \
+  make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
+
+fold_timer_cmd "check.interaction.tests" \
+  make BUILD_DIR=$BUILD_DIR interaction
+
+make BUILD_DIR=$BUILD_DIR interactive
+# We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
+# #1675), but we still compare the generated tex/html files with the
+# golden files.
+make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
+make BUILD_DIR=$BUILD_DIR examples
+make BUILD_DIR=$BUILD_DIR library-test
+make BUILD_DIR=$BUILD_DIR api-test
+make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
+make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
+make BUILD_DIR=$BUILD_DIR benchmark-without-logs
+make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
+# Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
+# making the whole travis run fail.
+# Ulf, 2019-08-29: only disable the stdlib compiler test
+if [[ $GHC_VER != "8.0.2" ]]; then
+  make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test;
+fi
+
+make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
+make BUILD_DIR=$BUILD_DIR lib-interaction
+make BUILD_DIR=$BUILD_DIR TAGS
+
+cabal install -v0 --ghc-option=-w shelltestrunner && make test-size-solver
+
+make BUILD_DIR=$BUILD_DIR testing-emacs-mode
+make install-agda-bisect

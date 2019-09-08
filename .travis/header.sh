@@ -1,4 +1,6 @@
 #!/bin/bash
+# The following bash functions are from
+# https://github.com/travis-ci/travis-build/tree/master/lib/travis/build/bash
 
 travis_wait() {
   local timeout="${1}"
@@ -78,4 +80,65 @@ travis_fold() {
   local action="${1}"
   local name="${2}"
   echo -en "travis_fold:${action}:${name}\\r${ANSI_CLEAR}"
+}
+
+travis_nanoseconds() {
+  local cmd='date'
+  local format='+%s%N'
+
+  if hash gdate >/dev/null 2>&1; then
+    cmd='gdate'
+  elif [[ "${TRAVIS_OS_NAME}" == osx ]]; then
+    format='+%s000000000'
+  fi
+
+  "${cmd}" -u "${format}"
+}
+
+travis_time_start() {
+  TRAVIS_TIMER_ID="$(printf %08x $((RANDOM * RANDOM)))"
+  TRAVIS_TIMER_START_TIME="$(travis_nanoseconds)"
+  export TRAVIS_TIMER_ID TRAVIS_TIMER_START_TIME
+  echo -en "travis_time:start:$TRAVIS_TIMER_ID\\r${ANSI_CLEAR}"
+}
+
+travis_time_finish() {
+  local result="${?}"
+  local travis_timer_end_time
+  local event="${1}"
+  travis_timer_end_time="$(travis_nanoseconds)"
+  local duration
+  duration="$((travis_timer_end_time - TRAVIS_TIMER_START_TIME))"
+  echo -en "travis_time:end:${TRAVIS_TIMER_ID}:start=${TRAVIS_TIMER_START_TIME},finish=${travis_timer_end_time},duration=${duration},event=${event}\\r${ANSI_CLEAR}"
+  return "${result}"
+}
+
+fold_cmd() {
+  local name="${1}"
+
+  shift
+  local cmd=("${@}")
+
+  travis_fold start ${name} 
+  "${cmd[@]}"
+  local result="${?}"
+  travis_fold end ${name}
+
+  return "${result}"
+}
+
+fold_timer_cmd() {
+  local name="${1}"
+
+  shift
+  local cmd=("${@}")
+
+  travis_fold start ${name} 
+  travis_time_start
+  "${cmd[@]}"
+  local result="${?}"
+  travis_time_finish
+  travis_fold end ${name}
+
+  return "${result}"
 }
