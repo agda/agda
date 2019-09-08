@@ -14,18 +14,18 @@ set -e
 ##############################################################################
 # Show build environment
 
-travis_fold start "build.env"
+travis_fold start "ghc.info"
 
-echo "*** GHC version ***"
+subtitle "*** GHC version ***"
 ghc --version 
-echo "*** Stack version ***" 
+subtitle "*** Stack version ***" 
 stack --version
-echo "*** Haddock version ***"
+subtitle "*** Haddock version ***"
 haddock --version
-echo "*** Emacs version ***"
-emacs --version
+subtitle "*** Emacs version ***"
+emacs --version | sed 2q
 
-travis_fold end "build.env"
+travis_fold end "ghc.info"
 
 ##############################################################################
 # Installing the dependencies

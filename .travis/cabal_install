@@ -18,17 +18,19 @@ happy --version
 subtitle "*** Haddock version ***"
 haddock --version
 subtitle "*** Emacs version ***"
-emacs --version
+emacs --version | sed 2q
 
+subtitle "*** cabal update ***"
+travis_retry cabal update
 # The container environment reports a wrong number of cores. We use
 # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
 # commenting out `jobs: $ncpus` in the Cabal configuration file.
-travis_retry cabal update
 sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config
+
 subtitle "*** Cabal configuration ***"
 cat $HOME/.cabal/config
 
-travis_fold end "env.info"
+travis_fold end "ghc.info"
 
 ##############################################################################
 # Installing the dependencies
