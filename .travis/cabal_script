@@ -66,7 +66,7 @@ if [[ $GHC_VER != "8.0.2" ]]; then
 fi
 
 travis_time_finish
-travis_fold end "compiler.test"
+travis_fold end "compiler.tests"
 
 fold_timer_cmd "lib.successful.tests" "Successfull tests using Agda as a Haskell library"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
@@ -77,8 +77,9 @@ fold_timer_cmd "library.interaction.tests" "Interaction tests using the standard
 fold_timer_cmd "tags" "TAGS"\
   make BUILD_DIR=$BUILD_DIR TAGS
 
-title "Testing the size-solver program"
 travis_fold start "test.size.solver"
+
+title "Testing the size-solver program"
 travis_time_start 
 
 stack install --system-ghc --no-terminal --silent shelltestrunner
