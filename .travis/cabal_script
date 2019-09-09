@@ -55,8 +55,8 @@ fold_timer_cmd "benchmark" "Benchmark suite without creating logs"\
 # making the whole travis run fail.
 # Ulf, 2019-08-29: only disable the stdlib compiler test
 
-title "Compiler tests"
 travis_fold start "compiler.tests"
+title "Compiler tests"
 travis_time_start 
 
 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
@@ -78,7 +78,6 @@ fold_timer_cmd "tags" "TAGS"\
   make BUILD_DIR=$BUILD_DIR TAGS
 
 travis_fold start "test.size.solver"
-
 title "Testing the size-solver program"
 travis_time_start 
 
