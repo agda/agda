@@ -7,6 +7,7 @@ set -e
 
 travis_fold start "ghc.info"
 
+title "GHC build information"
 subtitle "*** GHC version ***"
 ghc --version
 subtitle "*** Cabal version ***"
@@ -43,6 +44,7 @@ travis_fold end "ghc.info"
 
 travis_fold start "build.dependencies"
 
+title "Building dependencies"
 travis_retry cabal fetch \
   `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
 make CABAL_OPTS='-v0 --only-dependencies' install-bin
@@ -53,6 +55,7 @@ travis_fold end "build.dependencies"
 
 travis_fold start "build.agda"
 
+title "Building Agda"
 make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
 
 travis_fold end "build.agda"

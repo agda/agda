@@ -16,6 +16,8 @@ set -e
 
 travis_fold start "ghc.info"
 
+title "GHC build information"
+
 subtitle "*** GHC version ***"
 ghc --version 
 subtitle "*** Stack version ***" 

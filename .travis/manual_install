@@ -10,7 +10,7 @@ set -e
 # `$HOME/.local/bin`.
 
 pip3 install -r doc/user-manual/requirements.txt
-echo "*** sphinx-build version ***"
+subtitle "*** sphinx-build version ***"
 sphinx-build --version
 
 ##############################################################################
@@ -23,7 +23,8 @@ travis_retry curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bi
 tar xzf /tmp/texlive.tar.gz -C ~
 tlmgr update --self
 tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace
-echo "*** pdfLaTeX version ***"
+
+subtitle "*** pdfLaTeX version ***"
 pdflatex --version
-echo "*** Latexmk version ***"
+subtitle "*** Latexmk version ***"
 latexmk --version

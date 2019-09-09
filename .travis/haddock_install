@@ -2,18 +2,19 @@
 source .travis/header.sh
 set -e
 
-travis_fold start "env.info"
+travis_fold start "ghc.info"
 
-echo "*** GHC version ***"
+title "GHC build information"
+subtitle "*** GHC version ***"
 ghc --version
-echo "*** Cabal version ***"
+subtitle "*** Cabal version ***"
 cabal --version
-echo "*** Haddock version ***"
+subtitle "*** Haddock version ***"
 haddock --version
-echo "*** Emacs version ***"
+subtitle "*** Emacs version ***"
 emacs --version
 
-travis_fold end "env.info"
+travis_fold end "ghc.info"
 
 ##############################################################################
 # Installing the dependencies

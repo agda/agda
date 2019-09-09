@@ -3,7 +3,7 @@
 source .travis/header.sh
 set -e
 
-fold_timer_cmd "check.whitespace" "Check the whitespace issue" make check-whitespace
+fold_timer_cmd "check.whitespace" "Checking the whitespace issue" make check-whitespace
 
 fold_timer_cmd "successful.tests" "Suite of successful tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
