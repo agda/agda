@@ -127,24 +127,33 @@ fold_cmd() {
   return "${result}"
 }
 
-time_cmd() {
+title() {
+  echo -e "\033[33m${1}\033[0m"
+}
+
+
+subtitle() {
+  echo -e "\033[34m${1}\033[0m"
+}
+
+# TODO: rewrite this function 
+fold_timer_cmd() {
+  local name="${1}"
+  local title="${2}"
+
+  shift 2
+
   local cmd=("${@}")
 
+  echo -en "travis_fold:start:${name}\\r${ANSI_CLEAR}"
+  
+  title "${title}"
   travis_time_start 
   "${cmd[@]}"
   local result="${?}"
   travis_time_finish
 
+  echo -en "travis_fold:end:${name}\\r${ANSI_CLEAR}"
+
   return "${result}"
-}
-
-title() {
-  echo -e "\033[33m${1}\033[0m"
-}
-
-subtitle() {
-  echo -e "\033[34m${1}\033[0m"
-}
-fold_timer_cmd() {
-  fold_cmd time_cmd ${cmd[@]}
 }

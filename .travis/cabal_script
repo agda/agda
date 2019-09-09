@@ -3,62 +3,51 @@
 source .travis/header.sh
 set -e
 
-fold_timer_cmd "check.whitespace" make check-whitespace
+fold_timer_cmd "check.whitespace" "Check the whitespace issue" make check-whitespace
 
-title "Suite of successful tests"
-fold_timer_cmd "successful.tests" \
+fold_timer_cmd "successful.tests" "Suite of successful tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
 
-title "Suite of failing tests"
-fold_timer_cmd "failing.tests" \
+fold_timer_cmd "failing.tests" "Suite of failing tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
 
-title "Suite of interaction tests"
-fold_timer_cmd "interaction.tests" \
+fold_timer_cmd "interaction.tests" "Suite of interaction tests"\
   make BUILD_DIR=$BUILD_DIR interaction
 
-title "Suite of interactive tests"
-fold_timer_cmd "interactive.tests" \
+fold_timer_cmd "interactive.tests" "Suite of interactive tests"\
   make BUILD_DIR=$BUILD_DIR interactive
 # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
 # #1675), but we still compare the generated tex/html files with the
 # golden files.
 
-title "Suite of tests for the LaTeX and HTML backends"
-fold_timer_cmd "latex_html.tests" \
+fold_timer_cmd "latex_html.tests" "Suite of tests for the LaTeX and HTML backends"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
     TASTY_ANSI_TRICKS=false \
     BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" \
     latex-html-test
    
-title "Suite of examples"
-fold_timer_cmd "examples" \
+fold_timer_cmd "examples" "Suite of examples"\
   make BUILD_DIR=$BUILD_DIR examples
 
-title "Standard library" 
-fold_timer_cmd "library.tests" \
+fold_timer_cmd "library.tests" "Standard library" \
   make BUILD_DIR=$BUILD_DIR library-test
 
-title "Successfull tests using Agda as a Haskell library"
-fold_timer_cmd "api.tests" \
-make BUILD_DIR=$BUILD_DIR api-test
+fold_timer_cmd "api.tests" "Successfull tests using Agda as a Haskell library"\
+  make BUILD_DIR=$BUILD_DIR api-test
 
-title "User manual"
-fold_timer_cmd "user.manual.tests" \
+fold_timer_cmd "user.manual.tests" "User manual"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
     TASTY_ANSI_TRICKS=false \
     BUILD_DIR=$BUILD_DIR \
     user-manual-test
 
-title "Internal test suite"
-fold_timer_cmd "internal.tests" \
+fold_timer_cmd "internal.tests" "Internal test suite"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"\
   TASTY_ANSI_TRICKS=false \
   BUILD_DIR=$BUILD_DIR \
   internal-tests
 
-title "Benchmark suite without creating logs"
-fold_timer_cmd "benchmark" \
+fold_timer_cmd "benchmark" "Benchmark suite without creating logs"\
   make BUILD_DIR=$BUILD_DIR benchmark-without-logs
 
 ##################################################################################
@@ -68,7 +57,7 @@ fold_timer_cmd "benchmark" \
 
 title "Compiler tests"
 travis_fold start "compiler.tests"
-travis_timer_start 
+travis_time_start 
 
 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
 if [[ $GHC_VER != "8.0.2" ]]; then
@@ -76,35 +65,30 @@ if [[ $GHC_VER != "8.0.2" ]]; then
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test;
 fi
 
-travis_timer_finish
+travis_time_finish
 travis_fold end "compiler.test"
 
-title "Successfull tests using Agda as a Haskell library"
-fold_timer_cmd "lib.successful.tests" \
+fold_timer_cmd "lib.successful.tests" "Successfull tests using Agda as a Haskell library"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
 
-title "Interaction tests using the standard library"
-fold_timer_cmd "library.interaction.tests" \
+fold_timer_cmd "library.interaction.tests" "Interaction tests using the standard library"\
   make BUILD_DIR=$BUILD_DIR lib-interaction
 
-title "TAGS"
-fold_timer_cmd "tag.tests" \
+fold_timer_cmd "tags" "TAGS"\
   make BUILD_DIR=$BUILD_DIR TAGS
 
 title "Testing the size-solver program"
 travis_fold start "test.size.solver"
-travis_timer_start 
+travis_time_start 
 
 stack install --system-ghc --no-terminal --silent shelltestrunner
 make test-size-solver
 
 travis_fold end "test.size.solver"
-travis_timer_finish 
+travis_time_finish 
 
-title "Testing the Emacs mode"
-fold_timer_cmd "emacs.mode.tests" \
+fold_timer_cmd "emacs.mode.tests" "Testing the Emacs mode"\
   make BUILD_DIR=$BUILD_DIR testing-emacs-mode
 
-title "Installing the agda-bisect program"
-fold_timer_cmd "build.agda.bisect" \
+fold_timer_cmd "build.agda.bisect" "Installing the agda-bisect program"\
   make install-agda-bisect

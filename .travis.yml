@@ -16,7 +16,6 @@ cache:
     - $HOME/.stack
     # TODO: Experimental
     - $TRAVIS_BUILD_DIR/.stack-work
-    - $TRAVIS_BUILD_DIR/.cabal-sandbox
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
