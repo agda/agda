@@ -23,7 +23,6 @@ module Agda.TypeChecking.Names where
 
 import Control.Monad.Fail (MonadFail)
 
-import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -39,6 +38,7 @@ import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Except
+import Agda.Utils.Fail (Fail, runFail_)
 
 instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
@@ -69,8 +69,9 @@ type Names = [String]
 runNamesT :: Names -> NamesT m a -> m a
 runNamesT n m = runReaderT (unName m) n
 
-runNames :: Names -> NamesT Identity a -> a
-runNames n m = runIdentity (runNamesT n m)
+-- We use @Fail@ instead of @Identity@ because the computation can fail.
+runNames :: Names -> NamesT Fail a -> a
+runNames n m = runFail_ (runNamesT n m)
 
 currentCxt :: Monad m => NamesT m Names
 currentCxt = NamesT ask

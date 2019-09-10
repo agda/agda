@@ -831,12 +831,15 @@ metaHelperType norm ii rng s = case words s of
     renameVar s   = pure s
 
     betterName = do
-      arg : args <- get
-      put args
-      return $ if
-        | Arg _ (Named _ (A.Var x)) <- arg -> prettyShow $ A.nameConcrete x
-        | Just x <- bareNameOf arg         -> argNameToString x
-        | otherwise                        -> "w"
+      xs <- get
+      case xs of
+        []         -> __IMPOSSIBLE__
+        arg : args -> do
+          put args
+          return $ if
+            | Arg _ (Named _ (A.Var x)) <- arg -> prettyShow $ A.nameConcrete x
+            | Just x <- bareNameOf arg         -> argNameToString x
+            | otherwise                        -> "w"
 
 
 -- | Gives a list of names and corresponding types.

@@ -31,11 +31,6 @@ import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 
-instance Fail.MonadFail Identity where
-  fail = error
-
----------------------------------------------------------------------------
-
 -- | Binary bind.
 (==<<) :: Monad m => (a -> b -> m c) -> (m a, m b) -> m c
 k ==<< (ma, mb) = ma >>= \ a -> k a =<< mb
