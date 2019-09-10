@@ -8,7 +8,9 @@ CABAL_VERSION := $(shell $(CABAL_CMD) --numeric-version | cut -d. -f1-2)
 ifeq ("2.4","$(word 1,$(sort 2.4 $(CABAL_VERSION)))")
 	CABAL_INSTALL_CMD=v1-install
 	CABAL_BUILD_CMD=v1-build
+	CABAL_CLEAN_CMD=v1-clean
 else
 	CABAL_INSTALL_CMD=install
 	CABAL_BUILD_CMD=build
+	CABAL_CLEAN_CMD=clean
 endif
