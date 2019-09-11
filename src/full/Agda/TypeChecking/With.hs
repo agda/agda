@@ -144,7 +144,7 @@ withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
   d2b  <- etaContract d2b
   dbg 30 "eta-contracted Δ₂ → B" d2b
 
-  vs <- etaContract =<< normalise vtys
+  vtys <- etaContract =<< normalise vtys
 
   -- wd2db = wtel → [vs : as] (Δ₂ → B)
   wd2b <- foldrM piAbstract d2b vtys
