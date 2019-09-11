@@ -109,6 +109,11 @@ instance EmbPrj I.Term where
     valu [9, a]    = valuN Level a
     valu _         = malformed
 
+instance EmbPrj QuotedTerm where
+  icod_ (QuotedTerm a b c) = icodeN' QuotedTerm a b c
+
+  value = valueN QuotedTerm
+
 instance EmbPrj Level where
   icod_ (Max a) = icodeN' Max a
 

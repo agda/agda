@@ -463,8 +463,8 @@ data UnifyStep
   | LitConflict
     { litConflictAt      :: Int
     , litType            :: Type
-    , litConflictLeft    :: Literal
-    , litConflictRight   :: Literal
+    , litConflictLeft    :: ILiteral
+    , litConflictRight   :: ILiteral
     }
   | StripSizeSuc
     { stripAt            :: Int

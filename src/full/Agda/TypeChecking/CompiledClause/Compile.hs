@@ -10,6 +10,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import Data.List (nubBy)
 import Data.Function
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -364,7 +365,7 @@ expandCatchAlls single n cs =
             -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
-        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
+        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit $ vacuous l) b)
         DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
                             (substBody n' m (Def d (map Apply conArgs)) b)
           where

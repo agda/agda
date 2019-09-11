@@ -735,15 +735,6 @@ instance Pretty ProblemId where
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
-newtype CheckpointId = CheckpointId Int
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
-
-instance Show CheckpointId where
-  show (CheckpointId n) = show n
-
-instance Pretty CheckpointId where
-  pretty (CheckpointId n) = pretty n
-
 instance HasFresh CheckpointId where
   freshLens = stFreshCheckpointId
 

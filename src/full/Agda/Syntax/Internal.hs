@@ -177,6 +177,8 @@ instance LensConName ConHead where
   getConName = conName
   setConName c con = con { conName = c }
 
+-- | Literals in internal syntax can include quoted terms.
+type ILiteral = Literal' QuotedTerm
 
 -- | Raw values.
 --
@@ -187,7 +189,7 @@ instance LensConName ConHead where
 --
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
-          | Lit Literal
+          | Lit ILiteral
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
           | Con ConHead ConInfo Elims
           -- ^ @c es@ or @record { fs = es }@
@@ -209,6 +211,12 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   The second field accumulates eliminations in case we
             --   apply a dummy term to more of them.
   deriving (Data, Show)
+
+data QuotedTerm = QuotedTerm
+  { quotedType       :: Type
+  , quotedTerm       :: Term
+  , quotedCheckpoint :: CheckpointId
+  } deriving (Data, Show)
 
 type ConInfo = ConOrigin
 
@@ -1138,6 +1146,19 @@ allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
 allProjElims = mapM isProjElim
 
 ---------------------------------------------------------------------------
+-- * Checkpoint ids
+---------------------------------------------------------------------------
+
+newtype CheckpointId = CheckpointId Int
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+instance Show CheckpointId where
+  show (CheckpointId n) = show n
+
+instance Pretty CheckpointId where
+  pretty (CheckpointId n) = pretty n
+
+---------------------------------------------------------------------------
 -- * Null instances.
 ---------------------------------------------------------------------------
 
@@ -1395,6 +1416,9 @@ instance Pretty Term where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance Pretty QuotedTerm where
+  prettyPrec p q = mparens (p > 9) $ sep ["quoteTerm", prettyPrec 10 $ quotedTerm q]
+
 pDom :: LensHiding a => a -> Doc -> Doc
 pDom i =
   case getHiding i of
@@ -1546,3 +1570,9 @@ instance NFData a => NFData (Elim' a) where
 
 instance NFData e => NFData (Dom e) where
   rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+
+instance NFData CheckpointId where
+  rnf (CheckpointId n) = rnf n
+
+instance NFData QuotedTerm where
+  rnf (QuotedTerm a b c) = rnf (a, b, c)

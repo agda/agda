@@ -112,7 +112,7 @@ quotingKit = do
       quoteArgInfo (ArgInfo h m _ _) =
         arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
 
-      quoteLit :: Literal -> ReduceM Term
+      quoteLit :: Literal' QuotedTerm -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l
       quoteLit l@LitWord64{} = litWord64 !@! Lit l
       quoteLit l@LitFloat{}  = litFloat  !@! Lit l
@@ -120,7 +120,7 @@ quotingKit = do
       quoteLit l@LitString{} = litString !@! Lit l
       quoteLit l@LitQName{}  = litQName  !@! Lit l
       quoteLit l@LitMeta {}  = litMeta   !@! Lit l
-      quoteLit (LitTerm _ t) = absurd t   -- for now
+      quoteLit (LitTerm _ t) = quoteTerm (quotedTerm t)
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -155,7 +155,7 @@ quotingKit = do
       quotePat (VarP o x)        = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _ _)        = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
-      quotePat (LitP l)          = litP !@ quoteLit l
+      quotePat (LitP l)          = litP !@ quoteLit (vacuous l)
       quotePat (ProjP _ x)       = projP !@ quoteQName x
       quotePat (IApplyP o t u x) = pure unsupported
       quotePat DefP{}            = pure unsupported

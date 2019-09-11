@@ -360,7 +360,7 @@ fromReducedTerm f = return $ \t -> do
         Just x  -> return $ YesReduction NoSimplification x
         Nothing -> return $ NoReduction (reduced b)
 
-fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
+fromLiteral :: (ILiteral -> Maybe a) -> TCM (FromTermFunction a)
 fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing

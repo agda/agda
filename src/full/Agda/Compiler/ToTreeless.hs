@@ -405,7 +405,7 @@ substTerm term = normaliseStatic term >>= \ term ->
       C.TLam <$>
         local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
           (substTerm $ I.unAbs ab)
-    I.Lit l -> return $ C.TLit l
+    I.Lit l -> return $ C.TLit (fmap (\ _ -> __IMPOSSIBLE__) l) -- Should be impossible
     I.Level _ -> return C.TUnit
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es

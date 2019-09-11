@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
 import Data.Semigroup ((<>))
+import Data.Void
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -398,7 +399,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     metaPat (IApplyP{})      = nextMeta
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
     metaPat (DefP o q args)  = Def q . map Apply <$> metaArgs args
-    metaPat (LitP l)         = return $ Lit l
+    metaPat (LitP l)         = return $ Lit $ vacuous l
     metaPat ProjP{}          = __IMPOSSIBLE__
 
 forcePiUsingInjectivity :: Type -> TCM Type

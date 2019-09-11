@@ -245,7 +245,7 @@ instance GenC Integer where
 instance GenC Word64 where
   genC _ = arbitrary
 
-instance GenC Literal where
+instance GenC (Literal' t) where
   genC conf = oneof (concat $ zipWith gen useLits
               [ uncurry LitNat    <$> genC conf
               , uncurry LitWord64 <$> genC conf
@@ -401,7 +401,7 @@ instance ShrinkC ConName ConHead where
   shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
-instance ShrinkC Literal Literal where
+instance ShrinkC (Literal' t) (Literal' t) where
   shrinkC _ (LitNat _ 0) = []
   shrinkC conf l         = LitNat noRange 0 : case l of
       LitNat    r n -> LitNat    r <$> shrink n

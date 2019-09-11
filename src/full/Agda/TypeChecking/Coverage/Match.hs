@@ -463,15 +463,16 @@ unDotP (DotP o v) = reduce v >>= \case
   Con c _ vs -> do
     let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
-  Lit l -> return $ LitP l
+  Lit l -> return $ LitP (fmap (\ _ -> __IMPOSSIBLE__) l) -- TODO: not impossible?
   v     -> return $ dotP v
 unDotP p = return p
 
 isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
 isLitP (LitP l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
-  Lit l -> return $ Just l
-  _     -> return $ Nothing
+  Lit LitTerm{} -> return Nothing
+  Lit l         -> return $ Just $ fmap (\ _ -> __IMPOSSIBLE__) l
+  _             -> return $ Nothing
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
   if | c == zero -> return $ Just $ LitNat (getRange c) 0

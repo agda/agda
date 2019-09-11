@@ -11,6 +11,7 @@ module Agda.TypeChecking.Rules.LHS
 import Prelude hiding ( mapM, null, sequence )
 
 import Data.Maybe
+import Data.Void
 
 import Control.Arrow (left)
 import Control.Monad
@@ -251,7 +252,7 @@ updateProblemEqs eqs = do
 
           _ -> return [eq]
 
-      Lit l | A.LitP l' <- p , l == l' -> return []
+      Lit l | A.LitP l' <- p , l == vacuous l' -> return []
 
       _ | A.EqualP{} <- p -> do
         itisone <- liftTCM primItIsOne
@@ -1147,7 +1148,7 @@ checkLHS mf = updateModality checkLHS_ where
              -> Literal       -- ^ The literal written by the user
              -> ExceptT TCErr tcm (LHSState a)
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
-      let delta2 = absApp adelta2 (Lit lit)
+      let delta2 = absApp adelta2 (Lit $ vacuous lit)
           delta' = abstract delta1 delta2
           rho    = singletonS (size delta2) (LitP lit)
           -- Andreas, 2015-06-13 Literals are closed, so no need to raise them!

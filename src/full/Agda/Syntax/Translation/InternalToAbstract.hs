@@ -58,6 +58,7 @@ import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -355,7 +356,7 @@ reifyDisplayFormP f ps wps = do
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
-        termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP l
+        termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP (fmap (\ _ -> __IMPOSSIBLE__) l)
 
         termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
         termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
@@ -389,9 +390,15 @@ reifyDisplayFormP f ps wps = do
               apps e =<< argsToExpr vs
             _ -> return underscore
 
-instance Reify Literal Expr where
+instance Reify l Expr => Reify (Literal' l) Expr where
   reifyWhen = reifyWhenE
-  reify l = return (A.Lit l)
+  reify (LitTerm _ q) = reify q
+  reify l = return $ A.Lit $ fmap (\ _ -> __IMPOSSIBLE__) l
+
+instance Reify QuotedTerm Expr where
+  reify q = do
+    e <- reify (quotedTerm q)
+    return $ A.App defaultAppInfo_ (A.QuoteTerm noExprInfo) (defaultNamedArg e)
 
 instance Reify Term Expr where
   reifyWhen = reifyWhenE

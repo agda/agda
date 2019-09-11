@@ -103,7 +103,7 @@ data CompactDefn
   | CErase   -- ^ primErase
   | CTyCon   -- ^ Datatype or record type. Need to know this for primForce.
   | CAxiom   -- ^ Axiom or abstract defn
-  | CPrimOp Int ([Literal] -> Term) (Maybe FastCompiledClauses)
+  | CPrimOp Int ([ILiteral] -> Term) (Maybe FastCompiledClauses)
             -- ^ Literals in reverse argument order
   | COther  -- ^ In this case we fall back to slow reduction
 
@@ -630,7 +630,7 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
                         -- ^ @NatSucK n@. Add @n@ to the focus. If the focus computes to a natural
                         --   number literal this returns a new literal, otherwise it constructs @n@
                         --   calls to @suc@.
-                    | PrimOpK QName ([Literal] -> Term) [Literal] [Pointer s] (Maybe FastCompiledClauses)
+                    | PrimOpK QName ([ILiteral] -> Term) [ILiteral] [Pointer s] (Maybe FastCompiledClauses)
                         -- ^ @PrimOpK f op lits es cc@. Evaluate the primitive function @f@ using
                         --   the Haskell function @op@. @op@ gets a list of literal values in
                         --   reverse order for the arguments of @f@ and computes the result as a
@@ -1146,8 +1146,9 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           runAM (Match f cc catchallSpine stack ctrl)
 
         -- Matching literal: Switch to the Match state. There are no arguments to add to the spine.
-        matchLit l = Map.lookup l (flitBranches bs) `ifJust` \ cc ->
+        matchLit l = Map.lookup l' (flitBranches bs) `ifJust` \ cc ->
           runAM (Match f cc (spine0 <> spine1) catchallStack ctrl)
+          where l' = fmap (\ _ -> __IMPOSSIBLE__) l -- TODO: more efficient?
 
         -- Matching a 'suc' constructor: Insert the argument in the spine.
         matchSuc = fsucBranch bs `ifJust` \ cc ->

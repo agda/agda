@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
 import Data.Semigroup (Semigroup((<>)))
+import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -151,7 +152,6 @@ instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
 instance PrettyTCM C.QName     where prettyTCM = pretty
 instance PrettyTCM Comparison  where prettyTCM = pretty
-instance PrettyTCM Literal     where prettyTCM = pretty
 instance PrettyTCM Nat         where prettyTCM = pretty
 instance PrettyTCM ProblemId   where prettyTCM = pretty
 instance PrettyTCM Range       where prettyTCM = pretty
@@ -159,11 +159,18 @@ instance PrettyTCM CheckpointId where prettyTCM = pretty
 -- instance PrettyTCM Interval where prettyTCM = pretty
 -- instance PrettyTCM Position where prettyTCM = pretty
 
+instance PrettyTCM t => PrettyTCM (Literal' t) where
+  prettyTCM (LitTerm _ t) = prettyTCM t
+  prettyTCM l = pretty (fmap (\ _ -> __IMPOSSIBLE__) l :: Literal)
+
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
 instance PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
+
+instance PrettyTCM Void where
+  prettyTCM _ = __IMPOSSIBLE__
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
@@ -182,6 +189,8 @@ instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM IsForced     where prettyTCM = text . show
+
+instance PrettyTCM QuotedTerm   where prettyTCM = prettyA <=< reify
 
 prettyR
   :: (R.ToAbstract r a, PrettyTCM a, MonadPretty m, MonadError TCErr m)

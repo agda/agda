@@ -11,6 +11,7 @@ import Data.Either (partitionEithers, lefts)
 import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Void
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
@@ -961,7 +962,7 @@ checkRecordUpdate cmp ei recexpr fs e t = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
   t' <- litType lit
-  coerce CmpEq (Lit lit) t' t
+  coerce CmpEq (Lit $ vacuous lit) t' t
 
 ---------------------------------------------------------------------------
 -- * Terms

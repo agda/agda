@@ -57,7 +57,7 @@ instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
 
 litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-  => Literal -> m Type
+  => Literal' t -> m Type
 litType l = case l of
   LitNat _ n    -> do
     _ <- primZero

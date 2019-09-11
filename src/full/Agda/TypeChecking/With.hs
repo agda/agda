@@ -10,6 +10,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Foldable ( foldrM )
 import Data.Traversable ( traverse )
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -490,8 +491,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
            mismatch
 
         LitP lit -> case namedArg p of
-          A.LitP lit' | lit == lit' -> recurse $ Lit lit
-          A.WildP{}                 -> recurse $ Lit lit
+          A.LitP lit' | lit == lit' -> recurse $ Lit $ vacuous lit
+          A.WildP{}                 -> recurse $ Lit $ vacuous lit
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
@@ -703,5 +704,5 @@ patsToElims = map $ toElim . fmap namedThing
       DotP PatOVar{} t@(Var i []) -> DTerm t
       DotP o t    -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP l      -> DTerm  $ Lit l
+      LitP l      -> DTerm  $ Lit $ vacuous l
       DefP o q ps -> DDef q $ map Apply $ toTerms ps

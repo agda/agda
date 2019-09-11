@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import Data.Maybe
+import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -77,7 +78,7 @@ patternToTerm p ret =
     A.DefP _ fs ps
       | Just f <- getUnambiguous fs -> pappToTerm f (Def f . map Apply) ps ret
       | otherwise                   -> ambigErr "DefP" fs
-    A.LitP l                        -> ret 0 (Lit l)
+    A.LitP l                        -> ret 0 (Lit $ vacuous l)
     A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
     _                               -> do
       doc <- prettyA p
@@ -102,7 +103,7 @@ exprToTerm e =
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
     A.Con c  -> pure $ Con (ConHead (headAmbQ c) Inductive []) ConOCon [] -- Don't care too much about ambiguity here
-    A.Lit l  -> pure $ Lit l
+    A.Lit l  -> pure $ Lit $ vacuous l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
     A.Proj _ f -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here

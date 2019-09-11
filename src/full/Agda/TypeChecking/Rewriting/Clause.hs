@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Rewriting.Clause where
 
 import Data.Maybe
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -65,7 +66,7 @@ instance ToNLPat (Arg DeBruijnPattern) (Elim' NLPat) where
     VarP _ x        -> app $ PVar (dbPatVarIndex x) []
     DotP _ u        -> app $ PTerm u
     ConP c _ ps     -> app $ PDef (conName c) $ toNLPat ps
-    LitP l          -> app $ PTerm $ Lit l
+    LitP l          -> app $ PTerm $ Lit $ vacuous l
     ProjP o f       -> Proj o f
     IApplyP _ u v x -> IApply (PTerm u) (PTerm v) $ PVar (dbPatVarIndex x) []
     DefP _ f ps     -> app $ PDef f $ toNLPat ps

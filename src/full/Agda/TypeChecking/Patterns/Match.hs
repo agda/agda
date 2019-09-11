@@ -10,6 +10,7 @@ import Prelude hiding (null)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Traversable (traverse)
+import qualified Data.Void as Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -214,9 +215,10 @@ matchPattern p u = case (p, u) of
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
+        lp   = Void.vacuous l  -- TODO: constructorForm?
     case w of
       NotBlocked _ (Lit l')
-          | l == l'            -> return (Yes YesSimplification empty , arg')
+          | lp == l'           -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
       NotBlocked _ (MetaV x _) -> return (DontKnow $ Blocked x ()     , arg')
       Blocked x _              -> return (DontKnow $ Blocked x ()     , arg')

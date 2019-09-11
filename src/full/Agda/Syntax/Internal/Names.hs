@@ -180,6 +180,9 @@ instance NamesIn DisplayTerm where
     DDot v           -> namesIn v
     DTerm v          -> namesIn v
 
+instance NamesIn QuotedTerm where
+  namesIn q = namesIn (quotedTerm q, quotedType q)
+
 -- Pattern synonym stuff --
 
 newtype PSyn = PSyn A.PatternSynDefn

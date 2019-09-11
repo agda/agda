@@ -9,6 +9,7 @@ import Control.Monad.State
 import Data.Maybe
 import Data.Monoid
 import qualified Data.List as List
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))
@@ -160,7 +161,7 @@ patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
 patternToElim (Arg ai (DefP o q ps)) = Apply $ Arg ai $ Def q $
       map (patternToElim . fmap namedThing) ps
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
-patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
+patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit (vacuous l)
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
 patternToElim (Arg ai (IApplyP o t u x)) = IApply t u $ var $ dbPatVarIndex x
 

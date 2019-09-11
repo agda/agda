@@ -1285,6 +1285,9 @@ instance Eq a => Eq (Pattern' a) where
   DefP _ f ps     == DefP _ g qs       = f == g && ps == qs
   _               == _                 = False
 
+instance Eq QuotedTerm where
+  QuotedTerm a u i == QuotedTerm b v j = (a, u, i) == (b, v, j)
+
 instance Ord Term where
   Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT
@@ -1317,6 +1320,9 @@ instance Ord Term where
   DontCare{} `compare` _          = LT
   _          `compare` DontCare{} = GT
   Dummy{}    `compare` Dummy{}    = EQ
+
+instance Ord QuotedTerm where
+  QuotedTerm a u i `compare` QuotedTerm b v j = (a, u, i) `compare` (b, v, j)
 
 -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
 --

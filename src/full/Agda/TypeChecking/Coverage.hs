@@ -26,6 +26,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -1324,7 +1325,7 @@ split' checkEmpty ind allowPartialCover fixtarget
           liftTCM $ dontAssignMetas $ tryConversion $ equalType (unDom t) t'
         unless typeOk $ throwError . NotADatatype =<< do liftTCM $ buildClosure (unDom t)
         ns <- forM plits $ \lit -> do
-          let delta2' = subst 0 (Lit lit) delta2
+          let delta2' = subst 0 (Lit $ vacuous lit) delta2
               delta'  = delta1 `abstract` delta2'
               rho     = liftS x $ consS (LitP lit) idS
               ps'     = applySubst rho ps
