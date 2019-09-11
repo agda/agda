@@ -109,10 +109,7 @@ instance MonadDebug m => MonadDebug (ExceptT e m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapExceptT nowDebugPrinting
-  verboseBracket k n s = applyWhenVerboseS k n $ \m -> do
-    mapExceptT (verboseBracket k n s) m `catchError` \err -> do
-      closeVerboseBracket k n
-      throwError err
+  verboseBracket k n s = mapExceptT (verboseBracket k n s)
 
 instance MonadDebug m => MonadDebug (ListT m) where
   displayDebugMessage k n s = lift $ displayDebugMessage k n s
@@ -121,7 +118,6 @@ instance MonadDebug m => MonadDebug (ListT m) where
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = liftListT nowDebugPrinting
   verboseBracket k n s = liftListT $ verboseBracket k n s
-    -- TODO: this may close the bracket any number of times
 
 instance MonadDebug m => MonadDebug (MaybeT m) where
   displayDebugMessage k n s = lift $ displayDebugMessage k n s
@@ -129,10 +125,7 @@ instance MonadDebug m => MonadDebug (MaybeT m) where
   getVerbosity = lift getVerbosity
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapMaybeT nowDebugPrinting
-  verboseBracket k n s = applyWhenVerboseS k n $ \m -> MaybeT $ do
-    verboseBracket k n s (runMaybeT m) >>= \case
-      Just result -> return $ Just result
-      Nothing     -> closeVerboseBracket k n >> return Nothing
+  verboseBracket k n s = MaybeT . verboseBracket k n s . runMaybeT
 
 instance MonadDebug m => MonadDebug (ReaderT r m) where
   displayDebugMessage k n s = lift $ displayDebugMessage k n s
