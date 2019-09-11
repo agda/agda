@@ -30,7 +30,6 @@ branches:
     - stable-2.5
     - release-2.5.4.2
     - release-2.6.0.1
-    - revised-travis # TODO: remove this line before merging
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
@@ -98,10 +97,10 @@ jobs:
         - mkdir -p ~/.local/bin
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
-      install:
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --system-ghc"
         - export BUILD_DIR=$HOME/dist
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+      install:
         - .travis/stack_install
       script:
         skip
@@ -150,19 +149,17 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-
-        # use stack to install alex, happy, and shelltestrunner
-        - mkdir -p ~/.local/bin
-        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
-
-        - stack install --system-ghc --no-terminal --silent alex happy
-      install:
         - export BUILD_DIR=$HOME/dist
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         - export AGDA_HOME=`pwd`
+      install:
+        # use stack to install alex, happy, and shelltestrunner
+        - mkdir -p ~/.local/bin
+        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        - stack install --system-ghc --no-terminal alex happy
         - .travis/cabal_install
       ##############################################################################
       script:
@@ -209,10 +206,11 @@ jobs:
       name: User Manual
       language: python
       python: "3.4"
-      install:
+      before_install:
         - export BUILD_DIR=$HOME/dist
         - export PATH=$HOME/.local/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+      install:
         - .travis/manual_install
       ##############################################################################
       # Making the user manual
@@ -237,14 +235,13 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-      install:
         - export BUILD_DIR=$HOME/dist
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
+      install:
         - .travis/haddock_install
 
       ##############################################################################
       # Testing Haddock [Issue 1773]
       script:
         - make BUILD_DIR=$BUILD_DIR haddock
-
