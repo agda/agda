@@ -473,6 +473,9 @@ localToAbstract' x ret = do
   scope <- getScope
   withScope scope $ ret =<< toAbstract x
 
+instance ToAbstract () () where
+  toAbstract = pure
+
 instance (ToAbstract c1 a1, ToAbstract c2 a2) => ToAbstract (c1,c2) (a1,a2) where
   toAbstract (x,y) = (,) <$> toAbstract x <*> toAbstract y
 
@@ -2277,7 +2280,7 @@ data AbstractRHS
   | WithRHS' [A.Expr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [RewriteEqn' A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2289,31 +2292,33 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
-instance ToAbstract (RewriteEqn' A.Pattern A.Expr) A.RewriteEqn where
+instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) A.RewriteEqn where
   toAbstract = \case
-    Rewrite es -> fmap Rewrite $ forM es $ \ e -> do
+    Rewrite es -> fmap Rewrite $ forM es $ \ (_, e) -> do
       qn <- withFunctionName "-rewrite"
       pure (qn, e)
-    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
+    Invert _ pes -> do
       qn <- withFunctionName "-invert"
-      pure (p, (qn, e))
+      pure $ Invert qn pes
 
-instance ToAbstract (C.RewriteEqn) (RewriteEqn' A.Pattern A.Expr) where
+instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
   toAbstract = \case
-    Rewrite es -> Rewrite <$> mapM toAbstract es
-    Invert pes -> fmap Invert $ forM pes $ \ (p, e) -> do
-      -- first check the expression: the pattern may shadow
-      -- some of the variables mentioned in it!
-      e <- toAbstract e
-      -- then parse the pattern and go through the motions of converting it,
-      -- checking it for linearity, binding the variable it introduced and
-      -- finally producing an abstract pattern.
-      p <- parsePattern p
-      p <- toAbstract p
-      checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
-      bindVarsToBind
-      p <- toAbstract p
-      pure (p, e)
+    Rewrite es   -> Rewrite <$> mapM toAbstract es
+    Invert _ pes -> Invert () <$> do
+      let (ps, es) = unzip pes
+      -- first check the expressions: the patterns may shadow some of the variables
+      -- mentioned in them!
+      es <- toAbstract es
+      -- then parse the patterns and go through the motions of converting them,
+      -- checking them for linearity, binding the variable introduced in them
+      -- and finally producing an abstract pattern.
+      ps <- forM ps $ \ p -> do
+        p <- parsePattern p
+        p <- toAbstract p
+        checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
+        bindVarsToBind
+        toAbstract p
+      pure $ zip ps es
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS

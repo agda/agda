@@ -550,6 +550,9 @@ bindToConcreteHiding h =
 
 -- General instances ------------------------------------------------------
 
+instance ToConcrete () () where
+  toConcrete = pure
+
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
     -- Andreas, 2017-04-11, Issue #2543
@@ -983,14 +986,14 @@ instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) whe
       wh <- declsToConcrete (A.whereDecls wh)
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs') __IMPOSSIBLE__
-      eqs <- toConcrete $ map (snd <$>) xeqs
+      eqs <- toConcrete xeqs
       return (rhs, eqs, es, wh ++ whs)
 
 instance (ToConcrete p q, ToConcrete a b) =>
-         ToConcrete (RewriteEqn' p a) (RewriteEqn' q b) where
+         ToConcrete (RewriteEqn' qn p a) (RewriteEqn' () q b) where
   toConcrete = \case
-    Rewrite es -> Rewrite <$> mapM toConcrete es
-    Invert pes -> Invert <$> mapM toConcrete pes
+    Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
+    Invert qn pes -> Invert () <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete = mapM (toConcrete . qnameName)

@@ -292,7 +292,7 @@ data LHS = LHS
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
-type RewriteEqn = RewriteEqn' Pattern Expr
+type RewriteEqn = RewriteEqn' () Pattern Expr
 
 type WithExpr   = Expr
 
@@ -505,12 +505,12 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
  --------------------------------------------------------------------------}
 
 -- | Extended content of an interaction hole.
-data HoleContent' p e
-  = HoleContentExpr    e                 -- ^ @e@
-  | HoleContentRewrite [RewriteEqn' p e] -- ^ @(rewrite | invert) e0 | ... | en@
+data HoleContent' qn p e
+  = HoleContentExpr    e                    -- ^ @e@
+  | HoleContentRewrite [RewriteEqn' qn p e] -- ^ @(rewrite | invert) e0 | ... | en@
   deriving (Functor, Foldable, Traversable)
 
-type HoleContent = HoleContent' Pattern Expr
+type HoleContent = HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Views

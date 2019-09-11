@@ -260,6 +260,9 @@ instance HasRange Interval where
 instance HasRange Range where
     getRange = id
 
+instance HasRange () where
+  getRange _ = noRange
+
 instance HasRange Bool where
     getRange _ = noRange
 

@@ -1121,7 +1121,7 @@ WithRewriteExpressions
   | 'with' Expr1 WithRewriteExpressions
     {% fmap (++ $3) (buildWithStmt $2)  }
   | 'rewrite' Expr1 WithRewriteExpressions
-    { Left (Rewrite $ fromWithApp $2) : $3 }
+    { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
@@ -2090,7 +2090,7 @@ buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
 buildWithStmt e = do
   es <- mapM buildSingleWithStmt $ fromWithApp e
   let ees = groupByEither es
-  pure $ map (mapLeft Invert) ees
+  pure $ map (mapLeft (Invert ())) ees
 
 buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
 buildSingleWithStmt e = do

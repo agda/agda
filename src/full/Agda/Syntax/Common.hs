@@ -2324,27 +2324,27 @@ instance Monoid CoverageCheck where
 -- * Rewrite Directives on the LHS
 -----------------------------------------------------------------------------
 
-data RewriteEqn' p e
-  = Rewrite [e]      -- ^ @rewrite e@
-  | Invert  [(p, e)] -- ^ @with p <- e@
+data RewriteEqn' qn p e
+  = Rewrite [(qn, e)]  -- ^ @rewrite e@
+  | Invert qn [(p, e)] -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
-instance (NFData p, NFData e) => NFData (RewriteEqn' p e) where
+instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
   rnf = \case
-    Rewrite es -> rnf es
-    Invert pes -> rnf pes
+    Rewrite es    -> rnf es
+    Invert qn pes -> rnf (qn, pes)
 
-instance (Pretty p, Pretty e) => Pretty (RewriteEqn' p e) where
+instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
   pretty = \case
-    Rewrite es -> prefixedThings (text "rewrite") (pretty <$> es)
-    Invert pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+    Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
+    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
 
-instance (HasRange p, HasRange e) => HasRange (RewriteEqn' p e) where
+instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
   getRange = \case
-    Rewrite es -> getRange es
-    Invert pes -> getRange pes
+    Rewrite es    -> getRange es
+    Invert qn pes -> getRange (qn, pes)
 
-instance (KillRange e, KillRange p) => KillRange (RewriteEqn' p e) where
+instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p e) where
   killRange = \case
-    Rewrite es -> killRange1 Rewrite es
-    Invert pes -> killRange1 Invert pes
+    Rewrite es    -> killRange1 Rewrite es
+    Invert qn pes -> killRange2 Invert qn pes
