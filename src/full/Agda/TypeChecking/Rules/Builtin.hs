@@ -553,7 +553,7 @@ inductiveCheck b n t = do
       def <- getConstInfo q
       let yes = return (q, def)
       case theDef def of
-        Datatype { dataInduction = Inductive, dataCons = cs }
+        Datatype { dataCons = cs }
           | length cs == n -> yes
           | otherwise      -> no
         Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> yes
@@ -930,7 +930,6 @@ bindBuiltinNoDef b q = inTopContext $ do
         def = Datatype
               { dataPars       = 0
               , dataIxs        = 0
-              , dataInduction  = Inductive
               , dataClause     = Nothing
               , dataCons       = []     -- Constructors are added later
               , dataSort       = Inf

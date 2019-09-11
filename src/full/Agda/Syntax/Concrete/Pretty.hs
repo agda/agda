@@ -475,7 +475,7 @@ instance Pretty Declaration where
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs
                     ] $$ nest 2 (pretty wh)
-            DataSig _ ind x tel e ->
+            DataSig _ x tel e ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
@@ -485,7 +485,7 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Data _ ind x tel e cs ->
+            Data _ x tel e cs ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
@@ -496,7 +496,7 @@ instance Pretty Declaration where
                             , "where"
                             ]
                     ] $$ nest 2 (vcat $ map pretty cs)
-            DataDef _ ind x tel cs ->
+            DataDef _ x tel cs ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)

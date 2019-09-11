@@ -932,8 +932,8 @@ instance ToConcrete A.WhereDeclarations WhereClause where
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
 mergeSigAndDef (C.RecordSig _ x bs e : C.RecordDef r y ind eta c _ fs : ds)
   | x == y = C.Record r y ind eta c bs e fs : mergeSigAndDef ds
-mergeSigAndDef (C.DataSig _ _ x bs e : C.DataDef r i y _ cs : ds)
-  | x == y = C.Data r i y bs e cs : mergeSigAndDef ds
+mergeSigAndDef (C.DataSig _ x bs e : C.DataDef r y _ cs : ds)
+  | x == y = C.Data r y bs e cs : mergeSigAndDef ds
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
 mergeSigAndDef [] = []
 
@@ -1057,13 +1057,13 @@ instance ToConcrete A.Declaration [C.Declaration] where
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull tel') t' ]
+      return [ C.DataSig (getRange i) x' (map C.DomainFull tel') t' ]
 
   toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.DataDef (getRange i) Inductive x' tel' cs' ]
+      return [ C.DataDef (getRange i) x' tel' cs' ]
 
   toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $

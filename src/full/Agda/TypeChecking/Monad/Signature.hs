@@ -612,7 +612,7 @@ whatInduction c = liftTCM $ do
   mz <- getBuiltinName' builtinIZero
   mo <- getBuiltinName' builtinIOne
   case def of
-    Datatype{ dataInduction = i } -> return i
+    Datatype{}                    -> return Inductive
     Record{} | not (recRecursive def) -> return Inductive
     Record{ recInduction = i    } -> return $ fromMaybe Inductive i
     Constructor{ conInd = i }     -> return i
