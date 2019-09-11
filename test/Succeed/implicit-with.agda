@@ -48,9 +48,9 @@ optimise-sound   : ∀ t → ⟦ optimise t ⟧ ≡ ⟦ t ⟧
 structural-sound : ∀ t → ⟦ structural t ⟧ ≡ ⟦ t ⟧
 
 optimise-sound t with {structural t} | target (structural t) | structural-sound t
-optimise-sound t | 0+ e  | eq = eq
-optimise-sound t | e +0  | eq = trans (m≡m+0 ⟦ e ⟧) eq
-optimise-sound t | [ e ] | eq = eq
+... | 0+ e  | eq = eq
+... | e +0  | eq = trans (m≡m+0 ⟦ e ⟧) eq
+... | [ e ] | eq = eq
 
 structural-sound (` n)    = refl
 structural-sound (e `+ f) = +-cong (optimise-sound e) (optimise-sound f)
