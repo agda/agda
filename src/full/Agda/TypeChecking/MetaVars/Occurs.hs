@@ -503,15 +503,15 @@ instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
       PiSort a s2 -> do
-        s1' <- weakly $ occurs $ getSort a
+        s1' <- flexibly $ occurs $ getSort a
         a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (weakly . occurs) s2
+        s2' <- mapAbstraction a' (flexibly . occurs) s2
         return $ PiSort a' s2'
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf      -> return s
       s@SizeUniv -> return s
-      UnivSort s -> UnivSort <$> do weakly $ occurs s
+      UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
         return $ MetaS x es
