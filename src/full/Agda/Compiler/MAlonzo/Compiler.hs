@@ -683,6 +683,7 @@ hslit l = case l of LitNat    _ x -> HS.Int    x
                     LitQName  _ x -> __IMPOSSIBLE__
                     LitString _ _ -> __IMPOSSIBLE__
                     LitMeta{}     -> __IMPOSSIBLE__
+                    LitTerm{}     -> __IMPOSSIBLE__
 
 litString :: String -> HS.Exp
 litString s =

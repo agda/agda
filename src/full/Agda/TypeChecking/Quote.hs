@@ -5,6 +5,7 @@ import Control.Arrow ((&&&))
 import Control.Monad
 
 import Data.Maybe (fromMaybe)
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -119,6 +120,7 @@ quotingKit = do
       quoteLit l@LitString{} = litString !@! Lit l
       quoteLit l@LitQName{}  = litQName  !@! Lit l
       quoteLit l@LitMeta {}  = litMeta   !@! Lit l
+      quoteLit (LitTerm _ t) = absurd t   -- for now
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.

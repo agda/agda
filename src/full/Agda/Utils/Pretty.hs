@@ -10,7 +10,7 @@ module Agda.Utils.Pretty
 
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
-
+import Data.Void
 
 import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
@@ -57,6 +57,9 @@ instance Pretty Char where
 
 instance Pretty Doc where
   pretty = id
+
+instance Pretty Void where
+  pretty = text . show
 
 instance Pretty () where
   pretty _ = P.empty

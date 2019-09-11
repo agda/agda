@@ -7,6 +7,7 @@ module Agda.Syntax.Internal.Names where
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -37,6 +38,9 @@ instance NamesIn a => NamesIn (Abs a)                where
 instance NamesIn a => NamesIn (WithArity a)          where
 instance NamesIn a => NamesIn (Tele a)               where
 instance NamesIn a => NamesIn (C.FieldAssignment' a) where
+
+instance NamesIn Void where
+  namesIn _ = Set.empty
 
 instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
   namesIn (x, y) = Set.union (namesIn x) (namesIn y)
@@ -144,7 +148,7 @@ instance NamesIn LevelAtom where
     UnreducedLevel v -> namesIn v
 
 -- For QName literals!
-instance NamesIn Literal where
+instance NamesIn t => NamesIn (Literal' t) where
   namesIn l = case l of
     LitNat{}      -> Set.empty
     LitWord64{}   -> Set.empty
@@ -153,6 +157,7 @@ instance NamesIn Literal where
     LitFloat{}    -> Set.empty
     LitQName _  x -> namesIn x
     LitMeta{}     -> Set.empty
+    LitTerm _ t   -> namesIn t
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg

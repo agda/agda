@@ -24,11 +24,14 @@ data Literal' t = LitNat    Range !Integer
                 | LitChar   Range !Char
                 | LitQName  Range QName
                 | LitMeta   Range AbsolutePath MetaId
+                | LitTerm   Range t
+                  -- ^ Reflected term literal. Instantiated in internal syntax to a term, a type and
+                  -- a checkpoint id.
   deriving (Data, Functor)
 
 type Literal = Literal' Void
 
-instance Show Literal where
+instance Show t => Show (Literal' t) where
   showsPrec p l = showParen (p > 9) $ case l of
     LitNat _ n    -> sh "LitNat _" n
     LitWord64 _ n -> sh "LitWord64 _" n
@@ -37,11 +40,13 @@ instance Show Literal where
     LitChar _ c   -> sh "LitChar _" c
     LitQName _ q  -> sh "LitQName _" q
     LitMeta _ _ x -> sh "LitMeta _ _" x
+    LitTerm _ t   -> sh "LitTerm _" t
+
     where
       sh :: Show a => String -> a -> ShowS
       sh c x = showString (c ++ " ") . shows x
 
-instance Pretty Literal where
+instance Pretty t => Pretty (Literal' t) where
     pretty (LitNat _ n)     = text $ show n
     pretty (LitWord64 _ n)  = text $ show n
     pretty (LitFloat _ d)   = text $ show d
@@ -49,6 +54,7 @@ instance Pretty Literal where
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "'"
     pretty (LitQName _ x)   = pretty x
     pretty (LitMeta _ _ x)  = pretty x
+    pretty (LitTerm _ t)    = pretty t
 
 showString' :: String -> ShowS
 showString' s =
@@ -62,7 +68,7 @@ showChar' c
     where
         escapeMe c = not (isPrint c) || c == '\\'
 
-instance Eq Literal where
+instance Eq t => Eq (Literal' t) where
   LitNat _ n    == LitNat _ m    = n == m
   -- ASR (2016-09-29). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
@@ -73,9 +79,10 @@ instance Eq Literal where
   LitChar _ c   == LitChar _ d   = c == d
   LitQName _ x  == LitQName _ y  = x == y
   LitMeta _ f x == LitMeta _ g y = (f, x) == (f, y)
+  LitTerm _ x   == LitTerm _ y   = x == y
   _             == _             = False
 
-instance Ord Literal where
+instance Ord t => Ord (Literal' t) where
   LitNat _ n    `compare` LitNat _ m    = n `compare` m
   LitWord64 _ n `compare` LitWord64 _ m = n `compare` m
   LitFloat _ x  `compare` LitFloat _ y  = compareFloat x y
@@ -83,6 +90,7 @@ instance Ord Literal where
   LitChar _ c   `compare` LitChar _ d   = c `compare` d
   LitQName _ x  `compare` LitQName _ y  = x `compare` y
   LitMeta _ f x `compare` LitMeta _ g y = (f, x) `compare` (g, y)
+  LitTerm _ x   `compare` LitTerm _ y   = x `compare` y
   compare LitNat{}    _ = LT
   compare _ LitNat{}    = GT
   compare LitWord64{} _ = LT
@@ -95,8 +103,10 @@ instance Ord Literal where
   compare _ LitChar{}   = GT
   compare LitQName{} _  = LT
   compare _ LitQName{}  = GT
-  -- compare LitMeta{} _   = LT
-  -- compare _ LitMeta{}   = GT
+  compare LitMeta{} _   = LT
+  compare _ LitMeta{}   = GT
+  -- compare LitTerm{} _   = LT
+  -- compare _ LitTerm{}   = GT
 
 -- NOTE: This is not the same ordering as primFloatNumericalEquality!
 -- This ordering must be a total order of all allowed float values,
@@ -115,7 +125,7 @@ compareFloat x y
   where
     isNegInf z = z < 0 && isInfinite z
 
-instance HasRange Literal where
+instance HasRange (Literal' t) where
   getRange (LitNat    r _) = r
   getRange (LitWord64 r _) = r
   getRange (LitFloat  r _) = r
@@ -123,8 +133,9 @@ instance HasRange Literal where
   getRange (LitChar   r _) = r
   getRange (LitQName  r _) = r
   getRange (LitMeta r _ _) = r
+  getRange (LitTerm r _)   = r
 
-instance SetRange Literal where
+instance SetRange (Literal' t) where
   setRange r (LitNat    _ x) = LitNat    r x
   setRange r (LitWord64 _ x) = LitWord64 r x
   setRange r (LitFloat  _ x) = LitFloat  r x
@@ -132,8 +143,9 @@ instance SetRange Literal where
   setRange r (LitChar   _ x) = LitChar   r x
   setRange r (LitQName  _ x) = LitQName  r x
   setRange r (LitMeta _ f x) = LitMeta   r f x
+  setRange r (LitTerm _ t)   = LitTerm   r t
 
-instance KillRange Literal where
+instance KillRange (Literal' t) where
   killRange (LitNat    r x) = LitNat    (killRange r) x
   killRange (LitWord64 r x) = LitWord64 (killRange r) x
   killRange (LitFloat  r x) = LitFloat  (killRange r) x
@@ -141,10 +153,11 @@ instance KillRange Literal where
   killRange (LitChar   r x) = LitChar   (killRange r) x
   killRange (LitQName  r x) = killRange2 LitQName r x
   killRange (LitMeta r f x) = LitMeta   (killRange r) f x
+  killRange (LitTerm r t)   = LitTerm   (killRange r) t
 
 -- | Ranges are not forced.
 
-instance NFData Literal where
+instance NFData t => NFData (Literal' t) where
   rnf (LitNat _ _)    = ()
   rnf (LitWord64 _ _) = ()
   rnf (LitFloat _ _)  = ()
@@ -152,3 +165,4 @@ instance NFData Literal where
   rnf (LitChar _ _)   = ()
   rnf (LitQName _ a)  = rnf a
   rnf (LitMeta _ _ x) = rnf x
+  rnf (LitTerm _ t)   = rnf t

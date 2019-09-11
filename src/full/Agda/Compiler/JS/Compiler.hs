@@ -468,6 +468,7 @@ literal l = case l of
   (LitChar   _ x) -> Char    x
   (LitQName  _ x) -> litqname x
   LitMeta{}       -> __IMPOSSIBLE__
+  LitTerm{}       -> __IMPOSSIBLE__
 
 litqname :: QName -> Exp
 litqname q =

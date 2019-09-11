@@ -69,6 +69,7 @@ litType l = case l of
   LitString _ _ -> el <$> primString
   LitQName _ _  -> el <$> primQName
   LitMeta _ _ _ -> el <$> primAgdaMeta
+  LitTerm _ _   -> el <$> primAgdaTerm
   where
     el t = El (mkType 0) t
 

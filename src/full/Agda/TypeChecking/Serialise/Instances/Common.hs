@@ -601,7 +601,7 @@ instance EmbPrj ProjOrigin where
   value 2 = return ProjSystem
   value _ = malformed
 
-instance EmbPrj Agda.Syntax.Literal.Literal where
+instance EmbPrj t => EmbPrj (Agda.Syntax.Literal.Literal' t) where
   icod_ (LitNat    a b)   = icodeN' LitNat a b
   icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
   icod_ (LitString a b)   = icodeN 2 LitString a b
@@ -609,6 +609,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitQName  a b)   = icodeN 5 LitQName a b
   icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
   icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
+  icod_ (LitTerm   a b)   = icodeN 8 LitTerm a b
 
   value = vcase valu where
     valu [a, b]       = valuN LitNat    a b
@@ -618,6 +619,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
     valu [5, a, b]    = valuN LitQName  a b
     valu [6, a, b, c] = valuN LitMeta   a b c
     valu [7, a, b]    = valuN LitWord64 a b
+    valu [8, a, b]    = valuN LitTerm   a b
     valu _            = malformed
 
 instance EmbPrj IsAbstract where
