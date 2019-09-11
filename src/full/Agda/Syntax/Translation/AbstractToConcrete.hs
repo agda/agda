@@ -994,6 +994,7 @@ instance (ToConcrete p q, ToConcrete a b) =>
   toConcrete = \case
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
     Invert qn pes -> Invert () <$> mapM toConcrete pes
+    LeftLet pes -> LeftLet <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete = mapM (toConcrete . qnameName)

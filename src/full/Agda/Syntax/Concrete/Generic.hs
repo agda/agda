@@ -183,6 +183,7 @@ instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
   mapExpr f = \case
     Rewrite es    -> Rewrite (mapExpr f es)
     Invert qn pes -> Invert qn (map (mapExpr f <$>) pes)
+    LeftLet pes -> LeftLet (map (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
   mapExpr f (LamClause lhs rhs wh ca) =

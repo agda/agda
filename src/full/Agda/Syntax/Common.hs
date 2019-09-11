@@ -2327,24 +2327,29 @@ instance Monoid CoverageCheck where
 data RewriteEqn' qn p e
   = Rewrite [(qn, e)]  -- ^ @rewrite e@
   | Invert qn [(p, e)] -- ^ @with p <- e@
+  | LeftLet [(p, e)] -- ^ @using p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
 instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
   rnf = \case
     Rewrite es    -> rnf es
     Invert qn pes -> rnf (qn, pes)
+    LeftLet pes -> rnf pes
 
 instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
   pretty = \case
     Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
-    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+    Invert _ pes -> prefixedThings (text "with") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+    LeftLet pes -> prefixedThings (text "let") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
 
 instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)
+    LeftLet pes -> getRange pes
 
 instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p e) where
   killRange = \case
     Rewrite es    -> killRange1 Rewrite es
     Invert qn pes -> killRange2 Invert qn pes
+    LeftLet pes -> killRange1 LeftLet pes

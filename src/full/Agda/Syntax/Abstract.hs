@@ -921,6 +921,7 @@ instance (AllNames qn, AllNames e) => AllNames (RewriteEqn' qn p e) where
     allNames = \case
       Rewrite es    -> Fold.foldMap allNames es
       Invert qn pes -> allNames qn >< foldMap (Fold.foldMap allNames) pes
+      LeftLet pes -> Fold.foldMap (Fold.foldMap allNames) pes
 
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e

@@ -2300,6 +2300,7 @@ instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) A.RewriteEqn where
     Invert _ pes -> do
       qn <- withFunctionName "-invert"
       pure $ Invert qn pes
+    LeftLet pes -> pure $ LeftLet pes
 
 instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
   toAbstract = \case
@@ -2319,6 +2320,19 @@ instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
         bindVarsToBind
         toAbstract p
       pure $ zip ps es
+    LeftLet pes -> fmap LeftLet $ forM pes $ \ (p, e) -> do
+      -- first check the expression: the pattern may shadow
+      -- some of the variables mentioned in it!
+      e <- toAbstract e
+      -- then parse the pattern and go through the motions of converting it,
+      -- checking it for linearity, binding the variable it introduced and
+      -- finally producing an abstract pattern.
+      p <- parsePattern p
+      p <- toAbstract p
+      checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
+      bindVarsToBind
+      p <- toAbstract p
+      pure (p, e)
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS

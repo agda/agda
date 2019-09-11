@@ -763,10 +763,16 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
   rewriteEqnsRHS (r:rs) strippedPats rhs wh = case r of
     Rewrite ((qname, eq) : qes) ->
       rewriteEqnRHS qname eq (case qes of { [] -> rs; _ -> Rewrite qes : rs })
-    Invert _     []  -> __IMPOSSIBLE__
-    Invert qname pes -> invertEqnRHS qname pes rs
     -- Invariant: these lists are non-empty
     Rewrite [] -> __IMPOSSIBLE__
+    Invert _     []  -> __IMPOSSIBLE__
+    Invert qname pes -> invertEqnRHS qname pes rs
+    LeftLet [] -> __IMPOSSIBLE__
+    LeftLet pes ->
+      let
+        letBindings = for pes $ \(p, e) -> A.LetPatBind (LetRange $ getRange e) p e
+      in checkLetBindings letBindings $
+        rewriteEqnsRHS rs strippedPats rhs wh
 
     where
 

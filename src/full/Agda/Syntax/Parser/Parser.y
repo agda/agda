@@ -1109,25 +1109,27 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 WithRewriteExpressions
+LHS : Expr1 WithUsingRewriteExpressions
         {% exprToLHS $1      >>= \p ->
            buildWithBlock $2 >>= \ (rs, es) ->
            return (p rs es)
         }
 
-WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
-WithRewriteExpressions
+WithUsingRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithUsingRewriteExpressions
   : {- empty -} { [] }
-  | 'with' Expr1 WithRewriteExpressions
+  | 'with' Expr1 WithUsingRewriteExpressions
     {% fmap (++ $3) (buildWithStmt $2)  }
-  | 'rewrite' Expr1 WithRewriteExpressions
+  | 'using' Expr1 WithUsingRewriteExpressions
+    {% fmap (++ $3) (buildUsingStmt $2)  }
+  | 'rewrite' Expr1 WithUsingRewriteExpressions
     { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr                   {  HoleContentExpr    $1 }
-  | WithRewriteExpressions
+  | WithUsingRewriteExpressions
     {% fmap HoleContentRewrite $ forM $1 $ \case
          Left r  -> pure r
          Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
@@ -2091,6 +2093,13 @@ buildWithStmt e = do
   es <- mapM buildSingleWithStmt $ fromWithApp e
   let ees = groupByEither es
   pure $ map (mapLeft (Invert ())) ees
+
+buildUsingStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
+buildUsingStmt e = do
+  mpatexprs <- mapM exprToAssignment $ fromWithApp e
+  case mapM (fmap $ \(pat, _, expr) -> (pat, expr)) mpatexprs of
+    Nothing -> parseError' (rStart' $ getRange e) "Expected assignments"
+    (Just assignments) -> pure $ map (Left . LeftLet) [assignments]
 
 buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
 buildSingleWithStmt e = do
