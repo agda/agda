@@ -5,7 +5,7 @@
 -- Where a function is expected, we can put one which does not use its argument.
 
 id : ∀{A B : Set} → (.A → B) → A → B
-id f = f
+id f a = f a
 
 test : ∀{A B : Set} → (.A → B) → A → B
 test f = λ .a → f a

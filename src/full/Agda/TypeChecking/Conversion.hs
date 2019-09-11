@@ -657,7 +657,11 @@ compareAtom cmp t m n =
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR $
+              -- Andreas, 2019-08-14, issue #3986
+              -- Turn off contravariant subtyping as it leads to wrong
+              -- Modality in Arg.
+              -- compareDom cmp dom2 dom1 b1 b2 errH errR $
+              compareDom CmpEq dom2 dom1 b1 b2 errH errR $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2

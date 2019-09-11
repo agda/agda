@@ -1,8 +1,5 @@
-Issue1946-5.agda:22,1-23,29
-Termination checking failed for the following functions:
-  inh
-Problematic calls:
-  λ { .force → ∞ , inh }
-    (at Issue1946-5.agda:23,7-29)
-  inh
-    (at Issue1946-5.agda:23,24-27)
+Issue1946-5.agda:20,1-24
+i != ∞ of type Size
+when checking that the type
+(i : Size) (x : T i) → Σ (Size< i) T → ⊥ of the generated with
+function is well-formed

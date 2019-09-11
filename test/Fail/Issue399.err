@@ -1,11 +1,11 @@
 Failed to solve the following constraints:
-  [42, 43] _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a 
-  [42, 44] _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a 
+  [42, 43] _9 (m = Maybe) (mzero = mymaybemzero) = Maybe a 
+  [42, 44] _12 (m = Maybe) (mzero = mymaybemzero) = Maybe a 
   piSort (_7 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
   piSort (_10 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
   _10 (m = Maybe) (mzero = mymaybemzero) = Set
   _7 (m = Maybe) (mzero = mymaybemzero) = Set
-  [37, 38] _4 (m = Maybe) =< Maybe a 
+  [37, 38] _4 (m = Maybe) = Maybe a 
   piSort (_2 (m = Maybe)) (λ _ → Set) = Set
   _2 (m = Maybe) = Set
   Set (Agda.Primitive.lsuc _a_30) = _0

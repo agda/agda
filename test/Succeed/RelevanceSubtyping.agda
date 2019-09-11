@@ -5,6 +5,7 @@ module RelevanceSubtyping where
 one : {A B : Set} → (.A → B) → A → B
 one f x = f x
 
--- this type-checks because of subtyping
-one' : {A B : Set} → (.A → B) → A → B
-one' f = f
+-- Andreas, 2019-08-14, no longer, because of issue #3986
+-- -- this type-checks because of subtyping
+-- one' : {A B : Set} → (.A → B) → A → B
+-- one' f = f

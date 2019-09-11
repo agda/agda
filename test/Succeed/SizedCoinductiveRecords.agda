@@ -40,7 +40,7 @@ Bounded : Size → Set
 Bounded i = (j : Size< i) → Empty {j}
 
 contra : {i : Size}{j : Size< i} → Bounded i → Bounded j
-contra k = k
+contra k i = k i
 
 -- sized naturals
 
@@ -145,7 +145,7 @@ module STREAM where
   anti s = s
 
   anti' : {A : Set}{i : Size}{j : Size< i} → (Stream A {j} → A) → (Stream A {i} → A)
-  anti' f = f
+  anti' f s = f s
 
 -- Spanning tree
 
