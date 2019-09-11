@@ -66,11 +66,12 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs -> if null cs' then empty else
-      fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
-      where
-        cs' = filter interestingConstraint cs
+    UnsolvedConstraints cs -> ifNull (filter interestingConstraint cs)
+      {-then-} (fsep $ pwords "Unsolved constraints")  -- #4065: keep minimal warning text
+      {-else-} $ \ cs' -> vcat
+        [ fsep $ pwords "Failed to solve the following constraints:"
+        , nest 2 $ P.vcat . List.nub <$> mapM prettyConstraint cs'
+        ]
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
@@ -271,7 +272,21 @@ prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap show . prettyTCM)
+prettyTCWarnings' = mapM (fmap P.render . prettyTCM) . filterTCWarnings
+
+-- | If there are several warnings, remove the unsolved-constraints warning
+-- in case there are no interesting constraints to list.
+filterTCWarnings :: [TCWarning] -> [TCWarning]
+filterTCWarnings = \case
+  -- #4065: Always keep the only warning
+  [w] -> [w]
+  -- Andreas, 2019-09-10, issue #4065:
+  -- If there are several warnings, remove the unsolved-constraints warning
+  -- in case there are no interesting constraints to list.
+  ws  -> (`filter` ws) $ \ w -> case tcWarning w of
+    UnsolvedConstraints cs -> not $ null $ filter interestingConstraint cs
+    _ -> True
+
 
 -- | Turns all warnings into errors.
 tcWarningsToError :: [TCWarning] -> TCM a

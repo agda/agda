@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : D ?1 : _10 ?2 : D Sort _9 [ at Issue2051.agda:17,9-16 ] _10 : _9 [ at Issue2051.agda:17,9-16 ] _13 : D [ at Issue2051.agda:17,9-16 ] ———— Errors ———————————————————————————————————————————————— " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : D ?1 : _10 ?2 : D Sort _9 [ at Issue2051.agda:17,9-16 ] _10 : _9 [ at Issue2051.agda:17,9-16 ] _13 : D [ at Issue2051.agda:17,9-16 ] ———— Errors ———————————————————————————————————————————————— Unsolved constraints " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("con d = c ?" "con (c x) = c ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))
