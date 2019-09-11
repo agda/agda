@@ -5,6 +5,7 @@ module Agda.Syntax.Literal where
 import Control.DeepSeq
 import Data.Char
 import Data.Word
+import Data.Void
 
 import Data.Data (Data)
 
@@ -16,14 +17,16 @@ import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
 import Agda.Utils.FileName
 
-data Literal = LitNat    Range !Integer
-             | LitWord64 Range !Word64
-             | LitFloat  Range !Double
-             | LitString Range String
-             | LitChar   Range !Char
-             | LitQName  Range QName
-             | LitMeta   Range AbsolutePath MetaId
-  deriving Data
+data Literal' t = LitNat    Range !Integer
+                | LitWord64 Range !Word64
+                | LitFloat  Range !Double
+                | LitString Range String
+                | LitChar   Range !Char
+                | LitQName  Range QName
+                | LitMeta   Range AbsolutePath MetaId
+  deriving (Data, Functor)
+
+type Literal = Literal' Void
 
 instance Show Literal where
   showsPrec p l = showParen (p > 9) $ case l of

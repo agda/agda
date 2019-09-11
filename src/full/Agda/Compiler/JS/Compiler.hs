@@ -30,7 +30,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
   ( Name, Type
   , arity, nameFixity )
-import Agda.Syntax.Literal ( Literal(..) )
+import Agda.Syntax.Literal ( Literal'(..), Literal )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
 
