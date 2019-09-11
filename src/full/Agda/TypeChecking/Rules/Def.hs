@@ -14,6 +14,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
+import Data.Tuple ( swap )
 
 import Agda.Interaction.Options
 
@@ -429,21 +430,20 @@ insertPatternsLHSCore pats = \case
 data WithFunctionProblem
   = NoWithFunction
   | WithFunction
-    { wfParentName :: QName                -- ^ Parent function name.
-    , wfName       :: QName                -- ^ With function name.
-    , wfParentType :: Type                 -- ^ Type of the parent function.
-    , wfParentTel  :: Telescope            -- ^ Context of the parent patterns.
-    , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
-    , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
-    , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
-    , wfExprTypes  :: [EqualityView]       -- ^ Types of the with and rewrite expressions.
-    , wfRHSType    :: Type                 -- ^ Type of the right hand side.
-    , wfParentPats :: [NamedArg DeBruijnPattern] -- ^ Parent patterns.
-    , wfParentParams :: Nat                -- ^ Number of module parameters in parent patterns
-    , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
-    , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
-    , wfPermFinal  :: Permutation          -- ^ Final permutation (including permutation for the parent clause).
-    , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
+    { wfParentName :: QName                             -- ^ Parent function name.
+    , wfName       :: QName                             -- ^ With function name.
+    , wfParentType :: Type                              -- ^ Type of the parent function.
+    , wfParentTel  :: Telescope                         -- ^ Context of the parent patterns.
+    , wfBeforeTel  :: Telescope                         -- ^ Types of arguments to the with function before the with expressions (needed vars).
+    , wfAfterTel   :: Telescope                         -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
+    , wfExprs      :: [WithHiding (Term, EqualityView)] -- ^ With and rewrite expressions and their types.
+    , wfRHSType    :: Type                              -- ^ Type of the right hand side.
+    , wfParentPats :: [NamedArg DeBruijnPattern]        -- ^ Parent patterns.
+    , wfParentParams :: Nat                             -- ^ Number of module parameters in parent patterns
+    , wfPermSplit  :: Permutation                       -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
+    , wfPermParent :: Permutation                       -- ^ Permutation reordering the variables in the parent pattern.
+    , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
+    , wfClauses    :: [A.Clause]                        -- ^ The given clauses for the with function
     }
 
 checkSystemCoverage
@@ -725,9 +725,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
   -- With case: @f xs with a | b | c | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- This is mostly a wrapper around @checkWithRHS@
-  withRHS :: QName       -- ^ name of the with-function
-          -> [A.Expr]    -- ^ @[a, b, c, ...]@
-          -> [A.Clause]  -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
+  withRHS :: QName               -- ^ name of the with-function
+          -> [WithHiding A.Expr] -- ^ @[a, b, c, ...]@
+          -> [A.Clause]          -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
           -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
@@ -744,14 +744,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           ]
 
     -- Infer the types of the with expressions
-    (vs0, as) <- unzip <$> mapM inferExprForWith es
+    vtys <- mapM (traverse (fmap OtherType <.> inferExprForWith)) es
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
     -- in case the with-expression contains size metas.
     solveSizeConstraints DefaultToInfty
 
-    checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
+    checkWithRHS x aux t lhsResult vtys cs
 
   -- Rewrite case: f xs (rewrite / invert) a | b | c | ...
   rewriteEqnsRHS :: [A.RewriteEqn] -> [A.ProblemEq] -> A.RHS -> A.WhereDeclarations -> TCM (Maybe Term, WithFunctionProblem)
@@ -776,8 +776,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
       let (pats, es) = unzip pes
       -- Infer the types of the with expressions
-      (withExprs, tys) <- unzip <$> mapM inferExprForWith es
-      let withTypes = OtherType <$> tys
+      vtys <- mapM (WithHiding NotHidden <.> fmap OtherType <.> inferExprForWith) es
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -797,7 +796,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         [ text "invert"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult withExprs withTypes [cl]
+      checkWithRHS x qname t lhsResult vtys [cl]
 
     -- @rewrite@ clauses
     rewriteEqnRHS :: QName -> A.Expr
@@ -875,7 +874,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
       (pats, withExpr, withType) <- do
         ifM isReflexive
-          {-then-} (return ([ reflPat ], proof, OtherType t'))
+          {-then-} (return ([ reflPat ]                    , proof, OtherType t'))
           {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
 
       let rhs' = insertPatterns pats rhs
@@ -891,30 +890,31 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
+      checkWithRHS x qname t lhsResult [WithHiding NotHidden (withExpr, withType)] [cl]
 
 checkWithRHS
-  :: QName                   -- ^ Name of function.
-  -> QName                   -- ^ Name of the with-function.
-  -> Type                    -- ^ Type of function.
-  -> LHSResult               -- ^ Result of type-checking patterns
-  -> [Term]                  -- ^ With-expressions.
-  -> [EqualityView]          -- ^ Types of with-expressions.
-  -> [A.Clause]              -- ^ With-clauses to check.
+  :: QName                             -- ^ Name of function.
+  -> QName                             -- ^ Name of the with-function.
+  -> Type                              -- ^ Type of function.
+  -> LHSResult                         -- ^ Result of type-checking patterns
+  -> [WithHiding (Term, EqualityView)] -- ^ Expressions and types of with-expressions.
+  -> [A.Clause]                        -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
-checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as cs =
+checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
   Bench.billTo [Bench.Typing, Bench.With] $ do
-        let withArgs = withArguments vs0 as
+        let withArgs = withArguments vtys0
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
-        (vs, as)  <- normalise (vs0, as)
+        vtys0 <- normalise vtys0
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
         reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
-        reportSDoc "tc.with.top" 25 $ vcat
+        reportSDoc "tc.with.top" 25 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = unzipWith whThing vtys0 in
           [ "vs     =" <+> prettyTCM vs
           , "as     =" <+> prettyTCM as
           , "perm   =" <+> text (show perm)
@@ -922,8 +922,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
 
         -- Split the telescope into the part needed to type the with arguments
         -- and all the other stuff
-        (delta1, delta2, perm', t', as, vs) <- return $
-          splitTelForWith delta (unArg trhs) as vs
+        let (delta1, delta2, perm', t', vtys) = splitTelForWith delta (unArg trhs) vtys0
         let finalPerm = composeP perm' perm
 
         reportSLn "tc.with.top" 75 $ "delta  = " ++ show delta
@@ -950,43 +949,42 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vs0 as 
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
+            mkWithArg = \ (WithHiding h e) -> setHiding h $ defaultArg e
+            v         = Def aux $ map Apply $ us0 ++ us1 ++ map mkWithArg withArgs ++ us2
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux __DUMMY_TYPE__ emptyFunction
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
-        reportSDoc "tc.with.top" 20 $
-          "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-        reportSDoc "tc.with.top" 20 $
-          "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
-        reportSDoc "tc.with.top" 20 $
-          "with function call" <+> prettyTCM v
-        reportSDoc "tc.with.top" 20 $
-          "           context" <+> (prettyTCM =<< getContextTelescope)
-        reportSDoc "tc.with.top" 20 $
-          "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
-        reportSDoc "tc.with.top" 20 $
-          "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
-        reportSDoc "tc.with.top" 20 $
-          "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
-        reportSDoc "tc.with.top" 20 $
-          "              body" <+> prettyTCM v
+        reportSDoc "tc.with.top" 20 $ vcat $
+          let (vs, as) = unzipWith whThing vtys in
+          [ "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          , "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          , "with function call" <+> prettyTCM v
+          , "           context" <+> (prettyTCM =<< getContextTelescope)
+          , "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
+          , "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "              body" <+> prettyTCM v
+          ]
 
-        return (Just v, WithFunction x aux t delta delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs)
 
 -- | Invoked in empty context.
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
-checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs npars perm' perm finalPerm cs) = do
+checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs) = do
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
-      withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
+      withSub = let as = map (snd . whThing) vtys in
+                liftS (size delta2) (wkS (countWithArgs as) idS)
+                `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ "checkWithFunction"
-    , nest 2 $ vcat
+    , nest 2 $ vcat $
+      let (vs, as) = unzipWith whThing vtys in
       [ "delta1 =" <+> prettyTCM delta1
       , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
       , "t      =" <+> prettyTCM t
@@ -1008,7 +1006,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vs as b qs 
                              -- but module application is sloppy.
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
-  (withFunType, n) <- withFunctionType delta1 vs as delta2 b
+  (withFunType, n) <- withFunctionType delta1 vtys delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
 

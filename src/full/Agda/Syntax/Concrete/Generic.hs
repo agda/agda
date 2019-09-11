@@ -47,6 +47,11 @@ instance ExprLike Bool where
 
 -- * Instances for functors.
 
+instance ExprLike a => ExprLike (WithHiding a) where
+  mapExpr      = fmap     . mapExpr
+  traverseExpr = traverse . traverseExpr
+  foldExpr     = foldMap  . foldExpr
+
 instance ExprLike a => ExprLike (Named name a) where
   mapExpr      = fmap     . mapExpr
   traverseExpr = traverse . traverseExpr

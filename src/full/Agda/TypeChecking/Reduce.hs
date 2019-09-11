@@ -1,5 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -986,7 +987,10 @@ instance Simplify EqualityView where
 ---------------------------------------------------------------------------
 
 class Normalise t where
-    normalise' :: t -> ReduceM t
+  normalise' :: t -> ReduceM t
+
+  default normalise' :: (t ~ f a, Traversable f, Normalise a) => t -> ReduceM t
+  normalise' = traverse normalise'
 
 instance Normalise Sort where
     normalise' s = do
@@ -1138,11 +1142,9 @@ instance Normalise a => Normalise (Pattern' a) where
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
 
-instance Normalise e => Normalise (Map k e) where
-    normalise' = traverse normalise'
-
-instance Normalise a => Normalise (Maybe a) where
-    normalise' = traverse normalise'
+instance Normalise e => Normalise (Map k e)      where
+instance Normalise a => Normalise (Maybe a)      where
+instance Normalise a => Normalise (WithHiding a) where
 
 instance Normalise Candidate where
   normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov

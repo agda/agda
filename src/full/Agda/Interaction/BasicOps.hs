@@ -732,16 +732,19 @@ metaHelperType norm ii rng s = case words s of
       cxtArgs  <- getContextArgs
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
-      tel      <- runIdentity . onNamesTel unW <$> getContextTelescope
-      a        <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
-      (vs, as) <- unzip <$> mapM (inferExpr . namedThing . unArg) args
+      tel  <- runIdentity . onNamesTel unW <$> getContextTelescope
+      a    <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
+      vtys <- mapM (\ a -> fmap (WithHiding (getHiding a) . fmap OtherType) $ inferExpr $ namedThing (unArg a)) args
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
-          (delta1, delta2, _, a', as', vs') = splitTelForWith tel a (map OtherType as) vs
+          (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
-      reportSDoc "interaction.helper" 10 $ TP.vcat
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a'
+      reportSDoc "interaction.helper" 10 $ TP.vcat $
+        let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
+        let (vs, as)   = unzipWith (fmap extractOtherType . whThing) vtys in
+        let (vs', as') = unzipWith (fmap extractOtherType . whThing) vtys' in
         [ "generating helper function"
         , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
         , TP.nest 2 $ "a      = " TP.<+> prettyTCM a
@@ -772,7 +775,7 @@ metaHelperType norm ii rng s = case words s of
       -- It cannot be negative, otherwise we would have performed a
       -- negative number of with-abstractions.
       unless (n >= 0) __IMPOSSIBLE__
-      return $ evalState (renameVars $ hiding args $ stripUnused n t) args
+      return $ evalState (renameVars $ stripUnused n t) args
 
     getBody (A.Let _ _ e)      = e
     getBody _                  = __IMPOSSIBLE__
@@ -790,12 +793,6 @@ metaHelperType norm ii rng s = case words s of
 
     -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)
     renameVars = onNames renameVar
-
-    hiding args (El s v) = El s $ hidingTm args v
-    hidingTm (arg:args) (I.Pi a b) | absName b == "w" =
-      I.Pi (setHiding (getHiding arg) a) (hiding args <$> b)
-    hidingTm args (I.Pi a b) = I.Pi a (hiding args <$> b)
-    hidingTm _ a = a
 
     -- onNames :: Applicative m => (ArgName -> m ArgName) -> Type -> m Type
     onNames :: Applicative m => (String -> m String) -> Type -> m Type

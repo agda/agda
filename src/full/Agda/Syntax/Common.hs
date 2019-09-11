@@ -2324,7 +2324,10 @@ instance Monoid CoverageCheck where
 -- * Rewrite Directives on the LHS
 -----------------------------------------------------------------------------
 
-data RewriteEqn' qn p e
+data RewriteEqn'
+     qn -- ^ QName of the auxiliary function generated to implement the feature
+     p  -- ^ Type of patterns
+     e  -- ^ Type of expressions
   = Rewrite [(qn, e)]  -- ^ @rewrite e@
   | Invert qn [(p, e)] -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)

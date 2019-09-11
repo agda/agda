@@ -58,14 +58,15 @@ instance TermLike QName where
 
 -- Functors
 
-instance TermLike a => TermLike (Elim' a)   where
-instance TermLike a => TermLike (Arg a)     where
-instance TermLike a => TermLike (Dom a)     where
-instance TermLike a => TermLike [a]         where
-instance TermLike a => TermLike (Maybe a)   where
-instance TermLike a => TermLike (Abs a)     where
-instance TermLike a => TermLike (Blocked a) where
-instance TermLike a => TermLike (Tele a)    where
+instance TermLike a => TermLike (Elim' a)      where
+instance TermLike a => TermLike (Arg a)        where
+instance TermLike a => TermLike (Dom a)        where
+instance TermLike a => TermLike [a]            where
+instance TermLike a => TermLike (Maybe a)      where
+instance TermLike a => TermLike (Abs a)        where
+instance TermLike a => TermLike (Blocked a)    where
+instance TermLike a => TermLike (Tele a)       where
+instance TermLike a => TermLike (WithHiding a) where
 
 -- Tuples
 

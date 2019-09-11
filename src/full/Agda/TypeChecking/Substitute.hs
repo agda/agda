@@ -985,14 +985,10 @@ instance (Subst t a, Subst t b) => Subst t (Dom' a b) where
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
-instance Subst t a => Subst t (Maybe a) where
-  applySubst rho = fmap (applySubst rho)
-
-instance Subst t a => Subst t [a] where
-  applySubst rho = map (applySubst rho)
-
-instance (Ord k, Subst t a) => Subst t (Map k a) where
-  applySubst rho = fmap (applySubst rho)
+instance Subst t a          => Subst t (Maybe a)      where
+instance Subst t a          => Subst t [a]            where
+instance (Ord k, Subst t a) => Subst t (Map k a)      where
+instance Subst t a          => Subst t (WithHiding a) where
 
 instance Subst Term () where
   applySubst _ _ = ()
