@@ -408,10 +408,8 @@ unfolding lemma for ``pred`` ::
     NotNull zero    = ⊥ -- false
     NotNull (suc n) = ⊤ -- trivially true
 
-    module _  {n} (pr : NotNull n) where
-
-      pred-correct : suc (pred n) ≡ n
-      pred-correct with suc p ← n = refl
+    pred-correct : ∀ n (pr : NotNull n) → suc (pred n) ≡ n
+    pred-correct n pr with suc p ← n = refl
 
 In the above code snippet we do not need to entertain the idea that ``n``
 could be equal to ``zero``: Agda detects that the proof ``pr`` allows us
@@ -428,10 +426,8 @@ of a vector whose length is neither 0 nor 1:
       []  : Vec A zero
       _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
 
-    module _ {n} (pr : NotNull (pred n)) (vs : Vec A n) where
-
-      second : A
-      second with (_ ∷ v ∷ _) ← vs = v
+    second : ∀ {n} {pr : NotNull (pred n)} → Vec A n → A
+    second vs with (_ ∷ v ∷ _) ← vs = v
 
 Remember example of :ref:`simultaneous
 abstraction <simultaneous-abstraction>` from above. A simultaneous
@@ -445,24 +441,24 @@ of the vector argument using ``suc-+`` first.
 
 ::
 
-      suc-+ : ∀ m n → suc m + n ≡ m + suc n
-      suc-+ zero    n                   = refl
-      suc-+ (suc m) n rewrite suc-+ m n = refl
+    suc-+ : ∀ m n → suc m + n ≡ m + suc n
+    suc-+ zero    n                   = refl
+    suc-+ (suc m) n rewrite suc-+ m n = refl
 
-      infixr 1 _×_
-      _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
-      A × B = Σ A (λ _ → B)
+    infixr 1 _×_
+    _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
+    A × B = Σ A (λ _ → B)
 
-      splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
-      splitAt zero    xs       = ([] , xs)
-      splitAt (suc m) (x ∷ xs) with (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
+    splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
+    splitAt zero    xs       = ([] , xs)
+    splitAt (suc m) (x ∷ xs) with (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
 
-      -- focusAt m (x₀ ∷ ⋯ ∷ xₘ₋₁ ∷ xₘ ∷ xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ)
-      -- returns ((x₀ ∷ ⋯ ∷ xₘ₋₁) , xₘ , (xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ))
-      focusAt : ∀ m {n} → Vec A (suc (m + n)) → Vec A m × A × Vec A n
-      focusAt m {n} vs rewrite suc-+ m n
-                       with (before , focus ∷ after) ← splitAt m vs
-                       = (before , focus , after)
+    -- focusAt m (x₀ ∷ ⋯ ∷ xₘ₋₁ ∷ xₘ ∷ xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ)
+    -- returns ((x₀ ∷ ⋯ ∷ xₘ₋₁) , xₘ , (xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ))
+    focusAt : ∀ m {n} → Vec A (suc (m + n)) → Vec A m × A × Vec A n
+    focusAt m {n} vs rewrite suc-+ m n
+                     with (before , focus ∷ after) ← splitAt m vs
+                     = (before , focus , after)
 
 You can alternate arbitrarily many ``rewrite`` and pattern-matching
 ``with`` clauses and still perform a ``with`` abstraction afterwards

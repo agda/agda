@@ -763,22 +763,21 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
   rewriteEqnsRHS (r:rs) strippedPats rhs wh = case r of
     Rewrite ((qname, eq) : qes) ->
       rewriteEqnRHS qname eq (case qes of { [] -> rs; _ -> Rewrite qes : rs })
-    Invert ((pat, (qname, expr)) : pqes) ->
-      invertEqnRHS qname pat expr (case pqes of { [] -> rs; _ -> Invert pqes : rs })
+    Invert _     []  -> __IMPOSSIBLE__
+    Invert qname pes -> invertEqnRHS qname pes rs
     -- Invariant: these lists are non-empty
     Rewrite [] -> __IMPOSSIBLE__
-    Invert [] -> __IMPOSSIBLE__
 
     where
 
     -- @invert@ clauses
-    invertEqnRHS :: QName -> A.Pattern -> A.Expr
-                 -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
-    invertEqnRHS qname pat expr rs = do
+    invertEqnRHS :: QName -> [(A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    invertEqnRHS qname pes rs = do
 
-      (withExpr, ty) <- inferExpr expr
-      let pats     = [pat]
-      let withType = OtherType ty
+      let (pats, es) = unzip pes
+      -- Infer the types of the with expressions
+      (withExprs, tys) <- unzip <$> mapM inferExprForWith es
+      let withTypes = OtherType <$> tys
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -798,7 +797,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         [ text "invert"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [withExpr] [withType] [cl]
+      checkWithRHS x qname t lhsResult withExprs withTypes [cl]
 
     -- @rewrite@ clauses
     rewriteEqnRHS :: QName -> A.Expr

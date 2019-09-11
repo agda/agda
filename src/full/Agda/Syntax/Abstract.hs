@@ -361,7 +361,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
-type RewriteEqn  = RewriteEqn' Pattern (QName, Expr)
+type RewriteEqn  = RewriteEqn' QName Pattern Expr
 
 data RHS
   = RHS
@@ -497,7 +497,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' Pattern Expr
+type HoleContent = C.HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -682,10 +682,10 @@ instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS                = noRange
-    getRange (RHS e _)                = getRange e
-    getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes _ rhs wh) = getRange (map (snd <$>) xes, rhs, wh)
+    getRange AbsurdRHS                 = noRange
+    getRange (RHS e _)                 = getRange e
+    getRange (WithRHS _ e cs)          = fuseRange e cs
+    getRange (RewriteRHS xes _ rhs wh) = getRange (xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
   getRange (WhereDecls _ ds) = getRange ds
@@ -887,6 +887,9 @@ instance AllNames a => AllNames (Named name a) where
 instance (AllNames a, AllNames b) => AllNames (a,b) where
   allNames (a,b) = allNames a >< allNames b
 
+instance (AllNames a, AllNames b, AllNames c) => AllNames (a,b,c) where
+  allNames (a,b,c) = allNames a >< allNames b >< allNames c
+
 instance AllNames QName where
   allNames q = Seq.singleton q
 
@@ -914,17 +917,16 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
-instance AllNames e => AllNames (RewriteEqn' p e) where
+instance (AllNames qn, AllNames e) => AllNames (RewriteEqn' qn p e) where
     allNames = \case
-      Rewrite es -> Fold.foldMap allNames es
-      Invert pes -> Fold.foldMap (Fold.foldMap allNames) pes
+      Rewrite es    -> Fold.foldMap allNames es
+      Invert qn pes -> allNames qn >< foldMap (Fold.foldMap allNames) pes
 
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes _ rhs cls) =
-    allNames (map (fst <$>) qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) = allNames (qes, rhs, cls)
 
 instance AllNames WhereDeclarations where
   allNames (WhereDecls _ ds) = allNames ds
