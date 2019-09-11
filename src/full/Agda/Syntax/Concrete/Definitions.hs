@@ -173,7 +173,6 @@ data DeclarationException
         | DuplicateDefinition Name
         | MissingWithClauses Name LHS
         | WrongDefinition Name DataRecOrFun DataRecOrFun
-        | Codata Range
         | DeclarationPanic String
         | WrongContentBlock KindOfBlock Range
         | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
@@ -276,7 +275,6 @@ instance HasRange DeclarationException where
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
-  getRange (Codata r)                           = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
@@ -390,9 +388,6 @@ instance Pretty DeclarationException where
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
-  pretty (Codata _) = text $
-    "The codata construction has been removed. " ++
-    "Use the INFINITY builtin instead."
   pretty (DeclarationPanic s) = text s
 
 instance Pretty DeclarationWarning where
@@ -985,18 +980,14 @@ niceDeclarations fixs ds = do
         Field r [] -> justWarning $ EmptyField r
         Field _ fs -> (,ds) <$> niceAxioms FieldBlock fs
 
-        DataSig r CoInductive _ _ _   -> throwError (Codata r)
-        Data r CoInductive _ _ _ _    -> throwError (Codata r)
-        DataDef r CoInductive _ _ _   -> throwError (Codata r)
-
-        DataSig r Inductive x tel t -> do
+        DataSig r x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
           addLoneSig r x $ DataName pc uc
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
-        Data r Inductive x tel t cs -> do
+        Data r x tel t cs -> do
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1008,7 +999,7 @@ niceDeclarations fixs ds = do
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
-        DataDef r Inductive x tel cs -> do
+        DataDef r x tel cs -> do
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1207,9 +1198,9 @@ niceDeclarations fixs ds = do
     canHaveNoPositivityCheckPragma []     = False
     canHaveNoPositivityCheckPragma (d:ds) = case d of
       Mutual _ ds                   -> any (canHaveNoPositivityCheckPragma . singleton) ds
-      Data _ Inductive _ _ _ _      -> True
-      DataSig _ Inductive _ _ _     -> True
-      DataDef _ Inductive _ _ _     -> True
+      Data{}                        -> True
+      DataSig{}                     -> True
+      DataDef{}                     -> True
       Record{}                      -> True
       RecordSig{}                   -> True
       RecordDef{}                   -> True
@@ -1219,9 +1210,9 @@ niceDeclarations fixs ds = do
     canHaveNoUniverseCheckPragma :: [Declaration] -> Bool
     canHaveNoUniverseCheckPragma []     = False
     canHaveNoUniverseCheckPragma (d:ds) = case d of
-      Data _ Inductive _ _ _ _      -> True
-      DataSig _ Inductive _ _ _     -> True
-      DataDef _ Inductive _ _ _     -> True
+      Data{}                        -> True
+      DataSig{}                     -> True
+      DataDef{}                     -> True
       Record{}                      -> True
       RecordSig{}                   -> True
       RecordDef{}                   -> True
@@ -1839,11 +1830,11 @@ notSoNiceDeclarations = \case
     NiceImport r x as o dir        -> [Import r x as o dir]
     NicePragma _ p                 -> [Pragma p]
     NiceRecSig r _ _ _ _ x bs e    -> [RecordSig r x bs e]
-    NiceDataSig r _ _ _ _ x bs e   -> [DataSig r Inductive x bs e]
+    NiceDataSig r _ _ _ _ x bs e   -> [DataSig r x bs e]
     NiceFunClause _ _ _ _ _ _ d    -> [d]
     FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel Nothing x e]
     FunDef _ ds _ _ _ _ _ _        -> ds
-    NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r Inductive x bs $ concatMap notSoNiceDeclarations cs]
+    NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x i e c bs ds -> [RecordDef r x i e c bs ds]
     NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]

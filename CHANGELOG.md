@@ -178,6 +178,9 @@ Language
   fails = Foo.foo
   ```
 
+* `codata` definitions have been removed from the concrete syntax
+  Previously they got accepted syntactically, but resulted in errors.
+
 ### Modalities
 
 * New Flat Modality

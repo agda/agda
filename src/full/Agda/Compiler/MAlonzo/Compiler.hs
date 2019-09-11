@@ -321,17 +321,17 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
-              [ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__)
+              [ tvaldecl q Inductive (np + ni) [] (Just __IMPOSSIBLE__)
               , [ compiledTypeSynonym q ty np ]
               , cds
               , ccscov
               ]
         return result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-                dataCons = cs, dataInduction = ind } -> do
+                dataCons = cs } -> do
         computeErasedConstructorArgs q
-        cds <- mapM (flip condecl ind) cs
-        return $ tvaldecl q ind (np + ni) cds cl
+        cds <- mapM (flip condecl Inductive) cs
+        return $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> return []
       GeneralizableVar{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con,

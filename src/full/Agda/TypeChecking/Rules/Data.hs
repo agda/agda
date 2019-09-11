@@ -140,7 +140,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let dataDef = Datatype
                   { dataPars       = npars
                   , dataIxs        = nofIxs
-                  , dataInduction  = Inductive
                   , dataClause     = Nothing
                   , dataCons       = []     -- Constructors are added later
                   , dataSort       = s
@@ -1217,8 +1216,7 @@ isCoinductive t = do
         Axiom       {} -> return (Just False)
         DataOrRecSig{} -> return Nothing
         Function    {} -> return Nothing
-        Datatype    { dataInduction = CoInductive } -> return (Just True)
-        Datatype    { dataInduction = Inductive   } -> return (Just False)
+        Datatype    {} -> return (Just False)
         Record      {  recInduction = Just CoInductive } -> return (Just True)
         Record      {  recInduction = _                } -> return (Just False)
         GeneralizableVar{} -> __IMPOSSIBLE__

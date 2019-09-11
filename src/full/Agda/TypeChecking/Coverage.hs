@@ -902,9 +902,7 @@ isDatatype ind at = do
       let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
       case def of
-        Datatype{dataPars = np, dataCons = cs, dataInduction = i}
-          | i == CoInductive && ind /= CoInductive ->
-              throw CoinductiveDatatype
+        Datatype{dataPars = np, dataCons = cs}
           | otherwise -> do
               let (ps, is) = splitAt np args
               return (IsData, d, ps, is, cs, not $ null (dataPathCons def))
