@@ -1,0 +1,7 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > WithLeftLet.agda:7,62-64
+out > Panic: unbound variable 2n (id: 8@14820628934205279261)
+out > when checking that the expression 2n has type Nat
+out >
