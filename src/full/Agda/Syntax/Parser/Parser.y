@@ -672,7 +672,7 @@ ExtendedOrAbsurdLam
                                                        return $ Lam r bs (AbsurdLam r h)
                                                          where r = fuseRange $1 bs
                                        Right es -> do -- it is of the form @\ { p1 ... () }@
-                                                     p <- exprToLHS (RawApp (getRange es) es);
+                                                     p <- exprToLHS (mkRawApp es);
                                                      return $ ExtendedLam (fuseRange $1 es)
                                                                      [LamClause (p [] []) AbsurdRHS NoWhere False]
                                    }
@@ -899,14 +899,14 @@ LamBindsAbsurd
 NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
   : Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $1) $1) ;
+      p <- exprToLHS (mkRawApp $1) ;
       return LamClause{ lamLHS      = p [] []
                       , lamRHS      = RHS $3
                       , lamWhere    = NoWhere
                       , lamCatchAll = False }
         }
   | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $2) $2) ;
+      p <- exprToLHS (mkRawApp $2) ;
       return LamClause{ lamLHS      = p [] []
                       , lamRHS      = RHS $4
                       , lamWhere    = NoWhere
@@ -918,14 +918,14 @@ AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
   : Application {% do
-      p <- exprToLHS (RawApp (getRange $1) $1);
+      p <- exprToLHS (mkRawApp $1);
       return LamClause{ lamLHS      = p [] []
                       , lamRHS      = AbsurdRHS
                       , lamWhere    = NoWhere
                       , lamCatchAll = False }
         }
   | CatchallPragma Application {% do
-      p <- exprToLHS (RawApp (getRange $2) $2);
+      p <- exprToLHS (mkRawApp $2);
       return LamClause{ lamLHS      = p [] []
                       , lamRHS      = AbsurdRHS
                       , lamWhere    = NoWhere
@@ -992,7 +992,7 @@ DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left [mkDomainFree_ id $2 $1]  }
     | '.' BId  MaybeAsPattern { Left [mkDomainFree_ (setRelevance Irrelevant) $3 $2]  }
     | '..' BId MaybeAsPattern { Left [mkDomainFree_ (setRelevance NonStrict) $3 $2]  }
-    | '(' Application ')'     {% exprToPattern (RawApp (getRange $2) $2) >>= \ p ->
+    | '(' Application ')'     {% exprToPattern (mkRawApp $2) >>= \ p ->
                                  pure $ Left [mkDomainFree_ id (Just p) (Name (getRange $2) InScope [Hole])] }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
@@ -2063,9 +2063,9 @@ exprToAssignment (RawApp r es)
   | (es1, arr : es2) <- break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) es1)
+      [] -> Just <$> ((,,) <$> exprToPattern (mkRawApp es1)
                            <*> pure (getRange arr)
-                           <*> pure (RawApp (getRange es2) es2))
+                           <*> pure (mkRawApp es2))
   where
     isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False

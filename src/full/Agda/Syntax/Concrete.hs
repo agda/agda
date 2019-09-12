@@ -7,7 +7,7 @@
 -}
 module Agda.Syntax.Concrete
   ( -- * Expressions
-    Expr(..)
+    Expr(..), mkRawApp
   , OpApp(..), fromOrdinary
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
@@ -173,6 +173,11 @@ data Expr
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   | Generalized Expr
   deriving (Data, Eq)
+
+-- | Smart constructor for RawApp
+
+mkRawApp :: [Expr] -> Expr
+mkRawApp es = RawApp (getRange es) es
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
