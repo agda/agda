@@ -145,6 +145,7 @@ instance ToAbstract Term Expr where
     R.Meta x es    -> toAbstract (A.Underscore info, es)
       where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
+    R.Trusted q -> pure $ A.Trusted q
 
 mkDef :: HasConstInfo m => QName -> m A.Expr
 mkDef f =

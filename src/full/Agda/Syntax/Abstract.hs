@@ -114,6 +114,7 @@ data Expr
   | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
                                        -- ^ @tactic e x1 .. xn | y1 | .. | yn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
+  | Trusted I.QuotedTerm
   deriving (Data, Show)
 
 -- | Smart constructor for Generalized
@@ -630,6 +631,7 @@ instance HasRange Expr where
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
     getRange (Macro x)             = getRange x
+    getRange (Trusted q)           = noRange
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  ) = getRange i
@@ -763,6 +765,7 @@ instance KillRange Expr where
   killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
   killRange (Macro x)              = killRange1 Macro x
+  killRange e@Trusted{}            = e
 
 instance KillRange Declaration where
   killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
@@ -964,6 +967,7 @@ instance AllNames Expr where
   allNames DontCare{}              = Seq.empty
   allNames PatternSyn{}            = Seq.empty
   allNames Macro{}                 = Seq.empty
+  allNames Trusted{}               = __IMPOSSIBLE__  -- only briefly between Reflected and Internal syntax
 
 instance AllNames LamBinding where
   allNames DomainFree{}       = Seq.empty
@@ -1155,6 +1159,7 @@ instance SubstExpr Expr where
     DontCare e            -> DontCare (substExpr s e)
     PatternSyn{}          -> e
     Macro{}               -> e
+    Trusted{}             -> __IMPOSSIBLE__   -- Only used briefly by Reflected syntax
 
 instance SubstExpr LetBinding where
   substExpr s lb = case lb of

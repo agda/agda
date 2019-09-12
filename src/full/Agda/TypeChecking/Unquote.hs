@@ -415,6 +415,8 @@ instance Unquote R.Term where
           mkPi a (R.Abs "_" b) = R.Pi a (R.Abs (pickName (unDom a)) b)
           mkPi a b = R.Pi a b
 
+      Lit (LitTerm _ q) -> return $ R.Trusted q
+
       Con{} -> __IMPOSSIBLE__
       Lit{} -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "term" t
@@ -455,6 +457,13 @@ instance Unquote R.Clause where
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "clause" t
+
+unquoteTerm :: Term -> TCM R.Term
+unquoteTerm t = do
+  r <- runUnquoteM (unquote t)
+  case r of
+    Left err     -> typeError $ UnquoteFailed err
+    Right (r, _) -> pure r
 
 -- Unquoting TCM computations ---------------------------------------------
 

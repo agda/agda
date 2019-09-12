@@ -1007,6 +1007,7 @@ instance BlankVars A.Expr where
     A.DontCare v           -> A.DontCare $ blank bound v
     A.PatternSyn {}        -> e
     A.Macro {}             -> e
+    A.Trusted {}           -> e
 
 instance BlankVars A.ModuleName where
   blank bound = id

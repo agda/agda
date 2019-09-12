@@ -33,6 +33,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -56,6 +57,8 @@ import Agda.TypeChecking.Rules.Def
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Quote
+import Agda.TypeChecking.Unquote
 
 import Agda.Utils.Either
 import Agda.Utils.Except
@@ -300,6 +303,13 @@ inferHead e = do
     A.Con{} -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
     A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
     A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    A.Trusted q -> do
+      msub <- checkpointSubstitution' (quotedCheckpoint q)
+      case msub of
+        Just IdS -> return $ (applyE $ quotedTerm q, quotedType q)
+        _        -> do
+          (term, t) <- inferExpr =<< toAbstract_ =<< unquoteTerm =<< quoteTerm (quotedTerm q)
+          return (applyE term, t)
     e -> do
       (term, t) <- inferExpr e
       return (applyE term, t)

@@ -1473,6 +1473,7 @@ inferrableHead :: A.Expr -> Bool
 inferrableHead A.Var{} = True
 inferrableHead A.Def{} = True
 inferrableHead A.Proj{} = True
+inferrableHead A.Trusted{} = True
 inferrableHead (A.ScopedExpr _ e) = inferrableHead e
 inferrableHead _     = False
 

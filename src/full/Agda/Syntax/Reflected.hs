@@ -6,6 +6,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal (Dom)
+import qualified Agda.Syntax.Internal as I
 
 type Args       = [Arg Term]
 
@@ -29,6 +30,7 @@ data Term = Var Int Elims
           | Pi (Dom Type) (Abs Type)
           | Sort Sort
           | Lit Literal
+          | Trusted I.QuotedTerm
           | Unknown
   deriving (Show)
 

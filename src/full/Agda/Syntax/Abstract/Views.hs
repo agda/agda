@@ -156,6 +156,7 @@ instance ExprLike Expr where
       PatternSyn{}            -> pure e0
       Tactic ei e xs ys       -> Tactic ei <$> recurse e <*> recurse xs <*> recurse ys
       Macro{}                 -> pure e0
+      Trusted{}               -> pure e0
 
   foldExpr f e =
     case e of
@@ -191,6 +192,7 @@ instance ExprLike Expr where
       Unquote{}            -> m
       Tactic _ e xs ys     -> m `mappend` fold e `mappend` fold xs `mappend` fold ys
       DontCare e           -> m `mappend` fold e
+      Trusted{}            -> m
    where
      m    = f e
      fold = foldExpr f
@@ -230,6 +232,7 @@ instance ExprLike Expr where
       DontCare e              -> f =<< DontCare <$> trav e
       PatternSyn{}            -> f e
       Macro{}                 -> f e
+      Trusted{}               -> f e
 
 instance ExprLike a => ExprLike (Arg a)     where
 instance ExprLike a => ExprLike (Maybe a)   where
