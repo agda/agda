@@ -1155,11 +1155,18 @@ instance Decoration Open where
 
 -- | Parametrized since it is used without MetaId when creating a new meta.
 data Judgement a
-  = HasType { jMetaId :: a, jMetaType :: Type }
-  | IsSort  { jMetaId :: a, jMetaType :: Type } -- Andreas, 2011-04-26: type needed for higher-order sort metas
+  = HasType
+    { jMetaId     :: a
+    , jComparison :: Comparison -- ^ are we checking (@CmpLeq@) or inferring (@CmpEq@) the type?
+    , jMetaType   :: Type
+    }
+  | IsSort
+    { jMetaId   :: a
+    , jMetaType :: Type -- Andreas, 2011-04-26: type needed for higher-order sort metas
+    }
 
 instance Show a => Show (Judgement a) where
-    show (HasType a t) = show a ++ " : " ++ show t
+    show (HasType a cmp t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
 
 -----------------------------------------------------------------------------

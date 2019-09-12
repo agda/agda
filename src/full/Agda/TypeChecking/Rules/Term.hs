@@ -1006,8 +1006,8 @@ checkExpr' cmp e t0 =
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) t0 i ii
-        A.Underscore i -> checkUnderscore t0 i
+        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) cmp t0 i ii
+        A.Underscore i -> checkUnderscore cmp t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -1308,8 +1308,10 @@ unquoteTactic tac hole goal = do
 ---------------------------------------------------------------------------
 
 -- | Check an interaction point without arguments.
-checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> InteractionId -> TCM Term
-checkQuestionMark new t0 i ii = do
+checkQuestionMark
+  :: (Comparison -> Type -> TCM (MetaId, Term))
+  -> Comparison -> Type -> A.MetaInfo -> InteractionId -> TCM Term
+checkQuestionMark new cmp t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
     [ "Found interaction point"
     , text . show =<< asksTC (^. lensIsAbstract)
@@ -1321,32 +1323,36 @@ checkQuestionMark new t0 i ii = do
     [ "Raw:"
     , text (show t0)
     ]
-  checkMeta (newQuestionMark' new ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+  checkMeta (newQuestionMark' new ii) cmp t0 i -- Andreas, 2013-05-22 use unreduced type t0!
 
 -- | Check an underscore without arguments.
-checkUnderscore :: Type -> A.MetaInfo -> TCM Term
+checkUnderscore :: Comparison -> Type -> A.MetaInfo -> TCM Term
 checkUnderscore = checkMeta (newValueMeta RunMetaOccursCheck)
 
 -- | Type check a meta variable.
-checkMeta :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> TCM Term
-checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
+checkMeta :: (Comparison -> Type -> TCM (MetaId, Term)) -> Comparison -> Type -> A.MetaInfo -> TCM Term
+checkMeta newMeta cmp t i = fst <$> checkOrInferMeta newMeta (Just (cmp , t)) i
 
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
-inferMeta :: (Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Elims -> Term, Type)
+inferMeta :: (Comparison -> Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Elims -> Term, Type)
 inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.
 --   If its type is given, we check that the meta has this type, and we return the same
 --   type.
-checkOrInferMeta :: (Type -> TCM (MetaId, Term)) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
+checkOrInferMeta
+  :: (Comparison -> Type -> TCM (MetaId, Term))
+  -> Maybe (Comparison , Type)
+  -> A.MetaInfo
+  -> TCM (Term, Type)
 checkOrInferMeta newMeta mt i = do
   case A.metaNumber i of
     Nothing -> do
       setScope (A.metaScope i)
-      t <- maybe (workOnTypes $ newTypeMeta_) return mt
-      (x, v) <- newMeta t
+      (cmp , t) <- maybe ((CmpEq,) <$> workOnTypes newTypeMeta_) return mt
+      (x, v) <- newMeta cmp t
       setMetaNameSuggestion x (A.metaNameSuggestion i)
       return (v, t)
     -- Rechecking an existing metavariable
@@ -1359,7 +1365,7 @@ checkOrInferMeta newMeta mt i = do
         nest 2 $ "of type " <+> prettyTCM t'
       case mt of
         Nothing -> return (v, t')
-        Just t  -> (,t) <$> coerce CmpLeq v t' t
+        Just (cmp , t) -> (,t) <$> coerce cmp v t' t
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.
@@ -1436,8 +1442,8 @@ checkNamedArg arg@(Arg info e0) t0 = do
     reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show (deepUnscope arg)
     -- Ulf, 2017-03-24: (#2172) Always treat explicit _ and ? as implicit
     -- argument (i.e. solve with unification).
-    let checkU = checkMeta (newMetaArg (setHiding Hidden info) x) t0
-    let checkQ = checkQuestionMark (newInteractionMetaArg (setHiding Hidden info) x) t0
+    let checkU = checkMeta (newMetaArg (setHiding Hidden info) x) CmpLeq t0
+    let checkQ = checkQuestionMark (newInteractionMetaArg (setHiding Hidden info) x) CmpLeq t0
     if not $ isHole e then checkExpr e t0 else localScope $ do
       -- Note: we need localScope here,
       -- as scopedExpr manipulates the scope in the state.
