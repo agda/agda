@@ -89,15 +89,21 @@ import Agda.Utils.Impossible
 
 -- | Check that an expression is a type.
 isType :: A.Expr -> Sort -> TCM Type
-isType e s =
-    traceCall (IsTypeCall e s) $ do
-    v <- checkExpr e (sort s)
+isType = isType' CmpLeq
+
+-- | Check that an expression is a type.
+--   * If @c == CmpEq@, the given sort must be the minimal sort.
+--   * If @c == CmpLeq@, the given sort may be any bigger sort.
+isType' :: Comparison -> A.Expr -> Sort -> TCM Type
+isType' c e s =
+    traceCall (IsTypeCall c e s) $ do
+    v <- checkExpr' c e (sort s)
     return $ El s v
 
--- | Check that an expression is a type without knowing the sort.
+-- | Check that an expression is a type and infer its (minimal) sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e = traceCall (IsType_ e) $ do
-  let fallback = isType e =<< do workOnTypes $ newSortMeta
+  let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t

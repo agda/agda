@@ -2331,7 +2331,7 @@ data Call
   | CheckExprCall Comparison A.Expr Type
   | CheckDotPattern A.Expr Term
   | CheckProjection Range QName Type
-  | IsTypeCall A.Expr Sort
+  | IsTypeCall Comparison A.Expr Sort
   | IsType_ A.Expr
   | InferVar Name
   | InferDef QName
@@ -2401,7 +2401,7 @@ instance HasRange Call where
     getRange (CheckExprCall _ e _)           = getRange e
     getRange (CheckLetBinding b)             = getRange b
     getRange (CheckProjection r _ _)         = r
-    getRange (IsTypeCall e s)                = getRange e
+    getRange (IsTypeCall cmp e s)            = getRange e
     getRange (IsType_ e)                     = getRange e
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f
