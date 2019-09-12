@@ -1275,17 +1275,15 @@ leqLevel a b = do
         -- as ≤ neutral
         (as, bs)
           | neutralB && maxA > maxB -> notok
-          | neutralB && any (\a -> neutral a && not (isInB a)) as -> notok
-          | neutralB && neutralA -> maybeok $ all (\a -> constant a <= findN a) as
+          | neutralB && neutralA && all findN as -> ok
           where
             maxA = maximum $ map constant as
             maxB = maximum $ map constant bs
             neutralA = all neutral as
             neutralB = all neutral bs
-            isInB a = elem (unneutral a) $ map unneutral bs
             findN a = case [ n | b@(Plus n _) <- bs, unneutral b == unneutral a ] of
-                        [n] -> n
-                        _   -> __IMPOSSIBLE__
+                        [n] -> constant a <= n
+                        _   -> False
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
         -- Thus, it is invalid.
@@ -1297,7 +1295,8 @@ leqLevel a b = do
         --   -- subsumed terms from the lhs.
 
         -- anything else
-        _ -> postpone
+        _ | noMetas (Level a , Level b) -> notok
+          | otherwise                   -> postpone
       where
         ok       = return ()
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
@@ -1309,7 +1308,7 @@ leqLevel a b = do
             _           -> throwError e
 
         maybeok True = ok
-        maybeok False = notok
+        maybeok False = postpone
 
         neutral (Plus _ NeutralLevel{}) = True
         neutral _                       = False
@@ -1425,7 +1424,7 @@ equalLevel' a b = do
           reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
           if length as == length bs
             then zipWithM_ (\a b -> [a] =!= [b]) as bs
-            else notok
+            else postpone
 
         -- more cases?
         _ -> postpone
