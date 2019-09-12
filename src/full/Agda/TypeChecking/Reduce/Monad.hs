@@ -24,7 +24,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
-import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin.ConstructorForm
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
@@ -37,12 +38,6 @@ import Agda.Utils.Impossible
 instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
                                    (Map.lookup b <$> useR stImportedBuiltins)
-
-constructorForm :: HasBuiltins m => Term -> m Term
-constructorForm v = do
-  mz <- getBuiltin' builtinZero
-  ms <- getBuiltin' builtinSuc
-  return $ fromMaybe v $ constructorForm' mz ms v
 
 enterClosure :: LensClosure a c => c -> (a -> ReduceM b) -> ReduceM b
 enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case

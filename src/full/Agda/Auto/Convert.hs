@@ -30,7 +30,7 @@ import Agda.TypeChecking.Telescope (piApplyM)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
+import Agda.TypeChecking.Monad.Builtin.ConstructorForm (constructorForm)
 import Agda.TypeChecking.Free as Free (freeIn)
 
 import Agda.Interaction.MakeCase (getClauseZipperForIP)

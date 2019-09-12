@@ -90,29 +90,30 @@ instance EmbPrj I.Term where
   icod_ (Def      a b) = icodeN 3 Def a b
   icod_ (Con    a b c) = icodeN 4 Con a b c
   icod_ (Pi       a b) = icodeN 5 Pi a b
-  icod_ (Sort     a  ) = icodeN 7 Sort a
-  icod_ (MetaV    a b) = __IMPOSSIBLE__
+  icod_ (Sort     a  ) = icodeN 6 Sort a
+  icod_ (MetaV    a b) = icodeN 7 MetaV a b
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
   icod_ (Dummy s _)    = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu [a]       = valuN var   a
-    valu [0, a, b] = valuN Var   a b
-    valu [1, a, b] = valuN Lam   a b
-    valu [2, a]    = valuN Lit   a
-    valu [3, a, b] = valuN Def   a b
+    valu [a]          = valuN var   a
+    valu [0, a, b]    = valuN Var   a b
+    valu [1, a, b]    = valuN Lam   a b
+    valu [2, a]       = valuN Lit   a
+    valu [3, a, b]    = valuN Def   a b
     valu [4, a, b, c] = valuN Con a b c
-    valu [5, a, b] = valuN Pi    a b
-    valu [7, a]    = valuN Sort  a
-    valu [8, a]    = valuN DontCare a
-    valu [9, a]    = valuN Level a
-    valu _         = malformed
+    valu [5, a, b]    = valuN Pi    a b
+    valu [6, a]       = valuN Sort  a
+    valu [7, a, b]    = valuN MetaV a b
+    valu [8, a]       = valuN DontCare a
+    valu [9, a]       = valuN Level a
+    valu _            = malformed
 
 instance EmbPrj QuotedTerm where
-  icod_ (QuotedTerm a b c) = icodeN' QuotedTerm a b c
+  icod_ q = icodeN' (quotedTerm q)
 
-  value = valueN QuotedTerm
+  value = valueN $ \ v -> QuotedTerm Nothing v Nothing
 
 instance EmbPrj Level where
   icod_ (Max a) = icodeN' Max a

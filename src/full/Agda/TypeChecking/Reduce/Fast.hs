@@ -65,7 +65,8 @@ import Agda.TypeChecking.Monad hiding (Closure(..))
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Rewriting (rewrite)
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin.ConstructorForm (getQuotedTermKit, QuotedTermKit, quotedTermConstructorForm)
 
 import Agda.Interaction.Options
 
@@ -396,6 +397,7 @@ fastReduce' norm v = do
                           bPrimForce = force, bPrimErase = erase }
   allowedReductions <- asksTC envAllowedReductions
   rwr <- optRewriting <$> pragmaOptions
+  qkit <- getQuotedTermKit
   constInfo <- unKleisli $ \f -> do
     info <- getConstInfo f
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
@@ -404,7 +406,7 @@ fastReduce' norm v = do
   let flags = ReductionFlags{ allowNonTerminating = NonTerminatingReductions `elem` allowedReductions
                             , allowUnconfirmed    = UnconfirmedReductions `elem` allowedReductions
                             , hasRewriting        = rwr }
-  ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
+  ReduceM $ \ redEnv -> reduceTm redEnv bEnv qkit (memoQName constInfo) norm flags v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
@@ -767,8 +769,8 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
-reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
+reduceTm :: ReduceEnv -> BuiltinEnv -> Maybe QuotedTermKit -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
+reduceTm rEnv bEnv qkit !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
@@ -781,6 +783,13 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv)
     iview          = runReduce intervalView'
+
+    constrForm =
+      case qkit of
+        Nothing  -> id
+        Just kit -> \ case
+          Lit (LitTerm _ q) -> quotedTermConstructorForm kit q
+          t                 -> t
 
     runReduce :: ReduceM a -> a
     runReduce m = unReduceM m rEnv
@@ -1079,7 +1088,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       {-# SCC "runAM.CaseK" #-}
       case blk of
         Blocked{} | null [()|Con{} <- [t]] -> stuck -- we might as well check the blocking tag first
-        _ -> case t of
+        _ -> case constrForm t of
           -- Case: suc constructor
           Con c ci [] | isSuc c -> matchSuc $ matchCatchall $ failedMatch f stack ctrl
 
@@ -1091,10 +1100,13 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Con c ci es -> do
             spine' <- elimsToSpine env es
             runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
+
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
           Lit (LitNat _ 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
           Lit (LitNat _ n) -> matchLitSuc n $ matchCatchall $ failedMatch f stack ctrl
+
+          Lit LitTerm{} -> __IMPOSSIBLE__
 
           -- Case: literal
           Lit l -> matchLit l $ matchCatchall $ failedMatch f stack ctrl

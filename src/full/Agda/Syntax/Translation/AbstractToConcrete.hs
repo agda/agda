@@ -843,7 +843,7 @@ instance ToConcrete A.Expr C.Expr where
        where r = getRange e
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
-    toConcrete A.Trusted{} = __IMPOSSIBLE__
+    toConcrete (A.Trusted q) = return $ C.Lit $ LitString noRange (show $ pretty q)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac [x] t)) =

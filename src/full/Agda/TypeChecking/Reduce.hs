@@ -28,7 +28,7 @@ import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo
                                       , lookupMeta )
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
+import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract

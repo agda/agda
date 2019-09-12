@@ -23,6 +23,7 @@ import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin.ConstructorForm
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute

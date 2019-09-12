@@ -14,6 +14,8 @@ import Control.Monad.Writer
 import qualified Data.Map as Map
 import Data.Function ( on )
 import Data.List (genericReplicate)
+import qualified Data.HashMap.Strict as HMap
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -21,10 +23,10 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Builtin
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad.Base
--- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except
+import Agda.Utils.FileName
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -55,64 +57,6 @@ instance HasBuiltins m => HasBuiltins (StateT s m) where
 
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
   getBuiltinThing b = lift $ getBuiltinThing b
-
--- Levels -----------------------------------------------------------------
-
-data LevelKit = LevelKit
-  { lvlType  :: Term
-  , lvlSuc   :: Term -> Term
-  , lvlMax   :: Term -> Term -> Term
-  , lvlZero  :: Term
-  , typeName :: QName
-  , sucName  :: QName
-  , maxName  :: QName
-  , zeroName :: QName
-  }
-
-builtinLevelKit :: HasBuiltins m => m LevelKit
-builtinLevelKit = do
-    level@(Def l []) <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
-    return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
-      }
-
-builtinLevelKit' :: HasBuiltins m => m (Maybe LevelKit)
-builtinLevelKit' = runMaybeT $ do
-    level@(Def l []) <- MaybeT $ getBuiltin' builtinLevel
-    zero@(Def z [])  <- MaybeT $ getBuiltin' builtinLevelZero
-    suc@(Def s [])   <- MaybeT $ getBuiltin' builtinLevelSuc
-    max@(Def m [])   <- MaybeT $ getBuiltin' builtinLevelMax
-    return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
-      }
-
-unlevelWithKit :: LevelKit -> Level -> Term
-unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
-  case map (unPlusV zer suc) as of
-    [a] -> a
-    []  -> zer
-    as  -> foldl1 max as
-
-unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
-unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
-unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
 -- Literals ---------------------------------------------------------------
 
@@ -201,20 +145,65 @@ getTerm :: (HasBuiltins m) => String -> String -> m Term
 getTerm use name = flip fromMaybeM (getTerm' name) $
   return $! (throwImpossible $ ImpMissingDefinitions [name] use)
 
+---------------------------------------------------------------------------
+-- * Levels
+---------------------------------------------------------------------------
 
--- | Rewrite a literal to constructor form if possible.
-constructorForm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-                => Term -> m Term
-constructorForm v = constructorForm' primZero primSuc v
+data LevelKit = LevelKit
+  { lvlType  :: Term
+  , lvlSuc   :: Term -> Term
+  , lvlMax   :: Term -> Term -> Term
+  , lvlZero  :: Term
+  , typeName :: QName
+  , sucName  :: QName
+  , maxName  :: QName
+  , zeroName :: QName
+  }
 
-constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
-constructorForm' pZero pSuc v =
-  case v of
-    Lit (LitNat r n)
-      | n == 0    -> pZero
-      | n > 0     -> (`apply1` Lit (LitNat r $ n - 1)) <$> pSuc
-      | otherwise -> pure v
-    _ -> pure v
+builtinLevelKit :: HasBuiltins m => m LevelKit
+builtinLevelKit = do
+    level@(Def l []) <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    zero@(Def z [])  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
+    suc@(Def s [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+    max@(Def m [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+    return $ LevelKit
+      { lvlType  = level
+      , lvlSuc   = \ a -> suc `apply1` a
+      , lvlMax   = \ a b -> max `applys` [a, b]
+      , lvlZero  = zero
+      , typeName = l
+      , sucName  = s
+      , maxName  = m
+      , zeroName = z
+      }
+
+builtinLevelKit' :: HasBuiltins m => m (Maybe LevelKit)
+builtinLevelKit' = runMaybeT $ do
+    level@(Def l []) <- MaybeT $ getBuiltin' builtinLevel
+    zero@(Def z [])  <- MaybeT $ getBuiltin' builtinLevelZero
+    suc@(Def s [])   <- MaybeT $ getBuiltin' builtinLevelSuc
+    max@(Def m [])   <- MaybeT $ getBuiltin' builtinLevelMax
+    return $ LevelKit
+      { lvlType  = level
+      , lvlSuc   = \ a -> suc `apply1` a
+      , lvlMax   = \ a b -> max `applys` [a, b]
+      , lvlZero  = zero
+      , typeName = l
+      , sucName  = s
+      , maxName  = m
+      , zeroName = z
+      }
+
+unlevelWithKit :: LevelKit -> Level -> Term
+unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
+  case map (unPlusV zer suc) as of
+    [a] -> a
+    []  -> zer
+    as  -> foldl1 max as
+
+unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
+unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
+unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
 ---------------------------------------------------------------------------
 -- * The names of built-in things
