@@ -135,6 +135,23 @@ jobs:
           sources:
             - hvr-ghc
 
+    - stage: stackage
+      os: windows 
+      cache:
+        directories: $HOME/.stack
+      language: c
+      env: 
+        - GHC_VER=8.6.5 STACK_VER=2.1.3.20190715
+      before_install:
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting --ghc-options=-O0"
+
+        - choco install haskell-stack --version ${STACK_VER}
+      install:
+        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+      script:
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS}
+
     ##############################################################################
     # Main stage
     #
