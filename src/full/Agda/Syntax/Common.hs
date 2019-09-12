@@ -2324,10 +2324,13 @@ instance Monoid CoverageCheck where
 -- * Rewrite Directives on the LHS
 -----------------------------------------------------------------------------
 
-data RewriteEqn'
-     qn -- ^ QName of the auxiliary function generated to implement the feature
-     p  -- ^ Type of patterns
-     e  -- ^ Type of expressions
+-- | @RewriteEqn' qn p e@ represents the @rewrite@ and irrefutable @with@
+--   clauses of the LHS.
+--   @qn@ stands for the QName of the auxiliary function generated to implement the feature
+--   @p@ is the type of patterns
+--   @e@ is the type of expressions
+
+data RewriteEqn' qn p e
   = Rewrite [(qn, e)]  -- ^ @rewrite e@
   | Invert qn [(p, e)] -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
