@@ -1,10 +1,10 @@
 module Agda.Compiler.JS.Pretty where
 
 import Prelude hiding ( null )
+import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
 import Data.List ( intercalate )
 import Data.Set ( Set, toList, singleton, insert, member )
 import Data.Map ( Map, toAscList, empty, null )
-import Text.Regex.TDFA (makeRegex, matchTest, Regex)
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Hash
@@ -128,8 +128,13 @@ variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashStrin
 -- | Check if a string is a valid JS identifier. The check ignores keywords
 -- as we prepend z_ to our identifiers. The check
 -- is conservative and may not admit all valid JS identifiers.
+
 isValidJSIdent :: String -> Bool
-isValidJSIdent s = matchTest regex s
+isValidJSIdent []     = False
+isValidJSIdent (c:cs) = validFirst c && all validOther cs
   where
-    regex :: Regex
-    regex = makeRegex ("^[a-zA-Z_$][0-9a-zA-Z_$]*$" :: String)
+  validFirst :: Char -> Bool
+  validFirst c = isAsciiUpper c || isAsciiLower c || c == '_' || c == '$'
+
+  validOther :: Char -> Bool
+  validOther c = validFirst c || isDigit c
