@@ -32,7 +32,7 @@ travis_fold end "ghc.info"
 ##############################################################################
 # Installing the dependencies
 
-fold_cmd "build.dependencies" stack build $ARGS --no-terminal --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+fold_cmd "build.dependencies" stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
 
 ##############################################################################
 # Some tests
@@ -43,4 +43,4 @@ fold_cmd "build.dependencies" stack build $ARGS --no-terminal --only-dependencie
 
 ##############################################################################
 
-fold_cmd "build.agda" travis_wait 35 stack build $ARGS --no-terminal ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+fold_cmd "build.agda" travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} 
