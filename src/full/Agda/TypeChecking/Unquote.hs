@@ -471,9 +471,9 @@ unquoteTerm t = do
 --   resulting term of type @A@. The second argument is the term for the hole,
 --   which will typically be a metavariable. This is passed to the computation
 --   (quoted).
-unquoteTCM :: I.Term -> I.Term -> UnquoteM I.Term
-unquoteTCM m hole = do
-  qhole <- liftTCM $ quoteTerm hole
+unquoteTCM :: I.Term -> I.Term -> I.Type -> UnquoteM I.Term
+unquoteTCM m hole goal = do
+  qhole <- liftTCM $ makeQuotedTerm goal hole
   evalTCM (m `apply` [defaultArg qhole])
 
 evalTCM :: I.Term -> UnquoteM I.Term
@@ -510,7 +510,7 @@ evalTCM v = do
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
+             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim l) (unElim a) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
@@ -629,17 +629,19 @@ evalTCM v = do
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
       (_, a) <- inferExpr =<< toAbstract_ v
-      quoteType =<< process a
+      makeQuotedType =<< process a
 
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
       a <- isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
-      quoteTerm =<< process v
+      makeQuotedTerm a =<< process v
 
-    tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
+    -- Level, type and term to quote
+    tcQuoteTerm :: Term -> Term -> Term -> UnquoteM Term
+    tcQuoteTerm l a v = liftTCM $ do
+      makeQuotedTerm (El (tmSort l) a) =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
@@ -648,13 +650,13 @@ evalTCM v = do
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
-      quoteTerm =<< normalise v
+      (v, a) <- inferExpr =<< toAbstract_ v
+      makeQuotedTerm a =<< normalise v
 
     tcReduce :: R.Term -> TCM Term
     tcReduce v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
-      quoteTerm =<< reduce =<< instantiateFull v
+      (v, a) <- inferExpr =<< toAbstract_ v
+      makeQuotedTerm a =<< reduce =<< instantiateFull v
 
     tcGetContext :: UnquoteM Term
     tcGetContext = liftTCM $ do
@@ -686,7 +688,7 @@ evalTCM v = do
       where err _ = genericError $ "Unbound name: " ++ prettyShow x
 
     tcGetType :: QName -> TCM Term
-    tcGetType x = quoteType . defType =<< constInfo x
+    tcGetType x = makeQuotedType . defType =<< constInfo x
 
     tcIsMacro :: QName -> TCM Term
     tcIsMacro x = do

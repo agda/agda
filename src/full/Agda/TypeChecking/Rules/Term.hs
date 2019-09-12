@@ -1281,7 +1281,7 @@ unquoteTactic tac hole goal = do
   reportSDoc "tc.term.tactic" 40 $ sep
     [ "Running tactic" <+> prettyTCM tac
     , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
-  ok  <- runUnquoteM $ unquoteTCM tac hole
+  ok  <- runUnquoteM $ unquoteTCM tac hole goal
   case ok of
     Left (BlockedOnMeta oldState x) -> do
       putTC oldState

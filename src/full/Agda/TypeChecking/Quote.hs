@@ -290,10 +290,13 @@ quoteTerm v = do
   kit <- quotingKit
   runReduceM (quoteTermWithKit kit v)
 
-makeQuotedTerm :: Term -> Type -> TCM Term
-makeQuotedTerm v a = inFreshModuleIfFreeParams $ do
+makeQuotedTerm :: Type -> Term -> TCM Term
+makeQuotedTerm a v = inFreshModuleIfFreeParams $ do
   cp <- viewTC eCurrentCheckpoint
   return $ Lit $ LitTerm noRange $ QuotedTerm a v cp
+
+makeQuotedType :: Type -> TCM Term
+makeQuotedType (El s a) = makeQuotedTerm (sort s) a
 
 quoteType :: Type -> TCM Term
 quoteType v = do
