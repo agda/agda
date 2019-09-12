@@ -369,7 +369,8 @@ instance ExprLike Pragma where
 instance ExprLike LHS where
   recurseExpr f (LHS i p) = LHS i <$> recurseExpr f p
 
-instance ExprLike a => ExprLike (LHSCore' a) where
+instance ExprLike a => ExprLike (LHSCore' a)   where
+instance ExprLike a => ExprLike (WithHiding a) where
 
 instance ExprLike SpineLHS where
   recurseExpr f (SpineLHS i x ps) = SpineLHS i x <$> recurseExpr f ps

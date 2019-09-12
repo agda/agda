@@ -41,6 +41,7 @@ module Agda.Syntax.Concrete
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
+  , observeHiding
   , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
@@ -286,9 +287,9 @@ makePi bs e = Pi bs e
    We use fixity information to see which name is actually defined.
 -}
 data LHS = LHS
-  { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite e | with p <- e)@ (many)
-  , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
+  { lhsOriginalPattern :: Pattern               -- ^ e.g. @f ps | wps@
+  , lhsRewriteEqn      :: [RewriteEqn]          -- ^ @(rewrite e | with p <- e)@ (many)
+  , lhsWithExpr        :: [WithHiding WithExpr] -- ^ @with e1 | {e2} | ...@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
@@ -543,6 +544,15 @@ removeSingletonRawAppP p = case p of
     RawAppP _ [p'] -> removeSingletonRawAppP p'
     ParenP _ p'    -> removeSingletonRawAppP p'
     _ -> p
+
+-- | Observe the hiding status of an expression
+
+observeHiding :: Expr -> WithHiding Expr
+observeHiding = \case
+  RawApp _ [e]                    -> observeHiding e
+  HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
+  InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
+  e                               -> WithHiding NotHidden e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.

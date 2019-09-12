@@ -2267,9 +2267,9 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { _rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
-  , _rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
-  , _rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  { _rhsRewriteEqn :: [C.RewriteEqn]          -- ^ @rewrite e@ (many)
+  , _rhsWithExpr   :: [WithHiding C.WithExpr] -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause]       -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , _rhs           :: C.RHS
   , _rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
   , _rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
@@ -2277,7 +2277,7 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.Expr] [ScopeM C.Clause]
+  | WithRHS' [WithHiding A.Expr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
   | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations

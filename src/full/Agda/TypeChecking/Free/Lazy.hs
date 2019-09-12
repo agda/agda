@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.
 --
@@ -499,6 +500,10 @@ class Free t where
   -- So you cannot specialize all instances in one go. :(
   freeVars' :: IsVarSet a c => t -> FreeM a c
 
+  default freeVars' :: (t ~ f b, Foldable f, Free b) => IsVarSet a c => t -> FreeM a c
+  freeVars' = foldMap freeVars'
+
+
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see
   -- https://ghc.haskell.org/trac/ghc/ticket/10434#ticket
@@ -563,11 +568,9 @@ instance Free LevelAtom where
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 
-instance Free t => Free [t] where
-  freeVars' = foldMap freeVars'
-
-instance Free t => Free (Maybe t) where
-  freeVars' = foldMap freeVars'
+instance Free t => Free [t]            where
+instance Free t => Free (Maybe t)      where
+instance Free t => Free (WithHiding t) where
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u

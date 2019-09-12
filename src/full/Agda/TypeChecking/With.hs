@@ -8,7 +8,8 @@ import Control.Monad.Writer (WriterT, runWriterT, tell)
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable (traverse)
+import Data.Foldable ( foldrM )
+import Data.Traversable ( traverse )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -47,7 +48,6 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
-
 -- | Split pattern variables according to with-expressions.
 
 --   Input:
@@ -56,39 +56,32 @@ import Agda.Utils.Impossible
 --
 --   [@Δ ⊢ t@]     type of rhs.
 --
---   [@Δ ⊢ as@]    types of with arguments.
---
---   [@Δ ⊢ vs@]    with arguments.
---
+--   [@Δ ⊢ vs : as@]    with arguments and their types
 --
 --   Output:
 --
---   [@Δ₁@]        part of context needed for with arguments and their types.
+--   [@Δ₁@]              part of context needed for with arguments and their types.
 --
---   [@Δ₂@]        part of context not needed for with arguments and their types.
+--   [@Δ₂@]              part of context not needed for with arguments and their types.
 --
---   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+--   [@π@]               permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
 --
---   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
+--   [@Δ₁Δ₂ ⊢ t'@]       type of rhs under @π@
 --
---   [@Δ₁ ⊢ as'@]  types of with-arguments depending only on @Δ₁@.
---
---   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+--   [@Δ₁ ⊢ vs' : as'@]  with-arguments and their types depending only on @Δ₁@.
 
 splitTelForWith
   -- Input:
-  :: Telescope      -- ^ __@Δ@__        context of types and with-arguments.
-  -> Type           -- ^ __@Δ ⊢ t@__    type of rhs.
-  -> [EqualityView] -- ^ __@Δ ⊢ as@__   types of with arguments.
-  -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
+  :: Telescope                         -- ^ __@Δ@__             context of types and with-arguments.
+  -> Type                              -- ^ __@Δ ⊢ t@__         type of rhs.
+  -> [WithHiding (Term, EqualityView)] -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
   -- Output:
-  -> ( Telescope    -- @Δ₁@       part of context needed for with arguments and their types.
-     , Telescope    -- @Δ₂@       part of context not needed for with arguments and their types.
-     , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
-     , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [EqualityView] -- @Δ₁ ⊢ as'@ types of with- and rewrite-arguments depending only on @Δ₁@.
-     , [Term]       -- @Δ₁ ⊢ vs'@ with- and rewrite-arguments under @π@.
-     )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
+  -> ( Telescope                         -- @Δ₁@             part of context needed for with arguments and their types.
+     , Telescope                         -- @Δ₂@             part of context not needed for with arguments and their types.
+     , Permutation                       -- @π@              permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+     , Type                              -- @Δ₁Δ₂ ⊢ t'@      type of rhs under @π@
+     , [WithHiding (Term, EqualityView)] -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
+     )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@vtys'@__) where
 --
 --   [@Δ₁@]        part of context needed for with arguments and their types.
 --
@@ -98,22 +91,12 @@ splitTelForWith
 --
 --   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
 --
---   [@Δ₁ ⊢ as'@]  types with with-arguments depending only on @Δ₁@.
---
---   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+--   [@Δ₁ ⊢ vtys'@]  with-arguments and their types under @π@.
 
-splitTelForWith delta t as vs = let
-    -- Andreas, 2016-01-27, unfixing issue 1692
-    -- Due to public protests, we do not rewrite in the types of rewrite
-    -- expressions.
-    -- Otherwise, we cannot rewrite twice after another with the same equation
-    -- as it turns into a reflexive equation in the first rewrite.
-    -- Thus we include the fvs of the rewrite terms in Δ₁.
-    rewriteTerms = map snd $ filter (isEqualityType . fst) $ zip as vs
-
+splitTelForWith delta t vtys = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff.
-    fv = allFreeVars (as, vs)
+    fv = allFreeVars vtys
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
@@ -125,12 +108,10 @@ splitTelForWith delta t as vs = let
 
     -- We need Δ₁Δ₂ ⊢ t'
     t' = applySubst pi t
-    -- and Δ₁ ⊢ as'
-    as' = applySubst rhopi as
-    -- and Δ₁ ⊢ vs' : as'
-    vs' = applySubst rhopi vs
+    -- and Δ₁ ⊢ vtys'
+    vtys' = applySubst rhopi vtys
 
-  in (delta1, delta2, perm, t', as', vs')
+  in (delta1, delta2, perm, t', vtys')
 
 
 -- | Abstract with-expressions @vs@ to generate type for with-helper function.
@@ -138,18 +119,17 @@ splitTelForWith delta t as vs = let
 -- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
-  :: Telescope      -- ^ @Δ₁@                       context for types of with types.
-  -> [Term]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
-  -> [EqualityView] -- ^ @Δ₁ ⊢ as@                  types of with and rewrite-expressions.
-  -> Telescope      -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
-  -> Type           -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
+  :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
+  -> [WithHiding (Term, EqualityView)]  -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
+  -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
+  -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> TCM (Type, Nat)
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
     --     @[vs/wtel]b′ = b@.
     -- Plus the final number of with-arguments.
-withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
+withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
 
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
 
@@ -164,16 +144,13 @@ withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
   d2b  <- etaContract d2b
   dbg 30 "eta-contracted Δ₂ → B" d2b
 
-  vs <- etaContract =<< normalise vs
-  as <- etaContract =<< normalise as  -- do we need this?
+  vtys <- etaContract =<< normalise vtys
 
-  let piAbstractVs []         b = return b
-      piAbstractVs (va : vas) b = piAbstract va =<< piAbstractVs vas b
   -- wd2db = wtel → [vs : as] (Δ₂ → B)
-  wd2b <- piAbstractVs (zip vs as) d2b
+  wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  return (telePi_ delta1 wd2b, countWithArgs as)
+  return (telePi_ delta1 wd2b, countWithArgs (map (snd . whThing) vtys))
 
 countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
@@ -183,8 +160,8 @@ countWithArgs = sum . map countArgs
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [Term] -> [EqualityView] -> [Term]
-withArguments vs as = concat $ for (zip vs as) $ \case
+withArguments :: [WithHiding (Term, EqualityView)] -> [WithHiding Term]
+withArguments vtys = flip concatMap vtys $ traverse $ \case
   (v, OtherType a) -> [v]
   (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
 

@@ -1367,7 +1367,7 @@ niceDeclarations fixs ds = do
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
-        numWith = numberOfWithPatterns p + length es where LHS p _ es = lhs
+        numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es = lhs
 
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
         subClauses (c@(FunClause (LHS p0 _ _) _ _ _) : cs)
