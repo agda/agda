@@ -97,20 +97,14 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        - mkdir -p ~/.local/bin
+        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - export PATH=$HOME/.local/bin:$PATH
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
-
-        - echo "*** GHC version ***"
-        - ghc --version 
-        - echo "*** Stack version ***" 
-        - stack --version
-        - echo "*** Haddock version ***"
-        - haddock --version
-        - echo "*** Emacs version ***"
-        - emacs --version | sed 2q
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - echo "*** GHC version ***"     && ghc     --version &&
+          echo "*** Stack version ***"   && stack   --version &&
+          echo "*** Haddock version ***" && haddock --version &&
+          echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install:
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
@@ -143,24 +137,30 @@ jobs:
           sources:
             - hvr-ghc
 
+    # Windows testing environment
     - stage: stackage
-      os: windows 
+      os: windows
       cache:
-        directories: $HOME/.stack
+        directories:
+          - $LOCALAPPDATA/Programs/stack
+          - $APPDATA/stack
       language: c
-      env: 
+      env:
         - GHC_VER=8.6.5 STACK_VER=2.1.3.20190715
       before_install:
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
-        - choco install haskell-stack --version ${STACK_VER}
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+
+        - travis_retry choco install haskell-stack --no-progress --version ${STACK_VER}
       install:
-        - stack config env
-        - yes | stack exec -- pacman -Sy mingw64/mingw-w64-x86_64-icu
-        - stack build text-icu
+        - travis_retry wget -q http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-icu-58.2-3-any.pkg.tar.xz
+        - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-58.2-3-any.pkg.tar.xz
+
+        - stack build --compiler ghc-${GHC_VER} text-icu
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+        # - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
       script:
-        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+        skip
 
     ##############################################################################
     # Main stage
@@ -189,7 +189,7 @@ jobs:
         # use stack to install alex, happy, and shelltestrunner
         - mkdir -p ~/.local/bin
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - stack install --system-ghc --no-terminal alex happy
+        - stack install --system-ghc --no-terminal --resolver ghc-${GHC_VER} alex happy
         - .travis/cabal_install
       ##############################################################################
       script:

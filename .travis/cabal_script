@@ -81,7 +81,7 @@ travis_fold start "test.size.solver"
 title "Testing the size-solver program"
 travis_time_start 
 
-stack install --system-ghc --no-terminal --silent shelltestrunner
+stack install --system-ghc --no-terminal --silent --resolver ghc-${GHC_VER} shelltestrunner
 make test-size-solver
 
 travis_fold end "test.size.solver"
