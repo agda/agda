@@ -167,7 +167,7 @@ giveExpr force mii mi e = do
           -- Double check.
           reportSDoc "interaction.give" 20 $ "give: double checking"
           vfull <- instantiateFull v
-          checkInternal vfull t'
+          checkInternal vfull CmpLeq t'
 
 -- | After a give, redo termination etc. checks for function which was complemented.
 redoChecks :: Maybe InteractionId -> TCM ()

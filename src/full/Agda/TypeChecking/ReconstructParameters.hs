@@ -43,7 +43,7 @@ reconstructParameters a v = do
   reportSDoc "tc.with.reconstruct" 30 $
     sep [ "reconstructing parameters in"
         , nest 2 $ sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ] ]
-  v <- checkInternal' (defaultAction{ postAction = reconstruct }) v a
+  v <- checkInternal' (defaultAction{ postAction = reconstruct }) v CmpLeq a
   reportSDoc "tc.with.reconstruct" 30 $
     nest 2 $ "-->" <+> prettyTCM v
   return v

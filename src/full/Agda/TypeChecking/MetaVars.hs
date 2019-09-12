@@ -1015,11 +1015,11 @@ checkSolutionForMeta :: MetaId -> MetaVariable -> Term -> Type -> TCM ()
 checkSolutionForMeta x m v a = do
   reportSDoc "tc.meta.check" 30 $ "checking solution for meta" <+> prettyTCM x
   case mvJudgement m of
-    HasType{} -> do
+    HasType{ jComparison = cmp } -> do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
       traceCall (CheckMetaSolution (getRange m) x a v) $
-        checkInternal v a
+        checkInternal v cmp a
     IsSort{}  -> void $ do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
