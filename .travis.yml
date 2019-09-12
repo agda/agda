@@ -32,7 +32,7 @@ branches:
     - release-2.6.0.1
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
-
+    - windows-travis
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
