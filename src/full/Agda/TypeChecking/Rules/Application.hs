@@ -214,7 +214,7 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
 
 -- | Precondition: @Application hd args = appView e@.
 inferApplication :: ExpandHidden -> A.Expr -> A.Args -> A.Expr -> TCM (Term, Type)
-inferApplication exh hd args e | not (defOrVar hd) = do
+inferApplication exh hd args e | not (inferrableHead hd) = do
   t <- workOnTypes $ newTypeMeta_
   v <- checkExpr' CmpEq e t
   return (v, t)

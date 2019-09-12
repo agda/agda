@@ -1469,18 +1469,18 @@ inferExpr' exh e = traceCall (InferExpr e) $ do
     ]
   inferApplication exh hd args e
 
-defOrVar :: A.Expr -> Bool
-defOrVar A.Var{} = True
-defOrVar A.Def{} = True
-defOrVar A.Proj{} = True
-defOrVar (A.ScopedExpr _ e) = defOrVar e
-defOrVar _     = False
+inferrableHead :: A.Expr -> Bool
+inferrableHead A.Var{} = True
+inferrableHead A.Def{} = True
+inferrableHead A.Proj{} = True
+inferrableHead (A.ScopedExpr _ e) = inferrableHead e
+inferrableHead _     = False
 
 -- | Used to check aliases @f = e@.
 --   Switches off 'ExpandLast' for the checking of top-level application.
 checkDontExpandLast :: Comparison -> A.Expr -> Type -> TCM Term
 checkDontExpandLast cmp e t = case e of
-  _ | Application hd args <- appView e,  defOrVar hd ->
+  _ | Application hd args <- appView e,  inferrableHead hd ->
     traceCall (CheckExprCall cmp e t) $ localScope $ dontExpandLast $ do
       checkApplication cmp hd args e t
   _ -> checkExpr' cmp e t -- note that checkExpr always sets ExpandLast
