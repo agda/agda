@@ -1139,6 +1139,10 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   let postpone = addConstraint (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
+      synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
+        ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
+        if | equal     -> yes
+           | otherwise -> postpone
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1188,17 +1192,16 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
-      (PiSort{}, _       ) -> postpone
-      (_       , PiSort{}) -> postpone
-      (UnivSort{}, _     ) -> postpone
-      (_     , UnivSort{}) -> postpone
-      (MetaS{} , _       ) -> postpone
-      (_       , MetaS{} ) -> postpone
+      (PiSort{}, _       ) -> synEq
+      (_       , PiSort{}) -> synEq
+      (UnivSort{}, _     ) -> synEq
+      (_     , UnivSort{}) -> synEq
+      (MetaS{} , _       ) -> synEq
+      (_       , MetaS{} ) -> synEq
 
       -- DefS are postulated sorts, so they do not reduce.
-      (DefS d es , DefS d' es') | d == d' -> postpone
-      (DefS{} , _     ) -> no
-      (_      , DefS{}) -> no
+      (DefS{} , _     ) -> synEq
+      (_      , DefS{}) -> synEq
 
   where
   impossibleSort s = do
@@ -1538,10 +1541,6 @@ equalSort s1 s2 = do
             (MetaS x es , _          ) -> meta x es s2
             (_          , MetaS x es ) -> meta x es s1
 
-            -- Other blocked sorts: check syntactic equality
-            (PiSort{}    , PiSort{}   ) -> synEq
-            (UnivSort{}  , UnivSort{} ) -> synEq
-
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b
             (SizeUniv   , SizeUniv   ) -> yes
@@ -1578,15 +1577,16 @@ equalSort s1 s2 = do
             (SizeUniv      , UnivSort s )   -> no
             (UnivSort s    , SizeUniv   )   -> no
 
-
             -- PiSort and UnivSort could compute later, so we postpone
-            (PiSort{}   , _          ) -> postpone
-            (_          , PiSort{}   ) -> postpone
-            (UnivSort{} , _          ) -> postpone
-            (_          , UnivSort{} ) -> postpone
+            (PiSort{}   , _          ) -> synEq
+            (_          , PiSort{}   ) -> synEq
+            (UnivSort{} , _          ) -> synEq
+            (_          , UnivSort{} ) -> synEq
 
             -- postulated sorts can only be equal if they have the same head
-            (DefS d es  , DefS d' es') | d == d' -> synEq
+            (DefS d es  , DefS d' es')
+              | d == d'                -> synEq
+              | otherwise              -> no
 
             -- any other combinations of sorts are not equal
             (_          , _          ) -> no
