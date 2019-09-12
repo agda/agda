@@ -1011,7 +1011,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
         compareAs cmp AsTypes a1 a2
-        compareSort CmpEq s1 s2
+        unlessM (optCumulativity <$> pragmaOptions) $ compareSort CmpEq s1 s2
         return ()
 
 leqType :: MonadConversion m => Type -> Type -> m ()
