@@ -156,6 +156,8 @@ jobs:
         - choco install haskell-stack --version ${STACK_VER}
       install:
         - stack config env
+        - yes | stack exec -- pacman -Sy mingw64/mingw-w64-x86_64-icu
+        - stack build text-icu
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
         - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
