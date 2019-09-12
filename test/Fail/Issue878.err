@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [40, 44] _g_26 tt =< tt : _P_25 tt
+  [40, 44] _g_26 tt = tt : _P_25 tt
   [40, 43] ext (record { P = _P_25 ; g = _g_26 }) tt = ext a tt tt
              : _P_25 tt
   [40, 41] _P_25 tt = ⊤ : Set

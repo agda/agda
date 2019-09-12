@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [18, 21] _10 _ =< f _ : A
+  [18, 21] _10 _ = f _ : A
 Unsolved metas at the following locations:
   Issue483b.agda:12,16-17
   Issue483b.agda:14,10-14

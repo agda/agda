@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [14, 17] _11 =< suc _11 : Nat
+  [14, 17] _11 = suc _11 : Nat
 Unsolved metas at the following locations:
   StronglyRigidOccurrence.agda:13,25-26
   StronglyRigidOccurrence.agda:14,8-12

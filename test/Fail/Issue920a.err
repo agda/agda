@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [65, 77] _63 (A' = A) =< x : A
-  [55, 59] x =< _63 (A' = A) : A
+  [65, 77] _63 (A' = A) = x : A
+  [55, 59] x = _63 (A' = A) : A
 Unsolved metas at the following locations:
   Issue920a.agda:26,52-56
   Issue920a.agda:26,49-50

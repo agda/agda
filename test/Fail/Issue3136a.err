@@ -1,3 +1,3 @@
 Issue3136a.agda:19,18-22
-x !=< λ { .R.w → λ { → false } } of type R
+x != λ { .R.w → λ { → false } } of type R
 when checking that the expression refl has type x ≡ f

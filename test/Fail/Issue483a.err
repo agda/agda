@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [16, 19] _10 _ =< abort _ : A
+  [16, 19] _10 _ = abort _ : A
 Unsolved metas at the following locations:
   Issue483a.agda:16,16-17
   Issue483a.agda:18,10-14

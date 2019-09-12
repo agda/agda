@@ -1,3 +1,3 @@
 Issue998a.agda:8,12-15
-A !=< Issue998a.A of type Set
+A != Issue998a.A of type Set
 when checking that the expression d A has type D Issue998a.A
