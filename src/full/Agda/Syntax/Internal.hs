@@ -213,9 +213,9 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
   deriving (Data, Show)
 
 data QuotedTerm = QuotedTerm
-  { quotedType       :: Type
+  { quotedType       :: Maybe Type
   , quotedTerm       :: Term
-  , quotedCheckpoint :: CheckpointId
+  , quotedCheckpoint :: Maybe CheckpointId
   } deriving (Data, Show)
 
 type ConInfo = ConOrigin

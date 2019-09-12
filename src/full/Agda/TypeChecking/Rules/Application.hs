@@ -304,9 +304,9 @@ inferHead e = do
     A.QuestionMark i ii -> inferMeta (newQuestionMark ii) i
     A.Underscore i   -> inferMeta (newValueMeta RunMetaOccursCheck) i
     A.Trusted q -> do
-      msub <- checkpointSubstitution' (quotedCheckpoint q)
-      case msub of
-        Just IdS -> return $ (applyE $ quotedTerm q, quotedType q)
+      msub <- maybe (pure Nothing) checkpointSubstitution' (quotedCheckpoint q)
+      case (msub, quotedType q) of
+        (Just IdS, Just a) -> return $ (applyE $ quotedTerm q, a)
         _        -> do
           (term, t) <- inferExpr =<< toAbstract_ =<< unquoteTerm =<< quoteTerm (quotedTerm q)
           return (applyE term, t)

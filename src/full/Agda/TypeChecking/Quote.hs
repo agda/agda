@@ -293,7 +293,7 @@ quoteTerm v = do
 makeQuotedTerm :: Type -> Term -> TCM Term
 makeQuotedTerm a v = inFreshModuleIfFreeParams $ do
   cp <- viewTC eCurrentCheckpoint
-  return $ Lit $ LitTerm noRange $ QuotedTerm a v cp
+  return $ Lit $ LitTerm noRange $ QuotedTerm (Just a) v (Just cp)
 
 makeQuotedType :: Type -> TCM Term
 makeQuotedType (El s a) = makeQuotedTerm (sort s) a
