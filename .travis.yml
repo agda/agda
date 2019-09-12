@@ -101,12 +101,20 @@ jobs:
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export BUILD_DIR=$HOME/dist
-        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting --ghc-options=-O0"
+        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+
+        - echo "*** GHC version ***"
+        - ghc --version 
+        - echo "*** Stack version ***" 
+        - stack --version
+        - echo "*** Haddock version ***"
+        - haddock --version
+        - echo "*** Emacs version ***"
+        - emacs --version | sed 2q
       install:
-        - .travis/stack_install
+        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
-        skip
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
 
     - <<: *no-test-job
       env: GHC_VER=8.4.4
@@ -144,13 +152,13 @@ jobs:
         - GHC_VER=8.6.5 STACK_VER=2.1.3.20190715
       before_install:
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting --ghc-options=-O0"
-
+        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
         - choco install haskell-stack --version ${STACK_VER}
       install:
+        - stack config env
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
-        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS}
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
 
     ##############################################################################
     # Main stage
