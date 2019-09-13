@@ -279,7 +279,7 @@ resolveName = resolveName' allKindsOfNames Nothing
 resolveName' ::
   KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
-  Left ys  -> typeError $ AmbiguousName x ys
+  Left ys  -> traceCall (SetRange $ getRange x) $ typeError $ AmbiguousName x ys
   Right x' -> return x'
 
 tryResolveName

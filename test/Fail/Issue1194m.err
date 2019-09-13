@@ -1,10 +1,8 @@
-Issue1194m.agda:23,7-16
+Issue1194m.agda:23,11-12
 Ambiguous name _∷_. It could refer to any one of
-  A._∷_
-  bound at
-  Issue1194m.agda:10,5-8
-  B._∷_
-  bound at
-  Issue1194m.agda:17,5-8
+  A._∷_ bound at
+    Issue1194m.agda:10,5-8
+  B._∷_ bound at
+    Issue1194m.agda:17,5-8
 (hint: Use C-c C-w (in Emacs) if you want to know why)
 when scope checking Set ∷ Set
