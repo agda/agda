@@ -2271,7 +2271,7 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { _rhsRewriteEqn :: [C.RewriteEqn]
+  { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]
     -- ^ @rewrite e | with p <- e@ (many)
   , _rhsWithExpr   :: [C.WithExpr]
     -- ^ @with e@ (many)
