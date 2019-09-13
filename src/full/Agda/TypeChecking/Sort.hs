@@ -26,6 +26,8 @@ import Control.Monad
 import Data.Functor
 import Data.Maybe
 
+import Agda.Interaction.Options (optCumulativity)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -50,6 +52,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 
 -- | Infer the sort of another sort. If we can compute the bigger sort
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
@@ -69,7 +72,9 @@ inferUnivSort s = do
 sortFitsIn :: MonadConversion m => Sort -> Sort -> m ()
 sortFitsIn a b = do
   b' <- inferUnivSort a
-  equalSort b' b -- CUMULATIVITY: leqSort b' b
+  ifM (optCumulativity <$> pragmaOptions)
+    (leqSort b' b)
+    (equalSort b' b)
 
 hasBiggerSort :: Sort -> TCM ()
 hasBiggerSort = void . inferUnivSort
@@ -106,13 +111,17 @@ inferFunSort a s = inferPiSort a $ NoAbs underscore s
 ptsRule :: Dom Type -> Abs Sort -> Sort -> TCM ()
 ptsRule a b c = do
   c' <- inferPiSort a b
-  equalSort c' c -- CUMULATIVITY: leqSort c' c
+  ifM (optCumulativity <$> pragmaOptions)
+    (leqSort c' c)
+    (equalSort c' c)
 
 -- | Non-dependent version of ptsRule
 ptsRule' :: Dom Type -> Sort -> Sort -> TCM ()
 ptsRule' a b c = do
   c' <- inferFunSort a b
-  equalSort c' c -- CUMULATIVITY: leqSort c' c
+  ifM (optCumulativity <$> pragmaOptions)
+    (leqSort c' c)
+    (equalSort c' c)
 
 hasPTSRule :: Dom Type -> Abs Sort -> TCM ()
 hasPTSRule a b = void $ inferPiSort a b

@@ -629,7 +629,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
               [ "double checking rhs"
               , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
-            noConstraints $ dontAssignMetas $ checkInternal v $ unArg trhs
+            noConstraints $ dontAssignMetas $ checkInternal v CmpLeq $ unArg trhs
           Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat

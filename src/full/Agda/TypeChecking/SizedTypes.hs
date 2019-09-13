@@ -444,7 +444,7 @@ getSizeMetas interactionMetas = do
         mi <- lookupMeta m
         case mvJudgement mi of
           _ | BlockedConst{} <- mvInstantiation mi -> no  -- Blocked terms should not be touched (#2637, #2881)
-          HasType _ a -> do
+          HasType _ cmp a -> do
             TelV tel b <- telView a
             -- b is reduced
             caseMaybe (test $ unEl b) no $ \ _ -> do

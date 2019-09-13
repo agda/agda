@@ -528,7 +528,10 @@ compareAtom cmp t m n =
         case (m, n) of
           (Pi{}, Pi{}) -> equalFun m n
 
-          (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
+          (Sort s1, Sort s2) ->
+            ifM (optCumulativity <$> pragmaOptions)
+              (compareSort cmp s1 s2)
+              (equalSort s1 s2)
 
           (Lit l1, Lit l2) | l1 == l2 -> return ()
           (Var i es, Var i' es') | i == i' -> do
@@ -1011,7 +1014,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
         compareAs cmp AsTypes a1 a2
-        compareSort CmpEq s1 s2
+        unlessM (optCumulativity <$> pragmaOptions) $ compareSort CmpEq s1 s2
         return ()
 
 leqType :: MonadConversion m => Type -> Type -> m ()
@@ -1139,6 +1142,10 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   let postpone = addConstraint (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
+      synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
+        ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
+        if | equal     -> yes
+           | otherwise -> postpone
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1188,17 +1195,16 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
       -- PiSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
-      (PiSort{}, _       ) -> postpone
-      (_       , PiSort{}) -> postpone
-      (UnivSort{}, _     ) -> postpone
-      (_     , UnivSort{}) -> postpone
-      (MetaS{} , _       ) -> postpone
-      (_       , MetaS{} ) -> postpone
+      (PiSort{}, _       ) -> synEq
+      (_       , PiSort{}) -> synEq
+      (UnivSort{}, _     ) -> synEq
+      (_     , UnivSort{}) -> synEq
+      (MetaS{} , _       ) -> synEq
+      (_       , MetaS{} ) -> synEq
 
       -- DefS are postulated sorts, so they do not reduce.
-      (DefS d es , DefS d' es') | d == d' -> postpone
-      (DefS{} , _     ) -> no
-      (_      , DefS{}) -> no
+      (DefS{} , _     ) -> synEq
+      (_      , DefS{}) -> synEq
 
   where
   impossibleSort s = do
@@ -1275,17 +1281,15 @@ leqLevel a b = do
         -- as ≤ neutral
         (as, bs)
           | neutralB && maxA > maxB -> notok
-          | neutralB && any (\a -> neutral a && not (isInB a)) as -> notok
-          | neutralB && neutralA -> maybeok $ all (\a -> constant a <= findN a) as
+          | neutralB && neutralA && all findN as -> ok
           where
             maxA = maximum $ map constant as
             maxB = maximum $ map constant bs
             neutralA = all neutral as
             neutralB = all neutral bs
-            isInB a = elem (unneutral a) $ map unneutral bs
             findN a = case [ n | b@(Plus n _) <- bs, unneutral b == unneutral a ] of
-                        [n] -> n
-                        _   -> __IMPOSSIBLE__
+                        [n] -> constant a <= n
+                        _   -> False
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
         -- Thus, it is invalid.
@@ -1297,7 +1301,8 @@ leqLevel a b = do
         --   -- subsumed terms from the lhs.
 
         -- anything else
-        _ -> postpone
+        _ | noMetas (Level a , Level b) -> notok
+          | otherwise                   -> postpone
       where
         ok       = return ()
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
@@ -1309,7 +1314,7 @@ leqLevel a b = do
             _           -> throwError e
 
         maybeok True = ok
-        maybeok False = notok
+        maybeok False = postpone
 
         neutral (Plus _ NeutralLevel{}) = True
         neutral _                       = False
@@ -1425,7 +1430,7 @@ equalLevel' a b = do
           reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
           if length as == length bs
             then zipWithM_ (\a b -> [a] =!= [b]) as bs
-            else notok
+            else postpone
 
         -- more cases?
         _ -> postpone
@@ -1539,10 +1544,6 @@ equalSort s1 s2 = do
             (MetaS x es , _          ) -> meta x es s2
             (_          , MetaS x es ) -> meta x es s1
 
-            -- Other blocked sorts: check syntactic equality
-            (PiSort{}    , PiSort{}   ) -> synEq
-            (UnivSort{}  , UnivSort{} ) -> synEq
-
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b
             (SizeUniv   , SizeUniv   ) -> yes
@@ -1579,15 +1580,16 @@ equalSort s1 s2 = do
             (SizeUniv      , UnivSort s )   -> no
             (UnivSort s    , SizeUniv   )   -> no
 
-
             -- PiSort and UnivSort could compute later, so we postpone
-            (PiSort{}   , _          ) -> postpone
-            (_          , PiSort{}   ) -> postpone
-            (UnivSort{} , _          ) -> postpone
-            (_          , UnivSort{} ) -> postpone
+            (PiSort{}   , _          ) -> synEq
+            (_          , PiSort{}   ) -> synEq
+            (UnivSort{} , _          ) -> synEq
+            (_          , UnivSort{} ) -> synEq
 
             -- postulated sorts can only be equal if they have the same head
-            (DefS d es  , DefS d' es') | d == d' -> synEq
+            (DefS d es  , DefS d' es')
+              | d == d'                -> synEq
+              | otherwise              -> no
 
             -- any other combinations of sorts are not equal
             (_          , _          ) -> no

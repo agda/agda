@@ -4,6 +4,7 @@ module Utils where
 import Control.Applicative
 
 import Data.Array
+import Data.Bifunctor (first)
 import qualified Data.ByteString as BS
 import Data.Char
 import Data.List
@@ -229,9 +230,9 @@ cleanOutput inp = do
 
   return $ clean' pwd inp
   where
-    clean' pwd t = foldl (\t' (rgx,n) -> replace rgx n t') t rgxs
+    clean' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       where
-        rgxs = map (\(r, x) -> (mkRegex r, x))
+        rgxs = map (first mkRegex)
           [ ("[^ (]*test.Fail.", "")
           , ("[^ (]*test.Succeed.", "")
           , ("[^ (]*test.Common.", "")

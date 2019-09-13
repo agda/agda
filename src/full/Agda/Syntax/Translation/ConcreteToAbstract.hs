@@ -2196,10 +2196,14 @@ instance ToAbstract C.Clause A.Clause where
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
-    vars <- getLocalVars
-    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
+    vars0 <- getLocalVars
     lhs' <- toAbstract $ LeftHandSide (C.QName top) p
     printLocals 10 "after lhs:"
+    vars1 <- getLocalVars
+    eqs <- mapM (toAbstractCtx TopCtx) eqs
+    vars2 <- getLocalVars
+    let vars = dropEnd (length vars1) vars2 ++ vars0
+    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
           -- Andreas, 2016-07-17 issues #2081 and #2101
@@ -2267,12 +2271,17 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { _rhsRewriteEqn :: [C.RewriteEqn]         -- ^ @rewrite e@ (many)
-  , _rhsWithExpr   :: [C.WithExpr]           -- ^ @with e@ (many)
-  , _rhsSubclauses :: [ScopeM C.Clause]      -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  { _rhsRewriteEqn :: [C.RewriteEqn]
+    -- ^ @rewrite e | with p <- e@ (many)
+  , _rhsWithExpr   :: [C.WithExpr]
+    -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause]
+    -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , _rhs           :: C.RHS
-  , _rhsWhereName  :: Maybe (C.Name, Access) -- ^ The name of the @where@ module (if any).
-  , _rhsWhereDecls :: [C.Declaration]        -- ^ The contents of the @where@ module.
+  , _rhsWhereName  :: Maybe (C.Name, Access)
+    -- ^ The name of the @where@ module (if any).
+  , _rhsWhereDecls :: [C.Declaration]
+    -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS
@@ -2338,7 +2347,6 @@ instance ToAbstract AbstractRHS A.RHS where
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    eqs <- mapM (toAbstractCtx TopCtx) eqs
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
