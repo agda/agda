@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
@@ -116,8 +117,9 @@ match' ((c, es, patch) : stack) = do
                 -- if a catch-all clause exists, put it on the stack
                 catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
                 -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
+                litFrame LitTerm{} stack = stack  -- No literal patterns for quoted term literals
                 litFrame l stack =
-                  let l' = fmap (\ _ -> __IMPOSSIBLE__) l in -- TODO: not impossible?
+                  let l' = fmap (\ _ -> __IMPOSSIBLE__) l in
                   case Map.lookup l' (litBranches bs) of
                     Nothing -> stack
                     Just cc -> (cc, es0 ++ es1, patchLit) : stack

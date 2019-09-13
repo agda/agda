@@ -215,7 +215,7 @@ matchPattern p u = case (p, u) of
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
-        lp   = Void.vacuous l  -- TODO: constructorForm?
+        lp   = Void.vacuous l
     case w of
       NotBlocked _ (Lit l')
           | lp == l'           -> return (Yes YesSimplification empty , arg')

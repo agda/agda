@@ -36,6 +36,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin.ConstructorForm
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -457,13 +458,14 @@ matchPat p q = case p of
     IApplyP _ _ _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
 
 -- | Unfold one level of a dot pattern to a proper pattern if possible.
-unDotP :: (MonadReduce m, DeBruijn (Pattern' a)) => Pattern' a -> m (Pattern' a)
+unDotP :: (MonadReduce m, HasBuiltins m, DeBruijn (Pattern' a)) => Pattern' a -> m (Pattern' a)
 unDotP (DotP o v) = reduce v >>= \case
   Var i [] -> return $ deBruijnVar i
   Con c _ vs -> do
     let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
-  Lit l -> return $ LitP (fmap (\ _ -> __IMPOSSIBLE__) l) -- TODO: not impossible?
+  Lit (LitTerm _ q) -> unDotP . DotP o =<< quotedTermConstructorFormM q
+  Lit l -> return $ LitP (fmap (\ _ -> __IMPOSSIBLE__) l)
   v     -> return $ dotP v
 unDotP p = return p
 

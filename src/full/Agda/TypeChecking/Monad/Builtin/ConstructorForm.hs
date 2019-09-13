@@ -6,6 +6,7 @@ module Agda.TypeChecking.Monad.Builtin.ConstructorForm
   , QuotedTermKit
   , getQuotedTermKit
   , quotedTermConstructorForm
+  , quotedTermConstructorFormM
   ) where
 
 import Control.Monad.Reader
@@ -154,7 +155,7 @@ quotedTermConstructorForm kit@QuotedTermKit{..} q = quoteTerm (quotedTerm q)
     constInfo = flip HMap.lookup defs
       where
         defs  = HMap.union (qkitState ^. (stSignature . sigDefinitions))
-                           (qkitState ^. (stSignature . sigDefinitions))
+                           (qkitState ^. (stImports   . sigDefinitions))
 
     quoteTerm v = case unSpine v of
 

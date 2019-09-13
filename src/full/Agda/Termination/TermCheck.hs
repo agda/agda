@@ -574,7 +574,7 @@ instance TermToPattern Term DeBruijnPattern where
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-    Lit l       -> return $ LitP (fmap (\ _ -> __IMPOSSIBLE__) l) -- TODO: not impossible
+    Lit l       -> return $ LitP (fmap (\ _ -> __IMPOSSIBLE__) l)
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
