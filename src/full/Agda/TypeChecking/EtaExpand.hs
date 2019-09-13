@@ -30,7 +30,7 @@ etaExpandOnce a v = reduce a >>= \case
 -- | Eta-expand functions and expressions of eta-record
 -- type wherever possible.
 deepEtaExpand :: Term -> Type -> TCM Term
-deepEtaExpand = checkInternal' etaExpandAction
+deepEtaExpand v a = checkInternal' etaExpandAction v CmpLeq a
 
 etaExpandAction
   :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)

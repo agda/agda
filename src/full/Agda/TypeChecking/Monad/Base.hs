@@ -1155,11 +1155,18 @@ instance Decoration Open where
 
 -- | Parametrized since it is used without MetaId when creating a new meta.
 data Judgement a
-  = HasType { jMetaId :: a, jMetaType :: Type }
-  | IsSort  { jMetaId :: a, jMetaType :: Type } -- Andreas, 2011-04-26: type needed for higher-order sort metas
+  = HasType
+    { jMetaId     :: a
+    , jComparison :: Comparison -- ^ are we checking (@CmpLeq@) or inferring (@CmpEq@) the type?
+    , jMetaType   :: Type
+    }
+  | IsSort
+    { jMetaId   :: a
+    , jMetaType :: Type -- Andreas, 2011-04-26: type needed for higher-order sort metas
+    }
 
 instance Show a => Show (Judgement a) where
-    show (HasType a t) = show a ++ " : " ++ show t
+    show (HasType a cmp t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
 
 -----------------------------------------------------------------------------
@@ -2331,7 +2338,7 @@ data Call
   | CheckExprCall Comparison A.Expr Type
   | CheckDotPattern A.Expr Term
   | CheckProjection Range QName Type
-  | IsTypeCall A.Expr Sort
+  | IsTypeCall Comparison A.Expr Sort
   | IsType_ A.Expr
   | InferVar Name
   | InferDef QName
@@ -2401,7 +2408,7 @@ instance HasRange Call where
     getRange (CheckExprCall _ e _)           = getRange e
     getRange (CheckLetBinding b)             = getRange b
     getRange (CheckProjection r _ _)         = r
-    getRange (IsTypeCall e s)                = getRange e
+    getRange (IsTypeCall cmp e s)            = getRange e
     getRange (IsType_ e)                     = getRange e
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f

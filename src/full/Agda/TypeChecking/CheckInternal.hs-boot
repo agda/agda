@@ -38,6 +38,6 @@ eraseUnusedAction :: Action TCM
 checkType :: (MonadCheckInternal m) => Type -> m ()
 checkType' :: (MonadCheckInternal m) => Type -> m Sort
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort
-checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
-checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
+checkInternal :: (MonadCheckInternal m) => Term -> Comparison -> Type -> m ()
+checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Comparison -> Type -> m Term
 infer :: (MonadCheckInternal m) => Term -> m Type

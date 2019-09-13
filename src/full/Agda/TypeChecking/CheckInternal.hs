@@ -143,11 +143,11 @@ eraseUnusedAction = defaultAction { postAction = eraseUnused }
     eraseIfNonvariant (_          : pols) (e : es) = e : eraseIfNonvariant pols es
 
 -- | Entry point for term checking.
-checkInternal :: (MonadCheckInternal m) => Term -> Type -> m ()
-checkInternal v t = void $ checkInternal' defaultAction v t
+checkInternal :: (MonadCheckInternal m) => Term -> Comparison -> Type -> m ()
+checkInternal v cmp t = void $ checkInternal' defaultAction v cmp t
 
-checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Type -> m Term
-checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
+checkInternal' :: (MonadCheckInternal m) => Action m -> Term -> Comparison -> Type -> m Term
+checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
@@ -160,28 +160,31 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
       a <- typeOfBV i
       reportSDoc "tc.check.internal" 30 $ fsep
         [ "variable" , prettyTCM (var i) , "has type" , prettyTCM a ]
-      checkSpine action a (Var i []) es t
+      checkSpine action a (Var i []) es cmp t
     Def f es   -> do  -- f is not projection(-like)!
       a <- defType <$> getConstInfo f
-      checkSpine action a (Def f []) es t
+      checkSpine action a (Def f []) es cmp t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       reportSDoc "tc.check.internal" 30 $ "metavariable" <+> prettyTCM x <+> "has type" <+> prettyTCM a
-      checkSpine action a (MetaV x []) es t
+      checkSpine action a (MetaV x []) es cmp t
     Con c ci vs -> do
       -- We need to fully apply the constructor to make getConType work!
       fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
-        Con c ci vs2 <- checkSpine action a (Con c ci []) vs' t
+        Con c ci vs2 <- checkSpine action a (Con c ci []) vs' cmp t
         -- Strip away the extra arguments
         return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
           $ Con c ci $ take (length vs) vs2
-    Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
+    Lit l      -> do
+      lt <- litType l
+      cmptype cmp lt t
+      return $ Lit l
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
       ai <- checkArgInfo action ai $ domInfo a
       let name = suggests [ Suggestion vb , Suggestion b ]
       addContext (name, a) $ do
-        Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) (absBody b)
+        Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
@@ -193,17 +196,22 @@ checkInternal' action v t = verboseBracket "tc.check.internal" 20 "" $ do
           -- Preserve NoAbs
           goInside = case b of Abs{}   -> addContext (absName b, a)
                                NoAbs{} -> id
-      a <- mkDom <$> checkInternal' action (unEl $ unDom a) (sort sa)
-      -- TODO: checkPTS sa sb s
-      goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
+      compareSort cmp (piSort a (getSort <$> b)) s
+      a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
+      goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
     Sort s     -> do
       reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
       s <- checkSort action s
-      Sort s <$ ((sortFitsIn s) =<< shouldBeSort t) -- sortFitsIn ensures @s /= Inf@
+      s' <- inferUnivSort s
+      s'' <- shouldBeSort t
+      compareSort cmp s' s''
+      return $ Sort s
     Level l    -> do
       l <- checkLevel action l
-      Level l <$ ((`subtype` t) =<< levelType)
-    DontCare v -> DontCare <$> checkInternal' action v t
+      lt <- levelType
+      cmptype cmp lt t
+      return $ Level l
+    DontCare v -> DontCare <$> checkInternal' action v cmp t
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Make sure a constructor is fully applied
@@ -238,12 +246,13 @@ fullyApplyCon c vs t0 ret = do
 checkSpine
   :: (MonadCheckInternal m)
   => Action m
-  -> Type      -- ^ Type of the head @self@.
-  -> Term      -- ^ The head @self@.
-  -> Elims     -- ^ The eliminations @es@.
-  -> Type      -- ^ Expected type of the application @self es@.
-  -> m Term    -- ^ The application after modification by the @Action@.
-checkSpine action a self es t = do
+  -> Type       -- ^ Type of the head @self@.
+  -> Term       -- ^ The head @self@.
+  -> Elims      -- ^ The eliminations @es@.
+  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the final type.
+  -> Type       -- ^ Expected type of the application @self es@.
+  -> m Term     -- ^ The application after modification by the @Action@.
+checkSpine action a self es cmp t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ "checking spine "
     , nest 2 $ sep [ parens (sep [ prettyTCM self <+> ":"
@@ -252,7 +261,7 @@ checkSpine action a self es t = do
                    , nest 2 $ prettyTCM t ] ]
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
-  v' <$ coerceSize subtype v t' t
+  v' <$ coerceSize (cmptype cmp) v t' t
 --UNUSED Liang-Ting Chen 2019-07-16
 --checkArgs
 --  :: (MonadCheckInternal m)
@@ -341,16 +350,16 @@ inferSpine' action t self self' (e : es) = do
   case e of
     IApply x y r -> do
       (a, b) <- shouldBePath t
-      r' <- checkInternal' action r (unDom a)
+      r' <- checkInternal' action r CmpLeq (unDom a)
       izero <- primIZero
       ione  <- primIOne
-      x' <- checkInternal' action x (b `absApp` izero)
-      y' <- checkInternal' action y (b `absApp` ione)
+      x' <- checkInternal' action x CmpLeq (b `absApp` izero)
+      y' <- checkInternal' action y CmpLeq (b `absApp` ione)
       inferSpine' action (b `absApp` r) (self `applyE` [e]) (self' `applyE` [IApply x' y' r']) es
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
       ai <- checkArgInfo action ai $ domInfo a
-      v' <- checkInternal' action v $ unDom a
+      v' <- checkInternal' action v CmpLeq $ unDom a
       inferSpine' action (b `absApp` v) (self `applyE` [e]) (self' `applyE` [Apply (Arg ai v')]) es
     -- case: projection or projection-like
     Proj o f -> do
@@ -396,7 +405,7 @@ checkSort action s =
     PiSort dom s2 -> do
       let El s1 a = unDom dom
       s1' <- checkSort action s1
-      a' <- checkInternal' action a $ sort s1'
+      a' <- checkInternal' action a CmpLeq $ sort s1'
       let dom' = dom $> El s1' a'
       s2' <- mapAbstraction dom' (checkSort action) s2
       return $ PiSort dom' s2'
@@ -431,16 +440,16 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
     checkLevelAtom l = do
       lvl <- levelType
       UnreducedLevel <$> case l of
-        MetaLevel x es   -> checkInternal' action (MetaV x es) lvl
-        BlockedLevel _ v -> checkInternal' action v lvl
-        NeutralLevel _ v -> checkInternal' action v lvl
-        UnreducedLevel v -> checkInternal' action v lvl
+        MetaLevel x es   -> checkInternal' action (MetaV x es) CmpLeq lvl
+        BlockedLevel _ v -> checkInternal' action v CmpLeq lvl
+        NeutralLevel _ v -> checkInternal' action v CmpLeq lvl
+        UnreducedLevel v -> checkInternal' action v CmpLeq lvl
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
-subtype :: (MonadCheckInternal m) => Type -> Type -> m ()
-subtype t1 t2 = do
-  ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $
-    leqType t1 t2
+cmptype :: (MonadCheckInternal m) => Comparison -> Type -> Type -> m ()
+cmptype cmp t1 t2 = do
+  ifIsSort t1 (\ s1 -> (compareSort cmp s1) =<< shouldBeSort t2) $ do
+    compareType cmp t1 t2
 
 -- | Compute the sort of a type.
 

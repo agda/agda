@@ -61,7 +61,7 @@ implicitNamedArgs n expand t0 = do
               ]
 
             return $ makeInstance info
-          (_, v) <- newMetaArg info' x a
+          (_, v) <- newMetaArg info' x CmpLeq a
           whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
@@ -71,34 +71,36 @@ implicitNamedArgs n expand t0 = do
 
 newMetaArg
   :: MonadMetaSolver m
-  => ArgInfo   -- ^ Kind/relevance of meta.
-  -> ArgName   -- ^ Name suggestion for meta.
-  -> Type      -- ^ Type of meta.
+  => ArgInfo    -- ^ Kind/relevance of meta.
+  -> ArgName    -- ^ Name suggestion for meta.
+  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
+  -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
-newMetaArg info x a = do
+newMetaArg info x cmp a = do
   applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)
-    newMeta Instance{} = newInstanceMeta
-    newMeta Hidden     = newNamedValueMeta RunMetaOccursCheck
-    newMeta NotHidden  = newNamedValueMeta RunMetaOccursCheck
+    newMeta Instance{} n = newInstanceMeta n
+    newMeta Hidden     n = newNamedValueMeta RunMetaOccursCheck n cmp
+    newMeta NotHidden  n = newNamedValueMeta RunMetaOccursCheck n cmp
 
 -- | Create a questionmark according to the 'Hiding' info.
 
 newInteractionMetaArg
-  :: ArgInfo   -- ^ Kind/relevance of meta.
-  -> ArgName   -- ^ Name suggestion for meta.
-  -> Type      -- ^ Type of meta.
+  :: ArgInfo    -- ^ Kind/relevance of meta.
+  -> ArgName    -- ^ Name suggestion for meta.
+  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
+  -> Type       -- ^ Type of meta.
   -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
-newInteractionMetaArg info x a = do
+newInteractionMetaArg info x cmp a = do
   applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance{} = newInstanceMeta
-    newMeta Hidden     = newNamedValueMeta' RunMetaOccursCheck
-    newMeta NotHidden  = newNamedValueMeta' RunMetaOccursCheck
+    newMeta Instance{} n = newInstanceMeta n
+    newMeta Hidden     n = newNamedValueMeta' RunMetaOccursCheck n cmp
+    newMeta NotHidden  n = newNamedValueMeta' RunMetaOccursCheck n cmp
 
 ---------------------------------------------------------------------------
 

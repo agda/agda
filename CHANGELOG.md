@@ -137,6 +137,19 @@ Language
 * Absurd match in a do block
   The last expression in a do block can now also be an absurd match `() <- f`.
 
+* Named `where` modules are now in scope in the rhs of the clause
+  (see issue [#4050](https://github.com/agda/agda/issues/4050)).  Example:
+  ```agda
+  record Wrap : Set₂ where
+    field wrapped : Set₁
+
+  test : Wrap
+  test = record { M }
+    module M where
+      wrapped : Set₁
+      wrapped = Set
+  ```
+
 * `{{-` is now lexed as `{ {-` rather than `{{ -`,
   see issue [#3962](https://github.com/agda/agda/issues/3962).
 

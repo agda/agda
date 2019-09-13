@@ -151,7 +151,7 @@ abstractTerm a u@Con{} b v = do
   -- abstracting the second component). In this case we skip abstraction
   -- altogether and let the type check of the final with-function type produce
   -- the error message.
-  res <- catchError_ (checkInternal' (defaultAction { preAction = abstr }) v b) $ \ err -> do
+  res <- catchError_ (checkInternal' (defaultAction { preAction = abstr }) v CmpLeq b) $ \ err -> do
         reportSDoc "tc.abstract.ill-typed" 40 $
           "Skipping typed abstraction over ill-typed term" <?> (prettyTCM v <?> (":" <+> prettyTCM b))
         return v
