@@ -156,14 +156,16 @@ countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
   where
     countArgs OtherType{}    = 1
+    countArgs IdiomType{}    = 2
     countArgs EqualityType{} = 2
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [WithHiding (Term, EqualityView)] -> [WithHiding Term]
-withArguments vtys = flip concatMap vtys $ traverse $ \case
-  (v, OtherType a) -> [v]
+withArguments :: (Term -> Term) -> [WithHiding (Term, EqualityView)] -> [WithHiding Term]
+withArguments mkRefl vtys = flip concatMap vtys $ traverse $ \case
   (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
+  (v, OtherType a) -> [v]
+  (v, IdiomType t) -> [v, mkRefl v]
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
@@ -190,8 +192,10 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
-      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
-                                                               | A.ProblemEq p v a <- inheritedPats ]
+      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat
+        [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
+        | A.ProblemEq p v a <- inheritedPats
+        ]
       (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
       reportSDoc "tc.with" 50 $ hang "strippedPats:" 2 $
                                   vcat [ prettyA p <+> "==" <+> prettyTCM v <+> (":" <+> prettyTCM t)

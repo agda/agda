@@ -972,28 +972,34 @@ openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo
 declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration]) where
-    toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
-    toConcrete (A.RHS e Nothing) = do
-      e <- toConcrete e
-      return (C.RHS e, [], [], [])
-    toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
-    toConcrete (A.WithRHS _ es cs) = do
-      es <- toConcrete es
-      cs <- noTakenNames $ concat <$> toConcrete cs
-      return (C.AbsurdRHS, [], es, cs)
-    toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
-      wh <- declsToConcrete (A.whereDecls wh)
-      (rhs, eqs', es, whs) <- toConcrete rhs
-      unless (null eqs') __IMPOSSIBLE__
-      eqs <- toConcrete xeqs
-      return (rhs, eqs, es, wh ++ whs)
+instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.WithExpr], [C.Declaration]) where
+  toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
+  toConcrete (A.RHS e Nothing) = do
+    e <- toConcrete e
+    return (C.RHS e, [], [], [])
+  toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
+  toConcrete (A.WithRHS _ es cs) = do
+    es <- mapM (\ (Named n e) -> fmap (\ n -> Named (C.boundName <$> n) e) (traverse toConcrete n)) =<< toConcrete es
+    cs <- noTakenNames $ concat <$> toConcrete cs
+    return (C.AbsurdRHS, [], es, cs)
+  toConcrete (A.RewriteRHS xeqs _ rhs wh) = do
+    wh <- declsToConcrete (A.whereDecls wh)
+    (rhs, eqs', es, whs) <- toConcrete rhs
+    unless (null eqs') __IMPOSSIBLE__
+    eqs <- toConcrete xeqs
+    return (rhs, eqs, es, wh ++ whs)
 
 instance (ToConcrete p q, ToConcrete a b) =>
-         ToConcrete (RewriteEqn' qn p a) (RewriteEqn' () q b) where
+         ToConcrete (RewriteEqn' qn A.BindName p a) (RewriteEqn' () C.Name q b) where
   toConcrete = \case
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
-    Invert qn pes -> Invert () <$> mapM toConcrete pes
+    Invert qn pes -> fmap (Invert ()) $ forM pes $ \ (Named n pe) -> do
+      pe <- toConcrete pe
+      n  <- toConcrete n
+      pure $ Named n pe
+
+instance ToConcrete (Maybe A.BindName) (Maybe C.Name) where
+  toConcrete = traverse (C.boundName <.> toConcrete)
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete = mapM (toConcrete . qnameName)

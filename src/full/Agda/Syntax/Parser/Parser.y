@@ -629,17 +629,27 @@ Expr
 
 -- Level 1: Application
 Expr1 :: { Expr }
-Expr1  : WithExprs {% case $1 of
-                      { [e]    -> return e
-                      ; e : es -> return $ WithApp (fuseRange e es) e es
-                      ; []     -> parseError "impossible: empty with expressions"
-                      }
-                   }
+Expr1  : WithExprs {% case mapM isUnnamed $1 of
+    { Just [e]      -> return e
+    ; Just (e : es) -> return $ WithApp (fuseRange e es) e es
+    ; Just []       -> parseError "impossible: empty with expressions"
+    ; Nothing       -> parseError "cannot name LHS"
+    }
+  }
 
-WithExprs :: { [Expr] }
+WithExprs :: { [Named Name Expr] }
 WithExprs
-  : Application3 '|' WithExprs { RawApp (getRange $1) $1 :  $3 }
-  | Application                { [RawApp (getRange $1) $1] }
+  :  Id '..'     Application3 '|' WithExprs { named $1  (mkRawApp $3) : $5 }
+  | {- empty -} Application3 '|' WithExprs { unnamed   (mkRawApp $1) : $3 }
+  | Id '..'      Application                { [named $1 (mkRawApp $3)]     }
+  | {- empty -} Application                { [unnamed  (mkRawApp $1)]     }
+
+UnnamedWithExprs :: { [Expr] }
+UnnamedWithExprs
+  : WithExprs {% case mapM isUnnamed $1 of
+                   Nothing -> parseError "cannot name expression in |-alternative"
+		   Just es -> pure es
+              }
 
 Application :: { [Expr] }
 Application
@@ -656,8 +666,8 @@ Expr2
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
-    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) [] }
-    | 'tactic' Application3 '|' WithExprs { Tactic (getRange ($1, $2, $3, $4)) (RawApp (getRange $2) $2) $4 }
+    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (mkRawApp $2) [] }
+    | 'tactic' Application3 '|' UnnamedWithExprs { Tactic (getRange ($1, $2, $3, $4)) (mkRawApp $2) $4 }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -710,7 +720,7 @@ Expr3NoCurly
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace        { InstanceArg (getRange ($1,$2,$3)) (maybeNamed $2) }
-    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
+    | '(|' UnnamedWithExprs '|)'        { IdiomBrackets (getRange ($1,$2,$3)) $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
@@ -1112,16 +1122,16 @@ LHS :: { LHS }
 LHS : Expr1 WithRewriteExpressions
         {% exprToLHS $1      >>= \p ->
            buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ map observeHiding es)
+           return (p rs $ map (fmap observeHiding) es)
         }
 
-WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithRewriteExpressions :: { [Either RewriteEqn [Named Name Expr]] }
 WithRewriteExpressions
   : {- empty -} { [] }
-  | 'with' Expr1 WithRewriteExpressions
+  | 'with' WithExprs WithRewriteExpressions
     {% fmap (++ $3) (buildWithStmt $2)  }
-  | 'rewrite' Expr1 WithRewriteExpressions
-    { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
+  | 'rewrite' UnnamedWithExprs WithRewriteExpressions
+    { Left (Rewrite $ fmap ((),) $2) : $3 }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
@@ -2072,31 +2082,31 @@ exprToAssignment (RawApp r es)
 exprToAssignment _ = pure Nothing
 
 -- | Build a with-block
-buildWithBlock :: [Either RewriteEqn [Expr]] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock :: [Either RewriteEqn [Named Name Expr]] -> Parser ([RewriteEqn], [Named Name Expr])
 buildWithBlock rees = case groupByEither rees of
   (Left rs : rest) -> (rs,) <$> finalWith rest
   rest             -> ([],) <$> finalWith rest
 
   where
 
-    finalWith :: [Either [RewriteEqn] [[Expr]]] -> Parser [Expr]
-    finalWith []             = pure $ []
+    finalWith :: (HasRange a, HasRange b) => [Either [a] [[b]]] -> Parser [b]
+    finalWith []             = pure []
     finalWith [Right ees]    = pure $ concat ees
     finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
       "Cannot use rewrite / pattern-matching with after a with-abstraction."
 
 -- | Build a with-statement
-buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
-buildWithStmt e = do
-  es <- mapM buildSingleWithStmt $ fromWithApp e
-  let ees = groupByEither es
-  pure $ map (mapLeft (Invert ())) ees
+buildWithStmt :: [Named Name Expr] -> Parser [Either RewriteEqn [Named Name Expr]]
+buildWithStmt nes = do
+  ws <- mapM buildSingleWithStmt nes
+  let rws = groupByEither ws
+  pure $ map (mapLeft (Invert ())) rws
 
-buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt :: Named Name Expr -> Parser (Either (Named Name (Pattern, Expr)) (Named Name Expr))
 buildSingleWithStmt e = do
-  mpatexpr <- exprToAssignment e
+  mpatexpr <- exprToAssignment (namedThing e)
   pure $ case mpatexpr of
-    Just (pat, _, expr) -> Left (pat, expr)
+    Just (pat, _, expr) -> Left ((pat, expr) <$ e)
     Nothing             -> Right e
 
 fromWithApp :: Expr -> [Expr]
@@ -2215,7 +2225,7 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Named Name (WithHiding Expr)] -> LHS)
 exprToLHS e = LHS <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a

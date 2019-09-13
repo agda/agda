@@ -423,8 +423,15 @@ instance Pretty LHS where
   pretty (LHS p eqs es) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
-    , nest 2 $ prefixedThings "with" (map pretty es)
-    ]
+    , nest 2 $ prefixedThings "with" (map prettyWithd es)
+    ] where
+
+    prettyWithd :: WithExpr -> Doc
+    prettyWithd (Named nm wh) =
+      let e = pretty wh in
+      case nm of
+        Nothing -> e
+        Just n  -> pretty n <+> ":" <+> e
 
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps

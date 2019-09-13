@@ -234,6 +234,8 @@ instance Instantiate Candidate where
 instance Instantiate EqualityView where
   instantiate' (OtherType t)            = OtherType
     <$> instantiate' t
+  instantiate' (IdiomType t)            = IdiomType
+    <$> instantiate' t
   instantiate' (EqualityType s eq l t a b) = EqualityType
     <$> instantiate' s
     <*> return eq
@@ -286,11 +288,11 @@ isBlocked
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
-    reduce'  :: t -> ReduceM t
-    reduceB' :: t -> ReduceM (Blocked t)
+  reduce'  :: t -> ReduceM t
+  reduceB' :: t -> ReduceM (Blocked t)
 
-    reduce'  t = ignoreBlocking <$> reduceB' t
-    reduceB' t = notBlocked <$> reduce' t
+  reduce'  t = ignoreBlocking <$> reduceB' t
+  reduceB' t = notBlocked <$> reduce' t
 
 instance Reduce Type where
     reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
@@ -787,13 +789,15 @@ instance Reduce CompareAs where
   reduce' AsTypes       = return AsTypes
 
 instance Reduce e => Reduce (Map k e) where
-    reduce' = traverse reduce'
+  reduce' = traverse reduce'
 
 instance Reduce Candidate where
   reduce' (Candidate u t ov) = Candidate <$> reduce' u <*> reduce' t <*> pure ov
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
+    <$> reduce' t
+  reduce' (IdiomType t)            = IdiomType
     <$> reduce' t
   reduce' (EqualityType s eq l t a b) = EqualityType
     <$> reduce' s
@@ -974,6 +978,8 @@ instance Simplify Candidate where
 instance Simplify EqualityView where
   simplify' (OtherType t)            = OtherType
     <$> simplify' t
+  simplify' (IdiomType t)            = IdiomType
+    <$> simplify' t
   simplify' (EqualityType s eq l t a b) = EqualityType
     <$> simplify' s
     <*> return eq
@@ -1151,6 +1157,8 @@ instance Normalise Candidate where
 
 instance Normalise EqualityView where
   normalise' (OtherType t)            = OtherType
+    <$> normalise' t
+  normalise' (IdiomType t)            = IdiomType
     <$> normalise' t
   normalise' (EqualityType s eq l t a b) = EqualityType
     <$> normalise' s
@@ -1504,6 +1512,8 @@ instance InstantiateFull Candidate where
 
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType
+    <$> instantiateFull' t
+  instantiateFull' (IdiomType t)            = IdiomType
     <$> instantiateFull' t
   instantiateFull' (EqualityType s eq l t a b) = EqualityType
     <$> instantiateFull' s

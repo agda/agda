@@ -2267,20 +2267,20 @@ whereToAbstract r whname whds inner = do
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { _rhsRewriteEqn :: [C.RewriteEqn]          -- ^ @rewrite e@ (many)
-  , _rhsWithExpr   :: [WithHiding C.WithExpr] -- ^ @with e@ (many)
-  , _rhsSubclauses :: [ScopeM C.Clause]       -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  { _rhsRewriteEqn :: [C.RewriteEqn]         -- ^ @rewrite e@ (many)
+  , _rhsWithExpr   :: [C.WithExpr]           -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause]      -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , _rhs           :: C.RHS
-  , _rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
-  , _rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
+  , _rhsWhereName  :: Maybe (C.Name, Access) -- ^ The name of the @where@ module (if any).
+  , _rhsWhereDecls :: [C.Declaration]        -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [WithHiding A.Expr] [ScopeM C.Clause]
+  | WithRHS' [A.WithExpr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' () A.BindName A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2292,7 +2292,7 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
-instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) A.RewriteEqn where
+instance ToAbstract (RewriteEqn' () A.BindName A.Pattern A.Expr) A.RewriteEqn where
   toAbstract = \case
     Rewrite es -> fmap Rewrite $ forM es $ \ (_, e) -> do
       qn <- withFunctionName "-rewrite"
@@ -2301,24 +2301,29 @@ instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) A.RewriteEqn where
       qn <- withFunctionName "-invert"
       pure $ Invert qn pes
 
-instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
+instance ToAbstract C.RewriteEqn (RewriteEqn' () A.BindName A.Pattern A.Expr) where
   toAbstract = \case
     Rewrite es   -> Rewrite <$> mapM toAbstract es
-    Invert _ pes -> Invert () <$> do
-      let (ps, es) = unzip pes
-      -- first check the expressions: the patterns may shadow some of the variables
-      -- mentioned in them!
+    Invert _ npes -> Invert () <$> do
+      -- Given a list of irrefutable with expressions of the form @q : p <- e@
+      let (nps, es) = flip unzipWith npes $ \ (Named nm (p, e)) -> ((nm, p), e)
+      -- we first check the expressions @e@: the patterns may shadow some of the
+      -- variables mentioned in them!
       es <- toAbstract es
-      -- then parse the patterns and go through the motions of converting them,
-      -- checking them for linearity, binding the variable introduced in them
-      -- and finally producing an abstract pattern.
-      ps <- forM ps $ \ p -> do
+      -- we then parse the pairs of patterns @p@ and names @q@ for the equality
+      -- constraints of the form @p ≡ e@.
+      nps <- forM nps $ \ (n, p) -> do
+        -- first the pattern
         p <- parsePattern p
         p <- toAbstract p
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
         bindVarsToBind
-        toAbstract p
-      pure $ zip ps es
+        p <- toAbstract p
+        -- and then the name
+        n <- toAbstract $ fmap (NewName WithBound . C.mkBoundName_) n
+        pure (n, p)
+      -- we finally reassemble the telescope
+      pure $ zipWith (\ (n,p) e -> Named n (p, e)) nps es
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
@@ -2340,9 +2345,12 @@ instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide [] [] (_ : _) _ _ _)        = __IMPOSSIBLE__
   toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _ _) = typeError $ BothWithAndRHS
   toAbstract (RightHandSide [] [] [] rhs _ [])          = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS _ [])  = do
+  toAbstract (RightHandSide [] nes cs C.AbsurdRHS _ []) = do
+    let (ns , es) = unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) nes
     es <- toAbstractCtx TopCtx es
-    return $ WithRHS' es cs
+    ns <- toAbstract ns
+    let nes = zipWith Named ns es
+    return $ WithRHS' nes cs
   -- TODO: some of these might be possible
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] [] [] (C.RHS _) _ (_ : _))       = __IMPOSSIBLE__
@@ -2408,7 +2416,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
     toAbstract (C.LHSWith core wps ps) = do
       liftA3 A.LHSWith
         (toAbstract core)
-        (toAbstract wps)
+        (map (WithHiding NotHidden) <$> toAbstract wps)
         (toAbstract ps)
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where

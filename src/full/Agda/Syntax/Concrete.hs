@@ -292,15 +292,15 @@ makePi bs e = Pi bs e
    We use fixity information to see which name is actually defined.
 -}
 data LHS = LHS
-  { lhsOriginalPattern :: Pattern               -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]          -- ^ @(rewrite e | with p <- e)@ (many)
-  , lhsWithExpr        :: [WithHiding WithExpr] -- ^ @with e1 | {e2} | ...@ (many)
+  { lhsOriginalPattern :: Pattern      -- ^ e.g. @f ps | wps@
+  , lhsRewriteEqn      :: [RewriteEqn] -- ^ @(rewrite e | with p <- e)@ (many)
+  , lhsWithExpr        :: [WithExpr]   -- ^ @with q1 : e1 | {e2} | ...@ (many, @q@ name optional)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
-type RewriteEqn = RewriteEqn' () Pattern Expr
+type RewriteEqn = RewriteEqn' () Name Pattern Expr
 
-type WithExpr   = Expr
+type WithExpr = Named Name (WithHiding Expr)
 
 -- | Processed (operator-parsed) intermediate form of the core @f ps@ of 'LHS'.
 --   Corresponds to 'lhsOriginalPattern'.
@@ -511,12 +511,12 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
  --------------------------------------------------------------------------}
 
 -- | Extended content of an interaction hole.
-data HoleContent' qn p e
-  = HoleContentExpr    e                    -- ^ @e@
-  | HoleContentRewrite [RewriteEqn' qn p e] -- ^ @(rewrite | invert) e0 | ... | en@
+data HoleContent' qn nm p e
+  = HoleContentExpr    e                       -- ^ @e@
+  | HoleContentRewrite [RewriteEqn' qn nm p e] -- ^ @(rewrite | invert) e0 | ... | en@
   deriving (Functor, Foldable, Traversable)
 
-type HoleContent = HoleContent' () Pattern Expr
+type HoleContent = HoleContent' () Name Pattern Expr
 
 {--------------------------------------------------------------------------
     Views

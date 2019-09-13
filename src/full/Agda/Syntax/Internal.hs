@@ -770,10 +770,12 @@ data EqualityView
     , eqtRhs   :: Arg Term -- ^ NotHidden
     }
   | OtherType Type -- ^ reduced
+  | IdiomType Type -- ^ reduced
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
 isEqualityType OtherType{}    = False
+isEqualityType IdiomType{}    = False
 
 -- | View type as path type.
 
