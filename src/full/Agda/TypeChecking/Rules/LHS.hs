@@ -618,7 +618,7 @@ bindAsPatterns (AsB x v a : asb) ret = do
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
-recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
+recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v (unDom a)
   `catchError` \_ -> typeError . GenericDocError =<< vcat
     [ "Ill-typed pattern after with abstraction: " <+> prettyA p
     , "(perhaps you can replace it by `_`?)"

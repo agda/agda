@@ -299,7 +299,8 @@ data LHS = LHS
   deriving (Data, Eq)
 
 type RewriteEqn = RewriteEqn' () Name Pattern Expr
-type WithExpr   = Named Name (WithHiding Expr)
+
+type WithExpr = Named Name (WithHiding Expr)
 
 -- | Processed (operator-parsed) intermediate form of the core @f ps@ of 'LHS'.
 --   Corresponds to 'lhsOriginalPattern'.

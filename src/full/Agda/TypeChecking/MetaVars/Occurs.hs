@@ -938,7 +938,7 @@ performKill kills m a = do
   let perm = Perm n
              [ i | (i, Arg _ False) <- zip [0..] kills ]
       judg = case mvJudgement mv of
-        HasType{ jComparison = cmp } -> HasType __IMPOSSIBLE__ cmp a
+        HasType{} -> HasType __IMPOSSIBLE__ a
         IsSort{}  -> IsSort  __IMPOSSIBLE__ a
   m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) perm judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary

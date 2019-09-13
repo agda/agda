@@ -21,10 +21,3 @@ open B
 
 foo : D
 foo = Set ∷ Set
-
--- Expected error:
---
--- <preciseErrorLocation>
--- Ambiguous name _∷_. It could refer to any one of
---   A._∷_ bound at ...
---   B._∷_ bound at ...

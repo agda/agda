@@ -116,7 +116,7 @@ giveExpr force mii mi e = do
     withMetaInfo (getMetaInfo mv) $ do
       let t = case mvJudgement mv of
                 IsSort{}    -> __IMPOSSIBLE__
-                HasType _ _ t -> t
+                HasType _ t -> t
       reportSDoc "interaction.give" 20 $
         "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.
@@ -167,7 +167,7 @@ giveExpr force mii mi e = do
           -- Double check.
           reportSDoc "interaction.give" 20 $ "give: double checking"
           vfull <- instantiateFull v
-          checkInternal vfull CmpLeq t'
+          checkInternal vfull t'
 
 -- | After a give, redo termination etc. checks for function which was complemented.
 redoChecks :: Maybe InteractionId -> TCM ()
@@ -671,7 +671,7 @@ typeOfMetaMI norm mi =
    where
     rewriteJudg :: MetaVariable -> Judgement MetaId ->
                    TCM (OutputConstraint Expr NamedMeta)
-    rewriteJudg mv (HasType i cmp t) = do
+    rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i
       -- Andreas, 2019-03-17, issue #3638:
       -- Need to put meta type into correct context _before_ normalizing,
@@ -903,7 +903,7 @@ introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
-    HasType _ _ t -> do
+    HasType _ t -> do
         t <- reduce =<< piApplyM t =<< getContextArgs
         -- Andreas, 2013-03-05 Issue 810: skip hidden domains in introduction
         -- of constructor.

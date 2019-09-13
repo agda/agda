@@ -159,8 +159,7 @@ newSortMeta =
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
   $ do i   <- createMetaInfo
-       let j = IsSort () __DUMMY_TYPE__
-       x   <- newMeta Instantiable i normalMetaPriority (idP 0) j
+       x   <- newMeta Instantiable i normalMetaPriority (idP 0) $ IsSort () __DUMMY_TYPE__
        reportSDoc "tc.meta.new" 50 $
          "new sort meta" <+> prettyTCM x
        return $ MetaS x []
@@ -176,14 +175,11 @@ newSortMetaCtx vs = do
       "new sort meta" <+> prettyTCM x <+> ":" <+> prettyTCM t
     return $ MetaS x $ map Apply vs
 
-newTypeMeta' :: Comparison -> Sort -> TCM Type
-newTypeMeta' cmp s = El s . snd <$> newValueMeta RunMetaOccursCheck cmp (sort s)
-
 newTypeMeta :: Sort -> TCM Type
-newTypeMeta = newTypeMeta' CmpLeq
+newTypeMeta s = El s . snd <$> newValueMeta RunMetaOccursCheck (sort s)
 
 newTypeMeta_ ::  TCM Type
-newTypeMeta_  = newTypeMeta' CmpEq =<< (workOnTypes $ newSortMeta)
+newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- TODO: (this could be made work with new uni-poly)
 -- Andreas, 2011-04-27: If a type meta gets solved, than we do not have to check
 -- that it has a sort.  The sort comes from the solution.
@@ -212,7 +208,7 @@ newInstanceMetaCtx s t vs = do
   let i = i0 { miNameSuggestion = s }
   TelV tel _ <- telView t
   let perm = idP (size tel)
-  x <- newMeta' OpenInstance Instantiable i normalMetaPriority perm (HasType () CmpLeq t)
+  x <- newMeta' OpenInstance Instantiable i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
@@ -225,48 +221,48 @@ newInstanceMetaCtx s t vs = do
   return (x, MetaV x $ map Apply vs)
 
 -- | Create a new value meta with specific dependencies, possibly η-expanding in the process.
-newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Comparison -> Type -> m (MetaId, Term)
-newNamedValueMeta b s cmp t = do
-  (x, v) <- newValueMeta b cmp t
+newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Type -> m (MetaId, Term)
+newNamedValueMeta b s t = do
+  (x, v) <- newValueMeta b t
   setMetaNameSuggestion x s
   return (x, v)
 
 -- | Create a new value meta with specific dependencies without η-expanding.
-newNamedValueMeta' :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Comparison -> Type -> m (MetaId, Term)
-newNamedValueMeta' b s cmp t = do
-  (x, v) <- newValueMeta' b cmp t
+newNamedValueMeta' :: MonadMetaSolver m => RunMetaOccursCheck -> MetaNameSuggestion -> Type -> m (MetaId, Term)
+newNamedValueMeta' b s t = do
+  (x, v) <- newValueMeta' b t
   setMetaNameSuggestion x s
   return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
-newValueMeta b cmp t = do
+newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Type -> m (MetaId, Term)
+newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx Instantiable b cmp t tel (idP $ size tel) vs
+  newValueMetaCtx Instantiable b t tel (idP $ size tel) vs
 
 newValueMetaCtx
   :: MonadMetaSolver m
-  => Frozen -> RunMetaOccursCheck -> Comparison -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
-newValueMetaCtx frozen b cmp t tel perm ctx =
-  mapSndM instantiateFull =<< newValueMetaCtx' frozen b cmp t tel perm ctx
+  => Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
+newValueMetaCtx frozen b t tel perm ctx =
+  mapSndM instantiateFull =<< newValueMetaCtx' frozen b t tel perm ctx
 
 -- | Create a new value meta without η-expanding.
 newValueMeta'
   :: MonadMetaSolver m
-  => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
-newValueMeta' b cmp t = do
+  => RunMetaOccursCheck -> Type -> m (MetaId, Term)
+newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx' Instantiable b cmp t tel (idP $ size tel) vs
+  newValueMetaCtx' Instantiable b t tel (idP $ size tel) vs
 
 newValueMetaCtx'
   :: MonadMetaSolver m
-  => Frozen -> RunMetaOccursCheck -> Comparison -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
-newValueMetaCtx' frozen b cmp a tel perm vs = do
+  => Frozen -> RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> m (MetaId, Term)
+newValueMetaCtx' frozen b a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
-  x <- newMeta frozen i normalMetaPriority perm (HasType () cmp t)
+  x <- newMeta frozen i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
     , nest 2 $ prettyTCM vs <+> "|-"
@@ -311,7 +307,7 @@ newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
           tel' = telFromList . map (mod `inverseApplyModality`) . telToList $ tel
           ctx' = (map . mapModality) (mod `inverseComposeModality`) ctx
       (m, u) <- applyModalityToContext info $
-                 newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
+                 newValueMetaCtx frozen RunMetaOccursCheck a tel' perm ctx'
       setMetaArgInfo m (getArgInfo dom)
       setMetaNameSuggestion m (absName codom)
       args <- newArgsMetaCtx' frozen condition (codom `absApp` u) tel perm ctx
@@ -338,13 +334,11 @@ newRecordMetaCtx frozen r pars tel perm ctx = do
   con    <- getRecordConstructor r
   return $ Con con ConOSystem (map Apply fields)
 
-newQuestionMark :: InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
-newQuestionMark ii cmp = newQuestionMark' (newValueMeta' RunMetaOccursCheck) ii cmp
+newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark = newQuestionMark' $ newValueMeta' RunMetaOccursCheck
 
-newQuestionMark'
-  :: (Comparison -> Type -> TCM (MetaId, Term))
-  -> InteractionId -> Comparison -> Type -> TCM (MetaId, Term)
-newQuestionMark' new ii cmp t = do
+newQuestionMark' :: (Type -> TCM (MetaId, Term)) -> InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark' new ii t = do
   -- Andreas, 2016-07-29, issue 1720-2
   -- This is slightly risky, as the same interaction id
   -- maybe be shared between different contexts.
@@ -355,7 +349,7 @@ newQuestionMark' new ii cmp t = do
 
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
-  (x, m) <- new cmp t
+  (x, m) <- new t
   connectInteractionPoint ii x
   return (x, m)
 
@@ -378,7 +372,7 @@ blockTermOnProblem t v pid =
     tel <- getContextTelescope
     x   <- newMeta' (BlockedConst $ abstract tel v)
                     Instantiable i lowMetaPriority (idP $ size tel)
-                    (HasType () CmpLeq $ telePi_ tel t)
+                    (HasType () $ telePi_ tel t)
                     -- we don't instantiate blocked terms
     inTopContext $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
@@ -393,7 +387,7 @@ blockTermOnProblem t v pid =
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
+        (m', v) <- newValueMeta DontRunMetaOccursCheck t
         reportSDoc "tc.meta.blocked" 30 $ "setting twin of" <+> prettyTCM m' <+> "to be" <+> prettyTCM x
         updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
         i   <- fresh
@@ -437,7 +431,7 @@ postponeTypeCheckingProblem p unblock = do
   let t = problemType p
   m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   Instantiable i normalMetaPriority (idP (size tel))
-         $ HasType () CmpLeq $ telePi_ tel t
+         $ HasType () $ telePi_ tel t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
     [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
     , "for postponed typechecking problem" <+> prettyTCM p
@@ -451,7 +445,7 @@ postponeTypeCheckingProblem p unblock = do
   -- to run the extended occurs check (metaOccurs) to exclude
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
-  (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
+  (_, v) <- newValueMeta DontRunMetaOccursCheck t
   cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
@@ -504,7 +498,7 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
     meta <- lookupMeta m
     case mvJudgement meta of
       IsSort{} -> dontExpand
-      HasType _ cmp a -> do
+      HasType _ a -> do
 
         reportSDoc "tc.meta.eta" 40 $ sep
           [ text "considering eta-expansion at type "
@@ -968,8 +962,7 @@ assignMeta' m x t n ids v = do
     let vsol = abstract tel' v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
-    whenM ((optDoubleCheck  <$> pragmaOptions) `or2M`
-           (optCumulativity <$> pragmaOptions)) $ do
+    whenM (optDoubleCheck <$> pragmaOptions) $ noConstraints $ dontAssignMetas $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
@@ -1016,11 +1009,11 @@ checkSolutionForMeta :: MetaId -> MetaVariable -> Term -> Type -> TCM ()
 checkSolutionForMeta x m v a = do
   reportSDoc "tc.meta.check" 30 $ "checking solution for meta" <+> prettyTCM x
   case mvJudgement m of
-    HasType{ jComparison = cmp } -> do
+    HasType{} -> do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
       traceCall (CheckMetaSolution (getRange m) x a v) $
-        checkInternal v cmp a
+        checkInternal v a
     IsSort{}  -> void $ do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
@@ -1057,7 +1050,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           let size = sizeType_ qSize
               t'   = telePi tel size
           y <- newMeta Instantiable (mvInfo mvar) (mvPriority mvar) (mvPermutation mvar)
-                       (HasType __IMPOSSIBLE__ CmpLeq t')
+                       (HasType __IMPOSSIBLE__ t')
           -- Note: no eta-expansion of new meta possible/necessary.
           -- Add the size constraint @y args `dir` u@.
           let yArgs = MetaV y $ map Apply args

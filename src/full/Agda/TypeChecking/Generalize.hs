@@ -513,8 +513,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         Just _A -> do
           let _Aρ = applySubst ρ _A
           newNamedValueMeta DontRunMetaOccursCheck
-                            (miNameSuggestion $ mvInfo mv)
-                            (jComparison $ mvJudgement mv) _Aρ
+                            (miNameSuggestion $ mvInfo mv) _Aρ
 
     -- If x is a hole, update the hole to point to y instead.
     setInteractionPoint x y =
@@ -656,7 +655,7 @@ createGenValue x = setCurrentRange x $ do
 
   let metaType = piApply ty args
       name     = show (nameConcrete $ qnameName x)
-  (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
+  (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
   updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }

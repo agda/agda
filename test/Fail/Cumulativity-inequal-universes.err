@@ -1,3 +1,0 @@
-Cumulativity-inequal-universes.agda:12,9-13
-Set != Set₁
-when checking that the expression refl has type Set ≡ Set₁

@@ -145,7 +145,6 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
-  , optCumulativity              :: Bool
   , optSizedTypes                :: WithDefault 'True
   , optGuardedness               :: WithDefault 'True
   , optInjectiveTypeConstructors :: Bool
@@ -257,7 +256,6 @@ defaultPragmaOptions = PragmaOptions
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
-  , optCumulativity              = False
   , optSizedTypes                = Default
   , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
@@ -406,7 +404,6 @@ restartOptions =
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . optCumulativity, "--cumulativity")
   , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
@@ -609,9 +606,6 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
-
-cumulativityFlag :: Flag PragmaOptions
-cumulativityFlag o = return $ o { optCumulativity = True }
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --etaFlag :: Flag PragmaOptions
@@ -901,8 +895,6 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
-    , Option []     ["cumulativity"] (NoArg cumulativityFlag)
-                    "enable subtyping of universes (e.g. Set =< Set₁)"
     , Option []     ["prop"] (NoArg propFlag)
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
