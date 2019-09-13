@@ -439,8 +439,10 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 subtype :: (MonadCheckInternal m) => Type -> Type -> m ()
 subtype t1 t2 = do
-  ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $
-    leqType t1 t2
+  ifIsSort t1 (\ s1 -> (s1 `leqSort`) =<< shouldBeSort t2) $ do
+    -- Andreas, 2017-03-09, issue #2493
+    -- Only check subtyping, do not solve any metas!
+    dontAssignMetas $ leqType t1 t2
 
 -- | Compute the sort of a type.
 

@@ -568,10 +568,9 @@ instance Free LevelAtom where
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 
-instance Free t => Free [t]
-instance Free t => Free (Maybe t)
-instance Free t => Free (WithHiding t)
-instance Free t => Free (Named nm t)
+instance Free t => Free [t]            where
+instance Free t => Free (Maybe t)      where
+instance Free t => Free (WithHiding t) where
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u
@@ -602,7 +601,5 @@ instance Free Clause where
   freeVars' cl = underBinder' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free EqualityView where
-  freeVars' = \case
-    OtherType t -> freeVars' t
-    IdiomType t -> freeVars' t
-    EqualityType s _eq l t a b -> freeVars' (s, l, [t, a, b])
+  freeVars' (OtherType t) = freeVars' t
+  freeVars' (EqualityType s _eq l t a b) = freeVars' (s, l, [t, a, b])

@@ -37,7 +37,6 @@ reconstructParametersInEqView (EqualityType s eq l a u v) =
                       <*> traverse (reconstructParameters $ El s $ unArg a) u
                       <*> traverse (reconstructParameters $ El s $ unArg a) v
 reconstructParametersInEqView (OtherType a) = OtherType <$> reconstructParametersInType a
-reconstructParametersInEqView (IdiomType a) = IdiomType <$> reconstructParametersInType a
 
 reconstructParameters :: Type -> Term -> TCM Term
 reconstructParameters a v = do

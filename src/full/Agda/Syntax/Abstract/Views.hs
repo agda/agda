@@ -249,9 +249,6 @@ instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   recurseExpr f = traverseEither (recurseExpr f)
                                  (recurseExpr f)
 
-instance ExprLike BindName where
-  recurseExpr f = pure
-
 instance ExprLike ModuleName where
   recurseExpr f = pure
 
@@ -339,7 +336,7 @@ instance ExprLike RHS where
       RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
 
-instance (ExprLike qn, ExprLike nm, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn nm p e) where
+instance (ExprLike qn, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
   recurseExpr f = \case
     Rewrite es    -> Rewrite <$> recurseExpr f es
     Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
