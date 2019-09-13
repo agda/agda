@@ -17,42 +17,12 @@ import Agda.Utils.Monad ( tryMaybe )
 
 import Agda.Utils.Impossible
 
-data LevelKit = LevelKit
-  { lvlType  :: Term
-  , lvlSuc   :: Term -> Term
-  , lvlMax   :: Term -> Term -> Term
-  , lvlZero  :: Term
-  , typeName :: QName
-  , sucName  :: QName
-  , maxName  :: QName
-  , zeroName :: QName
-  }
-
 -- | Get the 'primLevel' as a 'Type'.
 levelType :: (HasBuiltins m) => m Type
 levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc
-
-{-# SPECIALIZE builtinLevelKit :: TCM LevelKit #-}
-{-# SPECIALIZE builtinLevelKit :: ReduceM LevelKit #-}
-builtinLevelKit :: (HasBuiltins m) => m LevelKit
-builtinLevelKit = do
-    level@(Def l []) <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
-    return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
-      }
 
 -- | Raises an error if no level kit is available.
 requireLevels :: HasBuiltins m => m LevelKit
@@ -89,17 +59,6 @@ reallyUnLevelView nv = do
     Max [a]             -> do
       return $ unPlusV zer (apply1 suc) a
     _ -> (`unlevelWithKit` nv) <$> builtinLevelKit
-
-unlevelWithKit :: LevelKit -> Level -> Term
-unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
-  case map (unPlusV zer suc) as of
-    [a] -> a
-    []  -> zer
-    as  -> foldl1 max as
-
-unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
-unPlusV zer suc (ClosedLevel n) = foldr (.) id (List.genericReplicate n suc) zer
-unPlusV _   suc (Plus n a)      = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do
