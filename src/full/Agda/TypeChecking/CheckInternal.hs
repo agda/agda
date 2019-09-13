@@ -449,7 +449,9 @@ checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
 cmptype :: (MonadCheckInternal m) => Comparison -> Type -> Type -> m ()
 cmptype cmp t1 t2 = do
   ifIsSort t1 (\ s1 -> (compareSort cmp s1) =<< shouldBeSort t2) $ do
-    compareType cmp t1 t2
+    -- Andreas, 2017-03-09, issue #2493
+    -- Only check subtyping, do not solve any metas!
+    dontAssignMetas $ compareType cmp t1 t2
 
 -- | Compute the sort of a type.
 

@@ -167,8 +167,6 @@ instance TermLike EqualityView where
   traverseTermM f v = case v of
     OtherType t -> OtherType
       <$> traverseTermM f t
-    IdiomType t -> IdiomType
-      <$> traverseTermM f t
     EqualityType s eq l t a b -> EqualityType s eq
       <$> traverse (traverseTermM f) l
       <*> traverseTermM f t
@@ -177,7 +175,6 @@ instance TermLike EqualityView where
 
   foldTerm f v = case v of
     OtherType t -> foldTerm f t
-    IdiomType t -> foldTerm f t
     EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 
 -- | Put it in a monad to make it possible to do strictly.

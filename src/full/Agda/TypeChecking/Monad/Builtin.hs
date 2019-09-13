@@ -587,7 +587,6 @@ equalityView t0@(El s t) = do
 
 equalityUnview :: EqualityView -> Type
 equalityUnview (OtherType t) = t
-equalityUnview (IdiomType t) = t
 equalityUnview (EqualityType s equality l t lhs rhs) =
   El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
