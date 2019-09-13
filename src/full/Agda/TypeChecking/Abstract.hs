@@ -10,18 +10,16 @@ import qualified Data.HashMap.Strict as HMap
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin ( equalityUnview, primEqualityName )
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
-import Agda.Utils.List ( splitExactlyAt, dropEnd )
+import Agda.Utils.List (splitExactlyAt)
 import Agda.Utils.Except
 
 import Agda.Utils.Impossible
@@ -47,30 +45,12 @@ piAbstractTerm h v a b = do
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
 --
---   For the inspect idiom, it does something special:
---   @piAbstract (v, a) b[v] = (w : a) {w' : Eq a w v} -> b[w]
---
 --   For @rewrite@, it does something special:
+--
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
 piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
-piAbstract (WithHiding h (v, OtherType a))   b = piAbstractTerm h v a b
-piAbstract (WithHiding h (v, IdiomType a)) b = do
-  b  <- raise 1 <$> abstractType a v b
-  eq <- addContext ("w" :: String, defaultDom a) $ do
-    -- manufacture the type @w ≡ e@
-    eqName <- primEqualityName
-    eqTy <- defType <$> getConstInfo eqName
-    -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
-    TelV eqTel _ <- telView eqTy
-    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
-    let eq = Def eqName (map Apply $ tel ++ map defaultArg [var 0, raise 1 v])
-    sort <- inferSort eq
-    pure $ El sort eq
-
-  pure $ mkPi (setHiding h      $ defaultDom ("w", a))
-       $ mkPi (setHiding Hidden $ defaultDom ("eq", eq))
-         b
+piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
 piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- inferSort a
   let prfTy = equalityUnview eqt

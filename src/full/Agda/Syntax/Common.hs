@@ -212,11 +212,6 @@ instance LensHiding (WithHiding a) where
   setHiding h (WithHiding _ a) = WithHiding h a
   mapHiding f (WithHiding h a) = WithHiding (f h) a
 
-instance LensHiding a => LensHiding (Named nm a) where
-  getHiding = getHiding . namedThing
-  setHiding = fmap . setHiding
-  mapHiding = fmap . mapHiding
-
 -- | Monoidal composition of 'Hiding' information in some data.
 mergeHiding :: LensHiding a => WithHiding a -> a
 mergeHiding (WithHiding h a) = mapHiding (mappend h) a
@@ -1586,11 +1581,6 @@ sameName = (==) `on` (rangedThing . woThing)
 unnamed :: a -> Named name a
 unnamed = Named Nothing
 
-isUnnamed :: Named name a -> Maybe a
-isUnnamed = \case
-  Named Nothing a -> Just a
-  Named Just{}  a -> Nothing
-
 named :: name -> a -> Named name a
 named = Named . Just
 
@@ -2337,37 +2327,30 @@ instance Monoid CoverageCheck where
 -- | @RewriteEqn' qn p e@ represents the @rewrite@ and irrefutable @with@
 --   clauses of the LHS.
 --   @qn@ stands for the QName of the auxiliary function generated to implement the feature
---   @nm@ is the type of names for pattern variables
---   @p@  is the type of patterns
---   @e@  is the type of expressions
+--   @p@ is the type of patterns
+--   @e@ is the type of expressions
 
-data RewriteEqn' qn nm p e
-  = Rewrite   [(qn, e)]         -- ^ @rewrite e@
-  | Invert qn [Named nm (p, e)] -- ^ @with p <- e@
+data RewriteEqn' qn p e
+  = Rewrite [(qn, e)]  -- ^ @rewrite e@
+  | Invert qn [(p, e)] -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
-instance (NFData qn, NFData nm, NFData p, NFData e) => NFData (RewriteEqn' qn nm p e) where
+instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
   rnf = \case
     Rewrite es    -> rnf es
     Invert qn pes -> rnf (qn, pes)
 
-instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
+instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
   pretty = \case
     Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
-    Invert _ pes -> prefixedThings (text "invert") (namedWith <$> pes) where
+    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
 
-      namedWith (Named nm (p, e)) =
-        let patexp = pretty p <+> "<-" <+> pretty e in
-        case nm of
-          Nothing -> patexp
-          Just nm -> pretty nm <+> ":" <+> patexp
-
-instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
+instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)
 
-instance (KillRange qn, KillRange nm, KillRange e, KillRange p) => KillRange (RewriteEqn' qn nm p e) where
+instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p e) where
   killRange = \case
     Rewrite es    -> killRange1 Rewrite es
     Invert qn pes -> killRange2 Invert qn pes
