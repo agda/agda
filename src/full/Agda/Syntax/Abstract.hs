@@ -361,9 +361,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
-type RewriteEqn  = RewriteEqn' QName BindName Pattern Expr
-type WithExpr' e = Named BindName (WithHiding e)
-type WithExpr    = WithExpr' Expr
+type RewriteEqn  = RewriteEqn' QName Pattern Expr
 
 data RHS
   = RHS
@@ -374,7 +372,7 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [WithExpr] [Clause]
+  | WithRHS QName [WithHiding Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
     { rewriteExprs      :: [RewriteEqn]
@@ -441,7 +439,7 @@ data LHSCore' e
     -- | With patterns.
   | LHSWith  { lhsHead         :: LHSCore' e
                  -- ^ E.g. the 'LHSHead'.
-             , lhsWithPatterns :: [WithHiding (Pattern' e)]
+             , lhsWithPatterns :: [Pattern' e]
                  -- ^ Applied to with patterns @| p1 | ... | pn@.
                  --   These patterns are not prefixed with @WithP@!
              , lhsPats         :: [NamedArg (Pattern' e)]
@@ -499,7 +497,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' () BindName Pattern Expr
+type HoleContent = C.HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -919,10 +917,10 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
-instance (AllNames qn, AllNames e) => AllNames (RewriteEqn' qn nm p e) where
+instance (AllNames qn, AllNames e) => AllNames (RewriteEqn' qn p e) where
     allNames = \case
       Rewrite es    -> Fold.foldMap allNames es
-      Invert qn pes -> allNames qn >< Fold.foldMap (Fold.foldMap $ Fold.foldMap allNames) pes
+      Invert qn pes -> allNames qn >< foldMap (Fold.foldMap allNames) pes
 
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e

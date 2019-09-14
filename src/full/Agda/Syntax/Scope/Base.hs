@@ -131,7 +131,6 @@ data BindingSource
   = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
-  | WithBound    -- ^ @| q : ...@
   deriving (Data, Show, Eq)
 
 -- | A local variable can be shadowed by an import.
