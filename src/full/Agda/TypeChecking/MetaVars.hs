@@ -963,6 +963,24 @@ assignMeta' m x t n ids v = do
     when (size tel' < n)
        patternViolation -- WAS: __IMPOSSIBLE__
 
+    -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
+    -- we equate the sort of the solution with the sort of the
+    -- metavariable, in order to solve metavariables in sorts.
+    unlessM (optCompareSorts <$> pragmaOptions) $ case unEl a of
+      Sort s -> addContext tel' $ do
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort of solution" <+> prettyTCM v'
+        m <- lookupMeta x
+        cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
+          case mvJudgement m of
+            HasType{ jComparison = cmp } -> return cmp
+            IsSort{} -> __IMPOSSIBLE__
+        s' <- sortOf v'
+        traceCall (CheckMetaSolution (getRange m) x a v') $
+          compareSort cmp s' s
+      _ -> return ()
+
     -- Perform the assignment (and wake constraints).
 
     let vsol = abstract tel' v'
