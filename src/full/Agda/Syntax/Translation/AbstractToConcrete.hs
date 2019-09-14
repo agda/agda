@@ -784,7 +784,10 @@ instance ToConcrete A.Expr C.Expr where
        where r = getRange e
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
-    toConcrete (A.Trusted q) = return $ C.Lit $ LitString noRange (show $ pretty q)
+    toConcrete (A.Trusted q) = do
+      msub <- runMaybeT $ MaybeT . checkpointSubstitution' =<< MaybeT (return $ I.quotedCheckpoint q)
+      let sub = maybe id applySubst msub
+      toConcrete =<< reify (sub $ I.quotedTerm q)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac [x] t)) =
