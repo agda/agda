@@ -134,8 +134,7 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [pure empty])
 ---------------------------------------------------------------------------
 
 type MonadPretty m =
-  ( MonadReify m
-  , MonadAbsToCon m
+  ( MonadAbsToCon m
   , IsString (m Doc)
   , Null (m Doc)
   , Semigroup (m Doc)

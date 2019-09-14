@@ -26,21 +26,18 @@ sep, fsep, hsep, vcat :: Monad m => [m Doc] -> m Doc
 -- Inlining definitions of MonadReify and MonadAbsToCon to avoid
 -- having to import them
 type MonadPretty m =
-  ( ( MonadReduce m
-    , MonadAddContext m
-    , MonadInteractionPoints m
-    , MonadFresh NameId m
-    , HasConstInfo m
-    , HasOptions m
-    , HasBuiltins m
-    , MonadDebug m
-    )
-  , ( MonadTCEnv m
+  ( ( MonadTCEnv m
     , ReadTCState m
     , MonadStConcreteNames m
-    , HasOptions m
-    , HasBuiltins m
-    , MonadDebug m
+    , ( MonadReduce m
+      , MonadAddContext m
+      , MonadInteractionPoints m
+      , MonadFresh NameId m
+      , HasConstInfo m
+      , HasOptions m
+      , HasBuiltins m
+      , MonadDebug m
+      )
     )
   , IsString (m Doc)
   , Null (m Doc)

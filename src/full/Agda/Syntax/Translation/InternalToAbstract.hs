@@ -45,7 +45,6 @@ import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A hiding (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
-import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
@@ -247,12 +246,6 @@ reifyDisplayFormP f ps wps = do
         -- Andreas, 2014-06-11:
         -- Are we sure that @d@ did not use @var i@ otherwise?
         (f', ps', wps') <- displayLHS ps d
-        reportSDoc "reify.display" 70 $ do
-          doc <- prettyA $ SpineLHS empty f' (ps' ++ wps' ++ wps)
-          return $ vcat
-            [ "rewritten lhs to"
-            , "  lhs' = " <+> doc
-            ]
         reifyDisplayFormP f' ps' (wps' ++ wps)
       _ -> do
         reportSLn "reify.display" 70 $ "display form absent or not valid as lhs"
