@@ -907,9 +907,8 @@ checkWithRHS
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
   Bench.billTo [Bench.Typing, Bench.With] $ do
-        mkRefl <- getRefl
-        let withArgs = withArguments (mkRefl . defaultArg) vtys0
-            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+        withArgs <- withArguments vtys0
+        let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         vtys0 <- normalise vtys0
 
         -- Andreas, 2012-09-17: for printing delta,

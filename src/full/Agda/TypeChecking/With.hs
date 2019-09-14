@@ -27,6 +27,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive ( getRefl )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -161,11 +162,14 @@ countWithArgs = sum . map countArgs
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: (Term -> Term) -> [WithHiding (Term, EqualityView)] -> [WithHiding Term]
-withArguments mkRefl vtys = flip concatMap vtys $ traverse $ \case
-  (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
-  (v, OtherType a) -> [v]
-  (v, IdiomType t) -> [v, mkRefl v]
+withArguments :: [WithHiding (Term, EqualityView)] -> TCM [WithHiding Term]
+withArguments vtys = fmap concat $ forM vtys $ \ (WithHiding h e) ->
+  fmap (WithHiding h <$>) $ case e of
+    (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> pure [unArg v, prf]
+    (v, OtherType a) -> pure [v]
+    (v, IdiomType t) -> do
+      mkRefl <- getRefl
+      pure [v, mkRefl (defaultArg v)]
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
