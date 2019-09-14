@@ -430,7 +430,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
 else
-	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
+	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_CONFIG_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
 ## size-solver standalone program #########################################

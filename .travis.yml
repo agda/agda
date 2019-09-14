@@ -67,7 +67,7 @@ git:
 # Travis runs the builds on this order.
 
 stages:
-  - name: sanity-check
+  - name: sanity check
   - name: stackage
     if: NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
@@ -87,7 +87,7 @@ jobs:
   ##############################################################################
   # Stackage stage
   #
-    - stage: sanity-check
+    - stage: sanity check
       env: GHC_VER=8.6.5 CABAL_VER=2.4
       addons:
         apt:
@@ -174,7 +174,7 @@ jobs:
 
         - stack build --compiler ghc-${GHC_VER} text-icu
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
-        # - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
       script:
         skip
 

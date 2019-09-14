@@ -9,8 +9,10 @@ ifeq ("2.4","$(word 1,$(sort 2.4 $(CABAL_VERSION)))")
 	CABAL_INSTALL_CMD=v1-install
 	CABAL_BUILD_CMD=v1-build
 	CABAL_CLEAN_CMD=v1-clean
+	CABAL_CONFIG_CMD=v1-configure
 else
 	CABAL_INSTALL_CMD=install
 	CABAL_BUILD_CMD=build
 	CABAL_CLEAN_CMD=clean
+	CABAL_CONFIG_CMD=configure
 endif
