@@ -1,0 +1,5 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > (def Agda.Builtin.Nat._+_ [(lit (nat 1)), (lit (nat 2))])
+out >

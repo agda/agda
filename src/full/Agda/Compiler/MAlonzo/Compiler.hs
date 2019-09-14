@@ -654,6 +654,7 @@ literal l = case l of
   LitFloat  _ x   -> floatExp x "Double"
   LitQName  _ x   -> litqname x
   LitString _ s   -> litString s
+  LitTerm _ q     -> __IMPOSSIBLE__
   _               -> l'
   where
     l'    = HS.Lit $ hslit l

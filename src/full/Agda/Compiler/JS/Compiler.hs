@@ -541,6 +541,7 @@ primitives = Set.fromList
   , "primNatMinus"
   , "primShowFloat"
   , "primShowInteger"
+  , "primShowNat"
   , "primSin"
   , "primCos"
   , "primTan"

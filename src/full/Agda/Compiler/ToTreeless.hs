@@ -26,6 +26,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Quote
 
 import Agda.Compiler.Treeless.AsPatterns
 import Agda.Compiler.Treeless.Builtin
@@ -405,7 +406,8 @@ substTerm term = normaliseStatic term >>= \ term ->
       C.TLam <$>
         local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
           (substTerm $ I.unAbs ab)
-    I.Lit l -> return $ C.TLit (fmap (\ _ -> __IMPOSSIBLE__) l) -- Should be impossible
+    I.Lit (LitTerm _ q) -> substTerm =<< lift (quoteTerm $ quotedTerm q)
+    I.Lit l -> return $ C.TLit (fmap (\ _ -> __IMPOSSIBLE__) l)
     I.Level _ -> return C.TUnit
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es

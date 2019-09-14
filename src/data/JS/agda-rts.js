@@ -11,6 +11,9 @@ exports.primIntegerFromString = function(x) {
 exports.primShowInteger = function(x) {
   return x.toString();
 };
+exports.primShowNat = function(x) {
+  return x.toString();
+};
 
 exports.uprimIntegerPlus = function(x,y) {
   return x.add(y);
