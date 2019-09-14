@@ -9,11 +9,13 @@ module Agda.TypeChecking.Monad.Builtin.ConstructorForm
   , quotedTermConstructorFormM
   ) where
 
+import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Void
 
@@ -60,80 +62,21 @@ constructorForm' pZero pSuc v =
     _ -> pure v
 
 data QuotedTermKit = QuotedTermKit
-  { qkitCurrentFile                           :: AbsolutePath
-  , qkitLevels                                :: LevelKit
-  , qkitState                                 :: TCState
-  , qkitEnv                                   :: TCEnv
-  , qkitHidden, qkitInstance, qkitVisible
-  , qkitRelevant, qkitIrrelevant
-  , qkitArg, qkitAbs, qkitArgInfo
-  , qkitNil, qkitCons
-  , qkitVar, qkitDef, qkitCon, qkitMeta
-  , qkitLam, qkitPatLam, qkitPi, qkitSort
-  , qkitLit, qkitUnknown
-  , qkitSortSet, qkitSortLit, qkitSortUnknown
-  , qkitVarP, qkitConP, qkitLitP, qkitProjP
-  , qkitDotP, qkitAbsurdP
-  , qkitLitNat, qkitLitWord64
-  , qkitLitFloat, qkitLitChar
-  , qkitLitString, qkitLitQName, qkitLitMeta
-  , qkitClause, qkitAbsurdClause              :: Term
+  { qkitState :: TCState
+  , qkitEnv   :: TCEnv
   }
 
-getQuotedTermKit :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m (Maybe QuotedTermKit)
-getQuotedTermKit = runMaybeT $ do
-  qkitCurrentFile  <- fromMaybe __IMPOSSIBLE__ <$> asksTC envCurrentPath
-  qkitState        <- lift getTCState
-  qkitEnv          <- lift askTC
-  qkitLevels       <- MaybeT builtinLevelKit'
-  qkitHidden       <- getB builtinHidden
-  qkitInstance     <- getB builtinInstance
-  qkitVisible      <- getB builtinVisible
-  qkitRelevant     <- getB builtinRelevant
-  qkitIrrelevant   <- getB builtinIrrelevant
-  qkitArg          <- getB builtinArgArg
-  qkitArgInfo      <- getB builtinArgArgInfo
-  qkitAbs          <- getB builtinAbsAbs
-  qkitNil          <- getB builtinNil
-  qkitCons         <- getB builtinCons
-  qkitVar          <- getB builtinAgdaTermVar
-  qkitDef          <- getB builtinAgdaTermDef
-  qkitCon          <- getB builtinAgdaTermCon
-  qkitMeta         <- getB builtinAgdaTermMeta
-  qkitLam          <- getB builtinAgdaTermLam
-  qkitPatLam       <- getB builtinAgdaTermExtLam
-  qkitPi           <- getB builtinAgdaTermPi
-  qkitSort         <- getB builtinAgdaTermSort
-  qkitLit          <- getB builtinAgdaTermLit
-  qkitUnknown      <- getB builtinAgdaTermUnsupported
-  qkitSortLit      <- getB builtinAgdaSortLit
-  qkitSortSet      <- getB builtinAgdaSortSet
-  qkitSortUnknown  <- getB builtinAgdaSortUnsupported
-  qkitVarP         <- getB builtinAgdaPatVar
-  qkitConP         <- getB builtinAgdaPatCon
-  qkitLitP         <- getB builtinAgdaPatLit
-  qkitProjP        <- getB builtinAgdaPatProj
-  qkitDotP         <- getB builtinAgdaPatDot
-  qkitAbsurdP      <- getB builtinAgdaPatAbsurd
-  qkitLitNat       <- getB builtinAgdaLitNat
-  qkitLitWord64    <- getB builtinAgdaLitWord64
-  qkitLitFloat     <- getB builtinAgdaLitFloat
-  qkitLitChar      <- getB builtinAgdaLitChar
-  qkitLitString    <- getB builtinAgdaLitString
-  qkitLitQName     <- getB builtinAgdaLitQName
-  qkitLitMeta      <- getB builtinAgdaLitMeta
-  qkitClause       <- getB builtinAgdaClauseClause
-  qkitAbsurdClause <- getB builtinAgdaClauseAbsurd
+getQuotedTermKit :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m QuotedTermKit
+getQuotedTermKit = do
+  qkitState <- getTCState
+  qkitEnv   <- askTC
   pure QuotedTermKit{..}
-  where
-    getB b = MaybeT $ getBuiltin' b
 
 -- | Do one level of quoting, revealing the top-level reflected constructor.
 quotedTermConstructorFormM :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => QuotedTerm -> m Term
-quotedTermConstructorFormM q =
-  caseMaybeM getQuotedTermKit
-             __IMPOSSIBLE__ $ \ kit ->
-    pure $ quotedTermConstructorForm kit q
+quotedTermConstructorFormM q = do
+  kit <- getQuotedTermKit
+  pure $ quotedTermConstructorForm kit q
 
 newtype QuoteKitM a = QuoteKitM { unQuoteKitM :: Reader QuotedTermKit a }
   deriving (Functor, Applicative, Monad)
@@ -146,11 +89,59 @@ instance MonadTCEnv QuoteKitM where
   askTC = QuoteKitM $ asks qkitEnv
   localTC f (QuoteKitM m) = QuoteKitM $ local (\ q -> q { qkitEnv = f (qkitEnv q) }) m
 
+instance HasBuiltins QuoteKitM where
+  getBuiltinThing b = do
+    st <- getTCState
+    return $ Map.lookup b $ Map.union (st ^. stLocalBuiltins) (st ^. stImportedBuiltins)
+
 quotedTermConstructorForm :: QuotedTermKit -> QuotedTerm -> Term
 quotedTermConstructorForm kit@QuotedTermKit{..} q = quoteTerm (quotedTerm q)
   where
     runQ :: QuoteKitM a -> a
     runQ m = runReader (unQuoteKitM m) kit
+
+    getB b = fromMaybe __IMPOSSIBLE__ $ runQ (getBuiltin' b)
+
+    Just qkitCurrentFile = runQ $ asksTC envCurrentPath
+    Just qkitLevels  = runQ builtinLevelKit'
+    qkitHidden       = getB builtinHidden
+    qkitInstance     = getB builtinInstance
+    qkitVisible      = getB builtinVisible
+    qkitRelevant     = getB builtinRelevant
+    qkitIrrelevant   = getB builtinIrrelevant
+    qkitArg          = getB builtinArgArg
+    qkitArgInfo      = getB builtinArgArgInfo
+    qkitAbs          = getB builtinAbsAbs
+    qkitNil          = getB builtinNil
+    qkitCons         = getB builtinCons
+    qkitVar          = getB builtinAgdaTermVar
+    qkitDef          = getB builtinAgdaTermDef
+    qkitCon          = getB builtinAgdaTermCon
+    qkitMeta         = getB builtinAgdaTermMeta
+    qkitLam          = getB builtinAgdaTermLam
+    qkitPatLam       = getB builtinAgdaTermExtLam
+    qkitPi           = getB builtinAgdaTermPi
+    qkitSort         = getB builtinAgdaTermSort
+    qkitLit          = getB builtinAgdaTermLit
+    qkitUnknown      = getB builtinAgdaTermUnsupported
+    qkitSortLit      = getB builtinAgdaSortLit
+    qkitSortSet      = getB builtinAgdaSortSet
+    qkitSortUnknown  = getB builtinAgdaSortUnsupported
+    qkitVarP         = getB builtinAgdaPatVar
+    qkitConP         = getB builtinAgdaPatCon
+    qkitLitP         = getB builtinAgdaPatLit
+    qkitProjP        = getB builtinAgdaPatProj
+    qkitDotP         = getB builtinAgdaPatDot
+    qkitAbsurdP      = getB builtinAgdaPatAbsurd
+    qkitLitNat       = getB builtinAgdaLitNat
+    qkitLitWord64    = getB builtinAgdaLitWord64
+    qkitLitFloat     = getB builtinAgdaLitFloat
+    qkitLitChar      = getB builtinAgdaLitChar
+    qkitLitString    = getB builtinAgdaLitString
+    qkitLitQName     = getB builtinAgdaLitQName
+    qkitLitMeta      = getB builtinAgdaLitMeta
+    qkitClause       = getB builtinAgdaClauseClause
+    qkitAbsurdClause = getB builtinAgdaClauseAbsurd
 
     constInfo = flip HMap.lookup defs
       where

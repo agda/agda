@@ -769,7 +769,7 @@ unusedPointer = Pure (Closure (Value $ notBlocked ())
 --   'getConstInfo' function, a couple of flags (allow non-terminating function unfolding, and
 --   whether rewriting is enabled), and a term to reduce. The result is the weak-head normal form of
 --   the term with an attached blocking tag.
-reduceTm :: ReduceEnv -> BuiltinEnv -> Maybe QuotedTermKit -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
+reduceTm :: ReduceEnv -> BuiltinEnv -> QuotedTermKit -> (QName -> CompactDef) -> Normalisation -> ReductionFlags -> Term -> Blocked Term
 reduceTm rEnv bEnv qkit !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc "-- fast reduce --"
   where
@@ -784,12 +784,8 @@ reduceTm rEnv bEnv qkit !constInfo normalisation ReductionFlags{..} =
     callByNeed     = envCallByNeed (redEnv rEnv)
     iview          = runReduce intervalView'
 
-    constrForm =
-      case qkit of
-        Nothing  -> id
-        Just kit -> \ case
-          Lit (LitTerm _ q) -> quotedTermConstructorForm kit q
-          t                 -> t
+    constrForm (Lit (LitTerm _ q)) = quotedTermConstructorForm qkit q
+    constrForm t                   = t
 
     runReduce :: ReduceM a -> a
     runReduce m = unReduceM m rEnv
