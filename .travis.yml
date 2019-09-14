@@ -67,6 +67,7 @@ git:
 # Travis runs the builds on this order.
 
 stages:
+  - name: sanity-check
   - name: stackage
     if: NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
@@ -86,6 +87,21 @@ jobs:
   ##############################################################################
   # Stackage stage
   #
+    - stage: sanity-check
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - export PATH=$HOME/.cabal/bin:$PATH
+      script:
+        make check-whitespace
+
     - &no-test-job
       stage: stackage
       env: GHC_VER=8.6.5

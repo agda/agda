@@ -648,7 +648,7 @@ UnnamedWithExprs :: { [Expr] }
 UnnamedWithExprs
   : WithExprs {% case mapM isUnnamed $1 of
                    Nothing -> parseError "cannot name expression in |-alternative"
-		   Just es -> pure es
+                   Just es -> pure es
               }
 
 Application :: { [Expr] }
