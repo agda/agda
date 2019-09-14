@@ -23,7 +23,6 @@ data Foo (A : Set) : Set where
 ok : Foo Nat
 ok = unquote (give (quoteTerm (foo {Nat})))
 
--- This shouldn't type-check. The term `bad` is type-checked because
--- the implicit argument of `foo` is missing when using quoteTerm.
+-- This shouldn't type-check.
 bad : Foo Bool
 bad = unquote (give (quoteTerm (foo {Nat})))

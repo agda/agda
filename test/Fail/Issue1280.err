@@ -1,0 +1,3 @@
+Issue1280.agda:28,7-45
+Nat !=< Bool of type Set
+when checking that the expression foo has type Foo Bool
