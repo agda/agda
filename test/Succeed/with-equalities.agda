@@ -21,6 +21,10 @@ data ⊥ : Set where
 ⊥-elim : ⊥ → {A : Set} → A
 ⊥-elim ()
 
+¬odd0 : ∀ n → 0 ≡ 2 * n + 1 → ⊥
+¬odd0 zero    ()
+¬odd0 (suc n) ()
+
 data Vec (A : Set) : Nat → Set where
   []  : Vec A 0
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
@@ -46,13 +50,15 @@ module _ {A : Set} where
     -- If only we had somehow recorded that `p ← (2 * n + 1)` happened!
     -- This is what the inspect construct allows us to do.
 
-     with eq .. p ← (2 * n + 1) | xs
+    with eq .. p ← (2 * n + 1) | xs
   ... | x ∷ _ = x
   -- we can now use this equality proof to dismiss the impossible case.
   ... | []    = ⊥-elim (¬odd0 n eq)
 
-    where
+  -- If you do not want to name the nat corresponding to `2 * n + 1`,
+  -- you can use inspect together with an implicit with
 
-      ¬odd0 : ∀ n → 0 ≡ 2 * n + 1 → ⊥
-      ¬odd0 zero    ()
-      ¬odd0 (suc n) ()
+  oddhead' : ∀ {n} → Vec A (2 * n + 1) → A
+  oddhead' {n} xs with eq .. {2 * n + 1} | xs
+  ... | x ∷ _ = x
+  ... | []    = ⊥-elim (¬odd0 n eq)

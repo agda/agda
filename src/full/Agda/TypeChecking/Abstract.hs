@@ -68,8 +68,8 @@ piAbstract (WithHiding h (v, IdiomType a)) b = do
     sort <- inferSort eq
     pure $ El sort eq
 
-  pure $ mkPi (setHiding h      $ defaultDom ("w", a))
-       $ mkPi (setHiding Hidden $ defaultDom ("eq", eq))
+  pure $ mkPi (setHiding h         $ defaultDom ("w", a))
+       $ mkPi (setHiding NotHidden $ defaultDom ("eq", eq))
          b
 piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- inferSort a

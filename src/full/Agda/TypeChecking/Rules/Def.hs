@@ -408,16 +408,50 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
   return $ def { theDef = fun { funTerminates = terminates }}
 useTerPragma def = return def
 
--- | Insert some with-patterns into the with-clauses LHS of the given RHS.
--- (Used for @rewrite@.)
-insertPatterns :: [WithHiding A.Pattern] -> A.RHS -> A.RHS
-insertPatterns pats = \case
+-- | Modify all the LHSCore of the given RHS.
+-- (Used to insert patterns for @rewrite@ or the inspect idiom)
+mapLHSCores :: (A.LHSCore -> A.LHSCore) -> (A.RHS -> A.RHS)
+mapLHSCores f = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
-       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
-  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (insertPatterns pats rhs) wh
+    \ (A.Clause (A.LHS info core)     spats rhs                 ds catchall) ->
+       A.Clause (A.LHS info (f core)) spats (mapLHSCores f rhs) ds catchall
+  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (mapLHSCores f rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
+
+-- | Insert some names into the with-clauses LHS of the given RHS.
+-- (Used for the inspect idiom)
+insertNames :: [WithHiding (Maybe A.BindName)] -> A.RHS -> A.RHS
+insertNames = mapLHSCores . insertInspects
+
+insertInspects :: [WithHiding (Maybe A.BindName)] -> A.LHSCore -> A.LHSCore
+insertInspects ps = \case
+  A.LHSWith core wps [] ->
+    let ps' = map (fmap $ fmap patOfName) ps in
+    A.LHSWith core (insertIn ps' wps) []
+  _ -> __IMPOSSIBLE__
+
+  where
+
+    patOfName :: A.BindName -> WithHiding A.Pattern
+    patOfName = WithHiding NotHidden . A.VarP
+
+    insertIn :: [WithHiding (Maybe (WithHiding a))]
+             -> [WithHiding a] -> [WithHiding a]
+    insertIn []                                   wps  = wps
+    insertIn (WithHiding NotHidden  nm : ps) (w : wps) =
+      w : (maybe [] pure nm) ++ insertIn ps wps
+    insertIn (WithHiding Hidden     nm : ps)      wps  =
+          (maybe [] pure nm) ++ insertIn ps wps
+    insertIn (WithHiding Instance{} nm : ps)      wps  =
+          (maybe [] pure nm) ++ insertIn ps wps
+    insertIn _ _ = __IMPOSSIBLE__
+
+
+-- | Insert some with-patterns into the with-clauses LHS of the given RHS.
+-- (Used for @rewrite@)
+insertPatterns :: [WithHiding A.Pattern] -> A.RHS -> A.RHS
+insertPatterns pats = mapLHSCores (insertPatternsLHSCore pats)
 
 -- | Insert with-patterns before the trailing with patterns.
 -- If there are none, append the with-patterns.
@@ -737,7 +771,8 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     return (Nothing, NoWithFunction)
 
   -- With case: @f xs with eqa : {a} | eqb : b | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
-  -- This function is around @checkWithRHS@
+  -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
+  -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
   withRHS :: QName        -- ^ name of the with-function
           -> [A.WithExpr] -- ^ @[eqa : {a}, eqb : b, {{c}}, ...]@
           -> [A.Clause]   -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
@@ -762,6 +797,12 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       pure $ WithHiding h . (e,) $ case nm of
         Nothing -> OtherType ty
         Just{}  -> IdiomType ty
+
+    let names = map (\ (Named nm (WithHiding h _)) -> WithHiding h nm) es
+    cs <- forM cs $ \ c@(A.Clause (A.LHS i core) eqs rhs wh b) -> do
+      let rhs'  = insertNames    names rhs
+      let core' = insertInspects names core
+      pure $ A.Clause (A.LHS i core') eqs rhs' wh b
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
@@ -799,9 +840,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           Nothing -> OtherType ty
           Just{}  -> IdiomType ty
 
-      let pats = concat $ for npats $ \ (Named nm p) -> case nm of
-            Nothing -> [WithHiding NotHidden p]
-            Just n  -> [WithHiding NotHidden p, WithHiding Hidden (A.VarP n)]
+      let pats = concatMap (map $ WithHiding NotHidden) $
+            for npats $ \ (Named nm p) -> case nm of
+              Nothing -> [p]
+              Just n  -> [p, A.VarP n]
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
       -- in case the with-expression contains size metas.

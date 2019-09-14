@@ -2203,7 +2203,7 @@ instance ToAbstract C.Clause A.Clause where
     eqs <- mapM (toAbstractCtx TopCtx) eqs
     vars2 <- getLocalVars
     let vars = dropEnd (length vars1) vars2 ++ vars0
-    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
+    let wcs' = (vars, wcs)
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
           -- Andreas, 2016-07-17 issues #2081 and #2101
@@ -2275,7 +2275,7 @@ data RightHandSide = RightHandSide
     -- ^ @rewrite e | with p <- e@ (many)
   , _rhsWithExpr   :: [C.WithExpr]
     -- ^ @with e@ (many)
-  , _rhsSubclauses :: [ScopeM C.Clause]
+  , _rhsSubclauses :: (LocalVars, [C.Clause])
     -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , _rhs           :: C.RHS
   , _rhsWhereName  :: Maybe (C.Name, Access)
@@ -2350,19 +2350,23 @@ instance ToAbstract RightHandSide AbstractRHS where
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
-  toAbstract (RightHandSide [] [] (_ : _) _ _ _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _ _) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs _ [])          = toAbstract rhs
-  toAbstract (RightHandSide [] nes cs C.AbsurdRHS _ []) = do
+  toAbstract (RightHandSide [] []    (_  , _:_) _          _ _)  = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _ _)  = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] []    (_  , []) rhs         _ []) = toAbstract rhs
+  toAbstract (RightHandSide [] nes   (lv , cs) C.AbsurdRHS _ []) = do
     let (ns , es) = unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) nes
     es <- toAbstractCtx TopCtx es
+    lvars0 <- getLocalVars
     ns <- toAbstract ns
+    lvars1 <- getLocalVars
+    let lv' = dropEnd (length lvars0) lvars1 ++ lv
+    let cs' = for cs $ \ c -> setLocalVars lv' $> c
     let nes = zipWith Named ns es
-    return $ WithRHS' nes cs
+    return $ WithRHS' nes cs'
   -- TODO: some of these might be possible
-  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] (C.RHS _) _ (_ : _))       = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] C.AbsurdRHS _ (_ : _))     = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _       C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []      (_, []) (C.RHS _)   _ (_ : _)) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []      (_, []) C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
