@@ -966,7 +966,8 @@ assignMeta' m x t n ids v = do
     -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
     -- we equate the sort of the solution with the sort of the
     -- metavariable, in order to solve metavariables in sorts.
-    unlessM (optCompareSorts <$> pragmaOptions) $ case unEl a of
+    whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
+           (optCumulativity <$> pragmaOptions)) $ case unEl a of
       Sort s -> addContext tel' $ do
         reportSDoc "tc.meta.assign" 40 $
           "Instantiating sort" <+> prettyTCM s <+>
@@ -986,8 +987,7 @@ assignMeta' m x t n ids v = do
     let vsol = abstract tel' v'
 
     -- Andreas, 2013-10-25 double check solution before assigning
-    whenM ((optDoubleCheck  <$> pragmaOptions) `or2M`
-           (optCumulativity <$> pragmaOptions)) $ do
+    whenM (optDoubleCheck  <$> pragmaOptions) $ do
       m <- lookupMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
