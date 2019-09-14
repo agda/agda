@@ -10,12 +10,6 @@ dist: trusty
 # Explicitly request sudo-enabled virtual environments [Issue #1992].
 sudo: required
 
-cache:
-  directories:
-    - $HOME/.cabal/store
-    - $HOME/.stack
-    # TODO: Experimental
-    - $TRAVIS_BUILD_DIR/.stack-work
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
@@ -32,7 +26,6 @@ branches:
     - release-2.6.0.1
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
-    - windows-travis
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
@@ -99,13 +92,21 @@ jobs:
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
         - export PATH=$HOME/.cabal/bin:$PATH
-        - travis_retry cabal update
+        - travis_retry cabal v1-update
       script:
-        make check-whitespace
+        - if [ ! -f "$HOME/.cabal/bin/fix-agda-whitespace" ]; then
+            cd src/fix-agda-whitespace/;
+            cabal -v0 v1-install;
+            cd ${TRAVIS_BUILD_DIR};
+          fi
+        - fix-agda-whitespace --check
 
     - &no-test-job
       stage: stackage
       env: GHC_VER=8.6.5
+      cache:
+        directories:
+          - $HOME/.stack
       addons:
         apt:
           packages:
@@ -204,9 +205,9 @@ jobs:
         - export AGDA_HOME=`pwd`
       install:
         # use stack to install alex, happy, and shelltestrunner
-        - mkdir -p ~/.local/bin
-        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - stack install --system-ghc --no-terminal --resolver ghc-${GHC_VER} alex happy
+        #        - mkdir -p ~/.local/bin
+        #        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        #        - stack install --system-ghc --no-terminal --compiler ghc-${GHC_VER} alex happy
         - .travis/cabal_install
       ##############################################################################
       script:
