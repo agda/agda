@@ -285,7 +285,7 @@ checkTypeCheckingProblem p = case p of
   CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt ->
     checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
-  DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
+  DoQuoteTerm cmp et ety t         -> doQuoteTerm cmp et ety t
 
 debugConstraints :: TCM ()
 debugConstraints = verboseS "tc.constr" 50 $ do

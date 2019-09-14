@@ -378,7 +378,7 @@ instance PrettyTCM TypeCheckingProblem where
           ":?"
         , prettyTCM t
         ]
-  prettyTCM (DoQuoteTerm _ v _) = do
+  prettyTCM (DoQuoteTerm _ v _ _) = do
     e <- reify v
     prettyTCM (A.App A.defaultAppInfo_ (A.QuoteTerm A.exprNoRange) (defaultNamedArg e))
 

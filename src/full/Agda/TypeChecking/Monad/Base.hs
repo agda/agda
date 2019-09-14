@@ -1234,7 +1234,7 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
-  | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
+  | DoQuoteTerm Comparison Term Type Type -- ^ Quote the given term (of given type) and check second type against `Term`
 
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"

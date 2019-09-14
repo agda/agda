@@ -1051,8 +1051,8 @@ checkExpr' cmp e t0 =
           coerce cmp (quoteName x) ty t
 
           | A.QuoteTerm _ <- unScope q -> do
-             (et, _) <- inferExpr (namedThing e)
-             doQuoteTerm cmp et t
+             (et, ety) <- inferExpr (namedThing e)
+             doQuoteTerm cmp et ety t
 
         A.Quote{}     -> genericError "quote must be applied to a defined name"
         A.QuoteTerm{} -> genericError "quoteTerm must be applied to a term"
@@ -1237,15 +1237,15 @@ checkExpr' cmp e t0 =
 -- * Reflection
 ---------------------------------------------------------------------------
 
-doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
-doQuoteTerm cmp et t = do
+doQuoteTerm :: Comparison -> Term -> Type -> Type -> TCM Term
+doQuoteTerm cmp et ety t = do
   et'       <- etaContract =<< instantiateFull et
   case allMetasList et' of
     []  -> do
-      q  <- quoteTerm et'
+      q  <- makeQuotedTerm ety et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et ety t) $ andM $ map isInstantiatedMeta metas
 
 -- | Checking `quoteGoal` (deprecated)
 quoteGoal :: Type -> TCM (Either [MetaId] Term)

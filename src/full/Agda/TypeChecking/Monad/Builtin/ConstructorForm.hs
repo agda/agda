@@ -302,4 +302,3 @@ quotedTermConstructorForm kit@QuotedTermKit{..} q = quoteTerm (quotedTerm q)
     quoted :: Term -> Term
     quoted v = Lit $ LitTerm noRange $ QuotedTerm Nothing v Nothing
 
-
