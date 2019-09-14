@@ -1,6 +1,8 @@
 
 module Agda.TypeChecking.Level where
 
+import Control.Monad.Fail (MonadFail)
+
 import Data.Maybe
 import qualified Data.List as List
 import Data.Traversable (traverse)
@@ -25,7 +27,7 @@ levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc
 
 -- | Raises an error if no level kit is available.
-requireLevels :: HasBuiltins m => m LevelKit
+requireLevels :: (MonadFail m, HasBuiltins m) => m LevelKit
 requireLevels = builtinLevelKit
 
 -- | Checks whether level kit is fully available.
@@ -43,13 +45,13 @@ haveLevels = caseMaybeM (allJustM $ map getBuiltin' levelBuiltins)
 
 {-# SPECIALIZE unLevel :: Term -> TCM Term #-}
 {-# SPECIALIZE unLevel :: Term -> ReduceM Term #-}
-unLevel :: (HasBuiltins m) => Term -> m Term
+unLevel :: (MonadFail m, HasBuiltins m) => Term -> m Term
 unLevel (Level l)  = reallyUnLevelView l
 unLevel v = return v
 
 {-# SPECIALIZE reallyUnLevelView :: Level -> TCM Term #-}
 {-# SPECIALIZE reallyUnLevelView :: Level -> ReduceM Term #-}
-reallyUnLevelView :: (HasBuiltins m) => Level -> m Term
+reallyUnLevelView :: (MonadFail m, HasBuiltins m) => Level -> m Term
 reallyUnLevelView nv = do
   suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
   zer <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero

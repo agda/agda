@@ -60,7 +60,7 @@ hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
 
-pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
+pPi' :: (MonadFail m, MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl isOne <@> phi) b
  where
@@ -193,7 +193,7 @@ data SigmaKit = SigmaKit
   }
   deriving (Eq,Show)
 
-getSigmaKit :: (HasBuiltins m, HasConstInfo m) => m (Maybe SigmaKit)
+getSigmaKit :: (MonadFail m, HasBuiltins m, HasConstInfo m) => m (Maybe SigmaKit)
 getSigmaKit = do
   ms <- getBuiltinName' builtinSigma
   case ms of

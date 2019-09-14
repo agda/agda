@@ -11,6 +11,7 @@ import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
 import qualified Control.Monad.Fail as Fail
+import Control.Monad.Fail (MonadFail)
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -3527,7 +3528,7 @@ instance Monad ReduceM where
   fail = Fail.fail
 #endif
 
-instance Fail.MonadFail ReduceM where
+instance MonadFail ReduceM where
   fail = error
 
 instance ReadTCState ReduceM where
@@ -3574,7 +3575,7 @@ instance HasOptions ReduceM where
     cl <- stPersistentOptions . stPersistentState <$> getTCState
     return $ cl{ optPragmaOptions = p }
 
-class ( Applicative m
+class ( MonadFail m
       , MonadTCEnv m
       , ReadTCState m
       , HasOptions m
@@ -3810,7 +3811,7 @@ instance MonadIO m => Monad (TCMT m) where
     fail   = Fail.fail
 #endif
 
-instance MonadIO m => Fail.MonadFail (TCMT m) where
+instance MonadIO m => MonadFail (TCMT m) where
   fail = internalError
 
 instance MonadIO m => MonadIO (TCMT m) where

@@ -4,8 +4,8 @@
 
 module Agda.TypeChecking.Reduce where
 
-import Prelude hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Fail (MonadFail)
+import Control.Monad.Reader
 
 import Data.List ((\\))
 import Data.Maybe
@@ -247,7 +247,7 @@ instance Instantiate EqualityView where
 ---------------------------------------------------------------------------
 
 class IsMeta a where
-  isMeta :: HasBuiltins m => a -> m (Maybe MetaId)
+  isMeta :: (MonadFail m, HasBuiltins m) => a -> m (Maybe MetaId)
 
 instance IsMeta Term where
   isMeta (MetaV m _) = return $ Just m

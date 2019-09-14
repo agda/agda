@@ -50,6 +50,7 @@ module Agda.TypeChecking.SizedTypes.Solve where
 
 import Prelude hiding (null)
 
+import Control.Monad.Fail (MonadFail)
 import Control.Monad hiding (forM, forM_)
 import Control.Monad.Trans.Maybe
 
@@ -784,7 +785,7 @@ sizeExpr u = do
       _        -> Nothing
 
 -- | Turn a de size expression into a term.
-unSizeExpr :: HasBuiltins m => DBSizeExpr -> m Term
+unSizeExpr :: (MonadFail m, HasBuiltins m) => DBSizeExpr -> m Term
 unSizeExpr a =
   case a of
     Infty         -> fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf

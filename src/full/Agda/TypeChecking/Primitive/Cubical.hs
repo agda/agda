@@ -5,6 +5,7 @@ module Agda.TypeChecking.Primitive.Cubical where
 import Prelude hiding (null, (!!))
 
 import Control.Monad
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Trans ( lift )
 
 import Data.Either ( partitionEithers )
@@ -410,7 +411,8 @@ instance Reduce a => Reduce (FamilyOrNot a) where
 --
 -- The point of this is that gcomp does not produce any empty
 -- systems (if phi = 0 it will reduce to "forward A 0 u".
-mkGComp :: HasBuiltins m => String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkGComp :: (MonadFail m, HasBuiltins m) =>
+           String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
 mkGComp s = do
   let getTermLocal = getTerm s
   tPOr <- getTermLocal "primPOr"

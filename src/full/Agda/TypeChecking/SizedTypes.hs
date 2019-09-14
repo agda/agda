@@ -4,6 +4,7 @@ module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Writer
 
 import qualified Data.Foldable as Fold
@@ -189,7 +190,8 @@ isBounded i = do
 --   expressing the bound.
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
 boundedSizeMetaHook
-  :: ( MonadConstraint m
+  :: ( MonadFail m
+     , MonadConstraint m
      , MonadTCEnv m
      , ReadTCState m
      , MonadAddContext m

@@ -4,7 +4,7 @@ module Agda.TypeChecking.Monad.Builtin
   , module Agda.Syntax.Builtin  -- The names are defined here.
   ) where
 
-import qualified Control.Monad.Fail as Fail
+import Control.Monad.Fail (MonadFail)
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -34,10 +34,7 @@ import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
-class ( Functor m
-      , Applicative m
-      , Fail.MonadFail m
-      ) => HasBuiltins m where
+class Monad m => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
 instance HasBuiltins m => HasBuiltins (MaybeT m) where
@@ -160,22 +157,10 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
-builtinLevelKit :: HasBuiltins m => m LevelKit
+builtinLevelKit :: (MonadFail m, HasBuiltins m) => m LevelKit
 builtinLevelKit = do
-    level@(Def l []) <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
-    zero@(Def z [])  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
-    suc@(Def s [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
-    max@(Def m [])   <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
-    return $ LevelKit
-      { lvlType  = level
-      , lvlSuc   = \ a -> suc `apply1` a
-      , lvlMax   = \ a b -> max `applys` [a, b]
-      , lvlZero  = zero
-      , typeName = l
-      , sucName  = s
-      , maxName  = m
-      , zeroName = z
-      }
+  Just kit <- builtinLevelKit'
+  return kit
 
 builtinLevelKit' :: HasBuiltins m => m (Maybe LevelKit)
 builtinLevelKit' = runMaybeT $ do

@@ -5,6 +5,7 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
+import Control.Monad.Fail (MonadFail)
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
@@ -148,7 +149,7 @@ sizeSucName = do
       Just (Def x []) -> return $ Just x
       _               -> return Nothing
 
-sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
+sizeSuc :: (MonadFail m, HasBuiltins m) => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
@@ -161,7 +162,7 @@ sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
-sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+sizeMax :: (MonadFail m, HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
         => NonemptyList Term -> m Term
 sizeMax vs = case vs of
   v :! [] -> return v
@@ -178,7 +179,7 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+sizeView :: (MonadFail m, HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
          => Term -> m SizeView
 sizeView v = do
   Def inf [] <- primSizeInf
@@ -259,7 +260,7 @@ unSizeView SizeInf       = primSizeInf
 unSizeView (SizeSuc v)   = sizeSuc 1 v
 unSizeView (OtherSize v) = return v
 
-unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+unDeepSizeView :: (MonadFail m, HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                => DeepSizeView -> m Term
 unDeepSizeView v = case v of
   DSizeInf         -> primSizeInf
@@ -303,6 +304,6 @@ sizeViewComparableWithMax v (w :! ws) =
 maxViewSuc_ :: QName -> SizeMaxView -> SizeMaxView
 maxViewSuc_ suc = fmap (sizeViewSuc_ suc)
 
-unMaxView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+unMaxView :: (MonadFail m, HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
           => SizeMaxView -> m Term
 unMaxView vs = sizeMax =<< Trav.mapM unDeepSizeView vs
