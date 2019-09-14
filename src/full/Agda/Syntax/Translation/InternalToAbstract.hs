@@ -915,12 +915,11 @@ class BlankVars a where
   default blank :: (Functor f, BlankVars b, f b ~ a) => Set Name -> a -> a
   blank = fmap . blank
 
-instance BlankVars a => BlankVars (Arg a)
-instance BlankVars a => BlankVars (Named s a)
-instance BlankVars a => BlankVars [a]
+instance BlankVars a => BlankVars (Arg a)              where
+instance BlankVars a => BlankVars (Named s a)          where
+instance BlankVars a => BlankVars [a]                  where
 -- instance BlankVars a => BlankVars (A.Pattern' a)       where  -- see case EqualP !
-instance BlankVars a => BlankVars (FieldAssignment' a)
-instance BlankVars a => BlankVars (WithHiding a)
+instance BlankVars a => BlankVars (FieldAssignment' a) where
 
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
@@ -1073,12 +1072,11 @@ instance Binder LetBinding where
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
 
-instance Binder a => Binder (FieldAssignment' a)
-instance Binder a => Binder (Arg a)
-instance Binder a => Binder (Named x a)
-instance Binder a => Binder [a]
-instance Binder a => Binder (Maybe a)
-instance Binder a => Binder (WithHiding a)
+instance Binder a => Binder (FieldAssignment' a) where
+instance Binder a => Binder (Arg a)              where
+instance Binder a => Binder (Named x a)          where
+instance Binder a => Binder [a]                  where
+instance Binder a => Binder (Maybe a)            where
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y

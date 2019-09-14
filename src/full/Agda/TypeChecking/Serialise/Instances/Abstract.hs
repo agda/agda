@@ -115,13 +115,11 @@ instance EmbPrj BindingSource where
   icod_ LambdaBound   = icodeN' LambdaBound
   icod_ PatternBound  = icodeN 1 PatternBound
   icod_ LetBound      = icodeN 2 LetBound
-  icod_ WithBound     = icodeN 3 WithBound
 
   value = vcase valu where
     valu []  = valuN LambdaBound
     valu [1] = valuN PatternBound
     valu [2] = valuN LetBound
-    valu [3] = valuN WithBound
     valu _   = malformed
 
 instance EmbPrj LocalVar where
