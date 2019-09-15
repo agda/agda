@@ -51,6 +51,7 @@ instance MentionsMeta Sort where
     Type l     -> mentionsMetas xs l
     Prop l     -> mentionsMetas xs l
     Inf _      -> False
+    SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
     PiSort a s -> mentionsMetas xs (a, s)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)

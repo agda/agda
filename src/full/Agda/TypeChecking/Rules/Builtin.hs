@@ -318,6 +318,7 @@ coreBuiltins =
   , (builtinSet                              |-> BuiltinSort "primSet")
   , (builtinProp                             |-> BuiltinSort "primProp")
   , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
+  , (builtinStrictSet                        |-> BuiltinPrim "primStrictSet" (const $ return ()))
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))

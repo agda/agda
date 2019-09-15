@@ -313,6 +313,7 @@ instance Reduce Sort where
         Prop s'    -> Prop <$> reduce' s'
         Type s'    -> Type <$> reduce' s'
         Inf n      -> return $ Inf n
+        SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
@@ -907,6 +908,7 @@ instance Simplify Sort where
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
         Inf _      -> return s
+        SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1059,6 +1061,7 @@ instance Normalise Sort where
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
         Inf _      -> return s
+        SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1265,6 +1268,7 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
+            SSet n     -> SSet <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s

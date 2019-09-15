@@ -626,6 +626,13 @@ mkPrimSetOmega = do
   let t = sort $ Inf 1
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
 
+mkPrimStrictSet :: TCM PrimitiveImpl
+mkPrimStrictSet = do
+  t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ NeutralLevel mempty $ var 0])
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
+    l <- levelView' $ unArg a
+    redReturn $ Sort $ SSet l
+
 mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -774,6 +781,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
 
   -- Sorts
   , "primSetOmega"        |-> mkPrimSetOmega
+  , "primStrictSet"       |-> mkPrimStrictSet
 
   -- Floating point functions
   , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)

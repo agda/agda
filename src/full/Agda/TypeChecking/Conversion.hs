@@ -1212,6 +1212,9 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- Likewise for @Prop@
       (Prop a  , Prop b  ) -> leqLevel a b
 
+      -- Likewise for @SSet@
+      (SSet a  , SSet b  ) -> leqLevel a b
+
       -- @Prop l@ is below @Set l@
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
@@ -1225,6 +1228,18 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (Inf _   , Type{}  ) -> if typeInTypeEnabled then yes else no
       (Inf _   , Prop{}  ) -> no
 
+      -- @Set l@ is below @SSet l@
+      (Type a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Type b  ) -> no
+
+      -- @Prop l@ is below @SSet l@
+      (Prop a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Prop b  ) -> no
+
+      -- @Setω@ and @SSet@ are unrelated (?)
+      (Inf{}   , SSet{}  ) -> no
+      (SSet{}  , Inf{}   ) -> no
+
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , SizeUniv) -> equalSort s1 s2
@@ -1236,6 +1251,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
+      (SizeUniv, SSet{}  ) -> no
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
@@ -1603,6 +1619,7 @@ equalSort s1 s2 = do
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf m      , Inf n      ) ->
               if m == n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
+            (SSet a     , SSet b     ) -> equalLevel a b
 
             -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
             (Type{}     , Inf{}      )

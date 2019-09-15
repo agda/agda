@@ -29,7 +29,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
-  builtinSet, builtinProp, builtinSetOmega,
+  builtinSet, builtinProp, builtinSetOmega, builtinStrictSet,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported,
@@ -152,6 +152,7 @@ builtinLevelSuc                          = "LEVELSUC"
 builtinSet                               = "TYPE"
 builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
+builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"
 builtinFromNeg                           = "FROMNEG"
 builtinFromString                        = "FROMSTRING"
@@ -281,6 +282,7 @@ builtinsNoDef =
   , builtinSet
   , builtinProp
   , builtinSetOmega
+  , builtinStrictSet
   ]
 
 sizeBuiltins :: [String]

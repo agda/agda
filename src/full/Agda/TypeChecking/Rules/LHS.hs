@@ -1185,7 +1185,13 @@ checkLHS mf = updateModality checkLHS_ where
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
 
       checkMatchingAllowed dr  -- No splitting on coinductive constructors.
-      checkSortOfSplitVar dr a (Just target)
+      addContext delta1 $ checkSortOfSplitVar dr a (Just target)
+
+      -- Jesper, 2019-09-13: if the data type we split on is a strict
+      -- set, we locally enable --with-K during unification.
+      withKIfStrict <- reduce (getSort a) >>= \case
+        SSet{} -> return $ locallyTC eSplitOnStrict $ const True
+        _      -> return id
 
       -- The constructor should construct an element of this datatype
       (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1288,7 +1294,7 @@ checkLHS mf = updateModality checkLHS_ where
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a
 
-      liftTCM (unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
+      liftTCM (withKIfStrict $ unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
         NoUnify neg -> hardTypeError $ ImpossibleConstructor (conName c) neg
@@ -1765,12 +1771,16 @@ checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCSta
                     => DataOrRecord -> a -> Maybe ty -> m ()
 checkSortOfSplitVar dr a mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    Type{} -> return ()
+    Type{}
+      | IsRecord _ _ <- dr     -> return ()
+      | Just target <- mtarget -> unlessM (isFibrant target) splitOnFibrantError
+      | otherwise              -> splitOnFibrantError
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
       | otherwise              -> splitOnPropError
     Inf{} -> return () -- see #4109
+    SSet{} -> return ()
     _      -> softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
@@ -1778,3 +1788,9 @@ checkSortOfSplitVar dr a mtarget = do
   where
     splitOnPropError = softTypeError $ GenericError
       "Cannot split on datatype in Prop unless target is in Prop"
+
+    splitOnFibrantError = softTypeError =<< do
+      liftTCM $ GenericDocError <$> fsep
+        [ "Cannot eliminate fibrant type" , prettyTCM a
+        , "unless target type is also fibrant"
+        ]

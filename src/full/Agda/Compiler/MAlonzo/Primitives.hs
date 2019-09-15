@@ -166,6 +166,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
 
   -- Sorts
   , "primSetOmega"    |-> return "()"
+  , "primStrictSet"   |-> return "\\ _ -> ()"
 
   -- Natural number functions
   , "primNatPlus"      |-> binNat "(+)"

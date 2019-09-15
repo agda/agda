@@ -1331,6 +1331,10 @@ instance Reify Sort Expr where
           return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
         I.Inf 0 -> return $ A.Def' nameOfSetOmega A.NoSuffix
         I.Inf n -> return $ A.Def' nameOfSetOmega (A.Suffix n)
+        I.SSet a  -> do
+          I.Def sset [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+          a <- reify a
+          return $ A.App defaultAppInfo_ (A.Def sset) (defaultNamedArg a)
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU

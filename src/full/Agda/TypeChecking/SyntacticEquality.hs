@@ -142,6 +142,7 @@ instance SynEq Sort where
       (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf m   , Inf n     ) | m == n -> pure2 s
+      (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

@@ -2648,6 +2648,11 @@ data TCEnv =
                 -- Then runtime-irrelevant things are usable.
                 -- Other value: @Quantity1@, runtime relevant.
                 -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
+          , envSplitOnStrict       :: Bool
+                -- ^ Are we currently case-splitting on a strict
+                --   datatype (i.e. in SSet)? If yes, the
+                --   pattern-matching unifier will solve reflexive
+                --   equations even --without-K.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
@@ -2764,6 +2769,7 @@ initEnv = TCEnv { envContext             = []
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
                 , envModality               = mempty
+                , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
@@ -2883,6 +2889,9 @@ eRelevance = eModality . lModRelevance
 
 eQuantity :: Lens' Quantity TCEnv
 eQuantity = eModality . lModQuantity
+
+eSplitOnStrict :: Lens' Bool TCEnv
+eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }

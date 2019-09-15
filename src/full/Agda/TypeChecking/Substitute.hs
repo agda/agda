@@ -818,6 +818,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
     Inf n      -> Inf n
+    SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
@@ -1436,6 +1437,7 @@ univSort' :: Sort -> Maybe Sort
 univSort' (Type l) = Just $ Type $ levelSuc l
 univSort' (Prop l) = Just $ Type $ levelSuc l
 univSort' (Inf n)  = Just $ Inf  $ 1 + n
+univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf 0
 univSort' s        = Nothing
 
@@ -1450,6 +1452,7 @@ isSmallSort Type{}     = Just True
 isSmallSort Prop{}     = Just True
 isSmallSort SizeUniv   = Just True
 isSmallSort Inf{}      = Just False
+isSmallSort SSet{}     = Just False
 isSmallSort MetaS{}    = Nothing
 isSmallSort FunSort{}  = Nothing
 isSmallSort PiSort{}   = Nothing
@@ -1464,12 +1467,15 @@ funSort' a b = case (a, b) of
   (Inf m         , Inf n        ) -> Just $ Inf $ max m n
   (Inf m         , b            ) | isSmallSort b == Just True -> Just $ Inf m
   (a             , Inf n        ) | isSmallSort a == Just True -> Just $ Inf n
-  (Type a , Type b) -> Just $ Type $ levelLub a b
+  (Type a        , Type b       ) -> Just $ Type $ levelLub a b
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | isSmallSort a == Just True -> Just SizeUniv
-  (Prop a , Type b) -> Just $ Type $ levelLub a b
-  (Type a , Prop b) -> Just $ Prop $ levelLub a b
-  (Prop a , Prop b) -> Just $ Prop $ levelLub a b
+  (Prop a        , Type b       ) -> Just $ Type $ levelLub a b
+  (Type a        , Prop b       ) -> Just $ Prop $ levelLub a b
+  (Prop a        , Prop b       ) -> Just $ Prop $ levelLub a b
+  (SSet a        , SSet b       ) -> Just $ SSet $ levelLub a b
+  (Type a        , SSet b       ) -> Just $ SSet $ levelLub a b
+  (SSet a        , Type b       ) -> Just $ SSet $ levelLub a b
   (a             , b            ) -> Nothing
 
 funSort :: Sort -> Sort -> Sort

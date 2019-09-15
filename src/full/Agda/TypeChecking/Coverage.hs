@@ -1131,7 +1131,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
 
-  r <- unifyIndices
+  withKIfStrict <- addContext delta1 $ reduce (getSort dtype) >>= \case
+    SSet{} -> return $ locallyTC eSplitOnStrict $ const True
+    _      -> return id
+
+  r <- withKIfStrict $ unifyIndices
          delta1Gamma
          flex
          (raise (size gamma) dtype)

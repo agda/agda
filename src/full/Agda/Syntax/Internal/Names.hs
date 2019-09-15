@@ -109,6 +109,7 @@ instance NamesIn Sort where
     Type l   -> namesIn l
     Prop l   -> namesIn l
     Inf _    -> Set.empty
+    SSet l   -> namesIn l
     SizeUniv -> Set.empty
     PiSort a b -> namesIn (a, b)
     FunSort a b -> namesIn (a, b)

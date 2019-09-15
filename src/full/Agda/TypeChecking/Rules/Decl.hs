@@ -688,8 +688,11 @@ checkPrimitive i x e =
           , "primLevelSuc"
           , "primLevelMax"
           , "primSetOmega"
+          , "primStrictSet"
           ]
-    when (name `elem` builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
+    when (name `elem` builtinPrimitives) $ do
+      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x

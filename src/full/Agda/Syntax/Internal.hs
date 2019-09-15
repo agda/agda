@@ -288,6 +288,7 @@ data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
   | Inf Integer      -- ^ @Setωᵢ@.
+  | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
@@ -1259,6 +1260,7 @@ instance TermSize Sort where
     Type l    -> 1 + tsize l
     Prop l    -> 1 + tsize l
     Inf _     -> 1
+    SSet l    -> 1 + tsize l
     SizeUniv  -> 1
     PiSort a s -> 1 + tsize a + tsize s
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
@@ -1329,6 +1331,7 @@ instance KillRange Sort where
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
+    SSet a     -> killRange1 SSet a
     PiSort a s -> killRange2 PiSort a s
     FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
@@ -1489,6 +1492,7 @@ instance Pretty Sort where
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf 0 -> "Setω"
       Inf n -> text $ "Setω" ++ show n
+      SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
       PiSort a b -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
@@ -1560,6 +1564,7 @@ instance NFData Sort where
     Type l   -> rnf l
     Prop l   -> rnf l
     Inf _    -> ()
+    SSet l   -> rnf l
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)
     FunSort a b -> rnf (a, b)
