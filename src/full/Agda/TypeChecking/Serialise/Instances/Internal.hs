@@ -111,9 +111,9 @@ instance EmbPrj I.Term where
     valu _            = malformed
 
 instance EmbPrj QuotedTerm where
-  icod_ q = icodeN' (quotedTerm q)
+  icod_ q = icodeN' (\ v -> QuotedTerm Nothing v Nothing) (quotedTerm q)
 
-  value = valueN $ \ v -> QuotedTerm Nothing v Nothing
+  value = valueN (\ v -> QuotedTerm Nothing v Nothing)
 
 instance EmbPrj Level where
   icod_ (Max a) = icodeN' Max a
