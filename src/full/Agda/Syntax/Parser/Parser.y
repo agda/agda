@@ -2297,7 +2297,7 @@ patternToNames p =
 
 funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [Named Name (WithHiding Expr)] -> LHS)
                     -> ([Either RewriteEqn [Named Name Expr]], RHSOrTypeSigs)
-		    -> WhereClause -> Parser [Declaration]
+                    -> WhereClause -> Parser [Declaration]
 funClauseOrTypeSigs attrs lhs' (with, mrhs) wh = do
   (rs , es) <- buildWithBlock with
   let lhs = lhs' rs (map (fmap observeHiding) es)
