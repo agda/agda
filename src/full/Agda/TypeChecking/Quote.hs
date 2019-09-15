@@ -130,6 +130,7 @@ quotingKit = do
       quoteSort :: Sort -> ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t
       quoteSort Prop{}   = pure unsupportedSort
+      quoteSort SSet{}   = pure unsupportedSort
       quoteSort Inf      = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort

@@ -400,6 +400,7 @@ checkSort action s =
   case s of
     Type l   -> Type <$> checkLevel action l
     Prop l   -> Prop <$> checkLevel action l
+    SSet l   -> SSet <$> checkLevel action l
     Inf      -> return Inf
     SizeUniv -> return SizeUniv
     PiSort dom s2 -> do

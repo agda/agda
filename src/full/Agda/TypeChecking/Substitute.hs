@@ -802,6 +802,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
+    SSet n     -> SSet $ sub n
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
@@ -1379,6 +1380,7 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 univSort' :: Maybe Sort -> Sort -> Maybe Sort
 univSort' univInf (Type l) = Just $ Type $ levelSuc l
 univSort' univInf (Prop l) = Just $ Type $ levelSuc l
+univSort' univInf (SSet l) = Just $ SSet $ levelSuc l
 univSort' univInf Inf      = univInf
 univSort' univInf s        = Nothing
 
@@ -1403,6 +1405,9 @@ funSort' a b = case (getSort a, b) of
   (Prop (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
   (Type (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
   (Prop (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
+  (SSet (Max as) , SSet (Max bs)) -> Just $ SSet $ levelMax $ as ++ bs
+  (Type (Max as) , SSet (Max bs)) -> Just $ SSet $ levelMax $ as ++ bs
+  (SSet (Max as) , Type (Max bs)) -> Just $ SSet $ levelMax $ as ++ bs
   (a             , b            ) -> Nothing
 
 funSort :: Dom Type -> Sort -> Sort

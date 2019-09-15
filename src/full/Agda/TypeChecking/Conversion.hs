@@ -1169,9 +1169,20 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- Likewise for @Prop@
       (Prop a  , Prop b  ) -> leqLevel a b
 
+      -- Likewise for @SSet@
+      (SSet a  , SSet b  ) -> leqLevel a b
+
       -- @Prop l@ is below @Set l@
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
+
+      -- @Set l@ is below @SSet l@
+      (Type a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Type b  ) -> no
+
+      -- @Prop l@ is below @SSet l@
+      (Prop a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Prop b  ) -> no
 
       -- Setω is the top sort
       (_       , Inf     ) -> yes
@@ -1187,6 +1198,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+      (SizeUniv, SSet{}  ) -> no
 
       -- If the first sort rigidly depends on a variable and the second
       -- sort does not mention this variable, the second sort must be Inf.
@@ -1550,6 +1562,7 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b
+            (SSet a     , SSet b     ) -> equalLevel a b
             (Inf        , Inf        ) -> yes
 
             -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)

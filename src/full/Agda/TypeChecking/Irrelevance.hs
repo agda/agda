@@ -321,6 +321,7 @@ instance UsableRelevance Sort where
   usableRel rel s = case s of
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
+    SSet l -> usableRel rel l
     Inf    -> return True
     SizeUniv -> return True
     PiSort a s -> usableRel rel (a,s)
@@ -487,3 +488,15 @@ isPropM a = reduce (getSort a) <&> \case
 
 isIrrelevantOrPropM :: (LensRelevance a, LensSort a, MonadReduce m) => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
+
+-- * Fibrant types
+
+-- | Is a type fibrant (i.e. not a SSet)?
+
+isFibrant :: (LensSort a, MonadReduce m) => a -> m Bool
+isFibrant a = reduce (getSort a) <&> \case
+  Type{}     -> True
+  Prop{}     -> True
+  Inf{}      -> True
+  SizeUniv{} -> True
+  _          -> False

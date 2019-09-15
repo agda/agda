@@ -31,3 +31,4 @@ postulate
 {-# BUILTIN LEVELMAX  _⊔_   #-}
 
 {-# BUILTIN SETOMEGA Setω #-}
+{-# BUILTIN STRICTSET SSet #-}

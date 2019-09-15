@@ -292,6 +292,7 @@ type Telescope = Tele (Dom Type)
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
+  | SSet (Level' t)  -- ^ @SSet ℓ@.
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
@@ -1220,6 +1221,7 @@ instance TermSize Sort where
   tsize s = case s of
     Type l    -> 1 + tsize l
     Prop l    -> 1 + tsize l
+    SSet l    -> 1 + tsize l
     Inf       -> 1
     SizeUniv  -> 1
     PiSort a s -> 1 + tsize a + tsize s
@@ -1292,6 +1294,7 @@ instance KillRange Sort where
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
+    SSet a     -> killRange1 SSet a
     PiSort a s -> killRange2 PiSort a s
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
@@ -1451,6 +1454,7 @@ instance Pretty Sort where
       Prop (Max []) -> "Prop"
       Prop (Max [ClosedLevel n]) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
+      SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       Inf -> "Setω"
       SizeUniv -> "SizeUniv"
       PiSort a b -> mparens (p > 9) $
@@ -1518,6 +1522,7 @@ instance NFData Sort where
   rnf s = case s of
     Type l   -> rnf l
     Prop l   -> rnf l
+    SSet l   -> rnf l
     Inf      -> ()
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)

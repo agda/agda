@@ -84,6 +84,7 @@ instance PatternFrom () Sort NLPSort where
     case s of
       Type l   -> PType <$> patternFrom r k () l
       Prop l   -> PProp <$> patternFrom r k () l
+      SSet l   -> __IMPOSSIBLE__
       Inf      -> return PInf
       SizeUniv -> return PSizeUniv
       PiSort _ _ -> __IMPOSSIBLE__

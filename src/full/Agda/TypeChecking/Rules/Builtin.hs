@@ -311,6 +311,7 @@ coreBuiltins =
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
   , (builtinSetOmega                         |-> BuiltinPrim "primSetOmega" (const $ return ()))
+  , (builtinStrictSet                        |-> BuiltinPrim "primStrictSet" (const $ return ()))
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))

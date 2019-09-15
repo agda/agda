@@ -79,6 +79,7 @@ instance GetDefs Sort where
   getDefs s = case s of
     Type l    -> getDefs l
     Prop l    -> getDefs l
+    SSet l    -> getDefs l
     Inf       -> return ()
     SizeUniv  -> return ()
     PiSort a s  -> getDefs a >> getDefs s

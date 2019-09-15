@@ -1252,6 +1252,10 @@ instance Reify Sort Expr where
         I.Prop a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
+        I.SSet a  -> do
+          I.Def sset [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+          a <- reify a
+          return $ A.App defaultAppInfo_ (A.Def sset) (defaultNamedArg a)
         I.Inf       -> do
           I.Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
           return $ A.Def inf

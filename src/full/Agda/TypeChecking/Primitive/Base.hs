@@ -12,6 +12,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Names
 import {-# SOURCE #-} Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce ( reduce )
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute
@@ -156,7 +157,9 @@ domH = setHiding Hidden . defaultDom
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
-  fromMaybe (typeError $ NoSuchPrimitiveFunction x)
+  fromMaybe (do
+                reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> text x <+> "failed"
+                typeError $ NoSuchPrimitiveFunction x)
             (Map.lookup x primitiveFunctions)
 
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)

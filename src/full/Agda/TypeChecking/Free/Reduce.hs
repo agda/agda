@@ -151,6 +151,7 @@ instance ForceNotFree Sort where
   forceNotFree' s = case s of
     Type l     -> Type     <$> forceNotFree' l
     Prop l     -> Prop     <$> forceNotFree' l
+    SSet l     -> SSet     <$> forceNotFree' l
     PiSort a b -> PiSort   <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es

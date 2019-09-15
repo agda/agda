@@ -509,6 +509,7 @@ instance Occurs Sort where
         return $ PiSort a' s2'
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
+      SSet a     -> SSet <$> occurs a
       s@Inf      -> return s
       s@SizeUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
@@ -526,6 +527,7 @@ instance Occurs Sort where
       PiSort a s -> metaOccurs m (a,s)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
+      SSet a     -> metaOccurs m a
       Inf        -> return ()
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
@@ -739,6 +741,7 @@ instance AnyRigid Sort where
     case s of
       Type l     -> anyRigid f l
       Prop l     -> anyRigid f l
+      SSet l     -> anyRigid f l
       Inf        -> return False
       SizeUniv   -> return False
       PiSort a s -> return False

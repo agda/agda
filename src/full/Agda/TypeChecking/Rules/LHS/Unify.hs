@@ -838,9 +838,11 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
     isReflexive <- liftTCM $ addContext (varTel s) $ tryCatch $ do
       dontAssignMetas $ noConstraints $ equalTerm a u v
     withoutK <- liftTCM withoutKOption
+    splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
       Just err     -> return $ DontKnow []
-      _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
+      _ | withoutK && not splitOnStrict
+                   -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma

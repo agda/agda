@@ -51,6 +51,7 @@ instance MentionsMeta Sort where
   mentionsMetas xs s = case s of
     Type l     -> mentionsMetas xs l
     Prop l     -> mentionsMetas xs l
+    SSet l     -> mentionsMetas xs l
     Inf        -> False
     SizeUniv   -> False
     PiSort a s -> mentionsMetas xs (a, s)
