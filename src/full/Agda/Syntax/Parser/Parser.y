@@ -629,27 +629,26 @@ Expr
 
 -- Level 1: Application
 Expr1 :: { Expr }
-Expr1  : WithExprs {% case mapM isUnnamed $1 of
-    { Just [e]      -> return e
-    ; Just (e : es) -> return $ WithApp (fuseRange e es) e es
-    ; Just []       -> parseError "impossible: empty with expressions"
-    ; Nothing       -> parseError "cannot name LHS"
-    }
-  }
+Expr1
+  : UnnamedWithExprs
+      { case $1 of
+          { [e]      -> e
+          ; (e : es) -> WithApp (fuseRange e es) e es
+          ; []       -> __IMPOSSIBLE__
+          }
+      }
 
 WithExprs :: { [Named Name Expr] }
 WithExprs
-  :  Id '..'     Application3 '|' WithExprs { named $1  (mkRawApp $3) : $5 }
+  :  Id ':'     Application3 '|' WithExprs { named $1  (mkRawApp $3) : $5 }
   | {- empty -} Application3 '|' WithExprs { unnamed   (mkRawApp $1) : $3 }
-  | Id '..'      Application                { [named $1 (mkRawApp $3)]     }
-  | {- empty -} Application                { [unnamed  (mkRawApp $1)]     }
+  | Id ':'      Application                 { [named $1 (mkRawApp $3)]     }
+  | {- empty -} Application                 { [unnamed  (mkRawApp $1)]     }
 
 UnnamedWithExprs :: { [Expr] }
 UnnamedWithExprs
-  : WithExprs {% case mapM isUnnamed $1 of
-                   Nothing -> parseError "cannot name expression in |-alternative"
-                   Just es -> pure es
-              }
+  :  Application3 '|' UnnamedWithExprs { (mkRawApp $1) : $3 }
+  | {- empty -} Application            { [mkRawApp $1]      }
 
 Application :: { [Expr] }
 Application
@@ -1118,26 +1117,22 @@ CommaImportNames1
 
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
-LHS :: { LHS }
-LHS : Expr1 WithRewriteExpressions
-        {% exprToLHS $1      >>= \p ->
-           buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ map (fmap observeHiding) es)
-        }
+LHS :: { [RewriteEqn] -> [Named Name (WithHiding Expr)] -> LHS }
+LHS : Expr1 {% exprToLHS $1 }
 
-WithRewriteExpressions :: { [Either RewriteEqn [Named Name Expr]] }
-WithRewriteExpressions
-  : {- empty -} { [] }
-  | 'with' WithExprs WithRewriteExpressions
+WithClause :: { [Either RewriteEqn [Named Name Expr]] }
+WithClause
+  : 'with' WithExprs WithClause
     {% fmap (++ $3) (buildWithStmt $2)  }
-  | 'rewrite' UnnamedWithExprs WithRewriteExpressions
+  | 'rewrite' UnnamedWithExprs WithClause
     { Left (Rewrite $ fmap ((),) $2) : $3 }
+  | {- empty -} { [] }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr                   {  HoleContentExpr    $1 }
-  | WithRewriteExpressions
+  | WithClause
     {% fmap HoleContentRewrite $ forM $1 $ \case
          Left r  -> pure r
          Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
@@ -1218,13 +1213,21 @@ ArgTypeSigs
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
 FunClause :: { [Declaration] }
-FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
+FunClause
+  : {- empty -} LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
   | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs $1 $2 $3 $4 }
 
-RHS :: { RHSOrTypeSigs }
-RHS : '=' Expr      { JustRHS (RHS $2) }
-    | ':' Expr      { TypeSigsRHS $2 }
-    | {- empty -}   { JustRHS AbsurdRHS }
+RHS :: { ([Either RewriteEqn [Named Name Expr]], RHSOrTypeSigs) }
+RHS
+  : {- empty -}                                    { ([], JustRHS AbsurdRHS) }
+  | '='       Expr                                 { ([], JustRHS (RHS $2)) }
+  | ':'       Expr                                 { ([], TypeSigsRHS $2) }
+  | 'with'    WithExprs        WithClause          {% fmap ((, JustRHS AbsurdRHS) . (++ $3)) (buildWithStmt $2) }
+  | 'with'    WithExprs        WithClause '=' Expr {% fmap ((, JustRHS (RHS $5))  . (++ $3)) (buildWithStmt $2) }
+  | 'rewrite' UnnamedWithExprs WithClause          { (Left (Rewrite $ fmap ((),) $2) : $3, JustRHS AbsurdRHS) }
+  | 'rewrite' UnnamedWithExprs WithClause '=' Expr { (Left (Rewrite $ fmap ((),) $2) : $3, JustRHS (RHS $5)) }
+
+
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
@@ -2292,8 +2295,12 @@ patternToNames p =
     _                        -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
 
-funClauseOrTypeSigs :: [Attr] -> LHS -> RHSOrTypeSigs -> WhereClause -> Parser [Declaration]
-funClauseOrTypeSigs attrs lhs mrhs wh = do
+funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [Named Name (WithHiding Expr)] -> LHS)
+                    -> ([Either RewriteEqn [Named Name Expr]], RHSOrTypeSigs)
+		    -> WhereClause -> Parser [Declaration]
+funClauseOrTypeSigs attrs lhs' (with, mrhs) wh = do
+  (rs , es) <- buildWithBlock with
+  let lhs = lhs' rs (map (fmap observeHiding) es)
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do

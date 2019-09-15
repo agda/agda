@@ -14,7 +14,7 @@ double m = Σ Nat λ n → m ≡ n + n
 -- `p ≡ e` after a `with p ← e` clause !
 
 2*_ : Nat → Σ Nat double
-2*_ n with eq .. m ← n + n = m , n , eq
+2*_ n with eq : m ← n + n = m , n , eq
 
 
 data ⊥ : Set where
@@ -50,7 +50,7 @@ module _ {A : Set} where
     -- If only we had somehow recorded that `p ← (2 * n + 1)` happened!
     -- This is what the inspect construct allows us to do.
 
-    with eq .. p ← (2 * n + 1) | xs
+    with eq : p ← (2 * n + 1) | xs
   ... | x ∷ _ = x
   -- we can now use this equality proof to dismiss the impossible case.
   ... | []    = ⊥-elim (¬odd0 n eq)
@@ -59,6 +59,6 @@ module _ {A : Set} where
   -- you can use inspect together with an implicit with
 
   oddhead' : ∀ {n} → Vec A (2 * n + 1) → A
-  oddhead' {n} xs with eq .. {2 * n + 1} | xs
+  oddhead' {n} xs with eq : {2 * n + 1} | xs
   ... | x ∷ _ = x
   ... | []    = ⊥-elim (¬odd0 n eq)
