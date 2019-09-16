@@ -155,10 +155,15 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (MonadReduce m, MonadTCEnv m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (MonadReduce m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Term -> m Sort
 sortOf t = elimView True t >>= \case
-  Pi a b     -> return $ piSort a (getSort <$> b)
+  Pi adom b -> do
+    let a = unEl $ unDom adom
+    sa <- sortOf a
+    let adom' = adom { unDom = El sa a }
+    sb <- mapAbstraction adom' (sortOf . unEl) b
+    return $ piSort adom' sb
   Sort s     -> do
     ui <- univInf
     return $ univSort ui s
