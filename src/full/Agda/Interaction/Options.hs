@@ -392,6 +392,7 @@ unsafePragmaOptions opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--cumulativity"                             | optCumulativity opts              ] ++
   []
 
 -- | If any these options have changed, then the file will be
