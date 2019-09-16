@@ -32,6 +32,13 @@ data LevelKit = LevelKit
 levelType :: (HasBuiltins m) => m Type
 levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
+isLevelType :: (HasBuiltins m, MonadReduce m) => Type -> m Bool
+isLevelType a = reduce (unEl a) >>= \case
+  Def f [] -> do
+    Def lvl [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    return $ f == lvl
+  _ -> return False
+
 levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc
 
