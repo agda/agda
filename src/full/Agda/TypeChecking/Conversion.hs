@@ -47,6 +47,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
+import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -1231,11 +1232,13 @@ leqLevel a b = do
   where
     -- Andreas, 2016-09-28
     -- If we have to postpone a constraint, then its simplified form!
+    leqView :: MonadConversion m => Level -> Level -> m ()
     leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.nat" 30 $
         "compareLevelView" <+>
           sep [ pretty a <+> "=<"
               , pretty b ]
+      cumulativity <- optCumulativity <$> pragmaOptions
       wrap $ case (as, bs) of
 
         -- same term
@@ -1292,6 +1295,22 @@ leqLevel a b = do
             findN a = case [ n | b@(Plus n _) <- bs, unneutral b == unneutral a ] of
                         [n] -> constant a <= n
                         _   -> False
+
+        -- as ≤ _l x₁ .. xₙ
+        -- We can solve _l := λ x₁ .. xₙ -> as ⊔ (_l' x₁ .. xₙ)
+        -- (where _l' is a new metavariable)
+        (as , [Plus 0 (MetaLevel x es)]) | cumulativity -> do
+          m <- lookupMeta x
+          x' <- case mvJudgement m of
+            IsSort{} -> __IMPOSSIBLE__
+            HasType _ cmp t -> do
+              TelV tel t' <- telView t
+              newMeta Instantiable (mvInfo m) normalMetaPriority (idP $ size tel) $ HasType () cmp t
+          reportSDoc "tc.conv.level" 20 $ fsep
+            [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
+            , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
+            ]
+          equalLevel b $ levelMax $ Plus 0 (MetaLevel x' es) : as
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
         -- Thus, it is invalid.
