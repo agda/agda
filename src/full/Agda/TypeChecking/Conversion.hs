@@ -1445,7 +1445,7 @@ equalLevel' a b = do
 
         ok       = return ()
         notok    = unlessM typeInType notOk
-        notOk    = typeError $ UnequalSorts (Type a) (Type b)
+        notOk    = typeError $ UnequalLevel CmpEq a b
         postpone = do
           reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
           patternViolation
@@ -1547,9 +1547,9 @@ equalSort s1 s2 = do
             (_          , MetaS x es ) -> meta x es s1
 
             -- diagonal cases for rigid sorts
-            (Type a     , Type b     ) -> equalLevel a b
+            (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
-            (Prop a     , Prop b     ) -> equalLevel a b
+            (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf        , Inf        ) -> yes
 
             -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)
@@ -1621,6 +1621,10 @@ equalSort s1 s2 = do
           , s
           ]
         __IMPOSSIBLE__
+
+      catchInequalLevel m fail = m `catchError` \case
+        TypeError{} -> fail
+        err         -> throwError err
 
 
 -- -- This should probably represent face maps with a more precise type
