@@ -47,10 +47,11 @@ $nonalpha    = $idchar # $alpha
 $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
-@number      = $digit+ | "0x" $hexdigit+
-@integer     = [\-]? @number
-@exponent    = [eE] [\-\+]? @number
-@float       = @integer \. @number @exponent? | @number @exponent
+@number       = $digit+ | "0x" $hexdigit+
+@prettynumber = $digit{1,3} ([_] $digit{3})* | $digit+ | "0x" $hexdigit+
+@integer      = [\-]? @prettynumber
+@exponent     = [eE] [\-\+]? @number
+@float        = @integer \. @number @exponent? | @number @exponent
 
 -- A name can't start with \x (to allow \x -> x).
 -- Bug in alex: [ _ op ]+ doesn't seem to work!
@@ -232,7 +233,7 @@ tokens :-
 -- Literals
 <0,code> \'             { litChar }
 <0,code,pragma_> \"     { litString }
-<0,code> @integer       { literal LitNat }
+<0,code> @integer       { literal' integer LitNat }
 <0,code> @float         { literal LitFloat }
 
 -- Identifiers
