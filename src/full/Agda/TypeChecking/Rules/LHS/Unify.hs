@@ -393,8 +393,8 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
   where
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
-      mapMaybe $ \(FlexibleVar ai k p x) ->
-        FlexibleVar ai k p <$> List.findIndex (x==) (permPicks perm)
+      mapMaybe $ \(FlexibleVar ai fc k p x) ->
+        FlexibleVar ai fc k p <$> List.findIndex (x==) (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -957,7 +957,9 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   let n = eqCount s
 
   -- Get constructor telescope and target indices
-  ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
+  cdef  <- liftTCM (getConInfo c)
+  let ctype  = defType cdef `piApply` pars
+      forced = defForced cdef
   addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
     "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
@@ -983,9 +985,10 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- never be indexed over itself). Note the similarity with the
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
   let hduTel = eqTel1 `abstract` raise (size eqTel1) ctel
+      notforced = replicate (size hduTel) NotForced
   res <- liftTCM $ addContext (varTel s) $ unifyIndices
            hduTel
-           (allFlexVars hduTel)
+           (allFlexVars notforced hduTel)
            (raise (size hduTel) dtype)
            (raise (size ctel) ixs)
            (raiseFrom (size ctel) (size eqTel1) cixs)
@@ -1084,7 +1087,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   c       <- liftTCM $ getRecordConstructor d
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
-      projectFlexible = [ FlexibleVar (getArgInfo fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
+      projectFlexible = [ FlexibleVar (getArgInfo fi) (flexForced fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
   tellUnifySubst $ rho
   return $ Unifies $ UState
     { varTel   = varTel'

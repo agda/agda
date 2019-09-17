@@ -1281,12 +1281,17 @@ checkLHS mf = updateModality checkLHS_ where
               ]
             ]
 
+      cforced <- defForced <$> getConstInfo (conName c)
+
       let delta1Gamma = delta1 `abstract` gamma
           da'  = raise (size gamma) da
           ixs' = raise (size gamma) ixs
+          -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+          -- variables.
+          forced = replicate (size delta1) NotForced ++ cforced
 
       -- All variables are flexible.
-      let flex = allFlexVars $ delta1Gamma
+      let flex = allFlexVars forced $ delta1Gamma
 
       -- Unify constructor target and given type (in Δ₁Γ)
       -- Given: Δ₁  ⊢ D pars : Φ → Setᵢ

@@ -1097,8 +1097,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
 
-  -- All variables are flexible
-  let flex = allFlexVars delta1Gamma
+  cforced <- defForced <$> getConstInfo c
+      -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+      -- variables.
+  let forced = replicate (size delta1) NotForced ++ cforced
+      flex   = allFlexVars forced delta1Gamma -- All variables are flexible
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
