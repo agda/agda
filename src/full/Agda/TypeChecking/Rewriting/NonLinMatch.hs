@@ -41,8 +41,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (workOnTypes)
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..), getBuiltin', builtinLevel)
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

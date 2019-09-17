@@ -51,7 +51,6 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

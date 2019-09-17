@@ -11,7 +11,6 @@ import Text.ParserCombinators.ReadP
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Pretty hiding (char)

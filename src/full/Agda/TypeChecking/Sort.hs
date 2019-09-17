@@ -42,7 +42,6 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.MetaVars (metaType)
 import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
-import Agda.TypeChecking.Pretty ()
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce

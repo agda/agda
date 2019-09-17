@@ -17,8 +17,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp)
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 

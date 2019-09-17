@@ -36,7 +36,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level
 
 import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
-import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Warnings

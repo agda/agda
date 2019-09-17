@@ -25,10 +25,9 @@ import Agda.Syntax.Literal
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
-                                      , getConstInfo
-                                      , lookupMeta )
+                                      , getConstInfo, lookupMeta
+                                      , getPrimitive, constructorForm )
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
