@@ -29,7 +29,7 @@ bar = (false ∷ []) ∷ false ∷ [] -- ← is yellow
 
 {-
 _59 := _55 ∷ false ∷ [] [blocked by problem 75]
-[75] ["apply" (_53 ∷ true ∷ [])] == ["apply" (false ∷ true ∷ [])] : Foo 
+[75] ["apply" (_53 ∷ true ∷ [])] == ["apply" (false ∷ true ∷ [])] : Foo
 (_53 and (true and true)) → Set [blocked by problem 76]
 [76] (_53 and (true and true)) = false : Bool
 _54 := false ∷ [] :? Baz _53
