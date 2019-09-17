@@ -1,5 +1,0 @@
-largenumber.agda:5,12-12
-largenumber.agda:5,12: in the name 100_00, the part 100 is not valid because it is a literal
-*<ERROR>
- 100_000 ≡ 1_000_000_000
-_ = r...

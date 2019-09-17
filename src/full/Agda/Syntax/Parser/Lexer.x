@@ -48,7 +48,7 @@ $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
 @number       = $digit+ | "0x" $hexdigit+
-@prettynumber = $digit{1,3} ([_] $digit{3})* | $digit+ | "0x" $hexdigit+
+@prettynumber = $digit+ ([_] $digit+)* | "0x" $hexdigit+
 @integer      = [\-]? @prettynumber
 @exponent     = [eE] [\-\+]? @number
 @float        = @integer \. @number @exponent? | @number @exponent
