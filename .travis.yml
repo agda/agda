@@ -60,7 +60,7 @@ git:
 # Travis runs the builds on this order.
 
 stages:
-  - name: sanity check
+  - name: check whitespace
   - name: stackage
     if: NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
@@ -80,7 +80,7 @@ jobs:
   ##############################################################################
   # Stackage stage
   #
-    - stage: sanity check
+    - stage: check whitespace
       env: GHC_VER=8.6.5 CABAL_VER=2.4
       addons:
         apt:
@@ -164,15 +164,15 @@ jobs:
           - $APPDATA/stack
       language: c
       env:
-        - GHC_VER=8.6.5 STACK_VER=2.1.3.20190715
+        - GHC_VER=8.6.5 STACK_VER=2.1.3.20190715 ICU_VER=58.2-3
       before_install:
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
 
         - travis_retry choco install haskell-stack --no-progress --version ${STACK_VER}
       install:
-        - travis_retry wget -q http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-icu-58.2-3-any.pkg.tar.xz
-        - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-58.2-3-any.pkg.tar.xz
+        - travis_retry wget -q http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
+        - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
 
         - stack build --compiler ghc-${GHC_VER} text-icu
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
@@ -202,12 +202,8 @@ jobs:
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        - export AGDA_HOME=`pwd`
+          # - export AGDA_HOME=`pwd` this is $TRAVIS_BUILD_DIR
       install:
-        # use stack to install alex, happy, and shelltestrunner
-        #        - mkdir -p ~/.local/bin
-        #        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        #        - stack install --system-ghc --no-terminal --compiler ghc-${GHC_VER} alex happy
         - .travis/cabal_install
       ##############################################################################
       script:
