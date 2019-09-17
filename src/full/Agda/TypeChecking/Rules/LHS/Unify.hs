@@ -393,8 +393,8 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
   where
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
-      mapMaybe $ \(FlexibleVar h o k p x) ->
-        FlexibleVar h o k p <$> List.findIndex (x==) (permPicks perm)
+      mapMaybe $ \(FlexibleVar ai k p x) ->
+        FlexibleVar ai k p <$> List.findIndex (x==) (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -1084,7 +1084,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   c       <- liftTCM $ getRecordConstructor d
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
-      projectFlexible = [ FlexibleVar (flexHiding fi) (flexOrigin fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
+      projectFlexible = [ FlexibleVar (getArgInfo fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
   tellUnifySubst $ rho
   return $ Unifies $ UState
     { varTel   = varTel'

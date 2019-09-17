@@ -48,20 +48,19 @@ data FlexibleVarKind
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
 data FlexibleVar a = FlexibleVar
-  { flexHiding :: Hiding
-  , flexOrigin :: Origin
-  , flexKind   :: FlexibleVarKind
-  , flexPos    :: Maybe Int
-  , flexVar    :: a
+  { flexArgInfo :: ArgInfo
+  , flexKind    :: FlexibleVarKind
+  , flexPos     :: Maybe Int
+  , flexVar     :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-instance LensHiding (FlexibleVar a) where
-  getHiding     = flexHiding
-  mapHiding f x = x { flexHiding = f (flexHiding x) }
+instance LensArgInfo (FlexibleVar a) where
+  getArgInfo = flexArgInfo
+  setArgInfo ai fl = fl { flexArgInfo = ai }
+  mapArgInfo f  fl = fl { flexArgInfo = f (flexArgInfo fl) }
 
+instance LensHiding (FlexibleVar a) where
 instance LensOrigin (FlexibleVar a) where
-  getOrigin     = flexOrigin
-  mapOrigin f x = x { flexOrigin = f (flexOrigin x) }
 
 -- UNUSED
 -- defaultFlexibleVar :: a -> FlexibleVar a
@@ -74,7 +73,7 @@ instance LensOrigin (FlexibleVar a) where
 allFlexVars :: Telescope -> FlexibleVars
 allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
   where
-    makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
+    makeFlex i d = FlexibleVar (getArgInfo d) ImplicitFlex (Just i) i
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -117,6 +116,14 @@ instance ChooseFlex a => ChooseFlex (Maybe a) where
   chooseFlex (Just x) Nothing = ChooseRight
   chooseFlex (Just x) (Just y) = chooseFlex x y
 
+instance ChooseFlex ArgInfo where
+  chooseFlex ai1 ai2 = firstChoice [ chooseFlex (getRelevance ai1) (getRelevance ai2)
+                                   , chooseFlex (getOrigin ai1) (getOrigin ai2)
+                                   , chooseFlex (getHiding ai1) (getHiding ai2) ]
+
+instance ChooseFlex Relevance where
+  chooseFlex _ _ = ChooseEither   -- TODO: don't choose forced variables
+
 instance ChooseFlex Hiding where
   chooseFlex Hidden     Hidden     = ChooseEither
   chooseFlex Hidden     _          = ChooseLeft
@@ -142,14 +149,14 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 o1 f1 p1 i1) (FlexibleVar h2 o2 f2 p2 i2) =
-    firstChoice [ chooseFlex f1 f2, chooseFlex o1 o2, chooseFlex h1 h2
+  chooseFlex (FlexibleVar ai1 f1 p1 i1) (FlexibleVar ai2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex ai1 ai2
                 , chooseFlex p1 p2, chooseFlex i1 i2]
-      where
-        firstChoice :: [FlexChoice] -> FlexChoice
-        firstChoice []                  = ChooseEither
-        firstChoice (ChooseEither : xs) = firstChoice xs
-        firstChoice (x            : _ ) = x
+
+firstChoice :: [FlexChoice] -> FlexChoice
+firstChoice []                  = ChooseEither
+firstChoice (ChooseEither : xs) = firstChoice xs
+firstChoice (x            : _ ) = x
 
 -- | The user patterns we still have to split on.
 data Problem a = Problem
