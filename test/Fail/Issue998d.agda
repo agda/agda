@@ -12,5 +12,9 @@ f ℓ A = A
 -- when checking that the expression A has type Set ℓ
 
 -- Jesper, 2018-12-10, New error:
--- A != Issue998a.A of type Set
--- when checking that the expression d A has type D Issue998a.A
+-- ℓ != Issue998a.ℓ of type Level
+-- when checking that the expression A has type Set ℓ
+
+-- Jesper, 2019-09-16, new error:
+-- Set ℓ != Set Issue998d.ℓ
+-- when checking that the expression A has type Set ℓ

@@ -1,0 +1,3 @@
+Issue4092.agda:6,8-12
+lzero != lsuc lzero
+when checking that the expression refl has type lzero ≡ lsuc lzero

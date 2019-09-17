@@ -188,17 +188,18 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
-      let st  = sort s
-          sa  = getSort a
+      let sa  = getSort a
           sb  = getSort (unAbs b)
           mkDom v = El sa v <$ a
           mkRng v = fmap (v <$) b
           -- Preserve NoAbs
           goInside = case b of Abs{}   -> addContext (absName b, a)
                                NoAbs{} -> id
-      compareSort cmp (piSort a (getSort <$> b)) s
       a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
-      goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
+      v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
+      s' <- sortOf v'
+      compareSort cmp s' s
+      return v'
     Sort s     -> do
       reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
       s <- checkSort action s

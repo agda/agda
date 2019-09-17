@@ -1,5 +1,5 @@
 Issue964.agda:18,14-18
-Set (Common.Issue964.UnsolvedMetas.unsolved#meta.1 something) !=
-Set₂
+Common.Issue964.UnsolvedMetas.unsolved#meta.1 something !=
+lsuc (lsuc lzero)
 when checking that the expression refl has type
 meta ≡ lsuc (lsuc lzero)

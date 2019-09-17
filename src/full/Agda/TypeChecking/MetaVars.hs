@@ -969,15 +969,15 @@ assignMeta' m x t n ids v = do
     whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
            (optCumulativity <$> pragmaOptions)) $ case unEl a of
       Sort s -> addContext tel' $ do
-        reportSDoc "tc.meta.assign" 40 $
-          "Instantiating sort" <+> prettyTCM s <+>
-          "to sort of solution" <+> prettyTCM v'
         m <- lookupMeta x
         cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
           case mvJudgement m of
             HasType{ jComparison = cmp } -> return cmp
             IsSort{} -> __IMPOSSIBLE__
         s' <- sortOf v'
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v'
         traceCall (CheckMetaSolution (getRange m) x a v') $
           compareSort cmp s' s
       _ -> return ()

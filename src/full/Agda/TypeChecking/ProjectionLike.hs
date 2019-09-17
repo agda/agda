@@ -161,7 +161,6 @@ elimView
   => Bool -> Term -> m Term
 elimView loneProjToLambda v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
-  reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     "elimView (projections reduced) of " <+> prettyTCM v

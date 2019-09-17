@@ -16,6 +16,7 @@ import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 
 import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
@@ -36,6 +37,7 @@ import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Level.Solve
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Polarity
@@ -209,6 +211,7 @@ checkDecl d = setCurrentRange d $ do
         wakeupConstraints_   -- solve emptiness and instance constraints
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
+        whenM (optCumulativity <$> pragmaOptions) $ defaultOpenLevelsToZero
         wakeupConstraints_   -- Size solver might have unblocked some constraints
         case d of
             A.Generalize{} -> pure ()
@@ -631,6 +634,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     -- Andreas, 2016-06-21, issue #2054
     -- Do not default size metas to ∞ in local type signatures
     checkingWhere <- asksTC envCheckingWhere
+    whenM (optCumulativity <$> pragmaOptions) $ defaultOpenLevelsToZero
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
