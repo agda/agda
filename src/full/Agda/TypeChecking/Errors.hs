@@ -54,7 +54,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList

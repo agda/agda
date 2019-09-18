@@ -21,7 +21,6 @@ import Data.Monoid
 
 import Internal.Helpers
 import Internal.TypeChecking.Free.Lazy ()
-import Internal.TypeChecking.Generators hiding ( tests )
 
 ------------------------------------------------------------------------------
 -- * Semiring properties of 'FlexRig' with empty 'MetaSet'

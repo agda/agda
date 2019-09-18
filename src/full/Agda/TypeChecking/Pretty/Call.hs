@@ -9,7 +9,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Info as A
-import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete
