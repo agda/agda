@@ -121,10 +121,9 @@ instance Instantiate Term where
   instantiate' t = return t
 
 instance Instantiate Level where
-  instantiate' (Max as) = levelMax <$> instantiate' as
+  instantiate' (Max m as) = levelMax m <$> instantiate' as
 
 instance Instantiate PlusLevel where
-  instantiate' l@ClosedLevel{} = return l
   instantiate' (Plus n a) = Plus n <$> instantiate' a
 
 instance Instantiate LevelAtom where
@@ -321,11 +320,10 @@ instance Reduce Elim where
   reduce' (IApply x y v) = IApply <$> reduce' x <*> reduce' y <*> reduce' v
 
 instance Reduce Level where
-  reduce'  (Max as) = levelMax <$> mapM reduce' as
-  reduceB' (Max as) = fmap levelMax . traverse id <$> traverse reduceB' as
+  reduce'  (Max m as) = levelMax m <$> mapM reduce' as
+  reduceB' (Max m as) = fmap (levelMax m) . traverse id <$> traverse reduceB' as
 
 instance Reduce PlusLevel where
-  reduceB' l@ClosedLevel{} = return $ notBlocked l
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
 
 instance Reduce LevelAtom where
@@ -864,10 +862,9 @@ instance Simplify Sort where
         DummyS{}   -> return s
 
 instance Simplify Level where
-  simplify' (Max as) = levelMax <$> simplify' as
+  simplify' (Max m as) = levelMax m <$> simplify' as
 
 instance Simplify PlusLevel where
-  simplify' l@ClosedLevel{} = return l
   simplify' (Plus n l) = Plus n <$> simplify' l
 
 instance Simplify LevelAtom where
@@ -1034,10 +1031,9 @@ instance Normalise Elim where
   normalise' (IApply x y v) = IApply <$> normalise' x <*> normalise' y <*> normalise' v
 
 instance Normalise Level where
-  normalise' (Max as) = levelMax <$> normalise' as
+  normalise' (Max m as) = levelMax m <$> normalise' as
 
 instance Normalise PlusLevel where
-  normalise' l@ClosedLevel{} = return l
   normalise' (Plus n l) = Plus n <$> normalise' l
 
 instance Normalise LevelAtom where
@@ -1210,10 +1206,9 @@ instance InstantiateFull Term where
           Dummy{}     -> return v
 
 instance InstantiateFull Level where
-  instantiateFull' (Max as) = levelMax <$> instantiateFull' as
+  instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as
 
 instance InstantiateFull PlusLevel where
-  instantiateFull' l@ClosedLevel{} = return l
   instantiateFull' (Plus n l) = Plus n <$> instantiateFull' l
 
 instance InstantiateFull LevelAtom where

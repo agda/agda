@@ -88,10 +88,9 @@ instance GetDefs Sort where
     DummyS{}    -> return ()
 
 instance GetDefs Level where
-  getDefs (Max ls) = getDefs ls
+  getDefs (Max _ ls) = getDefs ls
 
 instance GetDefs PlusLevel where
-  getDefs ClosedLevel{} = return ()
   getDefs (Plus _ l)    = getDefs l
 
 instance GetDefs LevelAtom where

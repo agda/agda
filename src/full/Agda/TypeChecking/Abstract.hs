@@ -182,10 +182,9 @@ instance AbsTerm Sort where
     where absS x = absTerm u x
 
 instance AbsTerm Level where
-  absTerm u (Max as) = Max $ absTerm u as
+  absTerm u (Max n as) = Max n $ absTerm u as
 
 instance AbsTerm PlusLevel where
-  absTerm u l@ClosedLevel{} = l
   absTerm u (Plus n l) = Plus n $ absTerm u l
 
 instance AbsTerm LevelAtom where
@@ -252,13 +251,10 @@ instance EqualSy Term where
     _ -> False
 
 instance EqualSy Level where
-  equalSy (Max vs) (Max vs') = equalSy vs vs'
+  equalSy (Max n vs) (Max n' vs') = n == n' && equalSy vs vs'
 
 instance EqualSy PlusLevel where
-  equalSy = curry $ \case
-    (ClosedLevel n, ClosedLevel n') -> n == n'
-    (Plus n v     , Plus n' v'    ) -> n == n' && equalSy v v'
-    _ -> False
+  equalSy (Plus n v) (Plus n' v') = n == n' && equalSy v v'
 
 instance EqualSy LevelAtom where
   equalSy = equalSy `on` unLevelAtom

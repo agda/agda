@@ -113,15 +113,12 @@ instance TermLike Term where
     Dummy{}     -> mempty
 
 instance TermLike Level where
-  traverseTermM f (Max as) = Max <$> traverseTermM f as
-  foldTerm f      (Max as) = foldTerm f as
+  traverseTermM f (Max n as) = Max n <$> traverseTermM f as
+  foldTerm f      (Max n as) = foldTerm f as
 
 instance TermLike PlusLevel where
-  traverseTermM f l = case l of
-    ClosedLevel{} -> return l
-    Plus n l      -> Plus n <$> traverseTermM f l
-  foldTerm f ClosedLevel{} = mempty
-  foldTerm f (Plus _ l)    = foldTerm f l
+  traverseTermM f (Plus n l) = Plus n <$> traverseTermM f l
+  foldTerm f (Plus _ l)      = foldTerm f l
 
 instance TermLike LevelAtom where
   traverseTermM f l = case l of
