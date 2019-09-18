@@ -130,12 +130,10 @@ instance ForceNotFree Term where
     Dummy{}    -> return t
 
 instance ForceNotFree Level where
-  forceNotFree' (Max as) = Max <$> forceNotFree' as
+  forceNotFree' (Max m as) = Max m <$> forceNotFree' as
 
 instance ForceNotFree PlusLevel where
-  forceNotFree' l = case l of
-    ClosedLevel{} -> return l
-    Plus k a      -> Plus k <$> forceNotFree' a
+  forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
 instance ForceNotFree LevelAtom where
   forceNotFree' l = case l of

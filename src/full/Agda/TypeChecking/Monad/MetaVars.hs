@@ -204,7 +204,8 @@ instance IsInstantiatedMeta Term where
       _          -> __IMPOSSIBLE__
 
 instance IsInstantiatedMeta Level where
-  isInstantiatedMeta (Max ls) = isInstantiatedMeta ls
+  isInstantiatedMeta (Max n ls) | n == 0 = isInstantiatedMeta ls
+  isInstantiatedMeta _ = __IMPOSSIBLE__
 
 instance IsInstantiatedMeta PlusLevel where
   isInstantiatedMeta (Plus n l) | n == 0 = isInstantiatedMeta l
@@ -611,11 +612,10 @@ instance UnFreezeMeta Sort where
   unfreezeMeta _             = return ()
 
 instance UnFreezeMeta Level where
-  unfreezeMeta (Max ls)      = unfreezeMeta ls
+  unfreezeMeta (Max _ ls)      = unfreezeMeta ls
 
 instance UnFreezeMeta PlusLevel where
   unfreezeMeta (Plus _ a)    = unfreezeMeta a
-  unfreezeMeta ClosedLevel{} = return ()
 
 instance UnFreezeMeta LevelAtom where
   unfreezeMeta (MetaLevel x _)    = unfreezeMeta x

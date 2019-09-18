@@ -920,11 +920,11 @@ instance ExtractCalls Term where
 
 -- | Extract recursive calls from level expressions.
 
-deriving instance ExtractCalls Level
+instance ExtractCalls Level where
+  extract (Max n as) = extract as
 
 instance ExtractCalls PlusLevel where
-  extract (ClosedLevel n) = return $ mempty
-  extract (Plus n l)      = extract l
+  extract (Plus n l) = extract l
 
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es

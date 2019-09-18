@@ -87,10 +87,9 @@ instance PrecomputeFreeVars Sort where
       DummyS{}   -> pure s
 
 instance PrecomputeFreeVars Level where
-  precomputeFreeVars (Max ls) = Max <$> precomputeFreeVars ls
+  precomputeFreeVars (Max n ls) = Max n <$> precomputeFreeVars ls
 
 instance PrecomputeFreeVars PlusLevel where
-  precomputeFreeVars l@ClosedLevel{} = pure l
   precomputeFreeVars (Plus n l) = Plus n <$> precomputeFreeVars l
 
 instance PrecomputeFreeVars LevelAtom where

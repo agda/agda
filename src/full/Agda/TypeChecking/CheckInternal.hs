@@ -433,9 +433,8 @@ checkSort action s =
 
 -- | Check if level is well-formed.
 checkLevel :: (MonadCheckInternal m) => Action m -> Level -> m Level
-checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
+checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
   where
-    checkPlusLevel l@ClosedLevel{} = return l
     checkPlusLevel (Plus k l)      = Plus k <$> checkLevelAtom l
 
     checkLevelAtom l = do
