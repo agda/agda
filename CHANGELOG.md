@@ -235,6 +235,9 @@ Language
   one wakes up all constraints mentioning the given meta-variables,
   and then tries to solve all awake constraints.
 
+* The builtin `IO` has been declared strictly positive in both its
+  level and type argument.
+
 ### Warnings
 
 * New warning for a variable shadowing another in a telescope. If the two
