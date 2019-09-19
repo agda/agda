@@ -129,7 +129,7 @@ class ToTerm a where
 
 instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
 instance ToTerm Word64  where toTerm = return $ Lit . LitWord64 noRange
-instance ToTerm Lvl     where toTerm = return $ Level . closedLevel . unLvl
+instance ToTerm Lvl     where toTerm = return $ Level . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
@@ -279,8 +279,8 @@ instance FromTerm Word64 where
 
 instance FromTerm Lvl where
   fromTerm = fromReducedTerm $ \l -> case l of
-    Level (Max n []) -> Just $ Lvl n
-    _                -> Nothing
+    Level (ClosedLevel n) -> Just $ Lvl n
+    _                     -> Nothing
 
 instance FromTerm Double where
   fromTerm = fromLiteral $ \l -> case l of
@@ -371,7 +371,7 @@ mkPrimInjective :: Type -> Type -> QName -> TCM PrimitiveImpl
 mkPrimInjective a b qn = do
   -- Define the type
   eqName <- primEqualityName
-  let lvl0     = closedLevel 0
+  let lvl0     = ClosedLevel 0
   let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#> pure (Level lvl0)
                                 <#> pure (unEl a) <@> t <@> u
   let f    = pure (Def qn [])
@@ -571,7 +571,7 @@ primForceLemma = do
 mkPrimLevelZero :: TCM PrimitiveImpl
 mkPrimLevelZero = do
   t <- primType (undefined :: Lvl)
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ closedLevel 0
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ ClosedLevel 0
 
 mkPrimLevelSuc :: TCM PrimitiveImpl
 mkPrimLevelSuc = do

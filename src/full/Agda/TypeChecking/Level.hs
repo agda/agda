@@ -142,7 +142,7 @@ levelView' a = do
           Def s [Apply arg]
             | s == lsuc  -> levelSuc <$> view (unArg arg)
           Def z []
-            | z == lzero -> return $ closedLevel 0
+            | z == lzero -> return $ ClosedLevel 0
           Def m [Apply arg1, Apply arg2]
             | m == lmax  -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _              -> mkAtom a

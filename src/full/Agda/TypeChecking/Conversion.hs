@@ -1257,7 +1257,7 @@ leqLevel a b = do
 
         -- any ≤ 0
         (as , SingleClosed 0 :! []) ->
-          sequence_ [ equalLevel (unSingleLevel a') (closedLevel 0) | a' <- toList as ]
+          sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- toList as ]
 
         -- closed ≤ closed
         (SingleClosed m :! [], SingleClosed n :! []) -> if m <= n then ok else notok
@@ -1396,9 +1396,9 @@ equalLevel' a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :! [] , bs@(_:!_:_)) ->
-          sequence_ [ equalLevel' (closedLevel 0) (unSingleLevel b') | b' <- toList bs ]
+          sequence_ [ equalLevel' (ClosedLevel 0) (unSingleLevel b') | b' <- toList bs ]
         (as@(_:!_:_) , SingleClosed 0 :! []) ->
-          sequence_ [ equalLevel' (unSingleLevel a') (closedLevel 0) | a' <- toList as ]
+          sequence_ [ equalLevel' (unSingleLevel a') (ClosedLevel 0) | a' <- toList as ]
 
         -- Jesper, 2014-02-02 remove terms that certainly do not contribute
         -- to the maximum
@@ -1543,13 +1543,13 @@ equalSort s1 s2 = do
             -- if @PiSort a b == Set0@, then @b == Set0@
             -- we use this fact to solve metas in @b@,
             -- hopefully allowing the @PiSort@ to reduce.
-            (Type (Max 0 []) , PiSort a b     )
+            (Type (ClosedLevel 0) , PiSort a b     )
               | not propEnabled             -> piSortEqualsBottom set0 a b
-            (PiSort a b      , Type (Max 0 []))
+            (PiSort a b           , Type (ClosedLevel 0))
               | not propEnabled             -> piSortEqualsBottom set0 a b
 
-            (Prop (Max 0 []) , PiSort a b     ) -> piSortEqualsBottom prop0 a b
-            (PiSort a b      , Prop (Max 0 [])) -> piSortEqualsBottom prop0 a b
+            (Prop (ClosedLevel 0) , PiSort a b     ) -> piSortEqualsBottom prop0 a b
+            (PiSort a b           , Prop (ClosedLevel 0)) -> piSortEqualsBottom prop0 a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
@@ -1559,8 +1559,8 @@ equalSort s1 s2 = do
 
             -- @Prop0@ and @SizeUniv@ don't contain any universes,
             -- so they cannot be a UnivSort
-            (Prop (Max 0 []) , UnivSort s )     -> no
-            (UnivSort s      , Prop (Max 0 [])) -> no
+            (Prop (ClosedLevel 0) , UnivSort s )     -> no
+            (UnivSort s           , Prop (ClosedLevel 0)) -> no
             (SizeUniv        , UnivSort s )     -> no
             (UnivSort s      , SizeUniv   )     -> no
 

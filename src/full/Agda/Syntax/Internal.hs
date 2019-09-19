@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 
@@ -881,8 +882,8 @@ __DUMMY_DOM__ :: HasCallStack => Dom Type
 __DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
 
 -- | Constant level @n@
-closedLevel :: Integer -> Level
-closedLevel n = Max n []
+pattern ClosedLevel :: Integer -> Level
+pattern ClosedLevel n = Max n []
 
 atomicLevel :: LevelAtom -> Level
 atomicLevel a = Max 0 [ Plus 0 a ]
@@ -912,10 +913,10 @@ levelSuc :: Level -> Level
 levelSuc = levelPlus 1
 
 mkType :: Integer -> Sort
-mkType n = Type $ closedLevel n
+mkType n = Type $ ClosedLevel n
 
 mkProp :: Integer -> Sort
-mkProp n = Prop $ closedLevel n
+mkProp n = Prop $ ClosedLevel n
 
 isSort :: Term -> Maybe Sort
 isSort v = case v of
@@ -1449,11 +1450,11 @@ instance Pretty LevelAtom where
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Type (Max 0 []) -> "Set"
-      Type (Max n []) -> text $ "Set" ++ show n
+      Type (ClosedLevel 0) -> "Set"
+      Type (ClosedLevel n) -> text $ "Set" ++ show n
       Type l -> mparens (p > 9) $ "Set" <+> prettyPrec 10 l
-      Prop (Max 0 []) -> "Prop"
-      Prop (Max n []) -> text $ "Prop" ++ show n
+      Prop (ClosedLevel 0) -> "Prop"
+      Prop (ClosedLevel n) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf -> "Setω"
       SizeUniv -> "SizeUniv"

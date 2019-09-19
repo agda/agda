@@ -383,7 +383,7 @@ instance Conversion TOM I.Term (MExp O) where
         x' <- convert x
         y' <- convert y
         return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
-      I.Sort (I.Type (I.Max l [])) -> return $ NotM $ Sort $ Set $ fromIntegral l
+      I.Sort (I.Type (I.ClosedLevel l)) -> return $ NotM $ Sort $ Set $ fromIntegral l
       I.Sort _ -> return $ NotM $ Sort UnknownSort
       I.Dummy{}-> return $ NotM $ Sort UnknownSort
       t@I.MetaV{} -> do
