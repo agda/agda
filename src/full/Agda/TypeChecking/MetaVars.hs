@@ -570,7 +570,7 @@ etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable 
               reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
               -- Andreas, 2012-03-30: No need for occurrence check etc.
               -- we directly assign the solution for the meta
-              noConstraints $ assignTerm m (telToArgs tel) $ Level $ closedLevel 0
+              noConstraints $ assignTerm m (telToArgs tel) $ Level $ ClosedLevel 0
            ) $ {- else -} dontExpand
           _ -> dontExpand
 

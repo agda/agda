@@ -27,7 +27,7 @@ defaultOpenLevelsToZero = do
     if | all (`isUpperBoundFor` x) cs -> do
            m <- lookupMeta x
            TelV tel t <- telView =<< metaType x
-           addContext tel $ assignV DirEq x (teleArgs tel) $ Level (Max 0 [])
+           addContext tel $ assignV DirEq x (teleArgs tel) $ Level (ClosedLevel 0)
            return True
          `catchError` \_ -> return False
        | otherwise -> return False
