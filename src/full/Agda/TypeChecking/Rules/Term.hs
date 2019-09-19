@@ -1128,37 +1128,6 @@ checkExpr' cmp e t0 =
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
-        e0@(A.QuoteGoal _ x e) -> do
-          qg <- quoteGoal t
-          case qg of
-            Left metas -> postponeTypeCheckingProblem (CheckExpr cmp e0 t) $ andM $ map isInstantiatedMeta metas
-            Right quoted -> do
-              tmType <- agdaTermType
-              (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
-              coerce cmp v ty t
-        e0@(A.QuoteContext _) -> do
-          qc <- quoteContext
-          case qc of
-            Left metas -> postponeTypeCheckingProblem (CheckExpr cmp e0 t) $ andM $ map isInstantiatedMeta metas
-            Right quotedContext -> do
-              ctxType <- el $ list $ primArg <@> (unEl <$> agdaTypeType)
-              coerce cmp quotedContext ctxType t
-        e0@(A.Tactic i e xs ys) -> do
-          qc <- quoteContext
-          qg <- quoteGoal t
-          let postpone metas = postponeTypeCheckingProblem (CheckExpr cmp e0 t) $ andM $ map isInstantiatedMeta metas
-          case (qc, qg) of
-            (Left metas1, Left metas2) -> postpone $ metas1 ++ metas2
-            (Left metas , Right _    ) -> postpone $ metas
-            (Right _    , Left metas ) -> postpone $ metas
-            (Right quotedCtx, Right quotedGoal) -> do
-              quotedCtx  <- defaultNamedArg <$> reify quotedCtx
-              quotedGoal <- defaultNamedArg <$> reify quotedGoal
-              let ai     = A.defaultAppInfo (getRange i)
-                  tac    = foldl (A.App ai) (A.App ai (A.App ai e quotedCtx) quotedGoal) xs
-                  result = foldl (A.App ai) (A.Unquote i) (defaultNamedArg tac : ys)
-              checkExpr' cmp result t
-
         A.ETel _   -> __IMPOSSIBLE__
 
         A.Dot{} -> genericError "Invalid dotted expression"
@@ -1251,27 +1220,6 @@ doQuoteTerm cmp et t = do
       ty <- el primAgdaTerm
       coerce cmp q ty t
     metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
-
--- | Checking `quoteGoal` (deprecated)
-quoteGoal :: Type -> TCM (Either [MetaId] Term)
-quoteGoal t = do
-  t' <- etaContract =<< instantiateFull t
-  case allMetasList t' of
-    []  -> do
-      quotedGoal <- quoteTerm (unEl t')
-      return $ Right quotedGoal
-    metas -> return $ Left metas
-
--- | Checking `quoteContext` (deprecated)
-quoteContext :: TCM (Either [MetaId] Term)
-quoteContext = do
-  contextTypes  <- map (fmap snd) <$> getContext
-  contextTypes  <- etaContract =<< instantiateFull contextTypes
-  case allMetasList contextTypes of
-    []  -> do
-      quotedContext <- buildList <*> mapM quoteDom contextTypes
-      return $ Right quotedContext
-    metas -> return $ Left metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()

@@ -230,7 +230,6 @@ instance Pretty Expr where
             Lit l            -> pretty l
             QuestionMark _ n -> "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
---          Underscore _ n   -> underscore <> maybe empty (text . show) n
             App _ _ _        ->
                 case appView e of
                     AppView e1 args     ->
@@ -284,16 +283,10 @@ instance Pretty Expr where
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             ETel []  -> "()"
             ETel tel -> fsep $ map pretty tel
-            QuoteGoal _ x e -> sep ["quoteGoal" <+> pretty x <+> "in",
-                                    nest 2 $ pretty e]
-            QuoteContext _ -> "quoteContext"
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
-            Unquote _ -> "unquote"
-            Tactic _ t es ->
-              sep [ "tactic" <+> pretty t
-                  , fsep [ "|" <+> pretty e | e <- es ]
-                  ]
+            Unquote _  -> "unquote"
+            Tactic _ t -> "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> "=" <+> pretty b

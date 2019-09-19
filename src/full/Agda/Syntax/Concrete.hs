@@ -162,11 +162,9 @@ data Expr
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
   | ETel Telescope                             -- ^ only used for printing telescopes
-  | QuoteGoal Range Name Expr                  -- ^ ex: @quoteGoal x in e@
-  | QuoteContext Range                         -- ^ ex: @quoteContext@
   | Quote Range                                -- ^ ex: @quote@, should be applied to a name
   | QuoteTerm Range                            -- ^ ex: @quoteTerm@, should be applied to a term
-  | Tactic Range Expr [Expr]                   -- ^ @tactic solve | subgoal1 | .. | subgoalN@
+  | Tactic Range Expr                          -- ^ ex: @\@(tactic t)@, used to declare tactic arguments
   | Unquote Range                              -- ^ ex: @unquote@, should be applied to a term of type @Term@
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
@@ -696,12 +694,10 @@ instance HasRange Expr where
       Rec r _            -> r
       RecUpdate r _ _    -> r
       ETel tel           -> getRange tel
-      QuoteGoal r _ _    -> r
-      QuoteContext r     -> r
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
-      Tactic r _ _       -> r
+      Tactic r _         -> r
       DontCare{}         -> noRange
       Equal r _ _        -> r
       Ellipsis r         -> r
@@ -937,12 +933,10 @@ instance KillRange Expr where
   killRange (As _ n e)           = killRange2 (As noRange) n e
   killRange (Dot _ e)            = killRange1 (Dot noRange) e
   killRange (ETel t)             = killRange1 ETel t
-  killRange (QuoteGoal _ n e)    = killRange2 (QuoteGoal noRange) n e
-  killRange (QuoteContext _)     = QuoteContext noRange
   killRange (Quote _)            = Quote noRange
   killRange (QuoteTerm _)        = QuoteTerm noRange
   killRange (Unquote _)          = Unquote noRange
-  killRange (Tactic _ t es)      = killRange2 (Tactic noRange) t es
+  killRange (Tactic _ t)         = killRange1 (Tactic noRange) t
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
   killRange (Ellipsis _)         = Ellipsis noRange
@@ -1059,11 +1053,9 @@ instance NFData Expr where
   rnf (As _ a b)         = rnf a `seq` rnf b
   rnf (Dot _ a)          = rnf a
   rnf (ETel a)           = rnf a
-  rnf (QuoteGoal _ a b)  = rnf a `seq` rnf b
-  rnf (QuoteContext _)   = ()
   rnf (Quote _)          = ()
   rnf (QuoteTerm _)      = ()
-  rnf (Tactic _ a b)     = rnf a `seq` rnf b
+  rnf (Tactic _ a)       = rnf a
   rnf (Unquote _)        = ()
   rnf (DontCare a)       = rnf a
   rnf (Equal _ a b)      = rnf a `seq` rnf b

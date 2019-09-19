@@ -105,7 +105,7 @@ stringToAttribute = (`Map.lookup` attributesMap)
 -- | Parsing an expression into an attribute.
 
 exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute (Paren _ (RawApp _ [Tactic _ t []])) = Just $ TacticAttribute t
+exprToAttribute (Paren _ (RawApp _ [Tactic _ t])) = Just $ TacticAttribute t
 exprToAttribute e = setRange (getRange e) $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.

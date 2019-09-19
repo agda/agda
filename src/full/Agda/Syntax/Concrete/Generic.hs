@@ -145,9 +145,7 @@ instance ExprLike Expr where
      As r x e           -> f $ As r x                 $ mapE e
      Dot r e            -> f $ Dot r                  $ mapE e
      ETel tel           -> f $ ETel                   $ mapE tel
-     QuoteGoal r x e    -> f $ QuoteGoal r x          $ mapE e
-     QuoteContext r     -> f $ e0
-     Tactic r e es      -> f $ Tactic r     (mapE e)  $ mapE es
+     Tactic r e         -> f $ Tactic r     (mapE e)
      Quote{}            -> f $ e0
      QuoteTerm{}        -> f $ e0
      Unquote{}          -> f $ e0

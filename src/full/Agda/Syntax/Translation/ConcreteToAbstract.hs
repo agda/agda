@@ -952,20 +952,15 @@ instance ToAbstract C.Expr A.Expr where
       C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
 
   -- Quoting
-      C.QuoteGoal _ x e -> do
-        x' <- toAbstract (NewName LetBound x)
-        e' <- toAbstract e
-        return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
-      C.QuoteContext r -> return $ A.QuoteContext (ExprRange r)
       C.Quote r -> return $ A.Quote (ExprRange r)
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
-      C.Tactic r e es -> do
+      C.Tactic r e -> do
         let AppView e' args = appView e
-        e' : es <- toAbstract (e' : es)
-        args    <- toAbstract args
-        return $ A.Tactic (ExprRange r) e' args (map defaultNamedArg es)
+        e'   <- toAbstract e'
+        args <- toAbstract args
+        return $ A.Tactic (ExprRange r) e' args
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
