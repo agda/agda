@@ -307,8 +307,7 @@ data Sort' t
 type Sort = Sort' Term
 
 -- | A level is a maximum expression of a closed level and 0..n
---   'PlusLevel' expressions each of which is a number or an atom plus
---   a number.
+--   'PlusLevel' expressions each of which is an atom plus a number.
 data Level' t = Max Integer [PlusLevel' t]
   deriving (Show, Data)
 
