@@ -306,11 +306,12 @@ instance Reduce UnifyState where
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
     [ "variable tel:  " <+> prettyTCM gamma
-    , "flexible vars: " <+> prettyTCM (map flexVar $ flexVars state)
+    , "flexible vars: " <+> pshow (map flexVarF $ flexVars state)
     , "equation tel:  " <+> addContext gamma (prettyTCM delta)
     , "equations:     " <+> addContext gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
     ])
     where
+      flexVarF fi = (flexVar fi, flexForced fi)
       gamma = varTel state
       delta = eqTel state
       prettyEquality x y = prettyTCM x <+> "=?=" <+> prettyTCM y
@@ -522,7 +523,7 @@ instance PrettyTCM UnifyStep where
     Solution k a i u -> "Solution" $$ nest 2 (vcat $
       [ "position:   " <+> text (show k)
       , "type:       " <+> prettyTCM a
-      , "variable:   " <+> text (show i)
+      , "variable:   " <+> text (show (flexVar i, flexPos i, flexForced i, flexKind i))
       , "term:       " <+> prettyTCM u
       ])
     Injectivity k a d pars ixs c -> "Injectivity" $$ nest 2 (vcat $
