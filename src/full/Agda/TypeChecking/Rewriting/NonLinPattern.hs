@@ -225,11 +225,11 @@ class NLPatVars a where
   nlPatVars :: a -> IntSet
   nlPatVars = nlPatVarsUnder 0
 
-instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
+instance {-# OVERLAPPABLE #-} (Foldable f, NLPatVars a) => NLPatVars (f a) where
   nlPatVarsUnder k = foldMap $ nlPatVarsUnder k
 
 instance NLPatVars NLPType where
-  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k l `IntSet.union` nlPatVarsUnder k a
+  nlPatVarsUnder k (NLPType l a) = nlPatVarsUnder k (l, a)
 
 instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
@@ -239,15 +239,22 @@ instance NLPatVars NLPSort where
     PSizeUniv -> empty
 
 instance NLPatVars NLPat where
-  nlPatVarsUnder k p =
-    case p of
+  nlPatVarsUnder k = \case
       PVar i _  -> singleton $ i - k
       PDef _ es -> nlPatVarsUnder k es
-      PLam _ p' -> nlPatVarsUnder (k+1) $ unAbs p'
-      PPi a b   -> nlPatVarsUnder k a `IntSet.union` nlPatVarsUnder (k+1) (unAbs b)
+      PLam _ p  -> nlPatVarsUnder k p
+      PPi a b   -> nlPatVarsUnder k (a, b)
       PSort s   -> nlPatVarsUnder k s
       PBoundVar _ es -> nlPatVarsUnder k es
       PTerm{}   -> empty
+
+instance (NLPatVars a, NLPatVars b) => NLPatVars (a,b) where
+  nlPatVarsUnder k (a,b) = nlPatVarsUnder k a `mappend` nlPatVarsUnder k b
+
+instance NLPatVars a => NLPatVars (Abs a) where
+  nlPatVarsUnder k = \case
+    Abs   _ v -> nlPatVarsUnder (k+1) v
+    NoAbs _ v -> nlPatVarsUnder k v
 
 -- | Get all symbols that a non-linear pattern matches against
 class GetMatchables a where
