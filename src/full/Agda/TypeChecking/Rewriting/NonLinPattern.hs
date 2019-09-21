@@ -170,13 +170,15 @@ instance PatternFrom Type Term NLPat where
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> done
       (_ , MetaV{})    -> __IMPOSSIBLE__
-      (_ , Dummy s _)    -> __IMPOSSIBLE_VERBOSE__ s
+      (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s
 
--- ^ Convert from a non-linear pattern to a term
+-- | Convert from a non-linear pattern to a term.
+
 class NLPatToTerm p a where
   nlPatToTerm
     :: (MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m)
     => p -> m a
+
   default nlPatToTerm ::
     ( NLPatToTerm p' a', Traversable f, p ~ f p', a ~ f a'
     , MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m
@@ -200,15 +202,15 @@ instance NLPatToTerm NLPat Term where
       Constructor{ conSrcCon = c } -> Con c ConOSystem <$> nlPatToTerm es
       _                            -> Def f <$> nlPatToTerm es
     PLam i u       -> Lam i <$> nlPatToTerm u
-    PPi a b        -> Pi <$> nlPatToTerm a <*> nlPatToTerm b
-    PSort s        -> Sort <$> nlPatToTerm s
+    PPi a b        -> Pi    <$> nlPatToTerm a <*> nlPatToTerm b
+    PSort s        -> Sort  <$> nlPatToTerm s
     PBoundVar i es -> Var i <$> nlPatToTerm es
 
 instance NLPatToTerm NLPat Level where
   nlPatToTerm = nlPatToTerm >=> levelView
 
 instance NLPatToTerm NLPType Type where
-  nlPatToTerm (NLPType s a) = El <$> (nlPatToTerm s) <*> nlPatToTerm a
+  nlPatToTerm (NLPType s a) = El <$> nlPatToTerm s <*> nlPatToTerm a
 
 instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PType l) = Type <$> nlPatToTerm l
@@ -290,16 +292,18 @@ instance GetMatchables Term where
 instance GetMatchables RewriteRule where
   getMatchables = getMatchables . rewPats
 
--- Only computes free variables that are not bound (i.e. those in a PTerm)
+-- | Only computes free variables that are not bound (see 'nlPatVars'),
+--   i.e., those in a 'PTerm'.
+
 instance Free NLPat where
-  freeVars' p = case p of
-    PVar _ _ -> mempty
-    PDef _ es -> freeVars' es
-    PLam _ u -> freeVars' u
-    PPi a b -> freeVars' (a,b)
-    PSort s -> freeVars' s
+  freeVars' = \case
+    PVar _ _       -> mempty
+    PDef _ es      -> freeVars' es
+    PLam _ u       -> freeVars' u
+    PPi a b        -> freeVars' (a,b)
+    PSort s        -> freeVars' s
     PBoundVar _ es -> freeVars' es
-    PTerm t -> freeVars' t
+    PTerm t        -> freeVars' t
 
 instance Free NLPType where
   freeVars' (NLPType s a) =
