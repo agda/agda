@@ -655,9 +655,8 @@ noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
 
---UNUSED Liang-Ting Chen 2019-07-16
---noProjectionLikeFlag :: Flag PragmaOptions
---noProjectionLikeFlag o = return $ o { optProjectionLike = False }
+noProjectionLikeFlag :: Flag PragmaOptions
+noProjectionLikeFlag o = return $ o { optProjectionLike = False }
 
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
@@ -956,7 +955,7 @@ pragmaOptions =
                     "default records to no-eta-equality"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing analysis for data constructors (optimisation)"
-    , Option []     ["no-projection-like"] (NoArg noForcingFlag)
+    , Option []     ["no-projection-like"] (NoArg noProjectionLikeFlag)
                     "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
