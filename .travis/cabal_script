@@ -3,8 +3,6 @@
 source .travis/header.sh
 set -e
 
-fold_timer_cmd "check.whitespace" "Checking the whitespace issue" make check-whitespace
-
 fold_timer_cmd "successful.tests" "Suite of successful tests" \
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
 
@@ -77,15 +75,7 @@ fold_timer_cmd "library.interaction.tests" "Interaction tests using the standard
 fold_timer_cmd "tags" "TAGS"\
   make BUILD_DIR=$BUILD_DIR TAGS
 
-travis_fold start "test.size.solver"
-title "Testing the size-solver program"
-travis_time_start 
-
-stack install --system-ghc --no-terminal --silent shelltestrunner
-make test-size-solver
-
-travis_fold end "test.size.solver"
-travis_time_finish 
+fold_timer_cmd "test.size.solver" "Testing the size-solver program" make test-size-solver
 
 fold_timer_cmd "emacs.mode.tests" "Testing the Emacs mode"\
   make BUILD_DIR=$BUILD_DIR testing-emacs-mode

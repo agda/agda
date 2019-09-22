@@ -100,14 +100,14 @@ instance SynEq Term where
       _                                    -> inequal (v, v')
 
 instance SynEq Level where
-  synEq (Max vs) (Max vs') = levelMax <$$> synEq vs vs'
+  synEq l@(Max n vs) l'@(Max n' vs')
+    | n == n'   = levelMax n <$$> synEq vs vs'
+    | otherwise = inequal (l, l')
 
 instance SynEq PlusLevel where
-  synEq l l' = do
-    case (l, l') of
-      (ClosedLevel v, ClosedLevel v') | v == v' -> pure2 l
-      (Plus n v,      Plus n' v')     | n == n' -> Plus n <$$> synEq v v'
-      _ -> inequal (l, l')
+  synEq l@(Plus n v) l'@(Plus n' v')
+    | n == n'   = Plus n <$$> synEq v v'
+    | otherwise = inequal (l, l')
 
 instance SynEq LevelAtom where
   synEq l l' = do

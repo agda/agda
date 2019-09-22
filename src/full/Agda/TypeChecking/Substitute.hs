@@ -812,10 +812,9 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     where sub x = applySubst rho x
 
 instance Subst t a => Subst t (Level' a) where
-  applySubst rho (Max as) = Max $ applySubst rho as
+  applySubst rho (Max n as) = Max n $ applySubst rho as
 
 instance Subst t a => Subst t (PlusLevel' a) where
-  applySubst rho l@ClosedLevel{} = l
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
 instance Subst t a => Subst t (LevelAtom' a) where
@@ -1241,11 +1240,8 @@ deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where
-  compare ClosedLevel{} Plus{}            = LT
-  compare Plus{} ClosedLevel{}            = GT
-  compare (ClosedLevel n) (ClosedLevel m) = compare n m
   -- Compare on the atom first. Makes most sense for levelMax.
-  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
+  compare (Plus n a) (Plus m b) = compare (a,n) (b,m)
 
 instance Eq LevelAtom where
   (==) = (==) `on` unLevelAtom
@@ -1397,12 +1393,12 @@ funSort' :: Dom Type -> Sort -> Maybe Sort
 funSort' a b = case (getSort a, b) of
   (Inf           , _            ) -> Just Inf
   (_             , Inf          ) -> Just Inf
-  (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
+  (Type a , Type b) -> Just $ Type $ levelLub a b
   (SizeUniv      , b            ) -> Just b
   (_             , SizeUniv     ) -> Just SizeUniv
-  (Prop (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
-  (Type (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
-  (Prop (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
+  (Prop a , Type b) -> Just $ Type $ levelLub a b
+  (Type a , Prop b) -> Just $ Prop $ levelLub a b
+  (Prop a , Prop b) -> Just $ Prop $ levelLub a b
   (a             , b            ) -> Nothing
 
 funSort :: Dom Type -> Sort -> Sort
@@ -1455,66 +1451,62 @@ piSort a b = fromMaybe (PiSort a b) $ piSort' a b
 -- * Level stuff
 ---------------------------------------------------------------------------
 
-levelMax :: [PlusLevel] -> Level
-levelMax as0 = Max $ ns ++ List.sort bs
+-- ^ Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
+levelMax :: Integer -> [PlusLevel] -> Level
+levelMax n0 as0 = Max n as
   where
-    as = Prelude.concatMap expand as0
-    -- ns is empty or a singleton
-    ns = case [ n | ClosedLevel n <- as, n > 0 ] of
-      []  -> []
-      ns  -> [ ClosedLevel n | let n = Prelude.maximum ns, n > greatestB ]
-    bs = subsume [ b | b@Plus{} <- as ]
-    greatestB | null bs   = 0
-              | otherwise = Prelude.maximum [ n | Plus n _ <- bs ]
+    -- step 1: flatten nested @Level@ expressions in @LevelAtom@s
+    Max n1 as1 = expandLevel $ Max n0 as0
+    -- step 2: remove subsumed @PlusLevel@s
+    as2       = removeSubsumed as1
+    -- step 3: sort remaining @PlusLevel@s
+    as        = List.sort as2
+    -- step 4: set constant to 0 if it is subsumed by one of the @PlusLevel@s
+    greatestB = Prelude.maximum $ 0 : [ n | Plus n _ <- as ]
+    n | n1 > greatestB = n1
+      | otherwise      = 0
 
-    expand l@ClosedLevel{} = [l]
-    expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
+    lmax :: Integer -> [PlusLevel] -> [Level] -> Level
+    lmax m as []              = Max m as
+    lmax m as (Max n bs : ls) = lmax (max m n) (bs ++ as) ls
 
-    expand0 [] = [ClosedLevel 0]
-    expand0 as = as
+    expandLevel :: Level -> Level
+    expandLevel (Max m as) = lmax m [] $ map expandPlus as
 
+    expandPlus :: PlusLevel -> Level
+    expandPlus (Plus m l) = levelPlus m $ expandAtom l
+
+    expandAtom :: LevelAtom -> Level
     expandAtom l = case l of
       BlockedLevel _ v -> expandTm v
       NeutralLevel _ v -> expandTm v
       UnreducedLevel v -> expandTm v
-      MetaLevel{}      -> [Plus 0 l]
+      MetaLevel{}      -> Max 0 [Plus 0 l]
       where
-        expandTm v = case v of
-          Level (Max as)       -> as
-          Sort (Type (Max as)) -> as
-          _                    -> [Plus 0 l]
+        expandTm (Level l)       = expandLevel l
+        expandTm (Sort (Type l)) = expandLevel l -- TODO: get rid of this horrible hack!
+        expandTm v               = Max 0 [Plus 0 l]
 
-    plus n (ClosedLevel m) = ClosedLevel (n + m)
-    plus n (Plus m l)      = Plus (n + m) l
-
-    subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
-    subsume [] = []
-    subsume (Plus n a : bs)
-      | not $ null ns = subsume bs
-      | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
+    removeSubsumed [] = []
+    removeSubsumed (Plus n a : bs)
+      | not $ null ns = removeSubsumed bs
+      | otherwise     = Plus n a : removeSubsumed [ b | b@(Plus _ a') <- bs, a /= a' ]
       where
-        ns = [ m | Plus m a'  <- bs, a == a', m > n ]
+        ns = [ m | Plus m a' <- bs, a == a', m > n ]
+
+-- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
+--   canonical form.
+levelLub :: Level -> Level -> Level
+levelLub (Max m as) (Max n bs) = levelMax (max m n) $ as ++ bs
 
 levelTm :: Level -> Term
 levelTm l =
   case l of
-    Max [Plus 0 l] -> unLevelAtom l
-    _              -> Level l
+    Max 0 [Plus 0 l] -> unLevelAtom l
+    _                -> Level l
 
 unLevelAtom :: LevelAtom -> Term
 unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
-
-levelSucView :: Level -> Maybe Level
-levelSucView (Max []) = Nothing
-levelSucView (Max as) = Max <$> traverse atomPred as
-  where
-    atomPred :: PlusLevel -> Maybe PlusLevel
-    atomPred (ClosedLevel n)
-      | n > 0     = Just $ ClosedLevel (n-1)
-      | otherwise = Nothing
-    atomPred (Plus n l)
-      | n > 0     = Just $ Plus (n-1) l
-      | otherwise = Nothing

@@ -23,8 +23,7 @@ import System.IO.Unsafe
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
-import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
+  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor

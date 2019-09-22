@@ -368,10 +368,9 @@ instance HasPolarity Term where
     Dummy{}    -> return []
 
 instance HasPolarity Level where
-  polarities i (Max as) = polarities i as
+  polarities i (Max _ as) = polarities i as
 
 instance HasPolarity PlusLevel where
-  polarities i ClosedLevel{} = return []
   polarities i (Plus _ l) = polarities i l
 
 instance HasPolarity LevelAtom where

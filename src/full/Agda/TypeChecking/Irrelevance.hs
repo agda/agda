@@ -330,11 +330,10 @@ instance UsableRelevance Sort where
     DummyS{} -> return True
 
 instance UsableRelevance Level where
-  usableRel rel (Max ls) = usableRel rel ls
+  usableRel rel (Max _ ls) = usableRel rel ls
 
 instance UsableRelevance PlusLevel where
-  usableRel rel ClosedLevel{} = return True
-  usableRel rel (Plus _ l)    = usableRel rel l
+  usableRel rel (Plus _ l) = usableRel rel l
 
 instance UsableRelevance LevelAtom where
   usableRel rel l = case l of
@@ -436,7 +435,7 @@ instance UsableModality Sort where
   --   DummyS{} -> return True
 
 instance UsableModality Level where
-  usableMod mod (Max ls) = usableRel (getRelevance mod) ls
+  usableMod mod (Max _ ls) = usableRel (getRelevance mod) ls
 
 -- instance UsableModality PlusLevel where
 --   usableMod mod ClosedLevel{} = return True

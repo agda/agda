@@ -2,6 +2,13 @@
 source .travis/header.sh
 set -e
 
+subtitle "*** updating cabal tools ***"
+travis_retry cabal update
+subtitle "*** installing alex, happy, and shelltestrunner ***"
+travis_retry cabal fetch alex happy shelltestrunner
+cabal install -v0 alex happy 
+cabal install -v0 --ghc-option=-w shelltestrunner
+
 ##############################################################################
 # Build environment information
 
@@ -21,8 +28,6 @@ haddock --version
 subtitle "*** Emacs version ***"
 emacs --version | sed 2q
 
-subtitle "*** cabal update ***"
-travis_retry cabal update
 # The container environment reports a wrong number of cores. We use
 # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
 # commenting out `jobs: $ncpus` in the Cabal configuration file.

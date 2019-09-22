@@ -10,13 +10,6 @@ dist: trusty
 # Explicitly request sudo-enabled virtual environments [Issue #1992].
 sudo: required
 
-cache:
-  directories:
-    - $HOME/.cabal/store
-    - $HOME/.stack
-    # TODO: Experimental
-    - $TRAVIS_BUILD_DIR/.stack-work
-
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
 # be here. You can also add your private branches if you want travis to
@@ -32,7 +25,6 @@ branches:
     - release-2.6.0.1
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
-
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
@@ -67,6 +59,7 @@ git:
 # Travis runs the builds on this order.
 
 stages:
+  - name: check whitespace
   - name: stackage
     if: NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
@@ -86,9 +79,33 @@ jobs:
   ##############################################################################
   # Stackage stage
   #
+    - stage: check whitespace
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - export PATH=$HOME/.cabal/bin:$PATH
+        - travis_retry cabal v1-update
+      script:
+        - if [ ! -f "$HOME/.cabal/bin/fix-agda-whitespace" ]; then
+            cd src/fix-agda-whitespace/;
+            cabal -v0 v1-install;
+            cd ${TRAVIS_BUILD_DIR};
+          fi
+        - fix-agda-whitespace --check
+
     - &no-test-job
       stage: stackage
       env: GHC_VER=8.6.5
+      cache:
+        directories:
+          - $HOME/.stack
       addons:
         apt:
           packages:
@@ -97,16 +114,42 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        - mkdir -p ~/.local/bin
+        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - export PATH=$HOME/.local/bin:$PATH
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --system-ghc"
-        - export BUILD_DIR=$HOME/dist
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - echo "*** GHC version ***"     && ghc     --version &&
+          echo "*** Stack version ***"   && stack   --version &&
+          echo "*** Haddock version ***" && haddock --version &&
+          echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install:
-        - .travis/stack_install
+        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
-        skip
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+
+    # Windows testing environment
+    - stage: stackage
+      os: windows
+      cache:
+        directories:
+          - $LOCALAPPDATA/Programs/stack
+          - $APPDATA/stack
+      language: c
+      env:
+        - GHC_VER=8.6.5 ICU_VER=58.2-3
+      before_install:
+        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+
+        - travis_retry choco install haskell-stack --no-progress
+      install:
+        - travis_retry wget -q http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
+        - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
+
+        - stack build --compiler ghc-${GHC_VER} text-icu
+        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+      script:
+        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
 
     - <<: *no-test-job
       env: GHC_VER=8.4.4
@@ -157,12 +200,8 @@ jobs:
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-        - export AGDA_HOME=`pwd`
+          # - export AGDA_HOME=`pwd` this is $TRAVIS_BUILD_DIR
       install:
-        # use stack to install alex, happy, and shelltestrunner
-        - mkdir -p ~/.local/bin
-        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - stack install --system-ghc --no-terminal alex happy
         - .travis/cabal_install
       ##############################################################################
       script:

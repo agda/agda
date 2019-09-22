@@ -18,9 +18,8 @@ allMetas singl = foldTerm metas
   metas (Level l)   = levelMetas l
   metas _           = mempty
 
-  levelMetas (Max as) = foldMap plusLevelMetas as
+  levelMetas (Max _ as) = foldMap plusLevelMetas as
 
-  plusLevelMetas ClosedLevel{} = mempty
   plusLevelMetas (Plus _ l)    = levelAtomMetas l
 
   levelAtomMetas (MetaLevel m _) = singl m

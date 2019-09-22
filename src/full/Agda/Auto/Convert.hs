@@ -383,7 +383,7 @@ instance Conversion TOM I.Term (MExp O) where
         x' <- convert x
         y' <- convert y
         return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
-      I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
+      I.Sort (I.Type (I.ClosedLevel l)) -> return $ NotM $ Sort $ Set $ fromIntegral l
       I.Sort _ -> return $ NotM $ Sort UnknownSort
       I.Dummy{}-> return $ NotM $ Sort UnknownSort
       t@I.MetaV{} -> do
@@ -422,7 +422,7 @@ fmExp :: I.MetaId -> I.Term -> Bool
 fmExp m (I.Var _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Lam _ b) = fmExp m (I.unAbs b)
 fmExp m (I.Lit _) = False
-fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
+fmExp m (I.Level (I.Max _ as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ ci as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Pi x y)  = fmType m (I.unDom x) || fmType m (I.unAbs y)
@@ -436,7 +436,6 @@ fmExps m [] = False
 fmExps m (a : as) = fmExp m (Cm.unArg a) || fmExps m as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
-fmLevel m I.ClosedLevel{} = False
 fmLevel m (I.Plus _ l) = case l of
   I.MetaLevel m' _   -> m == m'
   I.NeutralLevel _ v -> fmExp m v

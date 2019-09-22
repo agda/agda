@@ -7,6 +7,8 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
+import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -14,6 +16,8 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
+import Agda.Utils.NonemptyList
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -91,22 +95,21 @@ reallyUnLevelView nv = do
   suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
   zer <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
   case nv of
-    Max []              -> return zer
-    Max [Plus 0 a]      -> return $ unLevelAtom a
-    Max [a]             -> do
-      return $ unPlusV zer (apply1 suc) a
-    _ -> (`unlevelWithKit` nv) <$> builtinLevelKit
+    Max n []       -> return $ unConstV zer (apply1 suc) n
+    Max 0 [a]      -> return $ unPlusV (apply1 suc) a
+    _              -> (`unlevelWithKit` nv) <$> builtinLevelKit
 
 unlevelWithKit :: LevelKit -> Level -> Term
-unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
-  case map (unPlusV zer suc) as of
-    [a] -> a
-    []  -> zer
-    as  -> foldl1 max as
+unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case
+  Max m []  -> unConstV zer suc m
+  Max 0 [a] -> unPlusV suc a
+  Max m as  -> foldl1 max $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
 
-unPlusV :: Term -> (Term -> Term) -> PlusLevel -> Term
-unPlusV zer suc (ClosedLevel n) = foldr (.) id (List.genericReplicate n suc) zer
-unPlusV _   suc (Plus n a)      = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
+unConstV :: Term -> (Term -> Term) -> Integer -> Term
+unConstV zer suc n = foldr (.) id (List.genericReplicate n suc) zer
+
+unPlusV :: (Term -> Term) -> PlusLevel -> Term
+unPlusV suc (Plus n a) = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do
@@ -137,9 +140,9 @@ levelView' a = do
         case a of
           Level l -> return l
           Def s [Apply arg]
-            | s == lsuc  -> inc <$> view (unArg arg)
+            | s == lsuc  -> levelSuc <$> view (unArg arg)
           Def z []
-            | z == lzero -> return $ closed 0
+            | z == lzero -> return $ ClosedLevel 0
           Def m [Apply arg1, Apply arg2]
             | m == lmax  -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _              -> mkAtom a
@@ -149,27 +152,69 @@ levelView' a = do
     mkAtom a = do
       b <- reduceB a
       return $ case b of
-        NotBlocked _ (MetaV m as) -> atom $ MetaLevel m as
-        NotBlocked r _            -> atom $ NeutralLevel r $ ignoreBlocking b
-        Blocked m _               -> atom $ BlockedLevel m $ ignoreBlocking b
+        NotBlocked _ (MetaV m as) -> atomicLevel $ MetaLevel m as
+        NotBlocked r _            -> atomicLevel $ NeutralLevel r $ ignoreBlocking b
+        Blocked m _               -> atomicLevel $ BlockedLevel m $ ignoreBlocking b
 
-    atom a = Max [Plus 0 a]
+-- | Given a level @l@, find the maximum constant @n@ such that @l = n + l'@
+levelPlusView :: Level -> (Integer, Level)
+levelPlusView (Max 0 []) = (0 , Max 0 [])
+levelPlusView (Max 0 as@(_:_)) = (minN , Max 0 (map sub as))
+  where
+    minN = minimum [ n | Plus n _ <- as ]
+    sub (Plus n a) = Plus (n - minN) a
+levelPlusView (Max n as) = (minN , Max (n - minN) (map sub as))
+  where
+    minN = minimum $ n : [ n' | Plus n' _ <- as ]
+    sub (Plus n' a) = Plus (n' - minN) a
 
-    closed n = Max [ClosedLevel n | n > 0]
+-- | Given a level @l@, find the biggest constant @n@ such that @n <= l@
+levelLowerBound :: Level -> Integer
+levelLowerBound (Max m as) = maximum $ m : [n | Plus n _ <- as]
 
-    inc (Max as) = Max $ map inc' as
-      where
-        inc' (ClosedLevel n) = ClosedLevel $ n + 1
-        inc' (Plus n a)    = Plus (n + 1) a
-
-levelLub :: Level -> Level -> Level
-levelLub (Max as) (Max bs) = levelMax $ as ++ bs
-
+-- | Given a constant @n@ and a level @l@, find the level @l'@ such
+--   that @l = n + l'@ (or Nothing if there is no such level).
 subLevel :: Integer -> Level -> Maybe Level
-subLevel n (Max ls) = Max <$> traverse sub ls
+subLevel n (Max m ls)
+  | m == 0    = Max 0 <$> traverse sub ls
+  | m >= n    = Max (m - n) <$> traverse sub ls
+  | otherwise = Nothing
   where
     sub :: PlusLevel -> Maybe PlusLevel
-    sub (ClosedLevel j) | j >= n    = Just $ ClosedLevel $ j - n
-                        | otherwise = Nothing
-    sub (Plus j l)      | j >= n    = Just $ Plus (j - n) l
-                        | otherwise = Nothing
+    sub (Plus j l) | j >= n    = Just $ Plus (j - n) l
+                   | otherwise = Nothing
+
+
+-- | A @SingleLevel@ is a @Level@ that cannot be further decomposed as
+--   a maximum @a ⊔ b@.
+data SingleLevel = SingleClosed Integer | SinglePlus PlusLevel
+  deriving (Eq, Show)
+
+unSingleLevel :: SingleLevel -> Level
+unSingleLevel (SingleClosed m) = Max m []
+unSingleLevel (SinglePlus a)   = Max 0 [a]
+
+-- | Return the maximum of the given @SingleLevel@s
+unSingleLevels :: [SingleLevel] -> Level
+unSingleLevels ls = levelMax n as
+  where
+    n = maximum $ 0 : [m | SingleClosed m <- ls]
+    as = [a | SinglePlus a <- ls]
+
+levelMaxView :: Level -> NonemptyList SingleLevel
+levelMaxView (Max n [])     = singleton $ SingleClosed n
+levelMaxView (Max 0 (a:as)) = SinglePlus a :! map SinglePlus as
+levelMaxView (Max n as)     = SingleClosed n :! map SinglePlus as
+
+singleLevelView :: Level -> Maybe SingleLevel
+singleLevelView l = case levelMaxView l of
+  s :! [] -> Just s
+  _       -> Nothing
+
+instance Subst Term SingleLevel where
+  applySubst sub (SingleClosed m) = SingleClosed m
+  applySubst sub (SinglePlus a)   = SinglePlus $ applySubst sub a
+
+instance Free SingleLevel where
+  freeVars' (SingleClosed m) = mempty
+  freeVars' (SinglePlus a)   = freeVars' a

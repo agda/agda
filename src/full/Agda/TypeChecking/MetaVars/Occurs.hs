@@ -465,15 +465,14 @@ instance Occurs Clause where
   metaOccurs m = metaOccurs m . clauseBody
 
 instance Occurs Level where
-  occurs (Max as) = Max <$> occurs as
+  occurs (Max n as) = Max n <$> occurs as
 
-  metaOccurs m (Max as) = metaOccurs m as
+  metaOccurs m (Max _ as) = metaOccurs m as
 
 instance Occurs PlusLevel where
-  occurs l@ClosedLevel{} = return l
   occurs (Plus n l) = Plus n <$> occurs l
-  metaOccurs m ClosedLevel{} = return ()
-  metaOccurs m (Plus n l)    = metaOccurs m l
+
+  metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs LevelAtom where
   occurs l = do
@@ -748,10 +747,9 @@ instance AnyRigid Sort where
       DummyS{}   -> return False
 
 instance AnyRigid Level where
-  anyRigid f (Max ls) = anyRigid f ls
+  anyRigid f (Max _ ls) = anyRigid f ls
 
 instance AnyRigid PlusLevel where
-  anyRigid f ClosedLevel{} = return False
   anyRigid f (Plus _ l)    = anyRigid f l
 
 instance AnyRigid LevelAtom where

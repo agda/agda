@@ -742,6 +742,7 @@ test-suite agda-tests
                     , LaTeXAndHTML.Tests
                     , LibSucceed.Tests
                     , Succeed.Tests
+                    , Bugs.Tests
                     , UserManual.Tests
                     , Utils
 

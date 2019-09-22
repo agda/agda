@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 
@@ -38,7 +39,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 import Agda.Utils.Null
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -307,18 +307,14 @@ data Sort' t
 
 type Sort = Sort' Term
 
--- | A level is a maximum expression of 0..n 'PlusLevel' expressions
---   each of which is a number or an atom plus a number.
---
---   The empty maximum is the canonical representation for level 0.
-newtype Level' t = Max [PlusLevel' t]
+-- | A level is a maximum expression of a closed level and 0..n
+--   'PlusLevel' expressions each of which is an atom plus a number.
+data Level' t = Max Integer [PlusLevel' t]
   deriving (Show, Data)
 
 type Level = Level' Term
 
-data PlusLevel' t
-  = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
-  | Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
+data PlusLevel' t = Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
   deriving (Show, Data)
 
 type PlusLevel = PlusLevel' Term
@@ -884,8 +880,15 @@ dummyDom file line = defaultDom $ dummyType file line
 __DUMMY_DOM__ :: HasCallStack => Dom Type
 __DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
 
+-- | Constant level @n@
+pattern ClosedLevel :: Integer -> Level
+pattern ClosedLevel n = Max n []
+
+atomicLevel :: LevelAtom -> Level
+atomicLevel a = Max 0 [ Plus 0 a ]
+
 unreducedLevel :: Term -> Level
-unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]
+unreducedLevel v = atomicLevel $ UnreducedLevel v
 
 -- | Top sort (Set\omega).
 topSort :: Type
@@ -895,22 +898,24 @@ sort :: Sort -> Type
 sort s = El (UnivSort s) $ Sort s
 
 varSort :: Int -> Sort
-varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
+varSort n = Type $ atomicLevel $ NeutralLevel mempty $ var n
 
 tmSort :: Term -> Sort
-tmSort t = Type $ Max [Plus 0 $ UnreducedLevel t]
+tmSort t = Type $ unreducedLevel t
+
+-- | Given a constant @m@ and level @l@, compute @m + l@
+levelPlus :: Integer -> Level -> Level
+levelPlus m (Max n as) = Max (m + n) $ map pplus as
+  where pplus (Plus n l) = Plus (m + n) l
 
 levelSuc :: Level -> Level
-levelSuc (Max []) = Max [ClosedLevel 1]
-levelSuc (Max as) = Max $ map inc as
-  where inc (ClosedLevel n) = ClosedLevel (n + 1)
-        inc (Plus n l)      = Plus (n + 1) l
+levelSuc = levelPlus 1
 
 mkType :: Integer -> Sort
-mkType n = Type $ Max [ClosedLevel n | n > 0]
+mkType n = Type $ ClosedLevel n
 
 mkProp :: Integer -> Sort
-mkProp n = Prop $ Max [ClosedLevel n | n > 0]
+mkProp n = Prop $ ClosedLevel n
 
 isSort :: Term -> Maybe Sort
 isSort v = case v of
@@ -1229,10 +1234,9 @@ instance TermSize Sort where
     DummyS{}   -> 1
 
 instance TermSize Level where
-  tsize (Max as) = 1 + tsize as
+  tsize (Max _ as) = 1 + tsize as
 
 instance TermSize PlusLevel where
-  tsize (ClosedLevel _) = 1
   tsize (Plus _ a)      = tsize a
 
 instance TermSize LevelAtom where
@@ -1271,10 +1275,9 @@ instance KillRange Term where
     Dummy{}     -> v
 
 instance KillRange Level where
-  killRange (Max as) = killRange1 Max as
+  killRange (Max n as) = killRange1 (Max n) as
 
 instance KillRange PlusLevel where
-  killRange l@ClosedLevel{} = l
   killRange (Plus n l) = killRange1 (Plus n) l
 
 instance KillRange LevelAtom where
@@ -1418,21 +1421,22 @@ instance Pretty a => Pretty (Tele (Dom a)) where
       telToList EmptyTel = []
       telToList (ExtendTel a tel) = (absName tel, a) : telToList (unAbs tel)
 
+prettyPrecLevelSucs :: Int -> Integer -> (Int -> Doc) -> Doc
+prettyPrecLevelSucs p 0 d = d p
+prettyPrecLevelSucs p n d = mparens (p > 9) $ "lsuc" <+> prettyPrecLevelSucs 10 (n - 1) d
+
 instance Pretty Level where
-  prettyPrec p (Max as) =
+  prettyPrec p (Max n as) =
     case as of
-      []  -> prettyPrec p (ClosedLevel 0 :: PlusLevel)
-      [a] -> prettyPrec p a
-      _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $ map (prettyPrec 10) as
+      []  -> prettyN
+      [a] | n == 0 -> prettyPrec p a
+      _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $
+        [ prettyN | n > 0 ] ++ map (prettyPrec 10) as
+    where
+      prettyN = prettyPrecLevelSucs p n (const "lzero")
 
 instance Pretty PlusLevel where
-  prettyPrec p l =
-    case l of
-      ClosedLevel n -> sucs p n $ const "lzero"
-      Plus n a      -> sucs p n $ \p -> prettyPrec p a
-    where
-      sucs p 0 d = d p
-      sucs p n d = mparens (p > 9) $ "lsuc" <+> sucs 10 (n - 1) d
+  prettyPrec p (Plus n a) = prettyPrecLevelSucs p n $ \p -> prettyPrec p a
 
 instance Pretty LevelAtom where
   prettyPrec p a =
@@ -1445,11 +1449,11 @@ instance Pretty LevelAtom where
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Type (Max []) -> "Set"
-      Type (Max [ClosedLevel n]) -> text $ "Set" ++ show n
+      Type (ClosedLevel 0) -> "Set"
+      Type (ClosedLevel n) -> text $ "Set" ++ show n
       Type l -> mparens (p > 9) $ "Set" <+> prettyPrec 10 l
-      Prop (Max []) -> "Prop"
-      Prop (Max [ClosedLevel n]) -> text $ "Prop" ++ show n
+      Prop (ClosedLevel 0) -> "Prop"
+      Prop (ClosedLevel n) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf -> "Setω"
       SizeUniv -> "SizeUniv"
@@ -1527,10 +1531,9 @@ instance NFData Sort where
     DummyS _   -> ()
 
 instance NFData Level where
-  rnf (Max as) = rnf as
+  rnf (Max n as) = rnf (n, as)
 
 instance NFData PlusLevel where
-  rnf (ClosedLevel n) = rnf n
   rnf (Plus n l) = rnf (n, l)
 
 instance NFData LevelAtom where

@@ -21,7 +21,6 @@ import Data.Monoid
 
 import Internal.Helpers
 import Internal.TypeChecking.Free.Lazy ()
-import Internal.TypeChecking.Generators hiding ( tests )
 
 ------------------------------------------------------------------------------
 -- * Semiring properties of 'FlexRig' with empty 'MetaSet'
@@ -347,13 +346,13 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
 -- Sample term, TODO: expand to unit test.
 
 ty :: Term
-ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
+ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max 0 []) $ var 5
   where
-    a  = El (Prop $ Max []) $
+    a  = El (Prop $ Max 0 []) $
            var 4
-    b  = El (Type $ Max []) $
-           Sort $ Type $ Max []
-    ab = El (Type $ Max [ClosedLevel 1]) $
+    b  = El (Type $ Max 0 []) $
+           Sort $ Type $ Max 0 []
+    ab = El (Type $ Max 1 []) $
            Pi (defaultDom a) (Abs "x" b)
 
 ------------------------------------------------------------------------

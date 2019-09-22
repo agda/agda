@@ -110,18 +110,14 @@ instance EmbPrj I.Term where
     valu _         = malformed
 
 instance EmbPrj Level where
-  icod_ (Max a) = icodeN' Max a
+  icod_ (Max a b) = icodeN' Max a b
 
   value = valueN Max
 
 instance EmbPrj PlusLevel where
-  icod_ (ClosedLevel a) = icodeN' ClosedLevel a
-  icod_ (Plus a b)      = icodeN' Plus a b
+  icod_ (Plus a b) = icodeN' Plus a b
 
-  value = vcase valu where
-    valu [a]    = valuN ClosedLevel a
-    valu [a, b] = valuN Plus a b
-    valu _      = malformed
+  value = valueN Plus
 
 instance EmbPrj LevelAtom where
   icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a

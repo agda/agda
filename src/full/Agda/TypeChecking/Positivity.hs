@@ -456,11 +456,10 @@ instance ComputeOccurrences Term where
     Dummy{}      -> mempty
 
 instance ComputeOccurrences Level where
-  occurrences (Max as) = occurrences as
+  occurrences (Max _ as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences ClosedLevel{} = mempty
-  occurrences (Plus _ l)    = occurrences l
+  occurrences (Plus _ l) = occurrences l
 
 instance ComputeOccurrences LevelAtom where
   occurrences = occurrences . unLevelAtom

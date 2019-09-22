@@ -555,10 +555,9 @@ instance Free Sort where
       DummyS{}   -> mempty
 
 instance Free Level where
-  freeVars' (Max as) = freeVars' as
+  freeVars' (Max _ as) = freeVars' as
 
 instance Free PlusLevel where
-  freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
 instance Free LevelAtom where

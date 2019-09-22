@@ -1325,9 +1325,12 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
        d -> pure d
 
      warnUnsafePragma :: C.Pragma -> TCM C.Declaration
-     warnUnsafePragma pr = C.Pragma pr <$ case unsafePragma pr of
-       Nothing -> pure ()
-       Just w  -> setCurrentRange pr $ warning w
+     warnUnsafePragma pr = C.Pragma pr <$ do
+       ifM (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)
+         {- then -} (pure ())
+         {- else -} $ case unsafePragma pr of
+         Nothing -> pure ()
+         Just w  -> setCurrentRange pr $ warning w
 
      unsafePragma :: C.Pragma -> Maybe Warning
      unsafePragma = \case
