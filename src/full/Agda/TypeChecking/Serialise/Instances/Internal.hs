@@ -110,18 +110,14 @@ instance EmbPrj I.Term where
     valu _         = malformed
 
 instance EmbPrj Level where
-  icod_ (Max a) = icodeN' Max a
+  icod_ (Max a b) = icodeN' Max a b
 
   value = valueN Max
 
 instance EmbPrj PlusLevel where
-  icod_ (ClosedLevel a) = icodeN' ClosedLevel a
-  icod_ (Plus a b)      = icodeN' Plus a b
+  icod_ (Plus a b) = icodeN' Plus a b
 
-  value = vcase valu where
-    valu [a]    = valuN ClosedLevel a
-    valu [a, b] = valuN Plus a b
-    valu _      = malformed
+  value = valueN Plus
 
 instance EmbPrj LevelAtom where
   icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
@@ -204,22 +200,37 @@ instance EmbPrj NLPat where
   icod_ (PDef a b)      = icodeN 1 PDef a b
   icod_ (PLam a b)      = icodeN 2 PLam a b
   icod_ (PPi a b)       = icodeN 3 PPi a b
-  icod_ (PBoundVar a b) = icodeN 4 PBoundVar a b
-  icod_ (PTerm a)       = icodeN 5 PTerm a
+  icod_ (PSort a)       = icodeN 4 PSort a
+  icod_ (PBoundVar a b) = icodeN 5 PBoundVar a b
+  icod_ (PTerm a)       = icodeN 6 PTerm a
 
   value = vcase valu where
     valu [0, a, b]    = valuN PVar a b
     valu [1, a, b]    = valuN PDef a b
     valu [2, a, b]    = valuN PLam a b
     valu [3, a, b]    = valuN PPi a b
-    valu [4, a, b]    = valuN PBoundVar a b
-    valu [5, a]       = valuN PTerm a
+    valu [4, a]       = valuN PSort a
+    valu [5, a, b]    = valuN PBoundVar a b
+    valu [6, a]       = valuN PTerm a
     valu _            = malformed
 
 instance EmbPrj NLPType where
   icod_ (NLPType a b) = icodeN' NLPType a b
 
   value = valueN NLPType
+
+instance EmbPrj NLPSort where
+  icod_ (PType a)   = icodeN 0 PType a
+  icod_ (PProp a)   = icodeN 1 PProp a
+  icod_ PInf        = icodeN 2 PInf
+  icod_ PSizeUniv   = icodeN 3 PSizeUniv
+
+  value = vcase valu where
+    valu [0, a] = valuN PType a
+    valu [1, a] = valuN PProp a
+    valu [2]    = valuN PInf
+    valu [3]    = valuN PSizeUniv
+    valu _      = malformed
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f

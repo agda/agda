@@ -41,12 +41,6 @@ whileLeft test left right = loop where
 caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
 caseEitherM mm f g = either f g =<< mm
 
--- UNUSED Liang-Ting Chen (05-07-2019)
--- -- | 'Either' is a bifunctor.
---
--- mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
--- mapEither = bimap
-
 -- | 'Either _ b' is a functor.
 
 mapLeft :: (a -> c) -> Either a b -> Either c b

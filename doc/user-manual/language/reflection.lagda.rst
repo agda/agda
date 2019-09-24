@@ -16,7 +16,7 @@
     non-assoc   : Associativity
 
   data Precedence : Set where
-    related   : Int → Precedence
+    related   : Float → Precedence
     unrelated : Precedence
 
   data Fixity : Set where

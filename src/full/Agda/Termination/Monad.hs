@@ -20,6 +20,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -46,6 +47,7 @@ import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List   ( hasElem )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
@@ -450,9 +452,9 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  "found" <+> if null names then "none" else sep (map prettyTCM names)
+                  "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"

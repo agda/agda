@@ -697,7 +697,9 @@ litqname x =
   , HS.Lit $ HS.String $ prettyShow x
   , rteCon "Fixity" `apps`
     [ litAssoc (fixityAssoc fx)
-    , litPrec  (fixityLevel fx) ] ]
+    , litPrec  (fixityLevel fx)
+    ]
+  ]
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
@@ -709,7 +711,7 @@ litqname x =
     litAssoc RightAssoc = rteCon "RightAssoc"
 
     litPrec Unrelated   = rteCon "Unrelated"
-    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedInt l
+    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedDouble l
 
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =

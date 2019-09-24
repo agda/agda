@@ -1,5 +1,6 @@
 module Agda.TypeChecking.Monad
     ( module Agda.TypeChecking.Monad.Base
+    , module Agda.TypeChecking.Monad.Builtin
     , module Agda.TypeChecking.Monad.Closure
     , module Agda.TypeChecking.Monad.Constraints
     , module Agda.TypeChecking.Monad.Context
@@ -19,6 +20,7 @@ module Agda.TypeChecking.Monad
     ) where
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints
 import Agda.TypeChecking.Monad.Context

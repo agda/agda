@@ -61,7 +61,6 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Conversion
 import qualified Agda.TypeChecking.Positivity.Occurrence as Pos

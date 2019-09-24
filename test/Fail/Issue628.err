@@ -1,4 +1,4 @@
 Issue628.agda:25,37-41
-0 !=< 1 of type ℕ
+0 != 1 of type ℕ
 when checking that the expression refl has type
 0 ≡ suc (divSucAux 0 0 0 1)

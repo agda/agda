@@ -107,6 +107,11 @@ Imports and libraries
       Ignore *all* interface files, including builtin and primitive
       modules; only use this if you know what you are doing!
 
+:samp:`--local-interfaces`
+      Read and write interface files next to the Agda files they
+      correspond to (i.e. do not attempt to regroup them in a
+      :samp:`_build/` directory at the project's root).
+
 :samp:`--include-path={DIR} -i={DIR}`
       Look for imports in
       :samp:`{DIR}`
@@ -196,6 +201,10 @@ Errors and warnings
 :samp:`--allow-unsolved-metas`
       Succeed and create interface file
       regardless of unsolved meta variables (see :ref:`metavariables`)
+
+:samp:`--allow-incomplete-matches`
+      Succeed and create interface file
+      regardless of incomplete pattern-matching definitions
 
 :samp:`--no-positivity-check`
       Do not warn about not strictly positive
@@ -430,6 +439,8 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
       ``TERMINATING`` pragmas with the safe flag.
 :samp:`SafeFlagWithoutKFlagPrimEraseEquality`
       ``primEraseEquality`` used with the safe and without-K flags.
+:samp:`ShadowingInTelescope`
+      Repeated variable name in telescope.
 :samp:`TerminationIssue`
       Failed termination checks.
 :samp:`UnknownFixityInMixfixDecl`
@@ -505,6 +516,7 @@ again, the source file is re-typechecked instead:
 * ``--termination-depth``
 * ``--no-unicode``
 * ``--allow-unsolved-metas``
+* ``--allow-incomplete-matches``
 * ``--no-positivity-check``
 * ``--no-termination-check``
 * ``--type-in-type``
@@ -532,5 +544,5 @@ again, the source file is re-typechecked instead:
 * ``--warning``
 
 
-.. _Vim: http://www.vim.org/
+.. _Vim: https://www.vim.org/
 .. _Dot: http://www.graphviz.org/content/dot-language

@@ -31,6 +31,7 @@
 .Agda .IncompletePattern  { color: black; background: #F5DEB3        }
 .Agda .Error              { color: red;   text-decoration: underline }
 .Agda .TypeChecks         { color: black; background: #ADD8E6        }
+.Agda .Deadcode           { color: black; background: #808080        }
 
 /* Standard attributes. */
 .Agda a { text-decoration: none }

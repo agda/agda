@@ -112,7 +112,7 @@ etaLam i x b = do
     isVar0 _ (Var 0 [])               = True
     -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
     isVar0 True Level{}               = True
-    isVar0 tyty (Level (Max [Plus 0 l])) = case l of
+    isVar0 tyty (Level (Max 0 [Plus 0 l])) = case l of
       NeutralLevel _ v -> isVar0 tyty v
       UnreducedLevel v -> isVar0 tyty v
       BlockedLevel{}   -> False

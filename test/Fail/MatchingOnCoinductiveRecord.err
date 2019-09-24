@@ -1,4 +1,4 @@
-MatchingOnCoinductiveRecord.agda:21,1-18
+MatchingOnCoinductiveRecord.agda:21,1-11
 Pattern matching on coinductive types is not allowed
-when checking that the clause eq (inn y) = refl has type
-(x : U) → x ≡ inn (out x)
+when checking the clause left hand side
+eq (inn y)

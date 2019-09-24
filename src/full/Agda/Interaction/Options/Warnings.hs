@@ -9,6 +9,7 @@ module Agda.Interaction.Options.Warnings
        , usualWarnings
        , noWarnings
        , unsolvedWarnings
+       , incompleteMatchWarnings
        , errorWarnings
        , defaultWarningMode
        , warningModeUpdate
@@ -90,6 +91,9 @@ unsolvedWarnings = Set.fromList
                  , UnsolvedConstraints_
                  ]
 
+incompleteMatchWarnings :: Set WarningName
+incompleteMatchWarnings = Set.fromList [ CoverageIssue_ ]
+
 errorWarnings :: Set WarningName
 errorWarnings = Set.fromList
   [ CoverageIssue_
@@ -107,6 +111,8 @@ errorWarnings = Set.fromList
   , SafeFlagNoPositivityCheck_
   , SafeFlagPolarity_
   , SafeFlagNoUniverseCheck_
+  , SafeFlagInjective_
+  , SafeFlagNoCoverageCheck_
   , TerminationIssue_
   , UnsolvedMetaVariables_
   , UnsolvedInteractionMetas_
@@ -124,6 +130,7 @@ usualWarnings :: Set WarningName
 usualWarnings = allWarnings Set.\\ Set.fromList
               [ UnknownFixityInMixfixDecl_
               , CoverageNoExactSplit_
+              , ShadowingInTelescope_
               ]
 
 -- | The @WarningName@ data enumeration is meant to have a one-to-one correspondance
@@ -147,14 +154,18 @@ data WarningName
   | EmptyPrivate_
   | EmptyRewritePragma_
   | InvalidCatchallPragma_
+  | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
   | MissingDefinitions_
   | NotAllowedInMutual_
+  | OpenPublicAbstract_
+  | OpenPublicPrivate_
   | PolarityPragmasButNotPostulates_
   | PragmaCompiled_
   | PragmaNoTerminationCheck_
+  | ShadowingInTelescope_
   | UnknownFixityInMixfixDecl_
   | UnknownNamesInFixityDecl_
   | UnknownNamesInPolarityPragmas_
@@ -167,6 +178,7 @@ data WarningName
   | CoverageIssue_
   | CoverageNoExactSplit_
   | DeprecationWarning_
+  | FixityInRenamingModule_
   | GenericNonFatalError_
   | GenericWarning_
   | IllformedAsClause_
@@ -175,13 +187,16 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
+  | NotInScope_
   | NotStrictlyPositive_
   | OldBuiltin_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
-  | SafeFlagNoPositivityCheck_
+  | SafeFlagInjective_
+  | SafeFlagNoCoverageCheck_
   | SafeFlagNonTerminating_
+  | SafeFlagNoPositivityCheck_
   | SafeFlagNoUniverseCheck_
   | SafeFlagPolarity_
   | SafeFlagPostulate_
@@ -263,14 +278,18 @@ warningNameDescription w = case w of
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
+  OpenPublicAbstract_              -> "'open public' directive in an 'abstract' block."
+  OpenPublicPrivate_               -> "'open public' directive in a 'private' block."
   PolarityPragmasButNotPostulates_ -> "Polarity pragmas for non-postulates."
   PragmaCompiled_                  -> "'COMPILE' pragmas not allowed in safe mode."
   PragmaNoTerminationCheck_        -> "`NO_TERMINATION_CHECK' pragmas are deprecated"
+  ShadowingInTelescope_            -> "Repeated variable name in telescope."
   UnknownFixityInMixfixDecl_       -> "Mixfix names without an associated fixity declaration."
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
@@ -293,11 +312,15 @@ warningNameDescription w = case w of
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
+  FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
+  NotInScope_                      -> "Out of scope name"
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
   RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
+  SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
   SafeFlagNonTerminating_          -> "`NON_TERMINATING' pragmas with the safe flag."
   SafeFlagNoPositivityCheck_       -> "`NO_POSITIVITY_CHECK' pragmas with the safe flag."
   SafeFlagNoUniverseCheck_         -> "`NO_UNIVERSE_CHECK' pragmas with the safe flag."

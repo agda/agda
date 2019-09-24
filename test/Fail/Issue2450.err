@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [29, 33] _20 true _ =< g (Y _ y) : A
+  [29, 33] _20 true _ = g (Y _ y) : A
 Unsolved metas at the following locations:
   Issue2450.agda:14,7-8
   Issue2450.agda:20,11-15

@@ -34,6 +34,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Positivity.Occurrence
@@ -173,12 +174,16 @@ setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
 -- | Modify the current scope without updating the inverse maps.
-modifyScope_ :: (ScopeInfo -> ScopeInfo) -> TCM ()
+modifyScope_ :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope_ f = stScope `modifyTCLens` f
 
 -- | Modify the current scope.
-modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
+modifyScope :: MonadTCState m => (ScopeInfo -> ScopeInfo) -> m ()
 modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
+
+-- | Get a part of the current scope.
+useScope :: ReadTCState m => Lens' a ScopeInfo -> m a
+useScope l = useR $ stScope . l
 
 -- | Run a computation in a modified scope.
 locallyScope :: ReadTCState m => Lens' a ScopeInfo -> (a -> a) -> m b -> m b
@@ -201,10 +206,15 @@ localScope m = do
   return x
 
 -- | Scope error.
-notInScope :: C.QName -> TCM a
-notInScope x = do
+notInScopeError :: C.QName -> TCM a
+notInScopeError x = do
   printScope "unbound" 5 ""
   typeError $ NotInScope [x]
+
+notInScopeWarning :: C.QName -> TCM ()
+notInScopeWarning x = do
+  printScope "unbound" 5 ""
+  warning $ NotInScopeW [x]
 
 -- | Debug print the scope.
 printScope :: String -> Int -> String -> TCM ()
@@ -302,7 +312,7 @@ updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
 updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
 updateFunClauses f _                              = __IMPOSSIBLE__
 
-updateCovering :: ([Closure Clause] -> [Closure Clause]) -> (Defn -> Defn)
+updateCovering :: ([Clause] -> [Clause]) -> (Defn -> Defn)
 updateCovering f def@Function{ funCovering = cs} = def { funCovering = f cs }
 updateCovering f _                               = __IMPOSSIBLE__
 
@@ -398,7 +408,7 @@ lookupSinglePatternSyn x = do
             si <- getPatternSynImports
             case Map.lookup x si of
                 Just d  -> return d
-                Nothing -> notInScope $ qnameToConcrete x
+                Nothing -> notInScopeError $ qnameToConcrete x
 
 ---------------------------------------------------------------------------
 -- * Benchmark

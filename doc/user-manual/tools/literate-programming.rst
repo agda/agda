@@ -158,4 +158,4 @@ Org_ files. Code blocks are surrounded by two lines including only
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/
-.. _Pandoc: http://pandoc.org/
+.. _Pandoc: https://pandoc.org/

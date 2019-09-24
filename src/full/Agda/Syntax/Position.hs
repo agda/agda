@@ -260,6 +260,9 @@ instance HasRange Interval where
 instance HasRange Range where
     getRange = id
 
+instance HasRange () where
+  getRange _ = noRange
+
 instance HasRange Bool where
     getRange _ = noRange
 
@@ -503,6 +506,9 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
   killRange (x, y, z, u) = killRange4 (,,,) x y z u
 
 instance KillRange a => KillRange (Maybe a) where
+  killRange = fmap killRange
+
+instance KillRange a => KillRange (Strict.Maybe a) where
   killRange = fmap killRange
 
 instance (KillRange a, KillRange b) => KillRange (Either a b) where

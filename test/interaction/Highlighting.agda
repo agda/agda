@@ -19,7 +19,10 @@ record R (A : Set) : Set-one where
 
 postulate P : _
 
-open import Highlighting.M
+open import Highlighting.M using (ℕ) renaming
+  ( _+_ to infixl 5 _⊕_
+  ; _*_ to infixl 7 _⊗_
+  )
 
 data D (A : Set) : Set-one where
   d : let X = D in X A

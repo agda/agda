@@ -130,11 +130,10 @@ instance NamesIn Term where
     Dummy{}      -> Set.empty
 
 instance NamesIn Level where
-  namesIn (Max ls) = namesIn ls
+  namesIn (Max _ ls) = namesIn ls
 
 instance NamesIn PlusLevel where
-  namesIn ClosedLevel{} = Set.empty
-  namesIn (Plus _ l)    = namesIn l
+  namesIn (Plus _ l) = namesIn l
 
 instance NamesIn LevelAtom where
   namesIn l = case l of

@@ -187,12 +187,12 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK
-  if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
+  if (Info.mutualTerminationCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 10 $ "Skipping termination check for " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
-    else if (Info.mutualTermCheck i == NonTerminating) then do
+    else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
@@ -920,11 +920,11 @@ instance ExtractCalls Term where
 
 -- | Extract recursive calls from level expressions.
 
-deriving instance ExtractCalls Level
+instance ExtractCalls Level where
+  extract (Max n as) = extract as
 
 instance ExtractCalls PlusLevel where
-  extract (ClosedLevel n) = return $ mempty
-  extract (Plus n l)      = extract l
+  extract (Plus n l) = extract l
 
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es

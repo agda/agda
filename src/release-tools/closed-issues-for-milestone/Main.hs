@@ -67,12 +67,21 @@ issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 -- (section "Closing issues").
 labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
-  [ "not-in-changelog"
+  [ "closed-issues-program"
+  , "debug"
+  , "faq"
+  , "fix-agda-whitespace"
+  , "haddock"
+  , "not-in-changelog"
+  , "repository"
   , "status: abandoned"
   , "status: duplicate"
   , "status: invalid"
   , "status: wontfix"
   , "status: working-as-intended"
+  , "style"
+  , "type: task"
+  , "typo"
   ]
 
 -- | Retrieve closed issues for the given milestone and print as csv to stdout.

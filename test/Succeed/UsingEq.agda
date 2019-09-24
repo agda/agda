@@ -18,7 +18,7 @@ A ∋ a = a
 tele : {m n : Nat} → suc m ≡ suc n → m ≡ n
 tele {m} {n} p
   with refl ← p
-       | refl ← (n ≡ m) ∋ refl
+  with refl ← (n ≡ m) ∋ refl
        = refl
 
 tele' : {m n : Nat} → m ≡ n → m ≡ n
@@ -36,13 +36,13 @@ data Vec {a} (A : Set a) : Nat → Set a where
   []  : Vec A 0
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
 
-module _ {a} {A : Set a} {n} (xs : Vec A (suc n)) where
+module _ {a} {A : Set a} {n} where
 
-  head : A
-  head with (x ∷ _) ← xs = x
+  head : Vec A (suc n) → A
+  head xs with (x ∷ _) ← xs = x
 
-  tail : Vec A n
-  tail with (_ ∷ xs) ← xs = xs -- pattern shadows variable with'd on
+  tail : Vec A (suc n) → Vec A n
+  tail xs with (_ ∷ xs) ← xs = xs -- pattern shadows variable with'd on
 
 castVec : ∀ {m n} → m ≡ n → Vec Nat m → Vec Nat n
 castVec eq ms with refl ← eq = ms
@@ -56,3 +56,18 @@ open import Agda.Builtin.Sigma
 castAll : ∀ {P m n xs ys} → Σ (m ≡ n) (λ eq → castVec eq xs ≡ ys) →
           All P xs → All P ys
 castAll (refl , refl) all = all
+
+-- faking rewrite with the dependent irrefutable with
+postulate +-comm : ∀ m n → m + n ≡ n + m
+
+rew : ∀ m n p q → m + (p + q) + n ≡ m + (q + p) + n
+rew m n p q with p+q ← p + q | refl ← +-comm p q {- : p + q ≡ q + p -} = refl
+
+-- Note that the following does not work because
+-- p+q is not abstracted over in `+-comm p q` which means
+-- Agda gets stuck trying to unify `p + q` and `q + p`
+
+-- Cf. test/Fail/UsingEq.agda
+
+-- rew' : ∀ m n p q → m + (p + q) + n ≡ m + (q + p) + n
+-- rew' m n p q with p+q ← p + q with refl ← +-comm p q = refl

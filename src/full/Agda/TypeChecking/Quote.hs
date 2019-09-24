@@ -123,9 +123,8 @@ quotingKit = do
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
       quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitNat noRange 0)
-      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitNat noRange n)
-      quoteSortLevelTerm l                     = set !@ quoteTerm (unlevelWithKit lkit l)
+      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat noRange n)
+      quoteSortLevelTerm l               = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t

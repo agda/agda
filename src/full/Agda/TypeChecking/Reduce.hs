@@ -1,5 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -24,10 +25,9 @@ import Agda.Syntax.Literal
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
-                                      , getConstInfo
-                                      , lookupMeta )
+                                      , getConstInfo, lookupMeta
+                                      , getPrimitive, constructorForm )
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
@@ -120,10 +120,9 @@ instance Instantiate Term where
   instantiate' t = return t
 
 instance Instantiate Level where
-  instantiate' (Max as) = levelMax <$> instantiate' as
+  instantiate' (Max m as) = levelMax m <$> instantiate' as
 
 instance Instantiate PlusLevel where
-  instantiate' l@ClosedLevel{} = return l
   instantiate' (Plus n a) = Plus n <$> instantiate' a
 
 instance Instantiate LevelAtom where
@@ -218,6 +217,11 @@ instance Instantiate Constraint where
   instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
   instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
   instantiate' (UnquoteTactic m t h g) = UnquoteTactic m <$> instantiate' t <*> instantiate' h <*> instantiate' g
+  instantiate' c@CheckMetaInst{}    = return c
+
+instance Instantiate CompareAs where
+  instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
+  instantiate' AsTypes       = return AsTypes
 
 instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -256,6 +260,10 @@ instance IsMeta Level where
 instance IsMeta Sort where
   isMeta (MetaS m _) = return $ Just m
   isMeta _           = return Nothing
+
+instance IsMeta CompareAs where
+  isMeta (AsTermsOf a) = isMeta a
+  isMeta AsTypes       = return Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
@@ -311,11 +319,10 @@ instance Reduce Elim where
   reduce' (IApply x y v) = IApply <$> reduce' x <*> reduce' y <*> reduce' v
 
 instance Reduce Level where
-  reduce'  (Max as) = levelMax <$> mapM reduce' as
-  reduceB' (Max as) = fmap levelMax . traverse id <$> traverse reduceB' as
+  reduce'  (Max m as) = levelMax m <$> mapM reduce' as
+  reduceB' (Max m as) = fmap (levelMax m) . traverse id <$> traverse reduceB' as
 
 instance Reduce PlusLevel where
-  reduceB' l@ClosedLevel{} = return $ notBlocked l
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
 
 instance Reduce LevelAtom where
@@ -770,6 +777,11 @@ instance Reduce Constraint where
   reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
   reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
   reduce' (UnquoteTactic m t h g) = UnquoteTactic m <$> reduce' t <*> reduce' h <*> reduce' g
+  reduce' c@CheckMetaInst{}     = return c
+
+instance Reduce CompareAs where
+  reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
+  reduce' AsTypes       = return AsTypes
 
 instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -849,10 +861,9 @@ instance Simplify Sort where
         DummyS{}   -> return s
 
 instance Simplify Level where
-  simplify' (Max as) = levelMax <$> simplify' as
+  simplify' (Max m as) = levelMax m <$> simplify' as
 
 instance Simplify PlusLevel where
-  simplify' l@ClosedLevel{} = return l
   simplify' (Plus n l) = Plus n <$> simplify' l
 
 instance Simplify LevelAtom where
@@ -912,7 +923,7 @@ instance Simplify Constraint where
     return $ ValueCmp cmp t u v
   simplify' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- simplify' ((p,t),u,v)
-    return $ ValueCmp cmp t u v
+    return $ ValueCmp cmp (AsTermsOf t) u v
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
@@ -928,6 +939,11 @@ instance Simplify Constraint where
   simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
   simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
   simplify' (UnquoteTactic m t h g) = UnquoteTactic m <$> simplify' t <*> simplify' h <*> simplify' g
+  simplify' c@CheckMetaInst{}     = return c
+
+instance Simplify CompareAs where
+  simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
+  simplify' AsTypes       = return AsTypes
 
 instance Simplify Bool where
   simplify' = return
@@ -967,7 +983,10 @@ instance Simplify EqualityView where
 ---------------------------------------------------------------------------
 
 class Normalise t where
-    normalise' :: t -> ReduceM t
+  normalise' :: t -> ReduceM t
+
+  default normalise' :: (t ~ f a, Traversable f, Normalise a) => t -> ReduceM t
+  normalise' = traverse normalise'
 
 instance Normalise Sort where
     normalise' s = do
@@ -1011,10 +1030,9 @@ instance Normalise Elim where
   normalise' (IApply x y v) = IApply <$> normalise' x <*> normalise' y <*> normalise' v
 
 instance Normalise Level where
-  normalise' (Max as) = levelMax <$> normalise' as
+  normalise' (Max m as) = levelMax m <$> normalise' as
 
 instance Normalise PlusLevel where
-  normalise' l@ClosedLevel{} = return l
   normalise' (Plus n l) = Plus n <$> normalise' l
 
 instance Normalise LevelAtom where
@@ -1085,6 +1103,11 @@ instance Normalise Constraint where
   normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
   normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
   normalise' (UnquoteTactic m t h g) = UnquoteTactic m <$> normalise' t <*> normalise' h <*> normalise' g
+  normalise' c@CheckMetaInst{}     = return c
+
+instance Normalise CompareAs where
+  normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
+  normalise' AsTypes       = return AsTypes
 
 instance Normalise Bool where
   normalise' = return
@@ -1114,11 +1137,9 @@ instance Normalise a => Normalise (Pattern' a) where
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
 
-instance Normalise e => Normalise (Map k e) where
-    normalise' = traverse normalise'
-
-instance Normalise a => Normalise (Maybe a) where
-    normalise' = traverse normalise'
+instance Normalise e => Normalise (Map k e)      where
+instance Normalise a => Normalise (Maybe a)      where
+instance Normalise a => Normalise (WithHiding a) where
 
 instance Normalise Candidate where
   normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov
@@ -1184,10 +1205,9 @@ instance InstantiateFull Term where
           Dummy{}     -> return v
 
 instance InstantiateFull Level where
-  instantiateFull' (Max as) = levelMax <$> instantiateFull' as
+  instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as
 
 instance InstantiateFull PlusLevel where
-  instantiateFull' l@ClosedLevel{} = return l
   instantiateFull' (Plus n l) = Plus n <$> instantiateFull' l
 
 instance InstantiateFull LevelAtom where
@@ -1296,6 +1316,11 @@ instance InstantiateFull Constraint where
     HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
     HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
     UnquoteTactic m t g h -> UnquoteTactic m <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    c@CheckMetaInst{}   -> return c
+
+instance InstantiateFull CompareAs where
+  instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' AsTypes       = return AsTypes
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
@@ -1337,13 +1362,20 @@ instance InstantiateFull NLPat where
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
   instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
   instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PSort x)  = PSort <$> instantiateFull' x
   instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull NLPType where
-  instantiateFull' (NLPType l a) = NLPType
-    <$> instantiateFull' l
+  instantiateFull' (NLPType s a) = NLPType
+    <$> instantiateFull' s
     <*> instantiateFull' a
+
+instance InstantiateFull NLPSort where
+  instantiateFull' (PType x) = PType <$> instantiateFull' x
+  instantiateFull' (PProp x) = PProp <$> instantiateFull' x
+  instantiateFull' PInf      = return PInf
+  instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =
@@ -1373,10 +1405,10 @@ instance InstantiateFull Defn where
       DataOrRecSig{} -> return d
       GeneralizableVar{} -> return d
       AbstractDefn d -> AbstractDefn <$> instantiateFull' d
-      Function{ funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam } -> do
-        (cs, cc, inv) <- instantiateFull' (cs, cc, inv)
+      Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam } -> do
+        (cs, cc, cov, inv) <- instantiateFull' (cs, cc, cov, inv)
         extLam <- instantiateFull' extLam
-        return $ d { funClauses = cs, funCompiled = cc, funInv = inv, funExtLam = extLam }
+        return $ d { funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv, funExtLam = extLam }
       Datatype{ dataSort = s, dataClause = cl } -> do
         s  <- instantiateFull' s
         cl <- instantiateFull' cl
@@ -1432,7 +1464,7 @@ instance InstantiateFull Clause where
 instance InstantiateFull Interface where
     instantiateFull' (Interface h s ft ms mod scope inside
                                sig display userwarn importwarn b foreignCode
-                               highlighting pragmas usedOpts patsyns warnings) =
+                               highlighting pragmas usedOpts patsyns warnings partialdefs) =
         Interface h s ft ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' display
@@ -1445,6 +1477,7 @@ instance InstantiateFull Interface where
             <*> return usedOpts
             <*> return patsyns
             <*> return warnings
+            <*> return partialdefs
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t

@@ -305,8 +305,8 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- List.nub . concat <$> mapM (constructorData . fst) rd
-        cs <- List.nub . concat <$> mapM (dataConstructors . fst) rd
+        ds <- List.nub . catMaybes <$> mapM (constructorData  . fst) rd
+        cs <- List.nub . concat    <$> mapM (dataConstructors . fst) rd
         new <- concat <$> mapM rename (ds ++ cs)
         reportSLn "tc.mod.apply.complete" 30 $
           "also copying: " ++ prettyShow new
@@ -319,17 +319,15 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
                           return [(x, qnameFromList [y])]
             Just{}  -> return []
 
-        constructorData :: QName -> TCM [QName]
+        constructorData :: QName -> TCM (Maybe QName)
         constructorData x = do
-          def <- theDef <$> getConstInfo x
-          return $ case def of
-            Constructor{ conData = d } -> [d]
-            _                          -> []
+          (theDef <$> getConstInfo x) <&> \case
+            Constructor{ conData = d } -> Just d
+            _                          -> Nothing
 
         dataConstructors :: QName -> TCM [QName]
         dataConstructors x = do
-          def <- theDef <$> getConstInfo x
-          return $ case def of
+          (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> cs
             Record{ recConHead = h }  -> [conName h]
             _                         -> []
@@ -691,7 +689,7 @@ instance HasConstInfo (TCMT IO) where
   getConstInfo q = getConstInfo' q >>= \case
       Right d -> return d
       Left (SigUnknown err) -> fail err
-      Left SigAbstract      -> notInScope $ qnameToConcrete q
+      Left SigAbstract      -> notInScopeError $ qnameToConcrete q
 
 defaultGetConstInfo
   :: (HasOptions m, MonadDebug m, MonadTCEnv m)
@@ -1079,7 +1077,7 @@ treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env = case envAbstractMode env of
   ConcreteMode       -> True
   IgnoreAbstractMode -> False
-  AbstractMode       -> not $ current == m || current `isSubModuleOf` m
+  AbstractMode       -> not $ current `isLeChildModuleOf` m
   where
     current = dropAnon $ envCurrentModule env
     m       = dropAnon $ qnameModule q

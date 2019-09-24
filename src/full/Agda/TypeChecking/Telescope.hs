@@ -13,7 +13,6 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
@@ -84,7 +83,7 @@ teleArgs tel =
 -- UNUSED
 -- withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
 -- xs `withNamedArgsFromTel` tel =
---   [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) x)
+--   [ Arg info (Named (Just $ Ranged empty $ argNameToString name) x)
 --   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
 --   where l = telToList tel
 

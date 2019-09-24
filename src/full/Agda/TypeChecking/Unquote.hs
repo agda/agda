@@ -45,6 +45,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.Either
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
@@ -529,7 +530,7 @@ evalTCM v = do
       if norm then normalise v else instantiateFull v
 
     mkT l a = El s a
-      where s = Type $ Max [Plus 0 $ UnreducedLevel l]
+      where s = Type $ Max 0 [Plus 0 $ UnreducedLevel l]
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
@@ -739,7 +740,9 @@ evalTCM v = do
         genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
-      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange
+      let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
+      ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
+      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
       checkFunDef NotDelayed i x cs
       primUnitUnit
 

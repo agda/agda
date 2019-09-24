@@ -6,10 +6,11 @@ import Prelude hiding (mapM, mapM_, null)
 
 import Control.Monad hiding (mapM, mapM_, forM)
 
+import Data.Either
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable
+import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -18,7 +19,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), allKindsOfNames )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
 import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -108,13 +109,11 @@ parseVariables f tel ii rng ss = do
             "Cannot split on variable " ++ s ++
             ", because let-declarations may not be defined by pattern-matching"
 
+      let cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
+      -- Note: the range in the concrete name is only approximate.
       -- Jesper, 2018-12-19: Don't consider generalizable names since
       -- they can be shadowed by hidden variables.
-      let kinds = List.delete GeneralizeName allKindsOfNames
-          cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
-      -- Note: the range in the concrete name is only approximate.
-      resName <- resolveName' kinds Nothing cname
-      case resName of
+      resolveName' (exceptKindsOfNames [GeneralizeName]) Nothing cname >>= \case
 
         -- Fail if s is a name, but not of a variable.
         DefinedName{}       -> failNotVar
@@ -201,7 +200,12 @@ makeCase hole rng s = withInteractionId hole $ do
     IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
-  (casectxt, (prevClauses, clause, follClauses)) <- getClauseZipperForIP f clauseNo
+  (casectxt, (prevClauses0, clause, follClauses0)) <- getClauseZipperForIP f clauseNo
+  let (prevClauses, follClauses) = killRange (prevClauses0, follClauses0)
+    -- Andreas, 2019-08-08, issue #3966
+    -- Kill the ranges of the existing clauses to prevent wrong error
+    -- location to be set by the coverage checker (via isCovered)
+    -- for test/interaction/Issue191
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -290,7 +294,7 @@ makeCase hole rng s = withInteractionId hole $ do
     reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
-    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ ((x,nis), s) ->
+    let (toShow, toSplit) = partitionEithers $ for (zip xs vars) $ \ ((x,nis), s) ->
           if (nis == C.NotInScope) then Left x else Right x
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc

@@ -14,6 +14,7 @@ import qualified Control.Exception as E
 
 import qualified Data.Map as Map
 import qualified Data.List as List
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
@@ -147,7 +148,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) warns
+    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) (iPartialDefs i) warns
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -156,13 +157,20 @@ mergeInterface i = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
             stImportedBuiltins `modifyTCLens` Map.insert x (Prim pf{ primFunName = q })
 
-addImportedThings ::
-  Signature -> BuiltinThings PrimFun ->
-  A.PatternSynDefns -> DisplayForms -> Map A.QName String -> [TCWarning] -> TCM ()
-addImportedThings isig ibuiltin patsyns display userwarn warnings = do
+addImportedThings
+  :: Signature
+  -> BuiltinThings PrimFun
+  -> A.PatternSynDefns
+  -> DisplayForms
+  -> Map A.QName String    -- ^ Imported user warnings
+  -> Set QName             -- ^ Name of imported definitions which are partial
+  -> [TCWarning]
+  -> TCM ()
+addImportedThings isig ibuiltin patsyns display userwarn partialdefs warnings = do
   stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
+  stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
   stTCWarnings           `modifyTCLens` \ imp -> List.union imp warnings
@@ -382,7 +390,7 @@ getInterface' x isMain msi =
                      Just si -> return $ hashText (siSource si)
         ifaceH  <- case cached of
             Nothing -> do
-              mifile <- liftIO $ toIFile file
+              mifile <- toIFile file
               fmap fst <$> getInterfaceFileHashes mifile
             Just i  -> return $ Just $ iSourceHash i
         let unchanged = Just sourceH == ifaceH
@@ -512,7 +520,7 @@ getStoredInterface x file isMain msi = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
-  ifile <- liftIO $ toIFile file
+  ifile <- toIFile file
   let ifp = filePath ifile
   h <- fmap snd <$> getInterfaceFileHashes ifile
   mm <- getDecodedModule x
@@ -620,18 +628,19 @@ typeCheck x file isMain msi = do
       return (True, r)
 
     NotMainInterface -> do
-      ms       <- getImportPath
-      nesting  <- asksTC envModuleNestingLevel
-      range    <- asksTC envRange
-      call     <- asksTC envCall
-      mf       <- useTC stModuleToSource
-      vs       <- getVisitedModules
-      ds       <- getDecodedModules
-      opts     <- stPersistentOptions . stPersistentState <$> getTC
-      isig     <- useTC stImports
-      ibuiltin <- useTC stImportedBuiltins
-      display  <- useTC stImportsDisplayForms
-      userwarn <- useTC stImportedUserWarnings
+      ms          <- getImportPath
+      nesting     <- asksTC envModuleNestingLevel
+      range       <- asksTC envRange
+      call        <- asksTC envCall
+      mf          <- useTC stModuleToSource
+      vs          <- getVisitedModules
+      ds          <- getDecodedModules
+      opts        <- stPersistentOptions . stPersistentState <$> getTC
+      isig        <- useTC stImports
+      ibuiltin    <- useTC stImportedBuiltins
+      display     <- useTC stImportsDisplayForms
+      userwarn    <- useTC stImportedUserWarnings
+      partialdefs <- useTC stImportedPartialDefs
       ipatsyns <- getPatternSynImports
       ho       <- getInteractionOutputCallback
       -- Every interface is treated in isolation. Note: Some changes to
@@ -656,7 +665,7 @@ typeCheck x file isMain msi = do
                setInteractionOutputCallback ho
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
-               addImportedThings isig ibuiltin ipatsyns display userwarn []
+               addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
                r  <- withMsgs $ createInterface file x isMain msi
                mf <- useTC stModuleToSource
@@ -982,7 +991,7 @@ createInterface file mname isMain msi =
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
-        ifile <- liftIO $ toIFile file
+        ifile <- toIFile file
         writeInterface ifile i
     reportSLn "import.iface.create" 7 "Finished (or skipped) writing to interface file."
 
@@ -1118,6 +1127,7 @@ buildInterface source fileType topLevel pragmas = do
     importwarn     <- useTC stWarningOnImport
     syntaxInfo     <- useTC stSyntaxInfo
     optionsUsed    <- useTC stPragmaOptions
+    partialDefs    <- useTC stLocalPartialDefs
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1145,6 +1155,7 @@ buildInterface source fileType topLevel pragmas = do
       , iOptionsUsed     = optionsUsed
       , iPatternSyns     = patsyns
       , iWarnings        = warnings
+      , iPartialDefs     = partialDefs
       }
     reportSLn "import.iface" 7 "  interface complete"
     return i

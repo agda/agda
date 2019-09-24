@@ -26,6 +26,7 @@ import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -35,6 +36,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -50,8 +52,8 @@ import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
+import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.NonemptyList
@@ -217,7 +219,7 @@ errorString err = case err of
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalHiding{}                          -> "UnequalHiding"
---  UnequalLevel{}                           -> "UnequalLevel" -- UNUSED
+  UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
   UnequalTerms{}                           -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
@@ -537,11 +539,14 @@ instance PrettyTCM TypeError where
       (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El Inf s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
-        fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
+        fsep $ [return d1, notCmp cmp, return d2]
+          ++ (case a of
+                AsTermsOf t -> pwords "of type" ++ [prettyTCM t]
+                AsTypes     -> [])
+          ++ [return d]
 
--- UnequalLevel is UNUSED
---   UnequalLevel cmp s t -> fsep $
---     [prettyTCM s, notCmp cmp, prettyTCM t]
+    UnequalLevel cmp s t -> fsep $
+      [prettyTCM s, notCmp cmp, prettyTCM t]
 
 -- UnequalTelescopes is UNUSED
 --   UnequalTelescopes cmp a b -> fsep $
@@ -719,31 +724,9 @@ instance PrettyTCM TypeError where
       , prettyTCM q
       ] ++ pwords "is abstract, thus, not in scope here"
 
-    NotInScope xs -> do
-      inscope <- Set.toList . concreteNamesInScope <$> getScope
-      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
-      where
-      name inscope x =
-        fsep [ pretty x
-             , "at" <+> prettyTCM (getRange x)
-             , suggestion inscope x
-             ]
-      suggestion inscope x = nest 2 $ par $
-        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
-        [ "did you forget space around the '->'?" | isInfixOf "->" s ] ++
-        [ sep [ "did you mean"
-              , nest 2 $ vcat (punctuate " or" $ map (\ y -> text $ "'" ++ y ++ "'") ys) <> "?" ]
-          | not $ null ys ]
-        where
-          s = P.prettyShow x
-          par []  = empty
-          par [d] = parens d
-          par ds  = parens $ vcat ds
-
-          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
-          maxDist n = div n 3
-          close a b = editDistance a b <= maxDist (length a)
-          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+    NotInScope xs ->
+      -- using the warning version to avoid code duplication
+      prettyTCM (NotInScopeW xs)
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
@@ -964,7 +947,7 @@ instance PrettyTCM TypeError where
              (case sectLevel sect of
                 Nothing          -> ""
                 Just Unrelated   -> ", unrelated"
-                Just (Related n) -> ", level " ++ show n) ++
+                Just (Related l) -> ", level " ++ toStringWithoutDotZero l) ++
              ")")
             Boxes.//
           strut
@@ -1207,17 +1190,26 @@ instance PrettyTCM SplitError where
 
     UnificationStuck c tel cIxs gIxs errs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> vcat $
-          [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
-                   [prettyTCM c <> ","] ++
-                   pwords "because I get stuck when trying to solve the following" ++
-                   pwords "unification problems (inferred index ≟ expected index):"
-          ] ++
-          zipWith (\c g -> nest 2 $ addContext tel $ prettyTCM c <+> "≟" <+> prettyTCM g) cIxs gIxs ++
-          if null errs then [] else
+      | otherwise                  -> vcat . concat $
+        [ [ fsep . concat $
+            [ pwords "I'm not sure if there should be a case for the constructor"
+            , [prettyTCM c <> ","]
+            , pwords "because I get stuck when trying to solve the following"
+            , pwords "unification problems (inferred index ≟ expected index):"
+            ]
+          ]
+        , zipWith prEq cIxs gIxs
+        , if null errs then [] else
             [ fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
                      pwords "why unification failed:" ] ++
             map (nest 2 . prettyTCM) errs
+        ]
+      where
+        -- Andreas, 2019-08-08, issue #3943
+        -- To not print hidden indices just as {_}, we strip the Arg and print
+        -- the hiding information manually.
+        prEq cIx gIx = addContext tel $ nest 2 $ hsep [ pr cIx , "≟" , pr gIx ]
+        pr arg = prettyRelevance arg . prettyHiding arg id <$> prettyTCM (unArg arg)
 
     CosplitCatchall -> fsep $
       pwords "Cannot split into projections because not all clauses have a projection copattern"

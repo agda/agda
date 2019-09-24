@@ -4,6 +4,8 @@ module Agda.TypeChecking.Generalize
   , generalizeType'
   , generalizeTelescope ) where
 
+import Prelude hiding (null)
+
 import Control.Arrow (first)
 import Control.Monad
 import Data.IntSet (IntSet)
@@ -41,8 +43,10 @@ import Agda.Utils.Benchmark
 import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
+import Agda.Utils.List   (hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
@@ -51,7 +55,7 @@ import Agda.Utils.Permutation
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
 generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
-  let s = Set.fromList (Map.keys vars)
+  let s = Map.keysSet vars
   ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
       cxt <- take (size tel) <$> getContext
@@ -168,16 +172,15 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
       nongeneralizableOpen                      = filter isOpen nongeneralizable
 
   -- Issue 3301: We can't generalize over sorts
-  case openSortMetas of
-    [] -> return ()
-    ms -> warning $ CantGeneralizeOverSorts (map fst ms)
+  unlessNull openSortMetas $ \ ms ->
+    warning $ CantGeneralizeOverSorts $ map fst ms
 
   -- Any meta in the solution of a generalizable meta should be generalized over (if possible).
   cp <- viewTC eCurrentCheckpoint
   let canGeneralize x | isConstrained x = return False
       canGeneralize x = do
           mv   <- lookupMeta x
-          msub <- enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+          msub <- enterClosure mv $ \ _ ->
                     checkpointSubstitution' cp
           let sameContext =
                 -- We can only generalize if the metavariable takes the context variables of the
@@ -220,7 +223,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen
       generalizeOver   = map fst generalizableOpen ++ alsoGeneralize
-      shouldGeneralize = (`Set.member` Set.fromList generalizeOver)
+      shouldGeneralize = (generalizeOver `hasElem`)
 
   -- Sort metas in dependency order. Include open metas that we are not
   -- generalizing over, since they will need to be pruned appropriately (see
@@ -319,7 +322,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prePrune x = do
       cp <- viewTC eCurrentCheckpoint
       mv <- lookupMeta x
-      (i, _A) <- enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+      (i, _A) <- enterClosure mv $ \ _ -> do
         δ <- checkpointSubstitution cp
         _A <- case mvJudgement mv of
                 IsSort{}  -> return Nothing
@@ -359,7 +362,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           , "uρ⁻¹ =" <+> pretty uρ' ]
 
         -- To solve it we enter the context of x again
-        enterClosure (miClosRange $ mvInfo mv) $ \ _ -> do
+        enterClosure mv $ \ _ -> do
           -- v is x applied to the context variables
           v <- case _A of
                  Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
@@ -373,7 +376,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       mv <- lookupMeta x
       -- The reason we are doing all this inside the closure of x is so that if x is an interaction
       -- meta we get the right context for the pruned interaction meta.
-      enterClosure (miClosRange $ mvInfo mv) $ \ _ ->
+      enterClosure mv $ \ _ ->
         -- If we can't find the generalized record, it's already been pruned and we don't have to do
         -- anything.
         whenJustM (findGenRec mv) $ \ i -> do
@@ -510,7 +513,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         Just _A -> do
           let _Aρ = applySubst ρ _A
           newNamedValueMeta DontRunMetaOccursCheck
-                            (miNameSuggestion $ mvInfo mv) _Aρ
+                            (miNameSuggestion $ mvInfo mv)
+                            (jComparison $ mvJudgement mv) _Aρ
 
     -- If x is a hole, update the hole to point to y instead.
     setInteractionPoint x y =
@@ -652,7 +656,7 @@ createGenValue x = setCurrentRange x $ do
 
   let metaType = piApply ty args
       name     = show (nameConcrete $ qnameName x)
-  (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name metaType
+  (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
   updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }

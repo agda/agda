@@ -6,7 +6,7 @@ module Agda.Interaction.Options
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
-    , Verbosity
+    , Verbosity, VerboseKey, VerboseLevel
     , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
@@ -77,7 +77,9 @@ import Paths_Agda ( getDataFileName )
 
 -- OptDescr is a Functor --------------------------------------------------
 
-type Verbosity = Trie String Int
+type VerboseKey   = String
+type VerboseLevel = Int
+type Verbosity    = Trie VerboseKey VerboseLevel
 
 data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
   deriving (Show, Eq)
@@ -116,6 +118,7 @@ data CommandLineOptions = Options
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
   , optIgnoreAllInterfaces :: Bool
+  , optLocalInterfaces     :: Bool
   , optPragmaOptions    :: PragmaOptions
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
@@ -134,6 +137,7 @@ data PragmaOptions = PragmaOptions
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optAllowUnsolved             :: Bool
+  , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
@@ -141,6 +145,7 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
+  , optCumulativity              :: Bool
   , optSizedTypes                :: WithDefault 'True
   , optGuardedness               :: WithDefault 'True
   , optInjectiveTypeConstructors :: Bool
@@ -165,6 +170,7 @@ data PragmaOptions = PragmaOptions
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
   , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
+  , optCompareSorts              :: Bool  -- ^ Should conversion checker compare sorts of types?
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -229,6 +235,7 @@ defaultOptions = Options
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
   , optIgnoreAllInterfaces = False
+  , optLocalInterfaces     = False
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
   , optWithCompiler      = Nothing
@@ -244,12 +251,14 @@ defaultPragmaOptions = PragmaOptions
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
+  , optAllowIncompleteMatch      = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
+  , optCumulativity              = False
   , optSizedTypes                = Default
   , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
@@ -270,6 +279,7 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optDoubleCheck               = False
   , optSyntacticEquality         = True
+  , optCompareSorts              = True
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -368,6 +378,7 @@ checkOpts opts
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+  [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
@@ -381,6 +392,7 @@ unsafePragmaOptions opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--cumulativity"                             | optCumulativity opts              ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -392,10 +404,12 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
+  , (B . optCumulativity, "--cumulativity")
   , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
@@ -412,6 +426,7 @@ restartOptions =
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
   , (B . not . optSyntacticEquality, "--no-syntactic-equality")
+  , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
   , (I . optInstanceSearchDepth, "--instance-search-depth")
@@ -482,6 +497,9 @@ doubleCheckFlag o = return $ o { optDoubleCheck = True }
 noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
 
+noSortComparisonFlag :: Flag PragmaOptions
+noSortComparisonFlag o = return $ o { optCompareSorts = False }
+
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ _ = throwError $
   "Feature --sharing has been removed (in favor of the Agda abstract machine)."
@@ -510,11 +528,21 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
+localInterfacesFlag :: Flag CommandLineOptions
+localInterfacesFlag o = return $ o { optLocalInterfaces = True }
+
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
   let upd = over warningSet (Set.\\ unsolvedWarnings)
   return $ o { optAllowUnsolved = True
              , optWarningMode   = upd (optWarningMode o)
+             }
+
+allowIncompleteMatchFlag :: Flag PragmaOptions
+allowIncompleteMatchFlag o = do
+  let upd = over warningSet (Set.\\ incompleteMatchWarnings)
+  return $ o { optAllowIncompleteMatch = True
+             , optWarningMode          = upd (optWarningMode o)
              }
 
 showImplicitFlag :: Flag PragmaOptions
@@ -588,6 +616,9 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
+
+cumulativityFlag :: Flag PragmaOptions
+cumulativityFlag o = return $ o { optCumulativity = True }
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --etaFlag :: Flag PragmaOptions
@@ -727,7 +758,9 @@ libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o = do
   ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s
+                         , optUseLibs = True
+                         })
     {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
@@ -816,6 +849,8 @@ standardOptions =
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
+    , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
+                    "put interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
@@ -861,6 +896,8 @@ pragmaOptions =
                     "set verbosity level to N"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
+    , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
+                    "succeed and create interface file regardless of incomplete pattern matches"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"
     , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)
@@ -871,6 +908,8 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
+    , Option []     ["cumulativity"] (NoArg cumulativityFlag)
+                    "enable subtyping of universes (e.g. Set =< Set₁)"
     , Option []     ["prop"] (NoArg propFlag)
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
@@ -943,6 +982,8 @@ pragmaOptions =
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
+    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
+                    "disable the comparison of sorts when checking conversion of types"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)

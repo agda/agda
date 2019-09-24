@@ -60,15 +60,17 @@ module Agda.TypeChecking.Forcing where
 import Control.Arrow (first)
 import Control.Monad
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer (WriterT(..), tell)
+import Control.Monad.Writer (WriterT(..), tell, lift)
 import Data.Foldable as Fold hiding (any)
 import Data.Maybe
 import Data.List ((\\))
 import Data.Function (on)
+import Data.Monoid
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -77,7 +79,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -234,29 +236,57 @@ forceTranslateTelescope delta qs = do
 rebindForcedPattern :: [NamedArg DeBruijnPattern] -> DeBruijnPattern -> TCM [NamedArg DeBruijnPattern]
 rebindForcedPattern ps toRebind = do
   reportSDoc "tc.force" 50 $ hsep ["rebinding", pretty toRebind, "in"] <?> pretty ps
-  ps' <- go $ zip (repeat NotForced) ps
-  reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
-  return ps'
+  (ps', Sum count) <- runWriterT $ go $ zip (repeat NotForced) ps
+  case count of
+    0 -> __IMPOSSIBLE__   -- Unforcing should not fail
+    1 -> do
+      reportSDoc "tc.force" 50 $ nest 2 $ hsep ["result:", pretty ps']
+      return ps'
+    _ -> setCurrentRange patRange $
+      genericDocError =<< sep [ fwords "Uh oh. I can't figure out where to move the forced pattern"
+                              , prettyTCM toRebind <> "."
+                              , fwords "See [Issue 3903](https://github.com/agda/agda/issues/3903)." ]
   where
     targetDotP = patternToTerm toRebind
 
-    go [] = __IMPOSSIBLE__ -- unforcing cannot fail
+    patRange =
+      case toRebind of
+        VarP{}     -> noRange
+        DotP{}     -> noRange
+        ConP c _ _ -> getRange c
+        LitP l     -> getRange l
+        ProjP _ f  -> getRange f
+        IApplyP{}  -> noRange
+        DefP{}     -> noRange
+
+    rebindingVar = case toRebind of
+                     VarP{} -> True
+                     _      -> False
+
+    go [] = return []
     go ((Forced,    p) : ps) = (p :) <$> go ps
     go ((NotForced, p) : ps) | namedArg p `rebinds` toRebind
                              = return $ p : map snd ps
     go ((NotForced, p) : ps) = -- (#3544) A previous rebinding might have already rebound our pattern
       case namedArg p of
         VarP{}   -> (p :) <$> go ps
-        DotP _ v -> mkPat v >>= \ case
-          Nothing -> (p :) <$> go ps
-          Just q' -> return $ fmap (q' <$) p : map snd ps
+        DotP _ v -> lift (mkPat v) >>= \ case
+          Nothing -> do
+            (p :) <$> go ps
+          Just q' -> do
+            tell 1
+            -- Issue 3903: It's ok if there are multiple candidates for rebinding a plain variable. It's
+            -- only when there's an actual match that it's crucial to pick the right one.
+            let p' = fmap (q' <$) p
+            if rebindingVar then return (p' : map snd ps)
+                            else (p' :) <$> go ps
         ConP c i qs -> do
-          fqs <- withForced c qs
+          fqs <- lift $ withForced c qs
           qps <- go (fqs ++ ps)
           let (qs', ps') = splitAt (length qs) qps
           return $ fmap (ConP c i qs' <$) p : ps'
         DefP o q qs -> do
-          fs <- defForced <$> getConstInfo q
+          fs <- lift $ defForced <$> getConstInfo q
           fqs <- return $ zip (fs ++ repeat NotForced) qs
           qps <- go (fqs ++ ps)
           let (qs', ps') = splitAt (length qs) qps

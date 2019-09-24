@@ -203,7 +203,7 @@ instance PrettyTCM Clause where
     prettyTCM (QNamed x cl)
 
 instance PrettyTCM a => PrettyTCM (Judgement a) where
-  prettyTCM (HasType a t) = prettyTCM a <+> ":" <+> prettyTCM t
+  prettyTCM (HasType a cmp t) = prettyTCM a <+> ":" <+> prettyTCM t
   prettyTCM (IsSort  a t) = "Sort" <+> prettyTCM a <+> ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
@@ -268,7 +268,7 @@ instance PrettyTCM ProblemConstraint where
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-        ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (":" <+> prettyTCMCtx TopCtx ty)
+        ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
@@ -333,6 +333,11 @@ instance PrettyTCM Constraint where
         UnquoteTactic _ v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
+        CheckMetaInst x -> do
+          m <- lookupMeta x
+          case mvJudgement m of
+            HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
+            IsSort{} -> prettyTCM x <+> "is a sort"
 
       where
         prettyCmp
@@ -340,6 +345,9 @@ instance PrettyTCM Constraint where
           => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
+instance PrettyTCM CompareAs where
+  prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
+  prettyTCM AsTypes       = ""
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =
@@ -441,13 +449,20 @@ instance PrettyTCM NLPat where
   prettyTCM (PPi a b)   = parens $
     text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
     (addContext (absName b) $ prettyTCM $ unAbs b)
+  prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType PTerm{} a) = prettyTCM a
-  prettyTCM (NLPType l       a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
+  prettyTCM (NLPType s a) = prettyTCM a
+
+instance PrettyTCM NLPSort where
+  prettyTCM = \case
+    PType l   -> parens $ "Set" <+> prettyTCM l
+    PProp l   -> parens $ "Prop" <+> prettyTCM l
+    PInf      -> prettyTCM (Inf :: Sort)
+    PSizeUniv -> prettyTCM (SizeUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

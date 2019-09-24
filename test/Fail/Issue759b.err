@@ -1,3 +1,5 @@
+Issue759b.agda:10,13-19
+public does not have any effect in an abstract block.
 Issue759b.agda:13,10-32
 Expected non-abstract record type, found Wrap
 when checking that the expression record { wrapped = a } has type

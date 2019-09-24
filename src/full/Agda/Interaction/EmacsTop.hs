@@ -92,7 +92,7 @@ lispifyResponse (Resp_GiveAction ii s)
         Give_String str -> quote str
         Give_Paren      -> "'paren"
         Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCase variant pcs) = return
+lispifyResponse (Resp_MakeCase ii variant pcs) = return
   [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ] ]
   where
   cmd = case variant of

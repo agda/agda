@@ -21,6 +21,8 @@ import Control.Monad.Trans.Maybe
 import Data.Either (partitionEithers)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
 import Data.Monoid ( Monoid, mempty, mappend )
@@ -301,13 +303,9 @@ problemAllVariables problem =
 --
 -- Precondition: The problem has to be solved.
 
-noShadowingOfConstructors
-  :: Call -- ^ Trace, e.g., @CheckPatternShadowing clause@
-  -> [ProblemEq] -> TCM ()
-noShadowingOfConstructors mkCall eqs =
-  traceCall mkCall $ mapM_ noShadowing eqs
-  where
-  noShadowing (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) = case snd $ asView p of
+noShadowingOfConstructors :: ProblemEq -> TCM ()
+noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
+  case snd $ asView p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
    A.DotP        {} -> return ()
@@ -562,10 +560,9 @@ checkPatternLinearity eqs = do
         ]
       case p of
         A.VarP x -> do
-          verboseS "tc.lhs.linear" 60 $ do
+          reportSLn "tc.lhs.linear" 60 $
             let y = A.unBind x
-            reportSLn "tc.lhs.linear" 60 $
-              "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
+            in "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
           case Map.lookup x vars of
             Just v -> do
               noConstraints $ equalTerm (unDom a) u v
@@ -621,7 +618,7 @@ bindAsPatterns (AsB x v a : asb) ret = do
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.
 recheckStrippedWithPattern :: ProblemEq -> TCM ()
-recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v (unDom a)
+recheckStrippedWithPattern (ProblemEq p v a) = checkInternal v CmpLeq (unDom a)
   `catchError` \_ -> typeError . GenericDocError =<< vcat
     [ "Ill-typed pattern after with abstraction: " <+> prettyA p
     , "(perhaps you can replace it by `_`?)"
@@ -651,7 +648,7 @@ data LHSResult = LHSResult
     -- ^ As-bindings from the left-hand side. Return instead of bound since we
     -- want them in where's and right-hand sides, but not in with-clauses
     -- (Issue 2303).
-  , lhsPartialSplit :: [Int]
+  , lhsPartialSplit :: IntSet
     -- ^ have we done a partial split?
   }
 
@@ -673,7 +670,7 @@ instance InstantiateFull LHSResult where
 
 checkLeftHandSide :: forall a.
      Call
-     -- ^ Trace, e.g. @CheckPatternShadowing clause@
+     -- ^ Trace, e.g. 'CheckLHS' or 'CheckPattern'.
   -> Maybe QName
      -- ^ The name of the definition we are checking.
   -> [NamedArg A.Pattern]
@@ -688,7 +685,9 @@ checkLeftHandSide :: forall a.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
+checkLeftHandSide call f ps a withSub' strippedPats =
+ Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $
+ traceCallCPS call $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
@@ -716,7 +715,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
         delta <- forceTranslateTelescope delta qs0
 
         addContext delta $ do
-          noShadowingOfConstructors c eqs
+          mapM_ noShadowingOfConstructors eqs
           noPatternMatchingOnCodata qs0
 
         -- Compute substitution from the out patterns @qs0@
@@ -782,7 +781,7 @@ checkLeftHandSide c f ps a withSub' strippedPats = Bench.billToCPS [Bench.Typing
 
         let hasAbsurd = not . null $ absurds
 
-        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (catMaybes psplit)
+        let lhsResult = LHSResult (length cxt) delta qs hasAbsurd b patSub asb (IntSet.fromList $ catMaybes psplit)
 
         -- Debug output
         reportSDoc "tc.lhs.top" 10 $
@@ -1721,7 +1720,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
       Right def -> do
-        let con = conSrcCon $ theDef def
+        let con = conSrcCon (theDef def) `withRangeOf` c
         unless (conName con `elem` cons) $ wrongDatatype c d
 
         -- Andreas, 2013-03-22 fixing issue 279

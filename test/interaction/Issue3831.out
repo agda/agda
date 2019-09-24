@@ -18,6 +18,6 @@
 (agda2-info-action "*Error*" "1,10-17 1 when checking that the expression unquote (test3 n) has type _134 (n = n) (m = m)" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-(agda2-info-action "*Error*" "We reached a program point we did not want to reach. Location of the error: src/full/Agda/TypeChecking/Unquote.hs:663 " nil)
+(agda2-info-action "*Error*" "We reached a program point we did not want to reach. Location of the error: src/full/Agda/TypeChecking/Unquote.hs:664 " nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

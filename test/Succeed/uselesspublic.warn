@@ -1,0 +1,18 @@
+uselesspublic.agda:1,32-38
+Keyword 'public' is ignored here
+when scope checking the declaration
+  import Agda.Builtin.Nat as Nat public
+uselesspublic.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking let open Nat public in Nat → Nat
+
+———— All done; warnings encountered ————————————————————————
+
+uselesspublic.agda:1,32-38
+Keyword 'public' is ignored here
+when scope checking the declaration
+  import Agda.Builtin.Nat as Nat public
+
+uselesspublic.agda:3,18-24
+Keyword 'public' is ignored here
+when scope checking let open Nat public in Nat → Nat

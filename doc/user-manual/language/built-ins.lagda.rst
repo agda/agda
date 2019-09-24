@@ -235,7 +235,7 @@ but can be defined in a library using :ref:`primTrustMe`.
 
 
 Basic arithmetic operations can be defined on ``Word64`` by converting to
-natural numbers, peforming the corresponding operation, and then converting
+natural numbers, performing the corresponding operation, and then converting
 back. The compiler will optimise these to use 64-bit arithmetic. For
 instance::
 

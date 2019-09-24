@@ -46,10 +46,10 @@ instance DeBruijn PlusLevel where
       _ -> Nothing
 
 instance DeBruijn Level where
-  deBruijnVar i = Max [deBruijnVar i]
+  deBruijnVar i = Max 0 [deBruijnVar i]
   deBruijnView l =
     case l of
-      Max [p] -> deBruijnView p
+      Max 0 [p] -> deBruijnView p
       _ -> Nothing
 
 instance DeBruijn DBPatVar where

@@ -4,5 +4,5 @@ reduces to both b and f ((x : A) → A) (λ x → a)
 which are not equal because b != a of type A
 when checking confluence of the rewrite rule rewf₂ with rewg
 Issue3810b.agda:31,9-13
-a !=< b of type A
+a != b of type A
 when checking that the expression refl has type a ≡ b

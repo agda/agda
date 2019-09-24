@@ -12,7 +12,7 @@ module Agda.Syntax.Concrete
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
-  , isPattern, isBinderP
+  , isPattern, isAbsurdP, isBinderP
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -41,6 +41,7 @@ module Agda.Syntax.Concrete
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
+  , observeHiding
   , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
@@ -286,13 +287,13 @@ makePi bs e = Pi bs e
    We use fixity information to see which name is actually defined.
 -}
 data LHS = LHS
-  { lhsOriginalPattern :: Pattern       -- ^ e.g. @f ps | wps@
-  , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @(rewrite e | with p <- e)@ (many)
-  , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
+  { lhsOriginalPattern :: Pattern               -- ^ e.g. @f ps | wps@
+  , lhsRewriteEqn      :: [RewriteEqn]          -- ^ @(rewrite e | with p <- e)@ (many)
+  , lhsWithExpr        :: [WithHiding WithExpr] -- ^ @with e1 | {e2} | ...@ (many)
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
-type RewriteEqn = RewriteEqn' Pattern Expr
+type RewriteEqn = RewriteEqn' () Pattern Expr
 
 type WithExpr   = Expr
 
@@ -456,6 +457,9 @@ data Pragma
   | TerminationCheckPragma    Range (TerminationCheck Name)
     -- ^ Applies to the following function (and all that are mutually recursive with it)
     --   or to the functions in the following mutual block.
+  | NoCoverageCheckPragma     Range
+    -- ^ Applies to the following function (and all that are mutually recursive with it)
+    --   or to the functions in the following mutual block.
   | NoPositivityCheckPragma   Range
     -- ^ Applies to the following data/record type or mutual block.
   | PolarityPragma            Range Name [Occurrence]
@@ -502,12 +506,12 @@ spanAllowedBeforeModule = span isAllowedBeforeModule
  --------------------------------------------------------------------------}
 
 -- | Extended content of an interaction hole.
-data HoleContent' p e
-  = HoleContentExpr    e                 -- ^ @e@
-  | HoleContentRewrite [RewriteEqn' p e] -- ^ @(rewrite | invert) e0 | ... | en@
+data HoleContent' qn p e
+  = HoleContentExpr    e                    -- ^ @e@
+  | HoleContentRewrite [RewriteEqn' qn p e] -- ^ @(rewrite | invert) e0 | ... | en@
   deriving (Functor, Foldable, Traversable)
 
-type HoleContent = HoleContent' Pattern Expr
+type HoleContent = HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Views
@@ -540,6 +544,15 @@ removeSingletonRawAppP p = case p of
     RawAppP _ [p'] -> removeSingletonRawAppP p'
     ParenP _ p'    -> removeSingletonRawAppP p'
     _ -> p
+
+-- | Observe the hiding status of an expression
+
+observeHiding :: Expr -> WithHiding Expr
+observeHiding = \case
+  RawApp _ [e]                    -> observeHiding e
+  HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
+  InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
+  e                               -> WithHiding NotHidden e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -585,6 +598,16 @@ isPattern = \case
       HiddenArg _ p   -> HiddenP r (fmap f p)
       InstanceArg _ p -> InstanceP r (fmap f p)
       p               -> f p
+
+isAbsurdP :: Pattern -> Maybe (Range, Hiding)
+isAbsurdP = \case
+  AbsurdP r      -> pure (r, NotHidden)
+  AsP _ _      p -> isAbsurdP p
+  ParenP _     p -> isAbsurdP p
+  RawAppP _ [p]  -> isAbsurdP p
+  HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
+  InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
+  _ -> Nothing
 
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
@@ -779,6 +802,7 @@ instance HasRange Pragma where
   getRange (ImpossiblePragma r)              = r
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
+  getRange (NoCoverageCheckPragma r)         = r
   getRange (WarningOnUsage r _ _)            = r
   getRange (WarningOnImport r _)             = r
   getRange (CatchallPragma r)                = r
@@ -977,6 +1001,7 @@ instance KillRange Pragma where
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
   killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
+  killRange (NoCoverageCheckPragma _)         = NoCoverageCheckPragma noRange
   killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange (killRange nm) str
   killRange (WarningOnImport _ str)           = WarningOnImport noRange str
   killRange (CatchallPragma _)                = CatchallPragma noRange
@@ -1112,6 +1137,7 @@ instance NFData Pragma where
   rnf (ImpossiblePragma _)              = ()
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
+  rnf (NoCoverageCheckPragma _)         = ()
   rnf (WarningOnUsage _ a b)            = rnf a `seq` rnf b
   rnf (WarningOnImport _ a)             = rnf a
   rnf (CatchallPragma _)                = ()

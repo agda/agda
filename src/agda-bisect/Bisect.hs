@@ -38,7 +38,7 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | Default flags given to cabal install (excludes some flags that
+-- | Default flags given to cabal v1-install (excludes some flags that
 -- cannot be overridden).
 
 defaultCabalFlags :: [String]
@@ -117,7 +117,8 @@ options =
              (long "timeout" <>
               metavar "N" <>
               help ("The command must finish in less than " ++
-                    "(approximately) N seconds")))
+                    "(approximately) N seconds; implies " ++
+                    "--no-default-cabal-options")))
     <*> (not <$>
          switch (long "no-extra-arguments" <>
                  help "Do not give any extra arguments to Agda"))
@@ -131,14 +132,15 @@ options =
            (long "no-default-cabal-options" <>
             help (unwords
               [ "Do not (by default) give certain options to cabal"
-              , "install"
+              , "v1-install"
               ])))
     <*> many
-          (strOption (long "cabal-option" <>
-                      help "Additional option given to cabal install" <>
-                      metavar "OPTION" <>
-                      completer (commandCompleter "cabal"
-                                   ["install", "--list-options"])))
+          (strOption
+             (long "cabal-option" <>
+              help "Additional option given to cabal v1-install" <>
+              metavar "OPTION" <>
+              completer (commandCompleter "cabal"
+                           ["v1-install", "--list-options"])))
     <*> ((\skip -> if skip then ciSkipStrings else []) <$>
          switch (long "skip-skipped" <>
                  help ("Skip commits with commit messages " ++
@@ -211,15 +213,24 @@ options =
   -- 'noInternalError'. Note that this function is not idempotent.
 
   fixOptions :: Options -> Options
-  fixOptions opt
-    | noInternalError opt = opt
-        { mustSucceed   = False
-        , mustNotOutput = internalErrorString : mustNotOutput opt
-        }
-    | defaultCabalOptions opt = opt
-        { cabalOptions = defaultCabalFlags ++ cabalOptions opt
-        }
-    | otherwise = opt
+  fixOptions = fix3 . fix2 . fix1
+    where
+    fix1 opt
+      | noInternalError opt = opt
+          { mustSucceed   = False
+          , mustNotOutput = internalErrorString : mustNotOutput opt
+          }
+      | otherwise = opt
+
+    fix2 opt = case mustFinishWithin opt of
+      Nothing -> opt
+      Just _  -> opt { defaultCabalOptions = False }
+
+    fix3 opt
+      | defaultCabalOptions opt = opt
+          { cabalOptions = defaultCabalFlags ++ cabalOptions opt
+          }
+      | otherwise = opt
 
   paragraph ss      = fillSep (map string $ words $ unlines ss)
   d1 `newline` d2   = d1 PP.<> hardline PP.<> d2
@@ -250,13 +261,13 @@ options =
         ]
 
     , paragraph
-        [ "The script gives the following options to cabal install,"
+        [ "The script gives the following options to cabal v1-install,"
         , "unless --no-default-cabal-options has been given:"
         ] `newline`
       indent 2 (foldr1 newline $ map string defaultCabalFlags)
         `newline`
       paragraph
-        [ "(Other options are also given to cabal install.)"
+        [ "(Other options are also given to cabal v1-install.)"
         ]
 
     , paragraph
@@ -288,9 +299,16 @@ options =
         ]
 
     , paragraph
+        [ "By default Agda is compiled without optimisation (to reduce"
+        , "compilation times). For this reason a separate cache is used"
+        , "when --timeout is active. When --timeout is not active"
+        , "programs from either cache can be used."
+        ]
+
+    , paragraph
         [ "You should install suitable versions of the following"
         , "commands before running the script (in addition to any"
-        , "programs invoked by cabal install):"
+        , "programs invoked by cabal v1-install):"
         ] PP.<$>
       indent 2 (fillSep $ map string ["cabal", "git", "sed", "timeout"])
 
@@ -390,9 +408,9 @@ validRevision rev = do
 setupSandbox :: IO ()
 setupSandbox = do
   sandboxExists <- callProcessWithResultSilently
-                     "cabal" ["sandbox", "list-sources"]
+                     "cabal" ["v1-sandbox", "list-sources"]
   unless sandboxExists $
-    callProcess "cabal" ["sandbox", "init"]
+    callProcess "cabal" ["v1-sandbox", "init"]
 
 -- | Performs the bisection process.
 
@@ -567,11 +585,16 @@ installAgda :: Options -> IO (Maybe FilePath)
 installAgda opts
   | cacheBuilds opts = do
       commit <- currentCommit
-      agda   <- cachedAgda commit
-      exists <- doesFileExist agda
-      if not exists then install else do
-        copyDataFiles opts
-        return (Just agda)
+      agdas  <- forM (True : if timeout opts then [] else [False])
+                     (\timeout -> do
+                       agda <- cachedAgda commit timeout
+                       b    <- doesFileExist agda
+                       return $ if b then Just agda else Nothing)
+      case catMaybes agdas of
+        []       -> install
+        agda : _ -> do
+          copyDataFiles opts
+          return (Just agda)
   | otherwise = install
   where
   install =
@@ -597,11 +620,12 @@ cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
 cabalInstall opts file = do
   commit <- currentCommit
   ok <- callProcessWithResult "cabal" $
-    [ "install"
+    [ "v1-install"
     , "--force-reinstalls"
     , "--disable-library-profiling"
     , "--disable-documentation"
-    ] ++ (if cacheBuilds opts then ["--program-suffix=-" ++ commit]
+    ] ++ (if cacheBuilds opts then ["--program-suffix=" ++
+                                    programSuffix commit (timeout opts)]
                               else [])
       ++ compilerFlag opts
       ++ cabalOptions opts ++
@@ -609,7 +633,7 @@ cabalInstall opts file = do
     ]
   case (ok, cacheBuilds opts) of
     (True, False) -> Just <$> compiledAgda
-    (True, True)  -> Just <$> cachedAgda commit
+    (True, True)  -> Just <$> cachedAgda commit (timeout opts)
     (False, _)    -> return Nothing
 
 -- | Tries to copy data files to the correct location.
@@ -620,16 +644,33 @@ cabalInstall opts file = do
 
 copyDataFiles :: Options -> IO ()
 copyDataFiles opts = do
-  callProcessWithResult "cabal" (["configure"] ++ compilerFlag opts)
-  callProcessWithResult "cabal" ["copy", "-v"]
+  callProcessWithResult "cabal" (["v1-configure"] ++ compilerFlag opts)
+  callProcessWithResult "cabal" ["v1-copy", "-v"]
   return ()
 
--- | An absolute path to the cached Agda binary (if any) for a certain
--- commit.
+-- | The suffix of the Agda binary.
 
-cachedAgda :: String -> IO FilePath
-cachedAgda commit =
-   (\agda -> agda ++ "-" ++ commit) <$> compiledAgda
+programSuffix
+  :: String  -- ^ The commit hash.
+  -> Bool    -- ^ Is the @--timeout@ option active?
+  -> String
+programSuffix commit timeout =
+  (if timeout then "-timeout" else "") ++
+  "-" ++ commit
+
+-- | Is the @--timeout@ option active?
+
+timeout :: Options -> Bool
+timeout opts = isJust (mustFinishWithin opts)
+
+-- | An absolute path to the cached Agda binary (if any).
+
+cachedAgda
+  :: String
+  -> Bool
+  -> IO FilePath
+cachedAgda commit timeout =
+   (\agda -> agda ++ programSuffix commit timeout) <$> compiledAgda
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.
@@ -650,7 +691,7 @@ makeBuildEasier =
         , "-e", "s/cpphs >=[^,]*/cpphs/"
         , "-e", "s/alex >=[^,]*/alex/"
         , "-e", "s/geniplate[^,]*/geniplate-mirror/"
-        , "-e", "s/-Werror//g"
+        , "-e", "s/-Werror(=.*)?//g"
         , cabalFile
         ]
       return ()

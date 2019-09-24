@@ -1,4 +1,4 @@
-Issue413.agda:14,1-29
+Issue413.agda:14,1-22
 I'm not sure if there should be a case for the constructor isℕ,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

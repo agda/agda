@@ -1,3 +1,4 @@
 Issue2423.agda:24,8-10
 Cannot eliminate type  S  with projection  S._.f
-when checking that the clause test s .f = s .f has type S → S
+when checking the clause left hand side
+test s .f

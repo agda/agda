@@ -182,5 +182,54 @@ instance EncodeTCM Response where
         ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
-jsonifyResponse :: Response -> TCM ByteString
-jsonifyResponse = return . encode <=< encodeTCM
+jsonifyResponse :: Response -> IO ByteString
+jsonifyResponse (Resp_HighlightingInfo info remove method modFile) =
+   encode <$> jsonifyHighlightingInfo info remove method modFile
+jsonifyResponse (Resp_DisplayInfo info) = return $ encode $ object
+  [ "kind" .= String "DisplayInfo"
+  , "info" .= info
+  ]
+jsonifyResponse (Resp_ClearHighlighting tokenBased) = return $ encode $ object
+  [ "kind"          .= String "ClearHighlighting"
+  , "tokenBased"    .= tokenBased
+  ]
+jsonifyResponse Resp_DoneAborting = return $ encode $ object [ "kind" .= String "DoneAborting" ]
+jsonifyResponse Resp_ClearRunningInfo = return $ encode $ object [ "kind" .= String "ClearRunningInfo" ]
+jsonifyResponse (Resp_RunningInfo debugLevel msg) = return $ encode $ object
+  [ "kind"          .= String "RunningInfo"
+  , "debugLevel"    .= debugLevel
+  , "message"       .= msg
+  ]
+jsonifyResponse (Resp_Status status) = return $ encode $ object
+  [ "kind"          .= String "Status"
+  , "status"        .= status
+  ]
+jsonifyResponse (Resp_JumpToError filepath position) = return $ encode $ object
+  [ "kind"          .= String "JumpToError"
+  , "filepath"      .= filepath
+  , "position"      .= position
+  ]
+jsonifyResponse (Resp_InteractionPoints interactionPoints) = return $ encode $ object
+  [ "kind"              .= String "InteractionPoints"
+  , "interactionPoints" .= interactionPoints
+  ]
+jsonifyResponse (Resp_GiveAction i giveResult) = return $ encode $ object
+  [ "kind"              .= String "GiveAction"
+  , "interactionPoint"  .= i
+  , "giveResult"        .= giveResult
+  ]
+jsonifyResponse (Resp_MakeCase i variant clauses) = return $ encode $ object
+  [ "kind"          .= String "MakeCase"
+  , "interactionPoint"  .= i
+  , "variant"       .= variant
+  , "clauses"       .= clauses
+  ]
+jsonifyResponse (Resp_SolveAll solutions) = return $ encode $ object
+  [ "kind"          .= String "SolveAll"
+  , "solutions"     .= map encodeSolution solutions
+  ]
+  where
+    encodeSolution (i, expr) = object
+      [ "interactionPoint"  .= i
+      , "expression"        .= show expr
+      ]

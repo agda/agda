@@ -3,6 +3,7 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
+import Data.Char ( toLower )
 import Data.Function
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -11,11 +12,14 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Scope.Base ( concreteNamesInScope )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -24,6 +28,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
+import Agda.Utils.List ( editDistance )
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 
@@ -61,11 +66,12 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs -> if null cs' then empty else
-      fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (P.vcat . List.nub <$> mapM prettyConstraint cs')
-      where
-        cs' = filter interestingConstraint cs
+    UnsolvedConstraints cs -> ifNull (filter interestingConstraint cs)
+      {-then-} (fsep $ pwords "Unsolved constraints")  -- #4065: keep minimal warning text
+      {-else-} $ \ cs' -> vcat
+        [ fsep $ pwords "Failed to solve the following constraints:"
+        , nest 2 $ P.vcat . List.nub <$> mapM prettyConstraint cs'
+        ]
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
@@ -180,6 +186,12 @@ prettyWarning wng = case wng of
     SafeFlagNoUniverseCheck -> fsep $
       pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
 
+    SafeFlagInjective -> fsep $
+      pwords "Cannot use INJECTIVE pragma with safe flag."
+
+    SafeFlagNoCoverageCheck -> fsep $
+      pwords "Cannot use NON_COVERING pragma with safe flag."
+
     ParseWarning pw -> pretty pw
 
     DeprecationWarning old new version -> fsep $
@@ -193,6 +205,8 @@ prettyWarning wng = case wng of
     ModuleDoesntExport m xs -> fsep $
       pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
       punctuate comma (map pretty xs)
+
+    FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 
     LibraryWarning lw -> pretty lw
 
@@ -225,11 +239,54 @@ prettyWarning wng = case wng of
       pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
       ++ pwords "so the COMPILE pragma will be ignored."
 
+    NotInScopeW xs -> do
+      inscope <- Set.toList . concreteNamesInScope <$> getScope
+      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
+      where
+      name inscope x =
+        fsep [ pretty x
+             , "at" <+> prettyTCM (getRange x)
+             , suggestion inscope x
+             ]
+      suggestion inscope x = nest 2 $ par $
+        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
+        [ "did you forget space around the '->'?" | List.isInfixOf "->" s ] ++
+        [ sep [ "did you mean"
+              , nest 2 $ vcat (punctuate " or"
+                       $ map (\ y -> text $ "'" ++ y ++ "'") ys)
+              <> "?" ]
+          | not $ null ys ]
+        where
+          s = P.prettyShow x
+          par []  = empty
+          par [d] = parens d
+          par ds  = parens $ vcat ds
+
+          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
+          maxDist n = div n 3
+          close a b = editDistance a b <= maxDist (length a)
+          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+
+
 prettyTCWarnings :: [TCWarning] -> TCM String
 prettyTCWarnings = fmap (unlines . List.intersperse "") . prettyTCWarnings'
 
 prettyTCWarnings' :: [TCWarning] -> TCM [String]
-prettyTCWarnings' = mapM (fmap show . prettyTCM)
+prettyTCWarnings' = mapM (fmap P.render . prettyTCM) . filterTCWarnings
+
+-- | If there are several warnings, remove the unsolved-constraints warning
+-- in case there are no interesting constraints to list.
+filterTCWarnings :: [TCWarning] -> [TCWarning]
+filterTCWarnings = \case
+  -- #4065: Always keep the only warning
+  [w] -> [w]
+  -- Andreas, 2019-09-10, issue #4065:
+  -- If there are several warnings, remove the unsolved-constraints warning
+  -- in case there are no interesting constraints to list.
+  ws  -> (`filter` ws) $ \ w -> case tcWarning w of
+    UnsolvedConstraints cs -> not $ null $ filter interestingConstraint cs
+    _ -> True
+
 
 -- | Turns all warnings into errors.
 tcWarningsToError :: [TCWarning] -> TCM a

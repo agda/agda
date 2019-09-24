@@ -565,7 +565,7 @@ instance AllHoles Sort where
 
 instance AllHoles Level where
   type PType Level = ()
-  allHoles _ (Max ls) = fmap Max <$> allHoles_ ls
+  allHoles _ (Max n ls) = fmap (Max n) <$> allHoles_ ls
 
 instance AllHoles [PlusLevel] where
   type PType [PlusLevel] = ()
@@ -576,7 +576,6 @@ instance AllHoles [PlusLevel] where
 
 instance AllHoles PlusLevel where
   type PType PlusLevel = ()
-  allHoles _ (ClosedLevel n) = empty
   allHoles _ (Plus n l) = fmap (Plus n) <$> allHoles_ l
 
 instance AllHoles LevelAtom where
@@ -644,11 +643,10 @@ instance MetasToVars Sort where
     DummyS s   -> pure $ DummyS s
 
 instance MetasToVars Level where
-  metasToVars (Max ls) = Max <$> metasToVars ls
+  metasToVars (Max n ls) = Max n <$> metasToVars ls
 
 instance MetasToVars PlusLevel where
-  metasToVars (ClosedLevel n) = pure $ ClosedLevel n
-  metasToVars (Plus n x)      = Plus n <$> metasToVars x
+  metasToVars (Plus n x) = Plus n <$> metasToVars x
 
 instance MetasToVars LevelAtom where
   metasToVars = \case

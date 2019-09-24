@@ -12,7 +12,7 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-CABAL_CMD=cabal
+include ./mk/cabal.mk
 STACK_CMD=stack
 
 # Run in interactive and parallel mode by default
@@ -46,7 +46,7 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
+CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
 STACK_BUILD = $(STACK_CMD) build Agda --no-haddock
 
 # 2016-07-15. We use a different build directory in the quick
@@ -59,7 +59,7 @@ QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 QUICK_STACK_BUILD_WORK_DIR = .stack-work-quick
 QUICK_STACK_BUILD = $(STACK_BUILD) \
 										--ghc-options=-O0 \
-										--work-dir=$(QUICK_STACK_BUILD_WORK_DIR) 
+										--work-dir=$(QUICK_STACK_BUILD_WORK_DIR)
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
@@ -219,7 +219,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
+test : check-whitespace succeed fail bugs interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test stdlib-compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -234,7 +234,7 @@ internal-tests :
 .PHONY : succeed
 succeed :
 	@echo "======================================================================"
-	@echo "===================== Suite of successfull tests ====================="
+	@echo "===================== Suite of successful tests ======================"
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed
@@ -266,6 +266,13 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
+
+.PHONY : fail
+bugs :
+	@echo "======================================================================"
+	@echo "======================= Suite of tests for bugs ======================"
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs
 
 .PHONY : latex-html-test
 latex-html-test :
@@ -344,7 +351,14 @@ compiler-test :
 	@echo "======================================================================"
 	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib
+
+.PHONY : stdlib-compiler-test
+stdlib-compiler-test :
+	@echo "======================================================================"
+	@echo "================== Standard Library Compiler tests ==================="
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib
 
 .PHONY : api-test
 api-test :
@@ -416,7 +430,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
 else
-	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
+	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
 ## size-solver standalone program #########################################

@@ -63,4 +63,24 @@ A fixity declaration can preceed the actual declaration of the names.
 \AgdaPrimitiveType{Set}\<%
 \end{code}
 
+Fixity declarations can also occur when renaming during import.
+
+\begin{code}%
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaModule{SurroundingText}\AgdaSpace{}%
+\AgdaKeyword{renaming}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaPostulate{\AgdaUnderscore{}+\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaKeyword{infixl}\AgdaSpace{}%
+\AgdaNumber{5}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{\AgdaUnderscore{}+\AgdaUnderscore{}}}\AgdaSymbol{;}%
+\>[53]\AgdaOperator{\AgdaPostulate{\AgdaUnderscore{}*\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{to}\AgdaSpace{}%
+\AgdaKeyword{infixl}\AgdaSpace{}%
+\AgdaNumber{10}\AgdaSpace{}%
+\AgdaOperator{\AgdaPostulate{\AgdaUnderscore{}\&\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\end{code}
+
+
+
 \end{document}

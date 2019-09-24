@@ -6,6 +6,6 @@ Problematic calls:
   f pm
     (at Issue3604.agda:17,27-28)
 Issue3604.agda:25,8-15
-nothing !=< prd∞ (f inf∞) of type Maybe ℕ∞
+nothing != prd∞ (f inf∞) of type Maybe ℕ∞
 when checking that the expression nothing has type
 Is-nothing (prd∞ (f inf∞))

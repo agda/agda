@@ -41,8 +41,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Irrelevance (workOnTypes)
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..), getBuiltin', builtinLevel)
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -171,16 +170,33 @@ instance Match t a b => Match t (Dom a) (Dom b) where
   match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
 instance Match () NLPType Type where
-  match r gamma k _ (NLPType lp p) (El s a) = workOnTypes $ do
-    match r gamma k () lp s
+  match r gamma k _ (NLPType sp p) (El s a) = workOnTypes $ do
+    match r gamma k () sp s
     match r gamma k (sort s) p a
 
--- We mine sort annotations for solutions to pattern variables of type
--- Level, but a wrong sort can never block reduction.
-instance Match () NLPat Sort where
-  match r gamma k _ p s = case s of
-    Type l -> match Irrelevant gamma k () p l
-    _      -> return ()
+instance Match () NLPSort Sort where
+  match r gamma k _ p s = do
+    bs <- reduceB s
+    let b = void bs
+        s = ignoreBlocking bs
+        yes = return ()
+        no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
+    traceSDoc "rewriting.match" 30 (sep
+      [ "matching pattern " <+> addContext (gamma `abstract` k) (prettyTCM p)
+      , "  with sort      " <+> addContext k (prettyTCM s) ]) $ do
+    case (p , s) of
+      (PType lp  , Type l  ) -> match r gamma k () lp l
+      (PProp lp  , Prop l  ) -> match r gamma k () lp l
+      (PInf      , Inf     ) -> yes
+      (PSizeUniv , SizeUniv) -> yes
+
+      -- blocked cases
+      (_ , UnivSort{}) -> matchingBlocked b
+      (_ , PiSort{}  ) -> matchingBlocked b
+      (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
+
+      -- all other cases do not match
+      (_ , _) -> no
 
 instance Match () NLPat Level where
   match r gamma k _ p l = do
@@ -240,7 +256,10 @@ instance Match Type NLPat Term where
         case ok of
           Left b         -> block b
           Right Nothing  -> no ""
-          Right (Just v) -> tellSub r (i-n) t $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
+          Right (Just v) ->
+            let t' = telePi  tel $ renameP __IMPOSSIBLE__ perm t
+                v' = teleLam tel $ renameP __IMPOSSIBLE__ perm v
+            in tellSub r (i-n) t' v'
       _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
@@ -283,12 +302,16 @@ instance Match Type NLPat Term where
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no ""
       PPi pa pb -> case v of
         Pi a b -> do
           match r gamma k () pa a
           let k' = ExtendTel a (Abs (absName b) k)
           match r gamma k' () (absBody pb) (absBody b)
+        _ -> no ""
+      PSort ps -> case v of
+        Sort s -> match r gamma k () ps s
         _ -> no ""
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do

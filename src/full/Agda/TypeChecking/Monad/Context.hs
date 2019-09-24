@@ -5,6 +5,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
+import Control.Monad.Fail (MonadFail)
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -391,7 +392,7 @@ lookupBV' n = do
   return $ raise (n + 1) <$> ctx !!! n
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: MonadTCEnv m => Nat -> m (Dom (Name, Type))
+lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   let failure = do
         ctx <- getContext
@@ -400,26 +401,26 @@ lookupBV n = do
   maybeM failure return $ lookupBV' n
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
-nameOfBV' :: (Applicative m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Name
+nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: MonadTCEnv m => Name -> m (Term, Dom Type)
+getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings

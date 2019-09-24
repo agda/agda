@@ -1,3 +1,4 @@
-Issue3147.agda:12,1-16
+Issue3147.agda:12,1-12
 x != suc x of type Nat
-when checking that the clause f x@(suc x) = x has type Nat → Nat
+when checking the clause left hand side
+f x@(suc x)

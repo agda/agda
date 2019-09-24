@@ -175,7 +175,7 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          (_, hole) <- newValueMeta RunMetaOccursCheck t
+          (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq t
           unquoteM (namedArg arg) hole t
           return hole
       | arg : args <- args -> do
@@ -191,7 +191,7 @@ checkApplication cmp hd args e t = postponeInstanceConstraints $ do
                                                     -- a b : (x : X) (y : Y x)
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
-          (_, hole) <- newValueMeta RunMetaOccursCheck holeType
+          (_, hole) <- newValueMeta RunMetaOccursCheck CmpLeq holeType
           unquoteM (namedArg arg) hole holeType
           return $ apply hole vs
       where
@@ -1132,9 +1132,9 @@ checkSharpApplication e t c args = do
   -- postpone checking of patterns when we don't know their types (Issue480).
   forcedType <- do
     lvl <- levelType
-    (_, l) <- newValueMeta RunMetaOccursCheck lvl
+    (_, l) <- newValueMeta RunMetaOccursCheck CmpLeq lvl
     lv  <- levelView l
-    (_, a) <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
+    (_, a) <- newValueMeta RunMetaOccursCheck CmpEq (sort $ Type lv)
     return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
   wrapper <- inFreshModuleIfFreeParams $ do
@@ -1144,7 +1144,7 @@ checkSharpApplication e t c args = do
 
     -- Define and type check the fresh function.
     mod <- asksTC getModality
-    abs <- aModeToDef <$> asksTC envAbstractMode
+    abs <- asksTC (^. lensIsAbstract)
     let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                              PublicAccess abs noRange
         core   = A.LHSProj { A.lhsDestructor = unambiguous flat

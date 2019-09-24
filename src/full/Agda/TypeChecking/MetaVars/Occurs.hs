@@ -465,15 +465,14 @@ instance Occurs Clause where
   metaOccurs m = metaOccurs m . clauseBody
 
 instance Occurs Level where
-  occurs (Max as) = Max <$> occurs as
+  occurs (Max n as) = Max n <$> occurs as
 
-  metaOccurs m (Max as) = metaOccurs m as
+  metaOccurs m (Max _ as) = metaOccurs m as
 
 instance Occurs PlusLevel where
-  occurs l@ClosedLevel{} = return l
   occurs (Plus n l) = Plus n <$> occurs l
-  metaOccurs m ClosedLevel{} = return ()
-  metaOccurs m (Plus n l)    = metaOccurs m l
+
+  metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs LevelAtom where
   occurs l = do
@@ -503,15 +502,15 @@ instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
       PiSort a s2 -> do
-        s1' <- weakly $ occurs $ getSort a
+        s1' <- flexibly $ occurs $ getSort a
         a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (weakly . occurs) s2
+        s2' <- mapAbstraction a' (flexibly . occurs) s2
         return $ PiSort a' s2'
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf      -> return s
       s@SizeUniv -> return s
-      UnivSort s -> UnivSort <$> do weakly $ occurs s
+      UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
         return $ MetaS x es
@@ -748,10 +747,9 @@ instance AnyRigid Sort where
       DummyS{}   -> return False
 
 instance AnyRigid Level where
-  anyRigid f (Max ls) = anyRigid f ls
+  anyRigid f (Max _ ls) = anyRigid f ls
 
 instance AnyRigid PlusLevel where
-  anyRigid f ClosedLevel{} = return False
   anyRigid f (Plus _ l)    = anyRigid f l
 
 instance AnyRigid LevelAtom where
@@ -938,7 +936,7 @@ performKill kills m a = do
   let perm = Perm n
              [ i | (i, Arg _ False) <- zip [0..] kills ]
       judg = case mvJudgement mv of
-        HasType{} -> HasType __IMPOSSIBLE__ a
+        HasType{ jComparison = cmp } -> HasType __IMPOSSIBLE__ cmp a
         IsSort{}  -> IsSort  __IMPOSSIBLE__ a
   m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) perm judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
@@ -958,7 +956,7 @@ performKill kills m a = do
       [ "actual killing"
       , nest 2 $ vcat
         [ "new meta:" <+> pretty m'
-        , "kills   :" <+> text (show kills)
+        , "kills   :" <+> prettyList_ (map (text . show . unArg) kills)
         , "inst    :" <+> pretty m <+> ":=" <+> prettyTCM u
         ]
       ]

@@ -87,6 +87,7 @@ tokens :-
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
 <pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
 <pragma_>   "NO_UNIVERSE_CHECK"        { keyword KwNO_UNIVERSE_CHECK }
+<pragma_>   "NON_COVERING"             { keyword KwNON_COVERING }
 <pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
 <pragma_>   "OPTIONS"                  { keyword KwOPTIONS }
 <pragma_>   "POLARITY"                 { keyword KwPOLARITY }
@@ -213,7 +214,10 @@ tokens :-
 <0,code> "->"           { symbol SymArrow }
 <0,code> "\"            { symbol SymLambda } -- "
 <0,code> "@"            { symbol SymAs }
-<0,code> "{{" /[^!]             { symbol SymDoubleOpenBrace }
+<0,code> "{{" /[^[!\-]] { symbol SymDoubleOpenBrace }
+-- Andreas, 2019-08-08, issue #3962, don't lex '{{' if followed by '-'
+-- since this will be confused with '{-' (start of comment) by Emacs.
+
 -- We don't lex '}}' into a SymDoubleCloseBrace. Instead, we lex it as
 -- two SymCloseBrace's. When the parser is looking for a double
 -- closing brace, it will also accept two SymCloseBrace's, after
@@ -221,6 +225,7 @@ tokens :-
 -- This trick allows us to keep "record { a = record {}}" working
 -- properly.
 -- <0,code> "}}"                { symbol SymDoubleCloseBrace }
+
 <0,code> "{"            { symbol SymOpenBrace }     -- you can't use braces for layout
 <0,code> "}"            { symbol SymCloseBrace }
 

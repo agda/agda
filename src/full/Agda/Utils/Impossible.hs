@@ -5,7 +5,7 @@
 
 module Agda.Utils.Impossible where
 
-import Control.Exception as E (Exception(..), throw, catch)
+import Control.Exception (Exception(..), throw, catchJust)
 import GHC.Stack
   (CallStack, HasCallStack, callStack, getCallStack, freezeCallStack
   , srcLocModule, srcLocFile, srcLocStartLine)
@@ -26,7 +26,7 @@ data Impossible
   | ImpMissingDefinitions [String] String
     -- ^ We reached a program point without all the required
     -- primitives or BUILTIN to proceed forward.
-    -- @MissingDefinitions needed forthis@
+    -- @ImpMissingDefinitions neededDefs forThis@
 
 instance Show Impossible where
   show (Impossible file line) = unlines
@@ -49,10 +49,30 @@ instance Exception Impossible
 throwImpossible :: Impossible -> a
 throwImpossible = throw
 
--- | Catch an \"impossible\" error, if possible.
+-- | Monads in which we can catch an \"impossible\" error, if possible.
 
-catchImpossible :: IO a -> (Impossible -> IO a) -> IO a
-catchImpossible = E.catch
+class CatchImpossible m where
+
+  -- | Catch any 'Impossible' exception.
+  catchImpossible :: m a -> (Impossible -> m a) -> m a
+  catchImpossible = catchImpossibleJust Just
+
+  -- | Catch only 'Impossible' exceptions selected by the filter.
+  catchImpossibleJust :: (Impossible -> Maybe b) -> m a -> (b -> m a) -> m a
+  catchImpossibleJust = flip . handleImpossibleJust
+
+  -- | Version of 'catchImpossible' with argument order suiting short handlers.
+  handleImpossible :: (Impossible -> m a) -> m a -> m a
+  handleImpossible = flip catchImpossible
+
+  -- | Version of 'catchImpossibleJust' with argument order suiting short handlers.
+  handleImpossibleJust :: (Impossible -> Maybe b) -> (b -> m a) -> m a -> m a
+  handleImpossibleJust = flip . catchImpossibleJust
+
+  {-# MINIMAL catchImpossibleJust | handleImpossibleJust #-}
+
+instance CatchImpossible IO where
+  catchImpossibleJust = catchJust
 
 -- | Create something with a callstack's file and line number
 

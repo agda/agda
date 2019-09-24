@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
@@ -205,7 +206,9 @@ instance Applicative AbsToCon where
 
 instance Monad AbsToCon where
   m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+#if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
+#endif
 
 instance Fail.MonadFail AbsToCon where
   fail = error
@@ -230,7 +233,7 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage n s = AbsToCon $ displayDebugMessage n s
+  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
   formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
   verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
 
@@ -546,6 +549,9 @@ bindToConcreteHiding h =
     Instance{} -> bindToConcreteTop
 
 -- General instances ------------------------------------------------------
+
+instance ToConcrete () () where
+  toConcrete = pure
 
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
@@ -966,7 +972,7 @@ openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo
 declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) where
+instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
       e <- toConcrete e
@@ -980,14 +986,14 @@ instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [C.Expr], [C.Declaration]) whe
       wh <- declsToConcrete (A.whereDecls wh)
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs') __IMPOSSIBLE__
-      eqs <- toConcrete $ map (snd <$>) xeqs
+      eqs <- toConcrete xeqs
       return (rhs, eqs, es, wh ++ whs)
 
 instance (ToConcrete p q, ToConcrete a b) =>
-         ToConcrete (RewriteEqn' p a) (RewriteEqn' q b) where
+         ToConcrete (RewriteEqn' qn p a) (RewriteEqn' () q b) where
   toConcrete = \case
-    Rewrite es -> Rewrite <$> mapM toConcrete es
-    Invert pes -> Invert <$> mapM toConcrete pes
+    Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
+    Invert qn pes -> Invert () <$> mapM toConcrete pes
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete = mapM (toConcrete . qnameName)
@@ -1321,7 +1327,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        runExceptT (tryResolveName [FldName] Nothing (C.QName cn)) >>= \case
+        runExceptT (tryResolveName (someKindsOfNames [FldName]) Nothing (C.QName cn)) >>= \case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
@@ -1360,7 +1366,7 @@ instance ToConcrete A.Pattern C.Pattern where
       -- we take off the exceeding arguments first
       -- and apply them pointwise with C.AppP later.
       let (args1, args2) = splitAt (numHoles x) args
-      let funCtx = if null args2 then id else withPrecedence FunctionCtx
+      let funCtx = applyUnless (null args2) (withPrecedence FunctionCtx)
       tryToRecoverPatternSynP (f args) $ funCtx (tryToRecoverOpAppP $ f args1) >>= \case
         Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x

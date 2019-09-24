@@ -154,7 +154,7 @@ checkStrictlyPositive mi qset = do
         -- ASR (23 December 2015). We don't raise a strictly positive
         -- error if the NO_POSITIVITY_CHECK pragma was set on in the
         -- mutual block. See Issue 1614.
-        when (Info.mutualPositivityCheck mi) $
+        when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
           whenM positivityCheckEnabled $
             case loop of
             Just o | o <= JustPos ->
@@ -187,7 +187,7 @@ checkStrictlyPositive mi qset = do
       -- ASR (01 January 2016). We don't raise this error if the
       -- NO_POSITIVITY_CHECK pragma was set on in the record. See
       -- Issue 1760.
-      when (Info.mutualPositivityCheck mi) $
+      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
         whenM positivityCheckEnabled $ do
         -- Check whether the recursive record has been declared as
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.
@@ -456,11 +456,10 @@ instance ComputeOccurrences Term where
     Dummy{}      -> mempty
 
 instance ComputeOccurrences Level where
-  occurrences (Max as) = occurrences as
+  occurrences (Max _ as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences ClosedLevel{} = mempty
-  occurrences (Plus _ l)    = occurrences l
+  occurrences (Plus _ l) = occurrences l
 
 instance ComputeOccurrences LevelAtom where
   occurrences = occurrences . unLevelAtom
@@ -530,12 +529,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          -- Andreas, 2019-02-03, issue #3541:
-          -- Treat indices like parameters.
-          -- Was before (#802):
-          -- ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
-          --               ++ map (OccursAs Matched . OccursHere . AnArg) xs
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. size tel - 1]
+          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+                        ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c

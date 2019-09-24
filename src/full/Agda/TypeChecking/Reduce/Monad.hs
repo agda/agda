@@ -23,8 +23,7 @@ import System.IO.Unsafe
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
-import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
+  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
@@ -44,9 +43,12 @@ constructorForm v = do
   ms <- getBuiltin' builtinSuc
   return $ fromMaybe v $ constructorForm' mz ms v
 
-enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
-enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState) (f x)
-  where
+enterClosure :: LensClosure a c => c -> (a -> ReduceM b) -> ReduceM b
+enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
+  -- The \case is a hack to correctly associate the where block to the rhs
+  -- rather than to the expression in the pattern guard.
+  f -> localR (mapRedEnvSt inEnv inState) (f x)
+    where
     inEnv   e = env
     inState s =
       -- TODO: use the signature here? would that fix parts of issue 118?
@@ -86,10 +88,10 @@ isInstantiatedMeta i = do
 
 instance MonadDebug ReduceM where
 
-  traceDebugMessage n s cont = do
+  traceDebugMessage k n s cont = do
     ReduceEnv env st <- askR
     unsafePerformIO $ do
-      _ <- runTCM env st $ displayDebugMessage n s
+      _ <- runTCM env st $ displayDebugMessage k n s
       return $ cont
 
   formatDebugMessage k n d = do
@@ -99,7 +101,7 @@ instance MonadDebug ReduceM where
       return $ return s
 
   verboseBracket k n s = applyWhenVerboseS k n $
-    bracket_ (openVerboseBracket n s) (const $ closeVerboseBracket n)
+    bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor getTCState

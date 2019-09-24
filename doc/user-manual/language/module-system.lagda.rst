@@ -104,7 +104,21 @@ An alternative to making definitions private is to exert finer control over what
   open A using (xs) renaming (ys to zs)
 
 is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
-An omitted renaming modifier is equivalent to an empty renaming.
+An omitted ``renaming`` modifier is equivalent to an empty renaming.
+
+Since 2.6.1: The fixity of an operator can be set or changed in a ``renaming`` directive::
+
+  module ExampleRenamingFixity where
+
+    module ArithFoo where
+      postulate
+        A : Set
+        _&_ _^_ : A → A → A
+      infixr 10 _&_
+
+    open ArithFoo renaming (_&_ to infixl 8 _+_; _^_ to infixl 10 _^_)
+
+Here, we change the fixity of ``_&_`` while renaming it to ``_+_``, and assign a new fixity to ``_^_`` which has the default fixity in module ``ArithFoo``.
 
 Re-exporting names
 ------------------
