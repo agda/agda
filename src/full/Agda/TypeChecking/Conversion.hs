@@ -1424,6 +1424,12 @@ equalLevel' a b = do
         (_ , SinglePlus (Plus l (MetaLevel y bs')) :! [])
           | Just a' <- subLevel l a -> meta y bs' a'
 
+        -- a' ⊔ b == b
+        _ | Just a' <- levelMaxDiff a b -> leqLevel a' b
+
+        -- a == b' ⊔ a
+        _ | Just b' <- levelMaxDiff b a -> leqLevel b' a
+
         -- neutral/closed == neutral/closed
         (as , bs)
           | all isNeutralOrClosed (toList as ++ toList bs)

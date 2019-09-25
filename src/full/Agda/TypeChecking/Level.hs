@@ -185,6 +185,27 @@ subLevel n (Max m ls)
                    | otherwise = Nothing
 
 
+-- | Given two levels @a@ and @b@, try to decompose the first one as
+-- @a = a' ⊔ b@ (for the minimal value of @a'@).
+levelMaxDiff :: Level -> Level -> Maybe Level
+levelMaxDiff (Max m as) (Max n bs) = Max <$> diffC m n <*> diffP as bs
+  where
+    diffC :: Integer -> Integer -> Maybe Integer
+    diffC m n
+      | m == n    = Just 0
+      | m > n     = Just m
+      | otherwise = Nothing
+
+    diffP :: [PlusLevel] -> [PlusLevel] -> Maybe [PlusLevel]
+    diffP as     []     = Just as
+    diffP []     bs     = Nothing
+    diffP (a@(Plus m x) : as) (b@(Plus n y) : bs)
+      | x == y = if
+        | m == n -> diffP as bs
+        | m > n  -> (Plus m x:) <$> diffP as bs
+        | m < n  -> Nothing
+      | otherwise = (a:) <$> diffP as (b:bs)
+
 -- | A @SingleLevel@ is a @Level@ that cannot be further decomposed as
 --   a maximum @a ⊔ b@.
 data SingleLevel = SingleClosed Integer | SinglePlus PlusLevel
