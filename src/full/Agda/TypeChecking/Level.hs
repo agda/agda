@@ -201,9 +201,9 @@ levelMaxDiff (Max m as) (Max n bs) = Max <$> diffC m n <*> diffP as bs
     diffP []     bs     = Nothing
     diffP (a@(Plus m x) : as) (b@(Plus n y) : bs)
       | x == y = if
-        | m == n -> diffP as bs
-        | m > n  -> (Plus m x:) <$> diffP as bs
-        | m < n  -> Nothing
+        | m == n    -> diffP as bs
+        | m > n     -> (Plus m x:) <$> diffP as bs
+        | otherwise -> Nothing
       | otherwise = (a:) <$> diffP as (b:bs)
 
 -- | A @SingleLevel@ is a @Level@ that cannot be further decomposed as
