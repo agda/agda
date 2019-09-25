@@ -13,7 +13,7 @@ module Agda.Syntax.Parser.LexActions
     , begin_, end_
     , lexError
       -- ** Specialized actions
-    , keyword, symbol, identifier, literal
+    , keyword, symbol, identifier, literal, literal', integer
       -- * Lex predicates
     , followedBy, eof, inState
     ) where
@@ -195,10 +195,25 @@ symbol :: Symbol -> LexAction Token
 symbol s = withInterval_ (TokSymbol s)
 
 
+-- | Parse a number.
+
+number :: String -> Integer
+number str = read $ case str of
+  '0' : 'x' : num -> str
+  _               -> concat $ wordsBy ('_' ==) str
+
+integer :: String -> Integer
+integer = \case
+  '-' : str -> - (number str)
+  str       -> number str
+
 -- | Parse a literal.
-literal :: Read a => (Range -> a -> Literal) -> LexAction Token
-literal lit =
+literal' :: (String -> a) -> (Range -> a -> Literal) -> LexAction Token
+literal' read lit =
   withInterval' read (TokLiteral . uncurry lit . mapFst getRange)
+
+literal :: Read a => (Range -> a -> Literal) -> LexAction Token
+literal = literal' read
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@

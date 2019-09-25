@@ -96,16 +96,17 @@ Language
   pattern-matching `with`. An expression of the form:
 
   ```agda
-  f xs with p1 <- e1 | ... | pn <- en = rhs
+  f xs with p1 <- e1 | ... | pn <- en
+       with q1 <- f1 | ... | qm <- fm = rhs
   ```
 
   is translated to nested `with` clauses, essentially equivalent to:
 
   ```agda
-  f xs with e1
-  ... | p1 with
-     (...) with en
-  ... | pn = rhs
+  f xs with e1 | ... | en
+  ... | p1 | ... | pn
+       with f1 | ... | fm
+  ... | q1 | ... | qm = rhs
   ```
 
 * Record patterns in telescopes
@@ -152,6 +153,9 @@ Language
 
 * `{{-` is now lexed as `{ {-` rather than `{{ -`,
   see issue [#3962](https://github.com/agda/agda/issues/3962).
+
+* Syntax for large numbers: you can now separate groups of 3 digits using `_`.
+  e.g. write `1_000_000` instead of `1000000`.
 
 * `quoteGoal` and `quoteContext` are no longer keywords.
 
