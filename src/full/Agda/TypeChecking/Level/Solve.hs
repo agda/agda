@@ -6,6 +6,7 @@ import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars.Mention
@@ -22,9 +23,11 @@ import Agda.Utils.Monad
 defaultOpenLevelsToZero :: forall m. (MonadMetaSolver m) => m ()
 defaultOpenLevelsToZero = do
   xs <- openLevelMetas
+  allMetaTypes <- getOpenMetas >>= traverse metaType
   progress <- forM xs $ \x -> do
     cs <- filter (mentionsMeta x) <$> getAllConstraints
-    if | all (`isUpperBoundFor` x) cs -> do
+    let notInTypeOfMeta = not $ mentionsMeta x allMetaTypes
+    if | notInTypeOfMeta , all (`isUpperBoundFor` x) cs -> do
            m <- lookupMeta x
            TelV tel t <- telView =<< metaType x
            addContext tel $ assignV DirEq x (teleArgs tel) $ Level (ClosedLevel 0)
