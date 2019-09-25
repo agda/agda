@@ -4,6 +4,8 @@ module Agda.TypeChecking.Level.Solve where
 
 import Control.Monad
 
+import Data.Maybe
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -40,9 +42,10 @@ defaultOpenLevelsToZero = do
 
   where
     openLevelMetas :: m [MetaId]
-    openLevelMetas = do
-      ms <- getOpenMetas
-      filterM isLevelMeta ms
+    openLevelMetas =
+      getOpenMetas
+      >>= filterM (\m -> isNothing <$> isInteractionMeta m)
+      >>= filterM isLevelMeta
 
     isLevelMeta :: MetaId -> m Bool
     isLevelMeta x = do
