@@ -27,7 +27,7 @@ data Keyword
         | KwWARNING_ON_USAGE | KwWARNING_ON_IMPORT
         | KwMEASURE | KwDISPLAY
         | KwREWRITE
-        | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm
+        | KwQuote | KwQuoteTerm
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
         | KwPatternSyn | KwTactic | KwCATCHALL

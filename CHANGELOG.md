@@ -157,6 +157,8 @@ Language
 * Syntax for large numbers: you can now separate groups of 3 digits using `_`.
   e.g. write `1_000_000` instead of `1000000`.
 
+* `quoteGoal` and `quoteContext` are no longer keywords.
+
 ### Modalities
 
 * New Flat Modality
@@ -181,7 +183,7 @@ Language
   the head symbol are no longer allowed (see issue
   [#3846](https://github.com/agda/agda/issues/3846)).
 
-### Tactics
+### Tactics & Reflection
 
 * Implicit arguments solved by user-defined tactics
 
@@ -199,6 +201,9 @@ Language
   ```agda
   example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
   ```
+
+* The legacy reflection framework using `quoteGoal` and `quoteContext` has been
+  removed.
 
 ### Builtins
 

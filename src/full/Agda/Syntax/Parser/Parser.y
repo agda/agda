@@ -128,8 +128,6 @@ import Agda.Utils.Impossible
     'Prop'                    { TokKeyword KwProp $$ }
     'public'                  { TokKeyword KwPublic $$ }
     'quote'                   { TokKeyword KwQuote $$ }
-    'quoteContext'            { TokKeyword KwQuoteContext $$ }
-    'quoteGoal'               { TokKeyword KwQuoteGoal $$ }
     'quoteTerm'               { TokKeyword KwQuoteTerm $$ }
     'record'                  { TokKeyword KwRecord $$ }
     'renaming'                { TokKeyword KwRenaming $$ }
@@ -259,8 +257,6 @@ Token
     | 'Prop'                    { TokKeyword KwProp $1 }
     | 'public'                  { TokKeyword KwPublic $1 }
     | 'quote'                   { TokKeyword KwQuote $1 }
-    | 'quoteContext'            { TokKeyword KwQuoteContext $1 }
-    | 'quoteGoal'               { TokKeyword KwQuoteGoal $1 }
     | 'quoteTerm'               { TokKeyword KwQuoteTerm $1 }
     | 'record'                  { TokKeyword KwRecord $1 }
     | 'renaming'                { TokKeyword KwRenaming $1 }
@@ -654,9 +650,7 @@ Expr2
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
-    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
-    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) [] }
-    | 'tactic' Application3 '|' WithExprs { Tactic (getRange ($1, $2, $3, $4)) (RawApp (getRange $2) $2) $4 }
+    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -704,7 +698,6 @@ Expr3NoCurly
     | 'Set'                             { Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
-    | 'quoteContext'                    { QuoteContext (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
