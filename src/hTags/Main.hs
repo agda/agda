@@ -32,7 +32,7 @@ import Lexer hiding (options)
 import Lexer
 #endif
 
-import DriverPipeline
+import DriverPipeline ( preprocess )
 import FastString
 import DriverPhases
 import ErrUtils
@@ -81,8 +81,16 @@ goFile :: FilePath -> Ghc [Tag]
 goFile file = do
   liftIO $ hPutStrLn stderr $ "Processing " ++ file
   env <- getSession
+#if MIN_VERSION_ghc(8,8,1)
+  r <- liftIO $
+       preprocess env file Nothing (Just $ Cpp HsSrcFile)
+  let (dflags, srcFile) = case r of
+                            Left _  -> error $ "preprocessing " ++ file
+                            Right x -> x
+#else
   (dflags, srcFile) <- liftIO $
       preprocess env (file, Just $ Cpp HsSrcFile)
+#endif
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
     POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
