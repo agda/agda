@@ -322,7 +322,7 @@ library-test : # up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	(cd std-lib && runhaskell GenerateEverything.hs && \
-          time $(AGDA_BIN) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
+          time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
                            -i. -isrc README.agda \
                            +RTS -s -H1G -M1.5G)
 
