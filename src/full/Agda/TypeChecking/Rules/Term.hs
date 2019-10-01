@@ -595,7 +595,11 @@ insertHiddenLambdas h target postpone ret = do
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
 checkAbsurdLambda :: Comparison -> A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
-checkAbsurdLambda cmp i h e t = do
+checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
+      -- Andreas, 2019-10-01: check absurd lambdas in non-erased mode.
+      -- Otherwise, they are not usable in meta-solutions in the term world.
+      -- See test/Succeed/Issue3176.agda for an absurd lambda
+      -- created in types.
   t <- instantiateFull t
   ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
     case unEl t' of
@@ -648,7 +652,11 @@ checkAbsurdLambda cmp i h e t = do
 -- Precondition: @e = ExtendedLam i di qname cs@
 checkExtendedLambda :: Comparison -> A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
-checkExtendedLambda cmp i di qname cs e t = do
+checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) $ do
+      -- Andreas, 2019-10-01: check extended lambdas in non-erased mode.
+      -- Otherwise, they are not usable in meta-solutions in the term world.
+      -- See test/Succeed/Issue{3581}.agda for an extended lambda
+      -- created in a type.
    -- Andreas, 2016-06-16 issue #2045
    -- Try to get rid of unsolved size metas before we
    -- fix the type of the extended lambda auxiliary function

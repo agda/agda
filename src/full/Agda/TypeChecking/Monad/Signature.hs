@@ -1092,11 +1092,13 @@ typeOfConst
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | Get relevance of a constant.
-relOfConst :: QName -> TCM Relevance
+{-# SPECIALIZE relOfConst :: QName -> TCM Relevance #-}
+relOfConst :: HasConstInfo m => QName -> m Relevance
 relOfConst q = getRelevance <$> getConstInfo q
 
 -- | Get modality of a constant.
-modalityOfConst :: QName -> TCM Modality
+{-# SPECIALIZE modalityOfConst :: QName -> TCM Modality #-}
+modalityOfConst :: HasConstInfo m => QName -> m Modality
 modalityOfConst q = getModality <$> getConstInfo q
 
 -- | The number of dropped parameters for a definition.

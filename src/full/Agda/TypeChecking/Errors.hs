@@ -151,6 +151,7 @@ errorString err = case err of
   MetaCannotDependOn{}                     -> "MetaCannotDependOn"
   MetaOccursInItself{}                     -> "MetaOccursInItself"
   MetaIrrelevantSolution{}                 -> "MetaIrrelevantSolution"
+  MetaErasedSolution{}                     -> "MetaErasedSolution"
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
   ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
@@ -621,6 +622,11 @@ instance PrettyTCM TypeError where
     MetaIrrelevantSolution m _ -> fsep $
       pwords "Cannot instantiate the metavariable because (part of) the" ++
       pwords "solution was created in an irrelevant context."
+
+    -- The following error is caught and reraised as GenericDocError in Occurs.hs
+    MetaErasedSolution m _ -> fsep $
+      pwords "Cannot instantiate the metavariable because (part of) the" ++
+      pwords "solution was created in an erased context."
 
     BuiltinMustBeConstructor s e -> fsep $
       [prettyA e] ++ pwords "must be a constructor in the binding to builtin" ++ [text s]

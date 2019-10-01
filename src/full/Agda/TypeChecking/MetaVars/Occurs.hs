@@ -173,6 +173,35 @@ variableCheck xs mi q = All $
       -- be used in irrelevant position (rhs).
       getModality o `moreUsableModality` q
 
+-- | Occurs check fails if a defined name is not available
+--   since it was declared in irrelevant or erased context.
+definitionCheck :: QName -> OccursM ()
+definitionCheck d = do
+  cxt <- ask
+  let irr = isIrrelevant cxt
+      er  = hasQuantity0 cxt
+      m   = occMeta $ feExtra cxt
+  -- Anything goes if we are both irrelevant and erased.
+  -- Otherwise, have to check the modality of the defined name.
+  unless (irr && er) $ do
+    dmod <- modalityOfConst d
+    unless (irr || usableRelevance dmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: definition"
+        , prettyTCM d
+        , "has relevance"
+        , prettyTCM (getRelevance dmod)
+        ]
+      abort $ MetaIrrelevantSolution m $ Def d []
+    unless (er || usableQuantity dmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: definition"
+        , prettyTCM d
+        , "has quantity"
+        , prettyTCM (getQuantity dmod)
+        ]
+      abort $ MetaErasedSolution m $ Def d []
+
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
 allowedVars :: OccursM (Nat -> Bool)
@@ -307,6 +336,12 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
                  , prettyTCM v
                  , "since (part of) the solution was created in an irrelevant context"
                  ]
+        MetaErasedSolution _ _ ->
+          typeError . GenericDocError =<<
+            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+                 , prettyTCM v
+                 , "since (part of) the solution was created in an erased context"
+                 ]
         _ -> throwError err
       _ -> throwError err
 
@@ -355,11 +390,7 @@ instance Occurs Term where
                          else
                            strongly $ abort $ MetaIrrelevantSolution m v
           Def d es    -> do
-            unlessM (isIrrelevant <$> ask) $ do
-              drel <- liftTCM $ relOfConst d
-              unless (usableRelevance drel) $ do
-                reportSDoc "tc.meta.occurs" 35 $ text ("relevance of definition: " ++ show drel)
-                abort $ MetaIrrelevantSolution m $ Def d []
+            definitionCheck d
             Def d <$> occDef d es
           Con c ci vs -> Con c ci <$> occurs vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occurs (a,b)
@@ -533,15 +564,7 @@ instance Occurs Sort where
       DummyS{}   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
-  occurs e@(Proj _ f) = do
-    ctx <- ask
-    unless (isIrrelevant ctx) $ do
-      frel <- liftTCM $ relOfConst f
-      unless (usableRelevance frel) $ do
-        let m = occMeta $ feExtra ctx
-        reportSDoc "tc.meta.occurs" 35 $ text ("relevance of projection: " ++ show frel)
-        abort $ MetaIrrelevantSolution m $ Def f []
-    return e
+  occurs e@(Proj _ f)   = e <$ definitionCheck f
   occurs (Apply a)      = Apply  <$> occurs a
   occurs (IApply x y a) = IApply <$> occurs x <*> occurs y <*> occurs a
 
