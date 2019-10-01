@@ -883,7 +883,7 @@ unifyStep s Solution{ solutionAt   = k
   -- relevance check has problems with meta-variables created in the type signature,
   -- and thus, in quantity 0, that get into terms using the unifier,
   -- and there are checked to be non-erased, i.e., have quantity ω.
-  -- Thus, at the moment wo only check relevances, being aware
+  -- Thus, at the moment we only check relevances, being aware
   -- that uses of the 0-quantity might create segfaults in the compiled program
   -- situations analogous to #2640 (issue with projecting forced constructor fields).
   --

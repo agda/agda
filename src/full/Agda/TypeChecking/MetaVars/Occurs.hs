@@ -347,7 +347,6 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
 
 instance Occurs Term where
   occurs v = do
-    m   <- asks (occMeta . feExtra)
     vb  <- unfoldB v
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     let flexIfBlocked = case vb of
@@ -358,6 +357,7 @@ instance Occurs Term where
     v <- return $ ignoreBlocking vb
     flexIfBlocked $ do
         ctx <- ask
+        let m = occMeta . feExtra $ ctx
         reportSDoc "tc.meta.occurs" 45 $
           text ("occursCheck " ++ prettyShow m ++ " (" ++ show (feFlexRig ctx) ++ ") of ") <+> prettyTCM v
         reportSDoc "tc.meta.occurs" 70 $
@@ -385,10 +385,9 @@ instance Occurs Term where
           Level l     -> Level <$> occurs l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> if isIrrelevant ctx then
-                           dontCare <$> occurs v
-                         else
-                           strongly $ abort $ MetaIrrelevantSolution m v
+          DontCare v
+            | isIrrelevant ctx -> dontCare <$> occurs v
+            | otherwise        -> strongly $ abort $ MetaIrrelevantSolution m v
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es

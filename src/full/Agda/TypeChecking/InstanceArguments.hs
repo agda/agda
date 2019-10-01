@@ -82,8 +82,7 @@ initialInstanceCandidates t = do
           vars = [ Candidate x t (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
-                 , usableRelevance info
-                 , usableQuantity info
+                 , usableModality info
                  ]
 
       -- {{}}-fields of variables are also candidates
@@ -105,8 +104,7 @@ initialInstanceCandidates t = do
       let lets = [ Candidate v t False
                  | (v, Dom{domInfo = info, unDom = t}) <- env
                  , isInstance info
-                 , usableRelevance info
-                 , usableQuantity info
+                 , usableModality info
                  ]
       return $ vars ++ fields ++ lets
 

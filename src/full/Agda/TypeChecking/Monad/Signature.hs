@@ -1085,10 +1085,7 @@ treatAbstractly' q env = case envAbstractMode env of
 
 -- | Get type of a constant, instantiated to the current context.
 {-# SPECIALIZE typeOfConst :: QName -> TCM Type #-}
-typeOfConst
-  :: ( Functor m, HasConstInfo m, HasOptions m
-     , ReadTCState m, MonadTCEnv m, MonadDebug m )
-  => QName -> m Type
+typeOfConst :: (HasConstInfo m, ReadTCState m) => QName -> m Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | Get relevance of a constant.
