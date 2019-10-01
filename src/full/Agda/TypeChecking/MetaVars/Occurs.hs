@@ -305,7 +305,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
           typeError . GenericDocError =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                  , prettyTCM v
-                 , "since (part of) the solution was created in an irrelevant context."
+                 , "since (part of) the solution was created in an irrelevant context"
                  ]
         _ -> throwError err
       _ -> throwError err
