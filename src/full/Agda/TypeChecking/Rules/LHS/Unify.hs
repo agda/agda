@@ -129,6 +129,8 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
@@ -153,6 +155,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free.Precompute
 import Agda.TypeChecking.Free.Reduce
 import Agda.TypeChecking.Records
 
@@ -379,8 +382,8 @@ getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
 
 -- | Instantiate the k'th variable with the given value.
 --   Returns Nothing if there is a cycle.
-solveVar :: Int    -- ^ Index @k@
-         -> Term   -- ^ Solution @u@
+solveVar :: Int             -- ^ Index @k@
+         -> DeBruijnPattern -- ^ Solution @u@
          -> UnifyState -> Maybe (UnifyState, PatternSubstitution)
 solveVar k u s = case instantiateTelescope (varTel s) k u of
   Nothing -> Nothing
@@ -886,6 +889,26 @@ unifyStep s Solution{ solutionAt   = k
                     , solutionTerm = u } = do
   let m = varCount s
 
+  -- Now we have to be careful about forced variables in `u`. If they appear
+  -- in pattern positions we need to bind them there rather in their forced positions. We can safely
+  -- ignore non-pattern positions and forced pattern positions, because in that case there will be
+  -- other equations where the variable can be bound.
+  let forcedVars = IntSet.fromList [ flexVar fi | fi <- flexVars s, flexForced fi == Forced ]
+  (p, bound) <- patternBindingForcedVars forcedVars u
+
+  -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
+  -- subtitution we need to turn the bound variables in `p` into dot patterns in the rest of the
+  -- substitution.
+  let dotSub = foldr composeS idS
+                  [ inplaceS i (dotP (Var i [])) | i <- IntSet.toList bound ]
+
+  reportSDoc "tc.lhs.unify.force" 45 $ vcat
+    [ "forcedVars =" <+> pretty (IntSet.toList forcedVars)
+    , "u          =" <+> prettyTCM u
+    , "p          =" <+> prettyTCM p
+    , "bound      =" <+> pretty (IntSet.toList bound)
+    , "dotSub     =" <+> pretty dotSub ]
+
   -- Check that the type of the variable is equal to the type of the equation
   -- (not just a subtype), otherwise we cannot instantiate (see Issue 2407).
   let dom'@Dom{ unDom = a' } = getVarType (m-1-i) s
@@ -932,25 +955,27 @@ unifyStep s Solution{ solutionAt   = k
 
   case equalTypes of
     Just err -> return $ DontKnow []
-    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) u s)
+    Nothing | usable -> caseMaybeM (trySolveVar (m-1-i) p s)
       -- Case: Nothing
       (return $ DontKnow [UnifyRecursiveEq (varTel s) a i u])
       -- Case: Just
       $ \ (s', sub) -> do
-        tellUnifySubst sub
-        let (s'', sigma) = solveEq k (applyPatSubst sub u) s'
+        let rho = sub `composeS` dotSub
+        tellUnifySubst rho
+        let (s'', sigma) = solveEq k (applyPatSubst rho u) s'
         tellUnifyProof sigma
         return $ Unifies s''
         -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
         -- Unifies <$> liftTCM (reduce s'')
     Nothing -> return $ DontKnow []
   where
-    trySolveVar i u s = case solveVar i u s of
+    trySolveVar i p s = case solveVar i p s of
       Just x  -> return $ Just x
       Nothing -> do
+        -- Ulf, 2019-10-04: What is this doing?
         u <- liftTCM $ normalise u
         s <- liftTCM $ lensVarTel normalise s
-        return $ solveVar i u s
+        return $ solveVar i (dotP u) s
 
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
@@ -1213,3 +1238,47 @@ unify s strategy = if isUnifyStateSolved s
 
     failure :: UnifyM (UnificationResult' a)
     failure = return $ DontKnow []
+
+-- | Turn a term into a pattern binding as many of the given forced variables as possible (in
+--   non-forced positions).
+patternBindingForcedVars :: (HasConstInfo m, MonadReduce m) => IntSet -> Term -> m (DeBruijnPattern, IntSet)
+patternBindingForcedVars forced v = do
+  let v' = precomputeFreeVars_ v
+  runWriterT (evalStateT (go v') forced)
+  where
+    noForced v = IntSet.null . IntSet.intersection (precomputedFreeVars v) <$> get
+
+    bind i = do
+      tell   $ IntSet.singleton i
+      modify $ IntSet.delete i
+      return $ varP (deBruijnVar i)
+
+    go v = ifM (noForced v) (return $ dotP v) $ do
+      v' <- lift $ lift $ reduce v
+      case v' of
+        Var i [] -> bind i  -- we know i is forced
+        Con c ci es -> do
+          fs <- defForced <$> getConstInfo (conName c)
+          let goElim Forced    (Apply v) = return $ fmap (unnamed . dotP) v
+              goElim NotForced (Apply v) = fmap unnamed <$> traverse go v
+              goElim _ _ = __IMPOSSIBLE__
+          (es, bound) <- listen $ zipWithM goElim (fs ++ repeat NotForced) es
+          if IntSet.null bound
+            then return $ dotP v  -- bound nothing
+            else do
+              let cpi = (toConPatternInfo ci) { conPLazy = True } -- Not setting conPType. Is this a problem?
+              return $ ConP c cpi es
+
+        -- Non-pattern positions
+        Var _ (_:_) -> return $ dotP v
+        Lam{}       -> return $ dotP v
+        Pi{}        -> return $ dotP v
+        Def{}       -> return $ dotP v
+        MetaV{}     -> return $ dotP v
+        Sort{}      -> return $ dotP v
+        Level{}     -> return $ dotP v
+        DontCare{}  -> return $ dotP v
+        Dummy{}     -> return $ dotP v
+        Lit{}       -> __IMPOSSIBLE__
+
+
