@@ -31,6 +31,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
@@ -101,9 +102,7 @@ data SplitClause = SClause
     -- clause for the purpose of inferring missing instance clauses.
   , scTarget :: Maybe (Arg Type)
     -- ^ The type of the rhs, living in context 'scTel'.
-    --   This invariant is broken before calls to 'fixTarget';
-    --   there, 'scTarget' lives in the old context.
-    --   'fixTarget' moves 'scTarget' to the new context by applying
+    --   'fixTargetType' computes the new 'scTarget' by applying
     --   substitution 'scSubst'.
   }
 
@@ -282,7 +281,17 @@ coverageCheck f t cs = do
 --   case splitter
 isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
 isCovered f cs sc = do
-  CoverResult { coverMissingClauses = missing } <- cover f cs sc
+  reportSDoc "tc.cover" 20 $ vcat
+    [ "isCovered"
+    , nest 2 $ vcat $
+      [ "f  = " <+> prettyTCM f
+      , "cs = " <+> vcat (map (nest 2 . prettyTCM . NamedClause f True) cs)
+      , "sc = " <+> prettyTCM sc
+      ]
+    ]
+  -- Jesper, 2019-10: introduce trailing arguments (see #3828)
+  (_ , sc') <- insertTrailingArgs sc
+  CoverResult { coverMissingClauses = missing } <- cover f cs sc'
   return $ null missing
 
 data CoverResult = CoverResult
