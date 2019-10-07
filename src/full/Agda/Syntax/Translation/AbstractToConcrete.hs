@@ -331,18 +331,10 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
     Nothing   -> Just $ [y]
     (Just ys) -> Just $ ys ++ [y]
 
--- | For the given abstract name, return the names that could shadow it:
---   1. first set: names for which we have already picked a
---      concrete name (so we should definitely avoid these names)
---   2. second set: flexible names that we would like to keep free if
---      possible (we can try to avoid them, but it's not required)
+-- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
-               => A.Name -> m (Set C.Name, Set C.Name)
-shadowingNames x = do
-  shadows <- Map.findWithDefault [] x <$> useR stShadowingNames
-  ys <- concat <$> forM shadows hasConcreteNames
-  let zs = map nameConcrete shadows
-  return (Set.fromList ys , Set.fromList zs)
+               => A.Name -> m (Set RawName)
+shadowingNames x = Set.fromList . Map.findWithDefault [] x <$> useR stShadowingNames
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y
@@ -377,35 +369,26 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
     return $ nameConcrete x
   -- Otherwise we pick a name that does not shadow other names
   _ -> do
-    taken   <- takenConcreteNames
-    toAvoid <- do
-      (mustAvoid , tryToAvoid) <- shadowingNames x
-      let tryToAvoid' = Set.filter ((== InScope) . isInScope) tryToAvoid
-      return $ case isInScope x of
-        -- If in scope, we only rename when the name is already taken
-        -- in the future
-        InScope    -> mustAvoid
-        -- If not in scope, we also rename to avoid renaming in-scope
-        -- variables in the future.
-        C.NotInScope -> mustAvoid `Set.union` tryToAvoid'
-    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid))
+    taken   <- takenNames
+    toAvoid <- shadowingNames x
+    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid)) . C.nameToRawName
         y = firstNonTakenName shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
-      , "names already taken:      " <+> prettyList_ (map C.nameToRawName $ Set.toList taken)
-      , "names to avoid:           " <+> prettyList_ (map C.nameToRawName $ Set.toList toAvoid)
+      , "names already taken:      " <+> prettyList_ (Set.toList taken)
+      , "names to avoid:           " <+> prettyList_ (Set.toList toAvoid)
       , "concrete name chosen:     " <+> text (C.nameToRawName y)
       ]
     return y
 
   where
-    takenConcreteNames :: AbsToCon (Set C.Name)
-    takenConcreteNames = do
+    takenNames :: AbsToCon (Set RawName)
+    takenNames = do
       xs <- asks takenDefNames
       ys0 <- asks takenVarNames
       reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
       ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
-      return $ xs `Set.union` ys
+      return $ Set.map C.nameToRawName $ xs `Set.union` ys
 
 
 -- | Add a abstract name to the scope and produce an available concrete version of it.

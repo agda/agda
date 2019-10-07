@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name (LensInScope(..))
+import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -190,20 +190,33 @@ instance MonadAddContext m => MonadAddContext (ListT m) where
   withFreshName r x ret = ListT $ withFreshName r x $ \n -> runListT (ret n)
 
 instance MonadAddContext TCM where
-  addCtx x a ret = do
-    when (not $ isNoName x) $ do
-      registerForShadowing x
-      ys <- getContextNames
-      forM_ ys $ \y ->
-        when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
-    defaultAddCtx x a ret
+  addCtx x a ret
+    | isNoName x = defaultAddCtx x a ret
+    | otherwise  = do
+        when (isInScope x == InScope) $ tellUsedName x
+        (result , useds) <- listenUsedNames $ defaultAddCtx x a ret
+        tellShadowing x useds
+        return result
 
     where
-      -- add x to the map of possibly shadowed names
-      registerForShadowing x = modifyTCLens stShadowingNames $ Map.insert x []
+      listenUsedNames f = do
+        origUsedNames <- useTC stUsedNames
+        setTCLens stUsedNames Map.empty
+        result <- f
+        newUsedNames <- useTC stUsedNames
+        setTCLens stUsedNames $ Map.unionWith (++) origUsedNames newUsedNames
+        return (result , newUsedNames)
 
-      -- register the fact that x possibly shadows the name y
-      tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
+      tellUsedName x = do
+        let concreteX = nameConcrete x
+            rawX      = nameToRawName concreteX
+            rootX     = nameRoot concreteX
+        modifyTCLens (stUsedNames . key rootX) $ Just . (rawX:) . concat
+
+      tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
+        Just shadows -> modifyTCLens stShadowingNames $ Map.insertWith (++) x shadows
+        Nothing      -> return ()
+
 
   updateContext sub f = modifyContext f . checkpoint sub
 

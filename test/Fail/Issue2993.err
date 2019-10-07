@@ -13,16 +13,17 @@ Failed to solve the following constraints:
       Applicative (F₁ o G)
   Resolve instance argument
     _AF_165
-      : {n = n₁ : Nat} {F : Set → Set} {A B : Set}
-        ⦃ AF : Applicative F ⦄ →
+      : {n = n₁ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
+        ⦃ AF = AF₁ : Applicative F₁ ⦄ →
         Applicative (λ v → _F_166 v)
   Candidates
-    AF₁ : Applicative F₁
+    AF : Applicative F
     applicativeComp :
-      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative (F o G)
-  [242, 243] F₁ B₁ =< _F_166 _B_164 
-  [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) 
+      {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
+      ⦃ _ : Applicative G ⦄ →
+      Applicative (F₁ o G)
+  [242, 243] F B =< _F_166 _B_164 
+  [242] _F_166 (Vec _B_164 n) =< F (Vec B n) 
   [222] F B =< _F_160 _B_152 
   [227] _F_160 (Vec _B_152 n₁) =< F (Vec B n₁) 
 Unsolved metas at the following locations:

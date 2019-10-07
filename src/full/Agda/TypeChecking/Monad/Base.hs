@@ -231,9 +231,14 @@ data PostScopeState = PostScopeState
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
-  , stPostShadowingNames      :: !(Map Name [Name])
-    -- ^ Map keeping track of which names could maybe be shadowed by
-    -- another name
+  , stPostUsedNames           :: !(Map RawName [RawName])
+    -- ^ Map keeping track for each name root (= name w/o numeric
+    -- suffixes) what names with the same root have been used during a
+    -- TC computation. This information is used to build the
+    -- @ShadowingNames@ map.
+  , stPostShadowingNames      :: !(Map Name [RawName])
+    -- ^ Map keeping track for each (abstract) name the list of all
+    -- (raw) names that it could maybe be shadowed by.
   , stPostStatistics          :: !Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
@@ -373,6 +378,7 @@ initPostScopeState = PostScopeState
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
   , stPostConcreteNames        = Map.empty
+  , stPostUsedNames            = Map.empty
   , stPostShadowingNames       = Map.empty
   , stPostStatistics           = Map.empty
   , stPostTCWarnings           = []
@@ -593,7 +599,12 @@ stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
 
-stShadowingNames :: Lens' (Map Name [Name]) TCState
+stUsedNames :: Lens' (Map RawName [RawName]) TCState
+stUsedNames f s =
+  f (stPostUsedNames (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostUsedNames = x}}
+
+stShadowingNames :: Lens' (Map Name [RawName]) TCState
 stShadowingNames f s =
   f (stPostShadowingNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
