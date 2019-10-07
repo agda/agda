@@ -20,6 +20,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
@@ -145,11 +146,12 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
       varToArg _ h           = return h
 
   -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< do
-          lift $ fromMaybe UnknownHead <$> do
-            addContext (clauseTel c) $
-              headSymbol body
+  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
+          varToArg c =<< do
+            lift $ fromMaybe UnknownHead <$> do
+              addContext (clauseTel c) $
+                headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
