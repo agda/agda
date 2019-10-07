@@ -765,6 +765,11 @@ antiUnify pid a u v = do
 
     fallback = blockTermOnProblem a u pid
 
+antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
+antiUnifyArgs pid dom u v = ifM (isIrrelevantOrPropM dom)
+  {-then-} (return u)
+  {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
+
 antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
 antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
 
@@ -778,8 +783,8 @@ antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
 antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
   reduce (unEl a) >>= \case
     Pi a b -> do
-      w <- antiUnify pid (unDom a) (unArg u) (unArg v)
-      antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
+      w <- antiUnifyArgs pid a u v
+      antiUnifyElims pid (b `lazyAbsApp` unArg w) (apply self [w]) es1 es2
     _ -> patternViolation
 antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
 
