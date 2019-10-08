@@ -67,7 +67,9 @@ mkSucceedTest extraOpts dir inp =
                          , "--no-libraries"
                          , "-vimpossible:10" -- BEWARE: no spaces allowed here
                          , "-vwarning:1"
-                         ] ++ extraOpts
+                         ] ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
+                           ++ extraOpts
+
           (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
           case ret of
             AgdaSuccess{} | testName == "Issue481" -> do
@@ -104,3 +106,63 @@ printTestResult r = case r of
   TestSuccessWithWarnings t -> t
   TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
   TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t
+
+-- List of test cases that do not pass the --double-check yet
+noDoubleCheckTests :: [String]
+noDoubleCheckTests =
+  [ "Cumulativity"
+  , "CompileTimeInlining"
+  , "Conat-Sized"
+  , "CopatternTrailingImplicit"
+  , "CubicalPrims"
+  , "DataPolarity"
+  , "Issue1038"
+  , "Issue1099"
+  , "Issue1203"
+  , "Issue1209-4"
+  , "Issue1209-5"
+  , "Issue1209-6"
+  , "Issue1292b"
+  , "Issue1409"
+  , "Issue1470"
+  , "Issue1523a"
+  , "Issue1551"
+  , "Issue1796rewrite"
+  , "Issue1817"
+  , "Issue1914"
+  , "Issue2046"
+  , "Issue2054"
+  , "Issue2257"
+  , "Issue2257b"
+  , "Issue2429-subtyping"
+  , "Issue2484-1"
+  , "Issue2484-2"
+  , "Issue2484-3"
+  , "Issue2484-4"
+  , "Issue2484-5"
+  , "Issue2484-6"
+  , "Issue2484-7"
+  , "Issue2484-8"
+  , "Issue2484-9"
+  , "Issue2484-10"
+  , "Issue2484-11"
+  , "Issue2554-size-mutual"
+  , "Issue2554-size-plus2"
+  , "Issue2558"
+  , "Issue2917"
+  , "Issue298"
+  , "Issue298b"
+  , "Issue3577"
+  , "Issue3601"
+  , "Issue3639"
+  , "Issue709"
+  , "OutStream"
+  , "RewriteExt"
+  , "Rose"
+  , "SizedCoinductiveRecords"
+  , "SizedNatNew"
+  , "SizedQuicksort"
+  , "SizedTypesExtendedLambda"
+  , "SizedTypesMergeSort"
+  , "SizedTypesMutual"
+  ]

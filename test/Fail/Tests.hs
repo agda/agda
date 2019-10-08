@@ -48,6 +48,7 @@ mkFailTest inp =
         doRun = do
           let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp
                          , "--ignore-interfaces", "--no-libraries"]
+                         ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
           runAgdaWithOptions testName agdaArgs (Just flagFile)
             >>= expectFail
 
@@ -116,3 +117,62 @@ printTestResult :: TestResult -> T.Text
 printTestResult (TestResult t)            = t
 printTestResult (TestUnexpectedSuccess p) =
   "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProgramResult p
+
+noDoubleCheckTests :: [String]
+noDoubleCheckTests =
+  [ "Issue3982"
+  , "SizedTypesScopeViolationInMeta"
+  , "CheckSizeMetaBounds"
+  , "ConfluenceNestedOverlap"
+  , "ConfluenceTypeLevelReduction"
+  , "ConstructorHeadedDivergenceIn2-2-10"
+  , "FrozenMVar"
+  , "HoTTCompatibleWithSizeBasedTerminationMaximeDenes"
+  , "Issue118Comment9"
+  , "Issue1209-2"
+  , "Issue1258"
+  , "Issue1445-2"
+  , "Issue1445-3"
+  , "Issue1467"
+  , "Issue1523a"
+  , "Issue1615"
+  , "Issue1974"
+  , "Issue1976-constraints"
+  , "Issue2450"
+  , "Issue2710"
+  , "Issue2941"
+  , "Issue2944"
+  , "Issue2985-1"
+  , "Issue2985-2"
+  , "Issue2993"
+  , "Issue300"
+  , "Issue3067"
+  , "Issue3114"
+  , "Issue3401"
+  , "Issue3431"
+  , "Issue399"
+  , "Issue4118"
+  , "Issue418"
+  , "Issue431"
+  , "Issue431b"
+  , "Issue483c"
+  , "Issue485"
+  , "Issue585-11"
+  , "Issue585t"
+  , "Issue659"
+  , "Issue691"
+  , "Issue796"
+  , "Issue796o"
+  , "Issue878"
+  , "Issue920a"
+  , "Issue921"
+  , "NoConstraints"
+  , "RewriteExt-confluence"
+  , "SizeUnsolvedConstraintsInTypeSignature"
+  , "SizedBTree"
+  , "SizedTypesFunctionFromSuccSize"
+  , "SizedTypesRigidVarClash"
+  , "SizedTypesScopeExtrusion"
+  , "SizedTypesVarSwap"
+  , "WrongPolarity"
+  ]
