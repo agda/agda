@@ -61,6 +61,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Monad hiding (Closure(..))
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Rewriting (rewrite)
@@ -73,6 +74,7 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
 import Agda.Utils.Pretty
@@ -114,8 +116,13 @@ data BuiltinEnv = BuiltinEnv
 -- | Compute a 'CompactDef' from a regular definition.
 compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
+
+  treatAsAbstractProp <-
+    (not . optReduceProp <$> pragmaOptions) `and2M` (isPropM $ defType def)
+
   cdefn <-
     case theDef def of
+      _ | treatAsAbstractProp -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of

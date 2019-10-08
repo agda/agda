@@ -22,7 +22,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
-import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes)
+import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
                                       , getConstInfo, lookupMeta
@@ -527,6 +527,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
+  dontUnfoldProp <- (not . optReduceProp <$> pragmaOptions) `and2M` (isPropM $ defType info)
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
@@ -537,6 +538,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
         || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
+        || dontUnfoldProp
       copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} ->
