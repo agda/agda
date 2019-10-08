@@ -461,7 +461,7 @@ coinfectiveOptions =
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (not . collapseDefault . optGuardedness, "--no-guardedness")
-  , (optCumulativity, "--cumulativity")
+  , (not . optCumulativity, "--no-cumulativity")
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -629,6 +629,9 @@ omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
 cumulativityFlag :: Flag PragmaOptions
 cumulativityFlag o = return $ o { optCumulativity = True }
+
+noCumulativityFlag :: Flag PragmaOptions
+noCumulativityFlag o = return $ o { optCumulativity = False }
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --etaFlag :: Flag PragmaOptions
@@ -919,6 +922,8 @@ pragmaOptions =
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
                     "enable subtyping of universes (e.g. Set =< Set₁)"
+    , Option []     ["no-cumulativity"] (NoArg cumulativityFlag)
+                    "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
