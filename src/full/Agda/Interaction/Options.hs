@@ -922,7 +922,7 @@ pragmaOptions =
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
                     "enable subtyping of universes (e.g. Set =< Set₁)"
-    , Option []     ["no-cumulativity"] (NoArg cumulativityFlag)
+    , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
                     "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
                     "enable the use of the Prop universe"
