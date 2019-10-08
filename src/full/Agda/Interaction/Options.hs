@@ -458,6 +458,7 @@ coinfectiveOptions =
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (not . collapseDefault . optGuardedness, "--no-guardedness")
+  , (optCumulativity, "--cumulativity")
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
