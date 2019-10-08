@@ -9,6 +9,7 @@ import Test.Tasty
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Filter
+import Data.Bits (finiteBitSize)
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
@@ -125,9 +126,18 @@ stdlibTests comp = do
   let extraArgs :: [String]
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
 
-  let rtsOptions :: [String]
--- See Issue #3792.
-      rtsOptions = [ "+RTS", "-H2G", "-M4G", "-RTS" ]
+  let -- Note that -M4G can trigger the following error on 32-bit
+      -- systems: "error in RTS option -M4G: size outside allowed
+      -- range (4096 - 4294967295)".
+      maxHeapSize =
+        if finiteBitSize (undefined :: Int) == 32 then
+          "-M2G"
+        else
+          "-M4G"
+
+      rtsOptions :: [String]
+      -- See Issue #3792.
+      rtsOptions = [ "+RTS", "-H2G", maxHeapSize, "-RTS" ]
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
