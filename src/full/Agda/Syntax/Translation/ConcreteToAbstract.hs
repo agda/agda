@@ -1848,7 +1848,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternSyn r n as p -> do
+    NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
@@ -1864,7 +1864,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                sep (map prettyA xs)
          return (as, p)
       y <- freshAbstractQName' n
-      bindName PublicAccess PatternSynName n y
+      bindName a PatternSynName n y
       -- Expanding pattern synonyms already at definition makes it easier to
       -- fold them back when printing (issue #2762).
       ep <- expandPatternSynonyms p
