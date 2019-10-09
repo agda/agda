@@ -165,4 +165,5 @@ noDoubleCheckTests =
   , "SizedTypesExtendedLambda"
   , "SizedTypesMergeSort"
   , "SizedTypesMutual"
+  , "language-sized-types"
   ]
