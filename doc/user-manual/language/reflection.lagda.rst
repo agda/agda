@@ -609,7 +609,7 @@ using a ``@(tactic t)`` annotation. The provided tactic should be a term
 At calls to `f`, `defaultTo true` is called on the
 metavariable inserted for `x` if it is not given explicitly.
 The tactic can depend on previous arguments to the function.
-previous arguments to the function. For instance,
+For instance,
 
 ::
 
