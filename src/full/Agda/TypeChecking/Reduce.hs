@@ -169,8 +169,8 @@ instance Instantiate t => Instantiate (Abs t) where
 instance Instantiate t => Instantiate (Arg t) where
     instantiate' = traverse instantiate'
 
-instance Instantiate t => Instantiate (Dom t) where
-    instantiate' = traverse instantiate'
+instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
+    instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
 
 instance Instantiate t => Instantiate (Maybe t) where
   instantiate' = traverse instantiate'
@@ -1268,8 +1268,8 @@ instance InstantiateFull t => InstantiateFull (Arg t) where
 instance InstantiateFull t => InstantiateFull (Named name t) where
     instantiateFull' = traverse instantiateFull'
 
-instance InstantiateFull t => InstantiateFull (Dom t) where
-    instantiateFull' = traverse instantiateFull'
+instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
+    instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
 
 instance InstantiateFull t => InstantiateFull [t] where
     instantiateFull' = traverse instantiateFull'
