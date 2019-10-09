@@ -546,7 +546,8 @@ Silly example:
 
     macro
         plus-to-times : Term → Term → TC ⊤
-        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole =
+          unify hole (def (quote _*_) (a ∷ b ∷ []))
         plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
@@ -586,6 +587,37 @@ This lets you apply the magic tactic as a normal function:
     thm = by-magic
 
 .. _unquoting-declarations:
+
+Tactic Arguments
+~~~~~~~~~~~~~~~~
+
+You can declare tactics to be used to solve a particular implicit argument
+using a ``@(tactic t)`` annotation. The provided tactic should be a term
+``t : Term → TC ⊤``. For instance,
+
+::
+
+  defaultTo : {A : Set} (x : A) → Term → TC ⊤
+  defaultTo x hole = bindTC (quoteTC x) (unify hole)
+
+  f : {@(tactic defaultTo true) x : Bool} → Bool
+  f {x} = x
+
+  test-f : f ≡ true
+  test-f = refl
+
+At calls to `f`, `defaultTo true` is called on the
+metavariable inserted for `x` if it is not given explicitly.
+The tactic can depend on previous arguments to the function.
+previous arguments to the function. For instance,
+
+::
+
+  g : (x : Nat) {@(tactic defaultTo x) y : Nat} → Nat
+  g x {y} = x + y
+
+  test-g : g 4 ≡ 8
+  test-g = refl
 
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~
