@@ -722,19 +722,37 @@ typesOfHiddenMetas norm = liftTCM $ do
       M.BlockedConst{} -> False
       M.PostponedTypeCheckingProblem{} -> False
 
+-- | Create type of application of new helper function that would solve the goal.
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
   []    -> failure
-  f : _ -> do
+  f : _ -> withInteractionId ii $ do
     ensureName f
     A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
-    withInteractionId ii $ do
+    inCxt   <- hasElem <$> getContextNames
+    cxtArgs <- getContextArgs
+    a0      <- (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
+    case mapM (isVar . namedArg) args >>= \ xs -> xs <$ guard (all inCxt xs) of
+
+     -- Andreas, 2019-10-11
+     -- If all arguments are variables, there is no need to abstract.
+     -- We simply make exactly the given arguments visible and all other hidden.
+     Just xs -> do
+      let inXs = hasElem xs
+      let hideButXs dom = setHiding (if inXs $ fst $ unDom dom then NotHidden else Hidden) dom
+      tel  <- telFromList . map (fmap (first nameToArgName) . hideButXs) . reverse <$> getContext
+      OfType' h <$> do
+        -- Andreas, 2019-10-11: I actually prefer pi-types over ->.
+        localTC (\e -> e { envPrintDomainFreePi = True }) $ reify $ telePiVisible tel a0
+
+     -- If some arguments are not variables.
+     Nothing -> do
       cxtArgs  <- getContextArgs
       -- cleanupType relies on with arguments being named 'w',
       -- so we'd better rename any actual 'w's to avoid confusion.
       tel  <- runIdentity . onNamesTel unW <$> getContextTelescope
-      a    <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
-      vtys <- mapM (\ a -> fmap (WithHiding (getHiding a) . fmap OtherType) $ inferExpr $ namedThing (unArg a)) args
+      let a = runIdentity . onNames unW $ a0
+      vtys <- mapM (\ a -> fmap (WithHiding (getHiding a) . fmap OtherType) $ inferExpr $ namedArg a) args
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
@@ -756,21 +774,27 @@ metaHelperType norm ii rng s = case words s of
         , TP.nest 2 $ "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
         , TP.nest 2 $ "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
         ]
-      return (OfType' h a)
+      return $ OfType' h a
   where
     failure = typeError $ GenericError $ "Expected an argument of the form f e1 e2 .. en"
     ensureName f = do
       ce <- parseExpr rng f
-      case ce of
-        C.Ident{} -> return ()
-        C.RawApp _ [C.Ident{}] -> return ()
-        _ -> do
+      flip (caseMaybe $ isName ce) (\ _ -> return ()) $ do
          reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
          failure
+    isName :: C.Expr -> Maybe C.Name
+    isName = \case
+      C.Ident (C.QName x)              -> Just x
+      C.RawApp _ [C.Ident (C.QName x)] -> Just x
+      _ -> Nothing
+    isVar :: A.Expr -> Maybe A.Name
+    isVar = \case
+      A.Var x -> Just x
+      _ -> Nothing
     cleanupType arity args t = do
       -- Get the arity of t
       TelV ttel _ <- telView t
-      -- Compute the number or pi-types subject to stripping.
+      -- Compute the number of pi-types subject to stripping.
       let n = size ttel - arity
       -- It cannot be negative, otherwise we would have performed a
       -- negative number of with-abstractions.

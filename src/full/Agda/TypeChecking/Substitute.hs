@@ -1175,6 +1175,21 @@ telePi = telePi' reAbs
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
 
+-- | Only abstract the visible components of the telescope,
+--   and all that bind variables.  Everything will be an 'Abs'!
+-- Caution: quadratic time!
+
+telePiVisible :: Telescope -> Type -> Type
+telePiVisible EmptyTel t = t
+telePiVisible (ExtendTel u tel) t
+    -- If u is not declared visible and b can be strengthened, skip quantification of u.
+    | notVisible u, NoAbs x t' <- b' = t'
+    -- Otherwise, include quantification over u.
+    | otherwise = El (piSort u $ getSort <$> b) $ Pi u b
+  where
+    b  = tel <&> (`telePiVisible` t)
+    b' = reAbs b
+
 -- | Abstract over a telescope in a term, producing lambdas.
 --   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
 --
