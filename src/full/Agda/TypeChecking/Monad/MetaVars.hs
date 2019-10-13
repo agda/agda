@@ -184,6 +184,10 @@ getMetaTypeInContext m = do
     HasType{ jMetaType = t } -> piApplyM t =<< getMetaContextArgs mv
     IsSort{}                 -> __IMPOSSIBLE__
 
+-- | Is it a meta that might be generalized?
+isGeneralizableMeta :: (ReadTCState m, MonadFail m) => MetaId -> m DoGeneralize
+isGeneralizableMeta x = unArg . miGeneralizable . mvInfo <$> lookupMeta x
+
 -- | Check whether all metas are instantiated.
 --   Precondition: argument is a meta (in some form) or a list of metas.
 class IsInstantiatedMeta a where

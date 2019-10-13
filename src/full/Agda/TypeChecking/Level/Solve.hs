@@ -45,6 +45,7 @@ defaultOpenLevelsToZero = do
     openLevelMetas =
       getOpenMetas
       >>= filterM (\m -> isNothing <$> isInteractionMeta m)
+      >>= filterM (\m -> (== NoGeneralize) <$> isGeneralizableMeta m)
       >>= filterM isLevelMeta
 
     isLevelMeta :: MetaId -> m Bool

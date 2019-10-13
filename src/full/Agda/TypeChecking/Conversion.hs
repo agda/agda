@@ -1309,16 +1309,22 @@ leqLevel a b = do
           , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
             mv <- lookupMeta x
-            x' <- case mvJudgement mv of
-              IsSort{} -> __IMPOSSIBLE__
-              HasType _ cmp t -> do
-                TelV tel t' <- telView t
-                newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
-            reportSDoc "tc.conv.level" 20 $ fsep
-              [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
-              , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
-              ]
-            equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
+            -- Jesper, 2019-10-13: abort if this is an interaction
+            -- meta or a generalizable meta
+            abort <- (isJust <$> isInteractionMeta x) `or2M`
+                     ((== YesGeneralize) <$> isGeneralizableMeta x)
+            if | abort -> postpone
+               | otherwise -> do
+                  x' <- case mvJudgement mv of
+                    IsSort{} -> __IMPOSSIBLE__
+                    HasType _ cmp t -> do
+                      TelV tel t' <- telView t
+                      newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
+                  reportSDoc "tc.conv.level" 20 $ fsep
+                    [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
+                    , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
+                    ]
+                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
 
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
