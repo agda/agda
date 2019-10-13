@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.MetaVars (metaType)
 import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
@@ -156,33 +157,37 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 sortOf
   :: forall m. (MonadReduce m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Term -> m Sort
-sortOf t = elimView True t >>= \case
-  Pi adom b -> do
-    let a = unEl $ unDom adom
-    sa <- sortOf a
-    let adom' = adom { unDom = El sa a }
-    sb <- mapAbstraction adom' (sortOf . unEl) b
-    return $ piSort adom' sb
-  Sort s     -> do
-    ui <- univInf
-    return $ univSort ui s
-  Var i es   -> do
-    a <- typeOfBV i
-    sortOfE a (Var i) es
-  Def f es   -> do
-    a <- defType <$> getConstInfo f
-    sortOfE a (Def f) es
-  MetaV x es -> do
-    a <- metaType x
-    sortOfE a (MetaV x) es
-  Lam{}      -> __IMPOSSIBLE__
-  Con{}      -> __IMPOSSIBLE__
-  Lit{}      -> __IMPOSSIBLE__
-  Level{}    -> __IMPOSSIBLE__
-  DontCare{} -> __IMPOSSIBLE__
-  Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+sortOf t = do
+  reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
+  sortOfT =<< elimView True t
 
   where
+    sortOfT :: Term -> m Sort
+    sortOfT = \case
+      Pi adom b -> do
+        let a = unEl $ unDom adom
+        sa <- sortOf a
+        sb <- mapAbstraction adom (sortOf . unEl) b
+        return $ piSort (adom $> El sa a) sb
+      Sort s     -> do
+        ui <- univInf
+        return $ univSort ui s
+      Var i es   -> do
+        a <- typeOfBV i
+        sortOfE a (Var i) es
+      Def f es   -> do
+        a <- defType <$> getConstInfo f
+        sortOfE a (Def f) es
+      MetaV x es -> do
+        a <- metaType x
+        sortOfE a (MetaV x) es
+      Lam{}      -> __IMPOSSIBLE__
+      Con{}      -> __IMPOSSIBLE__
+      Lit{}      -> __IMPOSSIBLE__
+      Level{}    -> __IMPOSSIBLE__
+      DontCare{} -> __IMPOSSIBLE__
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+
     sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
     sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__
     sortOfE a hd (e:es) = case e of
