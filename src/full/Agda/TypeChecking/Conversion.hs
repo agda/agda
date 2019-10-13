@@ -1449,10 +1449,12 @@ equalLevel' a b = do
           | Just a' <- subLevel l a -> meta y bs' a'
 
         -- a' ⊔ b == b
-        _ | Just a' <- levelMaxDiff a b -> leqLevel a' b
+        _ | Just a' <- levelMaxDiff a b
+          , b /= ClosedLevel 0 -> leqLevel a' b
 
         -- a == b' ⊔ a
-        _ | Just b' <- levelMaxDiff b a -> leqLevel b' a
+        _ | Just b' <- levelMaxDiff b a
+          , a /= ClosedLevel 0 -> leqLevel b' a
 
         -- neutral/closed == neutral/closed
         (as , bs)
