@@ -1,7 +1,12 @@
+-- Liang-Ting Chen 2019-10-13:
+-- this program is partially re-written such that
+-- the configuration part is controllfed by an external
+-- configuration file `fix-agda-whitespace.yaml"
+-- in the base directory instead.
+
 import Control.Monad
 
 import Data.Char as Char
-import Data.Functor
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text  -- Strict IO.
@@ -13,63 +18,12 @@ import System.FilePath
 import System.FilePath.Find
 import System.IO
 
--- Configuration parameters.
+import ParseConfig
 
-extensions :: [String]
-extensions =
-  [ ".agda"
-  , ".cabal"
-  , ".el"
-  , ".hs"
-  , ".hs-boot"
-  , ".lagda"
-  , ".lhs"
-  , ".md"
-  , ".rst"
-  , ".x"
-  , ".y"
-  , ".yaml"
-  , ".yml"
-  ]
-
--- In test/succeed/LineEndings/ we test that Agda can handle various
--- kinds of whitespace, so we exclude this directory.
-validDir
-  :: FilePath
-     -- ^ The base directory.
-  -> RecursionPredicate
-validDir base =
- filePath ==? (base </> "src/full/Agda/Compiler/MAlonzo")
-   ||?
- foldr1 (&&?)
-   ([ fileName /~? "dist*"
-    , fileName /=? "MAlonzo"
-    ]
-      ++
-    map (\d -> filePath /=? base </> d)
-        [ "_darcs", ".git", "std-lib", "test/bugs"
-        , "test/Succeed/LineEndings"
-        , "examples/uptodate"
-        ])
-
--- Andreas (24 Sep 2014).
--- | The following files are exempt from the whitespace check,
---   as they test behavior of Agda with regard to tab characters.
-excludedFiles :: [FilePath]
-excludedFiles =
-  [ "Whitespace.agda"                       -- in test/succeed
-  , "Issue1337.agda"                        -- in test/succeed
-  , "Tabs.agda"                             -- in test/fail
-  , "TabsInPragmas.agda"                    -- in test/fail
-  , "Lexer.hs"                              -- could be in src/full/Agda/Syntax/Parser
-  , "AccidentalSpacesAfterBeginCode.lagda"  -- in test/LaTeXAndHTML/succeed
-  ]
-
--- Auxiliary functions.
-
-filesFilter :: FindClause Bool
-filesFilter = foldr1 (||?) (map (extension ==?) extensions)
-          &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
+-- The location of the configuration file.
+-- TODO: Add an option to specify a custom location.
+defaultLoc :: FilePath
+defaultLoc = "fix-agda-whitespace.yaml"
 
 -- Modes.
 
@@ -86,8 +40,11 @@ main = do
     ["--check"] -> return Check
     _           -> hPutStr stderr usage >> exitFailure
 
+  Config incDirs excDirs incFiles excFiles <- parseConfig defaultLoc
   base <- getCurrentDirectory
-  changes <- mapM (fix mode) =<< find (validDir base) filesFilter base
+
+  changes <- mapM (fix mode) =<<
+    find (validDir base incDirs excDirs) (validFile base incFiles excFiles) base
 
   when (or changes && mode == Check) exitFailure
 
@@ -101,8 +58,12 @@ usage = unlines
   , ""
   , "This program should be run in the base directory."
   , ""
-  , "By default the program does the following for every"
-  , list extensions ++ " file under the current directory:"
+  , "The program does the following for every file listed in"
+  , ""
+  , defaultLoc
+  , ""
+  , "under the current directory:"
+  , ""
   , "* Removes trailing whitespace."
   , "* Removes trailing lines containing nothing but whitespace."
   , "* Ensures that the file ends in a newline character."
@@ -119,6 +80,36 @@ usage = unlines
   list [x]      = x
   list [x, y]   = x ++ " and " ++ y
   list (x : xs) = x ++ ", " ++ list xs
+
+-- Directory filter
+validDir
+  :: FilePath
+     -- ^ The base directory.
+  -> [FilePath]
+     -- ^ The list of included directories.
+  -> [FilePath]
+     -- ^ The list of excluded directories if *not* included above.
+  -> RecursionPredicate
+validDir base incDirs excDirs =
+      foldr (||?) never  ((filePath ~~?) . (base </>) <$> incDirs)
+  ||? foldr (&&?) always ((filePath /~?) . (base </>) <$> excDirs)
+
+-- File filter
+validFile
+  :: FilePath
+     -- ^ The base directory.
+  -> [FilePath]
+     -- ^ The list of files to check.
+  -> [FilePath]
+     -- ^  The list of excluded file names if included above.
+  -> FindClause Bool
+validFile base incFiles excFiles =
+      foldr (||?) never  ((filePath ~~?) . (base </>) <$> incFiles)
+  &&? foldr (&&?) always ((filePath /~?) . (base </>) <$> excFiles)
+
+-- | Unconditionally return False.
+never :: FindClause Bool
+never = return False
 
 -- | Fix a file. Only performs changes if the mode is 'Fix'. Returns
 -- 'True' iff any changes would have been performed in the 'Fix' mode.

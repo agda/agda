@@ -1,0 +1,46 @@
+# fix-agda-whitespace determines the set of directories first and
+# then the set of filenames inside those directories.
+#
+# The extended glob pattern can be used to specify file/direcotory names.
+# For details, see http://hackage.haskell.org/package/filemanip-0.3.6.3/docs/System-FilePath-GlobPattern.html
+# Every matched directory is not included unless it is matched by included-dirs.
+included-dirs:
+  - src/full/Agda/Compiler/MAlonzo
+
+excluded-dirs:
+  - "**MAlonzo" # matches every MAlonzo in any directory
+  - "**dist*"   # matches every dist* in any directory
+  - .stack-work
+  - _darcs
+  - .git
+  - std-lib
+  - test/bugs
+  - test/Succeed/LineEndings
+  - examples/uptodate
+
+# Every matched filename is included unless it is matched by excluded-files.
+included-files:
+  - "**.agda"
+  - "**.cabal"
+  - "**.el"
+  - "**.hs"
+  - "**.hs-boot"
+  - "**.lagda"
+  - "**.lhs"
+  - "**.md"
+  - "**.rst"
+  - "**.x"
+  - "**.y"
+  - "**.yaml"
+  - "**.yml"
+
+excluded-files:
+# Andreas (24 Sep 2014).
+# The following files are exempt from the whitespace check,
+# as they test behavior of Agda with regard to tab characters.
+  - "test/Succeed/Whitespace.agda"
+  - "test/Succeed/Issue1337.agda"
+  - "test/Fail/Tabs.agda"
+  - "test/Fail/TabsInPragmas.agda"
+  - "src/full/Agda/Syntax/Parser/Lexer.hs"
+  - "test/LaTeXAndHTML/succeed/AccidentalSpacesAfterBeginCode.lagda"
