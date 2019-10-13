@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Conversion where
 
+import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.Fail (MonadFail)
 
@@ -1300,21 +1301,24 @@ leqLevel a b = do
             subsumes (SinglePlus (Plus m a)) (SinglePlus (Plus n b)) = a == b && m >= n
             subsumes _ _ = False
 
-        -- as ≤ _l x₁ .. xₙ
+        -- as ≤ _l x₁ .. xₙ ⊔ bs
         -- We can solve _l := λ x₁ .. xₙ -> as ⊔ (_l' x₁ .. xₙ)
         -- (where _l' is a new metavariable)
-        (as , SinglePlus (Plus 0 (MetaLevel x es)) :! []) | cumulativity -> do
-          mv <- lookupMeta x
-          x' <- case mvJudgement mv of
-            IsSort{} -> __IMPOSSIBLE__
-            HasType _ cmp t -> do
-              TelV tel t' <- telView t
-              newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
-          reportSDoc "tc.conv.level" 20 $ fsep
-            [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
-            , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
-            ]
-          equalLevel b $ levelLub a (atomicLevel $ MetaLevel x' es)
+        (as , bs)
+          | cumulativity
+          , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (toList bs)
+          , null bs' || noMetas (Level a , unSingleLevels bs') -> do
+            mv <- lookupMeta x
+            x' <- case mvJudgement mv of
+              IsSort{} -> __IMPOSSIBLE__
+              HasType _ cmp t -> do
+                TelV tel t' <- telView t
+                newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
+            reportSDoc "tc.conv.level" 20 $ fsep
+              [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
+              , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
+              ]
+            equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
 
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
@@ -1342,6 +1346,19 @@ leqLevel a b = do
         neutralOrClosed (SingleClosed _)                     = True
         neutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
         neutralOrClosed _                                    = False
+
+        -- Is there exactly one @MetaLevel@ in the list of single levels?
+        singleMetaView :: [SingleLevel] -> Maybe (LevelAtom, [SingleLevel])
+        singleMetaView (SinglePlus (Plus 0 l@(MetaLevel m es)) : ls)
+          | all (not . isMetaLevel) ls = Just (l,ls)
+        singleMetaView (l : ls)
+          | not $ isMetaLevel l = second (l:) <$> singleMetaView ls
+        singleMetaView _ = Nothing
+
+        isMetaLevel :: SingleLevel -> Bool
+        isMetaLevel (SinglePlus (Plus _ MetaLevel{})) = True
+        isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
+        isMetaLevel _ = False
 
 equalLevel :: MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
