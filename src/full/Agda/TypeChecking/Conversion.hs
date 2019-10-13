@@ -1353,35 +1353,46 @@ equalLevel a b = do
 equalLevel' :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel' a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
-  catchConstraint (LevelCmp CmpEq a b) $
-    check a b
-  where
-    check :: Level -> Level -> m ()
-    check a b = do
-      -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
-      -- THAT's actually UNSOUND when metas are instantiated, because
-      --     max a b == max a c  does not imply  b == c
-      -- as <- return $ Set.fromList $ closed0 as
-      -- bs <- return $ Set.fromList $ closed0 bs
-      -- let cs = Set.filter (not . hasMeta) $ Set.intersection as bs
-      -- as <- return $ Set.toList $ as Set.\\ cs
-      -- bs <- return $ Set.toList $ bs Set.\\ cs
-      reportSDoc "tc.conv.level" 40 $
-        sep [ "equalLevel"
-            , vcat [ nest 2 $ sep [ prettyTCM a <+> "=="
-                                  , prettyTCM b
-                                  ]
-                   ]
-            ]
-      reportSDoc "tc.conv.level" 50 $
-        sep [ text "equalLevel"
-            , vcat [ nest 2 $ sep [ prettyList_ (map (pretty . unSingleLevel) $ toList $ levelMaxView a)
-                                  , "=="
-                                  , prettyList_ (map (pretty . unSingleLevel) $ toList $ levelMaxView b)
-                                  ]
-                   ]
-            ]
-      case (levelMaxView a, levelMaxView b) of
+  -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
+  -- THAT's actually UNSOUND when metas are instantiated, because
+  --     max a b == max a c  does not imply  b == c
+  -- as <- return $ Set.fromList $ closed0 as
+  -- bs <- return $ Set.fromList $ closed0 bs
+  -- let cs = Set.filter (not . hasMeta) $ Set.intersection as bs
+  -- as <- return $ Set.toList $ as Set.\\ cs
+  -- bs <- return $ Set.toList $ bs Set.\\ cs
+
+  reportSDoc "tc.conv.level" 40 $
+    sep [ "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyTCM a <+> "=="
+                              , prettyTCM b
+                              ]
+               ]
+        ]
+
+  -- Jesper, 2014-02-02 remove terms that certainly do not contribute
+  -- to the maximum
+  let (a',b') = removeSubsumed a b
+  reportSDoc "tc.conv.level" 50 $
+    sep [ "equalLevel (w/o subsumed)"
+        , vcat [ nest 2 $ sep [ prettyTCM a' <+> "=="
+                              , prettyTCM b'
+                              ]
+               ]
+        ]
+
+  let as  = levelMaxView a'
+      bs  = levelMaxView b'
+  reportSDoc "tc.conv.level" 50 $
+    sep [ text "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyList_ (map (pretty . unSingleLevel) $ toList $ as)
+                              , "=="
+                              , prettyList_ (map (pretty . unSingleLevel) $ toList $ bs)
+                              ]
+               ]
+        ]
+
+  catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
         -- equal levels
         _ | a == b -> ok
@@ -1404,15 +1415,6 @@ equalLevel' a b = do
           sequence_ [ equalLevel' (ClosedLevel 0) (unSingleLevel b') | b' <- toList bs ]
         (as@(_:!_:_) , SingleClosed 0 :! []) ->
           sequence_ [ equalLevel' (unSingleLevel a') (ClosedLevel 0) | a' <- toList as ]
-
-        -- Jesper, 2014-02-02 remove terms that certainly do not contribute
-        -- to the maximum
-        (as , bs)
-          | (subsumed@(_:_),as') <- List.partition (`isStrictlySubsumedBy` bs) (toList as)
-          -> equalLevel' (unSingleLevels as') b
-        (as , bs)
-          | (subsumed@(_:_),bs') <- List.partition (`isStrictlySubsumedBy` as) (toList bs)
-          -> equalLevel' a (unSingleLevels bs')
 
         -- meta == any
         (SinglePlus (Plus k (MetaLevel x as)) :! [] , bs)
@@ -1489,6 +1491,13 @@ equalLevel' a b = do
 
         isThisMeta x (SinglePlus (Plus _ (MetaLevel y _))) = x == y
         isThisMeta _ _                                     = False
+
+        removeSubsumed a b =
+          let as = toList $ levelMaxView a
+              bs = toList $ levelMaxView b
+              a' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` bs)) as
+              b' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` as)) bs
+          in (a',b')
 
         x `isStrictlySubsumedBy` ys = any (`strictlySubsumes` x) ys
 
