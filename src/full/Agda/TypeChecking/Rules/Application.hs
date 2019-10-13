@@ -762,7 +762,8 @@ checkConstructorApplication cmp org t c args = do
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
     -- as well and then check wether we deal with the same datatype
     t0 <- reduce (Def d [])
-    case (t0, unEl t) of -- Only fully applied constructors get special treatment
+    tReduced <- reduce t
+    case (t0, unEl tReduced) of -- Only fully applied constructors get special treatment
       (Def d0 _, Def d' es) -> do
         let ~(Just vs) = allApplyElims es
         reportSDoc "tc.term.con" 50 $ nest 2 $ "d0   =" <+> prettyTCM d0
