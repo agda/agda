@@ -3,6 +3,8 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
+import Control.Monad.IO.Class
+
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 
@@ -94,7 +96,9 @@ instance EmbPrj I.Term where
   icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy s _)    = __IMPOSSIBLE__
+  icod_ (Dummy s _)    = do
+    liftIO $ putStrLn $ "Dummy term in serialization: " ++ s
+    __IMPOSSIBLE__
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -141,7 +145,9 @@ instance EmbPrj I.Sort where
   icod_ (UnivSort a) = icodeN 5 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 6 DefS a b
-  icod_ (DummyS s)   = __IMPOSSIBLE__
+  icod_ (DummyS s)   = do
+    liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
+    __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
