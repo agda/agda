@@ -102,14 +102,14 @@ jobs:
 
     - &no-test-job
       stage: stackage
-      env: GHC_VER=8.6.5
+      env: GHC_VER=8.8.1
       cache:
         directories:
           - $HOME/.stack
       addons:
         apt:
           packages:
-            - ghc-8.6.5
+            - ghc-8.8.1
           sources:
             - hvr-ghc
       before_install:
@@ -136,7 +136,7 @@ jobs:
           - $APPDATA/stack
       language: c
       env:
-        - GHC_VER=8.6.5 ICU_VER=58.2-3
+        - GHC_VER=8.8.1 ICU_VER=58.2-3
       before_install:
         - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
@@ -150,6 +150,15 @@ jobs:
         - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
       script:
         - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+
+    - <<: *no-test-job
+      env: GHC_VER=8.6.5
+      addons:
+        apt:
+          packages:
+            - ghc-8.6.5
+          sources:
+            - hvr-ghc
 
     - <<: *no-test-job
       env: GHC_VER=8.4.4
