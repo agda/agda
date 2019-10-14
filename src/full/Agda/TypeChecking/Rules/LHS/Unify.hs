@@ -12,62 +12,81 @@
 --   splitting (see @Agda.Interaction.MakeCase@).
 --
 --   A unification problem (of type @UnifyState@) consists of:
+--
 --   1. A telescope @varTel@ of free variables, some or all of which are
 --      flexible (as indicated by @flexVars@).
+--
 --   2. A telescope @eqTel@ containing the types of the equations.
+--
 --   3. Left- and right-hand sides for each equation:
 --      @varTel ⊢ eqLHS : eqTel@ and @varTel ⊢ eqRHS : eqTel@.
 --
 --   The unification algorithm can end in three different ways:
 --   (type @UnificationResult@):
+--
 --   - A *positive success* @Unifies (tel, sigma, ps)@ with @tel ⊢ sigma : varTel@,
 --     @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@,
 --     and @tel ⊢ ps : eqTel@. In this case, @sigma;ps@ is an *equivalence*
 --     between the telescopes @tel@ and @varTel(eqLHS ≡ eqRHS)@.
+--
 --   - A *negative success* @NoUnify err@ means that a conflicting equation
 --     was found (e.g an equation between two distinct constructors or a cycle).
+--
 --   - A *failure* @DontKnow err@ means that the unifier got stuck.
 --
 --   The unification algorithm itself consists of two parts:
+--
 --   1. A *unification strategy* takes a unification problem and produces a
 --      list of suggested unification rules (of type @UnifyStep@). Strategies
 --      can be constructed by composing simpler strategies (see for example the
 --      definition of @completeStrategyAt@).
+--
 --   2. The *unification engine* @unifyStep@ takes a unification rule and tries
 --      to apply it to the given state, writing the result to the UnifyOutput
 --      on a success.
 --
 --   The unification steps (of type @UnifyStep@) are the following:
+--
 --   - *Deletion* removes a reflexive equation @u =?= v : a@ if the left- and
 --     right-hand side @u@ and @v@ are (definitionally) equal. This rule results
 --     in a failure if --without-K is enabled (see \"Pattern Matching Without K\"
 --     by Jesper Cockx, Dominique Devriese, and Frank Piessens (ICFP 2014).
+--
 --   - *Solution* solves an equation if one side is (eta-equivalent to) a
 --     flexible variable. In case both sides are flexible variables, the
 --     unification strategy makes a choice according to the @chooseFlex@
 --     function in @Agda.TypeChecking.Rules.LHS.Problem@.
+--
 --   - *Injectivity* decomposes an equation of the form
 --     @c us =?= c vs : D pars is@ where @c : Δc → D pars js@ is a constructor
 --     of the inductive datatype @D@ into a sequence of equations
 --     @us =?= vs : delta@. In case @D@ is an indexed datatype,
 --     *higher-dimensional unification* is applied (see below).
+--
 --   - *Conflict* detects absurd equations of the form
 --     @c₁ us =?= c₂ vs : D pars is@ where @c₁@ and @c₂@ are two distinct
 --     constructors of the datatype @D@.
+--
 --   - *Cycle* detects absurd equations of the form @x =?= v : D pars is@ where
 --     @x@ is a variable of the datatype @D@ that occurs strongly rigid in @v@.
+--
 --   - *EtaExpandVar* eta-expands a single flexible variable @x : R@ where @R@
 --     is a (eta-expandable) record type, replacing it by one variable for each
 --     field of @R@.
+--
 --   - *EtaExpandEquation* eta-expands an equation @u =?= v : R@ where @R@ is a
 --     (eta-expandable) record type, replacing it by one equation for each field
 --     of @R@. The left- and right-hand sides of these equations are the
 --     projections of @u@ and @v@.
+--
 --   - *LitConflict* detects absurd equations of the form @l₁ =?= l₂ : A@ where
 --     @l₁@ and @l₂@ are distinct literal terms.
+--
 --   - *StripSizeSuc* simplifies an equation of the form
 --     @sizeSuc x =?= sizeSuc y : Size@ to @x =?= y : Size@.
+--
 --   - *SkipIrrelevantEquation@ removes an equation between irrelevant terms.
+--
 --   - *TypeConInjectivity* decomposes an equation of the form
 --     @D us =?= D vs : Set i@ where @D@ is a datatype. This rule is only used
 --     if --injective-type-constructors is enabled.
