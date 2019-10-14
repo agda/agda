@@ -1,7 +1,7 @@
 -- Liang-Ting Chen 2019-10-13:
 -- this program is partially re-written such that
 -- the configuration part is controllfed by an external
--- configuration file `fix-agda-whitespace.yaml"
+-- configuration file `fix-whitespace.yaml"
 -- in the base directory instead.
 
 import Control.Monad
@@ -23,7 +23,7 @@ import ParseConfig
 -- The location of the configuration file.
 -- TODO: Add an option to specify a custom location.
 defaultLoc :: FilePath
-defaultLoc = "fix-agda-whitespace.yaml"
+defaultLoc = "fix-whitespace.yaml"
 
 -- Modes.
 
@@ -35,10 +35,11 @@ data Mode
 main :: IO ()
 main = do
   args <- getArgs
+  progName <- getProgName
   mode <- case args of
     []          -> return Fix
     ["--check"] -> return Check
-    _           -> hPutStr stderr usage >> exitFailure
+    _           -> hPutStr stderr (usage progName) >> exitFailure
 
   Config incDirs excDirs incFiles excFiles <- parseConfig defaultLoc
   base <- getCurrentDirectory
@@ -50,11 +51,11 @@ main = do
 
 -- | Usage info.
 
-usage :: String
-usage = unlines
-  [ "fix-agda-whitespace: Fixes whitespace issues."
+usage :: String -> String
+usage progName = unlines
+  [ progName ++ ": Fixes whitespace issues."
   , ""
-  , "Usage: fix-agda-whitespace [--check]"
+  , "Usage: " ++ progName ++ " [--check]"
   , ""
   , "This program should be run in the base directory."
   , ""

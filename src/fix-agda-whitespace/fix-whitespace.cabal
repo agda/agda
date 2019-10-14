@@ -1,14 +1,24 @@
-name:            fix-agda-whitespace
+name:            fix-whitespace
 version:         0.0.5
 cabal-version:   >= 1.8
 build-type:      Simple
-description:     Fixes whitespace issues for Agda sources.
+description:     Removes trailing whitespace, lines containing only whitespace and ensure that every file ends in a newline character.
+maintainer:      Liang-Ting Chen <liang.ting.chen.tw@gmail.com>
+homepage:        https://github.com/agda/fix-whitespace
+bug-reports:     https://github.com/agda/fix-whitespace/issues
+author:          fix-whitespace was originally rewritten by Nils Anders Danielsson with contributions from Ulf Norell, Andrés Sicard-Ramírez, Andreas Abel, Philipp Hausmann, Jesper Cockx, Vlad Semenov, and Liang-Ting Chen.
+Category:        Text
+Synopsis:        Fixes whitespace issues.
 tested-with:     GHC == 8.0.2
                  GHC == 8.2.2
                  GHC == 8.4.4
                  GHC == 8.6.5
 
-executable fix-agda-whitespace
+source-repository head
+  type: git
+  location: https://github.com/agda/fix-whitespace.git
+
+executable fix-whitespace
   hs-source-dirs:   .
   main-is:          FixWhitespace.hs
   other-modules:    ParseConfig
