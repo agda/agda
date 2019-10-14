@@ -4,6 +4,8 @@ Release notes for Agda version 2.6.1
 Installation and infrastructure
 -------------------------------
 
+* Added support for GHC 8.8.1.
+
 * Removed support for GHC 7.10.3.
 
 * Interface files are now written in directory `_build/VERSION/agda/` at
