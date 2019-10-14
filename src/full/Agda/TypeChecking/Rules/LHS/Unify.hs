@@ -248,12 +248,13 @@ eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
 ----------------------------------------------------
 
 data UnifyState = UState
-  { varTel   :: Telescope
+  { varTel   :: Telescope     -- ^ Don't reduce!
   , flexVars :: FlexibleVars
-  , eqTel    :: Telescope
-  , eqLHS    :: [Arg Term]
-  , eqRHS    :: [Arg Term]
+  , eqTel    :: Telescope     -- ^ Can be reduced eagerly.
+  , eqLHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
+  , eqRHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
   } deriving (Show)
+-- Issues #3578 and #4125: avoid unnecessary reduction in unifier.
 
 lensVarTel   :: Lens' Telescope UnifyState
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
@@ -1012,7 +1013,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       eqTel' <- liftTCM $ reduce eqTel'
 
       -- Compute new lhs and rhs by matching the old ones against rho
-      (lhs', rhs') <- liftTCM . reduce =<< do
+      (lhs', rhs') <- do
         let ps = applySubst rho $ teleNamedArgs $ eqTel s
         (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
         (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
@@ -1047,7 +1048,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       eqTel' <- liftTCM $ reduce eqTel'
 
       -- Compute new lhs and rhs by matching the old ones against rho
-      (lhs', rhs') <- liftTCM . reduce =<< do
+      (lhs', rhs') <- do
         let ps = applySubst rho $ teleNamedArgs $ eqTel s
         (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
         (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
@@ -1117,11 +1118,12 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
   tellUnifyProof sigma
-  Unifies <$> liftTCM (lensEqTel reduce $ s
+  Unifies <$> do
+   liftTCM $ lensEqTel reduce $ s
     { eqTel    = tel
     , eqLHS    = lhs
     , eqRHS    = rhs
-    })
+    }
   where
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
@@ -1165,11 +1167,12 @@ unifyStep s (TypeConInjectivity k d us vs) = do
       deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
-  Unifies <$> liftTCM (lensEqTel reduce $ s
+  Unifies <$> do
+   liftTCM $ lensEqTel reduce $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
     , eqLHS = us ++ dropAt k (eqLHS s)
     , eqRHS = vs ++ dropAt k (eqRHS s)
-    })
+    }
 
 unify :: UnifyState -> UnifyStrategy -> UnifyM (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
