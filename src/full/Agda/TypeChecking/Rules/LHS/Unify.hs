@@ -711,16 +711,18 @@ etaExpandVarStrategy k s = do
       fi       <- fromMaybeMP $ findFlexible i (flexVars s)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         "Found flexible variable " <+> text (show i)
-      -- Issue 2888: Do this if there are projections or if it's a singleton
+      -- Issue 2888: Do this if there are only projections or if it's a singleton
       -- record or if it's unified against a record constructor term. Basically
       -- we need to avoid EtaExpandEquation if EtaExpandVar is possible, or the
       -- forcing translation is unhappy.
       b         <- reduce $ unDom $ getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- catMaybesMP $ liftTCM $ isEtaRecordType b
       ps        <- fromMaybeMP $ allProjElims es
-      sing      <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
-      con       <- liftTCM $ isRecCon v  -- is the other term a record constructor?
-      guard $ not (null ps) || sing || con
+      guard =<< orM
+        [ pure $ not $ null ps
+        , liftTCM $ isRecCon v  -- is the other term a record constructor?
+        , liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+        ]
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         "with projections " <+> prettyTCM (map snd ps)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
@@ -736,10 +738,11 @@ etaExpandEquationStrategy k s = do
   -- Andreas, 2019-02-23, re #3578, is the following reduce redundant?
   Equal Dom{unDom = a} u v <- reduce $ getEqualityUnraised k s
   (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
-  sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
-  projLeft <- liftTCM $ shouldProject u
-  projRight <- liftTCM $ shouldProject v
-  guard $ sing || projLeft || projRight
+  guard =<< orM
+    [ liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+    , liftTCM $ shouldProject u
+    , liftTCM $ shouldProject v
+    ]
   return $ EtaExpandEquation k d pars
   where
     shouldProject :: Term -> TCM Bool
