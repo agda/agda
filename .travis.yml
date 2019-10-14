@@ -93,12 +93,10 @@ jobs:
         - export PATH=$HOME/.cabal/bin:$PATH
         - travis_retry cabal v1-update
       script:
-        - if [ ! -f "$HOME/.cabal/bin/fix-agda-whitespace" ]; then
-            cd src/fix-agda-whitespace/;
-            cabal -v0 v1-install;
-            cd ${TRAVIS_BUILD_DIR};
-          fi
-        - fix-agda-whitespace --check
+        - cd src/fix-agda-whitespace/
+        - cabal v1-install
+        - cd ${TRAVIS_BUILD_DIR}
+        - fix-whitespace --check
 
     - &no-test-job
       stage: stackage
