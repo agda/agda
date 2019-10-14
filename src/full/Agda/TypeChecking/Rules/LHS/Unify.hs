@@ -272,25 +272,35 @@ lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 --lensEqRHS    :: Lens' Args UnifyState
 --lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
+-- UNUSED Andreas, 2019-10-14
+-- instance Reduce UnifyState where
+--   reduce' (UState var flex eq lhs rhs) =
+--     UState <$> reduce' var
+--            <*> pure flex
+--            <*> reduce' eq
+--            <*> reduce' lhs
+--            <*> reduce' rhs
+
+-- Andreas, 2019-10-14, issues #3578 and #4125:
+-- | Don't ever reduce the whole 'varTel', as it will destroy
+-- readability of the context in interactive editing!
+-- To make sure this insight is not lost, the following
+-- dummy instance should prevent a proper 'Reduce' instance for 'UnifyState'.
 instance Reduce UnifyState where
-  reduce' (UState var flex eq lhs rhs) =
-    UState <$> reduce' var
-           <*> pure flex
-           <*> reduce' eq
-           <*> reduce' lhs
-           <*> reduce' rhs
+  reduce' = __IMPOSSIBLE__
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --reduceEqTel :: UnifyState -> TCM UnifyState
 --reduceEqTel = lensEqTel reduce
 
-instance Normalise UnifyState where
-  normalise' (UState var flex eq lhs rhs) =
-    UState <$> normalise' var
-           <*> pure flex
-           <*> normalise' eq
-           <*> normalise' lhs
-           <*> normalise' rhs
+-- UNUSED Andreas, 2019-10-14
+-- instance Normalise UnifyState where
+--   normalise' (UState var flex eq lhs rhs) =
+--     UState <$> normalise' var
+--            <*> pure flex
+--            <*> normalise' eq
+--            <*> normalise' lhs
+--            <*> normalise' rhs
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -1072,13 +1082,13 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
       projectFlexible = [ FlexibleVar (flexHiding fi) (flexOrigin fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
   tellUnifySubst $ rho
-  Unifies <$> liftTCM (reduce $ UState
+  return $ Unifies $ UState
     { varTel   = varTel'
     , flexVars = projectFlexible ++ liftFlexibles nfields (flexVars s)
     , eqTel    = applyPatSubst rho $ eqTel s
     , eqLHS    = applyPatSubst rho $ eqLHS s
     , eqRHS    = applyPatSubst rho $ eqRHS s
-    })
+    }
   where
     i = flexVar fi
     m = varCount s
