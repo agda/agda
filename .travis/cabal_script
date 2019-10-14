@@ -23,7 +23,7 @@ fold_timer_cmd "latex_html.tests" "Suite of tests for the LaTeX and HTML backend
     TASTY_ANSI_TRICKS=false \
     BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" \
     latex-html-test
-   
+
 fold_timer_cmd "examples" "Suite of examples"\
   make BUILD_DIR=$BUILD_DIR examples
 
@@ -55,7 +55,7 @@ fold_timer_cmd "benchmark" "Benchmark suite without creating logs"\
 
 travis_fold start "compiler.tests"
 title "Compiler tests"
-travis_time_start 
+travis_time_start
 
 make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
 if [[ $GHC_VER != "8.0.2" ]]; then
