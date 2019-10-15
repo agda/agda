@@ -111,7 +111,11 @@ etaLam i x b = do
   where
     isVar0 _ (Var 0 [])               = True
     -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
-    isVar0 True Level{}               = True
+    -- Jesper, 2019-10-15 issue #3073
+    -- Contracting level arguments is not sound unless the domain type
+    -- is in fact @Level@, e.g. @\(A : Set) → F lzero@ should not be
+    -- eta-contracted to @F@.
+    -- isVar0 True Level{}               = True
     isVar0 tyty (Level (Max 0 [Plus 0 l])) = case l of
       NeutralLevel _ v -> isVar0 tyty v
       UnreducedLevel v -> isVar0 tyty v
