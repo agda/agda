@@ -714,8 +714,9 @@ assign dir x args v = do
             -- are mentioned on the rhs.
             -- In the terminology of free variable analysis, the retained
             -- irrelevant variables are exactly the Unguarded ones.
-      let allowedVars = (`mapVarMap` vars) $ IntMap.filter $ \ o ->
-            not (isIrrelevant o) || isUnguarded o
+            -- Jesper, 2019-10-15: This is actually wrong since it
+            -- will lead to pruning of metas that should not be
+            -- pruned, see #4136.
 
       reportSDoc "tc.meta.assign" 20 $
           let pr (Var n []) = text (show n)
@@ -734,7 +735,7 @@ assign dir x args v = do
       -- since when abstracting irrelevant lhs vars, they may only occur
       -- irrelevantly on rhs.
       -- v <- liftTCM $ occursCheck x (relVL, nonstrictVL, irrVL) v
-      v <- liftTCM $ occursCheck x allowedVars v
+      v <- liftTCM $ occursCheck x vars v
 
       reportSLn "tc.meta.assign" 15 "passed occursCheck"
       verboseS "tc.meta.assign" 30 $ do
@@ -762,7 +763,9 @@ assign dir x args v = do
           Right ids -> do
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
-            return $ Just ids
+            let boundVars = VarSet.fromList $ map fst ids
+            if | fvs `VarSet.isSubsetOf` boundVars -> return $ Just ids
+               | otherwise                         -> return Nothing
           -- we have proper values as arguments which could be cased on
           -- here, we cannot prune, since offending vars could be eliminated
           Left CantInvert  -> return Nothing
@@ -1295,9 +1298,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                | isIrrelevant info = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
+          irrProj <- optIrrelevantProjections <$> pragmaOptions
           case isRC of
             Just (_, Record{ recFields = fs })
-              | length fs == length es -> do
+              | length fs == length es
+              , irrProj || all isRelevant fs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding   = min (getHiding info) (getHiding info')
@@ -1313,8 +1318,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
-            Just _  -> __IMPOSSIBLE__
-            Nothing -> fallback
+            _ -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg info _ | isIrrelevant info -> return vars

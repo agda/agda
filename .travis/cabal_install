@@ -6,7 +6,7 @@ subtitle "*** updating cabal tools ***"
 travis_retry cabal update
 subtitle "*** installing alex, happy, and shelltestrunner ***"
 travis_retry cabal fetch alex happy shelltestrunner
-cabal install -v0 alex happy 
+cabal install -v0 alex happy
 cabal install -v0 --ghc-option=-w shelltestrunner
 
 ##############################################################################

@@ -117,7 +117,7 @@ fold_cmd() {
   local name="${1}"
   shift
   local cmd=("${@}")
-  travis_fold start ${name} 
+  travis_fold start ${name}
   "${cmd[@]}"
   local result="${?}"
   travis_fold end ${name}
@@ -133,7 +133,7 @@ subtitle() {
   echo -e "\033[34m${1}\033[0m"
 }
 
-# TODO: rewrite this function 
+# TODO: rewrite this function
 fold_timer_cmd() {
   local name="${1}"
   local title="${2}"
@@ -141,7 +141,7 @@ fold_timer_cmd() {
   local cmd=("${@}")
   echo -en "travis_fold:start:${name}\\r${ANSI_CLEAR}"
   title "${title}"
-  travis_time_start 
+  travis_time_start
   "${cmd[@]}"
   local result="${?}"
   travis_time_finish

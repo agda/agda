@@ -19,6 +19,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   , NamedClause(..)
   , reifyPatterns
   , reifyUnblocked
+  , blankNotInScope
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
@@ -903,6 +904,14 @@ stripImplicits params ps = do
           varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
                                  = all (varOrDot . namedArg) ps
           varOrDot _             = False
+
+-- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
+-- if they are currently not in scope.
+blankNotInScope :: (MonadTCEnv m, BlankVars a) => a -> m a
+blankNotInScope e = do
+  names <- Set.fromList . filter ((== C.InScope) . C.isInScope) <$> getContextNames
+  return $ blank names e
+
 
 -- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
 --   an underscore @_@. It is used for printing dot patterns: we don't want to

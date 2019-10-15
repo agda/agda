@@ -1,4 +1,4 @@
-
+-- Unexpected context for generalized type #3110
 postulate
   Nat : Set
   Fin : Nat → Set

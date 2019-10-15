@@ -12,62 +12,81 @@
 --   splitting (see @Agda.Interaction.MakeCase@).
 --
 --   A unification problem (of type @UnifyState@) consists of:
+--
 --   1. A telescope @varTel@ of free variables, some or all of which are
 --      flexible (as indicated by @flexVars@).
+--
 --   2. A telescope @eqTel@ containing the types of the equations.
+--
 --   3. Left- and right-hand sides for each equation:
 --      @varTel ⊢ eqLHS : eqTel@ and @varTel ⊢ eqRHS : eqTel@.
 --
 --   The unification algorithm can end in three different ways:
 --   (type @UnificationResult@):
+--
 --   - A *positive success* @Unifies (tel, sigma, ps)@ with @tel ⊢ sigma : varTel@,
 --     @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@,
 --     and @tel ⊢ ps : eqTel@. In this case, @sigma;ps@ is an *equivalence*
 --     between the telescopes @tel@ and @varTel(eqLHS ≡ eqRHS)@.
+--
 --   - A *negative success* @NoUnify err@ means that a conflicting equation
 --     was found (e.g an equation between two distinct constructors or a cycle).
+--
 --   - A *failure* @DontKnow err@ means that the unifier got stuck.
 --
 --   The unification algorithm itself consists of two parts:
+--
 --   1. A *unification strategy* takes a unification problem and produces a
 --      list of suggested unification rules (of type @UnifyStep@). Strategies
 --      can be constructed by composing simpler strategies (see for example the
 --      definition of @completeStrategyAt@).
+--
 --   2. The *unification engine* @unifyStep@ takes a unification rule and tries
 --      to apply it to the given state, writing the result to the UnifyOutput
 --      on a success.
 --
 --   The unification steps (of type @UnifyStep@) are the following:
+--
 --   - *Deletion* removes a reflexive equation @u =?= v : a@ if the left- and
 --     right-hand side @u@ and @v@ are (definitionally) equal. This rule results
 --     in a failure if --without-K is enabled (see \"Pattern Matching Without K\"
 --     by Jesper Cockx, Dominique Devriese, and Frank Piessens (ICFP 2014).
+--
 --   - *Solution* solves an equation if one side is (eta-equivalent to) a
 --     flexible variable. In case both sides are flexible variables, the
 --     unification strategy makes a choice according to the @chooseFlex@
 --     function in @Agda.TypeChecking.Rules.LHS.Problem@.
+--
 --   - *Injectivity* decomposes an equation of the form
 --     @c us =?= c vs : D pars is@ where @c : Δc → D pars js@ is a constructor
 --     of the inductive datatype @D@ into a sequence of equations
 --     @us =?= vs : delta@. In case @D@ is an indexed datatype,
 --     *higher-dimensional unification* is applied (see below).
+--
 --   - *Conflict* detects absurd equations of the form
 --     @c₁ us =?= c₂ vs : D pars is@ where @c₁@ and @c₂@ are two distinct
 --     constructors of the datatype @D@.
+--
 --   - *Cycle* detects absurd equations of the form @x =?= v : D pars is@ where
 --     @x@ is a variable of the datatype @D@ that occurs strongly rigid in @v@.
+--
 --   - *EtaExpandVar* eta-expands a single flexible variable @x : R@ where @R@
 --     is a (eta-expandable) record type, replacing it by one variable for each
 --     field of @R@.
+--
 --   - *EtaExpandEquation* eta-expands an equation @u =?= v : R@ where @R@ is a
 --     (eta-expandable) record type, replacing it by one equation for each field
 --     of @R@. The left- and right-hand sides of these equations are the
 --     projections of @u@ and @v@.
+--
 --   - *LitConflict* detects absurd equations of the form @l₁ =?= l₂ : A@ where
 --     @l₁@ and @l₂@ are distinct literal terms.
+--
 --   - *StripSizeSuc* simplifies an equation of the form
 --     @sizeSuc x =?= sizeSuc y : Size@ to @x =?= y : Size@.
+--
 --   - *SkipIrrelevantEquation@ removes an equation between irrelevant terms.
+--
 --   - *TypeConInjectivity* decomposes an equation of the form
 --     @D us =?= D vs : Set i@ where @D@ is a datatype. This rule is only used
 --     if --injective-type-constructors is enabled.
@@ -229,12 +248,13 @@ eqUnLevel (Equal a u v) = Equal a <$> unLevel u <*> unLevel v
 ----------------------------------------------------
 
 data UnifyState = UState
-  { varTel   :: Telescope
+  { varTel   :: Telescope     -- ^ Don't reduce!
   , flexVars :: FlexibleVars
-  , eqTel    :: Telescope
-  , eqLHS    :: [Arg Term]
-  , eqRHS    :: [Arg Term]
+  , eqTel    :: Telescope     -- ^ Can be reduced eagerly.
+  , eqLHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
+  , eqRHS    :: [Arg Term]    -- ^ Ends up in dot patterns (should not be reduced eagerly).
   } deriving (Show)
+-- Issues #3578 and #4125: avoid unnecessary reduction in unifier.
 
 lensVarTel   :: Lens' Telescope UnifyState
 lensVarTel   f s = f (varTel s) <&> \ tel -> s { varTel = tel }
@@ -253,25 +273,35 @@ lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 --lensEqRHS    :: Lens' Args UnifyState
 --lensEqRHS    f s = f (eqRHS s) <&> \ x -> s { eqRHS = x }
 
+-- UNUSED Andreas, 2019-10-14
+-- instance Reduce UnifyState where
+--   reduce' (UState var flex eq lhs rhs) =
+--     UState <$> reduce' var
+--            <*> pure flex
+--            <*> reduce' eq
+--            <*> reduce' lhs
+--            <*> reduce' rhs
+
+-- Andreas, 2019-10-14, issues #3578 and #4125:
+-- | Don't ever reduce the whole 'varTel', as it will destroy
+-- readability of the context in interactive editing!
+-- To make sure this insight is not lost, the following
+-- dummy instance should prevent a proper 'Reduce' instance for 'UnifyState'.
 instance Reduce UnifyState where
-  reduce' (UState var flex eq lhs rhs) =
-    UState <$> reduce' var
-           <*> pure flex
-           <*> reduce' eq
-           <*> reduce' lhs
-           <*> reduce' rhs
+  reduce' = __IMPOSSIBLE__
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --reduceEqTel :: UnifyState -> TCM UnifyState
 --reduceEqTel = lensEqTel reduce
 
-instance Normalise UnifyState where
-  normalise' (UState var flex eq lhs rhs) =
-    UState <$> normalise' var
-           <*> pure flex
-           <*> normalise' eq
-           <*> normalise' lhs
-           <*> normalise' rhs
+-- UNUSED Andreas, 2019-10-14
+-- instance Normalise UnifyState where
+--   normalise' (UState var flex eq lhs rhs) =
+--     UState <$> normalise' var
+--            <*> pure flex
+--            <*> normalise' eq
+--            <*> normalise' lhs
+--            <*> normalise' rhs
 
 instance PrettyTCM UnifyState where
   prettyTCM state = "UnifyState" $$ nest 2 (vcat $
@@ -682,16 +712,18 @@ etaExpandVarStrategy k s = do
       fi       <- fromMaybeMP $ findFlexible i (flexVars s)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         "Found flexible variable " <+> text (show i)
-      -- Issue 2888: Do this if there are projections or if it's a singleton
+      -- Issue 2888: Do this if there are only projections or if it's a singleton
       -- record or if it's unified against a record constructor term. Basically
       -- we need to avoid EtaExpandEquation if EtaExpandVar is possible, or the
       -- forcing translation is unhappy.
       b         <- reduce $ unDom $ getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- catMaybesMP $ liftTCM $ isEtaRecordType b
       ps        <- fromMaybeMP $ allProjElims es
-      sing      <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
-      con       <- liftTCM $ isRecCon v  -- is the other term a record constructor?
-      guard $ not (null ps) || sing || con
+      guard =<< orM
+        [ pure $ not $ null ps
+        , liftTCM $ isRecCon v  -- is the other term a record constructor?
+        , liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+        ]
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         "with projections " <+> prettyTCM (map snd ps)
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
@@ -707,10 +739,11 @@ etaExpandEquationStrategy k s = do
   -- Andreas, 2019-02-23, re #3578, is the following reduce redundant?
   Equal Dom{unDom = a} u v <- reduce $ getEqualityUnraised k s
   (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
-  sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
-  projLeft <- liftTCM $ shouldProject u
-  projRight <- liftTCM $ shouldProject v
-  guard $ sing || projLeft || projRight
+  guard =<< orM
+    [ liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+    , liftTCM $ shouldProject u
+    , liftTCM $ shouldProject v
+    ]
   return $ EtaExpandEquation k d pars
   where
     shouldProject :: Term -> TCM Bool
@@ -980,7 +1013,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       eqTel' <- liftTCM $ reduce eqTel'
 
       -- Compute new lhs and rhs by matching the old ones against rho
-      (lhs', rhs') <- liftTCM . reduce =<< do
+      (lhs', rhs') <- do
         let ps = applySubst rho $ teleNamedArgs $ eqTel s
         (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
         (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
@@ -1015,7 +1048,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       eqTel' <- liftTCM $ reduce eqTel'
 
       -- Compute new lhs and rhs by matching the old ones against rho
-      (lhs', rhs') <- liftTCM . reduce =<< do
+      (lhs', rhs') <- do
         let ps = applySubst rho $ teleNamedArgs $ eqTel s
         (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
         (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
@@ -1053,13 +1086,13 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
       projectFlexible = [ FlexibleVar (flexHiding fi) (flexOrigin fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
   tellUnifySubst $ rho
-  Unifies <$> liftTCM (reduce $ UState
+  return $ Unifies $ UState
     { varTel   = varTel'
     , flexVars = projectFlexible ++ liftFlexibles nfields (flexVars s)
     , eqTel    = applyPatSubst rho $ eqTel s
     , eqLHS    = applyPatSubst rho $ eqLHS s
     , eqRHS    = applyPatSubst rho $ eqRHS s
-    })
+    }
   where
     i = flexVar fi
     m = varCount s
@@ -1085,11 +1118,12 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   rhs   <- expandKth $ eqRHS s
   let (tel, sigma) = expandTelescopeVar (eqTel s) k delta c
   tellUnifyProof sigma
-  Unifies <$> liftTCM (lensEqTel reduce $ s
+  Unifies <$> do
+   liftTCM $ lensEqTel reduce $ s
     { eqTel    = tel
     , eqLHS    = lhs
     , eqRHS    = rhs
-    })
+    }
   where
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
@@ -1133,11 +1167,12 @@ unifyStep s (TypeConInjectivity k d us vs) = do
       deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
-  Unifies <$> liftTCM (lensEqTel reduce $ s
+  Unifies <$> do
+   liftTCM $ lensEqTel reduce $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
     , eqLHS = us ++ dropAt k (eqLHS s)
     , eqRHS = vs ++ dropAt k (eqRHS s)
-    })
+    }
 
 unify :: UnifyState -> UnifyStrategy -> UnifyM (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s

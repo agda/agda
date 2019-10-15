@@ -931,9 +931,18 @@ checkRecordExpression cmp mfs e t = do
             ]
           postponeTypeCheckingProblem_ $ CheckExpr cmp e t
 
--- | @checkRecordUpdate ei recexpr fs e t@
--- Precondition @e = RecUpdate ei recexpr fs@.
-checkRecordUpdate :: Comparison -> A.ExprInfo -> A.Expr -> A.Assigns -> A.Expr -> Type -> TCM Term
+-- | @checkRecordUpdate cmp ei recexpr fs e t@
+--
+-- Preconditions: @e = RecUpdate ei recexpr fs@ and @t@ is reduced.
+--
+checkRecordUpdate
+  :: Comparison   -- ^ @cmp@
+  -> A.ExprInfo   -- ^ @ei@
+  -> A.Expr       -- ^ @recexpr@
+  -> A.Assigns    -- ^ @fs@
+  -> A.Expr       -- ^ @e = RecUpdate ei recexpr fs@
+  -> Type         -- ^ Reduced.
+  -> TCM Term
 checkRecordUpdate cmp ei recexpr fs e t = do
   case unEl t of
     Def r vs  -> do
@@ -992,30 +1001,37 @@ scopedExpr e                      = return e
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr = checkExpr' CmpLeq
 
-checkExpr' :: Comparison -> A.Expr -> Type -> TCM Term
-checkExpr' cmp e t0 =
+-- Andreas, 2019-10-13, issue #4125:
+-- For the sake of readable types in interactive program construction,
+-- avoid unnecessary unfoldings via 'reduce' in the type checker!
+checkExpr'
+  :: Comparison
+  -> A.Expr
+  -> Type        -- ^ Unreduced!
+  -> TCM Term
+checkExpr' cmp e t =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExprCall cmp e t0) $ localScope $ doExpandLast $ unfoldInlined =<< do
+  traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
-          [ fsep [ prettyTCM e, ":", prettyTCM t0 ]
+          [ fsep [ prettyTCM e, ":", prettyTCM t ]
           , nest 2 $ "at " <+> (text . prettyShow =<< getCurrentRange)
           ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
-      "Checking" <+> fsep [ prettyTCM e, ":", text (show t0) ]
-    t <- reduce t0
+      "Checking" <+> fsep [ prettyTCM e, ":", text (show t) ]
+    tReduced <- reduce t
     reportSDoc "tc.term.expr.top" 15 $
-        "    --> " <+> prettyTCM t
+        "    --> " <+> prettyTCM tReduced
 
     e <- scopedExpr e
 
-    tryInsertHiddenLambda e t $ case e of
+    tryInsertHiddenLambda e tReduced $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) cmp t0 i ii
-        A.Underscore i -> checkUnderscore cmp t0 i
+        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' RunMetaOccursCheck) cmp t i ii
+        A.Underscore i -> checkUnderscore cmp t i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -1129,7 +1145,7 @@ checkExpr' cmp e t0 =
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
 
-        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
+        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e tReduced
 
         A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asksTC getRelevance)
@@ -1155,12 +1171,16 @@ checkExpr' cmp e t0 =
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
   --   else fallback.
-  tryInsertHiddenLambda :: A.Expr -> Type -> TCM Term -> TCM Term
-  tryInsertHiddenLambda e t fallback
+  tryInsertHiddenLambda
+    :: A.Expr
+    -> Type      -- ^ Reduced.
+    -> TCM Term
+    -> TCM Term
+  tryInsertHiddenLambda e tReduced fallback
     -- Insert hidden lambda if all of the following conditions are met:
     -- type is a hidden function type, {x : A} -> B or {{x : A}} -> B
-    -- expresion is not a lambda with the appropriate hiding yet
-    | Pi (Dom{domInfo = info, unDom = a}) b <- unEl t
+    -- expression is not a lambda with the appropriate hiding yet
+    | Pi (Dom{domInfo = info, unDom = a}) b <- unEl tReduced
         , let h = getHiding info
         , notVisible h
         -- expression is not a matching hidden lambda or question mark
@@ -1188,7 +1208,7 @@ checkExpr' cmp e t0 =
     doInsert info y = do
       x <- C.setNotInScope <$> freshName rx y
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) t
+      checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
 
     hiddenLambdaOrHole h e = case e of
       A.AbsurdLam _ h'        -> sameHiding h h'
@@ -1215,6 +1235,7 @@ checkExpr' cmp e t0 =
       A.ScopedExpr{} -> __IMPOSSIBLE__
       A.ETel{}       -> __IMPOSSIBLE__
       _ -> False
+
 ---------------------------------------------------------------------------
 -- * Reflection
 ---------------------------------------------------------------------------
@@ -1266,7 +1287,11 @@ unquoteTactic tac hole goal = do
 -- | Check an interaction point without arguments.
 checkQuestionMark
   :: (Comparison -> Type -> TCM (MetaId, Term))
-  -> Comparison -> Type -> A.MetaInfo -> InteractionId -> TCM Term
+  -> Comparison
+  -> Type            -- ^ Not reduced!
+  -> A.MetaInfo
+  -> InteractionId
+  -> TCM Term
 checkQuestionMark new cmp t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
     [ "Found interaction point"

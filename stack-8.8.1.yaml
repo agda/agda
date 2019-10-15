@@ -1,0 +1,59 @@
+resolver: ghc-8.8.1
+
+extra-deps:
+- aeson-1.4.5.0
+- alex-3.2.4
+- async-2.2.2
+- blaze-html-0.9.1.2
+- boxes-0.1.5
+- data-hash-0.2.0.1
+- edit-distance-0.2.2.1
+- equivalence-0.3.5
+- exceptions-0.10.3
+- geniplate-mirror-0.7.6
+- gitrev-1.3.1
+- happy-1.19.12
+- hashable-1.3.0.0
+- hashtables-1.2.3.4
+- ieee754-0.8.0
+- murmur-hash-0.1.0.9
+- regex-tdfa-1.3.0
+- split-0.2.3.3
+- strict-0.3.2
+- unordered-containers-0.2.10.0
+- uri-encode-1.5.0.5
+- zlib-0.6.2.1
+- STMonadTrans-0.4.4
+- attoparsec-0.13.2.3
+- base-compat-0.11.0
+- blaze-builder-0.4.1.0
+- blaze-markup-0.8.2.3
+- dlist-0.8.0.7
+- fail-4.9.0.0
+- network-uri-2.6.1.0
+- primitive-0.7.0.0
+- random-1.1
+- regex-base-0.94.0.0
+- scientific-0.3.6.2
+- tagged-0.8.6
+- th-abstraction-0.3.1.0
+- time-compat-1.9.2.2
+- transformers-compat-0.6.5
+- utf8-string-1.0.1.1
+- uuid-types-1.0.3
+- vector-0.12.0.3
+- base-orphans-0.8.1
+- integer-logarithms-1.0.3
+- cpphs-1.20.8
+- text-icu-0.7.0.1
+- old-locale-1.0.0.7
+- old-time-1.1.0.3
+- polyparse-1.13
+
+flags:
+  transformers-compat:
+    five-three: true
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'

@@ -1037,7 +1037,6 @@ leqType = compareType CmpLeq
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
 --
---   Precondition: @a@ and @b@ are reduced.
 coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type -> m Term
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
@@ -1084,7 +1083,6 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
 --
 --   For now, we do a cheap heuristics.
 --
---   Precondition: types are reduced.
 coerceSize :: MonadConversion m => (Type -> Type -> m ()) -> Term -> Type -> Type -> m ()
 coerceSize leqType v t1 t2 = verboseBracket "tc.conv.size.coerce" 45 "coerceSize" $
   workOnTypes $ do
@@ -1095,11 +1093,11 @@ coerceSize leqType v t1 t2 = verboseBracket "tc.conv.size.coerce" 45 "coerceSize
         , "to type   t2 =" <+> pretty t2
         ]
     let fallback = leqType t1 t2
-        done = caseMaybeM (isSizeType t1) fallback $ \ _ -> return ()
+        done = caseMaybeM (isSizeType =<< reduce t1) fallback $ \ _ -> return ()
     -- Andreas, 2015-07-22, Issue 1615:
     -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
     -- the constraint v < v2!
-    caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+    caseMaybeM (isSizeType =<< reduce t2) fallback $ \ b2 -> do
       -- Andreas, 2017-01-20, issue #2329:
       -- If v is not a size suitable for the solver, like a neutral term,
       -- we can only rely on the type.

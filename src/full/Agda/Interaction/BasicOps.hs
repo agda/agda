@@ -653,7 +653,7 @@ getSolvedInteractionPoints all norm = concat <$> do
               v <- instantiate v
               let isMeta = case v of MetaV{} -> True; _ -> False
               if isMeta && not all then return [] else do
-                e <- reify =<< normalForm norm v
+                e <- blankNotInScope =<< reify =<< normalForm norm v
                 return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
