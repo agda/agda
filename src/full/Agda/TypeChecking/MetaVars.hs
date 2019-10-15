@@ -1298,9 +1298,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                | isIrrelevant info = return vars
                | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
+          irrProj <- optIrrelevantProjections <$> pragmaOptions
           case isRC of
             Just (_, Record{ recFields = fs })
-              | length fs == length es -> do
+              | length fs == length es
+              , irrProj || all isRelevant fs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding   = min (getHiding info) (getHiding info')
@@ -1316,8 +1318,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
-            Just _  -> __IMPOSSIBLE__
-            Nothing -> fallback
+            _ -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg info _ | isIrrelevant info -> return vars

@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  [30, 33] _15 (p = (squash a)) = a : A
+Unsolved metas at the following locations:
+  Issue2170-unify.agda:20,42-43
+  Issue2170-unify.agda:20,45-49
