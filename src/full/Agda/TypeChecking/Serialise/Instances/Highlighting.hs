@@ -80,6 +80,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.CoverageProblem     = icodeN 9 ()
   icod_ HP.CatchallClause      = icodeN 10 ()
   icod_ HP.ConfluenceProblem   = icodeN 11 ()
+  icod_ HP.MissingDefinition   = icodeN 12 ()
 
   value = vcase valu where
     valu [0] = valuN HP.Error
@@ -94,6 +95,7 @@ instance EmbPrj HP.OtherAspect where
     valu [9] = valuN HP.CoverageProblem
     valu [10] = valuN HP.CatchallClause
     valu [11] = valuN HP.ConfluenceProblem
+    valu [12] = valuN HP.MissingDefinition
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where

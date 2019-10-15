@@ -688,9 +688,9 @@ warningHighlighting w = case tcWarning w of
     OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
     OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
     ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
+    MissingDefinitions{}             -> missingDefinitionHighlighting $ getRange w
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty
-    MissingDefinitions{}              -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty
     PragmaCompiled{}                  -> mempty
@@ -742,6 +742,10 @@ catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
 confluenceErrorHighlighting :: Range -> File
 confluenceErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
+
+missingDefinitionHighlighting :: Range -> File
+missingDefinitionHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+  where m = parserBased { otherAspects = Set.singleton MissingDefinition }
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

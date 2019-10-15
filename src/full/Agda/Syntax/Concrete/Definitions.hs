@@ -209,7 +209,7 @@ data DeclarationWarning
       --   that does not apply to any function.
   | InvalidCoverageCheckPragma Range
       -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function
-  | MissingDefinitions [Name]
+  | MissingDefinitions [(Name, Range)]
   | ShadowingInTelescope [(Name, [Range])]
   | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
@@ -407,7 +407,7 @@ instance Pretty DeclarationWarning where
     ++ punctuate comma  (map pretty xs)
   pretty (MissingDefinitions xs) = fsep $
    pwords "The following names are declared but not accompanied by a definition:"
-   ++ punctuate comma (map pretty xs)
+   ++ punctuate comma (map (pretty . fst) xs)
   pretty (NotAllowedInMutual r nd) = fsep $
     [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
@@ -604,7 +604,13 @@ data NiceEnv = NiceEnv
     -- ^ Stack of warnings. Head is last warning.
   }
 
-type LoneSigs     = Map Name (Name, DataRecOrFun)
+data LoneSig = LoneSig
+  { loneSigRange :: Range
+  , loneSigName  :: Name
+  , loneSigKind  :: DataRecOrFun
+  }
+
+type LoneSigs     = Map Name LoneSig
      -- ^ We retain the 'Name' also in the codomain since
      --   'Name' as a key is up to @Eq Name@ which ignores the range.
      --   However, without range names are not unique in case the
@@ -636,9 +642,9 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
 
-addLoneSig :: Name -> DataRecOrFun -> Nice ()
-addLoneSig x k = loneSigs %== \ s -> do
-   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (x, k) s
+addLoneSig :: Range -> Name -> DataRecOrFun -> Nice ()
+addLoneSig r x k = loneSigs %== \ s -> do
+   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x k) s
    case mr of
      Nothing -> return s'
      Just{}  -> throwError $ DuplicateDefinition x
@@ -651,7 +657,7 @@ removeLoneSig x = loneSigs %= Map.delete x
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig x = fmap snd . Map.lookup x <$> use loneSigs
+getSig x = fmap loneSigKind . Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -666,17 +672,18 @@ forgetLoneSigs = loneSigs .= Map.empty
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
-  unless (Map.null xs) $ niceWarning $ MissingDefinitions $ Map.keys xs
+  unless (Map.null xs) $ niceWarning $ MissingDefinitions $
+    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
 -- | Get names of lone function signatures.
 
 loneFuns :: LoneSigs -> [Name]
-loneFuns = map fst . filter (isFunName . snd . snd) . Map.toList
+loneFuns = map fst . filter (isFunName . loneSigKind . snd) . Map.toList
 
 -- | Create a 'LoneSigs' map from an association list.
 
-loneSigsFromLoneNames :: [(Name, DataRecOrFun)] -> LoneSigs
-loneSigsFromLoneNames = Map.fromList . map (\ (x,k) -> (x, (x,k)))
+loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -> LoneSigs
+loneSigsFromLoneNames = Map.fromList . map (\(r,x,k) -> (x, LoneSig r x k))
 
 -- | Lens for field '_termChk'.
 
@@ -760,15 +767,15 @@ niceWarning :: DeclarationWarning -> Nice ()
 niceWarning w = modify $ \ st -> st { niceWarn = w : niceWarn st }
 
 data DeclKind
-    = LoneSig DataRecOrFun Name
+    = LoneSigDecl Range DataRecOrFun Name
     | LoneDefs DataRecOrFun [Name]
     | OtherDecl
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ _ tc cc x _)     = LoneSig (FunName tc cc) x
-declKind (NiceRecSig _ _ _ pc uc x pars _)  = LoneSig (RecName pc uc) x
-declKind (NiceDataSig _ _ _ pc uc x pars _) = LoneSig (DataName pc uc) x
+declKind (FunSig r _ _ _ _ _ tc cc x _)     = LoneSigDecl r (FunName tc cc) x
+declKind (NiceRecSig r _ _ pc uc x pars _)  = LoneSigDecl r (RecName pc uc) x
+declKind (NiceDataSig r _ _ pc uc x pars _) = LoneSigDecl r (DataName pc uc) x
 declKind (FunDef r _ abs ins tc cc x _)     = LoneDefs (FunName tc cc) [x]
 declKind (NiceDataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc) [x]
 declKind (NiceRecDef _ _ _ pc uc x _ _ _ pars _)= LoneDefs (RecName pc uc) [x]
@@ -800,7 +807,7 @@ replaceSigs ps = if Map.null ps then id else \case
       -- If declaration d of x is mentioned in the map of lone signatures then replace
       -- it with an axiom
       Just (x, axiom)
-        | (Just (x', _), ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+        | (Just (LoneSig _ x' _), ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
         , getRange x == getRange x'
             -- Use the range as UID to ensure we do not replace the wrong signature.
             -- This could happen if the user wrote a duplicate definition.
@@ -856,8 +863,8 @@ niceDeclarations fixs ds = do
       case declKind d of
         OtherDecl    -> (d :) <$> inferMutualBlocks ds
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
-        LoneSig k x  -> do
-          addLoneSig x k
+        LoneSigDecl r k x  -> do
+          addLoneSig r x k
           let tcccpc = ([terminationCheck k], [coverageCheck k], [positivityCheck k])
           ((tcs, ccs, pcs), (nds0, ds1)) <- untilAllDefined tcccpc ds
           -- If we still have lone signatures without any accompanying definition,
@@ -883,8 +890,8 @@ niceDeclarations fixs ds = do
             case ds of
               []     -> return (tcccpc, ([], ds))
               d : ds -> case declKind d of
-                LoneSig k x -> do
-                  addLoneSig x k
+                LoneSigDecl r k x -> do
+                  addLoneSig r x k
                   let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
                   cons d (untilAllDefined tcccpc' ds)
                 LoneDefs k xs -> do
@@ -921,7 +928,7 @@ niceDeclarations fixs ds = do
           covCheck  <- use coverageCheckPragma
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig x $ FunName termCheck covCheck
+          addLoneSig r x $ FunName termCheck covCheck
           return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t] , ds)
 
         -- Should not show up: all FieldSig are part of a Field block
@@ -985,7 +992,7 @@ niceDeclarations fixs ds = do
         DataSig r Inductive x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ DataName pc uc
+          addLoneSig r x $ DataName pc uc
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
@@ -1016,7 +1023,7 @@ niceDeclarations fixs ds = do
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ RecName pc uc
+          addLoneSig r x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
         Record r x i e c tel t cs   -> do
@@ -1547,10 +1554,10 @@ niceDeclarations fixs ds = do
         -- isTypeSig d | LoneSig{} <- declKind d = True
         -- isTypeSig _                           = False
 
-        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds' ]
+        sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
-        loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 
         termCheck :: NiceDeclaration -> TerminationCheck
         -- Andreas, 2013-02-28 (issue 804):

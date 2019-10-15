@@ -125,6 +125,8 @@ data OtherAspect
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
     -- ^ Code which is being type-checked.
+  | MissingDefinition
+    -- ^ Function declaration without matching definition
   -- NB: We put CatchallClause last so that it is overwritten by other,
   -- more important, aspects in the emacs mode.
   | CatchallClause
