@@ -1,6 +1,6 @@
 Issue543.agda:34,10-72
-.(true) != true of type Bool
+unsquash (squash _) != true of type Bool
 when checking that the inferred type of an application
-  .(true) ≡ unsquash _y_28
+  unsquash (squash _) ≡ unsquash _y_28
 matches the expected type
   true ≡ false

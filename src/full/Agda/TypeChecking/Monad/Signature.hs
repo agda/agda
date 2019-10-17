@@ -490,7 +490,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
                         , clauseBody      = Just $ dropArgs pars $ case oldDef of
-                            Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
+                            Function{funProjection = Just p} -> projDropParsApply p ProjSystem rel ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
@@ -500,6 +500,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 -- The number of remaining parameters. We need to drop the
                 -- lambdas corresponding to these from the clause body above.
                 pars = max 0 $ maybe 0 (pred . projIndex) proj
+                rel  = getRelevance $ defArgInfo d
 
     {- Example
 

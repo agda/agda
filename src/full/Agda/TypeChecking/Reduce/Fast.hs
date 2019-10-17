@@ -120,9 +120,12 @@ compactDef bEnv def rewr = do
   treatAsAbstractProp <-
     (not . optReduceProp <$> pragmaOptions) `and2M` (isPropM $ defType def)
 
+  let irr = isIrrelevant $ defArgInfo def
+
   cdefn <-
     case theDef def of
       _ | treatAsAbstractProp -> pure CAxiom
+      _ | irr                 -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of

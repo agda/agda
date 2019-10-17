@@ -239,10 +239,11 @@ inferApplication exh hd args e = postponeInstanceConstraints $
 inferHeadDef :: ProjOrigin -> QName -> TCM (Elims -> Term, Type)
 inferHeadDef o x = do
   proj <- isProjection x
+  rel  <- getRelevance . defArgInfo <$> getConstInfo x
   let app =
         case proj of
           Nothing -> \ args -> Def x $ map Apply args
-          Just p  -> \ args -> projDropParsApply p o args
+          Just p  -> \ args -> projDropParsApply p o rel args
   mapFst applyE <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).

@@ -539,6 +539,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
         || dontUnfoldProp
+        || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} ->
@@ -677,10 +678,12 @@ unfoldInlined v = do
   case v of
     _ | inTypes -> return v -- Don't inline in types (to avoid unfolding of goals)
     Def f es -> do
-      def <- theDef <$> getConstInfo f
+      info <- getConstInfo f
+      let def = theDef info
+          irr = isIrrelevant $ defArgInfo info
       case def of   -- Only for simple definitions with no pattern matching (TODO: maybe copatterns?)
         Function{ funCompiled = Just Done{}, funDelayed = NotDelayed }
-          | def ^. funInline -> liftReduce $
+          | def ^. funInline , not irr -> liftReduce $
           ignoreBlocking <$> unfoldDefinitionE False (return . notBlocked) (Def f []) f es
         _ -> return v
     _ -> return v

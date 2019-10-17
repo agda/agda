@@ -159,9 +159,10 @@ initialInstanceCandidates t = do
           -- WAS: t <- defType <$> instantiateDef def
           args <- freeVarsToApply q
           let t = defType def `piApply` args
+              rel = getRelevance $ defArgInfo def
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> projDropParsApply p ProjSystem args
+               Function{ funProjection = Just p } -> projDropParsApply p ProjSystem rel args
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
