@@ -212,8 +212,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
-        -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations c t
+        -- compute which constructor arguments are forced (only point constructors)
+        forcedArgs <- if isPathCons == PointCons
+                      then computeForcingAnnotations c t
+                      else return []
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)

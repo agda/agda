@@ -1257,17 +1257,18 @@ patternBindingForcedVars forced v = do
       v' <- lift $ lift $ reduce v
       case v' of
         Var i [] -> bind i  -- we know i is forced
-        Con c ci es -> do
-          fs <- defForced <$> getConstInfo (conName c)
-          let goElim Forced    (Apply v) = return $ fmap (unnamed . dotP) v
-              goElim NotForced (Apply v) = fmap unnamed <$> traverse go v
-              goElim _ _ = __IMPOSSIBLE__
-          (es, bound) <- listen $ zipWithM goElim (fs ++ repeat NotForced) es
-          if IntSet.null bound
-            then return $ dotP v  -- bound nothing
-            else do
-              let cpi = (toConPatternInfo ci) { conPLazy = True } -- Not setting conPType. Is this a problem?
-              return $ ConP c cpi es
+        Con c ci es
+          | Just vs <- allApplyElims es -> do
+            fs <- defForced <$> getConstInfo (conName c)
+            let goArg Forced    v = return $ fmap (unnamed . dotP) v
+                goArg NotForced v = fmap unnamed <$> traverse go v
+            (ps, bound) <- listen $ zipWithM goArg (fs ++ repeat NotForced) vs
+            if IntSet.null bound
+              then return $ dotP v  -- bound nothing
+              else do
+                let cpi = (toConPatternInfo ci) { conPLazy = True } -- Not setting conPType. Is this a problem?
+                return $ ConP c cpi ps
+          | otherwise -> return $ dotP v   -- Higher constructor (es has IApply)
 
         -- Non-pattern positions
         Var _ (_:_) -> return $ dotP v
