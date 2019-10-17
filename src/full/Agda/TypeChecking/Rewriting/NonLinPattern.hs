@@ -113,7 +113,7 @@ instance PatternFrom Type Term NLPat where
       , " of type " <+> prettyTCM t
       ]
     let done = return $ PTerm v
-    case (unEl t , v) of
+    case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
         p <- addContext a (patternFrom r (k+1) (absBody b) body)
