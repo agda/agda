@@ -1025,7 +1025,13 @@ checkExpr' cmp e t =
 
     e <- scopedExpr e
 
-    tryInsertHiddenLambda e tReduced $ case e of
+    irrelevantIfProp <- isPropM t >>= \case
+      True  -> do
+        let mod = defaultModality { modRelevance = Irrelevant }
+        return $ fmap dontCare . applyModalityToContext mod
+      False -> return id
+
+    irrelevantIfProp $ tryInsertHiddenLambda e tReduced $ case e of
 
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
