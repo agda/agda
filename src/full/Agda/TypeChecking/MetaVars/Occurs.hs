@@ -385,9 +385,7 @@ instance Occurs Term where
           Level l     -> Level <$> occurs l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v
-            | isIrrelevant ctx -> dontCare <$> occurs v
-            | otherwise        -> strongly $ abort $ MetaIrrelevantSolution m v
+          DontCare v  -> dontCare <$> occurs v
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es
