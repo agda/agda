@@ -59,7 +59,6 @@ import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
@@ -444,14 +443,8 @@ reifyTerm expandAnonDefs0 v0 = do
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
       reportSLn "reify.def" 100 $ "reifying def " ++ prettyShow x
-      showIrr <- optShowIrrelevant <$> pragmaOptions
-      isprop <- getConstInfo' x >>= \case
-        Right def -> isPropM $ defType def
-        Left{}    -> return False          -- can happen for pattern synonyms
-      if | isprop && not showIrr -> return underscore
-         | otherwise             -> do
-             (x,es) <- reifyPathPConstAsPath x es
-             reifyDisplayForm x es $ reifyDef expandAnonDefs x es
+      (x,es) <- reifyPathPConstAsPath x es
+      reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c ci vs -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
