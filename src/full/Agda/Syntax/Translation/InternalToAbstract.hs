@@ -584,7 +584,10 @@ reifyTerm expandAnonDefs0 v0 = do
 
           nelims x' simpl_named_es'
 
-    I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
+    I.DontCare v -> do
+      showIrr <- optShowIrrelevant <$> pragmaOptions
+      if | showIrr   -> reifyTerm expandAnonDefs v
+         | otherwise -> return underscore
     I.Dummy s [] -> return $ A.Lit $ LitString noRange s
     I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
                             h <- reify h
