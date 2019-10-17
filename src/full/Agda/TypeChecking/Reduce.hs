@@ -527,7 +527,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
-  dontUnfoldProp <- (not . optReduceProp <$> pragmaOptions) `and2M` (isPropM $ defType info)
+  prp <- isPropM $ defType info
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
@@ -538,8 +538,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
         || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
-        || dontUnfoldProp
-        || isIrrelevant (defArgInfo info)
+        || prp || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} ->

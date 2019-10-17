@@ -136,7 +136,6 @@ data PragmaOptions = PragmaOptions
   , optUseUnicode                :: Bool
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
-  , optReduceProp                :: Bool
   , optAllowUnsolved             :: Bool
   , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
@@ -249,7 +248,6 @@ defaultPragmaOptions = PragmaOptions
   , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
   , optProp                      = False
-  , optReduceProp                = True
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
@@ -416,7 +414,6 @@ restartOptions =
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
-  , (B . not . optReduceProp, "--no-reduce-prop")
   , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
@@ -516,12 +513,6 @@ propFlag o = return $ o { optProp = True }
 
 noPropFlag :: Flag PragmaOptions
 noPropFlag o = return $ o { optProp = False }
-
-reducePropFlag :: Flag PragmaOptions
-reducePropFlag o = return $ o { optReduceProp = True }
-
-noReducePropFlag :: Flag PragmaOptions
-noReducePropFlag o = return $ o { optReduceProp = False }
 
 experimentalIrrelevanceFlag :: Flag PragmaOptions
 experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
@@ -928,10 +919,6 @@ pragmaOptions =
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
-    , Option []     ["reduce-prop"] (NoArg reducePropFlag)
-                    "enable reduction of definitions in Prop (default)"
-    , Option []     ["no-reduce-prop"] (NoArg noReducePropFlag)
-                    "disable reduction of definitions in Prop"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
