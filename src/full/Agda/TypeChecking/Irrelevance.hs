@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.
 
@@ -479,10 +480,12 @@ instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
 
 -- | Is a type a proposition?  (Needs reduction.)
 
-isPropM :: (LensSort a, MonadReduce m) => a -> m Bool
-isPropM a = reduce (getSort a) <&> \case
-  Prop{} -> True
-  _      -> False
+isPropM :: (LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
+isPropM a = do
+  traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM (getSort a) <+> "in Prop?") $ do
+  reduce (getSort a) <&> \case
+    Prop{} -> True
+    _      -> False
 
-isIrrelevantOrPropM :: (LensRelevance a, LensSort a, MonadReduce m) => a -> m Bool
+isIrrelevantOrPropM :: (LensRelevance a, LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x

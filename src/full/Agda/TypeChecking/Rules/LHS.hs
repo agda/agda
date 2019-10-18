@@ -1800,7 +1800,8 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, LensSort a)
+checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
+                        LensSort a, PrettyTCM a)
                     => DataOrRecord -> a -> Maybe (Arg Type) -> m ()
 checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
