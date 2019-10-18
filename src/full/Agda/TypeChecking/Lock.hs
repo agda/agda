@@ -57,6 +57,9 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   -- Strategy: compute allowed variables, check that @t@ doesn't use more.
   mv <- isVar =<< reduce (unArg lk)
   caseMaybe mv noVar $ \ i -> do
+
+  isLock i
+
   cxt <- getContext
   let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
 
@@ -88,7 +91,10 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     isVar (MetaV{}) = patternViolation
     isVar _ = return $ Nothing
     noVar = typeError $ GenericError "lock should be a var"
-
+    isLock i = do
+      islock <- getLock . domInfo <$> lookupBV i
+      unless (islock == IsLock) $
+        typeError $ GenericError "Cannot eliminate with non-lock variable."
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
