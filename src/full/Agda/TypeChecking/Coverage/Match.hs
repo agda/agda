@@ -87,6 +87,8 @@ data BlockingVar = BlockingVar
   , blockingVarOverlap :: Bool
     -- ^ True if at least one clause has a variable pattern in this
     --   position.
+  , blockingVarLazy :: Bool
+    -- ^ True if at least one clause has a lazy pattern in this position.
   } deriving (Show)
 
 type BlockingVars = [BlockingVar]
@@ -207,7 +209,7 @@ isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
   VarP{}      -> return True
   DotP{}      -> return True
-  ConP c i ps -> andM $ (isEtaCon $ conName c)
+  ConP c i ps -> andM $ return (conPLazy i)
                       : (map (isTrivialPattern . namedArg) ps)
   DefP{}      -> return False
   LitP{}      -> return False
@@ -219,11 +221,12 @@ isTrivialPattern p = case p of
 type MatchResult = Match SplitInstantiation
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs ls o) = cat
+  pretty (BlockingVar i cs ls o l) = cat
     [ text ("variable " ++ show i)
     , if null cs then empty else " blocked on constructors" <+> pretty cs
     , if null ls then empty else " blocked on literals" <+> pretty ls
     , if o then " (overlapping)" else empty
+    , if l then " (lazy)" else empty
     ]
 
 yes :: Monad m => a -> m (Match a)
@@ -232,11 +235,11 @@ yes = return . Yes
 no :: Monad m => m (Match a)
 no = return No
 
-blockedOnConstructor :: Monad m => Nat -> ConHead -> m (Match a)
-blockedOnConstructor i c = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False]
+blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False $ conPLazy ci]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
-blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False]
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
 
 blockedOnProjection :: Monad m => m (Match a)
 blockedOnProjection = return $ Block (BlockedOnProj False) []
@@ -262,9 +265,9 @@ overlapping = map setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (BlockingVar x cons lits o) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' lits' o') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o')
-      Nothing -> BlockingVar x cons lits True
+    upd (BlockingVar x cons lits o l) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o' l') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l')
+      Nothing -> BlockingVar x cons lits True l
 
 setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
 setBlockedOnResultOverlap b = case b of
@@ -430,8 +433,8 @@ matchPat p q = case p of
 
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.
-  ConP c _ ps -> unDotP q >>= unLitP >>= \case
-    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
+  ConP c ci ps -> unDotP q >>= unLitP >>= \case
+    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
     ConP c' i qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -439,7 +442,7 @@ matchPat p q = case p of
     DefP{}   -> no
     LitP{}    -> __IMPOSSIBLE__  -- excluded by typing and unLitP
     ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
+    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
 
   DefP o c ps -> unDotP q >>= \case
     VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c

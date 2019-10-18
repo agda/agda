@@ -853,7 +853,8 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
   where
-    xs       = bs
+    xs             = strict ++ lazy
+    (lazy, strict) = List.partition blockingVarLazy bs
 {- KEEP!
 --  Andreas, 2012-10-13
 --  The following split strategy which prefers all-constructor columns
@@ -1245,7 +1246,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1254,7 +1255,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty Nothing
 
 -- | @split ind splitClause x = return res@
@@ -1329,7 +1330,7 @@ split' :: CheckEmpty
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing
-       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 
