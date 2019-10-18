@@ -61,6 +61,7 @@ instance Semigroup (Match a) where
     Yes s us   <> Yes s' vs        = Yes (s <> s') (us <> vs)
     Yes _ _    <> No               = No
     Yes _ _    <> DontKnow m       = DontKnow m
+    No         <> DontKnow m       = DontKnow m -- Issue 2964: We need to be conservative wrt to splitting order
     No         <> _                = No
 
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
