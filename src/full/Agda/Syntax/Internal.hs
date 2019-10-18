@@ -1485,8 +1485,10 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
   prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
-    pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
+    (lazy <> pretty (conName c)) <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
+          lazy | conPLazy i = "~"
+               | otherwise  = empty
   prettyPrec n (DefP o q nps)= mparens (n > 0 && not (null nps)) $
     pretty q <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
