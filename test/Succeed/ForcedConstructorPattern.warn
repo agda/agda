@@ -3,7 +3,9 @@ split at 3
 |
 +- ForcedConstructorPattern.Vec.nil  -> done, 3 bindings
 |
-'- ForcedConstructorPattern.Vec.cons  -> done, 6 bindings
+'- ForcedConstructorPattern.Vec.cons  -> split at 1
+   |
+   '- Agda.Builtin.Nat.Nat.suc  -> done, 6 bindings
 
 generated split tree for test
 split at 1
