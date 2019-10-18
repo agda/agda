@@ -131,6 +131,8 @@ import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
@@ -169,6 +171,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.PartialOrd
 import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -893,20 +896,31 @@ unifyStep s Solution{ solutionAt   = k
   -- in pattern positions we need to bind them there rather in their forced positions. We can safely
   -- ignore non-pattern positions and forced pattern positions, because in that case there will be
   -- other equations where the variable can be bound.
-  let forcedVars = IntSet.fromList [ flexVar fi | fi <- flexVars s, flexForced fi == Forced ]
+  let forcedVars = IntMap.fromList [ (flexVar fi, getModality fi) | fi <- flexVars s, flexForced fi == Forced ]
   (p, bound) <- patternBindingForcedVars forcedVars u
 
   -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
   -- subtitution we need to turn the bound variables in `p` into dot patterns in the rest of the
   -- substitution.
-  let dotSub = foldr composeS idS
-                  [ inplaceS i (dotP (Var i [])) | i <- IntSet.toList bound ]
+  let dotSub = foldr composeS idS [ inplaceS i (dotP (Var i [])) | i <- IntMap.keys bound ]
+
+  -- We moved the binding site of some forced variables, so we need to update their modalities in
+  -- the telescope. The new modality is the combination of the modality of the variable we are
+  -- instantiating and the modality of the binding site in the pattern (return by
+  -- patternBindingForcedVars).
+  let updModality md vars tel
+        | IntMap.null vars = tel
+        | otherwise        = telFromList $ zipWith upd (downFrom $ size tel) (telToList tel)
+        where
+          upd i a | Just md' <- IntMap.lookup i vars = setModality (md <> md') a
+                  | otherwise                        = a
+  s <- return $ s { varTel = updModality (getModality fi) bound (varTel s) }
 
   reportSDoc "tc.lhs.unify.force" 45 $ vcat
-    [ "forcedVars =" <+> pretty (IntSet.toList forcedVars)
+    [ "forcedVars =" <+> pretty (IntMap.keys forcedVars)
     , "u          =" <+> prettyTCM u
     , "p          =" <+> prettyTCM p
-    , "bound      =" <+> pretty (IntSet.toList bound)
+    , "bound      =" <+> pretty (IntMap.keys bound)
     , "dotSub     =" <+> pretty dotSub ]
 
   -- Check that the type of the variable is equal to the type of the equation
@@ -1241,29 +1255,33 @@ unify s strategy = if isUnifyStateSolved s
 
 -- | Turn a term into a pattern binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: (HasConstInfo m, MonadReduce m) => IntSet -> Term -> m (DeBruijnPattern, IntSet)
+patternBindingForcedVars :: (HasConstInfo m, MonadReduce m) => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
-  runWriterT (evalStateT (go v') forced)
+  runWriterT (evalStateT (go defaultModality v') forced)
   where
-    noForced v = IntSet.null . IntSet.intersection (precomputedFreeVars v) <$> get
+    noForced v = IntSet.null . IntSet.intersection (precomputedFreeVars v) . IntMap.keysSet <$> get
 
-    bind i = do
-      tell   $ IntSet.singleton i
-      modify $ IntSet.delete i
-      return $ varP (deBruijnVar i)
+    bind md i = do
+      Just md' <- gets $ IntMap.lookup i
+      if related md POLE md'    -- The new binding site must be more relevant (more relevant = smaller).
+        then do                 -- The forcing analysis guarantees that there exists such a position.
+          tell   $ IntMap.singleton i md
+          modify $ IntMap.delete i
+          return $ varP (deBruijnVar i)
+        else return $ dotP (Var i [])
 
-    go v = ifM (noForced v) (return $ dotP v) $ do
+    go md v = ifM (noForced v) (return $ dotP v) $ do
       v' <- lift $ lift $ reduce v
       case v' of
-        Var i [] -> bind i  -- we know i is forced
+        Var i [] -> bind md i  -- we know i is forced
         Con c ci es
           | Just vs <- allApplyElims es -> do
             fs <- defForced <$> getConstInfo (conName c)
             let goArg Forced    v = return $ fmap (unnamed . dotP) v
-                goArg NotForced v = fmap unnamed <$> traverse go v
+                goArg NotForced v = fmap unnamed <$> traverse (go $ md <> getModality v) v
             (ps, bound) <- listen $ zipWithM goArg (fs ++ repeat NotForced) vs
-            if IntSet.null bound
+            if IntMap.null bound
               then return $ dotP v  -- bound nothing
               else do
                 let cpi = (toConPatternInfo ci) { conPLazy = True } -- Not setting conPType. Is this a problem?

@@ -60,8 +60,9 @@ instance LensArgInfo (FlexibleVar a) where
   setArgInfo ai fl = fl { flexArgInfo = ai }
   mapArgInfo f  fl = fl { flexArgInfo = f (flexArgInfo fl) }
 
-instance LensHiding (FlexibleVar a) where
-instance LensOrigin (FlexibleVar a) where
+instance LensHiding (FlexibleVar a)
+instance LensOrigin (FlexibleVar a)
+instance LensModality (FlexibleVar a)
 
 -- UNUSED
 -- defaultFlexibleVar :: a -> FlexibleVar a
