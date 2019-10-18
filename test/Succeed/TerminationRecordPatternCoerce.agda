@@ -57,3 +57,6 @@ f' false l p = unit
 f' true (list b' h t) p = f' (isCons tl) tl refl
    where tl : List _
          tl = t (subst p {T} unit)
+
+-- UPDATE: both of these are fine, since non-eta records patterns are not
+-- translated to projections.

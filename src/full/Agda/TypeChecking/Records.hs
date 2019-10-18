@@ -345,6 +345,12 @@ isEtaCon c = getConstInfo' c >>= \case
     Constructor {conData = r} -> isEtaRecord r
     _ -> return False
 
+-- | Going under one of these does not count as a decrease in size for the termination checker.
+isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
+isEtaOrCoinductiveRecordConstructor c =
+  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
+    return $ (Just Inductive, NoEta) /= (recInduction def, recEtaEquality def)
+
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
 isInductiveRecord :: QName -> TCM Bool
 isInductiveRecord r = maybe False (\ d -> recInduction d /= Just CoInductive) <$> isRecord r

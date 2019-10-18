@@ -1,7 +1,9 @@
 -- 2010-10-04
 -- termination checker no longer counts stripping off a record constructor
 -- as decrease
-module Issue334 where
+-- 2019-10-18
+-- It does if it's an inductive non-eta record.
+module Issue334b where
 
 data Unit : Set where
   unit : Unit
@@ -15,8 +17,6 @@ record E : Set where
 
 f : E -> Set
 f (mkE e unit) = f e
--- the record pattern translation does not apply to f
--- still, should not termination check, because
---   f (mkE e u) = f e
--- also does not!
 
+f' : E -> Set
+f' (mkE e u) = f e

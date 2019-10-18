@@ -32,6 +32,7 @@ postulate
   lie : {b : Bool} -> T b
 
 -- this function is rejected
+-- UPDATE: not rejected, non-eta record patterns are not translated away!
 f : {A : Set} -> List A -> Empty
 f (list b h t) = f (t lie)
 
@@ -43,4 +44,3 @@ g l = g (tail l lie)
 -- if they cannot be translated away
 -- should we accept this?
 --   f (list true h t) = f (t _)
-
