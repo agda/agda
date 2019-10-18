@@ -1360,10 +1360,13 @@ checkLHS mf = updateModality checkLHS_ where
           -- Also remember if we are a record pattern.
           isRec <- isRecord d
 
+          -- Mark eta-record matches as lazy
+          lazy <- isEtaRecord d
+
           let cpi = ConPatternInfo { conPRecord = isRec $> PatOCon
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
-                                   , conPLazy   = False }
+                                   , conPLazy   = lazy }
 
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)
