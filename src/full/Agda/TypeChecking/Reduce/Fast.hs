@@ -896,7 +896,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
                   Just n    = List.elemIndex p fields
                   Apply arg = args !! n
               _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
-          | otherwise -> rewriteAM (evalTrueValue (Con c i []) env spine ctrl)
+          | otherwise -> runAM done
 
         -- Case: variable. Look up the variable in the environment and evaluate the resulting
         -- pointer. If the variable is not in the environment it's a free variable and we adjust the
@@ -925,6 +925,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- And we know the spine is empty since literals cannot be applied or projected.
         Lit{} -> runAM (evalTrueValue t emptyEnv [] ctrl)
         Pi{}  -> runAM done
+        DontCare{} -> runAM done
 
         -- Case: non-empty spine. If the focused term has a non-empty spine, we shift the
         -- eliminations onto the spine.
@@ -948,7 +949,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- to slowReduceTerm for these.
         Level{}    -> fallbackAM s
         Sort{}     -> fallbackAM s
-        DontCare{} -> fallbackAM s
         Dummy{}    -> fallbackAM s
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
@@ -1277,7 +1277,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
     -- Fall back to slow reduction. This happens if we encounter a definition that's not supported
     -- by the machine (like a primitive function that does not work on literals), or a term that is
-    -- not supported (Level, Sort, and DontCare at the moment). In this case we decode the current
+    -- not supported (Level and Sort at the moment). In this case we decode the current
     -- focus to a 'Term', call slow reduction and pack up the result in a value closure. If the top
     -- of the control stack is a 'NormaliseK' and the focus is a value closure (i.e. already in
     -- weak-head normal form) we call 'slowNormaliseArgs' and pop the 'NormaliseK' frame. Otherwise
