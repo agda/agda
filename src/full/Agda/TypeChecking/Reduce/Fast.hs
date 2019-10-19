@@ -883,16 +883,20 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           evalPointerAM (unArg v) [] (sucCtrl ctrl)
 
         -- Case: constructor. Perform beta reduction if projected from, otherwise return a value.
-        Con c i [] ->
-          evalIApplyAM spine ctrl $
-          case splitAt ar spine of
-            (args, Proj _ p : spine') -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
-              where
-                fields    = map unArg $ conFields c
-                Just n    = List.elemIndex p fields
-                Apply arg = args !! n
-            _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
-          where CCon{cconSrcCon = c', cconArity = ar} = cdefDef (constInfo (conName c))
+        Con c i []
+          -- Constructors of types in Prop are not representex as
+          -- CCon, so this match might fail!
+          | CCon{cconSrcCon = c', cconArity = ar} <- cdefDef (constInfo (conName c)) ->
+            evalIApplyAM spine ctrl $
+            case splitAt ar spine of
+              (args, Proj _ p : spine')
+                  -> evalPointerAM (unArg arg) spine' ctrl  -- Andreas #2170: fit argToDontCare here?!
+                where
+                  fields    = map unArg $ conFields c
+                  Just n    = List.elemIndex p fields
+                  Apply arg = args !! n
+              _ -> rewriteAM (evalTrueValue (Con c' i []) env spine ctrl)
+          | otherwise -> rewriteAM (evalTrueValue (Con c i []) env spine ctrl)
 
         -- Case: variable. Look up the variable in the environment and evaluate the resulting
         -- pointer. If the variable is not in the environment it's a free variable and we adjust the
