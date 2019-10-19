@@ -117,15 +117,16 @@ data BuiltinEnv = BuiltinEnv
 compactDef :: BuiltinEnv -> Definition -> RewriteRules -> ReduceM CompactDef
 compactDef bEnv def rewr = do
 
-  treatAsAbstractProp <-
-    (not . optReduceProp <$> pragmaOptions) `and2M` (isPropM $ defType def)
-
-  let irr = isIrrelevant $ defArgInfo def
+  -- WARNING: don't use isPropM here because it relies on reduction,
+  -- which causes an infinite loop.
+  let isPrp = case getSort (defType def) of
+        Prop{} -> True
+        _      -> False
+  let irr = isPrp || isIrrelevant (defArgInfo def)
 
   cdefn <-
     case theDef def of
-      _ | treatAsAbstractProp -> pure CAxiom
-      _ | irr                 -> pure CAxiom
+      _ | irr -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
