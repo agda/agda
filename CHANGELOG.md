@@ -179,6 +179,16 @@ Language
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
 
+### Irrelevance and Prop
+
+* Agda will no longer reduce irrelevant definitions and definitions
+  with a type in `Prop`. This does not have an effect on the
+  semantics, but should lead to improved performance (see issues
+  [#4115](https://github.com/agda/agda/issues/4115),
+  [#4118](https://github.com/agda/agda/issues/4118),
+  [#4120](https://github.com/agda/agda/issues/4120),
+  [#4122](https://github.com/agda/agda/issues/4122)).
+
 ### Rewrite rules
 
 * Rewrite rules (option `--rewriting`) with data or record types as
