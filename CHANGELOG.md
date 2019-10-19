@@ -189,6 +189,10 @@ Language
   [#4120](https://github.com/agda/agda/issues/4120),
   [#4122](https://github.com/agda/agda/issues/4122)).
 
+* Terms of a type in `Prop` are now printed as `_`. To show the actual
+  term, you can use the `--show-irrelevant` flag (see issue
+  [#3337](https://github.com/agda/agda/issues/3337).
+
 ### Rewrite rules
 
 * Rewrite rules (option `--rewriting`) with data or record types as
