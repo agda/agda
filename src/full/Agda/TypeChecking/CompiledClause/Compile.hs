@@ -71,7 +71,7 @@ compileClauses mt cs = do
       splitTree <- coverageCheck q t cs
 
       reportSDoc "tc.cc.tree" 20 $ vcat
-        [ "split tree from coverage check "
+        [ "split tree of " <+> prettyTCM q <+> " from coverage check "
         , return $ P.pretty splitTree
         ]
 
@@ -83,18 +83,18 @@ compileClauses mt cs = do
       let cls = map unBruijn cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
-        "clauses patterns  before compilation" : do
+        ("clauses patterns of " <+> prettyTCM q <+> " before compilation") : do
           map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $
-        "clauses before compilation" <?> pretty cs
+        "clauses of " <+> prettyTCM q <+> " before compilation" <?> pretty cs
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 20 $ sep
-        [ "compiled clauses (still containing record splits)"
+        [ "compiled clauses of " <+> prettyTCM q <+> " (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
       cc <- translateCompiledClauses cc
       reportSDoc "tc.cc" 12 $ sep
-        [ "compiled clauses"
+        [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc
         ]
       return (Just splitTree, fmap precomputeFreeVars_ cc)
