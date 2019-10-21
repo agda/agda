@@ -42,6 +42,7 @@ import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.Update (MonadChange, tellDirty)
 
 import Agda.Utils.Impossible
 
@@ -126,7 +127,9 @@ getEtaAndArity (SplitCon c) =
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
-translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
+translateCompiledClauses
+  :: forall m. (HasConstInfo m, MonadChange m)
+  => CompiledClauses -> m CompiledClauses
 translateCompiledClauses cc = do
   reportSDoc "tc.cc.record" 20 $ vcat
     [ "translate record patterns in compiled clauses"
@@ -145,7 +148,7 @@ translateCompiledClauses cc = do
   return cc
   where
 
-    loop :: CompiledClauses -> TCM (CompiledClauses)
+    loop :: CompiledClauses -> m (CompiledClauses)
     loop cc = case cc of
       Fail      -> return cc
       Done{}    -> return cc
@@ -153,7 +156,7 @@ translateCompiledClauses cc = do
 
     loops :: Arg Int              -- ^ split variable
           -> Case CompiledClauses -- ^ original split tree
-          -> TCM CompiledClauses
+          -> m CompiledClauses
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
                        , etaBranch      = eta
@@ -205,7 +208,10 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
-recordExpressionsToCopatterns :: CompiledClauses -> TCM CompiledClauses
+recordExpressionsToCopatterns
+  :: (HasConstInfo m, MonadChange m)
+  => CompiledClauses
+  -> m CompiledClauses
 recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
     cc@Fail   -> return cc
@@ -218,6 +224,7 @@ recordExpressionsToCopatterns = \case
           | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
             length vs == ar,                           -- where the constructor application is saturated
             irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
+              tellDirty
               Case (defaultArg $ length xs) <$> do
                 -- translate new cases recursively (there might be nested record expressions)
                 traverse recordExpressionsToCopatterns $ Branches

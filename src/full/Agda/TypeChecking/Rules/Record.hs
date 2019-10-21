@@ -477,7 +477,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
           return c
   addClauses theName $ c' : cs
   reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
-  (mst, cc) <- inTopContext (compileClauses Nothing cs)
+  (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
   whenJust mst $ setSplitTree theName
   setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
@@ -660,7 +660,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               -- projection functions are defined. Record pattern
               -- translation is defined in terms of projection
               -- functions.
-        (mst , cc) <- compileClauses Nothing [clause]
+        (mst, _, cc) <- compileClauses Nothing [clause]
 
         reportSDoc "tc.cc" 60 $ do
           sep [ "compiled clauses of " <+> prettyTCM projname

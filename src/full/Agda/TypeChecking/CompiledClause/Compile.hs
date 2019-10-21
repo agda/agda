@@ -5,6 +5,7 @@ import Prelude hiding (null)
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans.Identity
 
 import Data.Maybe
 import qualified Data.Map as Map
@@ -29,6 +30,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -46,7 +48,7 @@ compileClauses' recpat cs mSplitTree = do
   let notUnreachable = (Just True /=) . clauseUnreachable
   cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
 
-  let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
+  let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses
                 | otherwise                             = return
 
   translate $ caseMaybe mSplitTree (compile cs) $ \splitTree ->
@@ -61,12 +63,14 @@ compileClauses' recpat cs mSplitTree = do
 --   Phases 1. and 2. are skipped if @Nothing@.
 compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
-  -> [Clause] -> TCM (Maybe SplitTree, CompiledClauses)
+  -> [Clause]
+  -> TCM (Maybe SplitTree, Bool, CompiledClauses)
+     -- ^ The 'Bool' indicates whether we turned a record expression into a copattern match.
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
   case mt of
-    Nothing -> (Nothing,) . compile . map unBruijn <$> normaliseProjP cs
+    Nothing -> (Nothing,False,) . compile . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -92,12 +96,12 @@ compileClauses mt cs = do
         [ "compiled clauses of " <+> prettyTCM q <+> " (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
-      cc <- translateCompiledClauses cc
+      (cc, becameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
       reportSDoc "tc.cc" 12 $ sep
         [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc
         ]
-      return (Just splitTree, fmap precomputeFreeVars_ cc)
+      return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.

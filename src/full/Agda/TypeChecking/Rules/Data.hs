@@ -532,7 +532,7 @@ defineCompData d con params names fsT t boundary = do
             }
         cs = [clause]
       addClauses theName cs
-      (mst, cc) <- inTopContext (compileClauses Nothing cs)
+      (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
       setTerminates theName True
@@ -581,7 +581,7 @@ defineProjections dataname con params names fsT t = do
 
     noMutualBlock $ do
       let cs = [clause]
-      (mst , cc) <- inTopContext $ compileClauses Nothing cs
+      (mst, _, cc) <- inTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True

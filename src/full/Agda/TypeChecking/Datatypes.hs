@@ -163,7 +163,7 @@ data ConstructorInfo
 --
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
-getConstructorInfo :: QName -> TCM ConstructorInfo
+getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
 getConstructorInfo c = do
   (theDef <$> getConstInfo c) >>= \case
     Constructor{ conData = d, conArity = n } -> do

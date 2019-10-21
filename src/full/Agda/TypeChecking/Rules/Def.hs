@@ -341,9 +341,16 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         reportSLn  "tc.cc.type" 80 $ show fullType
 
         -- Coverage check and compile the clauses
-        (mst, cc) <- Bench.billTo [Bench.Coverage] $
+        (mst, _recordExpressionBecameCopatternLHS, cc) <- Bench.billTo [Bench.Coverage] $
           inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
+        -- Andreas, 2019-10-21 (see also issue #4142):
+        -- We ignore whether the clause compilation turned some
+        -- record expressions into copatterns
+        -- (_recordExpressionsBecameCopatternLHS),
+        -- since the defCopatternLHS flag is anyway set by traversing
+        -- the compiled clauses looking for a copattern match
+        -- (hasProjectionPatterns).
 
         -- Clause compilation runs the coverage checker, which might add
         -- some extra clauses.

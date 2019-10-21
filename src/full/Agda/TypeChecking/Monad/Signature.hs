@@ -470,7 +470,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                          }
                 GeneralizableVar -> return GeneralizableVar
                 _ -> do
-                  (mst, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
+                  (mst, _, cc) <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef =
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
