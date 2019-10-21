@@ -584,7 +584,7 @@ chaseDisplayForms q = go Set.empty [q]
 hasLoopingDisplayForm :: QName -> TCM Bool
 hasLoopingDisplayForm q = Set.member q <$> chaseDisplayForms q
 
-canonicalName :: QName -> TCM QName
+canonicalName :: HasConstInfo m => QName -> m QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
@@ -597,7 +597,7 @@ canonicalName x = do
     extract (Def x _)  = x
     extract _          = __IMPOSSIBLE__
 
-sameDef :: QName -> QName -> TCM (Maybe QName)
+sameDef :: HasConstInfo m => QName -> QName -> m (Maybe QName)
 sameDef d1 d2 = do
   c1 <- canonicalName d1
   c2 <- canonicalName d2
