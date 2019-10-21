@@ -71,6 +71,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -299,9 +300,10 @@ revisitRecordPatternTranslation qs = do
   -- qccs: compiled clauses of definitions
   (rs, qccs) <- partitionEithers . catMaybes <$> mapM classify qs
   unless (null rs) $ forM_ qccs $ \(q,cc) -> do
-    cc <- translateCompiledClauses cc
-    modifySignature $ updateDefinition q $ updateTheDef $
-      updateCompiledClauses $ const $ Just cc
+    (cc, recordExpressionBecameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
+    modifySignature $ updateDefinition q
+      $ updateTheDef (updateCompiledClauses $ const $ Just cc)
+      . updateDefCopatternLHS (|| recordExpressionBecameCopatternLHS)
   where
   -- Walk through the definitions and return the set of inferred eta record types
   -- and the set of function definitions in the mutual block
