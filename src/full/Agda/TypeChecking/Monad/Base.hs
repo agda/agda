@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -15,6 +16,7 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
 
@@ -103,6 +105,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.WithDefault ( collapseDefault )
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -1535,6 +1538,7 @@ instance Pretty DisplayTerm where
               , nest 2 $ fsep [ "|" <+> pretty w | w <- ws ] ])
         `pApp` es
     where
+      pApp :: Pretty el => Doc -> [el] -> Doc
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
@@ -3451,6 +3455,12 @@ class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the command line options which are currently in effect.
   commandLineOptions :: m CommandLineOptions
 
+  default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
+  pragmaOptions      = lift pragmaOptions
+
+  default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
+  commandLineOptions = lift commandLineOptions
+
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
 
@@ -3459,29 +3469,17 @@ instance MonadIO m => HasOptions (TCMT m) where
     cl <- stPersistentOptions . stPersistentState <$> getTC
     return $ cl { optPragmaOptions = p }
 
-instance HasOptions m => HasOptions (ExceptT e m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
+-- HasOptions lifts through monad transformers
+-- (see default signatures in the HasOptions class).
 
-instance HasOptions m => HasOptions (ListT m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
-
-instance HasOptions m => HasOptions (MaybeT m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
-
-instance HasOptions m => HasOptions (ReaderT r m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
-
-instance HasOptions m => HasOptions (StateT s m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
-
-instance (HasOptions m, Monoid w) => HasOptions (WriterT w m) where
-  pragmaOptions      = lift pragmaOptions
-  commandLineOptions = lift commandLineOptions
+instance HasOptions m => HasOptions (ChangeT m)
+instance HasOptions m => HasOptions (ExceptT e m)
+instance HasOptions m => HasOptions (IdentityT m)
+instance HasOptions m => HasOptions (ListT m)
+instance HasOptions m => HasOptions (MaybeT m)
+instance HasOptions m => HasOptions (ReaderT r m)
+instance HasOptions m => HasOptions (StateT s m)
+instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
 
 -- Ternary options are annoying to deal with so we provide auxiliary
 -- definitions using @collapseDefault@.
@@ -3664,6 +3662,14 @@ instance MonadTCEnv m => MonadTCEnv (StateT s m) where
   askTC   = lift askTC
   localTC = mapStateT . localTC
 
+instance MonadTCEnv m => MonadTCEnv (ChangeT m) where
+  askTC   = lift askTC
+  localTC = mapChangeT . localTC
+
+instance MonadTCEnv m => MonadTCEnv (IdentityT m) where
+  askTC   = lift askTC
+  localTC = mapIdentityT . localTC
+
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC
 
@@ -3715,6 +3721,16 @@ instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m) where
   modifyTC = lift . modifyTC
 
 instance MonadTCState m => MonadTCState (StateT s m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (ChangeT m) where
+  getTC    = lift getTC
+  putTC    = lift . putTC
+  modifyTC = lift . modifyTC
+
+instance MonadTCState m => MonadTCState (IdentityT m) where
   getTC    = lift getTC
   putTC    = lift . putTC
   modifyTC = lift . modifyTC
@@ -3948,27 +3964,21 @@ class ( Applicative tcm, MonadIO tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
+    default liftTCM :: (MonadTCM m, MonadTrans t, tcm ~ t m) => TCM a -> tcm a
+    liftTCM = lift . liftTCM
+
 {-# RULES "liftTCM/id" liftTCM = id #-}
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 
-instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
-  liftTCM = lift . liftTCM
-
-instance MonadTCM tcm => MonadTCM (ListT tcm) where
-  liftTCM = lift . liftTCM
-
-instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
-  liftTCM = lift . liftTCM
-
-instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
-  liftTCM = lift . liftTCM
-
-instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
-  liftTCM = lift . liftTCM
-
-instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
-  liftTCM = lift . liftTCM
+instance MonadTCM tcm => MonadTCM (ChangeT tcm)
+instance MonadTCM tcm => MonadTCM (ExceptT err tcm)
+instance MonadTCM tcm => MonadTCM (IdentityT tcm)
+instance MonadTCM tcm => MonadTCM (ListT tcm)
+instance MonadTCM tcm => MonadTCM (MaybeT tcm)
+instance MonadTCM tcm => MonadTCM (ReaderT r tcm)
+instance MonadTCM tcm => MonadTCM (StateT s tcm)
+instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see

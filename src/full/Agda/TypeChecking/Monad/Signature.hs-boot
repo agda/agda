@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -32,8 +33,14 @@ class ( Functor m
       Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
         "Abstract, thus, not in scope: " ++ prettyShow q
   getConstInfo' :: QName -> m (Either SigError Definition)
-  getConstInfo' q = Right <$> getConstInfo q
+  -- getConstInfo' q = Right <$> getConstInfo q
   getRewriteRulesFor :: QName -> m RewriteRules
+
+  default getConstInfo' :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m (Either SigError Definition)
+  getConstInfo' = lift . getConstInfo'
+
+  default getRewriteRulesFor :: (HasConstInfo n, MonadTrans t, m ~ t n) => QName -> m RewriteRules
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)

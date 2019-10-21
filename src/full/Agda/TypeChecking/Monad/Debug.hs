@@ -11,12 +11,11 @@ import qualified Control.DeepSeq as DeepSeq (force)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import Data.Maybe
 import Data.Monoid ( Monoid)
-
-
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -31,6 +30,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
@@ -150,6 +150,22 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   isDebugPrinting = lift isDebugPrinting
   nowDebugPrinting = mapWriterT nowDebugPrinting
   verboseBracket k n s = mapWriterT $ verboseBracket k n s
+
+instance MonadDebug m => MonadDebug (ChangeT m) where
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
+  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
+  getVerbosity              = lift $ getVerbosity
+  isDebugPrinting           = lift $ isDebugPrinting
+  nowDebugPrinting          = mapChangeT $ nowDebugPrinting
+  verboseBracket k n s      = mapChangeT $ verboseBracket k n s
+
+instance MonadDebug m => MonadDebug (IdentityT m) where
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
+  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
+  getVerbosity              = lift $ getVerbosity
+  isDebugPrinting           = lift $ isDebugPrinting
+  nowDebugPrinting          = mapIdentityT $ nowDebugPrinting
+  verboseBracket k n s      = mapIdentityT $ verboseBracket k n s
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.

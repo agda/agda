@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -11,6 +12,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Identity
 
 import qualified Data.List as List
 import Data.Set (Set)
@@ -61,6 +63,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Size
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -661,10 +664,22 @@ class ( Functor m
 
   -- | Version that reports exceptions:
   getConstInfo' :: QName -> m (Either SigError Definition)
-  getConstInfo' q = Right <$> getConstInfo q
+  -- getConstInfo' q = Right <$> getConstInfo q -- conflicts with default signature
 
   -- | Lookup the rewrite rules with the given head symbol.
   getRewriteRulesFor :: QName -> m RewriteRules
+
+  -- Lifting HasConstInfo through monad transformers:
+
+  default getConstInfo'
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => QName -> m (Either SigError Definition)
+  getConstInfo' = lift . getConstInfo'
+
+  default getRewriteRulesFor
+    :: (HasConstInfo n, MonadTrans t, m ~ t n)
+    => QName -> m RewriteRules
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
@@ -721,29 +736,17 @@ defaultGetConstInfo st env q = do
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
-instance HasConstInfo m => HasConstInfo (ListT m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
+-- HasConstInfo lifts through monad transformers
+-- (see default signatures in HasConstInfo class).
 
-instance HasConstInfo m => HasConstInfo (MaybeT m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
-
-instance HasConstInfo m => HasConstInfo (ExceptT err m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
-
-instance HasConstInfo m => HasConstInfo (ReaderT r m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
-
-instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
-
-instance HasConstInfo m => HasConstInfo (StateT s m) where
-  getConstInfo' = lift . getConstInfo'
-  getRewriteRulesFor = lift . getRewriteRulesFor
+instance HasConstInfo m => HasConstInfo (ChangeT m)
+instance HasConstInfo m => HasConstInfo (ExceptT err m)
+instance HasConstInfo m => HasConstInfo (IdentityT m)
+instance HasConstInfo m => HasConstInfo (ListT m)
+instance HasConstInfo m => HasConstInfo (MaybeT m)
+instance HasConstInfo m => HasConstInfo (ReaderT r m)
+instance HasConstInfo m => HasConstInfo (StateT s m)
+instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
 
 {-# INLINE getConInfo #-}
 getConInfo :: HasConstInfo m => ConHead -> m Definition
