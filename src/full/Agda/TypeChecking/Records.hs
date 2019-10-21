@@ -575,11 +575,11 @@ etaExpandRecord' forceEta r pars u = do
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
-etaExpandRecord_ :: (MonadTCEnv m, HasOptions m, MonadDebug m)
+etaExpandRecord_ :: HasConstInfo m
                  => QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord_ = etaExpandRecord'_ False
 
-etaExpandRecord'_ :: (MonadTCEnv m, HasOptions m, MonadDebug m)
+etaExpandRecord'_ :: HasConstInfo m
                   => Bool -> QName -> Args -> Defn -> Term -> m (Telescope, ConHead, ConInfo, Args)
 etaExpandRecord'_ forceEta r pars def u = do
   let Record{ recConHead     = con
@@ -594,7 +594,9 @@ etaExpandRecord'_ forceEta r pars def u = do
     -- Already expanded.
     Con con_ ci es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      when (con /= con_) $ do
+      -- Andreas, 2019-10-21, issue #4148
+      -- @con == con_@ might fail, but their normal forms should be equal.
+      whenNothingM (conName con `sameDef` conName con_) $ do
         reportSDoc "impossible" 10 $ vcat
           [ "etaExpandRecord_: the following two constructors should be identical"
           , nest 2 $ text $ "con  = " ++ prettyShow con
