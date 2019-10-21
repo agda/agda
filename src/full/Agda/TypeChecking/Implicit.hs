@@ -77,7 +77,9 @@ newMetaArg
   -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x cmp a = do
-  applyModalityToContext info $
+  prp <- isPropM a
+  let irrelevantIfProp = if prp then applyRelevanceToContext Irrelevant else id
+  applyModalityToContext info $ irrelevantIfProp $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)
