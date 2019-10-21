@@ -960,7 +960,9 @@ compareIrrelevant :: MonadConversion m => Type -> Term -> Term -> m ()
 compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
 compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
-compareIrrelevant t v w = do
+compareIrrelevant t v0 w0 = do
+  let v = stripDontCare v0
+      w = stripDontCare w0
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ "compareIrrelevant"
     , nest 2 $ "v =" <+> prettyTCM v
