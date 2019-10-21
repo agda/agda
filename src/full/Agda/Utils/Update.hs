@@ -2,7 +2,7 @@
 
 module Agda.Utils.Update
   ( ChangeT
-  , runChangeT
+  , runChangeT, mapChangeT
   , UpdaterT
   , runUpdaterT
   , Change
@@ -17,8 +17,10 @@ module Agda.Utils.Update
   , Updater2(..)
   ) where
 
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Identity
 import Control.Monad.Trans
+import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict
 
 import Data.Traversable (Traversable(..), traverse)
@@ -34,7 +36,7 @@ class Monad m => MonadChange m where
 
 -- | The @ChangeT@ monad transformer.
 newtype ChangeT m a = ChangeT { fromChangeT :: WriterT Any m a }
-  deriving (Functor, Applicative, Monad, MonadTrans)
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadFail, MonadIO)
 
 instance Monad m => MonadChange (ChangeT m) where
   tellDirty     = ChangeT $ tell $ Any True
@@ -42,22 +44,36 @@ instance Monad m => MonadChange (ChangeT m) where
     (a, Any dirty) <- listen (fromChangeT m)
     return (a, dirty)
 
-type UpdaterT m a = a -> ChangeT m a
-
 -- | Run a 'ChangeT' computation, returning result plus change flag.
 runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
 runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
 
+-- | Run a 'ChangeT' computation, but ignore change flag.
+execChangeT :: Functor m => ChangeT m a -> m a
+execChangeT = fmap fst . runChangeT
+
+-- | Map a 'ChangeT' computation (monad transformer action).
+mapChangeT :: (m (a, Any) -> n (b, Any)) -> ChangeT m a -> ChangeT n b
+mapChangeT f (ChangeT m) = ChangeT (mapWriterT f m)
+
+-- Don't actually track changes with the identity monad:
+
+-- | A mock change monad.  Always assume change has happened.
+instance MonadChange Identity where
+  tellDirty   = return ()
+  listenDirty = fmap (,True)
+
+instance Monad m => MonadChange (IdentityT m) where
+  tellDirty   = IdentityT    $ return ()
+  listenDirty = mapIdentityT $ fmap (,True)
+
+-- * Pure endo function and updater
+
+type UpdaterT m a = a -> ChangeT m a
+
 -- | Blindly run an updater.
 runUpdaterT :: Functor m => UpdaterT m a -> a -> m (a, Bool)
 runUpdaterT f a = runChangeT $ f a
-
--- | A mock change monad.
-instance MonadChange Identity where
-  tellDirty                = Identity ()
-  listenDirty (Identity a) = Identity (a, True)
-
--- * Pure endo function and updater
 
 type EndoFun a = a -> a
 type Change  a = ChangeT Identity a
