@@ -1,4 +1,4 @@
-{-# OPTIONS --prop --show-irrelevant -v tc.conv:50 #-}
+{-# OPTIONS --prop --show-irrelevant #-}
 
 postulate
   P : Prop
