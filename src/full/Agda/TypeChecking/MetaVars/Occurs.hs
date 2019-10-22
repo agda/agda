@@ -832,7 +832,7 @@ killArgs kills m = do
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
       if not (any unArg kills') then return PrunedNothing else do
-        performKill kills' m a'
+        addContext tel $ performKill kills' m a'
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
@@ -849,7 +849,7 @@ killArgs kills m = do
         , nest 2 $ vcat
           [ "metavar =" <+> prettyTCM m
           , "kills   =" <+> text (show kills)
-          , "kills'  =" <+> text (show kills')
+          , "kills'  =" <+> prettyList (map prettyTCM kills')
           , "oldType =" <+> prettyTCM a
           , "newType =" <+> prettyTCM a'
           ]

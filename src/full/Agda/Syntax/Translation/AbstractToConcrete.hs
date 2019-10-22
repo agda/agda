@@ -536,6 +536,9 @@ bindToConcreteHiding h =
 instance ToConcrete () () where
   toConcrete = pure
 
+instance ToConcrete Bool Bool where
+  toConcrete = pure
+
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
     -- Andreas, 2017-04-11, Issue #2543

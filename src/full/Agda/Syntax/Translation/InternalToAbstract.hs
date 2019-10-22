@@ -160,6 +160,9 @@ class Reify i a | i -> a where
     reifyWhen :: MonadReify m => Bool -> i -> m a
     reifyWhen _ = reify
 
+instance Reify Bool Bool where
+    reify = return
+
 instance Reify Name Name where
     reify = return
 
