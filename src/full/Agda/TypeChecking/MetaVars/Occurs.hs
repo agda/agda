@@ -304,10 +304,15 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       -- TODO: Can we do this in a better way?
   let redo m = m
   -- First try without normalising the term
-  redo (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
-    initOccursCheck mv
-    redo (occurs v `runReaderT` initEnv YesUnfold) `catchError` \ err -> case err of
-                            -- Produce nicer error messages
+  nicerErrorMessage $ do
+    redo (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
+      initOccursCheck mv
+      redo (occurs v `runReaderT` initEnv YesUnfold)
+
+  where
+    -- Produce nicer error messages
+    nicerErrorMessage :: TCM a -> TCM a
+    nicerErrorMessage f = f `catchError` \ err -> case err of
       TypeError _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
