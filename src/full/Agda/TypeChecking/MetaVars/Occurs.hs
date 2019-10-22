@@ -301,13 +301,11 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
-      -- TODO: Can we do this in a better way?
-  let redo m = m
   -- First try without normalising the term
   nicerErrorMessage $ do
-    redo (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
+    (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
       initOccursCheck mv
-      redo (occurs v `runReaderT` initEnv YesUnfold)
+      occurs v `runReaderT` initEnv YesUnfold
 
   where
     -- Produce nicer error messages
