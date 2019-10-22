@@ -19,6 +19,7 @@ import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+import Agda.Syntax.Internal.Generic
 -- import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -106,7 +107,18 @@ checkIApplyConfluence f cl = case cl of
                     forallFaceMaps phi __IMPOSSIBLE__ $ \ alpha -> do
                     -- TelV tel _ <- telViewUpTo (size es) ty
                     reportSDoc "tc.iapply.ip" 40 $ "i0S =" <+> pretty alpha
-                    es <- reduce (alpha `applySubst` es)
+              --      es <- reduce (alpha `applySubst` es)
+                    reportSDoc "tc.iapply.ip" 20 $ fsep ["es :", pretty es]
+                    reportSDoc "tc.iapply.ip" 20 $ fsep ["es_alpha :", pretty (alpha `applySubst` es) ]
+                    let
+                       loop t@(Def _ es) = loop' t es
+                       loop t@(Var _ es) = loop' t es
+                       loop t@(Con _ _ es) = loop' t es
+                       loop t@(MetaV _ es) = loop' t es
+                       loop t = return t
+                       loop' t es = ignoreBlocking <$> (reduceIApply' (pure . notBlocked) (pure . notBlocked $ t) es)
+                    lhs <- liftReduce $ traverseTermM loop (Def f (alpha `applySubst` es))
+                    reportSDoc "tc.iapply.ip" 20 $ fsep ["lhs :", pretty lhs]
                     let
                         idG = raise (size clTel) $ (teleElims mTel [])
                     reportSDoc "tc.iapply.ip" 40 $ "cxt1 =" <+> (prettyTCM =<< getContextTelescope)
@@ -117,7 +129,7 @@ checkIApplyConfluence f cl = case cl of
                     reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> prettyTCM eqs
                     buildClosure $ (eqs
                                    , sigma `applySubst`
-                                       (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) (Def f es) (alpha `applySubst` MetaV m es_m)))
+                                       (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) lhs (alpha `applySubst` MetaV m es_m)))
                 let f ip = ip { ipClause = case ipClause ip of
                                              ipc@IPClause{ipcBoundary = b}
                                                -> ipc {ipcBoundary = b ++ cs'}
@@ -139,7 +151,7 @@ unifyElims :: Elims
            -> TCM a
 unifyElims idg es k | Just vs <- allApplyElims idg
                     , Just ts <- allApplyElims es = do
-                      dom <- getContext 
+                      dom <- getContext
                       let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
                           (binds'', eqss') =
                             unzip $ map (\ (j,t:ts) -> ((j,t),map (,var j) ts)) $ Map.toList $ Map.fromListWith (++) (map (second (:[])) binds')

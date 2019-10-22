@@ -1032,14 +1032,17 @@ cmd_goal_type_context_and aux norm ii _ _ = do
       ip <- lookupInteractionPoint ii
       case ipClause ip of
         IPClause {ipcBoundary = cs } -> do
-          ocs <- B.prettyConstraints (map (fmap snd) cs)
-          forM (zip cs ocs) $ \ (c, o) -> do
+          ocs <- B.prettyConstraints =<< (normalForm norm $ map (fmap snd) cs)
+          forM (zip cs ocs) $ \ (c, OutputForm _ _ (CmpInType _ _ o _)) -> do
+           let
+             fromParen (Paren _ o) = o
+             fromParen t = t
            eqs <- (enterClosure c $ \ z -> TCP.fsep $ flip map (fst z) $ \ (l,r) -> TCP.prettyTCM l TCP.<+> "=" TCP.<+> TCP.prettyTCM r)
-           return $ eqs <+> "|-" <+> pretty o
+           return $ eqs <+> "⊢" <+> pretty (fromParen o)
         IPNoClause -> return empty
-    return $ vcat cs
+    return $ vcat $ [ if not (null cs) then "Boundary:" else vcat []]
+                    ++ cs
   display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
-
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.

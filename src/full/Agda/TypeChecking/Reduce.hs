@@ -392,7 +392,7 @@ blockedOrMeta r =
     NotBlocked i _           -> NotBlocked i ()
 
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
-reduceIApply' reduceB' d (IApply x y r : es) = do
+reduceIApply' red d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
@@ -400,11 +400,11 @@ reduceIApply' reduceB' d (IApply x y r : es) = do
   let blockedInfo = blockedOrMeta r
 
   case view (ignoreBlocking r) of
-   IZero -> reduceB' (applyE x es)
-   IOne  -> reduceB' (applyE y es)
-   _     -> fmap (<* blockedInfo) (reduceIApply d es)
-reduceIApply' reduceB' d (_ : es) = reduceIApply d es
-reduceIApply' reduceB' d [] = d
+   IZero -> red (applyE x es)
+   IOne  -> red (applyE y es)
+   _     -> fmap (<* blockedInfo) (reduceIApply' red d es)
+reduceIApply' red d (_ : es) = reduceIApply' red d es
+reduceIApply' _   d [] = d
 
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
