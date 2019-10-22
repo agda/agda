@@ -312,7 +312,7 @@ instance UsableRelevance Term where
     MetaV m vs -> do
       mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
-    DontCare _ -> return $ isIrrelevant rel
+    DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
 
 instance UsableRelevance a => UsableRelevance (Type' a) where
