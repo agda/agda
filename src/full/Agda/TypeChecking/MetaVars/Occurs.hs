@@ -34,6 +34,7 @@ import qualified Agda.Benchmarking as Bench
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Constraints () -- instances
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
@@ -301,11 +302,15 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
-  -- First try without normalising the term
   nicerErrorMessage $ do
-    (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
-      initOccursCheck mv
-      occurs v `runReaderT` initEnv YesUnfold
+    -- First try without normalising the term
+    (occurs v `runReaderT` initEnv NoUnfold) `catchError` \err -> do
+      -- If first run is inconclusive, try again with normalization
+      case err of
+        PatternErr{} -> do
+          initOccursCheck mv
+          occurs v `runReaderT` initEnv YesUnfold
+        _ -> throwError err
 
   where
     -- Produce nicer error messages
