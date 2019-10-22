@@ -306,8 +306,10 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
     -- First try without normalising the term
     (occurs v `runReaderT` initEnv NoUnfold) `catchError` \err -> do
       -- If first run is inconclusive, try again with normalization
+      -- (unless metavariable is irrelevant, in which case the
+      -- constraint will anyway be dropped)
       case err of
-        PatternErr{} -> do
+        PatternErr{} | not (isIrrelevant $ getMetaModality mv) -> do
           initOccursCheck mv
           occurs v `runReaderT` initEnv YesUnfold
         _ -> throwError err
