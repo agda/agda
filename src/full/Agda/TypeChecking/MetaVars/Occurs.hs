@@ -385,7 +385,7 @@ instance Occurs Term where
           Level l     -> Level <$> occurs l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> dontCare <$> occurs v
+          DontCare v  -> dontCare <$> do underRelevance Irrelevant $ occurs v
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es
