@@ -710,11 +710,6 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         unless (null rps) __IMPOSSIBLE__
 
-        -- Update modalities of delta to match the modalities of the variables
-        -- after the forcing translation. We can't perform the forcing translation
-        -- yet, since that would mess with with-clause stripping.
-        delta <- forceTranslateTelescope delta qs0
-
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
           noPatternMatchingOnCodata qs0

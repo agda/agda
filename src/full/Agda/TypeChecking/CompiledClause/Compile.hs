@@ -39,10 +39,6 @@ data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPa
 
 compileClauses' :: RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
 compileClauses' recpat cs mSplitTree = do
-  -- Apply forcing translation. This only shuffles the deBruijn variables
-  -- so doesn't affect the right hand side.
-  cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-                 | c@Clause{ namedClausePats = ps } <- cs ]
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
