@@ -125,7 +125,7 @@ computeForcingAnnotations c t =
       -- case it isn't really forced.
       isForced :: Modality -> Nat -> Bool
       isForced m i = and
-        [ noUserQuantity m              -- User can disable forcing by giving quantity explicitly.
+        [ hasQuantity0 m || noUserQuantity m   -- User can disable forcing by giving quantity explicitly.
         , getRelevance m /= Irrelevant
         , any (\ (m', j) -> i == j && m' `moreUsableModality` m) xs
         ]
