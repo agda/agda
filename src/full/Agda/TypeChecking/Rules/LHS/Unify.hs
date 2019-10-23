@@ -1300,4 +1300,3 @@ patternBindingForcedVars forced v = do
         Dummy{}     -> return $ dotP v
         Lit{}       -> __IMPOSSIBLE__
 
-
