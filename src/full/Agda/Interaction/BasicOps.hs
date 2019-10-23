@@ -577,13 +577,18 @@ getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = getConstraints' return $ const True
 
 
-getConstraintsMentioning :: MetaId -> TCM [OutputForm C.Expr C.Expr]
-getConstraintsMentioning m = getConstraints' instantiateBlockingFull (mentionsMeta m)
+getConstraintsMentioning :: Rewrite -> MetaId -> TCM [OutputForm C.Expr C.Expr]
+getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMeta m)
   -- could be optimized by not doing a full instantiation up front, with a more clever mentionsMeta.
   where
     instantiateBlockingFull p
       = locallyTCState stInstantiateBlocking (const True) $
           instantiateFull p
+    getConstrs g f = liftTCM $ do
+      cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+      forM cs $ \(PConstr s c) -> do
+            cl <- reify . PConstr s =<< normalForm norm c
+            enterClosure cl abstractToConcrete_
 
 
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]

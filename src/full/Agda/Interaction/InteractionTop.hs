@@ -1026,7 +1026,7 @@ cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range 
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getResponseContext norm ii
-  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
+  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
   boundary <- lift $ do
     cs <- do
       ip <- lookupInteractionPoint ii
