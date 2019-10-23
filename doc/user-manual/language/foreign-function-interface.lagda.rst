@@ -145,7 +145,7 @@ Using Haskell functions from Agda
 ---------------------------------
 
 Once a suitable mapping between Haskell types and Agda types has been set
-up, Haskell functions whose types map to an Agda type can be exposed to Agda
+up, Haskell functions whose types map to Agda types can be exposed to Agda
 code with a ``COMPILE`` pragma::
 
   open import Agda.Builtin.IO
