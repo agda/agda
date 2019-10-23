@@ -235,7 +235,7 @@ Level-polymorphic types
 
 :ref:`Level-polymorphic types <universe-levels>` face a similar problem to
 polymorphic functions. Since Haskell does not have universe levels the Agda
-type will have more arguments than the corresponding type. This can be solved
+type will have more arguments than the corresponding Haskell type. This can be solved
 by defining a Haskell type synonym with the appropriate number of phantom
 arguments. For instance
 
