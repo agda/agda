@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  [18, 22] _12 = f (g (loop y)) : A
+Unsolved metas at the following locations:
+  Issue4120-loop.agda:17,7-8
+  Issue4120-loop.agda:20,12-16

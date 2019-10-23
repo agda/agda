@@ -226,9 +226,12 @@ defArgs m = asks (occUnfold . feExtra) >>= \case
   YesUnfold -> weakly m
 
 unfoldB :: (Instantiate t, Reduce t) => t -> OccursM (Blocked t)
-unfoldB v = asks (occUnfold . feExtra) >>= \case
-  NoUnfold  -> notBlocked <$> instantiate v
-  YesUnfold -> reduceB v
+unfoldB v = do
+  unfold <- asks $ occUnfold . feExtra
+  rel    <- asks feModality
+  case unfold of
+    YesUnfold | not (isIrrelevant rel) -> reduceB v
+    _                                  -> notBlocked <$> instantiate v
 
 unfold :: (Instantiate t, Reduce t) => t -> OccursM t
 unfold v = asks (occUnfold . feExtra) >>= \case
