@@ -1089,9 +1089,10 @@ composeGuardedness _ _ = __IMPOSSIBLE__
 -- | Stripping off a record constructor is not counted as decrease, in
 --   contrast to a data constructor.
 --   A record constructor increases/decreases by 0, a data constructor by 1.
-offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
-offsetFromConstructor c = maybe 1 (const 0) <$> do
-  liftTCM $ isRecordConstructor c
+offsetFromConstructor :: HasConstInfo tcm => QName -> tcm Int
+offsetFromConstructor c =
+  ifM (isEtaOrCoinductiveRecordConstructor c) (return 0) (return 1)
+
 --UNUSED Liang-Ting 2019-07-16
 ---- | Compute the proper subpatterns of a 'DeBruijnPattern'.
 --subPatterns :: DeBruijnPattern -> [DeBruijnPattern]

@@ -4,9 +4,3 @@ Termination checking failed for the following functions:
 Problematic calls:
   inh j
     (at Issue1015OnlyRecord.agda:14,19-22)
-Issue1015OnlyRecord.agda:20,1-21,28
-Termination checking failed for the following functions:
-  elim
-Problematic calls:
-  elim (f ∞)
-    (at Issue1015OnlyRecord.agda:21,18-22)

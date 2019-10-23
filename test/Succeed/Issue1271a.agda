@@ -49,14 +49,13 @@ module Record where
     field       Out : μId
   open μId
 
--- It does not seem possible to prove Record.μId empty, as Agda does not
--- consider the following definitions as terminating.
+  -- It does not seem possible to prove Record.μId empty, as Agda does not
+  -- consider the following definitions as terminating.
+  -- EDIT: it does now.
 
-  {-# NON_TERMINATING #-}
   ¬μId : μId → ⊥
   ¬μId (In x) = ¬μId x
 
-  {-# NON_TERMINATING #-}
   μId-elim : ∀ {l}(P : μId → Set l) → (∀ x → P x → P (In x)) → ∀ x → P x
   μId-elim P m (In x) = m x (μId-elim P m x)
 

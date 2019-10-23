@@ -483,12 +483,16 @@ underConstructor (ConHead c i fs) =
   case (i,fs) of
     -- Coinductive (record) constructors admit infinite cycles:
     (CoInductive, _)   -> underFlexRig WeaklyRigid
-    -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> underFlexRig StronglyRigid
-    -- Inductive record constructors do not admit infinite cycles,
-    -- but this cannot be proven inside Agda.
-    -- Thus, unification should not prove it either.
-    (Inductive, (_:_)) -> id
+    -- Inductive constructors do not admit infinite cycles:
+    (Inductive, _)    -> underFlexRig StronglyRigid
+    -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
+    -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
+    -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
+    -- WAS:
+    -- -- Inductive record constructors do not admit infinite cycles,
+    -- -- but this cannot be proven inside Agda.
+    -- -- Thus, unification should not prove it either.
+    -- (Inductive, (_:_)) -> id
 
 ---------------------------------------------------------------------------
 -- * Recursively collecting free variables.
