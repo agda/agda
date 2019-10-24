@@ -57,6 +57,7 @@ import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
+import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
@@ -586,8 +587,15 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
           instantiateFull p
     getConstrs g f = liftTCM $ do
       cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+      reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s c) -> do
-            cl <- reify . PConstr s =<< normalForm norm c
+        c <- normalForm norm c
+        case clValue c of
+          ValueCmp _ _ _ (MetaV m' es_m) | m == m' -> do
+            unifyElimsMeta m es_m c $ \ eqs c -> do
+              flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
+          _ -> do
+            cl <- reify $ PConstr s c
             enterClosure cl abstractToConcrete_
 
 
