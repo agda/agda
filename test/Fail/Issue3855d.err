@@ -1,0 +1,4 @@
+Issue3855d.agda:10,9-12
+Cannot instantiate the metavariable _2 to solution A
+since (part of) the solution was created in an erased context
+when checking that the expression p _ has type P A

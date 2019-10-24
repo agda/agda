@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  [18, 22, 23] _from_12 x = erased x : A
+Unsolved metas at the following locations:
+  Issue3855e.agda:26,15-16
+  Issue3855e.agda:27,21-25
