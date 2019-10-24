@@ -77,7 +77,7 @@ checkIApplyConfluence f cl = case cl of
                 , namedClausePats = ps
                 , clauseType = Just t
                 , clauseBody = Just body
-                } -> setCurrentRange (getRange f) $ addContext clTel $ do
+                } -> setCurrentRange (getRange f) $ do
           let
             trhs = unArg t
           reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
@@ -92,21 +92,34 @@ checkIApplyConfluence f cl = case cl of
             reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
             reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
 
-            equalTermOnFace phi trhs lhs body
+            addContext clTel $ equalTermOnFace phi trhs lhs body
             case body of
               MetaV m es_m ->
                 caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
                 cs' <- do
+                  reportSDoc "tc.iapply.ip" 20 $ "clTel =" <+> prettyTCM clTel
                   mv <- lookupMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
-                  -- ty <- getMetaType m
+                  ty <- getMetaType m
                   mTel <- getContextTelescope
-                  -- TODO extend telescope to handle extra elims
+                  reportSDoc "tc.iapply.ip" 20 $ "size mTel =" <+> pretty (size mTel)
+                  reportSDoc "tc.iapply.ip" 20 $ "size es_m =" <+> pretty (size es_m)
                   unless (size mTel == size es_m) $ reportSDoc "tc.iapply.ip" 20 $ "funny number of elims" <+> text (show (size mTel, size es_m))
+
+                  -- extend telescope to handle extra elims
+                  unless (size mTel <= size es_m) $ __IMPOSSIBLE__
+                  TelV mTel1 _ <- telViewUpToPath (size es_m) ty
+                  reportSDoc "tc.iapply.ip" 20 $ "mTel1 =" <+> prettyTCM mTel1
+
+                  addContext (mTel1 `apply` teleArgs mTel) $ do
+                  mTel <- getContextTelescope
+
                   addContext clTel $ do -- mTel.clTel ⊢
+                    () <- reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel =" <+> (prettyTCM =<< getContextTelescope)
                     forallFaceMaps phi __IMPOSSIBLE__ $ \ alpha -> do
                     -- mTel.clTel' ⊢
                     -- mTel.clTel  ⊢ alpha : mTel.clTel'
+                    reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel' =" <+> (prettyTCM =<< getContextTelescope)
 
                     -- TelV tel _ <- telViewUpTo (size es) ty
                     reportSDoc "tc.iapply.ip" 40 $ "i0S =" <+> pretty alpha
@@ -136,7 +149,7 @@ checkIApplyConfluence f cl = case cl of
                     -- mTel.clTel'' ⊢ sigma : mTel.clTel'
                     reportSDoc "tc.iapply.ip" 40 $ "cxt2 =" <+> (prettyTCM =<< getContextTelescope)
                     reportSDoc "tc.iapply.ip" 40 $ "sigma =" <+> pretty sigma
-                    reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> prettyTCM eqs
+                    reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> pretty eqs
 
                     buildClosure $ (eqs
                                    , sigma `applySubst`
@@ -147,34 +160,6 @@ checkIApplyConfluence f cl = case cl of
                                              ipc@IPNoClause{} -> ipc}
                 modifyInteractionPoints (Map.adjust f ii)
               _ -> return ()
-
-unifyElimsMeta :: MetaId -> Elims -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
-unifyElimsMeta m es_m cl k = do
-                  mv <- lookupMeta m
-                  enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
-                  -- ty <- getMetaType m
-                  mTel <- getContextTelescope
-                  -- TODO extend telescope to handle extra elims
-                  unless (size mTel == size es_m) $ reportSDoc "tc.iapply.ip.meta" 20 $ "funny number of elims" <+> text (show (size mTel, size es_m))
-                  --  telViewUpToPath
-                  (c,cxt) <- enterClosure cl $ \ c -> (c,) <$> getContextTelescope
-                  reportSDoc "tc.iapply.ip.meta" 20 $ prettyTCM cxt
-
-                  addContext cxt $ do
-
-                  reportSDoc "tc.iapply.ip.meta" 20 $ "es_m" <+> prettyTCM es_m
-
-                  reportSDoc "tc.iapply.ip.meta" 20 $ "trying unifyElims"
-
-                  unifyElims (teleElims mTel []) es_m $ \ sigma eqs -> do
-
-                  reportSDoc "tc.iapply.ip.meta" 20 $ "gotten a substitution"
-
-                  reportSDoc "tc.iapply.ip.meta" 20 $ "sigma:" <+> prettyTCM sigma
-                  reportSDoc "tc.iapply.ip.meta" 20 $ "sigma:" <+> pretty sigma
-
-                  k eqs (sigma `applySubst` c)
-
 
 
 -- | current context is of the form Γ.Δ
@@ -217,3 +202,34 @@ unifyElims idg es k | Just vs <- allApplyElims idg
     codomain s vs cxt = map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
      where
       cxt' = zipWith (\ n d -> dropS n s `applySubst` d) [1..] cxt
+
+
+unifyElimsMeta :: MetaId -> Elims -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
+unifyElimsMeta m es_m cl k = do
+                  mv <- lookupMeta m
+                  enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
+                  ty <- getMetaType m
+                  mTel0 <- getContextTelescope
+                  -- TODO extend telescope to handle extra elims
+                  unless (size mTel0 == size es_m) $ reportSDoc "tc.iapply.ip.meta" 20 $ "funny number of elims" <+> text (show (size mTel0, size es_m))
+                  unless (size mTel0 <= size es_m) $ __IMPOSSIBLE__
+                  TelV mTel1 _ <- telViewUpToPath (size es_m) ty
+                  addContext (mTel1 `apply` teleArgs mTel0) $ do
+                  mTel <- getContextTelescope
+                  (c,cxt) <- enterClosure cl $ \ c -> (c,) <$> getContextTelescope
+                  reportSDoc "tc.iapply.ip.meta" 20 $ prettyTCM cxt
+
+                  addContext cxt $ do
+
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "es_m" <+> prettyTCM es_m
+
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "trying unifyElims"
+
+                  unifyElims (teleElims mTel []) es_m $ \ sigma eqs -> do
+
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "gotten a substitution"
+
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "sigma:" <+> prettyTCM sigma
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "sigma:" <+> pretty sigma
+
+                  k eqs (sigma `applySubst` c)
