@@ -1230,7 +1230,15 @@ instance Reify NamedClause A.Clause where
 instance Reify (QNamed System) [A.Clause] where
   reify (QNamed f (System tel sys)) = addContext tel $ do
     reportS "reify.system" 40 $ show tel : map show sys
+    view <- intervalView'
     unview <- intervalUnview'
+    sys <- flip filterM sys $ \ (phi,t) -> do
+      allM phi $ \ (u,b) -> do
+        u <- reduce u
+        return $ case (view u, b) of
+          (IZero, True) -> False
+          (IOne, False) -> False
+          _ -> True
     forM sys $ \ (alpha,u) -> do
       rhs <- RHS <$> reify u <*> pure Nothing
       ep <- fmap (A.EqualP patNoRange) . forM alpha $ \ (phi,b) -> do
