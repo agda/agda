@@ -797,6 +797,10 @@ data IntervalView
       | OTerm Term
       deriving Show
 
+isIOne :: IntervalView -> Bool
+isIOne IOne = True
+isIOne _ = False
+
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
 ---------------------------------------------------------------------------
