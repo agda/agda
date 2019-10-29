@@ -104,10 +104,12 @@ checkIApplyConfluence f cl = case cl of
                   mTel <- getContextTelescope
                   reportSDoc "tc.iapply.ip" 20 $ "size mTel =" <+> pretty (size mTel)
                   reportSDoc "tc.iapply.ip" 20 $ "size es_m =" <+> pretty (size es_m)
+
                   unless (size mTel == size es_m) $ reportSDoc "tc.iapply.ip" 20 $ "funny number of elims" <+> text (show (size mTel, size es_m))
+                  unless (size mTel <= size es_m) $ __IMPOSSIBLE__
+                  let over = if size mTel == size es_m then NotOverapplied else Overapplied
 
                   -- extend telescope to handle extra elims
-                  unless (size mTel <= size es_m) $ __IMPOSSIBLE__
                   TelV mTel1 _ <- telViewUpToPath (size es_m) ty
                   reportSDoc "tc.iapply.ip" 20 $ "mTel1 =" <+> prettyTCM mTel1
 
@@ -151,7 +153,7 @@ checkIApplyConfluence f cl = case cl of
                     reportSDoc "tc.iapply.ip" 40 $ "sigma =" <+> pretty sigma
                     reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> pretty eqs
 
-                    buildClosure $ (eqs
+                    fmap (over,) $ buildClosure $ (eqs
                                    , sigma `applySubst`
                                        (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) lhs (alpha `applySubst` MetaV m es_m)))
                 let f ip = ip { ipClause = case ipClause ip of

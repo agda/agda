@@ -1032,13 +1032,16 @@ cmd_goal_type_context_and aux norm ii _ _ = do
       ip <- lookupInteractionPoint ii
       case ipClause ip of
         IPClause {ipcBoundary = cs } -> do
-          ocs <- B.prettyConstraints =<< (normalForm norm $ map (fmap snd) cs)
-          forM (zip cs ocs) $ \ (c, OutputForm _ _ (CmpInType _ _ o _)) -> do
+          ocs <- B.prettyConstraints =<< (normalForm norm $ map (fmap snd . snd) cs)
+          forM (zip cs ocs) $ \ ((over, c), OutputForm _ _ (CmpInType _ _ o v)) -> do
            let
              fromParen (Paren _ o) = o
              fromParen t = t
+             rhs = case over of
+              Overapplied    -> "=" <+> pretty (fromParen v)
+              NotOverapplied -> mempty
            eqs <- (enterClosure c $ \ z -> TCP.prettyList_ $ flip map (fst z) $ \ (l,r) -> TCP.prettyTCM l TCP.<+> "=" TCP.<+> TCP.prettyTCM r)
-           return $ eqs <+> "⊢" <+> pretty (fromParen o)
+           return $ eqs <+> "⊢" <+> pretty (fromParen o) <+> rhs
         IPNoClause -> return empty
     return $ vcat $ [ if not (null cs) then "Boundary:" else vcat []]
                     ++ cs

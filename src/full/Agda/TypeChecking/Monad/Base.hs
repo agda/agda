@@ -1408,12 +1408,16 @@ instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 --   'ipSolved' to @True@.  (Issue #2368)
 type InteractionPoints = Map InteractionId InteractionPoint
 
+
+-- | Flag to indicate whether the meta is overapplied in the constraint.
+data Overapplied = Overapplied | NotOverapplied deriving (Eq, Show, Data)
+
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
   { ipcQName    :: QName  -- ^ The name of the function.
   , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
   , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
-  , ipcBoundary :: [Closure ([(Term,Term)],Constraint)]
+  , ipcBoundary :: [(Overapplied,Closure ([(Term,Term)],Constraint))]
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving Data
