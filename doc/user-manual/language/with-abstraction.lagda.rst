@@ -669,12 +669,11 @@ Helper functions
 ++++++++++++++++
 
 Internally with-abstractions are translated to auxiliary functions
-(see :ref:`technical-details` below) and you can
-always\ [#with-inlining]_ write these functions manually. The downside
-is that the type signature for the helper function needs to be written
-out explicitly, but fortunately the :ref:`emacs-mode` has a command
-(``C-c C-h``) to generate it using the same algorithm that generates
-the type of a with-function.
+(see :ref:`technical-details` below) and you can always write these
+functions manually. The downside is that the type signature for the
+helper function needs to be written out explicitly, but fortunately
+the :ref:`emacs-mode` has a command (``C-c C-h``) to generate it using
+the same algorithm that generates the type of a with-function.
 
 Performance considerations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -883,11 +882,6 @@ immediate problem (``fst p != w``) and the full type of the with-function. To
 get a more informative error, pointing to the location in the type where the
 error is, you can copy and paste the with-function type from the error message
 and try to type check it separately.
-
-
-.. [#with-inlining] The termination checker has :ref:`special treatment for
-                    with-functions <termination-checking-with>`, so replacing a `with` by the
-                    equivalent helper function might fail termination.
 
 .. [McBride2004] C. McBride and J. McKinna. **The view from the left**. Journal of Functional Programming, 2004.
                  http://strictlypositive.org/vfl.pdf.
