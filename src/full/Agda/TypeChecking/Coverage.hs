@@ -333,7 +333,6 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
-      -- TODO Andrea: add hcomp clause!
       case fmap getHiding target of
         Just h | isInstance h -> do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
@@ -384,20 +383,45 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           No{}    -> Nothing
 
     applyCl :: SplitClause -> Clause -> [(Nat, SplitPattern)] -> TCM Clause
-    applyCl SClause{scTel = tel, scCheckpoints = cps} cl mps = addContext tel $ do
+    applyCl SClause{scTel = tel, scPats = sps} cl mps = addContext tel $ do
+        let ps = namedClausePats cl
         reportSDoc "tc.cover.applyCl" 40 $ "applyCl"
         reportSDoc "tc.cover.applyCl" 40 $ "tel    =" <+> prettyTCM tel
-        reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty (namedClausePats cl)
+        reportSDoc "tc.cover.applyCl" 40 $ "ps     =" <+> pretty ps
         reportSDoc "tc.cover.applyCl" 40 $ "mps    =" <+> pretty mps
         reportSDoc "tc.cover.applyCl" 40 $ "s      =" <+> pretty s
-        reportSDoc "tc.cover.applyCl" 40 $ "new ps =" <+> pretty (s `applySubst` namedClausePats cl)
+        reportSDoc "tc.cover.applyCl" 40 $ "ps[s]  =" <+> pretty (s `applySubst` ps)
+
+        -- If a matching clause has fewer patterns than the split
+        -- clause we ought to copy over the extra ones.
+        -- e.g. if the user wrote:
+        --
+        --   bar : Bool -> Bool
+        --   bar false = false
+        --   bar = \ _ -> true
+        --
+        -- then for the second clause the @extra@ patterns will be @[true]@.
+
+        let extra = drop (length ps) $ fromSplitPatterns sps
+            n_extra = length extra
+
+        reportSDoc "tc.cover.applyCl" 40 $ "extra  =" <+> pretty extra
+
+        -- When we add the extra patterns we also update the type
+        -- and the body of the clause.
+
+        mtv <- (traverse . traverse) (telViewUpToPath n_extra) $ clauseType cl
+        let ty = (fmap . fmap) ((parallelS (reverse $ map namedArg extra) `composeS` liftS n_extra s `applyPatSubst`) . theCore) mtv
+
+        reportSDoc "tc.cover.applyCl" 40 $ "new ty =" <+> pretty ty
+
         return $
              Clause { clauseLHSRange  = clauseLHSRange cl
                     , clauseFullRange = clauseFullRange cl
                     , clauseTel       = tel
-                    , namedClausePats = s `applySubst` namedClausePats cl
-                    , clauseBody      = (s `applyPatSubst`) <$> clauseBody cl
-                    , clauseType      = (s `applyPatSubst`) <$> clauseType cl
+                    , namedClausePats = (s `applySubst` ps) ++ extra
+                    , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
+                    , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
                     , clauseUnreachable = clauseUnreachable cl
                     }
