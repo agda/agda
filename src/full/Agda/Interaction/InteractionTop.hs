@@ -1037,7 +1037,7 @@ cmd_goal_type_context_and aux norm ii _ _ = do
            let
              fromParen (Paren _ o) = o
              fromParen t = t
-           eqs <- (enterClosure c $ \ z -> TCP.fsep $ flip map (fst z) $ \ (l,r) -> TCP.prettyTCM l TCP.<+> "=" TCP.<+> TCP.prettyTCM r)
+           eqs <- (enterClosure c $ \ z -> TCP.prettyList_ $ flip map (fst z) $ \ (l,r) -> TCP.prettyTCM l TCP.<+> "=" TCP.<+> TCP.prettyTCM r)
            return $ eqs <+> "⊢" <+> pretty (fromParen o)
         IPNoClause -> return empty
     return $ vcat $ [ if not (null cs) then "Boundary:" else vcat []]
