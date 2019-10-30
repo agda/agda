@@ -208,6 +208,11 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
             GoalAndElaboration term -> do
               doc <- TCP.prettyTCM term
               return $ "Elaborates to:" <+> doc
+      let boundaryDoc
+            | null bndry = []
+            | otherwise  = [ text $ delimiter "Boundary"
+                           , vcat $ map pretty bndry
+                           ]
       let constraintsDoc = if (null constraints)
             then  []
             else  [ text $ delimiter "Constraints"
@@ -216,7 +221,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       let doc = vcat $
             [ "Goal:" <+> goalDoc
             , auxDoc
-            , bndry
+            , vcat boundaryDoc
             , text (replicate 60 '\x2014')
             , ctxDoc
             ] ++ constraintsDoc

@@ -1409,18 +1409,33 @@ instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 type InteractionPoints = Map InteractionId InteractionPoint
 
 
--- | Flag to indicate whether the meta is overapplied in the constraint.
+-- | Flag to indicate whether the meta is overapplied in the
+--   constraint.  A meta is overapplied if it has more arguments than
+--   the size of the telescope in its creation environment
+--   (as stored in MetaInfo).
 data Overapplied = Overapplied | NotOverapplied deriving (Eq, Show, Data)
+
+-- | Datatype representing a single boundary condition:
+--   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
+data IPBoundary' t = IPBoundary
+  { ipbEquations :: [(t,t)] -- ^ [x_0 = u_0, ... ,x_n = u_n]
+  , ipbValue     :: t          -- ^ @t@
+  , ipbMetaApp   :: t          -- ^ @?n es@
+  , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
+  }
+  deriving (Show, Data, Functor, Foldable, Traversable)
+
+type IPBoundary = IPBoundary' Term
 
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
   { ipcQName    :: QName  -- ^ The name of the function.
   , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
   , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
-  , ipcBoundary :: [(Overapplied,Closure ([(Term,Term)],Constraint))]
+  , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
-  deriving Data
+  deriving (Data)
 
 instance Eq IPClause where
   IPNoClause     == IPNoClause       = True

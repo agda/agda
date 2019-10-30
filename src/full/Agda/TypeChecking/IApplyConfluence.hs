@@ -93,6 +93,7 @@ checkIApplyConfluence f cl = case cl of
             reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
 
             addContext clTel $ equalTermOnFace phi trhs lhs body
+
             case body of
               MetaV m es_m ->
                 caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
@@ -153,9 +154,18 @@ checkIApplyConfluence f cl = case cl of
                     reportSDoc "tc.iapply.ip" 40 $ "sigma =" <+> pretty sigma
                     reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> pretty eqs
 
-                    fmap (over,) $ buildClosure $ (eqs
-                                   , sigma `applySubst`
-                                       (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) lhs (alpha `applySubst` MetaV m es_m)))
+                    buildClosure $ IPBoundary
+                       { ipbEquations = eqs
+                       , ipbValue     = sigma `applySubst` lhs
+                       , ipbMetaApp   = alpha `applySubst` MetaV m es_m
+                       , ipbOverapplied = over
+                       }
+
+                    -- WAS:
+                    -- fmap (over,) $ buildClosure $ (eqs
+                    --                , sigma `applySubst`
+                    --                    (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) lhs (alpha `applySubst` MetaV m es_m)))
+
                 let f ip = ip { ipClause = case ipClause ip of
                                              ipc@IPClause{ipcBoundary = b}
                                                -> ipc {ipcBoundary = b ++ cs'}

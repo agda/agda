@@ -804,6 +804,10 @@ instance Reduce EqualityView where
     <*> reduce' a
     <*> reduce' b
 
+instance Reduce t => Reduce (IPBoundary' t) where
+  reduce' = traverse reduce'
+  reduceB' = fmap sequenceA . traverse reduceB'
+
 ---------------------------------------------------------------------------
 -- * Simplification
 ---------------------------------------------------------------------------
@@ -982,6 +986,9 @@ instance Simplify EqualityView where
     <*> simplify' a
     <*> simplify' b
 
+instance Simplify t => Simplify (IPBoundary' t) where
+  simplify' = traverse simplify'
+
 ---------------------------------------------------------------------------
 -- * Normalisation
 ---------------------------------------------------------------------------
@@ -1158,6 +1165,9 @@ instance Normalise EqualityView where
     <*> normalise' t
     <*> normalise' a
     <*> normalise' b
+
+instance Normalise t => Normalise (IPBoundary' t) where
+  normalise' = traverse normalise'
 
 ---------------------------------------------------------------------------
 -- * Full instantiation

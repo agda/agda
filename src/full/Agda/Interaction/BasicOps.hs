@@ -568,6 +568,22 @@ instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
+instance Reify a e => Reify (IPBoundary' a) (IPBoundary' e) where
+  reify = traverse reify
+
+instance ToConcrete a c => ToConcrete (IPBoundary' a) (IPBoundary' c) where
+  toConcrete = traverse (toConcreteCtx TopCtx)
+
+instance Pretty c => Pretty (IPBoundary' c) where
+  pretty (IPBoundary eqs val meta over) = do
+    let
+      xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
+      rhs = case over of
+              Overapplied    -> "=" <+> pretty meta
+              NotOverapplied -> mempty
+    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+
+
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
@@ -613,6 +629,16 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
         abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
+
+
+getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
+getIPBoundary norm ii = do
+      ip <- lookupInteractionPoint ii
+      case ipClause ip of
+        IPClause { ipcBoundary = cs } -> do
+          forM cs $ \ cl -> enterClosure cl $ \ b ->
+            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
+        IPNoClause -> return []
 
 -- | Goals and Warnings
 
