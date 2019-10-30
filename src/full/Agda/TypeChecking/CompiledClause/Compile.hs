@@ -122,7 +122,7 @@ unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) 
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) (unArg i) cs
+  SplitAt i lz ts -> Case i $ compiles lz ts $ splitOn (length ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
@@ -130,18 +130,20 @@ compileWithSplitTree t cs = case t of
     -- after end of split tree, continue with left-to-right strategy
 
   where
-    compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
-    compiles ts br@Branches{ projPatterns = cop
-                           , conBranches = cons
-                           , etaBranch   = Nothing
-                           , litBranches = lits
-                           , fallThrough = fT
-                           , catchAllBranch = catchAll }
+    compiles :: LazySplit -> SplitTrees -> Case Cls -> Case CompiledClauses
+    compiles lz ts br@Branches{ projPatterns = cop
+                              , conBranches = cons
+                              , etaBranch   = Nothing
+                              , litBranches = lits
+                              , fallThrough = fT
+                              , catchAllBranch = catchAll
+                              , lazyMatch = lazy }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
           , litBranches    = updLits lits
           , fallThrough    = fT
           , catchAllBranch = updCatchall catchAll
+          , lazyMatch      = lazy || lz == LazySplit
           }
       where
         updCons = Map.mapWithKey $ \ c cl ->
@@ -150,7 +152,7 @@ compileWithSplitTree t cs = case t of
         updLits = Map.mapWithKey $ \ l cl ->
           caseMaybe (lookup (SplitLit l) ts) compile compileWithSplitTree cl
         updCatchall = fmap $ caseMaybe (lookup SplitCatchall ts) compile compileWithSplitTree
-    compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
+    compiles _ _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: Cls -> CompiledClauses
 compile [] = Fail

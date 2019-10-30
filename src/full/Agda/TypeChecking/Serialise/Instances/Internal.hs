@@ -348,6 +348,15 @@ instance EmbPrj Defn where
     valu [6]                                        = valuN GeneralizableVar
     valu _                                          = malformed
 
+instance EmbPrj LazySplit where
+  icod_ StrictSplit = icodeN' StrictSplit
+  icod_ LazySplit   = icodeN 0 LazySplit
+
+  value = vcase valu where
+    valu []  = valuN StrictSplit
+    valu [0] = valuN LazySplit
+    valu _   = malformed
+
 instance EmbPrj SplitTag where
   icod_ (SplitCon c)  = icodeN 0 SplitCon c
   icod_ (SplitLit l)  = icodeN 1 SplitLit l
@@ -361,12 +370,12 @@ instance EmbPrj SplitTag where
 
 instance EmbPrj a => EmbPrj (SplitTree' a) where
   icod_ (SplittingDone a) = icodeN' SplittingDone a
-  icod_ (SplitAt a b)     = icodeN 0 SplitAt a b
+  icod_ (SplitAt a b c)   = icodeN 0 SplitAt a b c
 
   value = vcase valu where
-    valu [a]       = valuN SplittingDone a
-    valu [0, a, b] = valuN SplitAt a b
-    valu _         = malformed
+    valu [a]          = valuN SplittingDone a
+    valu [0, a, b, c] = valuN SplitAt a b c
+    valu _            = malformed
 
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icodeN 0 FunStatic

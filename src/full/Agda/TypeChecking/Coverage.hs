@@ -482,7 +482,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n trees'
+              tree   = SplitAt n StrictSplit trees'   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     -- Try to split result
@@ -539,7 +539,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               psss  = map coverMissingClauses results
               qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
-              tree  = SplitAt n $ zip projs trees
+              tree  = SplitAt n StrictSplit $ zip projs trees   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
@@ -574,7 +574,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _ _     -> addEtaSplits (k+1) ps t
       DotP  _ _     -> addEtaSplits (k+1) ps t
-      ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
+      ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?

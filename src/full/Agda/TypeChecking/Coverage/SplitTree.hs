@@ -23,6 +23,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.Utils.Pretty
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -39,9 +40,13 @@ data SplitTree' a
   | -- | A split is necessary.
     SplitAt
     { splitArg   :: Arg Int       -- ^ Arg. no to split at.
+    , splitLazy  :: LazySplit
     , splitTrees :: SplitTrees' a -- ^ Sub split trees.
     }
   deriving (Data, Show)
+
+data LazySplit = LazySplit | StrictSplit
+  deriving (Data, Show, Eq, Ord)
 
 -- | Split tree branching.  A finite map from constructor names to splittrees
 --   A list representation seems appropriate, since we are expecting not
@@ -59,7 +64,7 @@ data SplitTag
   deriving (Show, Eq, Ord, Data)
 
 instance Pretty SplitTag where
-  pretty (SplitCon c)  = pretty c
+  pretty (SplitCon c) = pretty c
   pretty (SplitLit l)  = pretty l
   pretty SplitCatchall = underscore
 
@@ -68,21 +73,24 @@ instance Pretty SplitTag where
 data SplitTreeLabel a = SplitTreeLabel
   { lblConstructorName :: Maybe a   -- ^ 'Nothing' for root of split tree
   , lblSplitArg        :: Maybe (Arg Int)
+  , lblLazy            :: LazySplit
   , lblBindings        :: Maybe Int
   }
 instance Pretty a => Pretty (SplitTreeLabel a) where
   pretty = \case
-    SplitTreeLabel Nothing Nothing (Just n)  -> text $ "done, " ++ prettyShow n ++ " bindings"
-    SplitTreeLabel Nothing (Just n) Nothing  -> text $ "split at " ++ prettyShow n
-    SplitTreeLabel (Just q) Nothing (Just n) -> pretty q <+> text (" -> done, " ++ prettyShow n ++ " bindings")
-    SplitTreeLabel (Just q) (Just n) Nothing -> pretty q <+> text (" -> split at " ++ prettyShow n)
+    SplitTreeLabel Nothing Nothing   _  (Just n) -> text $ "done, " ++ prettyShow n ++ " bindings"
+    SplitTreeLabel Nothing (Just n)  lz Nothing  -> lzp lz <+> text ("split at " ++ prettyShow n)
+    SplitTreeLabel (Just q) Nothing  _  (Just n) -> pretty q <+> text ("-> done, " ++ prettyShow n ++ " bindings")
+    SplitTreeLabel (Just q) (Just n) lz Nothing  -> pretty q <+> text "->" <+> lzp lz <+> text ("split at " ++ prettyShow n)
     _ -> __IMPOSSIBLE__
+    where lzp lz | lz == LazySplit = "lazy"
+                 | otherwise       = empty
 
 -- | Convert a split tree into a 'Data.Tree' (for printing).
 toTree :: SplitTree' a -> Tree (SplitTreeLabel a)
 toTree t = case t of
-  SplittingDone n -> Node (SplitTreeLabel Nothing Nothing (Just n)) []
-  SplitAt n ts    -> Node (SplitTreeLabel Nothing (Just n) Nothing) $ toTrees ts
+  SplittingDone n -> Node (SplitTreeLabel Nothing Nothing StrictSplit (Just n)) []
+  SplitAt n lz ts    -> Node (SplitTreeLabel Nothing (Just n) lz Nothing) $ toTrees ts
 
 toTrees :: SplitTrees' a -> Forest (SplitTreeLabel a)
 toTrees = map (\ (c,t) -> setCons c $ toTree t)
@@ -102,4 +110,4 @@ instance KillRange SplitTag where
 instance KillRange a => KillRange (SplitTree' a) where
   killRange = \case
     SplittingDone n -> SplittingDone n
-    SplitAt i ts    -> killRange1 (SplitAt i) ts
+    SplitAt i lz ts -> killRange1 (SplitAt i lz) ts
