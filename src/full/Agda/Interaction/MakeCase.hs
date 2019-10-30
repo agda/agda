@@ -188,7 +188,7 @@ getClauseZipperForIP f clauseNo = do
 -- | Entry point for case splitting tactic.
 
 makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext, [A.Clause])
-makeCase hole rng s = withInteractionId hole $ do
+makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) $ do
 
   -- Jesper, 2018-12-10: print unsolved metas in dot patterns as _
   localTC (\ e -> e { envPrintMetasBare = True }) $ do

@@ -2555,6 +2555,7 @@ data TCEnv =
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
+          , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envCheckingWhere       :: Bool
@@ -2681,6 +2682,7 @@ initEnv = TCEnv { envContext             = []
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
                 , envCoverageCheck       = YesCoverageCheck
+                , envMakeCase            = False
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
@@ -2783,6 +2785,9 @@ eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationC
 
 eCoverageCheck :: Lens' CoverageCheck TCEnv
 eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
+
+eMakeCase :: Lens' Bool TCEnv
+eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 
 eSolvingConstraints :: Lens' Bool TCEnv
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }

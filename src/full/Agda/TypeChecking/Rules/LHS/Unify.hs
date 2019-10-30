@@ -896,7 +896,12 @@ unifyStep s Solution{ solutionAt   = k
   -- in pattern positions we need to bind them there rather in their forced positions. We can safely
   -- ignore non-pattern positions and forced pattern positions, because in that case there will be
   -- other equations where the variable can be bound.
-  let forcedVars = IntMap.fromList [ (flexVar fi, getModality fi) | fi <- flexVars s, flexForced fi == Forced ]
+  -- NOTE: If we're doing make-case we ignore forced variables. This is safe since we take the
+  -- result of unification and build user clauses that will be checked again with forcing turned on.
+  inMakeCase <- viewTC eMakeCase
+  let forcedVars | inMakeCase = IntMap.empty
+                 | otherwise  = IntMap.fromList [ (flexVar fi, getModality fi) | fi <- flexVars s,
+                                                                                 flexForced fi == Forced ]
   (p, bound) <- patternBindingForcedVars forcedVars u
 
   -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
