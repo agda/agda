@@ -29,6 +29,8 @@ import Agda.TypeChecking.Coverage.Match ( SplitPatVar(..) , SplitPattern , apply
 import Agda.TypeChecking.Empty ( isEmptyTel )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rules.Def (checkClauseLHS)
+import Agda.TypeChecking.Rules.LHS (LHSResult(..))
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
@@ -185,6 +187,17 @@ getClauseZipperForIP f clauseNo = do
         ]
       __IMPOSSIBLE__
 
+recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM Clause
+recheckAbstractClause t sub cl = checkClauseLHS t sub cl $ \ lhs ->
+  return Clause{ clauseLHSRange    = getRange cl
+               , clauseFullRange   = getRange cl
+               , clauseTel         = lhsVarTele lhs
+               , namedClausePats   = lhsPatterns lhs
+               , clauseBody        = Nothing -- We don't need the body for make case
+               , clauseType        = Just (lhsBodyType lhs)
+               , clauseCatchall    = False
+               , clauseUnreachable = Nothing }
+
 -- | Entry point for case splitting tactic.
 
 makeCase :: InteractionId -> Range -> String -> TCM (QName, CaseContext, [A.Clause])
@@ -196,11 +209,18 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
-  (f, clauseNo, rhs) <- case ipCl of
-    IPClause f clauseNo rhs -> return (f, clauseNo, rhs)
-    IPNoClause -> typeError $ GenericError $
+  (f, clauseNo, clTy, clWithSub, absCl@A.Clause{ clauseRHS = rhs }, clClos) <- case ipCl of
+    IPClause f i t sub cl clo -> return (f, i, t, sub, cl, clo)
+    IPNoClause                -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
-  (casectxt, (prevClauses0, clause, follClauses0)) <- getClauseZipperForIP f clauseNo
+  (casectxt, (prevClauses0, _clause, follClauses0)) <- getClauseZipperForIP f clauseNo
+
+  -- Instead of using the actual internal clause, we retype check the abstract clause (with
+  -- eMakeCase = True). This disables the forcing translation in the unifier, which allows us to
+  -- split on forced variables.
+  clause <- enterClosure clClos $ \ _ -> locallyTC eMakeCase (const True) $
+              recheckAbstractClause clTy clWithSub absCl
+
   let (prevClauses, follClauses) = killRange (prevClauses0, follClauses0)
     -- Andreas, 2019-08-08, issue #3966
     -- Kill the ranges of the existing clauses to prevent wrong error

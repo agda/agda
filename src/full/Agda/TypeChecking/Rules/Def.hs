@@ -129,7 +129,13 @@ isAlias cs t =
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
-checkAlias t ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
+checkAlias t ai delayed i name e mc =
+  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSRange $ getRange i) name []
+                        , clauseStrippedPats = []
+                        , clauseRHS          = A.RHS e mc
+                        , clauseWhereDecls   = A.noWhereDecls
+                        , clauseCatchall     = False } in
+  atClause name 0 t Nothing clause $ do
   reportSDoc "tc.def.alias" 10 $ "checkAlias" <+> vcat
     [ text (prettyShow name) <+> colon  <+> prettyTCM t
     , text (prettyShow name) <+> equals <+> prettyTCM e
@@ -235,7 +241,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
-            atClause name clauseNo (A.clauseRHS c) $ do
+            atClause name clauseNo t withSub c $ do
               (c,b) <- applyModalityToContextFunBody ai $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
@@ -577,6 +583,19 @@ instance Monoid ClausesPostChecks where
   mempty  = CPC empty
   mappend = (<>)
 
+-- | The LHS part of checkClause.
+checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
+checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
+    reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
+    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
+      typeError $ UnexpectedWithPatterns $ map namedArg withPats
+    traceCall (CheckClause t c) $ do
+      aps <- expandPatternSynonyms aps
+      when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
+        "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
+      closed_t <- flip abstract t <$> getContextTelescope
+      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
+
 -- | Type check a function clause.
 
 checkClause
@@ -586,16 +605,8 @@ checkClause
   -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
 
 checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
-    reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
-    unlessNull (trailingWithPatterns aps) $ \ withPats -> do
-      typeError $ UnexpectedWithPatterns $ map namedArg withPats
-    traceCall (CheckClause t c) $ do
-      aps <- expandPatternSynonyms aps
-      cxtNames <- reverse . map (fst . unDom) <$> getContext
-      when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
-        "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
-      closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
+  cxtNames <- reverse . map (fst . unDom) <$> getContext
+  checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -1127,5 +1138,7 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
     withCurrentModule m cont
 
 -- | Set the current clause number.
-atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a
-atClause name i rhs = localTC $ \ e -> e { envClause = IPClause name i rhs }
+atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
+atClause name i t sub cl ret = do
+  clo <- buildClosure ()
+  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret

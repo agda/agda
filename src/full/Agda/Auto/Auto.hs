@@ -108,7 +108,7 @@ auto
   -> Range
   -> String
   -> tcm AutoResult
-auto ii rng argstr = liftTCM $ do
+auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
 
   -- Parse hints and other configuration.
   let autoOptions = parseArgs argstr

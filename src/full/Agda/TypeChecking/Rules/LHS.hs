@@ -1275,8 +1275,9 @@ checkLHS mf = updateModality checkLHS_ where
               , "cixs   =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM cixs))
               ]
             ]
-
-      cforced <- defForced <$> getConstInfo (conName c)
+                 -- We ignore forcing for make-case
+      cforced <- ifM (viewTC eMakeCase) (return []) $
+                 {-else-} defForced <$> getConstInfo (conName c)
 
       let delta1Gamma = delta1 `abstract` gamma
           da'  = raise (size gamma) da

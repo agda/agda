@@ -1410,17 +1410,20 @@ type InteractionPoints = Map InteractionId InteractionPoint
 
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
-  { ipcQName    :: QName  -- ^ The name of the function.
-  , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
-  , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
+  { ipcQName    :: QName              -- ^ The name of the function.
+  , ipcClauseNo :: Int                -- ^ The number of the clause of this function.
+  , ipcType     :: Type               -- ^ The type of the function
+  , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
+  , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
+  , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving Data
 
 instance Eq IPClause where
-  IPNoClause     == IPNoClause       = True
-  IPClause x i _ == IPClause x' i' _ = x == x' && i == i'
-  _              == _                = False
+  IPNoClause           == IPNoClause             = True
+  IPClause x i _ _ _ _ == IPClause x' i' _ _ _ _ = x == x' && i == i'
+  _                    == _                      = False
 
 ---------------------------------------------------------------------------
 -- ** Signature
