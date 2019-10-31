@@ -601,13 +601,45 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     instantiateBlockingFull p
       = locallyTCState stInstantiateBlocking (const True) $
           instantiateFull p
+
+    -- Trying to find the actual meta application, as long as it's not
+    -- buried too deep.
+    -- We could look further but probably not under binders as that would mess with
+    -- the call to @unifyElimsMeta@ below.
+    hasHeadMeta c =
+      case c of
+        ValueCmp _ _ u v           -> isMeta u `mplus` isMeta v
+        ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
+        TypeCmp cmp a b            -> isMeta (unEl a) `mplus` isMeta (unEl b)
+        -- TODO: extend to other comparisons?
+        ElimCmp cmp fs t v as bs   -> Nothing
+        LevelCmp cmp u v           -> Nothing
+        TelCmp a b cmp tela telb   -> Nothing
+        SortCmp cmp a b            -> Nothing
+        Guarded c pid              -> hasHeadMeta c
+        UnBlock{}                  -> Nothing
+        FindInstance{}             -> Nothing
+        IsEmpty r t                -> isMeta (unEl t)
+        CheckSizeLtSat t           -> isMeta t
+        CheckFunDef{}              -> Nothing
+        HasBiggerSort a            -> Nothing
+        HasPTSRule a b             -> Nothing
+        UnquoteTactic{}            -> Nothing
+        CheckMetaInst{}            -> Nothing
+
+    isMeta (MetaV m' es_m)
+      | m == m' = Just es_m
+    isMeta _  = Nothing
+
     getConstrs g f = liftTCM $ do
       cs <- filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s c) -> do
         c <- normalForm norm c
-        case clValue c of
-          ValueCmp _ _ _ (MetaV m' es_m) | m == m' -> do
+        case hasHeadMeta $ clValue c of
+          Just es_m -> do
+            -- unifyElimsMeta tries to move the constraint into
+            -- (an extension of) the context where @m@ comes from.
             unifyElimsMeta m es_m c $ \ eqs c -> do
               flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
           _ -> do
