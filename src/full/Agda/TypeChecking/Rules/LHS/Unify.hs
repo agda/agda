@@ -1289,8 +1289,9 @@ patternBindingForcedVars forced v = do
             if IntMap.null bound
               then return $ dotP v  -- bound nothing
               else do
-                let cpi = (toConPatternInfo ci) { conPLazy = True } -- Not setting conPType. Is this a problem?
-                return $ ConP c cpi ps
+                let cpi = (toConPatternInfo ci) { conPRecord = Just PatOSystem,
+                                                  conPLazy   = True } -- Not setting conPType. Is this a problem?
+                return $ ConP c cpi $ map (setOrigin Inserted) ps
           | otherwise -> return $ dotP v   -- Higher constructor (es has IApply)
 
         -- Non-pattern positions
