@@ -319,7 +319,8 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                   loop [] = return $ AutoResult (Solutions []) (Just "")
                   loop (term : terms') = do
                     -- On exception, try next solution
-                    flip catchError (const $ loop terms') $ do
+                    flip catchError (\ e -> do reportSDoc "auto" 40 $ "Solution failed:" TCM.<?> TCM.prettyTCM e
+                                               loop terms') $ do
                       exprs <- getsols term
                       reportSDoc "auto" 20 $ "Trying solution " TCM.<+> TCM.prettyTCM exprs
                       giveress <- forM exprs $ \ (mi, expr0) -> do
