@@ -1227,10 +1227,10 @@ checkLHS mf = updateModality checkLHS_ where
         Just ambC -> disambiguateConstructor ambC d pars
         Nothing   -> getRecordConstructor d pars a
 
-      -- Don't split on lazy constructor
+      -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | patLazy cpi == ConPatLazy -> softTypeError $
-          ForcedConstructorNotInstantiated focusPat
+        A.ConP cpi _ _ | patLazy cpi == ConPatLazy ->
+          unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
       -- The type of the constructor will end in an application of the datatype
