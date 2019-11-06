@@ -219,6 +219,7 @@ errorString err = case err of
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
+  UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
@@ -559,6 +560,10 @@ instance PrettyTCM TypeError where
     UnequalRelevance cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a relevant function type and the other is an irrelevant function type"
+
+    UnequalQuantity cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because one is a non-erased function type and the other is an erased function type"
 
     UnequalHiding a b -> fsep $
       [prettyTCM a, "!=", prettyTCM b] ++

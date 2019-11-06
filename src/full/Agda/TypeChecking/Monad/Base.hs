@@ -3290,6 +3290,8 @@ data TypeError
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
             -- ^ The two function types have different relevance.
+        | UnequalQuantity Comparison Term Term
+            -- ^ The two function types have different relevance.
         | UnequalHiding Term Term
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
