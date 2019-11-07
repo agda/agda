@@ -542,7 +542,11 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
       if not isCompiled && any not used
         then if any notUsed missing then term (etaExpand (needed - given) tm0) else do
           f <- lift $ HS.Var <$> xhqn "du" f  -- use stripped function
-          coe f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
+          -- Andreas, 2019-11-07, issue #4169.
+          -- Insert coercion unconditionally as erasure of arguments
+          -- that are matched upon might remove the unfolding of codomain types.
+          -- (Hard to explain, see test/Compiler/simple/Issue4169.)
+          hsCoerce f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
         else do
           f <- lift $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
           coe f `apps` ts
