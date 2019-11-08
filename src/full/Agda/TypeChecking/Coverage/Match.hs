@@ -149,10 +149,6 @@ toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
 fromSplitPatterns :: [NamedArg SplitPattern] -> [NamedArg DeBruijnPattern]
 fromSplitPatterns = (fmap . fmap . fmap . fmap) fromSplitVar
 
-instance DeBruijn SplitPattern where
-  debruijnNamedVar n i  = varP $ SplitPatVar n i []
-  deBruijnView _        = Nothing
-
 type SplitPSubstitution = Substitution' SplitPattern
 
 toSplitPSubst :: PatternSubstitution -> SplitPSubstitution
@@ -457,7 +453,7 @@ matchPat p q = case p of
     IApplyP _ _ _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
 
 -- | Unfold one level of a dot pattern to a proper pattern if possible.
-unDotP :: (MonadReduce m, DeBruijn (Pattern' a)) => Pattern' a -> m (Pattern' a)
+unDotP :: (MonadReduce m, DeBruijn a) => Pattern' a -> m (Pattern' a)
 unDotP (DotP o v) = reduce v >>= \case
   Var i [] -> return $ deBruijnVar i
   Con c _ vs -> do
