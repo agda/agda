@@ -428,16 +428,16 @@ matchPat p q = case p of
 
   IApplyP _ _ _ x -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
 
-  ConP c _ ps -> unDotP q >>= \case
+                           --    Issue #4179: If the inferred pattern is a literal
+                           -- v  we need to turn it into a constructor pattern.
+  ConP c _ ps -> unDotP q >>= unLitP >>= \case
     VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
     ConP c' i qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
     DotP o t  -> no
-    LitP l    -> isLitP p >>= \case
-      Just l' -> if l == l' then yes [] else no
-      Nothing -> no
     DefP{}   -> no
+    LitP{}    -> __IMPOSSIBLE__  -- excluded by typing and unLitP
     ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
     IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
 
@@ -481,3 +481,13 @@ isLitP (ConP c ci [a]) | visible a && isRelevant a = do
     inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
     inc _ = __IMPOSSIBLE__
 isLitP _ = return Nothing
+
+unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
+unLitP (LitP l@(LitNat _ n)) | n >= 0 = do
+  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
+                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
+                                  (Lit l)
+  let toP (Apply (Arg i (Lit l))) = Arg i (LitP l)
+      toP _ = __IMPOSSIBLE__
+  return $ ConP c noConPatternInfo $ map (fmap unnamed . toP) es
+unLitP p = return p
