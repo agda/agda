@@ -175,6 +175,7 @@ data WarningName
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
   | CantGeneralizeOverSorts_
+  | ClashesViaRenaming_                -- issue #4154
   | CoverageIssue_
   | CoverageNoExactSplit_
   | DeprecationWarning_
@@ -301,6 +302,7 @@ warningNameDescription w = case w of
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
+  ClashesViaRenaming_              -> "Clashes introduced by `renaming'."  -- issue #4154
   CoverageIssue_                   -> "Failed coverage checks."
   CoverageNoExactSplit_            -> "Failed exact split checks."
   DeprecationWarning_              -> "Feature deprecation."

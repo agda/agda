@@ -312,6 +312,10 @@ inNameSpace = case inScopeTag :: InScopeTag a of
   NameTag   -> nsNames
   ModuleTag -> nsModules
 
+-- | Non-dependent tag for name or module.
+data NameOrModule = NameNotModule | ModuleNotName
+  deriving (Data, Eq, Ord, Show, Enum, Bounded)
+
 ------------------------------------------------------------------------
 -- * Decorated names
 --
@@ -741,13 +745,59 @@ usingOrHiding i =
 --   However, the penalty of doing it in two passes should not be too high.
 --   (Doubling the run time.)
 applyImportDirective :: C.ImportDirective -> Scope -> Scope
-applyImportDirective dir@(ImportDirective{ impRenaming }) s
-  | null dir  = s  -- Since each run of applyImportDirective rebuilds the scope
-                   -- with cost O(n log n) time, it makes sense to test for the identity.
-  | otherwise = mergeScope
-      (useOrHide (usingOrHiding dir) s) -- Names kept via using/hiding.
-      (rename impRenaming s)            -- Things kept (under a different name) via renaming.
+applyImportDirective dir = fst . applyImportDirective_ dir
+
+-- | Version of 'applyImportDirective' that also returns sets of name
+--   and module name clashes introduced by @renaming@ to identifiers
+--   that are already imported by @using@ or lack of @hiding@.
+applyImportDirective_
+  :: C.ImportDirective
+  -> Scope
+  -> (Scope, (Set C.Name, Set C.Name)) -- ^ Merged scope, clashing names, clashing module names.
+applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
+  | null dir  = (s, (empty, empty))
+      -- Since each run of applyImportDirective rebuilds the scope
+      -- with cost O(n log n) time, it makes sense to test for the identity.
+  | otherwise = (mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
+    -- | Names kept via using/hiding.
+    sUse :: Scope
+    sUse = useOrHide (usingOrHiding dir) s
+
+    -- | Things kept (under a different name) via renaming.
+    sRen :: Scope
+    sRen = rename impRenaming s
+
+    -- | Which names are considered to be defined by a module?
+    --   The ones actually defined there publicly ('publicNS')
+    --   and the ones imported publicly ('ImportedNS')?
+
+    --   TODO: Also 'OnlyQualifiedNS'?
+    --   exportedNamesInScope sUse ?
+    exportedNSs = [PublicNS, ImportedNS]
+
+    -- | Name clashes introduced by the @renaming@ clause.
+    nameClashes :: Set C.Name
+    nameClashes = Map.keysSet rNames `Set.intersection` Map.keysSet uNames
+      -- NB: `intersection` returns a subset of the first argument.
+      -- To get the correct error location, i.e., in the @renaming@ clause
+      -- rather than at the definition location, we neet to return
+      -- names from the @renaming@ clause.  (Issue #4154.)
+      where
+      uNames, rNames :: NamesInScope
+      uNames = namesInScope exportedNSs sUse
+      rNames = namesInScope exportedNSs sRen
+
+    -- | Module name clashes introduced by the @renaming@ clause.
+
+    -- Note: need to cut and paste because of 'InScope' dependent types trickery.
+    moduleClashes :: Set C.Name
+    moduleClashes = Map.keysSet uModules `Set.intersection` Map.keysSet rModules
+      where
+      uModules, rModules :: ModulesInScope
+      uModules = namesInScope exportedNSs sUse
+      rModules = namesInScope exportedNSs sRen
+
 
     -- Restrict scope by directive.
     useOrHide :: UsingOrHiding -> Scope -> Scope

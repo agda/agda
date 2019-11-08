@@ -2971,6 +2971,10 @@ data Warning
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
     --   The 'String' gives optionally extra explanation.
+  | ClashesViaRenaming NameOrModule [C.Name]
+    -- ^ If a `renaming' import directive introduces a name or module name clash
+    --   in the exported names of a module.
+    --   (See issue #4154.)
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -3076,6 +3080,7 @@ warningName w = case w of
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
+  ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
