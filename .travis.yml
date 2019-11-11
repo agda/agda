@@ -137,9 +137,9 @@ jobs:
           - $HOME/.stack
           - $HOME/dist
       script:
-        - export BUILD_DIR=$HOME/dist
-
         - stack build ${ARGS} ${FLAGS} --ghc-options=-O0
+      after_success:
+        - export BUILD_DIR=$HOME/dist
         - mkdir -p ${BUILD_DIR}/build/
         - cp -r $(stack --stack-yaml stack-${GHC_VER}.yaml path --dist-dir)/build ${BUILD_DIR}
 
