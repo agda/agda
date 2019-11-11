@@ -9,7 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
-import Agda.Interaction.BasicOps (ComputeMode(..))
+import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..))
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
@@ -48,9 +48,9 @@ instance ToJSON Status where
 
 instance EncodeTCM ResponseContextEntry where
   encodeTCM entry = obj
-    [ "originalName" @= (encodePretty $ respOrigName entry)
-    , "reifiedName"  @= (encodePretty $ respReifName entry)
-    , "binding"      #= (encodePrettyTCM $ respType entry)
+    [ "originalName" @= encodePretty (respOrigName entry)
+    , "reifiedName"  @= encodePretty (respReifName entry)
+    , "binding"      #= encodePrettyTCM (respType entry)
     , "inScope"      @= respInScope entry
     ]
 
@@ -60,9 +60,9 @@ instance ToJSON InteractionId where
 
 instance EncodeTCM GiveResult where
 instance ToJSON GiveResult where
-  toJSON (Give_String s) = toJSON s
-  toJSON Give_Paren = toJSON True
-  toJSON Give_NoParen = toJSON False
+  toJSON (Give_String s) = object [ "str" .= s ]
+  toJSON Give_Paren   = object [ "paren" .= Bool True ]
+  toJSON Give_NoParen = object [ "paren" .= Bool False ]
 
 instance EncodeTCM MakeCaseVariant where
 instance ToJSON MakeCaseVariant where
@@ -70,14 +70,19 @@ instance ToJSON MakeCaseVariant where
   toJSON R.ExtendedLambda = String "ExtendedLambda"
 
 encodePretty :: Pretty a => a -> Value
-encodePretty = String . T.pack . show . pretty
+encodePretty = encodeShow . pretty
+
+encodeShow :: Show a => a -> Value
+encodeShow = String . T.pack . show
 
 encodePrettyTCM :: PrettyTCM a => a -> TCM Value
-encodePrettyTCM = (String . T.pack . show <$>) . prettyTCM
+encodePrettyTCM = (encodeShow <$>) . prettyTCM
+
+instance EncodeTCM Rewrite where
+instance ToJSON Rewrite where toJSON = encodeShow
 
 instance EncodeTCM ComputeMode where
-instance ToJSON ComputeMode where
-  toJSON = String . T.pack . show
+instance ToJSON ComputeMode where toJSON = encodeShow
 
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
@@ -142,7 +147,7 @@ instance EncodeTCM DisplayInfo where
 instance EncodeTCM GoalTypeAux where
   encodeTCM GoalOnly = kind "GoalOnly" []
   encodeTCM (GoalAndHave expr) = kind "GoalAndHave"
-    [ "expr" #= encodePrettyTCM expr]
+    [ "expr" #= encodePrettyTCM expr ]
   encodeTCM (GoalAndElaboration term) = kind "GoalAndElaboration"
     [ "term" #= encodePrettyTCM term ]
 
@@ -155,13 +160,13 @@ instance EncodeTCM GoalDisplayInfo where
     , "expr"        #= encodePrettyTCM expr
     ]
   encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
-    [ "rewrite"     @= Null -- render rewrite
+    [ "rewrite"     @= rewrite
     , "type"        @= goalType
     , "entries"     @= entries
     , "outputForms" @= Null -- render outputForms
     ]
   encodeTCM (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
-    [ "rewrite"     @= Null -- render rewrite
+    [ "rewrite"     @= rewrite
     ]
   encodeTCM (Goal_InferredType expr) = kind "InferredType"
     [ "expr"        #= encodePrettyTCM expr
