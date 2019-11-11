@@ -9,6 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.Base (CommandState(..))
 import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..))
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
@@ -23,6 +24,7 @@ import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Utils.Pretty (Pretty(..), render)
+import Agda.Utils.Time (CPUTime(..))
 
 --------------------------------------------------------------------------------
 
@@ -44,6 +46,13 @@ instance ToJSON Status where
   toJSON status = object
     [ "showImplicitArguments" .= sShowImplicitArguments status
     , "checked"               .= sChecked status
+    ]
+
+instance EncodeTCM CommandState where
+instance ToJSON CommandState where
+  toJSON commandState = object
+    [ "interactionPoints" .= theInteractionPoints commandState
+    -- more?
     ]
 
 instance EncodeTCM ResponseContextEntry where
@@ -81,55 +90,59 @@ encodePrettyTCM = (encodeShow <$>) . prettyTCM
 instance EncodeTCM Rewrite where
 instance ToJSON Rewrite where toJSON = encodeShow
 
+instance EncodeTCM CPUTime where
+instance ToJSON CPUTime where toJSON = encodePretty
+
 instance EncodeTCM ComputeMode where
 instance ToJSON ComputeMode where toJSON = encodeShow
 
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
-    [ "warnings"    #= prettyTCWarnings (tcWarnings wes)
-    , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
+    [ "warnings"          #= prettyTCWarnings (tcWarnings wes)
+    , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
-    [ "constraints" @= Null
+    [ "constraints"       @= Null
     ]
   encodeTCM (Info_AllGoalsWarnings _goals wes) = kind "AllGoalsWarnings"
-    [ "goals"       @= Null
-    , "warnings"    #= prettyTCWarnings (tcWarnings wes)
-    , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
+    [ "goals"             @= Null
+    , "warnings"          #= prettyTCWarnings (tcWarnings wes)
+    , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
     ]
-  encodeTCM (Info_Time doc) = kind "Time"
-    [ "payload"     @= Null
+  encodeTCM (Info_Time time) = kind "Time"
+    [ "time"              @= time
     ]
   encodeTCM (Info_Error msg) = kind "Error"
-    [ "payload"     @= Null
+    [ "payload"           @= Null
     ]
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound"
-    [ "payload"     @= Null
+    [ "payload"           @= Null
     ]
   encodeTCM (Info_Intro_ConstructorUnknown introductions) = kind "IntroConstructorUnknown"
-    [ "payload"     @= Null
+    [ "payload"           @= Null
     ]
-  encodeTCM (Info_Auto _) = kind "Auto"
-    [ "payload"     @= Null
+  encodeTCM (Info_Auto info) = kind "Auto"
+    [ "info"              @= toJSON info
     ]
   encodeTCM (Info_ModuleContents _ _ _) = kind "ModuleContents"
-    [ "payload"     @= Null
+    [ "payload"           @= Null
     ]
-  encodeTCM (Info_SearchAbout _ _) = kind "SearchAbout"
-    [ "payload"     @= Null
+  encodeTCM (Info_SearchAbout _ search) = kind "SearchAbout"
+    [ "payload"           @= Null
+    , "search"            @= toJSON search
     ]
   encodeTCM (Info_WhyInScope _ _ _ _ _) = kind "WhyInScope"
-    [ "payload"     @= Null
+    [ "payload"           @= Null
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
-    [ "commandState"      @= Null
+    [ "commandState"      @= commandState
     , "computeMode"       @= computeMode
-    , "time"              @= Null
+    , "time"              @= time
     , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_InferredType commandState time expr) = kind "InferredType"
-    [ "commandState"      @= Null
-    , "time"              @= Null
+    [ "commandState"      @= commandState
+    , "time"              @= time
     , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_Context ii ctx) = kind "Context"
