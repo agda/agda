@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | Encoding stuff into JSON values in TCM
 
@@ -34,8 +33,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 -- | The JSON version of`PrettyTCM`, for encoding JSON value in TCM
 class EncodeTCM a where
   encodeTCM :: a -> TCM Value
-
-instance ToJSON a => EncodeTCM a where
+  default encodeTCM :: ToJSON a => a -> TCM Value
   encodeTCM = pure . toJSON
 
 -- | TCM monadic version of object
@@ -100,22 +98,22 @@ kind' k = object . (("kind" .= String k) :)
 encodeListTCM :: EncodeTCM a => [a] -> TCM Value
 encodeListTCM = mapM encodeTCM >=> return . toJSONList
 
--- instance EncodeTCM a => EncodeTCM [a] where
---   encodeTCM = mapM encodeTCM >=> return . toJSONList
+instance EncodeTCM a => EncodeTCM [a] where
+  encodeTCM = mapM encodeTCM >=> return . toJSONList
 
--- -- overlaps with the instance declared above
--- instance {-# OVERLAPPING #-} EncodeTCM String
+-- overlaps with the instance declared above
+instance {-# OVERLAPPING #-} EncodeTCM String
 
--- instance EncodeTCM Bool where
--- instance EncodeTCM Int where
--- instance EncodeTCM Int32 where
--- instance EncodeTCM Value where
--- instance EncodeTCM Doc where
+instance EncodeTCM Bool where
+instance EncodeTCM Int where
+instance EncodeTCM Int32 where
+instance EncodeTCM Value where
+instance EncodeTCM Doc where
 
 instance ToJSON Doc where
   toJSON = toJSON . render
 
-instance {-# OVERLAPPING #-} EncodeTCM a => EncodeTCM (Maybe a) where
+instance EncodeTCM a => EncodeTCM (Maybe a) where
   encodeTCM Nothing   = return Null
   encodeTCM (Just a)  = encodeTCM a
 

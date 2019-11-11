@@ -14,11 +14,10 @@ import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad
 import Agda.VersionCommit
 
-import Agda.TypeChecking.Pretty (prettyTCM)
+import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
@@ -34,31 +33,36 @@ import Agda.Utils.Pretty (render)
 jsonREPL :: TCM () -> TCM ()
 jsonREPL = repl (liftIO . BS.putStrLn <=< jsonifyResponse) "JSON> "
 
+instance EncodeTCM Status where
 instance ToJSON Status where
   toJSON status = object
     [ "showImplicitArguments" .= sShowImplicitArguments status
     , "checked" .= sChecked status
     ]
 
+instance EncodeTCM InteractionId where
 instance ToJSON InteractionId where
   toJSON (InteractionId i) = toJSON i
 
+instance EncodeTCM GiveResult where
 instance ToJSON GiveResult where
   toJSON (Give_String s) = toJSON s
   toJSON Give_Paren = toJSON True
   toJSON Give_NoParen = toJSON False
 
+instance EncodeTCM MakeCaseVariant where
 instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
 
-instance {-# OVERLAPPING #-} EncodeTCM A.Expr where
-  encodeTCM = (String . T.pack . show <$>) . prettyTCM
+encodePrettyTCM :: PrettyTCM a => a -> TCM Value
+encodePrettyTCM = (String . T.pack . show <$>) . prettyTCM
 
+instance EncodeTCM ComputeMode where
 instance ToJSON ComputeMode where
   toJSON = String . T.pack . show
 
-instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
+instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
     [ "warnings"    #= prettyTCWarnings (tcWarnings wes)
     , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
@@ -96,38 +100,46 @@ instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
     [ "payload"     @= Null
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
-    [ "commandState"  @= Null
-    , "computeMode"   @= computeMode
-    , "time"          @= Null
-    , "expr"          @= expr
+    [ "commandState"      @= Null
+    , "computeMode"       @= computeMode
+    , "time"              @= Null
+    , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_InferredType commandState time expr) = kind "InferredType"
-    [ "commandState"  @= Null
-    , "time"          @= Null
-    , "expr"          @= expr
+    [ "commandState"      @= Null
+    , "time"              @= Null
+    , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_Context ii doc) = kind "Context"
-    [ "payload"     @= Null -- render doc
+    [ "interactionPoint"  @= ii
+    , "context"           @= Null -- render doc
     ]
   encodeTCM Info_Version = kind "Version"
-    [ "version"     @= (versionWithCommitInfo :: String)
+    [ "version"           @= (versionWithCommitInfo :: String)
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
     [ "interactionPoint"  @= ii
     , "goalInfo"          @= info
     ]
 
-instance {-# OVERLAPPING #-} EncodeTCM GoalDisplayInfo where
+instance EncodeTCM GoalTypeAux where
+  encodeTCM GoalOnly = kind "GoalOnly" []
+  encodeTCM (GoalAndHave expr) = kind "GoalAndHave"
+    [ "expr" #= encodePrettyTCM expr]
+  encodeTCM (GoalAndElaboration term) = kind "GoalAndElaboration"
+    [ "term" #= encodePrettyTCM term ]
+
+instance EncodeTCM GoalDisplayInfo where
   encodeTCM (Goal_HelperFunction payload) = kind "HelperFunction"
     [ "payload"     @= Null -- render payload
     ]
   encodeTCM (Goal_NormalForm computeMode expr) = kind "NormalForm"
     [ "computeMode" @= computeMode
-    , "expr"        @= expr
+    , "expr"        #= encodePrettyTCM expr
     ]
   encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
     [ "rewrite"     @= Null -- render rewrite
-    , "type"        @= Null -- render goalType
+    , "type"        @= goalType
     , "entries"     @= Null -- render entries
     , "outputForms" @= Null -- render outputForms
     ]
@@ -135,14 +147,14 @@ instance {-# OVERLAPPING #-} EncodeTCM GoalDisplayInfo where
     [ "rewrite"     @= Null -- render rewrite
     ]
   encodeTCM (Goal_InferredType expr) = kind "InferredType"
-    [ "expr"        @= expr
+    [ "expr"        #= encodePrettyTCM expr
     ]
 
-instance {-# OVERLAPPING #-} EncodeTCM Response where
+instance EncodeTCM Response where
   encodeTCM (Resp_HighlightingInfo info remove method modFile) =
     liftIO $ jsonifyHighlightingInfo info remove method modFile
   encodeTCM (Resp_DisplayInfo info) = kind "DisplayInfo"
-    [ "info" @= info
+    [ "info"          @= info
     ]
   encodeTCM (Resp_ClearHighlighting tokenBased) = kind "ClearHighlighting"
     [ "tokenBased"    @= tokenBased

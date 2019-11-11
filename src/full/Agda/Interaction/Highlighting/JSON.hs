@@ -36,7 +36,7 @@ showAspects modFile (range, aspect) = object
       , "position" .= position
       ]
 
--- instance EncodeTCM TokenBased where
+instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where
     toJSON TokenBased = String "TokenBased"
     toJSON NotOnlyTokenBased = String "NotOnlyTokenBased"
