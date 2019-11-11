@@ -14,14 +14,15 @@ import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad
+import Agda.Syntax.Concrete.Name (NameInScope(..))
+import Agda.TypeChecking.Monad hiding (NotInScope)
 import Agda.VersionCommit
 
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
-import Agda.Utils.Pretty (render)
+import Agda.Utils.Pretty (Pretty(..), render)
 
 --------------------------------------------------------------------------------
 
@@ -33,11 +34,24 @@ import Agda.Utils.Pretty (render)
 jsonREPL :: TCM () -> TCM ()
 jsonREPL = repl (liftIO . BS.putStrLn <=< jsonifyResponse) "JSON> "
 
+instance EncodeTCM NameInScope where
+instance ToJSON NameInScope where
+  toJSON InScope    = Bool True
+  toJSON NotInScope = Bool False
+
 instance EncodeTCM Status where
 instance ToJSON Status where
   toJSON status = object
     [ "showImplicitArguments" .= sShowImplicitArguments status
-    , "checked" .= sChecked status
+    , "checked"               .= sChecked status
+    ]
+
+instance EncodeTCM ResponseContextEntry where
+  encodeTCM entry = obj
+    [ "originalName" @= (encodePretty $ respOrigName entry)
+    , "reifiedName"  @= (encodePretty $ respReifName entry)
+    , "binding"      #= (encodePrettyTCM $ respType entry)
+    , "inScope"      @= respInScope entry
     ]
 
 instance EncodeTCM InteractionId where
@@ -54,6 +68,9 @@ instance EncodeTCM MakeCaseVariant where
 instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
+
+encodePretty :: Pretty a => a -> Value
+encodePretty = String . T.pack . show . pretty
 
 encodePrettyTCM :: PrettyTCM a => a -> TCM Value
 encodePrettyTCM = (String . T.pack . show <$>) . prettyTCM
@@ -110,9 +127,9 @@ instance EncodeTCM DisplayInfo where
     , "time"              @= Null
     , "expr"              #= encodePrettyTCM expr
     ]
-  encodeTCM (Info_Context ii doc) = kind "Context"
+  encodeTCM (Info_Context ii ctx) = kind "Context"
     [ "interactionPoint"  @= ii
-    , "context"           @= Null -- render doc
+    , "context"           @= ctx
     ]
   encodeTCM Info_Version = kind "Version"
     [ "version"           @= (versionWithCommitInfo :: String)
@@ -140,7 +157,7 @@ instance EncodeTCM GoalDisplayInfo where
   encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
     [ "rewrite"     @= Null -- render rewrite
     , "type"        @= goalType
-    , "entries"     @= Null -- render entries
+    , "entries"     @= entries
     , "outputForms" @= Null -- render outputForms
     ]
   encodeTCM (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
