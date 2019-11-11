@@ -128,6 +128,21 @@ jobs:
       script:
         - travis_wait 35 stack build ${ARGS} ${FLAGS} --ghc-options=-O0
 
+    - <<: *no-test-job # Use this version to run tests in the next stage
+      env:
+        GHC_VER=8.8.1
+        FLAGS="--flag Agda:enable-cluster-counting"
+      cache:
+        directories:
+          - $HOME/.stack
+          - $HOME/dist
+      script:
+        - export BUILD_DIR=$HOME/dist
+
+        - stack build ${ARGS} ${FLAGS} --ghc-options=-O0
+        - mkdir -p ${BUILD_DIR}/build/
+        - cp -r $(stack --stack-yaml stack-${GHC_VER}.yaml path --dist-dir)/build ${BUILD_DIR}
+
     - <<: *no-test-job
       env:
         GHC_VER=8.6.5
@@ -179,7 +194,12 @@ jobs:
     # The builds involving the testsuite (60-80min) are run then.
     - &complete-job
       stage: main
-      env: GHC_VER=8.8.1 CABAL_VER=2.4
+      env:
+        GHC_VER=8.8.1
+        FLAGS="--flag Agda:enable-cluster-counting"
+      cache:
+        directories:
+          - $HOME/dist
       addons:
         apt:
           packages:
@@ -197,7 +217,7 @@ jobs:
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
           # - export AGDA_HOME=`pwd` this is $TRAVIS_BUILD_DIR
       install:
-        - .travis/cabal_install
+        - echo skipped # .travis/cabal_install
       ##############################################################################
       script:
         - .travis/cabal_script
