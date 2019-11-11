@@ -149,7 +149,7 @@ jobs:
         FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
 
     # Windows testing environment
-    - stage: stackage
+    - stage: compilation
       os: windows
       cache:
         directories:
