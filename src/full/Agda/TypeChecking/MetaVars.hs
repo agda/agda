@@ -399,6 +399,7 @@ blockTermOnProblem t v pid =
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
+        reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
         listenToMeta (CheckConstraint i cmp) x
         return v
 
@@ -453,6 +454,7 @@ postponeTypeCheckingProblem p unblock = do
   es  <- map Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
   cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
+  reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
