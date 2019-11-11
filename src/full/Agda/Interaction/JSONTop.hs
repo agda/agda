@@ -6,12 +6,15 @@ import Control.Monad.State
 import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.BasicOps (ComputeMode(..))
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad
 import Agda.VersionCommit
 
@@ -48,6 +51,12 @@ instance ToJSON GiveResult where
 instance ToJSON MakeCaseVariant where
   toJSON R.Function = String "Function"
   toJSON R.ExtendedLambda = String "ExtendedLambda"
+
+instance {-# OVERLAPPING #-} EncodeTCM A.Expr where
+  encodeTCM = (String . T.pack . show <$>) . prettyTCM
+
+instance ToJSON ComputeMode where
+  toJSON = String . T.pack . show
 
 instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
@@ -88,14 +97,14 @@ instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
     [ "commandState"  @= Null
-    , "computeMode"   @= Null
+    , "computeMode"   @= computeMode
     , "time"          @= Null
-    , "expr"          #= (show <$> prettyTCM expr)
+    , "expr"          @= expr
     ]
   encodeTCM (Info_InferredType commandState time expr) = kind "InferredType"
     [ "commandState"  @= Null
     , "time"          @= Null
-    , "expr"          #= (show <$> prettyTCM expr)
+    , "expr"          @= expr
     ]
   encodeTCM (Info_Context ii doc) = kind "Context"
     [ "payload"     @= Null -- render doc
@@ -113,8 +122,8 @@ instance {-# OVERLAPPING #-} EncodeTCM GoalDisplayInfo where
     [ "payload"     @= Null -- render payload
     ]
   encodeTCM (Goal_NormalForm computeMode expr) = kind "NormalForm"
-    [ "computeMode" @= String (show computeMode)
-    , "expr"        #= (show <$> prettyTCM expr)
+    [ "computeMode" @= computeMode
+    , "expr"        @= expr
     ]
   encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
     [ "rewrite"     @= Null -- render rewrite
@@ -126,7 +135,7 @@ instance {-# OVERLAPPING #-} EncodeTCM GoalDisplayInfo where
     [ "rewrite"     @= Null -- render rewrite
     ]
   encodeTCM (Goal_InferredType expr) = kind "InferredType"
-    [ "expr"        #= (show <$> prettyTCM expr)
+    [ "expr"        @= expr
     ]
 
 instance {-# OVERLAPPING #-} EncodeTCM Response where
