@@ -94,26 +94,23 @@ jobs:
         - export PATH=$HOME/.cabal/bin:$PATH
         - travis_retry cabal v1-update
       script:
-        - if [ ! -f "$HOME/.cabal/bin/fix-agda-whitespace" ]; then
-            cd src/fix-agda-whitespace/;
-            cabal -v0 v1-install;
-            cd ${TRAVIS_BUILD_DIR};
-          fi
+        - cd src/fix-agda-whitespace/
+        - cabal -v0 v1-install
+        - cd ${TRAVIS_BUILD_DIR}
         - fix-agda-whitespace --check
 
     - &no-test-job
       stage: stackage
-      env: GHC_VER=8.8.1
+      env:
+        - GHC_VER=8.8.1
+        - GHC_VER=8.6.5
       cache:
         directories:
           - $HOME/.stack
-      addons:
-        apt:
-          packages:
-            - ghc-8.8.1
-          sources:
-            - hvr-ghc
       before_install:
+        - sudo -E apt-add-repository -y "ppa:hvr/ghc"
+        - travis_apt_get_update
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install ghc-${GHC_VER}
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
@@ -152,41 +149,17 @@ jobs:
       script:
         - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
 
-    - <<: *no-test-job
-      env: GHC_VER=8.6.5
-      addons:
-        apt:
-          packages:
-            - ghc-8.6.5
-          sources:
-            - hvr-ghc
+          #    - <<: *no-test-job
+          #      env: GHC_VER=8.6.5
 
     - <<: *no-test-job
       env: GHC_VER=8.4.4
-      addons:
-        apt:
-          packages:
-            - ghc-8.4.4
-          sources:
-            - hvr-ghc
 
     - <<: *no-test-job
       env: GHC_VER=8.2.2
-      addons:
-        apt:
-          packages:
-            - ghc-8.2.2
-          sources:
-            - hvr-ghc
 
     - <<: *no-test-job
       env: GHC_VER=8.0.2
-      addons:
-        apt:
-          packages:
-            - ghc-8.0.2
-          sources:
-            - hvr-ghc
 
     ##############################################################################
     # Main stage
