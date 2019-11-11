@@ -5,11 +5,12 @@
 
 module InstanceArguments.05-equality-std1 where
 
-open import Relation.Binary.PropositionalEquality hiding (decSetoid)
+open import Relation.Binary.PropositionalEquality hiding (decSetoid; isDecEquivalence)
 open import Relation.Nullary
 open import Relation.Binary using (IsDecEquivalence; module IsDecEquivalence; Reflexive; module DecSetoid)
-open import Data.Bool using (false; true; decSetoid)
-open DecSetoid decSetoid using (isDecEquivalence)
+open import Data.Bool using (false; true)
+open import Data.Bool.Properties using (≡-decSetoid)
+open DecSetoid ≡-decSetoid using (isDecEquivalence)
 
 open module IsDecEquivalenceWithImplicits = IsDecEquivalence {{...}} using (_≟_)
 
