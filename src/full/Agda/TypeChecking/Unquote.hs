@@ -625,7 +625,7 @@ evalTCM v = do
       let cond = return . mentionsMetas (HashSet.fromList ms)
       (withMeta , _) <-partitionM cond (c ++ a)
       buildList <*> mapM quoteConstraint (map (clValue . theConstraint) withMeta)
-      
+
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
       (_, a) <- inferExpr =<< toAbstract_ v

@@ -91,7 +91,7 @@ quotingKit = do
   agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
   agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
-  constraintValueCmp            <- primAgdaConstraintValueCmp 
+  constraintValueCmp            <- primAgdaConstraintValueCmp
   unsupportedConstraint         <- primAgdaConstraintUnsupported
 
   let (@@) :: Apply a => ReduceM a -> ReduceM Term -> ReduceM a
