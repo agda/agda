@@ -15,6 +15,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
 import Agda.VersionCommit
 
+import Agda.TypeChecking.Pretty (prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
@@ -56,10 +57,10 @@ instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints" @= Null
     ]
-  encodeTCM (Info_AllGoalsWarnings _goals _warningsAndErrors) = kind "AllGoalsWarnings"
+  encodeTCM (Info_AllGoalsWarnings _goals wes) = kind "AllGoalsWarnings"
     [ "goals"       @= Null
-    , "warnings"    @= Null
-    , "errors"      @= Null
+    , "warnings"    #= prettyTCWarnings (tcWarnings wes)
+    , "errors"      #= prettyTCWarnings (nonFatalErrors wes)
     ]
   encodeTCM (Info_Time doc) = kind "Time"
     [ "payload"     @= Null
@@ -89,48 +90,43 @@ instance {-# OVERLAPPING #-} EncodeTCM DisplayInfo where
     [ "commandState"  @= Null
     , "computeMode"   @= Null
     , "time"          @= Null
-    , "expr"          @= Null
+    , "expr"          #= (show <$> prettyTCM expr)
     ]
   encodeTCM (Info_InferredType commandState time expr) = kind "InferredType"
     [ "commandState"  @= Null
     , "time"          @= Null
-    , "expr"          @= Null
+    , "expr"          #= (show <$> prettyTCM expr)
     ]
   encodeTCM (Info_Context ii doc) = kind "Context"
     [ "payload"     @= Null -- render doc
     ]
   encodeTCM Info_Version = kind "Version"
-    [ "version"     @= (("Agda version " ++ versionWithCommitInfo) :: String)
+    [ "version"     @= (versionWithCommitInfo :: String)
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
-    [ "interactionPoint"  @= Null -- render ii
-    , "payload"           @= Null -- render info
+    [ "interactionPoint"  @= ii
+    , "goalInfo"          @= info
     ]
 
-instance ToJSON GoalDisplayInfo where
-  toJSON (Goal_HelperFunction payload) = object
-    [ "kind"        .= String "HelperFunction"
-    , "payload"     .= Null -- render payload
+instance {-# OVERLAPPING #-} EncodeTCM GoalDisplayInfo where
+  encodeTCM (Goal_HelperFunction payload) = kind "HelperFunction"
+    [ "payload"     @= Null -- render payload
     ]
-  toJSON (Goal_NormalForm computeMode expr) = object
-    [ "kind"        .= String "NormalForm"
-    , "computeMode" .= Null -- render computeMode
-    , "expr"        .= Null -- render expr
+  encodeTCM (Goal_NormalForm computeMode expr) = kind "NormalForm"
+    [ "computeMode" @= String (show computeMode)
+    , "expr"        #= (show <$> prettyTCM expr)
     ]
-  toJSON (Goal_GoalType rewrite goalType entries outputForms) = object
-    [ "kind"        .= String "GoalType"
-    , "rewrite"     .= Null -- render rewrite
-    , "type"        .= Null -- render goalType
-    , "entries"     .= Null -- render entries
-    , "outputForms" .= Null -- render outputForms
+  encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
+    [ "rewrite"     @= Null -- render rewrite
+    , "type"        @= Null -- render goalType
+    , "entries"     @= Null -- render entries
+    , "outputForms" @= Null -- render outputForms
     ]
-  toJSON (Goal_CurrentGoal rewrite) = object
-    [ "kind"        .= String "CurrentGoal"
-    , "rewrite"     .= Null -- render rewrite
+  encodeTCM (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
+    [ "rewrite"     @= Null -- render rewrite
     ]
-  toJSON (Goal_InferredType expr) = object
-    [ "kind"        .= String "InferredType"
-    , "expr"        .= Null -- render expr
+  encodeTCM (Goal_InferredType expr) = kind "InferredType"
+    [ "expr"        #= (show <$> prettyTCM expr)
     ]
 
 instance {-# OVERLAPPING #-} EncodeTCM Response where
