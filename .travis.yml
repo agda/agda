@@ -117,7 +117,7 @@ jobs:
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - export ARGS="--no-haddock --no-run-tests --no-library-profiling --stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
 
         - echo "*** GHC version ***"     && ghc     --version &&
           echo "*** Stack version ***"   && stack   --version &&
