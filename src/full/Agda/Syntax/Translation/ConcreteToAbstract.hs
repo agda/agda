@@ -1702,7 +1702,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
              setCurrentRange bad $
                typeError $ DuplicateFields dups
         bindModule p x m
-        cm' <- mapM (\(c, _) -> bindConstructorName m c a p YesRec) cm
+        -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
+        -- cm' <- mapM (\(c, _) -> bindConstructorName m c a p YesRec) cm
+        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c a p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
@@ -2008,6 +2010,20 @@ bindConstructorName m x a p record = do
             (AbstractDef, _) -> PrivateAccess Inserted
             (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
             _                -> PublicAccess
+
+-- | Record constructors do not live in the record module (as it is parameterized).
+--   Abstract constructors are bound privately, so that they are not exported.
+bindRecordConstructorName :: C.Name -> IsAbstract -> Access -> ScopeM A.QName
+bindRecordConstructorName x a p = do
+  y <- freshAbstractQName' x
+  bindName p' ConName x y
+  return y
+  where
+    -- An abstract constructor is private (abstract constructor means
+    -- abstract datatype, so the constructor should not be exported).
+    p' = case a of
+           AbstractDef -> PrivateAccess Inserted
+           _           -> p
 
 instance ToAbstract ConstrDecl A.Declaration where
   toAbstract (ConstrDecl record m a p d) = do

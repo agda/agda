@@ -161,6 +161,16 @@ Language
 
 * `quoteGoal` and `quoteContext` are no longer keywords.
 
+* Record constructors can no longer be qualified by the record module.
+  (See issue [#4189](https://github.com/agda/agda/issues/4189).)
+  ```agda
+  record Foo : Set where
+    constructor foo
+
+  works = foo
+  fails = Foo.foo
+  ```
+
 ### Modalities
 
 * New Flat Modality
