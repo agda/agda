@@ -77,9 +77,6 @@ jobs:
   fast_finish: true
 
   include:
-  ##############################################################################
-  # Stackage stage
-  #
     - stage: check whitespace
       env: GHC_VER=8.8.1 CABAL_VER=2.4
       addons:
@@ -99,31 +96,57 @@ jobs:
         - cd ${TRAVIS_BUILD_DIR}
         - fix-agda-whitespace --check
 
+  ##############################################################################
+  # Stackage stage
+  #
     - &no-test-job
       stage: stackage
       env:
-        - GHC_VER=8.8.1
-        - GHC_VER=8.6.5
+        GHC_VER=8.8.1
+        FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
       cache:
         directories:
           - $HOME/.stack
+
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc"
         - travis_apt_get_update
         - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install ghc-${GHC_VER}
+
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+
         - echo "*** GHC version ***"     && ghc     --version &&
           echo "*** Stack version ***"   && stack   --version &&
           echo "*** Haddock version ***" && haddock --version &&
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install:
-        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+        - stack build ${ARGS} --only-dependencies ${FLAGS}
       script:
-        - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
+        - travis_wait 35 stack build ${ARGS} ${FLAGS} --ghc-options=-O0
+
+    - <<: *no-test-job
+      env:
+        GHC_VER=8.6.5
+        FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+
+    - <<: *no-test-job
+      env:
+        GHC_VER=8.4.4
+        FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+
+    - <<: *no-test-job
+      env:
+        GHC_VER=8.2.2
+        FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+
+    - <<: *no-test-job
+      env:
+        GHC_VER=8.0.2
+        FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
 
     # Windows testing environment
     - stage: stackage
@@ -134,9 +157,10 @@ jobs:
           - $APPDATA/stack
       language: c
       env:
-        - GHC_VER=8.8.1 ICU_VER=58.2-3
+        GHC_VER=8.8.1
+        ICU_VER=58.2-3
+        FLAGS="--flag Agda:enable-cluster-counting"
       before_install:
-        - export AGDA_STACK_BUILD_FLAGS="--flag Agda:enable-cluster-counting"
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
 
         - travis_retry choco install haskell-stack --no-progress
@@ -145,21 +169,9 @@ jobs:
         - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
 
         - stack build --compiler ghc-${GHC_VER} text-icu
-        - stack build ${ARGS} --only-dependencies ${AGDA_STACK_BUILD_FLAGS}
+        - stack build ${ARGS} --only-dependencies ${FLAGS}
       script:
         - travis_wait 35 stack build ${ARGS} ${AGDA_STACK_BUILD_FLAGS} --ghc-options=-O0
-
-          #    - <<: *no-test-job
-          #      env: GHC_VER=8.6.5
-
-    - <<: *no-test-job
-      env: GHC_VER=8.4.4
-
-    - <<: *no-test-job
-      env: GHC_VER=8.2.2
-
-    - <<: *no-test-job
-      env: GHC_VER=8.0.2
 
     ##############################################################################
     # Main stage
