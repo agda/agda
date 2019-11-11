@@ -9,13 +9,14 @@ module InstanceArguments.05-equality-std2 where
 open import Agda.Primitive
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality using (_≡_)
 open import Data.Bool hiding (_≟_)
+open import Data.Bool.Properties using (≡-decSetoid)
 
 open DecSetoid {{...}}
 
 instance
-  decBool = Data.Bool.decSetoid
+  decBool = ≡-decSetoid
 
 test : IsDecEquivalence (_≡_ {A = Bool})
 test = isDecEquivalence

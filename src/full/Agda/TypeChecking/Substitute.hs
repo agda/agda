@@ -1018,8 +1018,8 @@ instance Subst Term EqualityView where
     (applySubst rho a)
     (applySubst rho b)
 
-instance DeBruijn DeBruijnPattern where
-  debruijnNamedVar n i             = varP $ DBPatVar n i
+instance DeBruijn a => DeBruijn (Pattern' a) where
+  debruijnNamedVar n i             = varP $ debruijnNamedVar n i
   -- deBruijnView returns Nothing, to prevent consS and the like
   -- from dropping the names and origins when building a substitution.
   deBruijnView _                   = Nothing

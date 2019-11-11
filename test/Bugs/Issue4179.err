@@ -1,8 +1,0 @@
-AGDA_FAILURE
-
-ret > ExitFailure 1
-out > Issue4179.agda:13,1-15,22
-out > Incomplete pattern matching for join. Missing cases:
-out >   join .1 leanL (node leaf leanL)
-out > when checking the definition of join
-out >
