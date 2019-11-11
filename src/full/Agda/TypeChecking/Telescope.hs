@@ -484,11 +484,10 @@ isPath
   => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>
-                 Telescope -> Boundary -> [NamedArg (Pattern' a)]
+telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs
 
-telePatterns' :: (DeBruijn a, DeBruijn (Pattern' a)) =>
+telePatterns' :: DeBruijn a =>
                 (forall a. (DeBruijn a) => Telescope -> [NamedArg a]) -> Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns' f tel [] = f tel
 telePatterns' f tel boundary = recurse $ f tel
