@@ -636,6 +636,9 @@ warningHighlighting w = case tcWarning w of
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
   UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty
+  ClashesViaRenaming _ xs    -> Fold.foldMap (deadcodeHighlighting . getRange) xs
+    -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
+    -- Should we have a different color?
   WrongInstanceDeclaration{} -> mempty
   InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
   InstanceNoOutputTypeName{} -> mempty

@@ -1,0 +1,16 @@
+Issue4154.agda:14,1-31
+Name clashes introduced by 'renaming': B
+when scope checking the declaration
+  module N = M renaming (A to B)
+Issue4154.agda:15,1-25
+Name clashes introduced by 'renaming': B
+when scope checking the declaration
+  open M renaming (A to B)
+Issue4154.agda:20,8-9
+Ambiguous name B. It could refer to any one of
+  M.B bound at
+    Issue4154.agda:10,7-8
+  M.A bound at
+    Issue4154.agda:10,5-6
+(hint: Use C-c C-w (in Emacs) if you want to know why)
+when scope checking B

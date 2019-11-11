@@ -284,7 +284,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               ]
 
         -- Needed to calculate the proper fullType below.
-        applyCohesionToContext ai $ do
+        -- Also: issue #4173, allow splitting on erased arguments in erased definitions
+        -- in the coverage checker.
+        applyCohesionToContext ai $ applyQuantityToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.

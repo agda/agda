@@ -378,7 +378,7 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
     (ExtendTel dom1{-@(Dom i1 a1)-} tel1, ExtendTel dom2{-@(Dom i2 a2)-} tel2) -> do
-      compareDom cmp dom1 dom2 tel1 tel2 bad bad $
+      compareDom cmp dom1 dom2 tel1 tel2 bad bad bad $
         compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
   where
     -- Andreas, 2011-05-10 better report message about types
@@ -663,12 +663,14 @@ compareAtom cmp t m n =
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
-                , "t2 =" <+> prettyTCM t2 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR $
+                , "t2 =" <+> prettyTCM t2
+                ]
+              compareDom cmp dom2 dom1 b1 b2 errH errR errQ $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
+            errQ = typeError $ UnequalQuantity  cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -680,11 +682,16 @@ compareDom :: (MonadConversion m , Free c)
   -> Abs c      -- ^ @b2@  The bigger codomain.
   -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
+  -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDom = a2}) b1 b2 errH errR cont
-  | not (sameHiding dom1 dom2) = errH
+compareDom cmp
+  dom1@(Dom{domInfo = i1, unDom = a1})
+  dom2@(Dom{domInfo = i2, unDom = a2})
+  b1 b2 errH errR errQ cont
+  | not $ sameHiding dom1 dom2 = errH
   | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
+  | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) = errQ
   | otherwise = do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -706,6 +713,10 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
 compareRelevance CmpLeq = (<=)
+
+compareQuantity :: Comparison -> Quantity -> Quantity -> Bool
+compareQuantity CmpEq  = sameQuantity
+compareQuantity CmpLeq = moreQuantity
 
 -- | When comparing argument spines (in compareElims) where the first arguments
 --   don't match, we keep going, substituting the anti-unification of the two

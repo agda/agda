@@ -1397,6 +1397,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   mHCompName <- getPrimitiveName' builtinHComp
 
+  erased <- asksTC hasQuantity0
+  reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
   case ns of
     []  -> do
       let absurdp = VarP PatOAbsurd $ SplitPatVar underscore 0 []
@@ -1416,7 +1418,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
-    (_ : _ : _) | not (usableQuantity t) ->
+    (_ : _ : _) | not erased && not (usableQuantity t) ->
       throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     _ -> do
