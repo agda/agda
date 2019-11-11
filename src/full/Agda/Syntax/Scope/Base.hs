@@ -65,9 +65,6 @@ data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.
   | ImportedNS       -- ^ Things from open public, exported by this module.
-  | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
-                     --   but not exported when opening the module.
-                     --   Used for qualified constructors.
   deriving (Data, Eq, Bounded, Enum, Show)
 
 allNameSpaces :: [NameSpaceId]
@@ -78,7 +75,6 @@ type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess    = PublicNS
 localNameSpace PrivateAccess{} = PrivateNS
-localNameSpace OnlyQualified   = OnlyQualifiedNS
 
 nameSpaceAccess :: NameSpaceId -> Access
 nameSpaceAccess PrivateNS = PrivateAccess Inserted
@@ -644,7 +640,7 @@ allNamesInScope' s =
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
-exportedNamesInScope = namesInScope [PublicNS, ImportedNS, OnlyQualifiedNS]
+exportedNamesInScope = namesInScope [PublicNS, ImportedNS]
 
 namesInScope :: InScope a => [NameSpaceId] -> Scope -> ThingsInScope a
 namesInScope ids s =
@@ -684,7 +680,7 @@ setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const 
     zero  = emptyNameSpace
     one   = allThingsInScope s
     imp   = thingsInScope [ImportedNS] s
-    noimp = thingsInScope [PublicNS, PrivateNS, OnlyQualifiedNS] s
+    noimp = thingsInScope [PublicNS, PrivateNS] s
 
     ns b = case (a, b) of
       (PublicNS, PublicNS)   -> noimp
@@ -771,9 +767,6 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
     -- | Which names are considered to be defined by a module?
     --   The ones actually defined there publicly ('publicNS')
     --   and the ones imported publicly ('ImportedNS')?
-
-    --   TODO: Also 'OnlyQualifiedNS'?
-    --   exportedNamesInScope sUse ?
     exportedNSs = [PublicNS, ImportedNS]
 
     -- | Name clashes introduced by the @renaming@ clause.
@@ -871,10 +864,6 @@ restrictLocalPrivate m =
   where
     rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
     rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
-
--- | Remove names that can only be used qualified (when opening a scope)
-removeOnlyQualified :: Scope -> Scope
-removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
 
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope
@@ -1225,7 +1214,6 @@ instance Pretty NameSpaceId where
     PublicNS        -> "public"
     PrivateNS       -> "private"
     ImportedNS      -> "imported"
-    OnlyQualifiedNS -> "only-qualified"
 
 instance Pretty NameSpace where
   pretty = vcat . prettyNameSpace

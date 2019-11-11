@@ -840,7 +840,7 @@ openModule kind mam cm dir = do
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
                 noGeneralizedVarsIfLetOpen kind .
-                removeOnlyQualified . restrictPrivate =<< getNamedScope m
+                restrictPrivate =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)

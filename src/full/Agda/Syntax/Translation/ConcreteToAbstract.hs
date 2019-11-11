@@ -250,13 +250,9 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     -- Scope check the old module name and the module args.
     m1    <- toAbstract $ OldModuleName m
     args' <- toAbstractCtx (ArgumentCtx PreferParen) args
-    -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
-    -- isn't properly in the record module, so copying it will lead to badness.
-    let noRecConstr | null args = id
-                    | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
     (adir, s) <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
-    (s', copyInfo) <- copyScope m m0 (noRecConstr s)
+    (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
@@ -275,7 +271,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
-    (s', copyInfo) <- copyScope recN m0 (removeOnlyQualified s)
+    (s', copyInfo) <- copyScope recN m0 s
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
@@ -1650,7 +1646,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           let m = mnameFromList $ qnameToList x'
           createModule (Just IsData) m
           bindModule p x m  -- make it a proper module
-          cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
+          cons <- toAbstract (map (ConstrDecl m a p) cons)
           printScope "data" 20 $ "Checked data " ++ prettyShow x
           f <- getConcreteFixity x
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
@@ -1703,7 +1699,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
                typeError $ DuplicateFields dups
         bindModule p x m
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        -- cm' <- mapM (\(c, _) -> bindConstructorName m c a p YesRec) cm
         cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c a p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
@@ -1987,12 +1982,15 @@ lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
   fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
-data IsRecordCon = YesRec | NoRec
-data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
+data ConstrDecl = ConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
 
-bindConstructorName :: ModuleName -> C.Name -> IsAbstract ->
-                       Access -> IsRecordCon -> ScopeM A.QName
-bindConstructorName m x a p record = do
+bindConstructorName
+  :: ModuleName      -- ^ Name of @data@/@record@ module.
+  -> C.Name          -- ^ Constructor name.
+  -> IsAbstract
+  -> Access
+  -> ScopeM A.QName
+bindConstructorName m x a p = do
   f <- getConcreteFixity x
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x
@@ -2006,10 +2004,9 @@ bindConstructorName m x a p record = do
     p' = case a of
            AbstractDef -> PrivateAccess Inserted
            _           -> p
-    p'' = case (a, record) of
-            (AbstractDef, _) -> PrivateAccess Inserted
-            (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
-            _                -> PublicAccess
+    p'' = case a of
+            AbstractDef -> PrivateAccess Inserted
+            _           -> PublicAccess
 
 -- | Record constructors do not live in the record module (as it is parameterized).
 --   Abstract constructors are bound privately, so that they are not exported.
@@ -2026,7 +2023,7 @@ bindRecordConstructorName x a p = do
            _           -> p
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl record m a p d) = do
+  toAbstract (ConstrDecl m a p d) = do
     case d of
       C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
@@ -2035,7 +2032,7 @@ instance ToAbstract ConstrDecl A.Declaration where
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
-        y <- bindConstructorName m x a p record
+        y <- bindConstructorName m x a p
         printScope "con" 15 "bound constructor"
         return $ A.Axiom NoFunSig (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
