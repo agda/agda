@@ -187,7 +187,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
-    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
+    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaConstraintUnsupported, primAgdaTermMeta,
+    primAgdaCmpEq, primAgdaCmpLEq, primAgdaComparison, primAgdaAsTermsOf, primAgdaAsTypes, primAgdaCompareAs,
+    primAgdaConstraintValueCmp, primAgdaConstraint,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -214,6 +216,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
     primAgdaTCMSolveConstraints, primAgdaTCMSolveConstraintsMentioning,
+    primAgdaTCMGetConstraintsMentioning,
     primAgdaTCMRunSpeculative
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
@@ -334,7 +337,16 @@ primAgdaTermPi                        = getBuiltin builtinAgdaTermPi
 primAgdaTermSort                      = getBuiltin builtinAgdaTermSort
 primAgdaTermLit                       = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported               = getBuiltin builtinAgdaTermUnsupported
+primAgdaConstraintUnsupported         = getBuiltin builtinAgdaConstraintUnsupported
 primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
+primAgdaCmpEq                         = getBuiltin builtinAgdaCmpEq
+primAgdaCmpLEq                        = getBuiltin builtinAgdaCmpLEq
+primAgdaComparison                    = getBuiltin builtinAgdaComparison
+primAgdaAsTermsOf                     = getBuiltin builtinAgdaAsTermsOf
+primAgdaAsTypes                       = getBuiltin builtinAgdaAsTypes
+primAgdaCompareAs                     = getBuiltin builtinAgdaCompareAs
+primAgdaConstraintValueCmp            = getBuiltin builtinAgdaConstraintValueCmp
+primAgdaConstraint                    = getBuiltin builtinAgdaConstraint
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
@@ -394,6 +406,7 @@ primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
 primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
+primAgdaTCMGetConstraintsMentioning = getBuiltin builtinAgdaTCMGetConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 
 -- | The coinductive primitives.

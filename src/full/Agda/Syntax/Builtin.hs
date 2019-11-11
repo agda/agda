@@ -40,6 +40,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
+  builtinAgdaCmpEq, builtinAgdaCmpLEq, builtinAgdaComparison, builtinAgdaAsTermsOf, builtinAgdaAsTypes,
+  builtinAgdaCompareAs, builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported, builtinAgdaConstraint,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
@@ -63,6 +65,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
+  builtinAgdaTCMGetConstraintsMentioning,
   builtinAgdaTCMRunSpeculative
   :: String
 
@@ -186,6 +189,15 @@ builtinAgdaTermSort                      = "AGDATERMSORT"
 builtinAgdaTermLit                       = "AGDATERMLIT"
 builtinAgdaTermUnsupported               = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                      = "AGDATERMMETA"
+builtinAgdaCmpEq                         = "AGDACMPEQ"
+builtinAgdaCmpLEq                        = "AGDACMPLEQ"
+builtinAgdaComparison                    = "AGDACOMPARISON"
+builtinAgdaAsTermsOf                     = "AGDAASTERMSOF"
+builtinAgdaAsTypes                       = "AGDAASTYPES"
+builtinAgdaCompareAs                     = "AGDACOMPAREAS"
+builtinAgdaConstraintValueCmp            = "AGDACONSTRAINTVALUECMP"
+builtinAgdaConstraintUnsupported         = "AGDACONSTRAINTUNSUPPORTED"
+builtinAgdaConstraint                    = "AGDACONSTRAINT"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
@@ -245,6 +257,7 @@ builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
 builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
+builtinAgdaTCMGetConstraintsMentioning  = "AGDATCMGETCONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.

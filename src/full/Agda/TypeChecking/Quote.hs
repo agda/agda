@@ -30,6 +30,7 @@ data QuotingKit = QuotingKit
   , quoteClauseWithKit :: Clause     -> ReduceM Term
   , quoteDomWithKit    :: Dom Type   -> ReduceM Term
   , quoteDefnWithKit   :: Definition -> ReduceM Term
+  , quoteConstrWithKit :: Constraint -> ReduceM Term
   , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
@@ -79,6 +80,10 @@ quotingKit = do
   Con z _ _       <- primZero
   Con s _ _       <- primSuc
   unsupported     <- primAgdaTermUnsupported
+  asTermsOf       <- primAgdaAsTermsOf
+  asTypes         <- primAgdaAsTypes
+  cmpEq           <- primAgdaCmpEq
+  cmpLEq          <- primAgdaCmpLEq
 
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
   agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
@@ -86,6 +91,8 @@ quotingKit = do
   agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
   agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
+  constraintValueCmp            <- primAgdaConstraintValueCmp 
+  unsupportedConstraint         <- primAgdaConstraintUnsupported
 
   let (@@) :: Apply a => ReduceM a -> ReduceM Term -> ReduceM a
       t @@ u = apply <$> t <*> ((:[]) . defaultArg <$> u)
@@ -261,9 +268,22 @@ quotingKit = do
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->
-            agdaDefinitionDataConstructor !@! quoteName d
+            agdaDefinitionDataConstructor !@! (quoteName d)
 
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
+      quoteCompareAs :: CompareAs -> ReduceM Term
+      quoteCompareAs (AsTermsOf typ) = pure asTermsOf
+      quoteCompareAs AsTypes         = pure asTypes
+
+      quoteComparison :: Comparison -> ReduceM Term
+      quoteComparison CmpLeq = pure cmpLEq
+      quoteComparison CmpEq  = pure cmpEq
+
+      quoteConstr :: Constraint -> ReduceM Term
+      quoteConstr constr =
+        case constr of
+          ValueCmp cmp cmpas t1 t2 -> constraintValueCmp !@ quoteComparison cmp @@  quoteCompareAs cmpas
+          _                        -> pure unsupportedConstraint
+  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteConstr quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString noRange
@@ -301,6 +321,11 @@ quoteDefn :: Definition -> TCM Term
 quoteDefn def = do
   kit <- quotingKit
   runReduceM (quoteDefnWithKit kit def)
+
+quoteConstraint :: Constraint -> TCM Term
+quoteConstraint constr = do
+  kit <- quotingKit
+  runReduceM (quoteConstrWithKit kit constr)
 
 quoteList :: [Term] -> TCM Term
 quoteList xs = do
