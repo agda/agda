@@ -289,7 +289,7 @@ jobs:
       addons:
         apt:
           packages:
-            - cabal-install-3.0
+            - cabal-install-2.4
             - ghc-8.8.1
           sources:
             - hvr-ghc
