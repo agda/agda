@@ -41,7 +41,7 @@ stages:
   - name: compilation
     if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
-    if: NOT (commit_message =~ main\s+skip|skip\s+main)
+    if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ main\s+skip|skip\s+main)
 
 jobs:
   allow_failures:
@@ -229,6 +229,8 @@ jobs:
         directories:
           - $HOME/.stack
           - ${TRAVIS_BUILD_DIR}/.stack-work
+      git:
+        submodules: true
       addons:
         apt:
           packages:
@@ -238,21 +240,15 @@ jobs:
             - hvr-ghc
       before_install:
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
-
         # Install stack
+        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
-
-        # Install texlive
-        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install texlive-binaries
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
 
         - export PARALLEL_TESTS=2
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
-      install:
-        - git submodule update --init std-lib
       ##############################################################################
       script:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
@@ -265,6 +261,8 @@ jobs:
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
 
+    - <<: *complete-job
+      script:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR examples
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR library-test
@@ -277,16 +275,20 @@ jobs:
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR benchmark-without-logs
 
+    - <<: *complete-job
+      script:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
-          
+
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-interaction
 
+        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR testing-emacs-mode
+
+    - <<: *complete-job
+      script:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
-
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR testing-emacs-mode
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
