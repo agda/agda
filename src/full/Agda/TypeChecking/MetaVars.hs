@@ -1299,12 +1299,12 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           let fallback
                | isIrrelevant info = return vars
                | otherwise                              = failure
-          isRC <- lift $ isRecordConstructor $ conName c
           irrProj <- optIrrelevantProjections <$> pragmaOptions
-          case isRC of
+          (lift $ isRecordConstructor $ conName c) >>= \case
             Just (_, r@Record{ recFields = fs })
-              | YesEta <- recEtaEquality r  -- Andreas, 2019-09-10, issue #4185: only for eta-records
+              | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
               , length fs == length es
+              , all usableQuantity fs       -- Andreas, 2019-11-12b, issue #4168b
               , irrProj || all isRelevant fs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
