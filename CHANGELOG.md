@@ -169,6 +169,17 @@ Language
   An idempotent comonadic modality modeled after spatial/crisp type theory.
   See "Flat Modality" in the documentation for more.
 
+### Universe levels
+
+* New (experimental) option `--cumulativity`
+
+  When the ``--cumulativity`` flag is enabled, Agda uses the subtyping
+  rule ``Set i =< Set j`` whenever ``i =< j``. For example, in
+  addition to its usual type ``Set``, ``Nat`` also has the type
+  ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
+  about this new option can be found in the [user
+  manual](https://agda.readthedocs.io/en/latest/language/cumulativity.html).
+
 ### Termination checking
 
 * The "with inlining" feature of the termination checker has been
