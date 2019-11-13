@@ -140,7 +140,7 @@ jobs:
 
     - <<: *no-test-job # Use this version to run tests in the next stage
       env:
-        GHC_VER=8.8.1
+        GHC_VER=8.6.5
       cache:
         directories:
           - $HOME/.stack
@@ -153,7 +153,7 @@ jobs:
 
     - <<: *no-test-job
       env:
-        GHC_VER=8.6.5
+        GHC_VER=8.8.1
       before_script:
         export FLAGS="--flag Agda:enable-cluster-counting"
     - <<: *no-test-job
@@ -224,7 +224,7 @@ jobs:
     - &complete-job
       stage: main
       env:
-        GHC_VER=8.8.1
+        GHC_VER=8.6.5
       cache:
         directories:
           - $HOME/.stack
@@ -232,7 +232,7 @@ jobs:
       addons:
         apt:
           packages:
-            - ghc-8.8.1
+            - ghc-8.6.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -289,8 +289,7 @@ jobs:
       addons:
         apt:
           packages:
-            - cabal-install-2.4
-            - ghc-8.8.1
+            - ghc-8.6.5
           sources:
             - hvr-ghc
       before_install:
@@ -308,8 +307,8 @@ jobs:
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
       script:
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
+        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
 
-        - stack ${ARGS} exec -- make TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
+        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
+        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
