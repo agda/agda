@@ -233,6 +233,7 @@ jobs:
         apt:
           packages:
             - ghc-8.6.5
+            - cabal-install-2.4
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -290,6 +291,7 @@ jobs:
         apt:
           packages:
             - ghc-8.6.5
+            - cabal-install-2.4
           sources:
             - hvr-ghc
       before_install:
