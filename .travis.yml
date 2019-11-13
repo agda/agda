@@ -250,19 +250,17 @@ jobs:
           sources:
             - hvr-ghc
 
-    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
-    # Liang-Ting, 2019-11-13, issue #4177, increase the Travis
-    # waiting time to 20 mins instead (specified in .travis/cabal_install)
-    - <<: *complete-job
-      env: GHC_VER=8.0.2 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.24
-            - ghc-8.0.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
+    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
+    # - <<: *complete-job
+    #   env: GHC_VER=8.0.2 CABAL_VER=1.24
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - cabal-install-1.24
+    #         - ghc-8.0.2
+    #         - texlive-binaries
+    #       sources:
+    #         - hvr-ghc
 
     ##############################################################################
     # Documentation stage
