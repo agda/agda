@@ -52,6 +52,7 @@ instance EncodeTCM CommandState where
 instance ToJSON CommandState where
   toJSON commandState = object
     [ "interactionPoints" .= theInteractionPoints commandState
+    , "currentFile"       .= theCurrentFile commandState
     -- more?
     ]
 
@@ -215,8 +216,9 @@ instance EncodeTCM Response where
     , "giveResult"        @= giveResult
     ]
   encodeTCM (Resp_MakeCase id variant clauses) = kind "MakeCase"
-    [ "variant"       @= variant
-    , "clauses"       @= clauses
+    [ "interactionPoint"  @= id
+    , "variant"           @= variant
+    , "clauses"           @= clauses
     ]
   encodeTCM (Resp_SolveAll solutions) = kind "SolveAll"
     [ "solutions"     @= map encodeSolution solutions
