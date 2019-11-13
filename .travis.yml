@@ -229,8 +229,6 @@ jobs:
         directories:
           - $HOME/.stack
           - ${TRAVIS_BUILD_DIR}/.stack-work
-      git:
-        submodules: true
       addons:
         apt:
           packages:
@@ -260,15 +258,17 @@ jobs:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR interactive
 
     - <<: *complete-job
+      git:
+        submodules: true
       script:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR examples
 
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR library-test
-
     - <<: *complete-job
       script:
+        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR library-test
+
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR api-test
 
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
@@ -289,7 +289,7 @@ jobs:
       addons:
         apt:
           packages:
-            - cabal-install-2.4
+            - cabal-install-3.0
             - ghc-8.8.1
           sources:
             - hvr-ghc
