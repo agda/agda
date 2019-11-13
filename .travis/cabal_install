@@ -60,7 +60,7 @@ travis_fold end "build.dependencies"
 travis_fold start "build.agda"
 
 title "Building Agda"
-make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+travis_wait 20 make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
 
 travis_fold end "build.agda"
 
