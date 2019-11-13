@@ -58,20 +58,16 @@ buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
 
 
 instance Semigroup (Match a) where
-    Yes s us   <> Yes s' vs        = Yes (s <> s') (us <> vs)
-    Yes _ _    <> No               = No
-    Yes _ _    <> DontKnow m       = DontKnow m
-    No         <> DontKnow m       = DontKnow m -- Issue 2964: We need to be conservative wrt to splitting order
-    No         <> _                = No
-
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
-    -- In this case, no instantiation of
-    -- meta-variables will make progress.
+    -- In this case, no instantiation of meta-variables will make progress.
     DontKnow b <> DontKnow b'      = DontKnow $ b <> b'
-
-    -- One could imagine DontKnow _ <> No = No, but would break the
-    -- equivalence to case-trees.
     DontKnow m <> _                = DontKnow m
+    _          <> DontKnow m       = DontKnow m
+    -- One could imagine DontKnow _ <> No = No, but would break the
+    -- equivalence to case-trees (Issue 2964).
+    No         <> _                = No
+    _          <> No               = No
+    Yes s us   <> Yes s' vs        = Yes (s <> s') (us <> vs)
 
 instance Monoid (Match a) where
     mempty = empty
