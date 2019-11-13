@@ -310,6 +310,6 @@ jobs:
       script:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
 
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
+        - stack ${ARGS} exec -- make TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
