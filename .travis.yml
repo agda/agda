@@ -308,8 +308,8 @@ jobs:
         - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
       script:
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
 
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
