@@ -25,6 +25,7 @@ branches:
     - release-2.6.0.1
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
+
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
 # it is fetched manually in the `install` section.
@@ -249,16 +250,17 @@ jobs:
           sources:
             - hvr-ghc
 
-    - <<: *complete-job
-      env: GHC_VER=8.0.2 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.24
-            - ghc-8.0.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
+    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
+    # - <<: *complete-job
+    #   env: GHC_VER=8.0.2 CABAL_VER=1.24
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - cabal-install-1.24
+    #         - ghc-8.0.2
+    #         - texlive-binaries
+    #       sources:
+    #         - hvr-ghc
 
     ##############################################################################
     # Documentation stage
