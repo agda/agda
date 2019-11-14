@@ -117,7 +117,7 @@ instance EncodeTCM DisplayInfo where
     [ "time"              @= time
     ]
   encodeTCM (Info_Error msg) = kind "Error"
-    [ "payload"           @= Null
+    [ "message"           #= showInfoError msg
     ]
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound"
     [ "payload"           @= Null

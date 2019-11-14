@@ -1,6 +1,7 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , showGoals
+    , showInfoError
     , prettyTypeOfMeta
     ) where
 
