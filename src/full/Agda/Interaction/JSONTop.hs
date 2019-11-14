@@ -183,14 +183,14 @@ encodeGoalSpecific ii = go
     , "typeAux"     @= goalType
     , "type"        #= prettyTypeOfMeta rewrite ii
     , "entries"     @= entries
-    , "outputForms" @= pure (encodePretty outputForms)
+    , "outputForms" @= map encodePretty outputForms
     ]
   go (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
     [ "rewrite"     @= rewrite
     , "type"        #= prettyTypeOfMeta rewrite ii
     ]
   go (Goal_InferredType expr) = kind "InferredType"
-    [ "expr"        #= encodePrettyTCM expr
+    [ "expr"        #= prettyATop expr
     ]
 
 instance EncodeTCM Response where
