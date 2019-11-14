@@ -720,7 +720,7 @@ findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   case ipCl of
     MB.IPNoClause -> return Nothing
-    MB.IPClause f clauseNo _ -> do
+    MB.IPClause f clauseNo _ _ _ _ -> do
       (_, (_, c, _)) <- getClauseZipperForIP f clauseNo
       return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where

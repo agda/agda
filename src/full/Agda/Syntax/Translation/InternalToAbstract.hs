@@ -908,7 +908,7 @@ stripImplicits params ps = do
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
           varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
-                                 = all (varOrDot . namedArg) ps
+                                 = patLazy cpi == ConPatLazy || all (varOrDot . namedArg) ps
           varOrDot _             = False
 
 -- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
@@ -1168,7 +1168,9 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyConP c cpi ps = do
       tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
       where
-        ci = ConPatInfo origin patNoRange ConPatEager
+        ci = ConPatInfo origin patNoRange lazy
+        lazy | conPLazy cpi = ConPatLazy
+             | otherwise    = ConPatEager
         origin = fromConPatternInfo cpi
 
 

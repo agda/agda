@@ -362,7 +362,7 @@ translateSplitTree t = snd <$> loop t
       SplittingDone n ->
         -- start with n virgin variables
         return (replicate n True, SplittingDone n)
-      SplitAt i ts    -> do
+      SplitAt i lz ts    -> do
         (x, xs, ts) <- loops (unArg i) ts
         -- if we case on record constructor, drop case
         let t' = if x then
@@ -370,7 +370,7 @@ translateSplitTree t = snd <$> loop t
                      [(c,t)] -> t
                      _       -> __IMPOSSIBLE__
                   -- else retain case
-                  else SplitAt i ts
+                  else SplitAt i lz ts
         return (xs, t')
 
     -- @loops i ts = return (x, xs, ts')@ cf. @loop@
@@ -411,9 +411,9 @@ class DropFrom a where
 instance DropFrom (SplitTree' c) where
   dropFrom i n t = case t of
     SplittingDone m -> SplittingDone (m - n)
-    SplitAt x@(Arg ai j) ts
-      | j >= i + n -> SplitAt (Arg ai $ j - n) $ dropFrom i n ts
-      | j < i      -> SplitAt x $ dropFrom i n ts
+    SplitAt x@(Arg ai j) lz ts
+      | j >= i + n -> SplitAt (Arg ai $ j - n) lz $ dropFrom i n ts
+      | j < i      -> SplitAt x lz $ dropFrom i n ts
       | otherwise  -> __IMPOSSIBLE__
 
 instance DropFrom (c, SplitTree' c) where

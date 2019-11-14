@@ -710,11 +710,6 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         unless (null rps) __IMPOSSIBLE__
 
-        -- Update modalities of delta to match the modalities of the variables
-        -- after the forcing translation. We can't perform the forcing translation
-        -- yet, since that would mess with with-clause stripping.
-        delta <- forceTranslateTelescope delta qs0
-
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
           noPatternMatchingOnCodata qs0
@@ -1232,10 +1227,10 @@ checkLHS mf = updateModality checkLHS_ where
         Just ambC -> disambiguateConstructor ambC d pars
         Nothing   -> getRecordConstructor d pars a
 
-      -- Don't split on lazy constructor
+      -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | patLazy cpi == ConPatLazy -> softTypeError $
-          ForcedConstructorNotInstantiated focusPat
+        A.ConP cpi _ _ | patLazy cpi == ConPatLazy ->
+          unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
       -- The type of the constructor will end in an application of the datatype
@@ -1280,13 +1275,19 @@ checkLHS mf = updateModality checkLHS_ where
               , "cixs   =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM cixs))
               ]
             ]
+                 -- We ignore forcing for make-case
+      cforced <- ifM (viewTC eMakeCase) (return []) $
+                 {-else-} defForced <$> getConstInfo (conName c)
 
       let delta1Gamma = delta1 `abstract` gamma
           da'  = raise (size gamma) da
           ixs' = raise (size gamma) ixs
+          -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+          -- variables.
+          forced = replicate (size delta1) NotForced ++ cforced
 
       -- All variables are flexible.
-      let flex = allFlexVars $ delta1Gamma
+      let flex = allFlexVars forced $ delta1Gamma
 
       -- Unify constructor target and given type (in Δ₁Γ)
       -- Given: Δ₁  ⊢ D pars : Φ → Setᵢ
@@ -1355,10 +1356,13 @@ checkLHS mf = updateModality checkLHS_ where
           -- Also remember if we are a record pattern.
           isRec <- isRecord d
 
+          -- Mark eta-record matches as lazy
+          lazy <- isEtaRecord d
+
           let cpi = ConPatternInfo { conPRecord = isRec $> PatOCon
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
-                                   , conPLazy   = False }
+                                   , conPLazy   = lazy }
 
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)

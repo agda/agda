@@ -20,7 +20,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, IsForced(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
@@ -48,20 +48,21 @@ data FlexibleVarKind
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
 data FlexibleVar a = FlexibleVar
-  { flexHiding :: Hiding
-  , flexOrigin :: Origin
-  , flexKind   :: FlexibleVarKind
-  , flexPos    :: Maybe Int
-  , flexVar    :: a
+  { flexArgInfo :: ArgInfo
+  , flexForced  :: IsForced
+  , flexKind    :: FlexibleVarKind
+  , flexPos     :: Maybe Int
+  , flexVar     :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-instance LensHiding (FlexibleVar a) where
-  getHiding     = flexHiding
-  mapHiding f x = x { flexHiding = f (flexHiding x) }
+instance LensArgInfo (FlexibleVar a) where
+  getArgInfo = flexArgInfo
+  setArgInfo ai fl = fl { flexArgInfo = ai }
+  mapArgInfo f  fl = fl { flexArgInfo = f (flexArgInfo fl) }
 
-instance LensOrigin (FlexibleVar a) where
-  getOrigin     = flexOrigin
-  mapOrigin f x = x { flexOrigin = f (flexOrigin x) }
+instance LensHiding (FlexibleVar a)
+instance LensOrigin (FlexibleVar a)
+instance LensModality (FlexibleVar a)
 
 -- UNUSED
 -- defaultFlexibleVar :: a -> FlexibleVar a
@@ -71,10 +72,12 @@ instance LensOrigin (FlexibleVar a) where
 -- flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 -- flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
 
-allFlexVars :: Telescope -> FlexibleVars
-allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
+allFlexVars :: [IsForced] -> Telescope -> FlexibleVars
+allFlexVars forced tel = zipWith3 makeFlex (downFrom n) (telToList tel) fs
   where
-    makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
+    n  = size tel
+    fs = forced ++ repeat NotForced
+    makeFlex i d f = FlexibleVar (getArgInfo d) f ImplicitFlex (Just i) i
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -117,6 +120,16 @@ instance ChooseFlex a => ChooseFlex (Maybe a) where
   chooseFlex (Just x) Nothing = ChooseRight
   chooseFlex (Just x) (Just y) = chooseFlex x y
 
+instance ChooseFlex ArgInfo where
+  chooseFlex ai1 ai2 = firstChoice [ chooseFlex (getOrigin ai1) (getOrigin ai2)
+                                   , chooseFlex (getHiding ai1) (getHiding ai2) ]
+
+instance ChooseFlex IsForced where
+  chooseFlex NotForced NotForced = ChooseEither
+  chooseFlex NotForced Forced    = ChooseRight
+  chooseFlex Forced    NotForced = ChooseLeft
+  chooseFlex Forced    Forced    = ChooseEither
+
 instance ChooseFlex Hiding where
   chooseFlex Hidden     Hidden     = ChooseEither
   chooseFlex Hidden     _          = ChooseLeft
@@ -142,14 +155,14 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 o1 f1 p1 i1) (FlexibleVar h2 o2 f2 p2 i2) =
-    firstChoice [ chooseFlex f1 f2, chooseFlex o1 o2, chooseFlex h1 h2
+  chooseFlex (FlexibleVar ai1 fc1 f1 p1 i1) (FlexibleVar ai2 fc2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex fc1 fc2, chooseFlex ai1 ai2
                 , chooseFlex p1 p2, chooseFlex i1 i2]
-      where
-        firstChoice :: [FlexChoice] -> FlexChoice
-        firstChoice []                  = ChooseEither
-        firstChoice (ChooseEither : xs) = firstChoice xs
-        firstChoice (x            : _ ) = x
+
+firstChoice :: [FlexChoice] -> FlexChoice
+firstChoice []                  = ChooseEither
+firstChoice (ChooseEither : xs) = firstChoice xs
+firstChoice (x            : _ ) = x
 
 -- | The user patterns we still have to split on.
 data Problem a = Problem

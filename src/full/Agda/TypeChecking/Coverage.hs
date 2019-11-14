@@ -482,7 +482,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n trees'
+              tree   = SplitAt n StrictSplit trees'   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     -- Try to split result
@@ -539,7 +539,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               psss  = map coverMissingClauses results
               qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
-              tree  = SplitAt n $ zip projs trees
+              tree  = SplitAt n StrictSplit $ zip projs trees   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
@@ -574,7 +574,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _ _     -> addEtaSplits (k+1) ps t
       DotP  _ _     -> addEtaSplits (k+1) ps t
-      ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
+      ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
@@ -853,7 +853,8 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
   where
-    xs       = bs
+    xs             = strict ++ lazy
+    (lazy, strict) = List.partition blockingVarLazy bs
 {- KEEP!
 --  Andreas, 2012-10-13
 --  The following split strategy which prefers all-constructor columns
@@ -1097,8 +1098,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
 
-  -- All variables are flexible
-  let flex = allFlexVars delta1Gamma
+  cforced <- defForced <$> getConstInfo c
+      -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+      -- variables.
+  let forced = replicate (size delta1) NotForced ++ cforced
+      flex   = allFlexVars forced delta1Gamma -- All variables are flexible
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
@@ -1242,7 +1246,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1251,7 +1255,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty Nothing
 
 -- | @split ind splitClause x = return res@
@@ -1326,7 +1330,7 @@ split' :: CheckEmpty
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing
-       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 

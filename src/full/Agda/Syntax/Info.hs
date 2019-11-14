@@ -247,12 +247,7 @@ data ConPatInfo = ConPatInfo
   , patInfo     :: PatInfo
   , patLazy     :: ConPatLazy
   }
-  deriving (Data, Eq)
-
-instance Show ConPatInfo where
-  show (ConPatInfo po i l) =
-    applyWhen (l  == ConPatLazy) ("lazy " ++) $
-    applyWhen (po == ConOSystem) ("implicit " ++) $ show i
+  deriving (Data, Eq, Show)
 
 instance HasRange ConPatInfo where
   getRange = getRange . patInfo

@@ -406,6 +406,10 @@ reduceIApply' reduceB' d (IApply x y r : es) = do
 reduceIApply' reduceB' d (_ : es) = reduceIApply d es
 reduceIApply' reduceB' d [] = d
 
+instance Reduce DeBruijnPattern where
+  reduceB' (DotP o v) = fmap (DotP o) <$> reduceB' v
+  reduceB' p          = return $ notBlocked p
+
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
 
