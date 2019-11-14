@@ -1,8 +1,8 @@
 { compiling Issue2571.P.fst
-Issue2571.P.fst = λ a → case a of Issue2571.P.p b _ → b
+Issue2571.P.fst = λ a → case a of Issue2571.p b _ → b
 }
 { compiling Issue2571.P.snd
-Issue2571.P.snd = λ a → case a of Issue2571.P.p _ b → b
+Issue2571.P.snd = λ a → case a of Issue2571.p _ b → b
 }
 { compiling Issue2571.f
 Issue2571.f = λ a → a

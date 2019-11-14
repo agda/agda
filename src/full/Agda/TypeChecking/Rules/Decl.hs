@@ -748,7 +748,6 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
               -- Issue #2321, only go to AbstractMode for abstract definitions
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
-          OnlyQualified -> __IMPOSSIBLE__
     in abstr $ checkAxiom' gtel funSig i info mp x e
 checkTypeSignature' _ _ =
   __IMPOSSIBLE__   -- type signatures are always axioms

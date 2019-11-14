@@ -1823,15 +1823,12 @@ data Access
       -- ^ Store the 'Origin' of the private block that lead to this qualifier.
       --   This is needed for more faithful printing of declarations.
   | PublicAccess
-  | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
-                             --   Used for qualified constructors.
     deriving (Data, Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
     PrivateAccess _ -> "private"
     PublicAccess    -> "public"
-    OnlyQualified   -> "only-qualified"
 
 instance NFData Access where
   rnf _ = ()
