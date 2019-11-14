@@ -42,7 +42,7 @@ as an argument to ``_∷_``. The resulting declaration is
 
 .. code-block:: agda
 
-  data Vec {ℓ : Set} (A : Set ℓ) : Nat → Set ℓ where
+  data Vec {ℓ : Level} (A : Set ℓ) : Nat → Set ℓ where
     []  : Vec A 0
     _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 
@@ -73,7 +73,12 @@ over. For instance, you can declare ``A`` to be a type at some level ``ℓ`` as
 
 Now if ``A`` is mentioned in a type, the level ``ℓ`` will also be generalized over::
 
-    -- id : {A.ℓ : Level} {A : Set ℓ} → A → A
+    -- id : {A.
+    
+    
+    
+    
+    Level} {A : Set ℓ} → A → A
     id : A → A
     id x = x
 
