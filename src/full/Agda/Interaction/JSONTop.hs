@@ -10,15 +10,18 @@ import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base (CommandState(..))
-import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..))
+import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), showComputed)
+import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
+import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (NameInScope(..))
 import Agda.TypeChecking.Monad hiding (NotInScope)
 import Agda.VersionCommit
 
+import Agda.TypeChecking.Monad (inTopContext)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -155,7 +158,7 @@ instance EncodeTCM DisplayInfo where
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
     [ "interactionPoint"  @= ii
-    , "goalInfo"          @= info
+    , "goalInfo"          #= encodeGoalSpecific ii info
     ]
 
 instance EncodeTCM GoalTypeAux where
@@ -165,24 +168,28 @@ instance EncodeTCM GoalTypeAux where
   encodeTCM (GoalAndElaboration term) = kind "GoalAndElaboration"
     [ "term" #= encodePrettyTCM term ]
 
-instance EncodeTCM GoalDisplayInfo where
-  encodeTCM (Goal_HelperFunction payload) = kind "HelperFunction"
-    [ "payload"     @= Null -- render payload
+encodeGoalSpecific :: InteractionId -> GoalDisplayInfo -> TCM Value
+encodeGoalSpecific ii = go
+  where
+  go (Goal_HelperFunction helperType) = kind "HelperFunction"
+    [ "signature"   #= inTopContext (prettyATop helperType)
     ]
-  encodeTCM (Goal_NormalForm computeMode expr) = kind "NormalForm"
+  go (Goal_NormalForm computeMode expr) = kind "NormalForm"
     [ "computeMode" @= computeMode
-    , "expr"        #= encodePrettyTCM expr
+    , "expr"        #= showComputed computeMode expr
     ]
-  encodeTCM (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
+  go (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
     [ "rewrite"     @= rewrite
-    , "type"        @= goalType
+    , "typeAux"     @= goalType
+    , "type"        #= prettyTypeOfMeta rewrite ii
     , "entries"     @= entries
-    , "outputForms" @= Null -- render outputForms
+    , "outputForms" @= pure (encodePretty outputForms)
     ]
-  encodeTCM (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
+  go (Goal_CurrentGoal rewrite) = kind "CurrentGoal"
     [ "rewrite"     @= rewrite
+    , "type"        #= prettyTypeOfMeta rewrite ii
     ]
-  encodeTCM (Goal_InferredType expr) = kind "InferredType"
+  go (Goal_InferredType expr) = kind "InferredType"
     [ "expr"        #= encodePrettyTCM expr
     ]
 

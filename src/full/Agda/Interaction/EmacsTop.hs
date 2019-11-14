@@ -1,6 +1,7 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     , showGoals
+    , prettyTypeOfMeta
     ) where
 
 import Control.Monad.State hiding (state)
