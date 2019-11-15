@@ -406,7 +406,7 @@ primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
 primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
-primAgdaTCMGetConstraintsMentioning = getBuiltin builtinAgdaTCMGetConstraintsMentioning
+primAgdaTCMGetConstraintsMentioning   = getBuiltin builtinAgdaTCMGetConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 
 -- | The coinductive primitives.

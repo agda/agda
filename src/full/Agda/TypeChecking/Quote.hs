@@ -271,7 +271,7 @@ quotingKit = do
             agdaDefinitionDataConstructor !@! (quoteName d)
 
       quoteCompareAs :: CompareAs -> ReduceM Term
-      quoteCompareAs (AsTermsOf typ) = pure asTermsOf
+      quoteCompareAs (AsTermsOf typ) = asTermsOf !@ quoteType typ
       quoteCompareAs AsTypes         = pure asTypes
 
       quoteComparison :: Comparison -> ReduceM Term
@@ -281,7 +281,7 @@ quotingKit = do
       quoteConstr :: Constraint -> ReduceM Term
       quoteConstr constr =
         case constr of
-          ValueCmp cmp cmpas t1 t2 -> constraintValueCmp !@ quoteComparison cmp @@  quoteCompareAs cmpas
+          ValueCmp cmp cmpas t1 t2 -> constraintValueCmp !@ quoteComparison cmp @@  quoteCompareAs cmpas @@ quoteTerm t1 @@ quoteTerm t2
           _                        -> pure unsupportedConstraint
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteConstr quoteList
 

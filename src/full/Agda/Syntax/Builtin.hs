@@ -257,7 +257,7 @@ builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
 builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
-builtinAgdaTCMGetConstraintsMentioning  = "AGDATCMGETCONSTRAINTSMENTIONING"
+builtinAgdaTCMGetConstraintsMentioning   = "AGDATCMGETCONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.

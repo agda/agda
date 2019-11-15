@@ -371,7 +371,7 @@ coreBuiltins =
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMSolveConstraints           |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMSolveConstraintsMentioning |-> builtinPostulate (tlist tmeta --> tTCM_ primUnit)
-  , builtinAgdaTCMGetConstraintsMentioning   |-> builtinPostulate (tmeta --> tTCM_ (unEl <$> tlist (tconstraint)))
+  , builtinAgdaTCMGetConstraintsMentioning   |-> builtinPostulate (tlist tmeta --> tTCM_ (unEl <$> tlist (tconstraint)))
   , builtinAgdaTCMRunSpeculative          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                 tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@>
                                                                           (Lam defaultArgInfo . Abs "_" <$> primBool)) -->

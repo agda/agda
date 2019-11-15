@@ -177,17 +177,6 @@ wakeConstraints' p = do
   wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
 
 -- | Wake up the constraints depending on the given meta.
-getConstraints :: MetaId -> TCM Constraints
-getConstraints m = do
-  let pr = return . mentionsMeta m
-  sl <- useR stAwakeConstraints
-  aw <- useR stSleepingConstraints
-  (mentsl, _) <- partitionM pr sl
-  (mentaw, _) <- partitionM pr aw
-  return (mentsl ++ mentaw)
-
-
--- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
   wakeConstraints' (return . mentionsMeta x)

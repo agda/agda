@@ -311,6 +311,9 @@ postulate
   -- then tries to solve all awake constraints.
   solveConstraintsMentioning : List Meta → TC ⊤
 
+-- Gets all the constraints that mention the given meta-variables.
+  getConstraintsMentioning : List Meta → TC (List Constraint)
+
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
@@ -345,4 +348,5 @@ postulate
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
 {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
+{-# BUILTIN AGDATCMGETCONSTRAINTSMENTIONING   getConstraintsMentioning   #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}

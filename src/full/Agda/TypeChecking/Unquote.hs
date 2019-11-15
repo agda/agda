@@ -620,11 +620,11 @@ evalTCM v = do
 
     tcGetConstraintsMentioning :: [MetaId] -> TCM Term
     tcGetConstraintsMentioning ms = do
-      c <- useR stSleepingConstraints
-      a <- useR stAwakeConstraints
+      reportSDoc "tc.unquote.def" 10 "I was here"
+      debugConstraints
       let cond = return . mentionsMetas (HashSet.fromList ms)
-      (withMeta , _) <-partitionM cond (c ++ a)
-      buildList <*> mapM quoteConstraint (map (clValue . theConstraint) withMeta)
+      c <- getConstraintsMentioning cond
+      buildList <*> mapM quoteConstraint (map (clValue . theConstraint) c)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
