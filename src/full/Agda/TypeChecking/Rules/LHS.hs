@@ -388,8 +388,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
           , nest 2 $ pretty u
           , nest 2 $ pretty v
           ]
-    -- Should be ok to do noConstraints here
-    noConstraints $ equalTerm a u v
+    equalTerm a u v
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
