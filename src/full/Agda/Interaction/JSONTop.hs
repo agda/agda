@@ -130,8 +130,8 @@ instance EncodeTCM DisplayInfo where
     [ "constraints"       @= Null
     ]
   encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
-    [ "visiableGoals"     @= vis
-    , "invisiableGoals"   @= invis
+    [ "visibleGoals"      @= vis
+    , "invisibleGoals"    @= invis
     , "warnings"          #= prettyTCWarnings (tcWarnings wes)
     , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
     ]
