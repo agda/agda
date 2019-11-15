@@ -77,7 +77,7 @@ checkConfluenceOfClause f i cl = do
     modifySignature $ setMatchableSymbols f matchables
 
 checkConfluenceOfRule' :: Bool -> RewriteRule -> TCM ()
-checkConfluenceOfRule' isClause rew = inTopContext $ do
+checkConfluenceOfRule' isClause rew = inTopContext $ inAbstractMode $ do
 
   reportSDoc "rewriting.confluence" 10 $
     "Checking confluence of rule" <+> prettyTCM (rewName rew)
