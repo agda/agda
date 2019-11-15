@@ -114,8 +114,8 @@ data GoalDisplayInfo
     | Goal_InferredType A.Expr
 
 -- | Goals & Warnings
-type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
-             , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
+type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas (goals)
+             , [OutputConstraint A.Expr NamedMeta]     -- hidden (unsolved) metas
              )
 
 -- | Errors that goes into Info_Error

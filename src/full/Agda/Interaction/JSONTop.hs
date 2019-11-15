@@ -10,14 +10,17 @@ import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base (CommandState(..))
-import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), showComputed)
+import qualified Agda.Interaction.BasicOps as B
+import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), OutputForm(..))
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (NameInScope(..))
+import Agda.Syntax.Position (noRange)
 import Agda.TypeChecking.Monad hiding (NotInScope)
 import Agda.VersionCommit
 
@@ -100,6 +103,24 @@ instance ToJSON CPUTime where toJSON = encodePretty
 instance EncodeTCM ComputeMode where
 instance ToJSON ComputeMode where toJSON = encodeShow
 
+-- Goals
+instance EncodeTCM (B.OutputConstraint A.Expr InteractionId) where
+  encodeTCM i = obj
+    [ "interactionPoint" @= B.outputFormId (OutputForm noRange [] i)
+    , "goalType"         #= prettyATop i
+    -- more?
+    ]
+
+-- Unsolved metas
+instance EncodeTCM (B.OutputConstraint A.Expr NamedMeta) where
+  encodeTCM m = obj
+    [ "prettyMeta" @= encodePretty i
+    , "metaType"   #= prettyATop m
+    -- more?
+    ]
+    where
+      i = namedMetaOf m
+
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
     [ "warnings"          #= prettyTCWarnings (tcWarnings wes)
@@ -108,8 +129,9 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints"       @= Null
     ]
-  encodeTCM (Info_AllGoalsWarnings _goals wes) = kind "AllGoalsWarnings"
-    [ "goals"             @= Null
+  encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
+    [ "visiableGoals"     @= vis
+    , "invisiableGoals"   @= invis
     , "warnings"          #= prettyTCWarnings (tcWarnings wes)
     , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
     ]
@@ -176,7 +198,7 @@ encodeGoalSpecific ii = go
     ]
   go (Goal_NormalForm computeMode expr) = kind "NormalForm"
     [ "computeMode" @= computeMode
-    , "expr"        #= showComputed computeMode expr
+    , "expr"        #= B.showComputed computeMode expr
     ]
   go (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
     [ "rewrite"     @= rewrite
