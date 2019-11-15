@@ -106,7 +106,9 @@ makeEnv scope = do
         Just v | Just q <- name v,
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
-  vars <- map (fst . I.unDom) <$> asksTC envContext
+  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
+  letVars <- Map.keys <$> asksTC envLetBindings
+  let vars = ctxVars ++ letVars
 
   -- pick concrete names for in-scope names now so we don't
   -- accidentally shadow them
