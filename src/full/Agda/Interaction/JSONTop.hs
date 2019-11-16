@@ -2,6 +2,7 @@ module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where
 import Control.Monad.State
+import Control.Monad
 
 import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
@@ -11,7 +12,7 @@ import qualified Data.Text as T
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base (CommandState(..))
 import qualified Agda.Interaction.BasicOps as B
-import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), OutputForm(..))
+import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
@@ -103,23 +104,83 @@ instance ToJSON CPUTime where toJSON = encodePretty
 instance EncodeTCM ComputeMode where
 instance ToJSON ComputeMode where toJSON = encodeShow
 
--- Goals
-instance EncodeTCM (B.OutputConstraint A.Expr InteractionId) where
-  encodeTCM i = obj
-    [ "interactionPoint" @= B.outputFormId (OutputForm noRange [] i)
-    , "goalType"         #= prettyATop i
-    -- more?
-    ]
+encodeOCCmp :: (a -> Value)
+  -> Comparison -> a -> a -> T.Text
+  -> TCM Value
+encodeOCCmp f c i j k = kind k
+  [ "comparison"     @= encodeShow c
+  , "constraintObjs" @= map f [i, j]
+  ]
 
--- Unsolved metas
-instance EncodeTCM (B.OutputConstraint A.Expr NamedMeta) where
-  encodeTCM m = obj
-    [ "prettyMeta" @= encodePretty i
-    , "metaType"   #= prettyATop m
-    -- more?
-    ]
-    where
-      i = namedMetaOf m
+  -- Goals
+encodeOC :: (a -> Value)
+  -> OutputConstraint A.Expr a
+  -> TCM Value
+encodeOC f (OfType i a) = kind "OfType"
+  [ "constraintObj" @= f i
+  , "type"          #= encodePrettyTCM a
+  ]
+encodeOC f (CmpInType c a i j) = kind "CmpInType"
+  [ "comparison"     @= encodeShow c
+  , "type"           #= encodePrettyTCM a
+  , "constraintObjs" @= map f [i, j]
+  ]
+encodeOC f (CmpElim ps a is js) = kind "CmpElim"
+  [ "polarities"     @= map encodeShow ps
+  , "type"           #= encodePrettyTCM a
+  , "constraintObjs" @= map (map f) [is, js]
+  ]
+encodeOC f (JustType a) = kind "JustType"
+  [ "constraintObj"  @= f a
+  ]
+encodeOC f (JustSort a) = kind "JustSort"
+  [ "constraintObj"  @= f a
+  ]
+encodeOC f (CmpTypes  c i j) = encodeOCCmp f c i j "CmpTypes"
+encodeOC f (CmpLevels c i j) = encodeOCCmp f c i j "CmpLevels"
+encodeOC f (CmpTeles  c i j) = encodeOCCmp f c i j "CmpTeles"
+encodeOC f (CmpSorts  c i j) = encodeOCCmp f c i j "CmpSorts"
+encodeOC f (Guard oc a) = kind "Guard"
+  [ "constraint"     #= encodeOC f oc
+  , "problem"        @= encodePretty a
+  ]
+encodeOC f (Assign i a) = kind "Assign"
+  [ "constraintObj"  @= f i
+  , "value"          #= encodePrettyTCM a
+  ]
+encodeOC f (TypedAssign i v t) = kind "TypedAssign"
+  [ "constraintObj"  @= f i
+  , "value"          #= encodePrettyTCM v
+  , "type"           #= encodePrettyTCM t
+  ]
+encodeOC f (PostponedCheckArgs i es t0 t1) = kind "PostponedCheckArgs"
+  [ "constraintObj"  @= f i
+  , "ofType"         #= encodePrettyTCM t0
+  , "arguments"      #= forM es encodePrettyTCM
+  , "type"           #= encodePrettyTCM t1
+  ]
+encodeOC f (IsEmptyType a) = kind "IsEmptyType"
+  [ "type"           #= encodePrettyTCM a
+  ]
+encodeOC f (SizeLtSat a) = kind "SizeLtSat"
+  [ "type"           #= encodePrettyTCM a
+  ]
+encodeOC f (FindInstanceOF i t cs) = kind "FindInstanceOF"
+  [ "constraintObj"  @= f i
+  , "candidates"     #= forM cs encodeKVPairs
+  , "type"           #= encodePrettyTCM t
+  ]
+  where encodeKVPairs (v, t) = obj
+          [ "value"  #= encodePrettyTCM v
+          , "type"   #= encodePrettyTCM t
+          ]
+encodeOC f (PTSInstance a b) = kind "PTSInstance"
+  [ "constraintObjs" @= map f [a, b]
+  ]
+encodeOC f (PostponedCheckFunDef name a) = kind "PostponedCheckFunDef"
+  [ "name"           @= encodePretty name
+  , "type"           #= encodePrettyTCM a
+  ]
 
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
@@ -130,8 +191,8 @@ instance EncodeTCM DisplayInfo where
     [ "constraints"       @= Null
     ]
   encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
-    [ "visibleGoals"      @= vis
-    , "invisibleGoals"    @= invis
+    [ "visibleGoals"      #= forM vis (encodeOC toJSON)
+    , "invisibleGoals"    #= forM invis (encodeOC encodePretty)
     , "warnings"          #= prettyTCWarnings (tcWarnings wes)
     , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
     ]
@@ -172,14 +233,14 @@ instance EncodeTCM DisplayInfo where
     , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_Context ii ctx) = kind "Context"
-    [ "interactionPoint"  @= ii
+    [ "constraintObj"  @= ii
     , "context"           @= ctx
     ]
   encodeTCM Info_Version = kind "Version"
     [ "version"           @= (versionWithCommitInfo :: String)
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
-    [ "interactionPoint"  @= ii
+    [ "constraintObj"  @= ii
     , "goalInfo"          #= encodeGoalSpecific ii info
     ]
 
