@@ -388,7 +388,7 @@ prettyResponseContext
 prettyResponseContext ii rev ctx = withInteractionId ii $ do
   mod   <- asksTC getModality
   align 10 . applyWhen rev reverse <$> do
-    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) nis) -> do
+    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
       let
         prettyCtxName :: String
         prettyCtxName

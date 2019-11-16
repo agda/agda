@@ -141,6 +141,7 @@ data ResponseContextEntry = ResponseContextEntry
   { respOrigName :: Name        -- ^ The original concrete name.
   , respReifName :: Name        -- ^ The name reified from abstract syntax.
   , respType     :: Arg A.Expr  -- ^ The type.
+  , respLetValue :: Maybe A.Expr -- ^ The value (if it is a let-bound variable)
   , respInScope  :: NameInScope -- ^ Whether the 'respReifName' is in scope.
   }
 

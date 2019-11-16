@@ -376,6 +376,10 @@ data OutputConstraint' a b = OfType'
   , ofExpr :: a
   }
 
+data OutputContextEntry name ty val
+  = ContextVar name ty
+  | ContextLet name ty val
+
 outputFormId :: OutputForm a b -> b
 outputFormId (OutputForm _ _ o) = out o
   where
@@ -619,19 +623,7 @@ getResponseContext
   :: Rewrite      -- ^ Normalise?
   -> InteractionId
   -> TCM [ResponseContextEntry]
-getResponseContext norm ii = withInteractionId ii $ do
-  ctx <- filter (not . shouldHide) <$> contextOfMeta ii norm
-  forM ctx $ \ entry -> do
-    -- name name part
-    let n = nameConcrete $ ofName entry
-    x  <- abstractToConcrete_ $ ofName entry
-    -- the type part
-    let e = ofExpr entry
-    let s = C.isInScope x
-    return $ ResponseContextEntry n x e s
-
-shouldHide :: OutputConstraint' a A.Name -> Bool
-shouldHide (OfType' n _) = isNoName n || nameIsRecordName n
+getResponseContext norm ii = contextOfMeta ii norm
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,
 --   even if just solved by another, non-interaction meta.
@@ -866,8 +858,8 @@ metaHelperType norm ii rng s = case words s of
 -- | Gives a list of names and corresponding types.
 --   This list includes not only the local variables in scope, but also the let-bindings.
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' (Arg Expr) Name]
-contextOfMeta ii norm = do
+contextOfMeta :: InteractionId -> Rewrite -> TCM [ResponseContextEntry]
+contextOfMeta ii norm = withInteractionId ii $ do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   withMetaInfo info $ do
     -- List of local variables.
@@ -875,18 +867,34 @@ contextOfMeta ii norm = do
     let n         = length cxt
         localVars = zipWith raise [1..] cxt
     -- List of let-bindings.
-    letVars <- mapM mkLet . Map.toDescList =<< asksTC envLetBindings
+    letVars <- Map.toAscList <$> asksTC envLetBindings
     -- Reify the types and filter out bindings without a name.
-    reverse <$> do
-      forMaybeM (letVars ++ localVars) $ \ Dom{ domInfo = ai, unDom = (x, t) } -> do
-        if isNoName x then return Nothing else Just <$> do
-          OfType' x . Arg ai <$> do
-            reifyUnblocked =<< normalForm norm t
+    (++) <$> forMaybeM (reverse localVars) mkVar
+         <*> forMaybeM letVars mkLet
+
   where
-    mkLet :: (Name, Open (Term, Dom Type)) -> TCM (Dom (Name, Type))
-    mkLet (x, lb) = do
-      (_tm, !dom) <- getOpen lb
-      return $ (x,) <$> dom
+    mkVar :: Dom (Name, Type) -> TCM (Maybe ResponseContextEntry)
+    mkVar Dom{ domInfo = ai, unDom = (name, t) } = do
+      if shouldHide name then return Nothing else Just <$> do
+        let n = nameConcrete name
+        x  <- abstractToConcrete_ name
+        let s = C.isInScope x
+        ty <- reifyUnblocked =<< normalForm norm t
+        return $ ResponseContextEntry n x (Arg ai ty) Nothing s
+
+    mkLet :: (Name, Open (Term, Dom Type)) -> TCM (Maybe ResponseContextEntry)
+    mkLet (name, lb) = do
+      (tm, !dom) <- getOpen lb
+      if shouldHide name then return Nothing else Just <$> do
+        let n = nameConcrete name
+        x  <- abstractToConcrete_ name
+        let s = C.isInScope x
+        ty <- reifyUnblocked =<< normalForm norm dom
+        v  <- reifyUnblocked =<< normalForm norm tm
+        return $ ResponseContextEntry n x ty (Just v) s
+
+    shouldHide :: A.Name -> Bool
+    shouldHide n = isNoName n || nameIsRecordName n
 
 -- | Returns the type of the expression in the current environment
 --   We wake up irrelevant variables just in case the user want to
