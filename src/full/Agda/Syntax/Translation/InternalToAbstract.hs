@@ -1121,23 +1121,20 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
       I.VarP _ x -> reifyVarP x
       I.DotP PatOWild _ -> return $ A.WildP patNoRange
       I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
-      -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
-      I.DotP (PatOVar x) v@(I.Var i []) -> do
-        x' <- nameOfBV i
-        if nameConcrete x == nameConcrete x' then
-          return $ A.VarP $ mkBindName x'
-        else
-          reifyDotP v
+      -- If Agda turned a user variable @x@ into @.v@, print it back as @x@.
+      I.DotP (PatOVar x) v -> return $ A.VarP $ mkBindName x
       I.DotP o v -> reifyDotP v
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps -> case conPRecord cpi of
         Just PatOWild   -> return $ A.WildP patNoRange
         Just PatOAbsurd -> return $ A.AbsurdP patNoRange
+        Just (PatOVar x) -> return $ A.VarP $ mkBindName x
         _               -> reifyConP c cpi ps
       I.DefP o f ps  -> case o of
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
+        PatOVar x  -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
       I.IApplyP PatODot _ _ x -> reifyDotP $ var $ dbPatVarIndex x
       I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange

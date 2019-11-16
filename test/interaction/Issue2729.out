@@ -4,5 +4,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Nat i " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("pred .(↑ i) (zero i) = ?" "pred .(↑ i) (suc i x) = ?")))
+((last . 2) . (agda2-make-case-action '("pred i (zero i₁) = ?" "pred i (suc i₁ x) = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
