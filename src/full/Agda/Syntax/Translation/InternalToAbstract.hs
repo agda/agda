@@ -1114,32 +1114,35 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyPat :: MonadReify m => I.DeBruijnPattern -> m A.Pattern
     reifyPat p = do
      reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
+     keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
-      I.VarP PatODot x -> reifyDotP $ var $ dbPatVarIndex x
+      I.VarP o@PatODot x -> reifyDotP o $ var $ dbPatVarIndex x
       I.VarP PatOWild _ -> return $ A.WildP patNoRange
       I.VarP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
       I.VarP _ x -> reifyVarP x
       I.DotP PatOWild _ -> return $ A.WildP patNoRange
       I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
       -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
-      I.DotP (PatOVar x) v@(I.Var i []) -> do
+      I.DotP o@(PatOVar x) v@(I.Var i []) -> do
         x' <- nameOfBV i
         if nameConcrete x == nameConcrete x' then
           return $ A.VarP $ mkBindName x'
         else
-          reifyDotP v
-      I.DotP o v -> reifyDotP v
+          reifyDotP o v
+      I.DotP o v -> reifyDotP o v
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps -> case conPRecord cpi of
         Just PatOWild   -> return $ A.WildP patNoRange
         Just PatOAbsurd -> return $ A.AbsurdP patNoRange
+        Just (PatOVar x) | keepVars -> return $ A.VarP $ mkBindName x
         _               -> reifyConP c cpi ps
       I.DefP o f ps  -> case o of
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
+        PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
-      I.IApplyP PatODot _ _ x -> reifyDotP $ var $ dbPatVarIndex x
+      I.IApplyP o@PatODot _ _ x -> reifyDotP o $ var $ dbPatVarIndex x
       I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange
       I.IApplyP PatOAbsurd _ _ x -> return $ A.AbsurdP patNoRange
       I.IApplyP _ _ _ x -> reifyVarP x
@@ -1147,20 +1150,23 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyVarP :: MonadReify m => DBPatVar -> m A.Pattern
     reifyVarP x = do
       n <- nameOfBV $ dbPatVarIndex x
-      case dbPatVarName x of
-        "_"  -> return $ A.VarP $ mkBindName n
-        -- Andreas, 2017-09-03: TODO for #2580
-        -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
-        -- case splitter still produces them.
-        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (mkBindName n) else
-          -- Andreas, 2017-09-03, issue #2729
-          -- Restore original pattern name.  AbstractToConcrete picks unique names.
-          return $ A.VarP $ mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
+      let y = dbPatVarName x
+      if | y == "_" -> return $ A.VarP $ mkBindName n
+           -- Andreas, 2017-09-03: TODO for #2580
+           -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
+           -- case splitter still produces them.
+         | prettyShow (nameConcrete n) == "()" -> return $ A.VarP (mkBindName n)
+           -- Andreas, 2017-09-03, issue #2729
+           -- Restore original pattern name.  AbstractToConcrete picks unique names.
+         | otherwise -> return $ A.VarP $
+             mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
 
-    reifyDotP :: MonadReify m => Term -> m A.Pattern
-    reifyDotP v = do
-      t <- reify v
-      return $ A.DotP patNoRange t
+    reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
+    reifyDotP o v = do
+      keepVars <- optKeepPatternVariables <$> pragmaOptions
+      if | PatOVar x <- o
+         , keepVars       -> return $ A.VarP $ mkBindName x
+         | otherwise      -> A.DotP patNoRange <$> reify v
 
     reifyConP :: MonadReify m
               => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]

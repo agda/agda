@@ -51,6 +51,9 @@ Pragmas and options
   unsolved metas, warnings, errors.
   It also displays pretty-printed terms.
 
+* New pragma option `--keep-pattern-variables` to prevent case
+  splitting from replacing variables with dot patterns.
+
 Language
 --------
 
