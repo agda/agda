@@ -1256,7 +1256,20 @@ deriving instance Eq Candidate
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
-deriving instance Eq Constraint
+-- Andreas, 2019-11-16, issue #4201: to avoid potential unintended
+-- performance loss, the Eq instance for Constraint is disabled:
+--
+-- -- deriving instance Eq Constraint
+--
+-- I am tempted to write
+--
+--   instance Eq Constraint where (==) = undefined
+--
+-- but this does not give a compilation error anymore when trying
+-- to use equality on constraints.
+-- Therefore, I hope this comment is sufficient to prevent a resurrection
+-- of the Eq instance for Constraint.
+
 deriving instance Eq CompareAs
 deriving instance Eq Section
 

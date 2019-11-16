@@ -10,25 +10,34 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 
 import Agda.Utils.Impossible
+import Agda.Utils.List (nubOn)
 import Agda.Utils.NonemptyList
+import Agda.Utils.Update
 
 -- | @simplifyLevelConstraint c cs@ turns an @c@ into an equality
 --   constraint if it is an inequality constraint and the reverse
 --   inequality is contained in @cs@.
 --
---   The constraints doesn't necessarily have to live in the same context, but
+--   The constraints don't necessarily have to live in the same context, but
 --   they do need to be universally quanitfied over the context. This function
 --   takes care of renaming variables when checking for matches.
-simplifyLevelConstraint :: Constraint -> [Constraint] -> [Constraint]
-simplifyLevelConstraint new old =
-  case inequalities new of
-    Just eqs -> map simpl eqs
-    Nothing  -> [new]
+simplifyLevelConstraint
+  :: Constraint          -- ^ Constraint @c@ to simplify.
+  -> [Constraint]        -- ^ Other constraints, enable simplification.
+  -> Maybe [Constraint]  -- ^ @Just@: list of constraints equal to the original @c@.
+                         --   @Nothing@: no simplification possible.
+simplifyLevelConstraint c others = do
+    cs <- inequalities c
+    case runChange $ mapM simpl cs of
+      (cs', True) -> Just cs'
+      (_,  False) -> Nothing
+
   where
+    simpl :: Leq -> Change (Constraint)
     simpl (a :=< b)
-      | any (matchLeq (b :=< a)) leqs = LevelCmp CmpEq  (unSingleLevel a) (unSingleLevel b)
-      | otherwise                     = LevelCmp CmpLeq (unSingleLevel a) (unSingleLevel b)
-    leqs = concat $ mapMaybe inequalities old
+      | any (matchLeq (b :=< a)) leqs = dirty  $ LevelCmp CmpEq  (unSingleLevel a) (unSingleLevel b)
+      | otherwise                     = return $ LevelCmp CmpLeq (unSingleLevel a) (unSingleLevel b)
+    leqs = concat $ mapMaybe inequalities others
 
 data Leq = SingleLevel :=< SingleLevel
   deriving (Show, Eq)
@@ -40,7 +49,7 @@ matchLeq (a :=< b) (c :=< d)
   | otherwise              = False
   where
     free :: Free a => a -> [Int]
-    free = List.nub . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
+    free = nubOn id . runFree (:[]) IgnoreNot  -- Note: use a list to preserve order of variables
     xs  = free (a, b)
     ys  = free (c, d)
     rho = mkSub $ List.sort $ zip ys xs
@@ -63,11 +72,14 @@ inequalities (LevelCmp CmpLeq a b)
   -- See test/Succeed/LevelLeqGeq.agda for where it is useful!
 
 -- These are very special cases only, in no way complete:
+-- E.g.: a = a ⊔ b ⊔ c --> b ≤ a & c ≤ a
+
 inequalities (LevelCmp CmpEq a b)
   | Just a' <- singleLevelView a =
   case break (== a') (toList $ levelMaxView b) of
     (bs0, _ : bs1) -> Just [ b' :=< a' | b' <- bs0 ++ bs1 ]
     _              -> Nothing
+
 inequalities (LevelCmp CmpEq a b)
   | Just b' <- singleLevelView b =
   case break (== b') (toList $ levelMaxView a) of
