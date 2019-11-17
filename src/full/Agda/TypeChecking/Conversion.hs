@@ -191,8 +191,8 @@ compareAs cmp a u v = do
         [ "attempting shortcut"
         , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
         ]
-      ifM (isInstantiatedMeta x) patternViolation {-else-} $ do
-        assignE dir x es v $ compareAsDir dir a
+      whenM (isInstantiatedMeta x) patternViolation
+      assignE dir x es v a $ compareAsDir dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
         "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
