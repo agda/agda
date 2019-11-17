@@ -561,7 +561,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
 
-  -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
+  -- Andreas, 2012-04-18  if we are in irrelevant context, axioms are irrelevant
   -- even if not declared as such (Issue 610).
   -- Andreas, 2019-06-17  also for erasure (issue #3855).
   rel <- max (getRelevance info0) <$> asksTC getRelevance

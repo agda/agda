@@ -1354,14 +1354,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           -- filter out duplicate irrelevants
           filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
--- UNUSED
--- -- | Used in 'Agda.Interaction.BasicOps.giveExpr'.
--- updateMeta :: MetaId -> Term -> TCM ()
--- updateMeta mI v = do
---     mv <- lookupMeta mI
---     withMetaInfo' mv $ do
---       args <- getContextArgs
---       noConstraints $ assignV DirEq mI args v
 
 -- | Turn open metas into postulates.
 --

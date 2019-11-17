@@ -175,7 +175,7 @@ compareAs cmp a u v = do
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
       case (u, v) of
         (MetaV x us, MetaV y vs)
-          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareAs' cmp a u v
+          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` fallback
           | otherwise -> fallback
           where
             (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
@@ -1355,10 +1355,9 @@ leqLevel a b = do
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
         postpone = patternViolation
 
-        wrap m = catchError m $ \e ->
-          case e of
+        wrap m = m `catchError` \case
             TypeError{} -> notok
-            _           -> throwError e
+            err         -> throwError err
 
         neutralOrClosed (SingleClosed _)                     = True
         neutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
@@ -1506,10 +1505,9 @@ equalLevel' a b = do
           assignE DirEq x as (levelTm b) (===) -- fallback: check equality as atoms
 
         -- Make sure to give a sensible error message
-        wrap m = m `catchError` \err ->
-          case err of
+        wrap m = m `catchError` \case
             TypeError{} -> notok
-            _           -> throwError err
+            err         -> throwError err
 
         isNeutral (SinglePlus (Plus _ NeutralLevel{})) = True
         isNeutral _                                    = False
@@ -1544,7 +1542,7 @@ equalLevel' a b = do
 
 
 -- | Check that the first sort equal to the second.
-equalSort :: MonadConversion m => Sort -> Sort -> m ()
+equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
@@ -1636,6 +1634,7 @@ equalSort s1 s2 = do
 
     where
       -- perform assignment (MetaS x es) := s
+      meta :: MetaId -> [Elim' Term] -> Sort -> m ()
       meta x es s = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]

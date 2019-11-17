@@ -37,14 +37,14 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Impossible
 
 instance MonadConstraint TCM where
-  catchPatternErr = catchPatternErrTCM
-  addConstraint = addConstraintTCM
-  addAwakeConstraint = addAwakeConstraint'
-  solveConstraint = solveConstraintTCM
+  catchPatternErr           = catchPatternErrTCM
+  addConstraint             = addConstraintTCM
+  addAwakeConstraint        = addAwakeConstraint'
+  solveConstraint           = solveConstraintTCM
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
-  wakeConstraints = wakeConstraintsTCM
-  stealConstraints = stealConstraintsTCM
-  modifyAwakeConstraints = modifyTC . mapAwakeConstraints
+  wakeConstraints           = wakeConstraintsTCM
+  stealConstraints          = stealConstraintsTCM
+  modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
   modifySleepingConstraints = modifyTC . mapSleepingConstraints
 
 catchPatternErrTCM :: TCM a -> TCM a -> TCM a
@@ -76,8 +76,9 @@ addConstraintTCM c = do
          wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
     where
       isWakeableInstanceConstraint :: Constraint -> TCM Bool
-      isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
-      isWakeableInstanceConstraint _ = return False
+      isWakeableInstanceConstraint = \case
+        FindInstance _ b _ -> maybe (return True) isInstantiatedMeta b
+        _ -> return False
 
       isLvl LevelCmp{} = True
       isLvl _          = False

@@ -525,14 +525,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       case _A of
         _ | isOpen -> assign DirEq x (getArgs v) u
         Nothing    -> equalSort (unwrapSort v) (unwrapSort u)
-        Just _A    -> equalTerm _A v u
+        Just t     -> equalTerm t v u
       where
         isOpen = isOpenMeta $ mvInstantiation mv
-        getArgs v = case v of
-            Sort (MetaS _ es) -> unApply es
-            MetaV _ es        -> unApply es
+        getArgs = \case
+            Sort (MetaS _ es) -> fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+            MetaV _ es        -> fromMaybe __IMPOSSIBLE__ $ allApplyElims es
             _                 -> __IMPOSSIBLE__
-          where unApply es = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         unwrapSort (Sort s) = s
         unwrapSort _        = __IMPOSSIBLE__
 
