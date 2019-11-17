@@ -233,14 +233,14 @@ instance EncodeTCM DisplayInfo where
     , "expr"              #= encodePrettyTCM expr
     ]
   encodeTCM (Info_Context ii ctx) = kind "Context"
-    [ "constraintObj"  @= ii
+    [ "interactionPoint"  @= ii
     , "context"           @= ctx
     ]
   encodeTCM Info_Version = kind "Version"
     [ "version"           @= (versionWithCommitInfo :: String)
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
-    [ "constraintObj"  @= ii
+    [ "interactionPoint"  @= ii
     , "goalInfo"          #= encodeGoalSpecific ii info
     ]
 
