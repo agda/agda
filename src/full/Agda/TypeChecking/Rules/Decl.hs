@@ -206,13 +206,15 @@ checkDecl d = setCurrentRange d $ do
       -- Syntax highlighting.
       highlight_ DontHightlightModuleContents d
 
+      -- Defaulting of levels (only when --cumulativity)
+      whenM (optCumulativity <$> pragmaOptions) $ defaultLevelsToZero metas
+
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
         wakeupConstraints_   -- solve emptiness and instance constraints
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
-        whenM (optCumulativity <$> pragmaOptions) $ defaultOpenLevelsToZero
         wakeupConstraints_   -- Size solver might have unblocked some constraints
         case d of
             A.Generalize{} -> pure ()
@@ -554,7 +556,7 @@ checkAxiom = checkAxiom' Nothing
 --   pass in the parameter telescope separately.
 checkAxiom' :: Maybe A.GeneralizeTelescope -> A.Axiom -> Info.DefInfo -> ArgInfo ->
                Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
-checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
+checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
@@ -636,7 +638,6 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     -- Andreas, 2016-06-21, issue #2054
     -- Do not default size metas to ∞ in local type signatures
     checkingWhere <- asksTC envCheckingWhere
-    whenM (optCumulativity <$> pragmaOptions) $ defaultOpenLevelsToZero
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
@@ -718,7 +719,7 @@ checkPragma r p =
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
 checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
-checkMutual i ds = inMutualBlock $ \ blockId -> do
+checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
 
   reportSDoc "tc.decl.mutual" 20 $ vcat $
       (("Checking mutual block" <+> text (show blockId)) <> ":") :
