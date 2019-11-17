@@ -65,5 +65,20 @@ test' A = p _ _ (record
   ; from-to = λ x → refl {A = Box' A} {x = _}
   })
 
+-- UPDATE (2019-11-17):
+-- We may, however, uncurry if the record argument is erased.
+
+mutual
+  X : {@0 A : Set} (@0 b : Box A) → Box (Box A)
+  X = _
+
+  spec : ∀{@0 A : Set} {@0 x : A}
+       → X (box x) ≡ box (box x)
+  spec = refl
+
+  --  This can be solved by:
+  --  X := λ {@0 A} (@0 b) → box (box (Box.unbox b))
+
+
 main : IO ⊤
 main = return _

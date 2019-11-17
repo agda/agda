@@ -1331,7 +1331,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
             Just (_, r@Record{ recFields = fs })
               | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
               , length fs == length es
-              , all usableQuantity fs       -- Andreas, 2019-11-12b, issue #4168b
+              , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
               , irrProj || all isRelevant fs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
