@@ -63,7 +63,7 @@ interestingCall = \case
     CheckProjection{}         -> True
     ModuleContents{}          -> True
 
-traceCallM :: (MonadTCM tcm, MonadDebug tcm) => tcm Call -> tcm a -> tcm a
+traceCallM :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm) => tcm Call -> tcm a -> tcm a
 traceCallM call m = flip traceCall m =<< call
 
 -- | Reset 'envCall' to previous value in the continuation.
@@ -72,7 +72,7 @@ traceCallM call m = flip traceCall m =<< call
 -- for example, only set the 'Range' with 'SetRange',
 -- we will revert to the last interesting call.
 
-traceCallCPS :: (MonadTCM tcm, MonadDebug tcm)
+traceCallCPS :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm)
   => Call
   -> ((a -> tcm b) -> tcm b)
   -> ((a -> tcm b) -> tcm b)
@@ -85,12 +85,12 @@ traceCallCPS call k ret = do
 
 -- RULE left-hand side too complicated to desugar
 -- {-# SPECIALIZE traceCall :: Call -> TCM a -> TCM a #-}
-traceCall :: (MonadTCM tcm, MonadDebug tcm) => Call -> tcm a -> tcm a
+traceCall :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm) => Call -> tcm a -> tcm a
 traceCall call m = do
   cl <- liftTCM $ buildClosure call
   traceClosureCall cl m
 
-traceClosureCall :: (MonadTCM tcm, MonadDebug tcm) => Closure Call -> tcm a -> tcm a
+traceClosureCall :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm) => Closure Call -> tcm a -> tcm a
 traceClosureCall cl m = do
 
   -- Andreas, 2016-09-13 issue #2177
@@ -176,7 +176,7 @@ getCurrentRange = asksTC envRange
 
 -- | Sets the current range (for error messages etc.) to the range
 --   of the given object, if it has a range (i.e., its range is not 'noRange').
-setCurrentRange :: (MonadTCM tcm, MonadDebug tcm, HasRange x)
+setCurrentRange :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm, HasRange x)
                 => x -> tcm a -> tcm a
 setCurrentRange x = applyUnless (null r) $ traceCall $ SetRange r
   where r = getRange x

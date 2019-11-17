@@ -3752,8 +3752,8 @@ instance MonadTCState m => MonadTCState (IdentityT m) where
 
 -- ** @TCState@ accessors (no lenses)
 
-getsTC :: MonadTCState m => (TCState -> a) -> m a
-getsTC f = f <$> getTC
+getsTC :: ReadTCState m => (TCState -> a) -> m a
+getsTC f = f <$> getTCState
 
 -- | A variant of 'modifyTC' in which the computation is strict in the
 -- new state.
@@ -3769,7 +3769,7 @@ modifyTC' f = do
 
 -- ** @TCState@ accessors via lenses
 
-useTC :: MonadTCState m => Lens' a TCState -> m a
+useTC :: ReadTCState m => Lens' a TCState -> m a
 useTC l = do
   !x <- getsTC (^. l)
   return x

@@ -92,7 +92,7 @@ import Agda.Utils.Impossible
 --   highlighted as being type-checked.
 
 highlightAsTypeChecked
-  :: MonadTCM tcm
+  :: (MonadTCM tcm, ReadTCState tcm)
   => Range   -- ^ @rPre@
   -> Range   -- ^ @r@
   -> tcm a
@@ -118,7 +118,7 @@ highlightAsTypeChecked rPre r m
 -- | Lispify and print the given highlighting information.
 
 printHighlightingInfo ::
-  MonadTCM tcm =>
+  (MonadTCM tcm, ReadTCState tcm) =>
   RemoveTokenBasedHighlighting ->
   HighlightingInfo ->
   tcm ()

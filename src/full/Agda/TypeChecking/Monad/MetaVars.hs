@@ -123,7 +123,7 @@ modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
 
 -- | Run a computation and record which new metas it created.
-metasCreatedBy :: TCM a -> TCM (a, IntSet)
+metasCreatedBy :: ReadTCState m => m a -> m (a, IntSet)
 metasCreatedBy m = do
   before <- IntMap.keysSet <$> useTC stMetaStore
   a <- m
