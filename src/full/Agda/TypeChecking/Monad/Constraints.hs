@@ -179,22 +179,23 @@ addConstraintTo bucket c = do
   where
     build | isBlocking c = buildConstraint c
           | otherwise    = buildProblemConstraint_ c
-    isBlocking SortCmp{}     = False
-    isBlocking LevelCmp{}    = False
-    isBlocking ValueCmp{}    = True
-    isBlocking ValueCmpOnFace{} = True
-    isBlocking ElimCmp{}     = True
-    isBlocking TelCmp{}      = True
-    isBlocking (Guarded c _) = isBlocking c
-    isBlocking UnBlock{}     = True
-    isBlocking FindInstance{} = False
-    isBlocking IsEmpty{}     = True
-    isBlocking CheckSizeLtSat{} = True
-    isBlocking CheckFunDef{} = True
-    isBlocking HasBiggerSort{} = False
-    isBlocking HasPTSRule{}  = False
-    isBlocking UnquoteTactic{} = True
-    isBlocking CheckMetaInst{} = True
+    isBlocking = \case
+      SortCmp{}        -> False
+      LevelCmp{}       -> False
+      ValueCmp{}       -> True
+      ValueCmpOnFace{} -> True
+      ElimCmp{}        -> True
+      TelCmp{}         -> True
+      Guarded c _      -> isBlocking c
+      UnBlock{}        -> True
+      FindInstance{}   -> False
+      IsEmpty{}        -> True
+      CheckSizeLtSat{} -> True
+      CheckFunDef{}    -> True
+      HasBiggerSort{}  -> False
+      HasPTSRule{}     -> False
+      UnquoteTactic{}  -> True
+      CheckMetaInst{}  -> True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

@@ -147,8 +147,9 @@ class MonadTCEnv m => MonadAddContext m where
   -- | Add a let bound variable to the context
   addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
 
-  -- | Update the context. Requires a substitution from the old context to the
-  --   new.
+  -- | Update the context.
+  --   Requires a substitution that transports things living in the old context
+  --   to the new.
   updateContext :: Substitution -> (Context -> Context) -> m a -> m a
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
