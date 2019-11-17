@@ -116,7 +116,15 @@ data DefaultToInfty
 solveSizeConstraints :: DefaultToInfty -> TCM ()
 solveSizeConstraints flag =  do
 
-  -- 1. Take out the size constraints normalised.
+  -- 0. Try to solve size equality constraints.
+
+  sizeTest <- isSizeTypeTest
+  let sizeEqConstraint = S.mkIsSizeConstraint sizeTest (== CmpEq) . theConstraint
+  wakeConstraints' $ return . sizeEqConstraint
+  solveSomeAwakeConstraints sizeEqConstraint False  -- True = even if already solving constraints
+
+  -- 1. Take out the size inequality constraints normalised.
+  -- TODO: take all constraints and turn equalities to pair of inequalities?
 
   cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints (== CmpLeq)
     -- NOTE: this deletes the size constraints from the constraint set!
