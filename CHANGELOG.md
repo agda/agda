@@ -47,6 +47,10 @@ Pragmas and options
   be placed before the function (or the block of mutually defined functions)
   which the user knows to be partial.
 
+* Option `--interaction-json` now brings more information about goals,
+  unsolved metas, warnings, errors.
+  It also displays pretty-printed terms.
+
 Language
 --------
 
@@ -304,6 +308,11 @@ Emacs mode
 ----------
 
 * Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+* Syntax highlighting: in literate modes, the pure texts
+  (other than Agda code and the code-text separators) are no longer highlighted
+  (it was highlighted as comments before).
+  This somehow provides more information about how Agda lexes literate files.
 
 GHC Backend
 -----------
