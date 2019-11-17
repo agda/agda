@@ -1111,7 +1111,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           -- Note: no eta-expansion of new meta possible/necessary.
           -- Add the size constraint @y args `dir` u@.
           let yArgs = MetaV y $ map Apply args
-          addConstraint $ dirToCmp (`ValueCmp` (AsTermsOf size)) dir yArgs u
+          addConstraint $ dirToCmp (`ValueCmp` AsSizes) dir yArgs u
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.

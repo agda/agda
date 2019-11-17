@@ -122,8 +122,10 @@ instance MentionsMeta Constraint where
       mm v = mentionsMetas xs v
 
 instance MentionsMeta CompareAs where
-  mentionsMetas xs (AsTermsOf a) = mentionsMetas xs a
-  mentionsMetas xs AsTypes       = False
+  mentionsMetas xs = \case
+    AsTermsOf a -> mentionsMetas xs a
+    AsSizes -> False
+    AsTypes -> False
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta

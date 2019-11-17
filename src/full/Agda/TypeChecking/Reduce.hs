@@ -220,6 +220,7 @@ instance Instantiate Constraint where
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
+  instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
 
 instance Instantiate e => Instantiate (Map k e) where
@@ -262,6 +263,7 @@ instance IsMeta Sort where
 
 instance IsMeta CompareAs where
   isMeta (AsTermsOf a) = isMeta a
+  isMeta AsSizes       = return Nothing
   isMeta AsTypes       = return Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
@@ -787,6 +789,7 @@ instance Reduce Constraint where
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
+  reduce' AsSizes       = return AsSizes
   reduce' AsTypes       = return AsTypes
 
 instance Reduce e => Reduce (Map k e) where
@@ -948,6 +951,7 @@ instance Simplify Constraint where
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
+  simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
 
 instance Simplify Bool where
@@ -1111,6 +1115,7 @@ instance Normalise Constraint where
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
+  normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
 
 instance Normalise Bool where
@@ -1323,6 +1328,7 @@ instance InstantiateFull Constraint where
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where

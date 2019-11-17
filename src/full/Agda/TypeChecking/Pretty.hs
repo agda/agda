@@ -346,6 +346,7 @@ instance PrettyTCM Constraint where
 
 instance PrettyTCM CompareAs where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
+  prettyTCM AsSizes       = ":" <+> do prettyTCM =<< sizeType
   prettyTCM AsTypes       = empty
 
 instance PrettyTCM TypeCheckingProblem where

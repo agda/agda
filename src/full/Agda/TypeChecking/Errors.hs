@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
@@ -541,11 +542,14 @@ instance PrettyTCM TypeError where
       (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El Inf s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
-        fsep $ [return d1, notCmp cmp, return d2]
-          ++ (case a of
+        fsep $ concat $
+          [ [return d1, notCmp cmp, return d2]
+          , case a of
                 AsTermsOf t -> pwords "of type" ++ [prettyTCM t]
-                AsTypes     -> [])
-          ++ [return d]
+                AsSizes     -> pwords "of type" ++ [prettyTCM =<< sizeType]
+                AsTypes     -> []
+          , [return d]
+          ]
 
     UnequalLevel cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t]

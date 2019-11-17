@@ -962,6 +962,7 @@ instance Subst Term Constraint where
 
 instance Subst Term CompareAs where
   applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
+  applySubst rho AsSizes       = AsSizes
   applySubst rho AsTypes       = AsTypes
 
 instance Subst t a => Subst t (Elim' a) where

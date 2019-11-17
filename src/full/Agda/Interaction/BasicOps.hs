@@ -419,6 +419,7 @@ reifyElimToExpr e = case e of
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
     reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
     reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
       where

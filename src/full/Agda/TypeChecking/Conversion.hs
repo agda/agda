@@ -232,6 +232,7 @@ compareAsDir dir a = dirToCmp (`compareAs'` a) dir
 compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAs' cmp tt m n = case tt of
   AsTermsOf a -> compareTerm' cmp a m n
+  AsSizes     -> compareSizes cmp m n
   AsTypes     -> compareAtom cmp AsTypes m n
 
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
@@ -454,6 +455,7 @@ compareAtom cmp t m n =
         -- cannot fail hard
         postponeIfBlockedAs :: CompareAs -> (Blocked CompareAs -> m ()) -> m ()
         postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
+        postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
         postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
           (\m t -> (f $ Blocked m $ AsTermsOf t) `catchError` \case
               TypeError{} -> postpone
@@ -572,6 +574,7 @@ compareAtom cmp t m n =
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
                     AsTermsOf a -> conType x a
+                    AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments

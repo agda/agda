@@ -1133,18 +1133,26 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 -- | We can either compare two terms at a given type, or compare two
 --   types without knowing (or caring about) their sorts.
 data CompareAs
-  = AsTermsOf Type
+  = AsTermsOf Type -- ^ @Type@ should not be @Size@.
+                   --   But currently, we do not rely on this invariant.
+  | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
   deriving (Data, Show)
 
 instance Free CompareAs where
   freeVars' (AsTermsOf a) = freeVars' a
+  freeVars' AsSizes       = mempty
   freeVars' AsTypes       = mempty
 
 instance TermLike CompareAs where
   foldTerm f (AsTermsOf a) = foldTerm f a
+  foldTerm f AsSizes       = mempty
   foldTerm f AsTypes       = mempty
-  traverseTermM f c = __IMPOSSIBLE__ -- not yet implemented
+
+  traverseTermM f = \case
+    AsTermsOf a -> AsTermsOf <$> traverseTermM f a
+    AsSizes     -> return AsSizes
+    AsTypes     -> return AsTypes
 
 ---------------------------------------------------------------------------
 -- * Open things

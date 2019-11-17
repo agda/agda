@@ -55,6 +55,16 @@ dropConstraints crit = do
   modifySleepingConstraints filt
   modifyAwakeConstraints    filt
 
+-- | Takes out all constraints matching given filter.
+--   Danger!  The taken constraints need to be solved or put back at some point.
+takeConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m Constraints
+takeConstraints f = do
+  (takeAwake , keepAwake ) <- List.partition f <$> useTC stAwakeConstraints
+  (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
+  modifyAwakeConstraints    $ const keepAwake
+  modifySleepingConstraints $ const keepAsleep
+  return $ takeAwake ++ takeAsleep
+
 putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 putConstraintsToSleep sleepy = do
   awakeOnes <- useR stAwakeConstraints
