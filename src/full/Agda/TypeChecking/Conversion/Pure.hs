@@ -93,7 +93,7 @@ instance (MonadTCEnv m, ReadTCState m, HasOptions m, MonadDebug m)
 instance (MonadTCEnv m, MonadReduce m, MonadAddContext m, ReadTCState m, HasBuiltins m, HasConstInfo m, MonadDebug m)
   => MonadMetaSolver (PureConversionT m) where
   newMeta' _ _ _ _ _ _ = patternViolation
-  assignV _ _ _ _ = patternViolation
+  assignV _ _ _ _ _ = patternViolation
   assignTerm' _ _ _ = patternViolation
   etaExpandMeta _ _ = return ()
   updateMetaVar _ _ = patternViolation

@@ -203,10 +203,10 @@ compareAs cmp a u v = do
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
 assignE :: (MonadConversion m)
-        => CompareDirection -> MetaId -> Elims -> Term -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v comp = assignWrapper dir x es v $ do
+        => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
+assignE dir x es v a comp = assignWrapper dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs v
+    Just vs -> assignV dir x vs v a
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
@@ -465,7 +465,7 @@ compareAtom cmp t m n =
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -1000,7 +1000,7 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else (assignE DirEq x es w $ compareIrrelevant t) `catchError` \ _ -> fallback
+        else (assignE DirEq x es w (AsTermsOf t) $ compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1502,7 +1502,8 @@ equalLevel' a b = do
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
-          assignE DirEq x as (levelTm b) (===) -- fallback: check equality as atoms
+          lvl <- levelType
+          assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \case
@@ -1638,7 +1639,7 @@ equalSort s1 s2 = do
       meta x es s = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
-        assignE DirEq x es (Sort s) __IMPOSSIBLE__
+        assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
       set0 = mkType 0
       prop0 = mkProp 0

@@ -521,9 +521,9 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
       whenJust (Map.lookup x interactionPoints) (`connectInteractionPoint` y)
 
     doPrune :: MetaId -> MetaVariable -> Maybe Type -> Term -> Term -> TCM ()
-    doPrune x mv _A v u =
-      case _A of
-        _ | isOpen -> assign DirEq x (getArgs v) u
+    doPrune x mv mt v u =
+      case mt of
+        _ | isOpen -> assign DirEq x (getArgs v) u $ maybe AsTypes AsTermsOf mt
         Nothing    -> equalSort (unwrapSort v) (unwrapSort u)
         Just t     -> equalTerm t v u
       where

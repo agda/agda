@@ -67,7 +67,7 @@ import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
-  assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
+  assignV dir x args v t = assignWrapper dir x (map Apply args) v $ assign dir x args v t
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
   updateMetaVar = updateMetaVarTCM
@@ -603,7 +603,7 @@ assignWrapper dir x es v doAssign = do
 
 -- | Miller pattern unification:
 --
---   @assign x vs v@ solves problem @x vs = v@ for meta @x@
+--   @assign dir x vs v a@ solves problem @x vs <=(dir) v : a@ for meta @x@
 --   if @vs@ are distinct variables (linearity check)
 --   and @v@ depends only on these variables
 --   and does not contain @x@ itself (occurs check).
@@ -617,8 +617,8 @@ assignWrapper dir x es v doAssign = do
 --   For a reference to some of these extensions, read
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
-assign :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
-assign dir x args v = do
+assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
+assign dir x args v target = do
 
   mvar <- lookupMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
@@ -682,7 +682,7 @@ assign dir x args v = do
         , nest 2 $ inTopContext $ prettyTCM cxt
         ]
 
-    expandProjectedVars args v $ \ args v -> do
+    expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
       reportSDoc "tc.meta.assign.proj" 45 $ do
         cxt <- getContextTelescope

@@ -90,7 +90,7 @@ class ( MonadConstraint m
   --   @patternViolation@.  This error is caught by @catchConstraint@
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
-  assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
+  assignV :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> m ()
 
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen

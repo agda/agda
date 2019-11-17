@@ -155,7 +155,7 @@ giveExpr force mii mi e = do
           _ -> do -- updateMeta mi v
             reportSLn "interaction.give" 20 "give: meta unassigned, assigning..."
             args <- getContextArgs
-            nowSolvingConstraints $ assign DirEq mi args v
+            nowSolvingConstraints $ assign DirEq mi args v (AsTermsOf t')
 
         reportSDoc "interaction.give" 20 $ "give: meta variable updated!"
         unless (force == WithForce) $ redoChecks mii

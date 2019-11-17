@@ -46,7 +46,7 @@ defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
         if | notInTypeOfMeta x , all (`isUpperBoundFor` x) cs -> do
                m <- lookupMeta x
                TelV tel t <- telView =<< metaType x
-               addContext tel $ assignV DirEq x (teleArgs tel) $ Level (ClosedLevel 0)
+               addContext tel $ assignV DirEq x (teleArgs tel) (Level $ ClosedLevel 0) (AsTermsOf t)
                return True
              `catchError` \_ -> return False
            | otherwise -> return False
