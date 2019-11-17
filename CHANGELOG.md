@@ -317,6 +317,9 @@ Emacs mode
   (it was highlighted as comments before).
   This somehow provides more information about how Agda lexes literate files.
 
+* Agda now also displays the values of let-bound variables in the
+  context instead of just their types.
+
 GHC Backend
 -----------
 
