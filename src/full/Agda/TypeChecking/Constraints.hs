@@ -58,6 +58,18 @@ catchPatternErrTCM handle v =
          PatternErr{} -> handle
          _            -> throwError err
 
+-- | Constraint simplification function.
+type SimpMaybe = Constraint -> TCM (Maybe [Constraint])
+
+-- | Constraint simplification function in continuation-passing style.
+type SimpCPS  = Constraint -> SimpCPS'
+type SimpCPS' = TCM ()                    -- Failed to simplify
+             -> ([Constraint] -> TCM ())  -- Succeed to simplify
+             -> TCM ()
+
+mkSimpCPS :: SimpMaybe -> SimpCPS
+mkSimpCPS simpl = caseMaybeM . simpl
+
 addConstraintTCM :: Constraint -> TCM ()
 addConstraintTCM c = do
       pids <- asksTC envActiveProblems
@@ -67,9 +79,7 @@ addConstraintTCM c = do
         , prettyTCM c ]
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
-      caseMaybeM (simpl c) {-no-} (addConstraint' c) $ {-yes-} \ cs -> do
-          reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
-          mapM_ solveConstraint_ cs
+      simplifications c [ mkSimpCPS simplLevelC , uncurryMetaInAssignment ]
       -- The added constraint can cause instance constraints to be solved,
       -- but only the constraints which aren’t blocked on an uninstantiated meta.
       unless (isInstanceConstraint c) $
@@ -80,12 +90,20 @@ addConstraintTCM c = do
         FindInstance _ b _ -> maybe (return True) isInstantiatedMeta b
         _ -> return False
 
-      isLvl LevelCmp{} = True
-      isLvl _          = False
+      -- Try the given simplifications until one is successful
+      -- and passes the resulting new constraints to 'solveConstraint_'.
+      -- If none is successful, the constraint is added.
+      simplifications :: Constraint -> [SimpCPS] -> TCM ()
+      simplifications c []               = addConstraint' c
+      simplifications c (simpl : simpls) = do
+        simpl c {-no-} (simplifications c simpls) $ {-yes-} \ cs -> do
+          reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
+          mapM_ solveConstraint_ cs
 
-      -- Try to simplify a level constraint
-      simpl :: Constraint -> TCM (Maybe [Constraint])
-      simpl c
+      -- | Try to simplify a level constraint.
+      -- Does not change the context of the constraint.
+      simplLevelC :: SimpMaybe
+      simplLevelC c
         | isLvl c = do
           -- Get all level constraints.
           lvlcs <- instantiateFull =<< do
@@ -98,6 +116,53 @@ addConstraintTCM c = do
           -- Try to simplify @c@ using the other constraints.
           return $ simplifyLevelConstraint c $ map clValue lvlcs
         | otherwise = return Nothing
+        where
+         isLvl LevelCmp{} = True
+         isLvl _          = False
+
+      -- | Try to uncurry a meta in a stuck assignment.
+      -- New constraint lives in different context.
+      uncurryMetaInAssignment :: SimpCPS
+      uncurryMetaInAssignment c no yes = case c of
+          ValueCmp cmp a u v -> tryUncurryBoth mkC a (fromCmp cmp) u v no yes
+            where
+            mkC :: CompareAs -> CompareDirection -> Term -> Term -> Constraint
+            mkC a = dirToCmp (`ValueCmp` a)
+          -- TODO: simplify these as well
+          ValueCmpOnFace{}   -> no
+          SortCmp  cmp s1 s2 -> no
+          LevelCmp cmp l1 l2 -> no
+          -- No simplification for these constraints:
+          ElimCmp{}          -> no
+          TelCmp{}           -> no
+          Guarded{}          -> no
+          UnBlock{}          -> no
+          FindInstance{}     -> no
+          IsEmpty{}          -> no
+          CheckSizeLtSat{}   -> no
+          CheckFunDef{}      -> no
+          HasBiggerSort{}    -> no
+          HasPTSRule{}       -> no
+          UnquoteTactic{}    -> no
+          CheckMetaInst{}    -> no
+        where
+          tryUncurryBoth :: (CompareAs -> CompareDirection -> Term -> Term -> Constraint)
+                         -> (CompareAs -> CompareDirection -> Term -> Term -> SimpCPS')
+          tryUncurryBoth mkC a dir u v no yes =
+            -- If first try is unsuccessful, try the other way round.
+            tryUncurryLeft mkC a dir u v
+              (tryUncurryLeft mkC a (flipCmp dir) v u no yes)
+              yes
+
+          tryUncurryLeft :: (CompareAs -> CompareDirection -> Term -> Term -> Constraint)
+                         -> (CompareAs -> CompareDirection -> Term -> Term -> SimpCPS')
+          tryUncurryLeft mkC a dir u v no yes = do
+            reduce u >>= \case
+              MetaV x es | Just args <- allApplyElims es -> do
+                expandProjectedVars args (v, a) $ \ change args (v, a) -> do
+                  if change then yes [ mkC a dir (MetaV x $ map Apply args) v ] else no
+              _ -> no
+
 
 wakeConstraintsTCM :: (ProblemConstraint-> TCM Bool) -> TCM ()
 wakeConstraintsTCM wake = do
