@@ -275,7 +275,6 @@ instance PrettyTCM Constraint where
             <?> (":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
-        TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         Guarded c pid            -> prettyTCM c <?> (brackets $ "blocked on problem" <+> prettyTCM pid)

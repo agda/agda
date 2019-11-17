@@ -174,7 +174,6 @@ addConstraintTo bucket c = do
     isBlocking ValueCmp{}    = True
     isBlocking ValueCmpOnFace{} = True
     isBlocking ElimCmp{}     = True
-    isBlocking TypeCmp{}     = True
     isBlocking TelCmp{}      = True
     isBlocking (Guarded c _) = isBlocking c
     isBlocking UnBlock{}     = True

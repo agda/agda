@@ -1016,7 +1016,6 @@ data Constraint
   = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
-  | TypeCmp Comparison Type Type
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
@@ -1046,7 +1045,6 @@ instance HasRange Constraint where
 {- no Range instances for Term, Type, Elm, Tele, Sort, Level, MetaId
   getRange (ValueCmp cmp a u v) = getRange (a,u,v)
   getRange (ElimCmp pol a v es es') = getRange (a,v,es,es')
-  getRange (TypeCmp cmp a b) = getRange (a,b)
   getRange (TelCmp a b cmp tel tel') = getRange (a,b,tel,tel')
   getRange (SortCmp cmp s s') = getRange (s,s')
   getRange (LevelCmp cmp l l') = getRange (l,l')
@@ -1061,7 +1059,6 @@ instance Free Constraint where
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
-      TypeCmp _ t t'        -> freeVars' (t, t')
       TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
@@ -1081,7 +1078,6 @@ instance TermLike Constraint where
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
-      TypeCmp _ t t'         -> foldTerm f (t, t')
       LevelCmp _ l l'        -> foldTerm f (l, l')
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u

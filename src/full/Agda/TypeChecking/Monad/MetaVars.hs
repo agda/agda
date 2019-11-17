@@ -254,7 +254,6 @@ constraintMetas c = metas c
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
-      TypeCmp _ t t'           -> return $ allMetas Set.singleton (t, t')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (l, l')
       UnquoteTactic m t h g    -> return $ Set.fromList [x | Just x <- [m]] `Set.union` allMetas Set.singleton (t, h, g)
       Guarded c _              -> metas c

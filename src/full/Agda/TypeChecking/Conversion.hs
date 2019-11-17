@@ -1028,8 +1028,7 @@ compareArgs pol for a v args1 args2 =
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     workOnTypes $
-    verboseBracket "tc.conv.type" 20 "compareType" $
-    catchConstraint (TypeCmp cmp ty1 ty2) $ do
+    verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
           [ "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]

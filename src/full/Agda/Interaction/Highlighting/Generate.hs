@@ -797,7 +797,6 @@ constraintsHighlighting cs =
     Closure{ clValue = IsEmpty r t           } -> Just r
     Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = TypeCmp{}  } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = TelCmp{}   } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $ getRange (envRange e)

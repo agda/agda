@@ -205,7 +205,6 @@ instance Instantiate Constraint where
   instantiate' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
-  instantiate' (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate' (a,b)
   instantiate' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate' (tela,telb)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (Guarded c pid)      = Guarded <$> instantiate' c <*> pure pid
@@ -773,7 +772,6 @@ instance Reduce Constraint where
   reduce' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
-  reduce' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> reduce' (a,b)
   reduce' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce' (tela,telb)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (Guarded c pid)       = Guarded <$> reduce' c <*> pure pid
@@ -935,7 +933,6 @@ instance Simplify Constraint where
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
-  simplify' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> simplify' (a,b)
   simplify' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> simplify' (tela,telb)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (Guarded c pid)       = Guarded <$> simplify' c <*> pure pid
@@ -1099,7 +1096,6 @@ instance Normalise Constraint where
   normalise' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
-  normalise' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> normalise' (a,b)
   normalise' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise' (tela,telb)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (Guarded c pid)       = Guarded <$> normalise' c <*> pure pid
@@ -1312,7 +1308,6 @@ instance InstantiateFull Constraint where
     ElimCmp cmp fs t v as bs ->
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
-    TypeCmp cmp a b     -> uncurry (TypeCmp cmp) <$> instantiateFull' (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull' (tela,telb)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     Guarded c pid       -> Guarded <$> instantiateFull' c <*> pure pid
