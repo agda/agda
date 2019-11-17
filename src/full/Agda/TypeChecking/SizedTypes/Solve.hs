@@ -162,6 +162,11 @@ solveSizeConstraints flag =  do
   constrainedMetas <- Set.unions <$> do
     forM  (ccs) $ \ (cs :: NonemptyList CC) -> do
 
+      reportSDoc "tc.size.solve" 60 $ vcat $ concat
+        [ [ "size constraint cluster:" ]
+        , map (text . show) $ toList cs
+        ]
+
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
 

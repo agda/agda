@@ -531,6 +531,11 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
 checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
 checkGeneralize s i info x e = do
 
+    reportSDoc "tc.decl.gen" 20 $ sep
+      [ "checking type signature of generalizable variable" <+> prettyTCM x <+> ":"
+      , nest 2 $ prettyTCM e
+      ]
+
     -- Check the signature and collect the created metas.
     (telNames, tGen) <-
       generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
@@ -575,6 +580,13 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
   let mod  = Modality rel q c
   let info = setModality mod info0
   applyCohesionToContext c $ do
+
+  reportSDoc "tc.decl.ax" 20 $ sep
+    [ text $ "checking type signature"
+    , nest 2 $ (prettyTCM mod <> prettyTCM x) <+> ":" <+> prettyTCM e
+    , nest 2 $ caseMaybe gentel "(no gentel)" $ \ _ -> "(has gentel)"
+    ]
+
   (genParams, npars, t) <- workOnTypes $ case gentel of
         Nothing     -> ([], 0,) <$> isType_ e
         Just gentel ->
