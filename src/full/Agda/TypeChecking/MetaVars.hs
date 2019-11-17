@@ -691,9 +691,36 @@ assign dir x args v target = do
           , nest 2 $ inTopContext $ prettyTCM cxt
           ]
 
-      -- If we had the type here we could save the work we put
-      -- into expanding projected variables.
-      -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
+      -- Andreas, 2019-11-16, issue #4159:
+      -- We would like to save the work we put into expanding projected variables.
+      -- However, the Conversion checker speculatively tries some assignment
+      -- in some places (e.g. shortcut) and relies on an exception to be thrown
+      -- to try other alternatives next.
+      -- If we catch the exception here, this (brittle) mechanism will be broken.
+      -- Maybe one possibility would be to rethrow the exception with the
+      -- new constraint.  Then, further up, it could be decided whether
+      -- to discard the new constraint and do something different,
+      -- or add the new constraint when postponing.
+
+      -- BEGIN attempt #4159
+      -- let constraint = case v of
+      --       -- Sort s -> dirToCmp SortCmp dir (MetaS x $ map Apply args) s
+      --       _      -> dirToCmp (\ cmp -> ValueCmp cmp target) dir (MetaV x $ map Apply args) v
+      -- reportSDoc "tc.meta.assign.catch" 40 $ sep
+      --   [ "assign: catching constraint:"
+      --   , prettyTCM constraint
+      --   ]
+      -- -- reportSDoc "tc.meta.assign.catch" 60 $ sep
+      -- --   [ "assign: catching constraint:"
+      -- --   , pretty constraint
+      -- --   ]
+      -- reportSDoc "tc.meta.assign.catch" 80 $ sep
+      --   [ "assign: catching constraint (raw):"
+      --   , (text . show) constraint
+      --   ]
+      -- catchConstraint constraint $ do
+      -- END attempt #4159
+
 
       -- Andreas, 2011-04-21 do the occurs check first
       -- e.g. _1 x (suc x) = suc (_2 x y)
