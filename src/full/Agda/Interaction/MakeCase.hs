@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE GADTs                     #-}
 
 module Agda.Interaction.MakeCase where
 
@@ -7,6 +8,7 @@ import Prelude hiding (mapM, mapM_, null)
 import Control.Monad hiding (mapM, mapM_, forM)
 
 import Data.Either
+import Data.Foldable (traverse_)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
@@ -19,7 +21,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames )
+import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames, inverseScopeLookupName', AllowAmbiguousNames(..) )
 import Agda.Syntax.Scope.Monad ( resolveName' )
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -437,7 +439,13 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
-    inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
+    cl <- inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
+
+    -- Jesper, 2019-11-18, #4037: check that all constructor /
+    -- projection names in the new clause are in scope.
+    checkNames lhs
+
+    return cl
 
 
 -- | Make a clause with a question mark as rhs.
@@ -447,8 +455,56 @@ makeAbstractClause f rhs cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ "reified lhs: " <+> prettyA lhs
+
   return $ A.Clause lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
   -- return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
+
+-- | Check that all names in the abstract thing are in scope.
+class CheckNamesInScope a where
+  checkNames :: a -> TCM ()
+  default checkNames :: (Foldable f, CheckNamesInScope a', a ~ f a')
+                     => a -> TCM ()
+  checkNames = traverse_ checkNames
+
+instance CheckNamesInScope a => CheckNamesInScope [a] where
+instance CheckNamesInScope a => CheckNamesInScope (Arg a) where
+instance CheckNamesInScope a => CheckNamesInScope (Named x a) where
+instance CheckNamesInScope a => CheckNamesInScope (C.FieldAssignment' a) where
+
+instance CheckNamesInScope QName where
+  checkNames q = do
+    ys <- inverseScopeLookupName' AmbiguousConProjs q <$> getScope
+    whenNull ys $ typeError . GenericDocError =<< do
+      "Cannot split because" <+> prettyTCM q <+> "is not in scope"
+
+instance CheckNamesInScope AmbiguousQName where
+  checkNames = checkNames . headAmbQ
+
+instance CheckNamesInScope A.LHS where
+  checkNames = checkNames . A.lhsCore
+
+instance CheckNamesInScope A.LHSCore where
+  checkNames = \case
+    A.LHSHead f ps -> checkNames f *> checkNames ps
+    A.LHSProj f p qs -> checkNames f *> checkNames p *> checkNames qs
+    A.LHSWith h ps qs -> checkNames h *> checkNames ps *> checkNames qs
+
+instance CheckNamesInScope A.Pattern where
+  checkNames = \case
+    A.VarP{}             -> ok
+    A.ConP _ c ps        -> checkNames c *> checkNames ps
+    A.ProjP _ _ f        -> checkNames f
+    A.DefP _ f p         -> checkNames f *> checkNames p
+    A.WildP{}            -> ok
+    A.AsP _ _ p          -> checkNames p
+    A.DotP{}             -> ok
+    A.AbsurdP{}          -> ok
+    A.LitP{}             -> ok
+    A.PatternSynP _ c ps -> checkNames c *> checkNames ps
+    A.RecP _ ps          -> checkNames ps
+    A.EqualP _ eqs       -> ok
+    A.WithP _ p          -> checkNames p
+    where ok = return ()
