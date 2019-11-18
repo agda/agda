@@ -20,12 +20,12 @@ import Agda.Interaction.Highlighting.JSON
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name (NameInScope(..))
-import Agda.Syntax.Position (noRange)
-import Agda.TypeChecking.Monad hiding (NotInScope)
+import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
+import Agda.Syntax.Position (noRange, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
-import Agda.TypeChecking.Monad (inTopContext)
+import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM)
+import Agda.TypeChecking.Monad.MetaVars (getInteractionRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -71,7 +71,22 @@ instance EncodeTCM ResponseContextEntry where
     , "inScope"      @= respInScope entry
     ]
 
+instance EncodeTCM (Position' ()) where
+instance ToJSON (Position' ()) where
+  toJSON p = object
+    [ "pos"  .= toJSON (posPos p)
+    , "line" .= toJSON (posLine p)
+    , "col"  .= toJSON (posCol p)
+    ]
+
 instance EncodeTCM InteractionId where
+  encodeTCM ii@(InteractionId i) = obj
+    [ "id"    @= toJSON i
+    , "range" #= intervalsTCM
+    ]
+    where
+      intervalsTCM = map prettyInterval . rangeIntervals <$> getInteractionRange ii
+      prettyInterval i = object [ "start" .= iStart i, "end" .= iEnd i ]
 instance ToJSON InteractionId where
   toJSON (InteractionId i) = toJSON i
 
@@ -220,7 +235,7 @@ instance EncodeTCM DisplayInfo where
     , "names"             @= map encodePretty names
     ]
   encodeTCM (Info_SearchAbout results search) = kind "SearchAbout"
-    [ "results"           #= forM contents encodeNamedPretty
+    [ "results"           #= forM results encodeNamedPretty
     , "search"            @= toJSON search
     ]
   encodeTCM (Info_WhyInScope _ _ _ _ _) = kind "WhyInScope"
