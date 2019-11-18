@@ -490,26 +490,26 @@ transferOrigins ps qs = do
       | otherwise = (setOrigin Inserted q :) <$> transfers (p : ps) qs
 
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
-    transfer p q = case (snd (asView p) , q) of
+    transfer p q = case (asView p , q) of
 
-      (A.ConP pi _ ps , ConP c (ConPatternInfo i r ft mb l) qs) -> do
-        let cpi = ConPatternInfo (i { patOrigin = PatOCon }) r ft mb l
+      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      (A.RecP pi fs , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
-            cpi = ConPatternInfo (i { patOrigin = PatORec }) r ft mb l
+            cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
         ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
-      (p , ConP c (ConPatternInfo i r ft mb l) qs) -> do
-        let cpi = ConPatternInfo (i { patOrigin = patOrig p}) r ft mb l
+      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
-      (p , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) []) x
+      ((asB , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
 
-      (p , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) []) u
+      ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
       _ -> return q
 
