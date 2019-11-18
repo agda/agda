@@ -1116,12 +1116,12 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
      reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
-      I.VarP i x -> case patOrigin i of
+      I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
         o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         _          -> reifyVarP x
-      I.DotP i v -> case patOrigin i of
+      I.DotP i v -> addAsBindings (patAsNames i) $ case patOrigin i of
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
@@ -1133,19 +1133,20 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
             reifyDotP o v
         o -> reifyDotP o v
       I.LitP l  -> return $ A.LitP l
-      I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps | conPRecord cpi -> case patOrigin (conPInfo cpi) of
-        PatOWild   -> return $ A.WildP patNoRange
-        PatOAbsurd -> return $ A.AbsurdP patNoRange
-        PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
-        _               -> reifyConP c cpi ps
-      I.ConP c cpi ps -> reifyConP c cpi ps
-      I.DefP i f ps  -> case patOrigin i of
+      I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
+      I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
+        case patOrigin (conPInfo cpi) of
+          PatOWild   -> return $ A.WildP patNoRange
+          PatOAbsurd -> return $ A.AbsurdP patNoRange
+          PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
+          _               -> reifyConP c cpi ps
+      I.ConP c cpi ps -> addAsBindings (patAsNames $ conPInfo cpi) $ reifyConP c cpi ps
+      I.DefP i f ps  -> addAsBindings (patAsNames i) $ case patOrigin i of
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
-      I.IApplyP i _ _ x -> case patOrigin i of
+      I.IApplyP i _ _ x -> addAsBindings (patAsNames i) $ case patOrigin i of
         o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
@@ -1182,6 +1183,9 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
         lazy | conPLazy cpi = ConPatLazy
              | otherwise    = ConPatEager
         origin = fromConPatternInfo cpi
+
+    addAsBindings :: Functor m => [A.Name] -> m A.Pattern -> m A.Pattern
+    addAsBindings xs p = foldr (fmap . AsP patNoRange . mkBindName) p xs
 
 
 -- | If the record constructor is generated or the user wrote a record pattern,
