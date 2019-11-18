@@ -31,6 +31,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
+import Agda.TypeChecking.Rules.Term (isModuleFreeVar)
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
@@ -151,12 +152,15 @@ parseVariables f tel ii rng ss = do
           -- Andreas, 2018-05-28, issue #3095
           -- We want to act on an ambiguous name if it corresponds to only one local index.
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
-          when (null xs'') $ failLocal
+          when (null xs'') $ typeError $ GenericError $
+            "Cannot make hidden lambda-bound variable " ++ s ++ " visible"
           -- Filter out variable bound by parent function or module.
-          -- Andreas, 2019-07-15, issue #3919: deactivating this unsound check.
-          -- Brings back faulty behavior of #3095 (interaction/Issue3095-fail).
-          -- let xs''' = mapMaybe (\ i -> if i >= nPatVars - fv then Nothing else Just i) xs''
-          case xs'' of
+          params <- moduleParamsToApply $ qnameModule f
+          let isParam i = any ((== var i) . unArg) params
+              xs'''     = filter (not . isParam) xs''
+          when (null xs''') $ typeError $ GenericError $
+            "Cannot make hidden module parameter " ++ s ++ " visible"
+          case xs''' of
             []  -> failModuleBound
             [i] -> return (i , C.NotInScope)
             -- Issue 1325: Variable names in context can be ambiguous.
