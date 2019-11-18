@@ -443,7 +443,7 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
 
     -- Jesper, 2019-11-18, #4037: check that all constructor /
     -- projection names in the new clause are in scope.
-    checkNames lhs
+    checkNames cl
 
     return cl
 
@@ -482,6 +482,9 @@ instance CheckNamesInScope QName where
 
 instance CheckNamesInScope AmbiguousQName where
   checkNames = checkNames . headAmbQ
+
+instance CheckNamesInScope A.Clause where
+  checkNames = checkNames . A.clauseLHS
 
 instance CheckNamesInScope A.LHS where
   checkNames = checkNames . A.lhsCore
