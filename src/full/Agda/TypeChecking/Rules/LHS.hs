@@ -511,6 +511,8 @@ transferOrigins ps qs = do
 
       ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
+      ((asB , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
+
       _ -> return q
 
     patOrig :: A.Pattern -> PatOrigin

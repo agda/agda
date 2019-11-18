@@ -671,7 +671,7 @@ instance PatternVars a b => PatternVars a [b] where
 patternInfo :: Pattern' x -> Maybe PatternInfo
 patternInfo (VarP i _)        = Just i
 patternInfo (DotP i _)        = Just i
-patternInfo LitP{}            = Nothing
+patternInfo (LitP i _)        = Just i
 patternInfo (ConP _ ci _)     = Just $ conPInfo ci
 patternInfo ProjP{}           = Nothing
 patternInfo (IApplyP i _ _ _) = Just i

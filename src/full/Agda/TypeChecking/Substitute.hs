@@ -1047,7 +1047,7 @@ usePatternInfo i p = case patternOrigin p of
     (ConP c (ConPatternInfo _ r ft b l) ps)
       -> ConP c (ConPatternInfo i r ft b l) ps
     DefP _ q ps -> DefP i q ps
-    LitP{}  -> __IMPOSSIBLE__
+    (LitP _ l) -> LitP i l
     ProjP{} -> __IMPOSSIBLE__
     (IApplyP _ t u x) -> IApplyP i t u x
 

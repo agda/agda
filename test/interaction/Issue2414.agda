@@ -14,3 +14,10 @@ test x@false y = and x {!y!}  -- x will go out of scope if we split on y
 test₂ : Bool → Bool → Bool
 test₂ x@y@true z = {!z!}
 test₂ x@y z = {!!}
+
+open import Agda.Builtin.String
+
+-- As bindings on literals should also be preserved
+test₃ : String → Bool → Bool
+test₃ x@"foo" z = {!z!}
+test₃ _ _ = {!!}
