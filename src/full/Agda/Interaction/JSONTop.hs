@@ -182,6 +182,12 @@ encodeOC f (PostponedCheckFunDef name a) = kind "PostponedCheckFunDef"
   , "type"           #= encodePrettyTCM a
   ]
 
+encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value
+encodeNamedPretty (name, a) = obj
+  [ "name" @= encodePretty name
+  , "term" #= encodePrettyTCM a
+  ]
+
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
     [ "warnings"          #= prettyTCWarnings (tcWarnings wes)
@@ -202,20 +208,19 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_Error msg) = kind "Error"
     [ "message"           #= showInfoError msg
     ]
-  encodeTCM Info_Intro_NotFound = kind "IntroNotFound"
-    [ "payload"           @= Null
-    ]
+  encodeTCM Info_Intro_NotFound = kind "IntroNotFound" []
   encodeTCM (Info_Intro_ConstructorUnknown introductions) = kind "IntroConstructorUnknown"
-    [ "payload"           @= Null
+    [ "constructors"      @= map toJSON introductions
     ]
   encodeTCM (Info_Auto info) = kind "Auto"
     [ "info"              @= toJSON info
     ]
-  encodeTCM (Info_ModuleContents _ _ _) = kind "ModuleContents"
-    [ "payload"           @= Null
+  encodeTCM (Info_ModuleContents names _ contents) = kind "ModuleContents"
+    [ "contents"          #= forM contents encodeNamedPretty
+    , "names"             @= map encodePretty names
     ]
-  encodeTCM (Info_SearchAbout _ search) = kind "SearchAbout"
-    [ "payload"           @= Null
+  encodeTCM (Info_SearchAbout results search) = kind "SearchAbout"
+    [ "results"           #= forM contents encodeNamedPretty
     , "search"            @= toJSON search
     ]
   encodeTCM (Info_WhyInScope _ _ _ _ _) = kind "WhyInScope"
