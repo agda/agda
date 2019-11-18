@@ -479,7 +479,7 @@ instance EmbPrj I.PatOrigin where
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a b  ) = icodeN 0 VarP a b
   icod_ (ConP a b c) = icodeN 1 ConP a b c
-  icod_ (LitP a    ) = icodeN 2 LitP a
+  icod_ (LitP a b  ) = icodeN 2 LitP a b
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
   icod_ (IApplyP a b c d) = icodeN 5 IApplyP a b c d
@@ -488,7 +488,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   value = vcase valu where
     valu [0, a, b] = valuN VarP a b
     valu [1, a, b, c] = valuN ConP a b c
-    valu [2, a]    = valuN LitP a
+    valu [2, a, b] = valuN LitP a b
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
     valu [5, a, b, c, d] = valuN IApplyP a b c d

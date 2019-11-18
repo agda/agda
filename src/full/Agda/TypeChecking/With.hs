@@ -505,7 +505,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
              text $ "with clause pattern is  " ++ show p
            mismatch
 
-        LitP lit -> case namedArg p of
+        LitP _ lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> recurse $ Lit lit
           A.WildP{}                 -> recurse $ Lit lit
 
@@ -721,5 +721,5 @@ patsToElims = map $ toElim . fmap namedThing
         PatOVar{} | Var i [] <- t -> DTerm t
         _                         -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP l      -> DTerm  $ Lit l
+      LitP _ l    -> DTerm  $ Lit l
       DefP _ q ps -> DDef q $ map Apply $ toTerms ps

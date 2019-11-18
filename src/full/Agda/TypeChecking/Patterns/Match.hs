@@ -201,7 +201,7 @@ matchPattern p u = case (p, u) of
   (VarP _ x , arg          ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
-  (LitP l , arg@(Arg _ v)) -> do
+  (LitP _ l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case w of
@@ -331,9 +331,9 @@ matchPatternP p arg@(Arg info q) = do
       case q of
         ConP c' _ qs | c == c'   -> matchPatternsP ps ((map . fmap) namedThing qs)
                      | otherwise -> return No
-        LitP{} -> fmap litP <$> termMatch
-          where litP (DotP _ (Lit l)) = LitP l   -- All bindings should be to literals
-                litP _                = __IMPOSSIBLE__
+        LitP{} -> fmap toLitP <$> termMatch
+          where toLitP (DotP _ (Lit l)) = litP l   -- All bindings should be to literals
+                toLitP _                = __IMPOSSIBLE__
         _      -> termMatch
 
 matchPatternsP :: [NamedArg DeBruijnPattern]

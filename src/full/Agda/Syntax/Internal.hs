@@ -544,7 +544,7 @@ data Pattern' x
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
     --   The subpatterns do not contain any projection copatterns.
-  | LitP Literal
+  | LitP PatternInfo Literal
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
@@ -562,6 +562,9 @@ varP = VarP defaultPatternInfo
 
 dotP :: Term -> Pattern' a
 dotP = DotP defaultPatternInfo
+
+litP :: Literal -> Pattern' a
+litP = LitP defaultPatternInfo
 
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
@@ -653,7 +656,7 @@ instance PatternVars a (Arg (Pattern' a)) where
   patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
   patternVars (Arg _ (DefP _ _ ps)) = patternVars ps
-  patternVars (Arg _ (LitP _)     ) = []
+  patternVars (Arg _ (LitP _ _)   ) = []
   patternVars (Arg _ ProjP{}      ) = []
   patternVars (Arg i (IApplyP _ _ _ x)) = [Arg i $ Left x]
 
@@ -1347,7 +1350,7 @@ instance KillRange a => KillRange (Pattern' a) where
       VarP o x         -> killRange2 VarP o x
       DotP o v         -> killRange2 DotP o v
       ConP con info ps -> killRange3 ConP con info ps
-      LitP l           -> killRange1 LitP l
+      LitP o l         -> killRange2 LitP o l
       ProjP o q        -> killRange1 (ProjP o) q
       IApplyP o u t x  -> killRange3 (IApplyP o) u t x
       DefP o q ps      -> killRange2 (DefP o) q ps
@@ -1517,7 +1520,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --   where
   --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> pretty t
-  prettyPrec _ (LitP l)      = pretty l
+  prettyPrec _ (LitP _ l)    = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
 -----------------------------------------------------------------------------

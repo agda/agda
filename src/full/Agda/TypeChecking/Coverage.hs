@@ -554,7 +554,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            VarP  _ _    -> p : gatherEtaSplits (-1) sc ps
            DotP  _ _    -> __IMPOSSIBLE__
            ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
-           LitP  _      -> gatherEtaSplits (-1) sc ps
+           LitP{}       -> gatherEtaSplits (-1) sc ps
            ProjP{}      -> __IMPOSSIBLE__
            IApplyP{}    -> __IMPOSSIBLE__
            DefP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps -- __IMPOSSIBLE__ -- Andrea: maybe?
@@ -566,7 +566,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       DefP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
-      LitP  _      -> gatherEtaSplits n sc ps
+      LitP{}       -> gatherEtaSplits n sc ps
       ProjP{}      -> gatherEtaSplits n sc ps
 
     addEtaSplits :: Int -> [NamedArg SplitPattern] -> SplitTree -> SplitTree
@@ -575,7 +575,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       VarP  _ _     -> addEtaSplits (k+1) ps t
       DotP  _ _     -> addEtaSplits (k+1) ps t
       ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
-      LitP  _       -> __IMPOSSIBLE__
+      LitP{}        -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
       IApplyP{}     -> addEtaSplits (k+1) ps t
@@ -1364,7 +1364,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         ns <- forM plits $ \lit -> do
           let delta2' = subst 0 (Lit lit) delta2
               delta'  = delta1 `abstract` delta2'
-              rho     = liftS x $ consS (LitP lit) idS
+              rho     = liftS x $ consS (litP lit) idS
               ps'     = applySubst rho ps
               cps'    = applySplitPSubst rho cps
           return (SplitLit lit , SClause delta' ps' rho cps' Nothing)

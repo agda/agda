@@ -841,7 +841,7 @@ instance Subst Term Pattern where
     DefP o q ps  -> DefP o q $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
     VarP o s     -> p
-    LitP l       -> p
+    LitP o l     -> p
     ProjP{}      -> p
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
@@ -1061,7 +1061,7 @@ instance Subst DeBruijnPattern DeBruijnPattern where
     DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     DefP i q ps  -> DefP i q $ applySubst rho ps
-    LitP x       -> p
+    LitP i x     -> p
     ProjP{}      -> p
     IApplyP i t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
                         IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
@@ -1313,7 +1313,7 @@ instance Eq a => Eq (Pattern' a) where
   VarP _ x        == VarP _ y          = x == y
   DotP _ u        == DotP _ v          = u == v
   ConP c _ ps     == ConP c' _ qs      = c == c && ps == qs
-  LitP l          == LitP l'           = l == l'
+  LitP _ l        == LitP _ l'         = l == l'
   ProjP _ f       == ProjP _ g         = f == g
   IApplyP _ u v x == IApplyP _ u' v' y = u == u' && v == v' && x == y
   DefP _ f ps     == DefP _ g qs       = f == g && ps == qs

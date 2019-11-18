@@ -1146,7 +1146,7 @@ checkLHS mf = updateModality checkLHS_ where
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
           delta' = abstract delta1 delta2
-          rho    = singletonS (size delta2) (LitP lit)
+          rho    = singletonS (size delta2) (litP lit)
           -- Andreas, 2015-06-13 Literals are closed, so no need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]

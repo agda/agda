@@ -232,7 +232,7 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
   DefP o q qs -> (conCase q False $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
-  LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
+  LitP _ l    -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
   where
@@ -335,7 +335,7 @@ expandCatchAlls single n cs =
     -- True if nth pattern exists and is variable.
     exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
-    classify (LitP l)     = Left l
+    classify (LitP _ l)   = Left l
     classify (ConP c _ _) = Right (Left c)
     classify (DefP _ q _) = Right (Right q)
     classify _            = __IMPOSSIBLE__
@@ -366,7 +366,7 @@ expandCatchAlls single n cs =
             -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
-        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
+        LitP i l -> Cl (ps0 ++ [q $> LitP i l] ++ ps1) (substBody n' 0 (Lit l) b)
         DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
                             (substBody n' m (Def d (map Apply conArgs)) b)
           where

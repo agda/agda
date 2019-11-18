@@ -1136,7 +1136,7 @@ instance Normalise DBPatVar where
 instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
     VarP o x     -> VarP o <$> normalise' x
-    LitP _       -> return p
+    LitP{}       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DefP o q ps  -> DefP o q <$> normalise' ps
     DotP o v     -> DotP o <$> normalise' v

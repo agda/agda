@@ -335,7 +335,7 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
 
     -- UNSUPPORTED CASES
     I.ProjP{}   -> lift copatternsNotImplemented
-    I.LitP _    -> lift literalsNotImplemented
+    I.LitP{}    -> lift literalsNotImplemented
     I.DefP{}    -> lift hitsNotImplemented
 
 instance Conversion TOM I.Type (MExp O) where

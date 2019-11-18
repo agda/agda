@@ -1132,7 +1132,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           else
             reifyDotP o v
         o -> reifyDotP o v
-      I.LitP l  -> return $ A.LitP l
+      I.LitP i l  -> return $ A.LitP l
       I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
         case patOrigin (conPInfo cpi) of

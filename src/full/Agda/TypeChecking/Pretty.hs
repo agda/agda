@@ -424,7 +424,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         showCon :: MonadPretty m => m Doc
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
-  prettyTCM (LitP l)      = text (P.prettyShow l)
+  prettyTCM (LitP _ l)    = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 
 -- | Proper pretty printing of patterns:

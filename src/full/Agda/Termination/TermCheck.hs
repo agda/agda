@@ -572,7 +572,7 @@ instance TermToPattern Term DeBruijnPattern where
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-    Lit l       -> return $ LitP l
+    Lit l       -> return $ litP l
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
@@ -1214,7 +1214,7 @@ compareTerm' v mp@(Masked m p) = do
 
     _ | m -> return Order.unknown
 
-    (Lit l, LitP l')
+    (Lit l, LitP _ l')
       | l == l'     -> return Order.le
       | otherwise   -> return Order.unknown
 
@@ -1254,7 +1254,7 @@ subTerm t p = if equal t p then Order.le else properSubTerm t p
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps
     equal (Var i []) (VarP _ x) = i == dbPatVarIndex x
-    equal (Lit l)    (LitP l') = l == l'
+    equal (Lit l)    (LitP _ l') = l == l'
     -- Terms.
     -- Checking for identity here is very fragile.
     -- However, we cannot do much more, as we are not allowed to normalize t.

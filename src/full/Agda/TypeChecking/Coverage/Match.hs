@@ -175,7 +175,7 @@ instance Subst SplitPattern SplitPattern where
     DotP i u     -> DotP i $ applySplitPSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     DefP i q ps -> DefP i q $ applySubst rho ps
-    LitP x       -> p
+    LitP{}       -> p
     ProjP{}      -> p
     IApplyP i l r x  ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
@@ -415,7 +415,7 @@ matchPat p q = case p of
   -- guaranteed to match if the rest of the pattern does, so some extra splitting
   -- on them doesn't change the reduction behaviour.
 
-  p@(LitP l) -> case q of
+  p@(LitP _ l) -> case q of
     VarP _ x -> if l `elem` splitExcludedLits x
                 then no
                 else blockedOnLiteral (splitPatVarIndex x) l
@@ -448,7 +448,7 @@ matchPat p q = case p of
     VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
     ConP c' i qs -> no
     DotP o t  -> no
-    LitP _    -> no
+    LitP{}    -> no
     DefP o c' qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -462,12 +462,12 @@ unDotP (DotP o v) = reduce v >>= \case
   Con c _ vs -> do
     let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
-  Lit l -> return $ LitP l
+  Lit l -> return $ LitP (PatternInfo PatODot []) l
   v     -> return $ dotP v
 unDotP p = return p
 
 isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
-isLitP (LitP l) = return $ Just l
+isLitP (LitP _ l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
   _     -> return $ Nothing
@@ -486,11 +486,12 @@ isLitP (ConP c ci [a]) | visible a && isRelevant a = do
 isLitP _ = return Nothing
 
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
-unLitP (LitP l@(LitNat _ n)) | n >= 0 = do
+unLitP (LitP info l@(LitNat _ n)) | n >= 0 = do
   Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
                                   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
                                   (Lit l)
-  let toP (Apply (Arg i (Lit l))) = Arg i (LitP l)
+  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
       toP _ = __IMPOSSIBLE__
-  return $ ConP c noConPatternInfo $ map (fmap unnamed . toP) es
+      cpi   = noConPatternInfo { conPInfo = info }
+  return $ ConP c cpi $ map (fmap unnamed . toP) es
 unLitP p = return p
