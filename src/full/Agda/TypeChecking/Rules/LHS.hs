@@ -181,6 +181,9 @@ updateProblemEqs eqs = do
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq A.WildP{} _ _) = return []
     update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPattern p
+    update eq@(ProblemEq p@(A.AsP info x p') v a) =
+      (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
+
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -192,8 +195,7 @@ updateProblemEqs eqs = do
 
         p <- expandLitPattern p
         case p of
-          A.AsP info x p' ->
-            (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
+          A.AsP{} -> __IMPOSSIBLE__
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
 
