@@ -487,7 +487,7 @@ termType = return mempty
 
   -- create n variable patterns
   mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP PatOSystem $ DBPatVar (prettyShow x) i
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.

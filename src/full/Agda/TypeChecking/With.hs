@@ -712,12 +712,14 @@ patsToElims = map $ toElim . fmap namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
-      IApplyP o _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
+      IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
-      VarP o x      -> DTerm  $ var $ dbPatVarIndex x
-      DotP PatOVar{} t@(Var i []) -> DTerm t
-      DotP o t    -> DDot   $ t
+      VarP i x -> case patOrigin i of
+        PatODot -> DDot  $ var $ dbPatVarIndex x
+        _       -> DTerm  $ var $ dbPatVarIndex x
+      DotP i t -> case patOrigin i of
+        PatOVar{} | Var i [] <- t -> DTerm t
+        _                         -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
       LitP l      -> DTerm  $ Lit l
-      DefP o q ps -> DDef q $ map Apply $ toTerms ps
+      DefP _ q ps -> DDef q $ map Apply $ toTerms ps

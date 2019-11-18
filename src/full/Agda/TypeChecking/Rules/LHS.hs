@@ -135,8 +135,8 @@ instance IsFlexiblePattern (I.Pattern' a) where
     case p of
       I.DotP{}  -> return DotFlex
       I.ConP _ i ps
-        | Just PatOSystem <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
-        | Just _          <- conPRecord i -> maybeFlexiblePattern ps
+        | conPRecord i , PatOSystem <- patOrigin (conPInfo i) -> return ImplicitFlex  -- expanded from ImplicitP
+        | conPRecord i -> maybeFlexiblePattern ps
         | otherwise -> mzero
       I.VarP{}  -> mzero
       I.LitP{}  -> mzero
@@ -492,41 +492,41 @@ transferOrigins ps qs = do
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (snd (asView p) , q) of
 
-      (A.ConP pi _ ps , ConP c (ConPatternInfo mo ft mb l) qs) -> do
-        let cpi = ConPatternInfo (mo $> PatOCon) ft mb l
+      (A.ConP pi _ ps , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (i { patOrigin = PatOCon }) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      (A.RecP pi fs , ConP c (ConPatternInfo mo ft mb l) qs) -> do
+      (A.RecP pi fs , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
-            cpi = ConPatternInfo (mo $> PatORec) ft mb l
+            cpi = ConPatternInfo (i { patOrigin = PatORec }) r ft mb l
         ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
-      (p , ConP c (ConPatternInfo mo ft mb l) qs) -> do
-        let cpi = ConPatternInfo (mo $> patOrigin p) ft mb l
+      (p , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (i { patOrigin = patOrig p}) r ft mb l
         return $ ConP c cpi qs
 
-      (p , VarP _ x) -> return $ VarP (patOrigin p) x
+      (p , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) []) x
 
-      (p , DotP _ u) -> return $ DotP (patOrigin p) u
+      (p , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) []) u
 
       _ -> return q
 
-    patOrigin :: A.Pattern -> PatOrigin
-    patOrigin (A.VarP x)      = PatOVar (A.unBind x)
-    patOrigin A.DotP{}        = PatODot
-    patOrigin A.ConP{}        = PatOCon
-    patOrigin A.RecP{}        = PatORec
-    patOrigin A.WildP{}       = PatOWild
-    patOrigin A.AbsurdP{}     = PatOAbsurd
-    patOrigin A.LitP{}        = PatOLit
-    patOrigin A.EqualP{}      = PatOCon --TODO: origin for EqualP
-    patOrigin A.AsP{}         = __IMPOSSIBLE__
-    patOrigin A.ProjP{}       = __IMPOSSIBLE__
-    patOrigin A.DefP{}        = __IMPOSSIBLE__
-    patOrigin A.PatternSynP{} = __IMPOSSIBLE__
-    patOrigin A.WithP{}       = __IMPOSSIBLE__
+    patOrig :: A.Pattern -> PatOrigin
+    patOrig (A.VarP x)      = PatOVar (A.unBind x)
+    patOrig A.DotP{}        = PatODot
+    patOrig A.ConP{}        = PatOCon
+    patOrig A.RecP{}        = PatORec
+    patOrig A.WildP{}       = PatOWild
+    patOrig A.AbsurdP{}     = PatOAbsurd
+    patOrig A.LitP{}        = PatOLit
+    patOrig A.EqualP{}      = PatOCon --TODO: origin for EqualP
+    patOrig A.AsP{}         = __IMPOSSIBLE__
+    patOrig A.ProjP{}       = __IMPOSSIBLE__
+    patOrig A.DefP{}        = __IMPOSSIBLE__
+    patOrig A.PatternSynP{} = __IMPOSSIBLE__
+    patOrig A.WithP{}       = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
     matchingArgs p q
@@ -1120,11 +1120,11 @@ checkLHS mf = updateModality checkLHS_ where
              = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                               , conPFallThrough = True })
                           []
-          mkConP (Var i []) = VarP PatOSystem (DBPatVar "x" i)
+          mkConP (Var i []) = VarP defaultPatternInfo (DBPatVar "x" i)
           mkConP _          = __IMPOSSIBLE__
           rho0 = fmap mkConP sigma
 
-          rho    = liftS (size delta2) $ consS (DotP PatOSystem itisone) rho0
+          rho    = liftS (size delta2) $ consS (DotP defaultPatternInfo itisone) rho0
 
           delta'   = abstract gamma delta2
           eqs'     = applyPatSubst rho $ problem ^. problemEqs
@@ -1360,7 +1360,8 @@ checkLHS mf = updateModality checkLHS_ where
           -- Mark eta-record matches as lazy
           lazy <- isEtaRecord d
 
-          let cpi = ConPatternInfo { conPRecord = isRec $> PatOCon
+          let cpi = ConPatternInfo { conPInfo   = PatternInfo PatOCon []
+                                   , conPRecord = isJust isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
                                    , conPLazy   = lazy }

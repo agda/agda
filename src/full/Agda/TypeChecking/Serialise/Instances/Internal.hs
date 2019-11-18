@@ -439,7 +439,7 @@ instance EmbPrj I.Clause where
   value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b c d) = icodeN' ConPatternInfo a b c d
+  icod_ (ConPatternInfo a b c d e) = icodeN' ConPatternInfo a b c d e
 
   value = valueN ConPatternInfo
 
@@ -447,6 +447,11 @@ instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icodeN' DBPatVar a b
 
   value = valueN DBPatVar
+
+instance EmbPrj I.PatternInfo where
+  icod_ (PatternInfo a b) = icodeN' PatternInfo a b
+
+  value = valueN PatternInfo
 
 instance EmbPrj I.PatOrigin where
   icod_ PatOSystem  = icodeN' PatOSystem

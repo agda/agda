@@ -283,7 +283,8 @@ expandTelescopeVar gamma k delta c = (tel', rho)
                     splitExactlyAt k $ telToList gamma
 
     cpi         = noConPatternInfo
-      { conPRecord = Just PatOSystem
+      { conPInfo   = defaultPatternInfo
+      , conPRecord = True
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
@@ -488,11 +489,10 @@ telePatterns' f tel boundary = recurse $ f tel
       snd <$> flip find boundary (\case
         (Var i [],_) -> i == x
         _            -> __IMPOSSIBLE__)
-    o = PatOSystem
     updateVar x =
       case deBruijnView x of
-        Just i | Just (t,u) <- matchVar i -> IApplyP o t u x
-        _                           -> VarP o x
+        Just i | Just (t,u) <- matchVar i -> IApplyP defaultPatternInfo t u x
+        _                                 -> VarP defaultPatternInfo x
 
 -- | Decomposing a function type.
 

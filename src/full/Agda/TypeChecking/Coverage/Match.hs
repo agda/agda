@@ -167,19 +167,19 @@ applySplitPSubst = applyPatSubst . fromSplitPSubst
 instance Subst SplitPattern SplitPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+    VarP i x     ->
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
-    DotP o u     -> DotP o $ applySplitPSubst rho u
+    DotP i u     -> DotP i $ applySplitPSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps -> DefP o q $ applySubst rho ps
+    DefP i q ps -> DefP i q $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
-    IApplyP o l r x  ->
+    IApplyP i l r x  ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
-      usePatOrigin o $
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x

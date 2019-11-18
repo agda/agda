@@ -215,7 +215,7 @@ matchPattern p u = case (p, u) of
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
-    if isNothing $ conPRecord cpi then fallback c ps (Arg info v) else do
+    if not (conPRecord cpi) then fallback c ps (Arg info v) else do
     isEtaRecordCon (conName c) >>= \case
       Nothing -> fallback c ps (Arg info v)
       Just fs -> do
@@ -313,12 +313,12 @@ matchPatternP :: DeBruijnPattern
              -> ReduceM (Match DeBruijnPattern)
 matchPatternP p (Arg info (DotP _ v)) = do
   (m, arg) <- matchPattern p (Arg info v)
-  return $ fmap (DotP PatOSystem) m
+  return $ fmap (DotP defaultPatternInfo) m
 matchPatternP p arg@(Arg info q) = do
   let varMatch x = return $ Yes NoSimplification $ singleton (dbPatVarIndex x, arg)
       termMatch  = do
         (m, arg) <- matchPattern p (fmap patternToTerm arg)
-        return $ fmap (DotP PatOSystem) m
+        return $ fmap (DotP defaultPatternInfo) m
   case p of
     ProjP{}         -> __IMPOSSIBLE__
     IApplyP _ _ _ x -> varMatch x
@@ -341,4 +341,3 @@ matchPatternsP :: [NamedArg DeBruijnPattern]
                -> ReduceM (Match DeBruijnPattern)
 matchPatternsP ps qs = do
   mconcat <$> zipWithM matchPatternP (map namedArg ps) qs
-

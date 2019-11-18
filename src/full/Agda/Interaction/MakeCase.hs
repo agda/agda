@@ -414,7 +414,7 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       -- We could introduce extra consistency checks, like
       -- if visible ai then __IMPOSSIBLE__ else
       -- or passing the parsed name along and comparing it with @x@
-      Arg (setOrigin CaseSplit ai) $ Named n $ VarP PatOSplit $ SplitPatVar x i ls
+      Arg (setOrigin CaseSplit ai) $ Named n $ VarP (PatternInfo PatOSplit []) $ SplitPatVar x i ls
   mkVis np = np
 
 -- | Make clause with no rhs (because of absurd match).

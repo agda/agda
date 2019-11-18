@@ -611,7 +611,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
             (ptelList,[rt]) = splitAt (size tel - 1) telList
             ptel   = telFromList ptelList
             cpo    = if hasNamedCon then PatOCon else PatORec
-            cpi    = ConPatternInfo { conPRecord = Just cpo
+            cpi    = ConPatternInfo { conPInfo   = PatternInfo cpo []
+                                    , conPRecord = True
                                     , conPFallThrough = False
                                     , conPType   = Just $ argFromDom $ fmap snd rt
                                     , conPLazy   = True }

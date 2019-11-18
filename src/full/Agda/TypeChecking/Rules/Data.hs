@@ -499,7 +499,7 @@ defineCompData d con params names fsT t boundary = do
 
         -- Δ.Φ ⊢ u = Con con ConOSystem $ teleElims fsT boundary : R δ
 --        u = Con con ConOSystem $ teleElims fsT boundary
-        up = ConP con (ConPatternInfo Nothing False Nothing False) $
+        up = ConP con (ConPatternInfo defaultPatternInfo False False Nothing False) $
                telePatterns (d0 `applySubst` fsT) (liftS (size fsT) d0 `applySubst` boundary)
 --        gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
@@ -569,7 +569,7 @@ defineProjections dataname con params names fsT t = do
       reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
-      cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
+      cpi  = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
           { clauseTel = abstract params fsT

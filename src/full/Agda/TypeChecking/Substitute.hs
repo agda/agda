@@ -1032,36 +1032,40 @@ applyPatSubst = applySubst . fromPatternSubstitution
 
 
 usePatOrigin :: PatOrigin -> Pattern' a -> Pattern' a
-usePatOrigin o p = case patternOrigin p of
+usePatOrigin o p = case patternInfo p of
+  Nothing -> p
+  Just i  -> usePatternInfo (i { patOrigin = o }) p
+
+usePatternInfo :: PatternInfo -> Pattern' a -> Pattern' a
+usePatternInfo i p = case patternOrigin p of
   Nothing         -> p
   Just PatOSplit  -> p
   Just PatOAbsurd -> p
   Just _          -> case p of
-    (VarP _ x) -> VarP o x
-    (DotP _ u) -> DotP o u
-    (ConP c (ConPatternInfo (Just _) ft b l) ps)
-      -> ConP c (ConPatternInfo (Just o) ft b l) ps
-    DefP _ q ps -> DefP o q ps
-    ConP{}  -> __IMPOSSIBLE__
+    (VarP _ x) -> VarP i x
+    (DotP _ u) -> DotP i u
+    (ConP c (ConPatternInfo _ r ft b l) ps)
+      -> ConP c (ConPatternInfo i r ft b l) ps
+    DefP _ q ps -> DefP i q ps
     LitP{}  -> __IMPOSSIBLE__
     ProjP{} -> __IMPOSSIBLE__
-    (IApplyP _ t u x) -> IApplyP o t u x
+    (IApplyP _ t u x) -> IApplyP i t u x
 
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+    VarP i x     ->
+      usePatternInfo i $
       useName (dbPatVarName x) $
       lookupS rho $ dbPatVarIndex x
-    DotP o u     -> DotP o $ applyPatSubst rho u
+    DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps  -> DefP o q $ applySubst rho ps
+    DefP i q ps  -> DefP i q $ applySubst rho ps
     LitP x       -> p
     ProjP{}      -> p
-    IApplyP o t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
-                        IApplyP _ _ _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
-                        VarP  _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
+    IApplyP i t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
+                        IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
+                        VarP  _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
                         _ -> __IMPOSSIBLE__
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern

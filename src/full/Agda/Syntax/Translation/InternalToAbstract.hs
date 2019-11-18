@@ -1116,36 +1116,40 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
      reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
-      I.VarP o@PatODot x -> reifyDotP o $ var $ dbPatVarIndex x
-      I.VarP PatOWild _ -> return $ A.WildP patNoRange
-      I.VarP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
-      I.VarP _ x -> reifyVarP x
-      I.DotP PatOWild _ -> return $ A.WildP patNoRange
-      I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
-      -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
-      I.DotP o@(PatOVar x) v@(I.Var i []) -> do
-        x' <- nameOfBV i
-        if nameConcrete x == nameConcrete x' then
-          return $ A.VarP $ mkBindName x'
-        else
-          reifyDotP o v
-      I.DotP o v -> reifyDotP o v
+      I.VarP i x -> case patOrigin i of
+        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _          -> reifyVarP x
+      I.DotP i v -> case patOrigin i of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
+        o@(PatOVar x) | I.Var i [] <- v -> do
+          x' <- nameOfBV i
+          if nameConcrete x == nameConcrete x' then
+            return $ A.VarP $ mkBindName x'
+          else
+            reifyDotP o v
+        o -> reifyDotP o v
       I.LitP l  -> return $ A.LitP l
       I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps -> case conPRecord cpi of
-        Just PatOWild   -> return $ A.WildP patNoRange
-        Just PatOAbsurd -> return $ A.AbsurdP patNoRange
-        Just (PatOVar x) | keepVars -> return $ A.VarP $ mkBindName x
+      I.ConP c cpi ps | conPRecord cpi -> case patOrigin (conPInfo cpi) of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _               -> reifyConP c cpi ps
-      I.DefP o f ps  -> case o of
+      I.ConP c cpi ps -> reifyConP c cpi ps
+      I.DefP i f ps  -> case patOrigin i of
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
         PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
-      I.IApplyP o@PatODot _ _ x -> reifyDotP o $ var $ dbPatVarIndex x
-      I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange
-      I.IApplyP PatOAbsurd _ _ x -> return $ A.AbsurdP patNoRange
-      I.IApplyP _ _ _ x -> reifyVarP x
+      I.IApplyP i _ _ x -> case patOrigin i of
+        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _          -> reifyVarP x
 
     reifyVarP :: MonadReify m => DBPatVar -> m A.Pattern
     reifyVarP x = do

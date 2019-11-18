@@ -509,6 +509,14 @@ patVarNameToString = argNameToString
 nameToPatVarName :: Name -> PatVarName
 nameToPatVarName = nameToArgName
 
+data PatternInfo = PatternInfo
+  { patOrigin :: PatOrigin
+  , patAsNames :: [Name]
+  } deriving (Data, Show, Eq)
+
+defaultPatternInfo :: PatternInfo
+defaultPatternInfo = PatternInfo PatOSystem []
+
 -- | Origin of the pattern: what did the user write in this position?
 data PatOrigin
   = PatOSystem         -- ^ Pattern inserted by the system
@@ -529,9 +537,9 @@ data PatOrigin
 --     the arguments we are matching with) use @QName@.
 --
 data Pattern' x
-  = VarP PatOrigin x
+  = VarP PatternInfo x
     -- ^ @x@
-  | DotP PatOrigin Term
+  | DotP PatternInfo Term
     -- ^ @.t@
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
@@ -540,9 +548,9 @@ data Pattern' x
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
-  | IApplyP PatOrigin Term Term x
+  | IApplyP PatternInfo Term Term x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
-  | DefP PatOrigin QName [NamedArg (Pattern' x)]
+  | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
   deriving (Data, Show, Functor, Foldable, Traversable)
 
@@ -550,10 +558,10 @@ type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
 
 varP :: a -> Pattern' a
-varP = VarP PatOSystem
+varP = VarP defaultPatternInfo
 
 dotP :: Term -> Pattern' a
-dotP = DotP PatOSystem
+dotP = DotP defaultPatternInfo
 
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
@@ -572,19 +580,22 @@ namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
 -- | Make an absurd pattern with the given de Bruijn index.
 absurdP :: Int -> DeBruijnPattern
-absurdP = VarP PatOAbsurd . DBPatVar absurdPatternName
+absurdP = VarP (PatternInfo PatOAbsurd []) . DBPatVar absurdPatternName
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
---   a record type (@Just@) or data type (@Nothing@).
---   In the former case, the @PatOrigin@ says whether the record pattern
---   orginates from the expansion of an implicit pattern.
+--   a record type (@True@) or data type (@False@).
+--   In the former case, the @PatOrigin@ of the @conPInfo@ says
+--   whether the record pattern orginates from the expansion of an
+--   implicit pattern.
 --   The @Type@ is the type of the whole record pattern.
 --   The scope used for the type is given by any outer scope
 --   plus the clause's telescope ('clauseTel').
 data ConPatternInfo = ConPatternInfo
-  { conPRecord :: Maybe PatOrigin
-    -- ^ @Nothing@ if data constructor.
-    --   @Just@ if record constructor.
+  { conPInfo   :: PatternInfo
+    -- ^ Information on the origin of the pattern.
+  , conPRecord :: Bool
+    -- ^ @False@ if data constructor.
+    --   @True@ if record constructor.
   , conPFallThrough :: Bool
     -- ^ Should the match block on non-canonical terms or can it
     --   proceed to the catch-all clause?
@@ -606,16 +617,18 @@ data ConPatternInfo = ConPatternInfo
   deriving (Data, Show)
 
 noConPatternInfo :: ConPatternInfo
-noConPatternInfo = ConPatternInfo Nothing False Nothing False
+noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
 
 -- | Build partial 'ConPatternInfo' from 'ConInfo'
 toConPatternInfo :: ConInfo -> ConPatternInfo
-toConPatternInfo ConORec = noConPatternInfo{ conPRecord = Just PatORec }
+toConPatternInfo ConORec = noConPatternInfo{ conPInfo = PatternInfo PatORec [] , conPRecord = True }
 toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo = maybe ConOCon patToConO . conPRecord
+fromConPatternInfo i
+  | conPRecord i = patToConO $ patOrigin $ conPInfo i
+  | otherwise    = ConOCon
   where
     patToConO :: PatOrigin -> ConOrigin
     patToConO = \case
@@ -651,16 +664,19 @@ instance PatternVars a (NamedArg (Pattern' a)) where
 instance PatternVars a b => PatternVars a [b] where
   patternVars = concatMap patternVars
 
+-- | Retrieve the PatternInfo from a pattern
+patternInfo :: Pattern' x -> Maybe PatternInfo
+patternInfo (VarP i _)        = Just i
+patternInfo (DotP i _)        = Just i
+patternInfo LitP{}            = Nothing
+patternInfo (ConP _ ci _)     = Just $ conPInfo ci
+patternInfo ProjP{}           = Nothing
+patternInfo (IApplyP i _ _ _) = Just i
+patternInfo (DefP i _ _)      = Just i
 
 -- | Retrieve the origin of a pattern
 patternOrigin :: Pattern' x -> Maybe PatOrigin
-patternOrigin (VarP o _) = Just o
-patternOrigin (DotP o _) = Just o
-patternOrigin LitP{}     = Nothing
-patternOrigin (ConP _ ci _) = conPRecord ci
-patternOrigin ProjP{}    = Nothing
-patternOrigin (IApplyP o _ _ _) = Just o
-patternOrigin (DefP o _ _) = Just o
+patternOrigin = fmap patOrigin . patternInfo
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: DeBruijnPattern -> Bool
@@ -669,7 +685,7 @@ properlyMatching p
 properlyMatching VarP{} = False
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
-properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
+properlyMatching (ConP _ ci ps) = (not $ conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 properlyMatching IApplyP{} = False
@@ -1316,8 +1332,11 @@ instance KillRange Substitution where
 instance KillRange PatOrigin where
   killRange = id
 
+instance KillRange PatternInfo where
+  killRange (PatternInfo o xs) = killRange2 PatternInfo o xs
+
 instance KillRange ConPatternInfo where
-  killRange (ConPatternInfo mr b mt lz) = killRange1 (ConPatternInfo mr b) mt lz
+  killRange (ConPatternInfo i mr b mt lz) = killRange1 (ConPatternInfo i mr b) mt lz
 
 instance KillRange DBPatVar where
   killRange (DBPatVar x i) = killRange2 DBPatVar x i

@@ -63,7 +63,7 @@ recordPatternToProjections p =
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
-      whenNothing (conPRecord ci) $
+      unless (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
       let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
@@ -711,7 +711,7 @@ removeTree tree = do
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
   -- Andreas, 2015-05-28 only translate implicit record patterns
-  | Just PatOSystem <- conPRecord ci = do
+  | conPRecord ci , PatOSystem <- patOrigin (conPInfo ci) = do
       r <- recordTree p
       case r of
         Left  r -> r
@@ -751,7 +751,7 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
-recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
+recordTree p@(ConP c ci ps) | conPRecord ci , PatOSystem <- patOrigin (conPInfo ci) = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
