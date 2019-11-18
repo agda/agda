@@ -232,7 +232,7 @@ getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
     else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
   where
     libsAndPaths ls = ( concatMap _libDepends ls
-                      , List.nub (concatMap _libIncludes ls)
+                      , nubOn id (concatMap _libIncludes ls)
                       )
 
 -- | Return list of libraries to be used by default.
@@ -283,7 +283,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
     if not (lfExists file) then return [] else do
       ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-      parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
+      parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
@@ -305,7 +305,7 @@ parseLibFiles mlibFile files = do
   unless (null errs)  $
     raiseErrors $ map (\(mc,s) -> LibError mc $ OtherError s) errs
 
-  return $ List.nubBy ((==) `on` _libFile) $ als
+  return $ nubOn _libFile als
 
 -- | Remove trailing white space and line comments.
 --
@@ -330,7 +330,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
-    incs       = List.nub . concatMap _libIncludes
+    incs       = nubOn id . concatMap _libIncludes
     dot        = [ "." | not $ null dots ]
 
     -- | Due to library dependencies, the work list may grow temporarily.

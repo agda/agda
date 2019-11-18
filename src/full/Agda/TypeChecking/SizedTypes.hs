@@ -634,7 +634,7 @@ oldSolveSizeConstraints = whenM haveSizedTypes $ do
 
         -- Size metas in constraints.
         metas0 :: [(MetaId, Int)]  -- meta id + arity
-        metas0 = List.nub $ map (mapSnd length) $ concatMap flexibleVariables cs
+        metas0 = List.nubOn id $ map (mapSnd length) $ concatMap flexibleVariables cs
 
         -- Unconstrained size metas that do not occur in constraints.
         metas1 :: [(MetaId, Int)]

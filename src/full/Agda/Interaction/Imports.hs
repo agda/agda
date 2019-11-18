@@ -64,6 +64,7 @@ import Agda.Interaction.Response
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
@@ -1011,7 +1012,7 @@ createInterface file mname isMain msi =
     return $ first constructIScope (i, mallWarnings)
 
 getUniqueMetasRanges :: [MetaId] -> TCM [Range]
-getUniqueMetasRanges = fmap List.nub . mapM getMetaRange
+getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
 
 getUnsolvedMetas :: TCM [Range]
 getUnsolvedMetas = do

@@ -342,7 +342,7 @@ expandCatchAlls single n cs =
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` (classify . unArg . snd))
+    expansions = nubOn (classify . unArg . snd)
                . mapMaybe (notVarNth . clPats)
                $ cs
     notVarNth

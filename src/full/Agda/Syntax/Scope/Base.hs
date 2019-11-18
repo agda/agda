@@ -291,7 +291,7 @@ data InScopeTag a where
   ModuleTag :: InScopeTag AbstractModule
 
 -- | Type class for some dependent-types trickery.
-class Eq a => InScope a where
+class Ord a => InScope a where
   inScopeTag :: InScopeTag a
 
 instance InScope AbstractName where
@@ -999,7 +999,7 @@ scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
 scopeLookup' q scope =
-  List.nubBy ((==) `on` fst) $
+  nubOn fst $
     findName q root ++ maybeToList topImports ++ imports
   where
 
