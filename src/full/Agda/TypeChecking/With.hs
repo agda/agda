@@ -372,7 +372,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
       let implicit (A.WildP{})     = True
-          implicit (A.ConP ci _ _) = patOrigin ci == ConOSystem
+          implicit (A.ConP ci _ _) = conPatOrigin ci == ConOSystem
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
         typeError $ GenericError $ "Too many arguments given in with-clause"

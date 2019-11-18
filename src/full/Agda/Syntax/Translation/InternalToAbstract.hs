@@ -907,8 +907,8 @@ stripImplicits params ps = do
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
-          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
-                                 = patLazy cpi == ConPatLazy || all (varOrDot . namedArg) ps
+          varOrDot (A.ConP cpi _ ps) | conPatOrigin cpi == ConOSystem
+                                 = conPatLazy cpi == ConPatLazy || all (varOrDot . namedArg) ps
           varOrDot _             = False
 
 -- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
@@ -1192,7 +1192,7 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && patOrigin ci /= ConORec then fallback else do
+          if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
             fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps

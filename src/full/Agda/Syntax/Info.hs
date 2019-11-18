@@ -241,16 +241,16 @@ patNoRange = PatRange noRange
 
 -- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
-  { patOrigin   :: ConOrigin
+  { conPatOrigin   :: ConOrigin
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
     ---  Or from a user written constructor or record pattern?
-  , patInfo     :: PatInfo
-  , patLazy     :: ConPatLazy
+  , conPatInfo     :: PatInfo
+  , conPatLazy     :: ConPatLazy
   }
   deriving (Data, Eq, Show)
 
 instance HasRange ConPatInfo where
-  getRange = getRange . patInfo
+  getRange = getRange . conPatInfo
 
 instance KillRange ConPatInfo where
   killRange (ConPatInfo b i l) = ConPatInfo b (killRange i) l

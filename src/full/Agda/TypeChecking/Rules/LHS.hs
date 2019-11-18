@@ -1230,7 +1230,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | patLazy cpi == ConPatLazy ->
+        A.ConP cpi _ _ | conPatLazy cpi == ConPatLazy ->
           unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
