@@ -271,6 +271,15 @@ instance Monoid LeftoverPatterns where
   mempty  = LeftoverPatterns empty [] [] [] []
   mappend = (<>)
 
+instance PrettyTCM LeftoverPatterns where
+  prettyTCM (LeftoverPatterns varp asb dotp absurdp otherp) = vcat
+    [ "pattern variables: " <+> text (show varp)
+    , "as bindings:       " <+> prettyList_ (map prettyTCM asb)
+    , "dot patterns:      " <+> prettyList_ (map prettyTCM dotp)
+    , "absurd patterns:   " <+> prettyList_ (map prettyTCM absurdp)
+    , "other patterns:    " <+> prettyList_ (map prettyA otherp)
+    ]
+
 -- | Classify remaining patterns after splitting is complete into pattern
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
@@ -355,3 +364,12 @@ instance PP.Pretty AsBinding where
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
+
+instance PrettyTCM (LHSState a) where
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat
+    [ "tel             = " <+> prettyTCM tel
+    , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
+    , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)
+    , "problemRestPats = " <+> prettyList_ (return $ prettyA rps)
+    , "target          = " <+> addContext tel (prettyTCM target)
+    ]

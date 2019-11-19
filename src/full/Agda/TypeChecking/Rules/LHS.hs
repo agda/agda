@@ -701,8 +701,11 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
-        LeftoverPatterns patVars asb0 dots absurds otherPats
+        leftovers@(LeftoverPatterns patVars asb0 dots absurds otherPats)
           <- addContext delta $ getLeftoverPatterns eqs
+
+        reportSDoc "tc.lhs.leftover" 30 $ vcat
+          [ "leftover patterns: " , nest 2 (addContext delta $ prettyTCM leftovers) ]
 
         unless (null otherPats) __IMPOSSIBLE__
 
@@ -819,6 +822,10 @@ checkLHS mf = updateModality checkLHS_ where
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
+
+    reportSDoc "tc.lhs.top" 30 $ vcat
+      [ "LHS state: " , nest 2 (prettyTCM st) ]
+
     unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
