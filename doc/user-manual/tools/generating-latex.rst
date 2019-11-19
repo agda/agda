@@ -425,6 +425,31 @@ The borders around the links can be suppressed using hyperref's
    when using the links option at the moment. This might get fixed in
    the future.
 
+Numbered code listings
+~~~~~~~~~~~~~~~~~~~~~~
+
+When the option ``number`` is used an equation number is generated for
+the code listing. The number is set to the right, centered vertically.
+By default the number is set in parentheses, but this can be changed
+by redefining ``\AgdaFormatCodeNumber``.
+
+The option can optionally be given an argument: when ``number=l`` is
+used a label ``l``, referring to the code listing, is generated. It is
+possible to use this option several times with different labels.
+
+An example:
+
+.. code-block:: lagda
+
+   \begin{code}[number=code:lemma]
+     a proof
+   \end{code}
+   %
+   A consequence of Lemma~\ref{code:lemma} is that…
+
+The option ``number`` has no effect if used together with ``hide``,
+``inline`` or ``inline*``.
+
 Inline code
 ~~~~~~~~~~~
 
