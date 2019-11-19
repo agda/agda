@@ -399,7 +399,7 @@ testing-emacs-mode:
 
 ## Clean ##################################################################
 
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) clean --builddir=$(1); fi;
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 
 .PHONY : clean
@@ -458,7 +458,7 @@ install-agda-bisect :
 	@echo "======================================================================"
 	@echo "============== Installing the agda-bisect program ===================="
 	@echo "======================================================================"
-	cd src/agda-bisect && $(CABAL_CMD) install
+	cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
 
 ###########################################################################
 # HPC
