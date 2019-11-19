@@ -26,7 +26,7 @@ import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
 import Agda.Syntax.Position (noRange, Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
-import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM)
+import Agda.TypeChecking.Monad (Comparison(..), inTopContext, ProblemId(..), TCM)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
@@ -270,9 +270,11 @@ instance EncodeTCM DisplayInfo where
     [ "results"           #= forM results encodeNamedPretty
     , "search"            @= toJSON search
     ]
-  encodeTCM (Info_WhyInScope thing path _ _ _) = kind "WhyInScope"
+  encodeTCM (Info_WhyInScope thing path v xs ms) = kind "WhyInScope"
     [ "thing"             @= thing
     , "filepath"          @= toJSON path
+    -- use Emacs message first
+    , "message"           #= explainWhyInScope thing path v xs ms
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
     [ "commandState"      @= commandState

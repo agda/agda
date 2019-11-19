@@ -3,6 +3,7 @@ module Agda.Interaction.EmacsTop
     , namedMetaOf
     , showGoals
     , showInfoError
+    , explainWhyInScope
     , prettyTypeOfMeta
     ) where
 
