@@ -1311,18 +1311,21 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
     neutralArg = throwError NeutralArg
 
     isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
-    isVarOrIrrelevant vars (arg, t) =
-      case arg of
+    isVarOrIrrelevant vars (Arg info v, t) = do
+      let irr | isIrrelevant info = True
+              | DontCare{} <- v   = True
+              | otherwise         = False
+      case stripDontCare v of
         -- i := x
-        Arg info (Var i []) -> return $ (Arg info i, t) `cons` vars
+        Var i [] -> return $ (Arg info i, t) `cons` vars
 
         -- π i := x  try to eta-expand projection π away!
-        Arg _ (Var i es) | Just qs <- mapM isProjElim es ->
+        Var i es | Just qs <- mapM isProjElim es ->
           throwError $ ProjectedVar i qs
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Arg info (Con c ci es) -> do
+        Con c ci es -> do
           let fallback
                | isIrrelevant info = return vars
                | otherwise                              = failure
@@ -1351,23 +1354,20 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
             _ -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg info _ | isIrrelevant info -> return vars
-        -- Andreas, 2013-10-29
-        -- An irrelevant part can also be marked by a DontCare
-        -- (coming from an irrelevant projection), see Issue 927:
-        Arg _ DontCare{}                                    -> return vars
+        _ | irr -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> neutralArg
-        Arg _ Var{}      -> neutralArg
-        Arg _ Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-        Arg _ Lam{}      -> failure
-        Arg _ Lit{}      -> failure
-        Arg _ MetaV{}    -> failure
-        Arg _ Pi{}       -> neutralArg
-        Arg _ Sort{}     -> neutralArg
-        Arg _ Level{}    -> neutralArg
-        Arg _ (Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s
+        Var{}      -> neutralArg
+        Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
+        Lam{}      -> failure
+        Lit{}      -> failure
+        MetaV{}    -> failure
+        Pi{}       -> neutralArg
+        Sort{}     -> neutralArg
+        Level{}    -> neutralArg
+        DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
+        Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res
