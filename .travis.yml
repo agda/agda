@@ -287,23 +287,9 @@ jobs:
         - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR testing-emacs-mode
 
     - <<: *complete-job
-      before_install:
-        - export PATH=/opt/cabal/$CABAL_VER/bin:$PATH
-        - export PATH=$HOME/.cabal/bin:$PATH
-        - travis_retry cabal v1-update
-        - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        # Install stack
-        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
-        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        - export PATH=$HOME/.local/bin:$PATH
-        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-
-        - export PARALLEL_TESTS=2
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
       script:
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
+        - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR TAGS
 
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
+        - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
-        - stack ${ARGS} exec -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
+        - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
