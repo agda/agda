@@ -395,68 +395,6 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
 
-data LeftoverPatterns = LeftoverPatterns
-  { patternVariables :: IntMap [A.Name]
-  , asPatterns       :: [AsBinding]
-  , dotPatterns      :: [DotPattern]
-  , absurdPatterns   :: [AbsurdPattern]
-  , otherPatterns    :: [A.Pattern]
-  }
-
-instance Semigroup LeftoverPatterns where
-  x <> y = LeftoverPatterns
-    { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
-    , asPatterns       = asPatterns x ++ asPatterns y
-    , dotPatterns      = dotPatterns x ++ dotPatterns y
-    , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
-    , otherPatterns    = otherPatterns x ++ otherPatterns y
-    }
-
-instance Monoid LeftoverPatterns where
-  mempty  = LeftoverPatterns empty [] [] [] []
-  mappend = (Semigroup.<>)
-
--- | Classify remaining patterns after splitting is complete into pattern
---   variables, as patterns, dot patterns, and absurd patterns.
---   Precondition: there are no more constructor patterns.
-getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
-getLeftoverPatterns eqs = do
-  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
-  mconcat <$> mapM getLeftoverPattern eqs
-  where
-    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
-    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
-    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
-    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
-    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
-
-    getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
-    getLeftoverPattern (ProblemEq p v a) = case p of
-      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
-        Just i  -> return $ patternVariable x i
-        Nothing -> return $ asPattern x v a
-      (A.WildP _)       -> return mempty
-      (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
-        getLeftoverPattern $ ProblemEq p v a
-      (A.DotP info e)   -> return $ dotPattern e v a
-      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
-      _                 -> return $ otherPattern p
-
--- | Build a renaming for the internal patterns using variable names from
---   the user patterns. If there are multiple user names for the same internal
---   variable, the unused ones are returned as as-bindings.
-getUserVariableNames :: Telescope -> IntMap [A.Name]
-                     -> ([Maybe A.Name], [AsBinding])
-getUserVariableNames tel names = runWriter $
-  zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
-
-  where
-    makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
-    makeVar a i | Just (x:xs) <- IntMap.lookup i names = do
-      tell $ map (\y -> AsB y (var i) (unDom a)) xs
-      return $ Just x
-    makeVar a i = return Nothing
-
 -- | After splitting is complete, we transfer the origins
 --   We also transfer the locations of absurd patterns, since these haven't
 --   been introduced yet in the internal pattern.
@@ -707,7 +645,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
-          , nest 2 $ if null eqs then "(none)" else vcat $ map prettyTCM eqs
+          , nest 2 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
           , "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
           ]
 

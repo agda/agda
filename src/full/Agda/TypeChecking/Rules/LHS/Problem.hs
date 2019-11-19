@@ -6,11 +6,16 @@ module Agda.TypeChecking.Rules.LHS.Problem
        , problemRestPats, problemCont, problemInPats
        , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
        , LHSState(..) , lhsTel , lhsOutPat , lhsProblem , lhsTarget
+       , LeftoverPatterns(..), getLeftoverPatterns, getUserVariableNames
        ) where
 
 import Prelude hiding (null)
 
+import Control.Monad.Writer hiding ((<>))
+
 import Data.Foldable ( Foldable )
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 
@@ -20,14 +25,19 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM, IsForced(..))
+import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext)
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 
@@ -238,6 +248,70 @@ lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 -- UNUSED Liang-Ting Chen 2019-07-16
 --lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
 --lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
+
+
+data LeftoverPatterns = LeftoverPatterns
+  { patternVariables :: IntMap [A.Name]
+  , asPatterns       :: [AsBinding]
+  , dotPatterns      :: [DotPattern]
+  , absurdPatterns   :: [AbsurdPattern]
+  , otherPatterns    :: [A.Pattern]
+  }
+
+instance Semigroup LeftoverPatterns where
+  x <> y = LeftoverPatterns
+    { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
+    , asPatterns       = asPatterns x ++ asPatterns y
+    , dotPatterns      = dotPatterns x ++ dotPatterns y
+    , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
+    , otherPatterns    = otherPatterns x ++ otherPatterns y
+    }
+
+instance Monoid LeftoverPatterns where
+  mempty  = LeftoverPatterns empty [] [] [] []
+  mappend = (<>)
+
+-- | Classify remaining patterns after splitting is complete into pattern
+--   variables, as patterns, dot patterns, and absurd patterns.
+--   Precondition: there are no more constructor patterns.
+getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
+getLeftoverPatterns eqs = do
+  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
+  mconcat <$> mapM getLeftoverPattern eqs
+  where
+    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
+    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
+    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
+    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
+    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
+
+    getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern (ProblemEq p v a) = case p of
+      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
+        Just i  -> return $ patternVariable x i
+        Nothing -> return $ asPattern x v a
+      (A.WildP _)       -> return mempty
+      (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
+        getLeftoverPattern $ ProblemEq p v a
+      (A.DotP info e)   -> return $ dotPattern e v a
+      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
+      _                 -> return $ otherPattern p
+
+-- | Build a renaming for the internal patterns using variable names from
+--   the user patterns. If there are multiple user names for the same internal
+--   variable, the unused ones are returned as as-bindings.
+getUserVariableNames :: Telescope -> IntMap [A.Name]
+                     -> ([Maybe A.Name], [AsBinding])
+getUserVariableNames tel names = runWriter $
+  zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
+
+  where
+    makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
+    makeVar a i | Just (x:xs) <- IntMap.lookup i names = do
+      tell $ map (\y -> AsB y (var i) (unDom a)) xs
+      return $ Just x
+    makeVar a i = return Nothing
+
 
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
