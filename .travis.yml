@@ -238,7 +238,10 @@ jobs:
           sources:
             - hvr-ghc
       before_install:
+        # Setup ghc & cabal path
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - export PATH=$HOME/.cabal/bin:$PATH
         # Install stack
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
@@ -292,4 +295,12 @@ jobs:
 
         - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
+        # Build & install size-solver
+        - stack ${ARGS} build size-solver
+        - mkdir -p dist/build/size-solver
+        - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
+        # Build shelltestrunner to run test-size-solver
+        - stack ${ARGS} install shelltestrunner
+
+        # Build agda-bisect
         - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
