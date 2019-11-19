@@ -140,7 +140,7 @@ jobs:
 
     - <<: *no-test-job # Use this version to run tests in the next stage
       env:
-        GHC_VER=8.6.5
+        GHC_VER=8.8.1
       cache:
         directories:
           - $HOME/.stack
@@ -153,7 +153,7 @@ jobs:
 
     - <<: *no-test-job
       env:
-        GHC_VER=8.8.1
+        GHC_VER=8.6.5
       before_script:
         export FLAGS="--flag Agda:enable-cluster-counting"
     - <<: *no-test-job
@@ -232,7 +232,7 @@ jobs:
       addons:
         apt:
           packages:
-            - ghc-8.6.5
+            - ghc-8.8.1
             - cabal-install-2.4
             - texlive-binaries
           sources:
