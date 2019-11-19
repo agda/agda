@@ -86,6 +86,10 @@ instance ToJSON Range where
   toJSON = toJSON . map prettyInterval . rangeIntervals
     where prettyInterval i = object [ "start" .= iStart i, "end" .= iEnd i ]
 
+instance EncodeTCM ProblemId where
+instance ToJSON ProblemId where
+  toJSON (ProblemId i) = toJSON i
+
 instance EncodeTCM InteractionId where
   encodeTCM ii@(InteractionId i) = obj
     [ "id"    @= toJSON i
@@ -165,7 +169,7 @@ encodeOC f encodePrettyTCM = \case
  CmpSorts  c i j -> encodeOCCmp f c i j "CmpSorts"
  Guard oc a -> kind "Guard"
   [ "constraint"     #= encodeOC f encodePrettyTCM oc
-  , "problem"        @= encodePretty a
+  , "problem"        @= a
   ]
  Assign i a -> kind "Assign"
   [ "constraintObj"  @= f i
@@ -214,7 +218,7 @@ encodeNamedPretty (name, a) = obj
 instance EncodeTCM (OutputForm C.Expr C.Expr) where
   encodeTCM (OutputForm range problems oc) = obj
     [ "range"      @= range
-    , "problems"   @= map encodePretty problems
+    , "problems"   @= problems
     , "constraint" #= encodeOC encodeShow (pure . encodeShow) oc
     ]
 
