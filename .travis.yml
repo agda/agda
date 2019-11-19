@@ -296,11 +296,11 @@ jobs:
         - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR test-size-solver
 
         # Build & install size-solver
-        - stack ${ARGS} build size-solver
-        - mkdir -p dist/build/size-solver
-        - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
-        # Build shelltestrunner to run test-size-solver
-        - stack ${ARGS} install shelltestrunner
+        - stack ${ARGS} install size-solver
+        - mkdir -p src/size-solver/dist/build/size-solver
+        - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
+        # Test size-solver
+        - make -C src/size-solver/ test
 
         # Build agda-bisect
         - stack ${ARGS} exec --no-ghc-package-path -- make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR install-agda-bisect
