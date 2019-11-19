@@ -154,6 +154,18 @@ instance IsFlexiblePattern a => IsFlexiblePattern (Arg a) where
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
   maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
+-- | Update the given LHS state:
+--   1. simplify problem equations
+--   2. rename telescope variables
+--   3. introduce trailing patterns
+updateLHSState :: LHSState a -> TCM (LHSState a)
+updateLHSState st = do
+  let tel     = st ^. lhsTel
+      problem = st ^. lhsProblem
+  eqs' <- addContext tel $ updateProblemEqs $ problem ^. problemEqs
+  tel' <- useNamesFromProblemEqs eqs' tel
+  updateProblemRest $ set lhsTel tel' $ set (lhsProblem . problemEqs) eqs' st
+
 -- | Update the user patterns in the given problem, simplifying equations
 --   between constructors where possible.
 updateProblemEqs
@@ -923,7 +935,7 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
-      liftTCM $ updateProblemRest (LHSState tel ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit)
 
 
     -- | Split a Partial.
@@ -1079,10 +1091,9 @@ checkLHS mf = updateModality checkLHS_ where
           target'  = applyPatSubst rho target
 
       -- Compute the new state
-      eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
       let problem' = set problemEqs eqs' problem
       reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
-      liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
 
 
     splitLit :: Telescope     -- ^ The types of arguments before the one we split on
@@ -1120,9 +1131,8 @@ checkLHS mf = updateModality checkLHS_ where
       suspendErrors $ equalType a =<< litType lit
 
       -- Compute the new state
-      eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
       let problem' = set problemEqs eqs' problem
-      liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit)
 
 
     splitCon :: Telescope     -- ^ The types of arguments before the one we split on
@@ -1342,13 +1352,11 @@ checkLHS mf = updateModality checkLHS_ where
 
           -- Update the problem equations
           let eqs' = applyPatSubst rho $ problem ^. problemEqs
-          eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
-
-          let problem' = set problemEqs eqs' problem
+              problem' = set problemEqs eqs' problem
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st' <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' psplit
+          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ "new problem from rest"

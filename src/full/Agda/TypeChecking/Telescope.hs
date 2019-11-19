@@ -68,6 +68,15 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
+-- | Rename the variables in the telescope to the given names
+--   Precondition: @size xs == size tel@.
+renameTel :: [Maybe ArgName] -> Telescope -> Telescope
+renameTel []           EmptyTel           = EmptyTel
+renameTel (Nothing:xs) (ExtendTel a tel') = ExtendTel a $ renameTel xs <$> tel'
+renameTel (Just x :xs) (ExtendTel a tel') = ExtendTel a $ renameTel xs <$> (tel' { absName = x })
+renameTel []           (ExtendTel _ _   ) = __IMPOSSIBLE__
+renameTel (_      :_ ) EmptyTel           = __IMPOSSIBLE__
+
 -- | Get the suggested names from a telescope
 teleNames :: Telescope -> [ArgName]
 teleNames = map (fst . unDom) . telToList

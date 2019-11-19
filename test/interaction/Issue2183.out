@@ -4,5 +4,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("foo zero refl = ?" "foo (suc m₁) refl = ?")))
+((last . 2) . (agda2-make-case-action '("foo zero refl = ?" "foo (suc n) refl = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
