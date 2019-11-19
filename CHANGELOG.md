@@ -353,6 +353,16 @@ GHC Backend
   This is especially important if Haskell bindings are to be
   produced automatically by third party tool.
 
+LaTeX backend
+-------------
+
+* Now the code environment complains if it is given unrecognised options.
+
+  It is also possible to write, say, `hide=true` instead of `hide`,
+  and `hide=false` means that the `hide` option should not be used.
+  Furthermore the same option can be given multiple times, in which
+  case later choices take precedence over earlier ones.
+
 API
 ----
 * Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
