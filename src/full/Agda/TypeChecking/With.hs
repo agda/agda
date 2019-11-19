@@ -332,6 +332,15 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   return (strippedPats, psp)
   where
 
+    -- We need to get the correct hiding from the lhs context. The unifier may have moved bindings
+    -- sites around so we can't trust the hiding of the parent pattern variables. We should preserve
+    -- the origin though.
+    varArgInfo = \ x -> let n = dbPatVarIndex x in
+                        if n < length infos then infos !! n else __IMPOSSIBLE__
+      where infos = reverse $ map getArgInfo $ telToList delta
+
+    setVarArgInfo x p = setOrigin (getOrigin p) $ setArgInfo (varArgInfo x) p
+
     strip
       :: Term                         -- ^ Self.
       -> Type                         -- ^ The type to be eliminated.
@@ -363,7 +372,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
       let implicit (A.WildP{})     = True
-          implicit (A.ConP ci _ _) = patOrigin ci == ConOSystem
+          implicit (A.ConP ci _ _) = conPatOrigin ci == ConOSystem
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
         typeError $ GenericError $ "Too many arguments given in with-clause"
@@ -409,15 +418,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        -- If a variable pattern in the parent clause was written as a dot
-        -- pattern by the user both in the parent clause and the with clause,
-        -- we can strip the dot from the with clause.
-        VarP PatODot x | A.DotP _ u <- namedArg p
-                       , A.Var y <- unScope u ->
-          (setNamedArg p (A.VarP $ A.mkBindName y) :) <$>
+        -- We can safely strip dots from variables. The unifier will put them back when required.
+        VarP _ x | A.DotP _ u <- namedArg p
+                 , A.Var y <- unScope u -> do
+          (setVarArgInfo x (setNamedArg p $ A.VarP $ A.mkBindName y) :) <$>
             recurse (var (dbPatVarIndex x))
 
-        VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
+        VarP _ x  ->
+          (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
 
         IApplyP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of Path patterns" -- TODO maybe we can support them now?
         DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
@@ -445,7 +453,15 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Jesper, 2017-11-16. This is now also allowed for data constructors.
           A.DotP r e -> do
             tell [ProblemEq (A.DotP r e) (patternToTerm q') a]
-            let ps' = map (unnamed (A.WildP empty) <$) qs'
+            ps' <-
+              case appView e of
+                -- If dot-pattern is an application of the constructor, try to preserve the
+                -- arguments.
+                Application (A.Con (A.AmbQ cs')) es -> do
+                  cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (toList cs')
+                  unless (elem c cs') mismatch
+                  return $ (map . fmap . fmap) (A.DotP r) es
+                _  -> return $ map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
           -- Andreas, 2016-12-29, issue #2363.
@@ -489,7 +505,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
              text $ "with clause pattern is  " ++ show p
            mismatch
 
-        LitP lit -> case namedArg p of
+        LitP _ lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> recurse $ Lit lit
           A.WildP{}                 -> recurse $ Lit lit
 
@@ -696,12 +712,14 @@ patsToElims = map $ toElim . fmap namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
-      IApplyP o _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
+      IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
-      VarP o x      -> DTerm  $ var $ dbPatVarIndex x
-      DotP PatOVar{} t@(Var i []) -> DTerm t
-      DotP o t    -> DDot   $ t
+      VarP i x -> case patOrigin i of
+        PatODot -> DDot  $ var $ dbPatVarIndex x
+        _       -> DTerm  $ var $ dbPatVarIndex x
+      DotP i t -> case patOrigin i of
+        PatOVar{} | Var i [] <- t -> DTerm t
+        _                         -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP l      -> DTerm  $ Lit l
-      DefP o q ps -> DDef q $ map Apply $ toTerms ps
+      LitP _ l    -> DTerm  $ Lit l
+      DefP _ q ps -> DDef q $ map Apply $ toTerms ps

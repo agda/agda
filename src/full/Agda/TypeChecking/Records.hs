@@ -58,7 +58,7 @@ orderFields r fill axs fs = do
     , "  official fields: " <+> sep (map pretty xs)
     , "  provided fields: " <+> sep (map pretty ys)
     ]
-  unlessNull duplicate $ typeError . DuplicateFields . List.nub
+  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
   unlessNull alien     $ typeError . TooManyFields r missing
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
   where

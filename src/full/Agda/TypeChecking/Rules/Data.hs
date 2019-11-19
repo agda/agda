@@ -212,8 +212,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
-        -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations c t
+        -- compute which constructor arguments are forced (only point constructors)
+        forcedArgs <- if isPathCons == PointCons
+                      then computeForcingAnnotations c t
+                      else return []
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -235,12 +237,11 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $ do
 
           -- Cannot compose indexed inductive types yet.
-          (comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-            then return (emptyCompKit, Nothing)
+          (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+            then return (ConHead c Inductive [], emptyCompKit, Nothing)
             else inTopContext $ do
               -- Name for projection of ith field of constructor c is just c-i
               names <- forM [0 .. size fields - 1] $ \ i ->
@@ -257,9 +258,11 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
                 , "names  =" <+> pretty names
                 ]
 
+              let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+
               defineProjections d con params names fields dataT
               comp <- defineCompData d con params names fields dataT boundary
-              return (comp, Just names)
+              return (con, comp, Just names)
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
@@ -496,7 +499,7 @@ defineCompData d con params names fsT t boundary = do
 
         -- Δ.Φ ⊢ u = Con con ConOSystem $ teleElims fsT boundary : R δ
 --        u = Con con ConOSystem $ teleElims fsT boundary
-        up = ConP con (ConPatternInfo Nothing False Nothing False) $
+        up = ConP con (ConPatternInfo defaultPatternInfo False False Nothing False) $
                telePatterns (d0 `applySubst` fsT) (liftS (size fsT) d0 `applySubst` boundary)
 --        gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
@@ -566,7 +569,7 @@ defineProjections dataname con params names fsT t = do
       reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
-      cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
+      cpi  = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
           { clauseTel = abstract params fsT

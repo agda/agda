@@ -1,12 +1,12 @@
 
 module Agda.Auto.Convert where
 
+import Control.Monad.State
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
-import Control.Monad.State
 
 import Agda.Syntax.Common (Hiding(..), getHiding, Arg)
 import Agda.Syntax.Concrete (exprFieldA)
@@ -17,9 +17,10 @@ import qualified Agda.Syntax.Common as Cm
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
+
 import qualified Agda.TypeChecking.Monad.Base as MB
+
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, ignoreAbstractMode)
-import Agda.Utils.Permutation (Permutation(Perm), permute, takeP, compactP)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
@@ -41,9 +42,11 @@ import Agda.Auto.Syntax hiding (getConst)
 import Agda.Auto.CaseSplit hiding (lift)
 
 import Agda.Utils.Either
-import Agda.Utils.Except ( ExceptT , MonadError(throwError) )
+import Agda.Utils.Except      ( ExceptT , MonadError(throwError) )
 import Agda.Utils.Lens
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Monad       ( forMaybeMM )
+import Agda.Utils.Permutation ( Permutation(Perm), permute, takeP, compactP )
+import Agda.Utils.Pretty      ( prettyShow )
 
 import Agda.Utils.Impossible
 
@@ -267,28 +270,19 @@ getMeta name = do
    return m
   Nothing -> do
    m <- lift $ liftIO initMeta
-   modify (\s -> s {sMetas = (Map.insert name (m, Nothing, []) mmap, name : snd (sMetas s))})
+   modify $ \ s -> s { sMetas = (Map.insert name (m, Nothing, []) mmap, name : snd (sMetas s)) }
    return m
 
 getEqs :: MB.TCM [(Bool, I.Term, I.Term)]
-getEqs = do
- eqs <- getAllConstraints
- let r = mapM (\eqc -> do
-          neqc <- normalise eqc
-          case MB.clValue $ MB.theConstraint neqc of
-           MB.ValueCmp ineq _ i e -> do
-            ei <- etaContract i
-            ee <- etaContract e
-            return [(tomyIneq ineq, ee, ei)]
-           MB.TypeCmp ineq i e -> do
-            I.El _ ei <- etaContract i
-            I.El _ ee <- etaContract e
-            return [(tomyIneq ineq, ee, ei)]
-           MB.Guarded (MB.UnBlock _) pid -> return []
-           _ -> return []
-         )
- eqs' <- r eqs
- return $ concat eqs'
+getEqs = forMaybeMM getAllConstraints $ \ eqc -> do
+  neqc <- normalise eqc
+  case MB.clValue $ MB.theConstraint neqc of
+    MB.ValueCmp ineq _ i e -> do
+      ei <- etaContract i
+      ee <- etaContract e
+      return $ Just (tomyIneq ineq, ee, ei)
+    MB.Guarded (MB.UnBlock _) _pid -> return Nothing
+    _ -> return Nothing
 
 copatternsNotImplemented :: MB.TCM a
 copatternsNotImplemented = MB.typeError $ MB.NotImplemented $
@@ -341,7 +335,7 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
 
     -- UNSUPPORTED CASES
     I.ProjP{}   -> lift copatternsNotImplemented
-    I.LitP _    -> lift literalsNotImplemented
+    I.LitP{}    -> lift literalsNotImplemented
     I.DefP{}    -> lift hitsNotImplemented
 
 instance Conversion TOM I.Type (MExp O) where
@@ -720,7 +714,7 @@ findClauseDeep ii = ignoreAbstractMode $ do  -- Andreas, 2016-09-04, issue #2162
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   case ipCl of
     MB.IPNoClause -> return Nothing
-    MB.IPClause f clauseNo _ -> do
+    MB.IPClause f clauseNo _ _ _ _ -> do
       (_, (_, c, _)) <- getClauseZipperForIP f clauseNo
       return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where

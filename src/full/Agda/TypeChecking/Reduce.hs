@@ -205,7 +205,6 @@ instance Instantiate Constraint where
   instantiate' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
-  instantiate' (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate' (a,b)
   instantiate' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate' (tela,telb)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (Guarded c pid)      = Guarded <$> instantiate' c <*> pure pid
@@ -221,6 +220,7 @@ instance Instantiate Constraint where
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
+  instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
 
 instance Instantiate e => Instantiate (Map k e) where
@@ -263,6 +263,7 @@ instance IsMeta Sort where
 
 instance IsMeta CompareAs where
   isMeta (AsTermsOf a) = isMeta a
+  isMeta AsSizes       = return Nothing
   isMeta AsTypes       = return Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
@@ -405,6 +406,10 @@ reduceIApply' reduceB' d (IApply x y r : es) = do
    _     -> fmap (<* blockedInfo) (reduceIApply d es)
 reduceIApply' reduceB' d (_ : es) = reduceIApply d es
 reduceIApply' reduceB' d [] = d
+
+instance Reduce DeBruijnPattern where
+  reduceB' (DotP o v) = fmap (DotP o) <$> reduceB' v
+  reduceB' p          = return $ notBlocked p
 
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
@@ -769,7 +774,6 @@ instance Reduce Constraint where
   reduce' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
-  reduce' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> reduce' (a,b)
   reduce' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce' (tela,telb)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (Guarded c pid)       = Guarded <$> reduce' c <*> pure pid
@@ -785,6 +789,7 @@ instance Reduce Constraint where
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
+  reduce' AsSizes       = return AsSizes
   reduce' AsTypes       = return AsTypes
 
 instance Reduce e => Reduce (Map k e) where
@@ -931,7 +936,6 @@ instance Simplify Constraint where
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
-  simplify' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> simplify' (a,b)
   simplify' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> simplify' (tela,telb)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (Guarded c pid)       = Guarded <$> simplify' c <*> pure pid
@@ -947,6 +951,7 @@ instance Simplify Constraint where
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
+  simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
 
 instance Simplify Bool where
@@ -1095,7 +1100,6 @@ instance Normalise Constraint where
   normalise' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
-  normalise' (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> normalise' (a,b)
   normalise' (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise' (tela,telb)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (Guarded c pid)       = Guarded <$> normalise' c <*> pure pid
@@ -1111,6 +1115,7 @@ instance Normalise Constraint where
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
+  normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
 
 instance Normalise Bool where
@@ -1131,7 +1136,7 @@ instance Normalise DBPatVar where
 instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
     VarP o x     -> VarP o <$> normalise' x
-    LitP _       -> return p
+    LitP{}       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DefP o q ps  -> DefP o q <$> normalise' ps
     DotP o v     -> DotP o <$> normalise' v
@@ -1308,7 +1313,6 @@ instance InstantiateFull Constraint where
     ElimCmp cmp fs t v as bs ->
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
-    TypeCmp cmp a b     -> uncurry (TypeCmp cmp) <$> instantiateFull' (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull' (tela,telb)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     Guarded c pid       -> Guarded <$> instantiateFull' c <*> pure pid
@@ -1324,6 +1328,7 @@ instance InstantiateFull Constraint where
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
+  instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where

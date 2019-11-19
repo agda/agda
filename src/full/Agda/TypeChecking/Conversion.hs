@@ -175,7 +175,7 @@ compareAs cmp a u v = do
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
       case (u, v) of
         (MetaV x us, MetaV y vs)
-          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareAs' cmp a u v
+          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` fallback
           | otherwise -> fallback
           where
             (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
@@ -191,8 +191,8 @@ compareAs cmp a u v = do
         [ "attempting shortcut"
         , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
         ]
-      ifM (isInstantiatedMeta x) patternViolation {-else-} $ do
-        assignE dir x es v $ compareAsDir dir a
+      whenM (isInstantiatedMeta x) patternViolation
+      assignE dir x es v a $ compareAsDir dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
         "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
@@ -203,10 +203,10 @@ compareAs cmp a u v = do
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
 assignE :: (MonadConversion m)
-        => CompareDirection -> MetaId -> Elims -> Term -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v comp = assignWrapper dir x es v $ do
+        => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
+assignE dir x es v a comp = assignWrapper dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs v
+    Just vs -> assignV dir x vs v a
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
@@ -232,6 +232,7 @@ compareAsDir dir a = dirToCmp (`compareAs'` a) dir
 compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAs' cmp tt m n = case tt of
   AsTermsOf a -> compareTerm' cmp a m n
+  AsSizes     -> compareSizes cmp m n
   AsTypes     -> compareAtom cmp AsTypes m n
 
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
@@ -454,6 +455,7 @@ compareAtom cmp t m n =
         -- cannot fail hard
         postponeIfBlockedAs :: CompareAs -> (Blocked CompareAs -> m ()) -> m ()
         postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
+        postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
         postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
           (\m t -> (f $ Blocked m $ AsTermsOf t) `catchError` \case
               TypeError{} -> postpone
@@ -465,7 +467,7 @@ compareAtom cmp t m n =
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -572,6 +574,7 @@ compareAtom cmp t m n =
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
                     AsTermsOf a -> conType x a
+                    AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments
@@ -1000,7 +1003,7 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else (assignE DirEq x es w $ compareIrrelevant t) `catchError` \ _ -> fallback
+        else (assignE DirEq x es w (AsTermsOf t) $ compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1028,8 +1031,7 @@ compareArgs pol for a v args1 args2 =
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     workOnTypes $
-    verboseBracket "tc.conv.type" 20 "compareType" $
-    catchConstraint (TypeCmp cmp ty1 ty2) $ do
+    verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
           [ "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]
@@ -1355,10 +1357,9 @@ leqLevel a b = do
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
         postpone = patternViolation
 
-        wrap m = catchError m $ \e ->
-          case e of
+        wrap m = m `catchError` \case
             TypeError{} -> notok
-            _           -> throwError e
+            err         -> throwError err
 
         neutralOrClosed (SingleClosed _)                     = True
         neutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
@@ -1503,13 +1504,13 @@ equalLevel' a b = do
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
-          assignE DirEq x as (levelTm b) (===) -- fallback: check equality as atoms
+          lvl <- levelType
+          assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
         -- Make sure to give a sensible error message
-        wrap m = m `catchError` \err ->
-          case err of
+        wrap m = m `catchError` \case
             TypeError{} -> notok
-            _           -> throwError err
+            err         -> throwError err
 
         isNeutral (SinglePlus (Plus _ NeutralLevel{})) = True
         isNeutral _                                    = False
@@ -1544,7 +1545,7 @@ equalLevel' a b = do
 
 
 -- | Check that the first sort equal to the second.
-equalSort :: MonadConversion m => Sort -> Sort -> m ()
+equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
@@ -1636,10 +1637,11 @@ equalSort s1 s2 = do
 
     where
       -- perform assignment (MetaS x es) := s
+      meta :: MetaId -> [Elim' Term] -> Sort -> m ()
       meta x es s = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
-        assignE DirEq x es (Sort s) __IMPOSSIBLE__
+        assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
       set0 = mkType 0
       prop0 = mkProp 0

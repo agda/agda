@@ -737,7 +737,7 @@ appView p = case p of
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
-  List.nub $ filter (not . null) $ map (init . qnameParts) qs
+  nubOn id $ filter (not . null) $ map (init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr

@@ -841,7 +841,7 @@ instance Subst Term Pattern where
     DefP o q ps  -> DefP o q $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
     VarP o s     -> p
-    LitP l       -> p
+    LitP o l     -> p
     ProjP{}      -> p
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
@@ -944,7 +944,6 @@ instance Subst Term Constraint where
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
-    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
     TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
@@ -963,6 +962,7 @@ instance Subst Term Constraint where
 
 instance Subst Term CompareAs where
   applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
+  applySubst rho AsSizes       = AsSizes
   applySubst rho AsTypes       = AsTypes
 
 instance Subst t a => Subst t (Elim' a) where
@@ -1032,36 +1032,40 @@ applyPatSubst = applySubst . fromPatternSubstitution
 
 
 usePatOrigin :: PatOrigin -> Pattern' a -> Pattern' a
-usePatOrigin o p = case patternOrigin p of
+usePatOrigin o p = case patternInfo p of
+  Nothing -> p
+  Just i  -> usePatternInfo (i { patOrigin = o }) p
+
+usePatternInfo :: PatternInfo -> Pattern' a -> Pattern' a
+usePatternInfo i p = case patternOrigin p of
   Nothing         -> p
   Just PatOSplit  -> p
   Just PatOAbsurd -> p
   Just _          -> case p of
-    (VarP _ x) -> VarP o x
-    (DotP _ u) -> DotP o u
-    (ConP c (ConPatternInfo (Just _) ft b l) ps)
-      -> ConP c (ConPatternInfo (Just o) ft b l) ps
-    DefP _ q ps -> DefP o q ps
-    ConP{}  -> __IMPOSSIBLE__
-    LitP{}  -> __IMPOSSIBLE__
+    (VarP _ x) -> VarP i x
+    (DotP _ u) -> DotP i u
+    (ConP c (ConPatternInfo _ r ft b l) ps)
+      -> ConP c (ConPatternInfo i r ft b l) ps
+    DefP _ q ps -> DefP i q ps
+    (LitP _ l) -> LitP i l
     ProjP{} -> __IMPOSSIBLE__
-    (IApplyP _ t u x) -> IApplyP o t u x
+    (IApplyP _ t u x) -> IApplyP i t u x
 
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+    VarP i x     ->
+      usePatternInfo i $
       useName (dbPatVarName x) $
       lookupS rho $ dbPatVarIndex x
-    DotP o u     -> DotP o $ applyPatSubst rho u
+    DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps  -> DefP o q $ applySubst rho ps
-    LitP x       -> p
+    DefP i q ps  -> DefP i q $ applySubst rho ps
+    LitP i x     -> p
     ProjP{}      -> p
-    IApplyP o t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
-                        IApplyP _ _ _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
-                        VarP  _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
+    IApplyP i t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
+                        IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
+                        VarP  _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
                         _ -> __IMPOSSIBLE__
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
@@ -1256,7 +1260,20 @@ deriving instance Eq Candidate
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
-deriving instance Eq Constraint
+-- Andreas, 2019-11-16, issue #4201: to avoid potential unintended
+-- performance loss, the Eq instance for Constraint is disabled:
+--
+-- -- deriving instance Eq Constraint
+--
+-- I am tempted to write
+--
+--   instance Eq Constraint where (==) = undefined
+--
+-- but this does not give a compilation error anymore when trying
+-- to use equality on constraints.
+-- Therefore, I hope this comment is sufficient to prevent a resurrection
+-- of the Eq instance for Constraint.
+
 deriving instance Eq CompareAs
 deriving instance Eq Section
 
@@ -1296,7 +1313,7 @@ instance Eq a => Eq (Pattern' a) where
   VarP _ x        == VarP _ y          = x == y
   DotP _ u        == DotP _ v          = u == v
   ConP c _ ps     == ConP c' _ qs      = c == c && ps == qs
-  LitP l          == LitP l'           = l == l'
+  LitP _ l        == LitP _ l'         = l == l'
   ProjP _ f       == ProjP _ g         = f == g
   IApplyP _ u v x == IApplyP _ u' v' y = u == u' && v == v' && x == y
   DefP _ f ps     == DefP _ g qs       = f == g && ps == qs

@@ -20,6 +20,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Utils.SemiRing
+import Agda.Utils.List (nubOn)
 
 type Matrix a = Array (Int,Int) a
 
@@ -39,7 +40,7 @@ type AdjList node edge = Map node [(node, edge)]
 warshallG :: (SemiRing edge, Ord node) => AdjList node edge -> AdjList node edge
 warshallG g = fromMatrix $ warshall m
   where
-    nodes = zip (List.nub $ Map.keys g ++ map fst (concat $ Map.elems g))
+    nodes = zip (nubOn id $ Map.keys g ++ map fst (concat $ Map.elems g))
                 [0..]
     len   = length nodes
     b     = ((0,0), (len - 1,len - 1))

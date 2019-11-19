@@ -164,6 +164,9 @@ data PragmaOptions = PragmaOptions
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
+  , optKeepPatternVariables      :: Bool
+      -- ^ Should case splitting replace variables with dot patterns
+      --   (False) or keep them as variables (True).
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optInversionMaxDepth         :: Int
@@ -273,6 +276,7 @@ defaultPragmaOptions = PragmaOptions
   , optRewriting                 = False
   , optCubical                   = False
   , optPostfixProjections        = False
+  , optKeepPatternVariables      = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optInversionMaxDepth         = 50
@@ -704,6 +708,9 @@ cubicalFlag o = do
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
+keepPatternVariablesFlag :: Flag PragmaOptions
+keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -973,6 +980,8 @@ pragmaOptions =
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
+    , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
+                    "don't replace variables with dot patterns during case splitting"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)

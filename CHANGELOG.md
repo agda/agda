@@ -47,6 +47,13 @@ Pragmas and options
   be placed before the function (or the block of mutually defined functions)
   which the user knows to be partial.
 
+* Option `--interaction-json` now brings more information about goals,
+  unsolved metas, warnings, errors.
+  It also displays pretty-printed terms.
+
+* New pragma option `--keep-pattern-variables` to prevent case
+  splitting from replacing variables with dot patterns.
+
 Language
 --------
 
@@ -160,6 +167,16 @@ Language
   e.g. write `1_000_000` instead of `1000000`.
 
 * `quoteGoal` and `quoteContext` are no longer keywords.
+
+* Record constructors can no longer be qualified by the record module.
+  (See issue [#4189](https://github.com/agda/agda/issues/4189).)
+  ```agda
+  record Foo : Set where
+    constructor foo
+
+  works = foo
+  fails = Foo.foo
+  ```
 
 ### Modalities
 
@@ -294,6 +311,14 @@ Emacs mode
 ----------
 
 * Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+* Syntax highlighting: in literate modes, the pure texts
+  (other than Agda code and the code-text separators) are no longer highlighted
+  (it was highlighted as comments before).
+  This somehow provides more information about how Agda lexes literate files.
+
+* Agda now also displays the values of let-bound variables in the
+  context instead of just their types.
 
 GHC Backend
 -----------

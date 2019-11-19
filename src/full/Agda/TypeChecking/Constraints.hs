@@ -37,14 +37,14 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Impossible
 
 instance MonadConstraint TCM where
-  catchPatternErr = catchPatternErrTCM
-  addConstraint = addConstraintTCM
-  addAwakeConstraint = addAwakeConstraint'
-  solveConstraint = solveConstraintTCM
+  catchPatternErr           = catchPatternErrTCM
+  addConstraint             = addConstraintTCM
+  addAwakeConstraint        = addAwakeConstraint'
+  solveConstraint           = solveConstraintTCM
   solveSomeAwakeConstraints = solveSomeAwakeConstraintsTCM
-  wakeConstraints = wakeConstraintsTCM
-  stealConstraints = stealConstraintsTCM
-  modifyAwakeConstraints = modifyTC . mapAwakeConstraints
+  wakeConstraints           = wakeConstraintsTCM
+  stealConstraints          = stealConstraintsTCM
+  modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
   modifySleepingConstraints = modifyTC . mapSleepingConstraints
 
 catchPatternErrTCM :: TCM a -> TCM a -> TCM a
@@ -67,33 +67,37 @@ addConstraintTCM c = do
         , prettyTCM c ]
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
-      cs <- simpl c
-      if ([c] /= cs)
-        then do
+      caseMaybeM (simpl c) {-no-} (addConstraint' c) $ {-yes-} \ cs -> do
           reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
           mapM_ solveConstraint_ cs
-        else mapM_ addConstraint' cs
-      -- the added constraint can cause instance constraints to be solved (but only
-      -- the constraints which aren’t blocked on an uninstantiated meta)
+      -- The added constraint can cause instance constraints to be solved,
+      -- but only the constraints which aren’t blocked on an uninstantiated meta.
       unless (isInstanceConstraint c) $
          wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
     where
       isWakeableInstanceConstraint :: Constraint -> TCM Bool
-      isWakeableInstanceConstraint (FindInstance _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
-      isWakeableInstanceConstraint _ = return False
+      isWakeableInstanceConstraint = \case
+        FindInstance _ b _ -> maybe (return True) isInstantiatedMeta b
+        _ -> return False
 
       isLvl LevelCmp{} = True
       isLvl _          = False
 
       -- Try to simplify a level constraint
-      simpl :: Constraint -> TCM [Constraint]
-      simpl c = if not $ isLvl c then return [c] else do
-        cs <- map theConstraint <$> getAllConstraints
-        lvls <- instantiateFull $ List.filter (isLvl . clValue) cs
-        when (not $ null lvls) $ do
-          reportSDoc "tc.constr.lvl" 40 $ "simplifying level constraint" <+> prettyTCM c
-                                          $$ nest 2 (hang "using" 2 (prettyTCM lvls))
-        return $ simplifyLevelConstraint c $ map clValue lvls
+      simpl :: Constraint -> TCM (Maybe [Constraint])
+      simpl c
+        | isLvl c = do
+          -- Get all level constraints.
+          lvlcs <- instantiateFull =<< do
+            List.filter (isLvl . clValue) . map theConstraint <$> getAllConstraints
+          unless (null lvlcs) $ do
+            reportSDoc "tc.constr.lvl" 40 $ vcat
+              [ "simplifying level constraint" <+> prettyTCM c
+              , nest 2 $ hang "using" 2 $ prettyTCM lvlcs
+              ]
+          -- Try to simplify @c@ using the other constraints.
+          return $ simplifyLevelConstraint c $ map clValue lvlcs
+        | otherwise = return Nothing
 
 wakeConstraintsTCM :: (ProblemConstraint-> TCM Bool) -> TCM ()
 wakeConstraintsTCM wake = do
@@ -225,7 +229,6 @@ solveConstraint_ :: Constraint -> TCM ()
 solveConstraint_ (ValueCmp cmp a u v)       = compareAs cmp a u v
 solveConstraint_ (ValueCmpOnFace cmp p a u v) = compareTermOnFace cmp p a u v
 solveConstraint_ (ElimCmp cmp fs a e u v)   = compareElims cmp fs a e u v
-solveConstraint_ (TypeCmp cmp a b)          = compareType cmp a b
 solveConstraint_ (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb
 solveConstraint_ (SortCmp cmp s1 s2)        = compareSort cmp s1 s2
 solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b

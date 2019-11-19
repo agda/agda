@@ -45,7 +45,7 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Utils.Applicative ( (?$>) )
 import Agda.Utils.Except
 import Agda.Utils.FileName
-import Agda.Utils.List ( stripSuffix )
+import Agda.Utils.List ( stripSuffix, nubOn )
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Impossible
 import Agda.Version ( version )
@@ -56,7 +56,7 @@ import Agda.Version ( version )
 
 -- TODO: do not export @SourceFile@ and force users to check the
 -- @AbsolutePath@ does exist.
-newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq)
+newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq, Ord)
 newtype InterfaceFile = InterfaceFile { intFilePath :: AbsolutePath }
 
 -- | Makes an interface file from an AbsolutePath candidate.
@@ -152,7 +152,7 @@ findFile'' dirs m modFile =
       filesShortList <- fileList parseFileExtsShortList
       existingFiles  <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
-      return $ case List.nub existingFiles of
+      return $ case nubOn id existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
         files  -> (Left (Ambiguous existingFiles), modFile)

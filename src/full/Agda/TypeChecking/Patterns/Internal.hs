@@ -37,7 +37,7 @@ instance (DeBruijn (Pattern' a)) => TermToPattern Term (Pattern' a) where
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Var i []    -> return $ deBruijnVar i
-    Lit l       -> return $ LitP l
+    Lit l       -> return $ litP l
     t           -> return $ dotP t
 
 dotPatternsToPatterns :: forall a. (DeBruijn (Pattern' a))

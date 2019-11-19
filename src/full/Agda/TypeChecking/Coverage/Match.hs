@@ -87,6 +87,8 @@ data BlockingVar = BlockingVar
   , blockingVarOverlap :: Bool
     -- ^ True if at least one clause has a variable pattern in this
     --   position.
+  , blockingVarLazy :: Bool
+    -- ^ True if at least one clause has a lazy pattern in this position.
   } deriving (Show)
 
 type BlockingVars = [BlockingVar]
@@ -165,19 +167,19 @@ applySplitPSubst = applyPatSubst . fromSplitPSubst
 instance Subst SplitPattern SplitPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+    VarP i x     ->
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
-    DotP o u     -> DotP o $ applySplitPSubst rho u
+    DotP i u     -> DotP i $ applySplitPSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps -> DefP o q $ applySubst rho ps
-    LitP x       -> p
+    DefP i q ps -> DefP i q $ applySubst rho ps
+    LitP{}       -> p
     ProjP{}      -> p
-    IApplyP o l r x  ->
+    IApplyP i l r x  ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
-      usePatOrigin o $
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
@@ -207,7 +209,7 @@ isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
   VarP{}      -> return True
   DotP{}      -> return True
-  ConP c i ps -> andM $ (isEtaCon $ conName c)
+  ConP c i ps -> andM $ return (conPLazy i)
                       : (map (isTrivialPattern . namedArg) ps)
   DefP{}      -> return False
   LitP{}      -> return False
@@ -219,11 +221,12 @@ isTrivialPattern p = case p of
 type MatchResult = Match SplitInstantiation
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs ls o) = cat
+  pretty (BlockingVar i cs ls o l) = cat
     [ text ("variable " ++ show i)
     , if null cs then empty else " blocked on constructors" <+> pretty cs
     , if null ls then empty else " blocked on literals" <+> pretty ls
     , if o then " (overlapping)" else empty
+    , if l then " (lazy)" else empty
     ]
 
 yes :: Monad m => a -> m (Match a)
@@ -232,11 +235,11 @@ yes = return . Yes
 no :: Monad m => m (Match a)
 no = return No
 
-blockedOnConstructor :: Monad m => Nat -> ConHead -> m (Match a)
-blockedOnConstructor i c = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False]
+blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False $ conPLazy ci]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
-blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False]
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
 
 blockedOnProjection :: Monad m => m (Match a)
 blockedOnProjection = return $ Block (BlockedOnProj False) []
@@ -262,9 +265,9 @@ overlapping = map setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (BlockingVar x cons lits o) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' lits' o') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o')
-      Nothing -> BlockingVar x cons lits True
+    upd (BlockingVar x cons lits o l) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o' l') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l')
+      Nothing -> BlockingVar x cons lits True l
 
 setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
 setBlockedOnResultOverlap b = case b of
@@ -412,7 +415,7 @@ matchPat p q = case p of
   -- guaranteed to match if the rest of the pattern does, so some extra splitting
   -- on them doesn't change the reduction behaviour.
 
-  p@(LitP l) -> case q of
+  p@(LitP _ l) -> case q of
     VarP _ x -> if l `elem` splitExcludedLits x
                 then no
                 else blockedOnLiteral (splitPatVarIndex x) l
@@ -430,8 +433,8 @@ matchPat p q = case p of
 
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.
-  ConP c _ ps -> unDotP q >>= unLitP >>= \case
-    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
+  ConP c ci ps -> unDotP q >>= unLitP >>= \case
+    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
     ConP c' i qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -439,13 +442,13 @@ matchPat p q = case p of
     DefP{}   -> no
     LitP{}    -> __IMPOSSIBLE__  -- excluded by typing and unLitP
     ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
+    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
 
   DefP o c ps -> unDotP q >>= \case
     VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
     ConP c' i qs -> no
     DotP o t  -> no
-    LitP _    -> no
+    LitP{}    -> no
     DefP o c' qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -459,12 +462,12 @@ unDotP (DotP o v) = reduce v >>= \case
   Con c _ vs -> do
     let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
-  Lit l -> return $ LitP l
+  Lit l -> return $ LitP (PatternInfo PatODot []) l
   v     -> return $ dotP v
 unDotP p = return p
 
 isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
-isLitP (LitP l) = return $ Just l
+isLitP (LitP _ l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
   _     -> return $ Nothing
@@ -483,11 +486,12 @@ isLitP (ConP c ci [a]) | visible a && isRelevant a = do
 isLitP _ = return Nothing
 
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
-unLitP (LitP l@(LitNat _ n)) | n >= 0 = do
+unLitP (LitP info l@(LitNat _ n)) | n >= 0 = do
   Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
                                   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
                                   (Lit l)
-  let toP (Apply (Arg i (Lit l))) = Arg i (LitP l)
+  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
       toP _ = __IMPOSSIBLE__
-  return $ ConP c noConPatternInfo $ map (fmap unnamed . toP) es
+      cpi   = noConPatternInfo { conPInfo = info }
+  return $ ConP c cpi $ map (fmap unnamed . toP) es
 unLitP p = return p

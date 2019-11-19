@@ -55,6 +55,7 @@ instance IsSizeType Term where
 
 instance IsSizeType CompareAs where
   isSizeType (AsTermsOf a) = isSizeType a
+  isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing
 
 isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
