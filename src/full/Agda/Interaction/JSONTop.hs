@@ -21,6 +21,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
+import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
 import Agda.Syntax.Position (noRange, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
@@ -230,16 +231,30 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_Auto info) = kind "Auto"
     [ "info"              @= toJSON info
     ]
-  encodeTCM (Info_ModuleContents names _ contents) = kind "ModuleContents"
+  encodeTCM (Info_ModuleContents names tele contents) = kind "ModuleContents"
     [ "contents"          #= forM contents encodeNamedPretty
+    , "telescope"         #= forM (telToList tele) encodeDomType
     , "names"             @= map encodePretty names
     ]
+    where
+      encodeDomType :: PrettyTCM a => Dom (ArgName, a) -> TCM Value
+      encodeDomType dom = obj
+        [ "dom"       #= encodePrettyTCM (unDom dom)
+        , "name"      @= fmap encodePretty (bareNameOf dom)
+        , "finite"    @= toJSON (domFinite dom)
+        , "cohesion"  @= encodeShow (modCohesion . argInfoModality $ domInfo dom)
+        , "relevance" @= encodeShow (modRelevance . argInfoModality $ domInfo dom)
+        , "hiding"    @= case argInfoHiding $ domInfo dom of
+          Instance o -> show o
+          o -> show o
+        ]
   encodeTCM (Info_SearchAbout results search) = kind "SearchAbout"
     [ "results"           #= forM results encodeNamedPretty
     , "search"            @= toJSON search
     ]
-  encodeTCM (Info_WhyInScope _ _ _ _ _) = kind "WhyInScope"
-    [ "payload"           @= Null
+  encodeTCM (Info_WhyInScope thing path _ _ _) = kind "WhyInScope"
+    [ "thing"             @= thing
+    , "filepath"          @= toJSON path
     ]
   encodeTCM (Info_NormalForm commandState computeMode time expr) = kind "NormalForm"
     [ "commandState"      @= commandState
