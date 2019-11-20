@@ -232,6 +232,7 @@ jobs:
           packages:
             - ghc-8.8.1
             - cabal-install-3.0
+            - texlive-binaries
           sources:
             - hvr-ghc
       cache:
@@ -279,8 +280,6 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} examples
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
-
-        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install texlive-binaries
         - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
 
     - <<: *main-job
@@ -301,22 +300,21 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.1 CABAL_VER=2.4
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.4
-            - ghc-8.8.1
-            - texlive-binaries
-          sources:
-            - hvr-ghc
+      env: GHC_VER=8.8.1 CABAL_VER=3.0
       before_install:
+        - sudo -E apt-add-repository -y "ppa:hvr/ghc"
+        - travis_apt_get_update
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install ghc-${GHC_VER} cabal-install-${CABAL_VER}
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install texlive-binaries
+
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
         - export PATH=$HOME/.local/bin:$PATH
         - export BUILD_DIR=$HOME/dist
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
+    # Liang-Ting, 2019-11-20, increase maximum heap to 4GB
         - export GHCRTS='-M4G'
       install:
         - .travis/cabal_install
@@ -326,46 +324,11 @@ jobs:
 
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.4
-            - ghc-8.6.5
-            - texlive-binaries
-          sources:
-            - hvr-ghc
 
     - <<: *complete-job
       env: GHC_VER=8.4.4 CABAL_VER=2.2
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.2
-            - ghc-8.4.4
-            - texlive-binaries
-          sources:
-            - hvr-ghc
 
     - <<: *complete-job
       env: GHC_VER=8.2.2 CABAL_VER=2.0
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.0
-            - ghc-8.2.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
-    # Liang-Ting, 2019-11-20, increase maximum heap to 4GB
     - <<: *complete-job
       env: GHC_VER=8.0.2 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.24
-            - ghc-8.0.2
-            - texlive-binaries
-          sources:
-            - hvr-ghc
