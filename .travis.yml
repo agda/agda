@@ -225,7 +225,7 @@ jobs:
     # The builds involving the testsuite (60-80min) are run then.
     - &main-job
       stage: main
-      name: "Successful tests"
+      name: "Successful, failing, and compiler tests"
       env:
         GHC_VER=8.8.1
       addons:
@@ -260,42 +260,18 @@ jobs:
       ##############################################################################
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
-    - <<: *main-job
-      name: "Failing tests"
-      script:
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
+        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
     - <<: *main-job
-      name: "Standard library test"
+      name: "Test suites using standard library"
       git:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} library-test
-    - <<: *main-job
-      name: "Successfull tests using the standard library"
-      git:
-        submodules: true
-      script:
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
-    - <<: *main-job
-      name: "Interaction tests using the standard library"
-      git:
-        submodules: true
-      script:
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
-    - <<: *main-job
-      name: "Benchmark suite without creating logs"
-      git:
-        submodules: true
-      script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
-    - <<: *main-job
-      name: "Compiler tests"
-      script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
-    - <<: *main-job
-      name: "Standard library compiler tests"
-      script:
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
     - <<: *main-job
       name: "TAGS, size-solver, agda-bisect"
       script:
