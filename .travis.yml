@@ -73,6 +73,66 @@ jobs:
   ##############################################################################
   # Compilation stage
   #
+    # Unix environment
+    - &compilation-only-job
+      stage: compilation
+      env:
+        GHC_VER=8.8.1
+      cache:
+        directories:
+          - $HOME/.stack
+      before_install:
+        # Install ghc
+        - sudo -E apt-add-repository -y "ppa:hvr/ghc"
+        - travis_apt_get_update
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install ghc-${GHC_VER}
+
+        - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
+        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
+
+        # Install stack
+        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - export FLAGS_1="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+        - export FLAGS_2="--flag Agda:enable-cluster-counting"
+
+        - echo "*** GHC version ***"     && ghc     --version &&
+          echo "*** Stack version ***"   && stack   --version &&
+          echo "*** Haddock version ***" && haddock --version &&
+          echo "*** Emacs version ***"   && emacs   --version | sed 2q
+      script:
+        - stack build Agda ${ARGS} ${FLAGS_1} --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_1} --fast
+
+        - stack build Agda ${ARGS} ${FLAGS_2} --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_2} --fast
+
+    - <<: *compilation-only-job # Use this version to run tests in the next stage
+      name: "This job builds Agda by the latest GHC to run tests. DO NOT CANCEL."
+      env:
+        GHC_VER=8.8.1
+      cache:
+        directories:
+          - $HOME/.stack
+          - $TRAVIS_BUILD_DIR/.stack-work
+      script:
+        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests
+
+    - <<: *compilation-only-job
+      env:
+        GHC_VER=8.6.5
+    - <<: *compilation-only-job
+      env:
+        GHC_VER=8.4.4
+    - <<: *compilation-only-job
+      env:
+        GHC_VER=8.2.2
+    - <<: *compilation-only-job
+      env:
+        GHC_VER=8.0.2
+
     # Windows environment
     - stage: compilation
       os: windows
@@ -96,66 +156,6 @@ jobs:
       script:
         - stack build ${ARGS} ${FLAGS} --fast
 
-    # Unix environment
-    - &compilation-only-job
-      stage: compilation
-      env:
-        GHC_VER=8.8.1
-      cache:
-        directories:
-          - $HOME/.stack
-      before_install:
-        # Install ghc
-        - sudo -E apt-add-repository -y "ppa:hvr/ghc"
-        - travis_apt_get_update
-        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install ghc-${GHC_VER}
-
-        - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
-
-        # Install stack
-        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-
-        - echo "*** GHC version ***"     && ghc     --version &&
-          echo "*** Stack version ***"   && stack   --version &&
-          echo "*** Haddock version ***" && haddock --version &&
-          echo "*** Emacs version ***"   && emacs   --version | sed 2q
-      before_script:
-        - export FLAGS_1="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
-        - export FLAGS_2="--flag Agda:enable-cluster-counting"
-      script:
-        - stack build Agda ${ARGS} ${FLAGS_1} --only-dependencies
-        - stack build Agda ${ARGS} ${FLAGS_1} --fast
-
-        - stack build Agda ${ARGS} ${FLAGS_2} --only-dependencies
-        - stack build Agda ${ARGS} ${FLAGS_2} --fast
-
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.6.5
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.4.4
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.2.2
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.0.2
-
-    - <<: *compilation-only-job # Use this version to run tests in the next stage
-      name: "This job builds Agda by the latest GHC to run tests. DO NOT CANCEL."
-      env:
-        GHC_VER=8.8.1
-      cache:
-        directories:
-          - $HOME/.stack
-          - $TRAVIS_BUILD_DIR/.stack-work
-      script:
-        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
-        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests
 
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: compilation
