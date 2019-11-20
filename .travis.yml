@@ -225,6 +225,13 @@ jobs:
       stage: main
       env:
         GHC_VER=8.8.1
+      addons:
+        apt:
+          packages:
+            - ghc-8.8.1
+            - cabal-install-3.0
+          sources:
+            - hvr-ghc
       cache:
         directories:
           - $HOME/.stack
@@ -252,13 +259,6 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
 
     - <<: *complete-job
-      addons:
-        apt:
-          packages:
-            - ghc-8.8.1
-            - cabal-install-3.0
-          sources:
-            - hvr-ghc
       git:
         submodules: true
       script:
@@ -268,14 +268,6 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
 
     - <<: *complete-job
-      addons:
-        apt:
-          packages:
-            - ghc-8.8.1
-            - cabal-install-3.0
-            - texlive-binaries
-          sources:
-            - hvr-ghc
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
@@ -285,16 +277,11 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} examples
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
+
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install texlive-binaries
         - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
 
     - <<: *complete-job
-      addons:
-        apt:
-          packages:
-            - ghc-8.8.1
-            - cabal-install-3.0
-          sources:
-            - hvr-ghc
       script:
         - travis_retry cabal v1-update
         - make TAGS
