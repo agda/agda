@@ -48,6 +48,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
@@ -1116,6 +1117,11 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
      reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
+      -- Possibly expanded literal pattern (see #4215)
+      p | Just (PatternInfo PatOLit asB) <- patternInfo p -> do
+        reduce (I.patternToTerm p) >>= \case
+          I.Lit l -> addAsBindings asB $ return $ A.LitP l
+          _       -> __IMPOSSIBLE__
       I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
         o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
