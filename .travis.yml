@@ -42,6 +42,8 @@ stages:
     if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
     if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ main\s+skip|skip\s+main)
+  - name: complete
+    if: (branch =~ /^release-.*/) OR (tag IS present) OR (commit_message =~ complete\s+tests)
 
 jobs:
   allow_failures:
@@ -95,7 +97,7 @@ jobs:
         - stack build ${ARGS} ${FLAGS} --fast
 
     # Unix environment
-    - &no-test-job
+    - &compilation-only-job
       stage: compilation
       env:
         GHC_VER=8.8.1
@@ -125,20 +127,20 @@ jobs:
       script:
         - stack build ${ARGS} ${FLAGS} --only-dependencies
         - stack build ${ARGS} ${FLAGS} --fast
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.6.5
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.4.4
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.2.2
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.0.2
 
-    - <<: *no-test-job # Use this version to run tests in the next stage
+    - <<: *compilation-only-job # Use this version to run tests in the next stage
       env:
         GHC_VER=8.8.1
       cache:
@@ -151,22 +153,22 @@ jobs:
         - stack build ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
         - stack build ${ARGS} ${FLAGS} --test --no-run-tests
 
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.6.5
       before_script:
         export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.4.4
       before_script:
         export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.2.2
       before_script:
         export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *no-test-job
+    - <<: *compilation-only-job
       env:
         GHC_VER=8.0.2
       before_script:
@@ -221,7 +223,7 @@ jobs:
     # Main stage
     #
     # The builds involving the testsuite (60-80min) are run then.
-    - &complete-job
+    - &main-job
       stage: main
       env:
         GHC_VER=8.8.1
@@ -258,7 +260,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
 
-    - <<: *complete-job
+    - <<: *main-job
       git:
         submodules: true
       script:
@@ -267,7 +269,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
 
-    - <<: *complete-job
+    - <<: *main-job
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
@@ -281,7 +283,7 @@ jobs:
         - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install texlive-binaries
         - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
 
-    - <<: *complete-job
+    - <<: *main-job
       script:
         - travis_retry cabal v1-update
         - make TAGS
@@ -296,3 +298,74 @@ jobs:
 
         # Build agda-bisect
         - make install-agda-bisect
+
+   - &complete-job
+      stage: complete
+      env: GHC_VER=8.8.1 CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.8.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+      before_install:
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - export PATH=$HOME/.local/bin:$PATH
+        - export BUILD_DIR=$HOME/dist
+        - export PARALLEL_TESTS=2
+        - export PATH=$HOME/.cabal/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - export GHCRTS='-M4G'
+      install:
+        - .travis/cabal_install
+      ##############################################################################
+      script:
+        - .travis/cabal_script
+
+    - <<: *complete-job
+      env: GHC_VER=8.6.5 CABAL_VER=2.4
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.4
+            - ghc-8.6.5
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - <<: *complete-job
+      env: GHC_VER=8.4.4 CABAL_VER=2.2
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.2
+            - ghc-8.4.4
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - <<: *complete-job
+      env: GHC_VER=8.2.2 CABAL_VER=2.0
+      addons:
+        apt:
+          packages:
+            - cabal-install-2.0
+            - ghc-8.2.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
+    # Liang-Ting, 2019-11-20, increase maximum heap to 4GB
+    - <<: *complete-job
+      env: GHC_VER=8.0.2 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.2
+            - texlive-binaries
+          sources:
+            - hvr-ghc
