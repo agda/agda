@@ -123,10 +123,13 @@ jobs:
           echo "*** Haddock version ***" && haddock --version &&
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
       before_script:
-        - export FLAGS="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+        - export FLAGS_1="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
+        - export FLAGS_2="--flag Agda:enable-cluster-counting"
       script:
         - stack build ${ARGS} ${FLAGS} --only-dependencies
-        - stack build ${ARGS} ${FLAGS} --fast
+        - stack build ${ARGS} ${FLAGS_1} --fast
+        - stack build ${ARGS} ${FLAGS_2} --fast
+
     - <<: *compilation-only-job
       env:
         GHC_VER=8.6.5
@@ -141,38 +144,16 @@ jobs:
         GHC_VER=8.0.2
 
     - <<: *compilation-only-job # Use this version to run tests in the next stage
+      name: "Built by the latest GHC version to run test suites."
       env:
         GHC_VER=8.8.1
       cache:
         directories:
           - $HOME/.stack
           - $TRAVIS_BUILD_DIR/.stack-work
-      before_script:
-        - export FLAGS="--flag Agda:enable-cluster-counting"
       script:
-        - stack build ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
-        - stack build ${ARGS} ${FLAGS} --test --no-run-tests
-
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.6.5
-      before_script:
-        export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.4.4
-      before_script:
-        export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.2.2
-      before_script:
-        export FLAGS="--flag Agda:enable-cluster-counting"
-    - <<: *compilation-only-job
-      env:
-        GHC_VER=8.0.2
-      before_script:
-        export FLAGS="--flag Agda:enable-cluster-counting"
+        - stack build ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
+        - stack build ${ARGS} ${FLAGS_2} --test --no-run-tests
 
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: compilation
@@ -273,7 +254,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
     - <<: *main-job
-      name: "TAGS, size-solver, agda-bisect"
+      name: "TAGS, size-solver, and agda-bisect"
       script:
         - travis_retry cabal v1-update
         - make TAGS
