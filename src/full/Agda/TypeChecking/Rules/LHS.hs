@@ -154,6 +154,18 @@ instance IsFlexiblePattern a => IsFlexiblePattern (Arg a) where
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
   maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
+-- | Update the given LHS state:
+--   1. simplify problem equations
+--   2. rename telescope variables
+--   3. introduce trailing patterns
+updateLHSState :: LHSState a -> TCM (LHSState a)
+updateLHSState st = do
+  let tel     = st ^. lhsTel
+      problem = st ^. lhsProblem
+  eqs' <- addContext tel $ updateProblemEqs $ problem ^. problemEqs
+  tel' <- useNamesFromProblemEqs eqs' tel
+  updateProblemRest $ set lhsTel tel' $ set (lhsProblem . problemEqs) eqs' st
+
 -- | Update the user patterns in the given problem, simplifying equations
 --   between constructors where possible.
 updateProblemEqs
@@ -394,68 +406,6 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
-
-data LeftoverPatterns = LeftoverPatterns
-  { patternVariables :: IntMap [A.Name]
-  , asPatterns       :: [AsBinding]
-  , dotPatterns      :: [DotPattern]
-  , absurdPatterns   :: [AbsurdPattern]
-  , otherPatterns    :: [A.Pattern]
-  }
-
-instance Semigroup LeftoverPatterns where
-  x <> y = LeftoverPatterns
-    { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
-    , asPatterns       = asPatterns x ++ asPatterns y
-    , dotPatterns      = dotPatterns x ++ dotPatterns y
-    , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
-    , otherPatterns    = otherPatterns x ++ otherPatterns y
-    }
-
-instance Monoid LeftoverPatterns where
-  mempty  = LeftoverPatterns empty [] [] [] []
-  mappend = (Semigroup.<>)
-
--- | Classify remaining patterns after splitting is complete into pattern
---   variables, as patterns, dot patterns, and absurd patterns.
---   Precondition: there are no more constructor patterns.
-getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
-getLeftoverPatterns eqs = do
-  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
-  mconcat <$> mapM getLeftoverPattern eqs
-  where
-    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
-    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
-    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
-    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
-    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
-
-    getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
-    getLeftoverPattern (ProblemEq p v a) = case p of
-      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
-        Just i  -> return $ patternVariable x i
-        Nothing -> return $ asPattern x v a
-      (A.WildP _)       -> return mempty
-      (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
-        getLeftoverPattern $ ProblemEq p v a
-      (A.DotP info e)   -> return $ dotPattern e v a
-      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
-      _                 -> return $ otherPattern p
-
--- | Build a renaming for the internal patterns using variable names from
---   the user patterns. If there are multiple user names for the same internal
---   variable, the unused ones are returned as as-bindings.
-getUserVariableNames :: Telescope -> IntMap [A.Name]
-                     -> ([Maybe A.Name], [AsBinding])
-getUserVariableNames tel names = runWriter $
-  zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
-
-  where
-    makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
-    makeVar a i | Just (x:xs) <- IntMap.lookup i names = do
-      tell $ map (\y -> AsB y (var i) (unDom a)) xs
-      return $ Just x
-    makeVar a i = return Nothing
 
 -- | After splitting is complete, we transfer the origins
 --   We also transfer the locations of absurd patterns, since these haven't
@@ -707,7 +657,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         reportSDoc "tc.lhs.top" 20 $ vcat
           [ "lhs: final checks with remaining equations"
-          , nest 2 $ if null eqs then "(none)" else vcat $ map prettyTCM eqs
+          , nest 2 $ if null eqs then "(none)" else addContext delta $ vcat $ map prettyTCM eqs
           , "qs0 =" <+> addContext delta (prettyTCMPatternList qs0)
           ]
 
@@ -763,8 +713,11 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
-        LeftoverPatterns patVars asb0 dots absurds otherPats
+        leftovers@(LeftoverPatterns patVars asb0 dots absurds otherPats)
           <- addContext delta $ getLeftoverPatterns eqs
+
+        reportSDoc "tc.lhs.leftover" 30 $ vcat
+          [ "leftover patterns: " , nest 2 (addContext delta $ prettyTCM leftovers) ]
 
         unless (null otherPats) __IMPOSSIBLE__
 
@@ -881,6 +834,10 @@ checkLHS mf = updateModality checkLHS_ where
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
+
+    reportSDoc "tc.lhs.top" 30 $ vcat
+      [ "LHS state: " , nest 2 (prettyTCM st) ]
+
     unlessM (optPatternMatching <$> getsTC getPragmaOptions) $
       unless (problemAllVariables problem) $
         typeError $ GenericError $ "Pattern matching is disabled"
@@ -978,7 +935,7 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
-      liftTCM $ updateProblemRest (LHSState tel ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit)
 
 
     -- | Split a Partial.
@@ -1134,10 +1091,9 @@ checkLHS mf = updateModality checkLHS_ where
           target'  = applyPatSubst rho target
 
       -- Compute the new state
-      eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
       let problem' = set problemEqs eqs' problem
       reportSDoc "tc.lhs.split.partial" 60 $ text (show problem')
-      liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
 
 
     splitLit :: Telescope     -- ^ The types of arguments before the one we split on
@@ -1175,9 +1131,8 @@ checkLHS mf = updateModality checkLHS_ where
       suspendErrors $ equalType a =<< litType lit
 
       -- Compute the new state
-      eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
       let problem' = set problemEqs eqs' problem
-      liftTCM $ updateProblemRest (LHSState delta' ip' problem' target' psplit)
+      liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit)
 
 
     splitCon :: Telescope     -- ^ The types of arguments before the one we split on
@@ -1397,13 +1352,11 @@ checkLHS mf = updateModality checkLHS_ where
 
           -- Update the problem equations
           let eqs' = applyPatSubst rho $ problem ^. problemEqs
-          eqs' <- liftTCM $ addContext delta' $ updateProblemEqs eqs'
-
-          let problem' = set problemEqs eqs' problem
+              problem' = set problemEqs eqs' problem
 
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st' <- liftTCM $ updateProblemRest $ LHSState delta' ip' problem' target' psplit
+          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ "new problem from rest"

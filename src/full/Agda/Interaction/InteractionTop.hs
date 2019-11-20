@@ -1026,9 +1026,9 @@ cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range 
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getResponseContext norm ii
-  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
-  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx constr)
-
+  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
+  boundary <- lift $ B.getIPBoundary norm ii
+  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.

@@ -6,13 +6,22 @@ module Agda.TypeChecking.Rules.LHS.Problem
        , problemRestPats, problemCont, problemInPats
        , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
        , LHSState(..) , lhsTel , lhsOutPat , lhsProblem , lhsTarget
+       , LeftoverPatterns(..), getLeftoverPatterns, getUserVariableNames
        ) where
 
 import Prelude hiding (null)
 
+import Control.Arrow ( (***) )
+import Control.Monad.Writer hiding ((<>))
+
 import Data.Foldable ( Foldable )
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.List ( partition )
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -20,14 +29,19 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM, IsForced(..))
+import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext, lookupSection, currentModule)
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 
@@ -239,6 +253,94 @@ lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 --lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
 --lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
 
+data PatVarPosition = PVLocal | PVParam
+  deriving (Show, Eq)
+
+data LeftoverPatterns = LeftoverPatterns
+  { patternVariables :: IntMap [(A.Name,PatVarPosition)]
+  , asPatterns       :: [AsBinding]
+  , dotPatterns      :: [DotPattern]
+  , absurdPatterns   :: [AbsurdPattern]
+  , otherPatterns    :: [A.Pattern]
+  }
+
+instance Semigroup LeftoverPatterns where
+  x <> y = LeftoverPatterns
+    { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
+    , asPatterns       = asPatterns x ++ asPatterns y
+    , dotPatterns      = dotPatterns x ++ dotPatterns y
+    , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
+    , otherPatterns    = otherPatterns x ++ otherPatterns y
+    }
+
+instance Monoid LeftoverPatterns where
+  mempty  = LeftoverPatterns empty [] [] [] []
+  mappend = (<>)
+
+instance PrettyTCM LeftoverPatterns where
+  prettyTCM (LeftoverPatterns varp asb dotp absurdp otherp) = vcat
+    [ "pattern variables: " <+> text (show varp)
+    , "as bindings:       " <+> prettyList_ (map prettyTCM asb)
+    , "dot patterns:      " <+> prettyList_ (map prettyTCM dotp)
+    , "absurd patterns:   " <+> prettyList_ (map prettyTCM absurdp)
+    , "other patterns:    " <+> prettyList_ (map prettyA otherp)
+    ]
+
+-- | Classify remaining patterns after splitting is complete into pattern
+--   variables, as patterns, dot patterns, and absurd patterns.
+--   Precondition: there are no more constructor patterns.
+getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
+getLeftoverPatterns eqs = do
+  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
+  params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
+  let isParamName = (`Set.member` params) . nameToArgName
+  mconcat <$> mapM (getLeftoverPattern isParamName) eqs
+  where
+    patternVariable x i  = LeftoverPatterns (singleton (i,[(x,PVLocal)])) [] [] [] []
+    moduleParameter x i  = LeftoverPatterns (singleton (i,[(x,PVParam)])) [] [] [] []
+    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
+    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
+    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
+    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
+
+    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern isParamName (ProblemEq p v a) = case p of
+      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
+        Just i  | isParamName x -> return $ moduleParameter x i
+                | otherwise     -> return $ patternVariable x i
+        Nothing -> return $ asPattern x v a
+      (A.WildP _)       -> return mempty
+      (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
+        getLeftoverPattern isParamName $ ProblemEq p v a
+      (A.DotP info e)   -> return $ dotPattern e v a
+      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
+      _                 -> return $ otherPattern p
+
+-- | Build a renaming for the internal patterns using variable names from
+--   the user patterns. If there are multiple user names for the same internal
+--   variable, the unused ones are returned as as-bindings.
+--   Names that are not also module parameters are preferred over
+--   those that are.
+getUserVariableNames
+  :: Telescope                         -- ^ The telescope of pattern variables
+  -> IntMap [(A.Name,PatVarPosition)]  -- ^ The list of user names for each pattern variable
+  -> ([Maybe A.Name], [AsBinding])
+getUserVariableNames tel names = runWriter $
+  zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
+
+  where
+    makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
+    makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
+      ([]     , [])   -> return Nothing
+      ((x:xs) , [])   -> tellAsBindings xs *> return (Just x)
+      (xs     , y:ys) -> tellAsBindings (xs ++ ys) *> return (Just y)
+      where
+        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
+
+    partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
+    partitionIsParam = (map fst *** map fst) . (partition $ (== PVParam) . snd)
+
+
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
 
@@ -281,3 +383,12 @@ instance PP.Pretty AsBinding where
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
+
+instance PrettyTCM (LHSState a) where
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat
+    [ "tel             = " <+> prettyTCM tel
+    , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
+    , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)
+    , "problemRestPats = " <+> prettyList_ (return $ prettyA rps)
+    , "target          = " <+> addContext tel (prettyTCM target)
+    ]

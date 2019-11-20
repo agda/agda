@@ -1138,7 +1138,8 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
     withCurrentModule m cont
 
 -- | Set the current clause number.
+
 atClause :: QName -> Int -> Type -> Maybe Substitution -> A.SpineClause -> TCM a -> TCM a
 atClause name i t sub cl ret = do
   clo <- buildClosure ()
-  localTC (\ e -> e { envClause = IPClause name i t sub cl clo }) ret
+  localTC (\ e -> e { envClause = IPClause name i t sub cl clo [] }) ret

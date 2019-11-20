@@ -393,7 +393,7 @@ blockedOrMeta r =
     NotBlocked i _           -> NotBlocked i ()
 
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
-reduceIApply' reduceB' d (IApply x y r : es) = do
+reduceIApply' red d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
@@ -401,11 +401,11 @@ reduceIApply' reduceB' d (IApply x y r : es) = do
   let blockedInfo = blockedOrMeta r
 
   case view (ignoreBlocking r) of
-   IZero -> reduceB' (applyE x es)
-   IOne  -> reduceB' (applyE y es)
-   _     -> fmap (<* blockedInfo) (reduceIApply d es)
-reduceIApply' reduceB' d (_ : es) = reduceIApply d es
-reduceIApply' reduceB' d [] = d
+   IZero -> red (applyE x es)
+   IOne  -> red (applyE y es)
+   _     -> fmap (<* blockedInfo) (reduceIApply' red d es)
+reduceIApply' red d (_ : es) = reduceIApply' red d es
+reduceIApply' _   d [] = d
 
 instance Reduce DeBruijnPattern where
   reduceB' (DotP o v) = fmap (DotP o) <$> reduceB' v
@@ -809,6 +809,10 @@ instance Reduce EqualityView where
     <*> reduce' a
     <*> reduce' b
 
+instance Reduce t => Reduce (IPBoundary' t) where
+  reduce' = traverse reduce'
+  reduceB' = fmap sequenceA . traverse reduceB'
+
 ---------------------------------------------------------------------------
 -- * Simplification
 ---------------------------------------------------------------------------
@@ -987,6 +991,9 @@ instance Simplify EqualityView where
     <*> simplify' a
     <*> simplify' b
 
+instance Simplify t => Simplify (IPBoundary' t) where
+  simplify' = traverse simplify'
+
 ---------------------------------------------------------------------------
 -- * Normalisation
 ---------------------------------------------------------------------------
@@ -1163,6 +1170,9 @@ instance Normalise EqualityView where
     <*> normalise' t
     <*> normalise' a
     <*> normalise' b
+
+instance Normalise t => Normalise (IPBoundary' t) where
+  normalise' = traverse normalise'
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
