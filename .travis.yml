@@ -299,7 +299,7 @@ jobs:
         # Build agda-bisect
         - make install-agda-bisect
 
-   - &complete-job
+    - &complete-job
       stage: complete
       env: GHC_VER=8.8.1 CABAL_VER=2.4
       addons:
