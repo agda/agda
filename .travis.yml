@@ -126,9 +126,11 @@ jobs:
         - export FLAGS_1="--flag Agda:cpphs --flag Agda:debug --flag Agda:enable-cluster-counting"
         - export FLAGS_2="--flag Agda:enable-cluster-counting"
       script:
-        - stack build ${ARGS} ${FLAGS} --only-dependencies
-        - stack build ${ARGS} ${FLAGS_1} --fast
-        - stack build ${ARGS} ${FLAGS_2} --fast
+        - stack build Agda ${ARGS} ${FLAGS_1} --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_1} --fast
+
+        - stack build Agda ${ARGS} ${FLAGS_2} --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_2} --fast
 
     - <<: *compilation-only-job
       env:
@@ -144,7 +146,7 @@ jobs:
         GHC_VER=8.0.2
 
     - <<: *compilation-only-job # Use this version to run tests in the next stage
-      name: "Built by the latest GHC version to run test suites."
+      name: "This job builds Agda by the latest GHC to run tests. DO NOT CANCEL."
       env:
         GHC_VER=8.8.1
       cache:
@@ -152,8 +154,8 @@ jobs:
           - $HOME/.stack
           - $TRAVIS_BUILD_DIR/.stack-work
       script:
-        - stack build ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
-        - stack build ${ARGS} ${FLAGS_2} --test --no-run-tests
+        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
+        - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests
 
     # Converting the user manual to html and pdf is fast (< 2min).
     - stage: compilation
