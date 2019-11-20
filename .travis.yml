@@ -299,8 +299,7 @@ jobs:
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
     # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
-    # Liang-Ting, 2019-11-20, increase maximum heap to 4GB
-        - export GHCRTS='-M4G'
+    # Liang-Ting, 2019-11-20, increase maximum heap to 4GB in Makefile instead
       install:
         - .travis/cabal_install
       ##############################################################################

@@ -68,7 +68,7 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options="+RTS -M4G -RTS" $(CABAL_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
