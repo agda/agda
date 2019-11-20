@@ -11,13 +11,17 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
+import Control.Arrow ( (***) )
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Foldable ( Foldable )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.List ( partition )
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -25,7 +29,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext)
+import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext, lookupSection, currentModule)
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -249,9 +253,11 @@ lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 --lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
 --lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
 
+data PatVarPosition = PVLocal | PVParam
+  deriving (Show, Eq)
 
 data LeftoverPatterns = LeftoverPatterns
-  { patternVariables :: IntMap [A.Name]
+  { patternVariables :: IntMap [(A.Name,PatVarPosition)]
   , asPatterns       :: [AsBinding]
   , dotPatterns      :: [DotPattern]
   , absurdPatterns   :: [AbsurdPattern]
@@ -286,22 +292,26 @@ instance PrettyTCM LeftoverPatterns where
 getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
 getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
-  mconcat <$> mapM getLeftoverPattern eqs
+  params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
+  let isParamName = (`Set.member` params) . nameToArgName
+  mconcat <$> mapM (getLeftoverPattern isParamName) eqs
   where
-    patternVariable x i  = LeftoverPatterns (singleton (i,[x])) [] [] [] []
+    patternVariable x i  = LeftoverPatterns (singleton (i,[(x,PVLocal)])) [] [] [] []
+    moduleParameter x i  = LeftoverPatterns (singleton (i,[(x,PVParam)])) [] [] [] []
     asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
     dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
     absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
     otherPattern p       = LeftoverPatterns empty [] [] [] [p]
 
-    getLeftoverPattern :: ProblemEq -> TCM LeftoverPatterns
-    getLeftoverPattern (ProblemEq p v a) = case p of
+    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern isParamName (ProblemEq p v a) = case p of
       (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
-        Just i  -> return $ patternVariable x i
+        Just i  | isParamName x -> return $ moduleParameter x i
+                | otherwise     -> return $ patternVariable x i
         Nothing -> return $ asPattern x v a
       (A.WildP _)       -> return mempty
       (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
-        getLeftoverPattern $ ProblemEq p v a
+        getLeftoverPattern isParamName $ ProblemEq p v a
       (A.DotP info e)   -> return $ dotPattern e v a
       (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
       _                 -> return $ otherPattern p
@@ -309,17 +319,26 @@ getLeftoverPatterns eqs = do
 -- | Build a renaming for the internal patterns using variable names from
 --   the user patterns. If there are multiple user names for the same internal
 --   variable, the unused ones are returned as as-bindings.
-getUserVariableNames :: Telescope -> IntMap [A.Name]
-                     -> ([Maybe A.Name], [AsBinding])
+--   Names that are not also module parameters are preferred over
+--   those that are.
+getUserVariableNames
+  :: Telescope                         -- ^ The telescope of pattern variables
+  -> IntMap [(A.Name,PatVarPosition)]  -- ^ The list of user names for each pattern variable
+  -> ([Maybe A.Name], [AsBinding])
 getUserVariableNames tel names = runWriter $
   zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
 
   where
     makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
-    makeVar a i | Just (x:xs) <- IntMap.lookup i names = do
-      tell $ map (\y -> AsB y (var i) (unDom a)) xs
-      return $ Just x
-    makeVar a i = return Nothing
+    makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
+      ([]     , [])   -> return Nothing
+      ((x:xs) , [])   -> tellAsBindings xs *> return (Just x)
+      (xs     , y:ys) -> tellAsBindings (xs ++ ys) *> return (Just y)
+      where
+        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
+
+    partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
+    partitionIsParam = (map fst *** map fst) . (partition $ (== PVParam) . snd)
 
 
 instance Subst Term (Problem a) where
