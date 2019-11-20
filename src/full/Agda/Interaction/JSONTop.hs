@@ -316,11 +316,12 @@ encodeGoalSpecific ii = go
     [ "computeMode" @= computeMode
     , "expr"        #= B.showComputed computeMode expr
     ]
-  go (Goal_GoalType rewrite goalType entries outputForms) = kind "GoalType"
+  go (Goal_GoalType rewrite goalType entries boundary outputForms) = kind "GoalType"
     [ "rewrite"     @= rewrite
     , "typeAux"     @= goalType
     , "type"        #= prettyTypeOfMeta rewrite ii
     , "entries"     @= entries
+    , "boundary"    @= map encodePretty boundary
     , "outputForms" @= map encodePretty outputForms
     ]
   go (Goal_CurrentGoal rewrite) = kind "CurrentGoal"

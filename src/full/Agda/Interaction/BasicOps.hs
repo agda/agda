@@ -57,6 +57,7 @@ import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
+import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
@@ -571,17 +572,82 @@ instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
+instance Reify a e => Reify (IPBoundary' a) (IPBoundary' e) where
+  reify = traverse reify
+
+instance ToConcrete a c => ToConcrete (IPBoundary' a) (IPBoundary' c) where
+  toConcrete = traverse (toConcreteCtx TopCtx)
+
+instance Pretty c => Pretty (IPBoundary' c) where
+  pretty (IPBoundary eqs val meta over) = do
+    let
+      xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
+      rhs = case over of
+              Overapplied    -> "=" <+> pretty meta
+              NotOverapplied -> mempty
+    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+
+
+prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
+prettyConstraints cs = do
+  forM cs $ \ c -> do
+            cl <- reify (PConstr Set.empty c)
+            enterClosure cl abstractToConcrete_
+
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = getConstraints' return $ const True
 
 
-getConstraintsMentioning :: MetaId -> TCM [OutputForm C.Expr C.Expr]
-getConstraintsMentioning m = getConstraints' instantiateBlockingFull (mentionsMeta m)
+getConstraintsMentioning :: Rewrite -> MetaId -> TCM [OutputForm C.Expr C.Expr]
+getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMeta m)
   -- could be optimized by not doing a full instantiation up front, with a more clever mentionsMeta.
   where
     instantiateBlockingFull p
       = locallyTCState stInstantiateBlocking (const True) $
           instantiateFull p
+
+    -- Trying to find the actual meta application, as long as it's not
+    -- buried too deep.
+    -- We could look further but probably not under binders as that would mess with
+    -- the call to @unifyElimsMeta@ below.
+    hasHeadMeta c =
+      case c of
+        ValueCmp _ _ u v           -> isMeta u `mplus` isMeta v
+        ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
+        -- TODO: extend to other comparisons?
+        ElimCmp cmp fs t v as bs   -> Nothing
+        LevelCmp cmp u v           -> Nothing
+        TelCmp a b cmp tela telb   -> Nothing
+        SortCmp cmp a b            -> Nothing
+        Guarded c pid              -> hasHeadMeta c
+        UnBlock{}                  -> Nothing
+        FindInstance{}             -> Nothing
+        IsEmpty r t                -> isMeta (unEl t)
+        CheckSizeLtSat t           -> isMeta t
+        CheckFunDef{}              -> Nothing
+        HasBiggerSort a            -> Nothing
+        HasPTSRule a b             -> Nothing
+        UnquoteTactic{}            -> Nothing
+        CheckMetaInst{}            -> Nothing
+
+    isMeta (MetaV m' es_m)
+      | m == m' = Just es_m
+    isMeta _  = Nothing
+
+    getConstrs g f = liftTCM $ do
+      cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+      reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
+      forM cs $ \(PConstr s c) -> do
+        c <- normalForm norm c
+        case hasHeadMeta $ clValue c of
+          Just es_m -> do
+            -- unifyElimsMeta tries to move the constraint into
+            -- (an extension of) the context where @m@ comes from.
+            unifyElimsMeta m es_m c $ \ eqs c -> do
+              flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
+          _ -> do
+            cl <- reify $ PConstr s c
+            enterClosure cl abstractToConcrete_
 
 
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
@@ -598,6 +664,16 @@ getConstraints' g f = liftTCM $ do
       withMetaInfo mv $ do
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
         abstractToConcrete_ $ OutputForm noRange [] $ Assign m e
+
+
+getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
+getIPBoundary norm ii = do
+      ip <- lookupInteractionPoint ii
+      case ipClause ip of
+        IPClause { ipcBoundary = cs } -> do
+          forM cs $ \ cl -> enterClosure cl $ \ b ->
+            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
+        IPNoClause -> return []
 
 -- | Goals and Warnings
 

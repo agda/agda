@@ -234,7 +234,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 --   (directly or indirectly) on the variable.
 instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
-  -> Int       -- ^ Γ ⊢ var k : A
+  -> Int       -- ^ Γ ⊢ var k : A   de Bruijn _level_
   -> DeBruijnPattern -- ^ Γ ⊢ u : A
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
