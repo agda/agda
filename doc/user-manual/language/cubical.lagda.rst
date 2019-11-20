@@ -14,7 +14,7 @@
              ; itIsOne to 1=1 )
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub
-    renaming ( primSubOut to ouc )
+    renaming ( primSubOut to outS )
   open import Agda.Builtin.Cubical.Glue public
     using ( isEquiv
           ; equiv-proof
@@ -384,16 +384,28 @@ satisfied. Any term ``u : A`` can be seen as an term of ``A [ φ ↦ u
 
 .. code-block:: agda
 
-  inc : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
+  inS : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
 
 One can also forget that a partial element agrees with ``u`` on ``φ``:
 
 .. code-block:: agda
 
-  ouc : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
+  outS : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
+
+They satisfy the following equalities:
+
+.. code-block:: agda
+
+  outS (inS a) = a
+
+  inS {u = u} (outS {u = u} a) = a
+
+  outS {φ = i1} {u} _ = u 1=1
+
 
 With all of this cubical infrastructure we can now describe the
 ``hcomp`` operations.
+
 
 
 Homogeneous composition
@@ -470,7 +482,7 @@ direct cubical proof that composing ``p`` with ``refl`` is ``p``.
   compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
   compPathRefl {x = x} {y = y} p j i = hfill (λ _ → λ { (i = i0) → x
                                                       ; (i = i1) → y })
-                                             (inc (p i))
+                                             (inS (p i))
                                              (~ j)
 
 
@@ -539,6 +551,7 @@ These come with a constructor and eliminator:
   unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
          → Glue A Te → A
 
+
 Using Glue types we can turn an equivalence of types into a path as
 follows:
 
@@ -566,6 +579,21 @@ what makes it possible to use the univalence axiom computationally in
 Cubical Agda: we can package up our equivalences as paths, do equality
 reasoning using these paths, and in the end transport along the paths
 in order to compute with the equivalences.
+
+We have the following equalities:
+
+.. code-block:: agda
+
+   Glue A {i1} Te = Te 1=1 .fst
+
+   unglue φ (glue t a) = a
+
+   glue (\ { (φ = i1) -> g}) (unglue φ g) = g
+
+   unglue i1 {Te} g = Te 1=1 .snd .fst g
+
+   glue {φ = i1} t a = t 1=1
+
 
 For more results about Glue types and univalence see
 https://github.com/agda/cubical/blob/master/Cubical/Core/Glue.agda and
@@ -850,9 +878,9 @@ The Cubical subtypes are exported by ``Agda.Builtin.Cubical.Sub``:
   {-# BUILTIN SUB Sub #-}
 
   postulate
-    inc : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
+    inS : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
 
-  {-# BUILTIN SUBIN inc #-}
+  {-# BUILTIN SUBIN inS #-}
 
   primitive
     primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
