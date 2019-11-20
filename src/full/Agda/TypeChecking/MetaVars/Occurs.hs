@@ -366,6 +366,9 @@ instance Occurs Term where
           -- Don't fail on blocked terms or metas
           -- Blocked _ MetaV{} -> id  -- does not help with issue #856
           Blocked{}    -> flexibly
+          -- Re #3594, do not fail hard when Underapplied:
+          -- the occurrence could be computed away after eta expansion.
+          NotBlocked{blockingStatus = Underapplied} -> flexibly
           NotBlocked{} -> id
     v <- return $ ignoreBlocking vb
     flexIfBlocked $ do
