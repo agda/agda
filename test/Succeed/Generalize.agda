@@ -98,3 +98,29 @@ postulate   Π[]     : Π a B ∘ᵀ σ ≡ Π (a ∘ᵗ σ) (B ∘ᵀ σ ↑ El
 postulate   app     : Tm Γ (Π a B) → Tm (Γ ▹ El a) B
 postulate   app[]   : app t ∘ᵗ (σ ↑ El a) ≡ app (t ∘ᵗ σ)
 {-# REWRITE app[] #-}
+
+
+---------------------------------------------------------------------
+-- Andreas, 2019-11-17, issue #4159:  Generalize over size variables.
+
+open import Agda.Builtin.Size
+
+data Foo : Size → Set where
+  foo : ∀ i → Foo i → Foo (↑ i)
+
+postulate
+  P : (i : Size) (A : Foo i) → Set
+
+variable
+  i : Size
+  F : Foo i
+  p : P i F
+
+-- Problem was:
+-- Size constraint solver could not deal with generated constraint:
+--
+--   ?i (gentel .field-i) ≤ (gentel .field-i)
+--
+-- Works now by expanding the record variable gentel in the context
+-- of this constraint.  This mechanism was previously only available
+-- in the 'assign' procedure that solves equational meta constraints.

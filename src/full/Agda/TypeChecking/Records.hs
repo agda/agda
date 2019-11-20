@@ -29,6 +29,8 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
+import Agda.Interaction.Options
+
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor (for, ($>))
@@ -462,6 +464,8 @@ expandRecordVar i gamma0 = do
         return Nothing
   caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
     if recEtaEquality def == NoEta then return Nothing else Just <$> do
+      postfix <- optPostfixProjections <$> pragmaOptions
+
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
@@ -486,9 +490,11 @@ expandRecordVar i gamma0 = do
       -- Construct @Δ@ as telescope.
       -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
 
-          -- Use "f(x)" as variable name for the projection f(x).
+          -- Use "f(x)" or "(x .f)" as variable name for the projection f(x).
           s     = prettyShow x
-          tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
+          mkN f | postfix   = concat [ "(", s, " .", f, ")" ]
+                | otherwise = concat [ f, "(", s, ")" ]
+          tel'  = mapAbsNames (stringToArgName . mkN . argNameToString) tel
           delta = telFromList $ gamma1 ++ telToList tel' ++
                     telToList (applySubst tau0 $ telFromList gamma2)
                     -- Andreas, 2017-07-29, issue #2644
