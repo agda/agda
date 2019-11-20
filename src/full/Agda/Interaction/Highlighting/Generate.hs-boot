@@ -3,7 +3,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Position (Range)
 
 highlightAsTypeChecked
-  :: MonadTCM tcm
+  :: (MonadTCM tcm, ReadTCState tcm)
   => Range
   -> Range
   -> tcm a

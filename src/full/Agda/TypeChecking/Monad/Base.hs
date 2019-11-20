@@ -1016,7 +1016,6 @@ data Constraint
   = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
-  | TypeCmp Comparison Type Type
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
@@ -1046,7 +1045,6 @@ instance HasRange Constraint where
 {- no Range instances for Term, Type, Elm, Tele, Sort, Level, MetaId
   getRange (ValueCmp cmp a u v) = getRange (a,u,v)
   getRange (ElimCmp pol a v es es') = getRange (a,v,es,es')
-  getRange (TypeCmp cmp a b) = getRange (a,b)
   getRange (TelCmp a b cmp tel tel') = getRange (a,b,tel,tel')
   getRange (SortCmp cmp s s') = getRange (s,s')
   getRange (LevelCmp cmp l l') = getRange (l,l')
@@ -1061,7 +1059,6 @@ instance Free Constraint where
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
-      TypeCmp _ t t'        -> freeVars' (t, t')
       TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
@@ -1081,7 +1078,6 @@ instance TermLike Constraint where
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
-      TypeCmp _ t t'         -> foldTerm f (t, t')
       LevelCmp _ l l'        -> foldTerm f (l, l')
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
@@ -1137,18 +1133,26 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 -- | We can either compare two terms at a given type, or compare two
 --   types without knowing (or caring about) their sorts.
 data CompareAs
-  = AsTermsOf Type
+  = AsTermsOf Type -- ^ @Type@ should not be @Size@.
+                   --   But currently, we do not rely on this invariant.
+  | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
   deriving (Data, Show)
 
 instance Free CompareAs where
   freeVars' (AsTermsOf a) = freeVars' a
+  freeVars' AsSizes       = mempty
   freeVars' AsTypes       = mempty
 
 instance TermLike CompareAs where
   foldTerm f (AsTermsOf a) = foldTerm f a
+  foldTerm f AsSizes       = mempty
   foldTerm f AsTypes       = mempty
-  traverseTermM f c = __IMPOSSIBLE__ -- not yet implemented
+
+  traverseTermM f = \case
+    AsTermsOf a -> AsTermsOf <$> traverseTermM f a
+    AsSizes     -> return AsSizes
+    AsTypes     -> return AsTypes
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -1429,18 +1433,21 @@ type IPBoundary = IPBoundary' Term
 
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
-  { ipcQName    :: QName  -- ^ The name of the function.
-  , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
-  , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
+  { ipcQName    :: QName              -- ^ The name of the function.
+  , ipcClauseNo :: Int                -- ^ The number of the clause of this function.
+  , ipcType     :: Type               -- ^ The type of the function
+  , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
+  , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
+  , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
   , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving (Data)
 
 instance Eq IPClause where
-  IPNoClause     == IPNoClause       = True
-  IPClause x i _ _ == IPClause x' i' _  _ = x == x' && i == i'
-  _              == _                = False
+  IPNoClause           == IPNoClause             = True
+  IPClause x i _ _ _ _ _ == IPClause x' i' _ _ _ _ _ = x == x' && i == i'
+  _                    == _                      = False
 
 ---------------------------------------------------------------------------
 -- ** Signature
@@ -2575,6 +2582,7 @@ data TCEnv =
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
+          , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envCheckingWhere       :: Bool
@@ -2701,6 +2709,7 @@ initEnv = TCEnv { envContext             = []
                 , envMutualBlock         = Nothing
                 , envTerminationCheck    = TerminationCheck
                 , envCoverageCheck       = YesCoverageCheck
+                , envMakeCase            = False
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
@@ -2803,6 +2812,9 @@ eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationC
 
 eCoverageCheck :: Lens' CoverageCheck TCEnv
 eCoverageCheck f e = f (envCoverageCheck e) <&> \ x -> e { envCoverageCheck = x }
+
+eMakeCase :: Lens' Bool TCEnv
+eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 
 eSolvingConstraints :: Lens' Bool TCEnv
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
@@ -2991,6 +3003,10 @@ data Warning
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
     --   The 'String' gives optionally extra explanation.
+  | ClashesViaRenaming NameOrModule [C.Name]
+    -- ^ If a `renaming' import directive introduces a name or module name clash
+    --   in the exported names of a module.
+    --   (See issue #4154.)
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -3096,6 +3112,7 @@ warningName w = case w of
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
+  ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
   CoInfectiveImport{}          -> CoInfectiveImport_
@@ -3309,6 +3326,8 @@ data TypeError
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
+            -- ^ The two function types have different relevance.
+        | UnequalQuantity Comparison Term Term
             -- ^ The two function types have different relevance.
         | UnequalHiding Term Term
             -- ^ The two function types have different hiding.
@@ -3757,8 +3776,8 @@ instance MonadTCState m => MonadTCState (IdentityT m) where
 
 -- ** @TCState@ accessors (no lenses)
 
-getsTC :: MonadTCState m => (TCState -> a) -> m a
-getsTC f = f <$> getTC
+getsTC :: ReadTCState m => (TCState -> a) -> m a
+getsTC f = f <$> getTCState
 
 -- | A variant of 'modifyTC' in which the computation is strict in the
 -- new state.
@@ -3774,7 +3793,7 @@ modifyTC' f = do
 
 -- ** @TCState@ accessors via lenses
 
-useTC :: MonadTCState m => Lens' a TCState -> m a
+useTC :: ReadTCState m => Lens' a TCState -> m a
 useTC l = do
   !x <- getsTC (^. l)
   return x

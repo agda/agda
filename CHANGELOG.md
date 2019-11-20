@@ -47,6 +47,13 @@ Pragmas and options
   be placed before the function (or the block of mutually defined functions)
   which the user knows to be partial.
 
+* Option `--interaction-json` now brings more information about goals,
+  unsolved metas, warnings, errors.
+  It also displays pretty-printed terms.
+
+* New pragma option `--keep-pattern-variables` to prevent case
+  splitting from replacing variables with dot patterns.
+
 Language
 --------
 
@@ -161,6 +168,16 @@ Language
 
 * `quoteGoal` and `quoteContext` are no longer keywords.
 
+* Record constructors can no longer be qualified by the record module.
+  (See issue [#4189](https://github.com/agda/agda/issues/4189).)
+  ```agda
+  record Foo : Set where
+    constructor foo
+
+  works = foo
+  fails = Foo.foo
+  ```
+
 ### Modalities
 
 * New Flat Modality
@@ -168,6 +185,17 @@ Language
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
   See "Flat Modality" in the documentation for more.
+
+### Universe levels
+
+* New (experimental) option `--cumulativity`
+
+  When the ``--cumulativity`` flag is enabled, Agda uses the subtyping
+  rule ``Set i =< Set j`` whenever ``i =< j``. For example, in
+  addition to its usual type ``Set``, ``Nat`` also has the type
+  ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
+  about this new option can be found in the [user
+  manual](https://agda.readthedocs.io/en/latest/language/cumulativity.html).
 
 ### Termination checking
 
@@ -283,6 +311,14 @@ Emacs mode
 ----------
 
 * Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+* Syntax highlighting: in literate modes, the pure texts
+  (other than Agda code and the code-text separators) are no longer highlighted
+  (it was highlighted as comments before).
+  This somehow provides more information about how Agda lexes literate files.
+
+* Agda now also displays the values of let-bound variables in the
+  context instead of just their types.
 
 GHC Backend
 -----------

@@ -1,6 +1,10 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
+    , namedMetaOf
     , showGoals
+    , showInfoError
+    , explainWhyInScope
+    , prettyTypeOfMeta
     ) where
 
 import Control.Monad.State hiding (state)
@@ -390,8 +394,8 @@ prettyResponseContext
   -> TCM Doc
 prettyResponseContext ii rev ctx = withInteractionId ii $ do
   mod   <- asksTC getModality
-  align 10 . applyWhen rev reverse <$> do
-    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) nis) -> do
+  align 10 . concat . applyWhen rev reverse <$> do
+    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
       let
         prettyCtxName :: String
         prettyCtxName
@@ -413,14 +417,25 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
             -- Print irrelevant if hypothesis is strictly less relevant than goal.
           , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
           ]
-      doc <- prettyATop expr
-      return (attribute ++ prettyCtxName, ":" <+> (doc <> parenSep extras))
+      ty <- prettyATop expr
+      maybeVal <- traverse prettyATop letv
+
+      return $
+        [ (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) ] ++
+        [ (prettyShow x, "=" <+> val) | val <- maybeToList maybeVal ]
+
   where
     parenSep :: [Doc] -> Doc
     parenSep docs
       | null docs = empty
       | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
 
+namedMetaOf :: B.OutputConstraint A.Expr a -> a
+namedMetaOf (B.OfType i _) = i
+namedMetaOf (B.JustType i) = i
+namedMetaOf (B.JustSort i) = i
+namedMetaOf (B.Assign i _) = i
+namedMetaOf _ = __IMPOSSIBLE__
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String
@@ -431,14 +446,9 @@ showGoals (ims, hms) = do
   dh <- mapM showA' hms
   return $ unlines $ map show di ++ dh
   where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i _) = i
-    metaId _ = __IMPOSSIBLE__
     showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
-      let i = nmid $ metaId m
+      let i = nmid $ namedMetaOf m
       r <- getMetaRange i
       d <- B.withMetaId i (prettyATop m)
       return $ show d ++ "  [ at " ++ show r ++ " ]"

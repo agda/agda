@@ -58,7 +58,7 @@ orderFields r fill axs fs = do
     , "  official fields: " <+> sep (map pretty xs)
     , "  provided fields: " <+> sep (map pretty ys)
     ]
-  unlessNull duplicate $ typeError . DuplicateFields . List.nub
+  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
   unlessNull alien     $ typeError . TooManyFields r missing
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
   where
@@ -634,6 +634,11 @@ etaExpandAtRecordType t u = do
 --   We can eta contract if all fields @f = ...@ are irrelevant
 --   or all fields @f@ are the projection @f v@ of the same value @v@,
 --   but we need at least one relevant field to find the value @v@.
+--
+--   If all fields are erased, we cannot eta-contract.
+
+--   Andreas, 2019-11-06, issue #4168: eta-contraction all-erased record
+--   lead to compilation error.
 
 --   TODO: this can be moved out of TCM.
 --   Andreas, 2018-01-28: attempted just that, but Auto does not
@@ -643,7 +648,7 @@ etaExpandAtRecordType t u = do
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> TCM Term #-}
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
-etaContractRecord r c ci args = do
+etaContractRecord r c ci args = if all (not . usableModality) args then fallBack else do
   Just Record{ recFields = xs } <- isRecord r
   let check :: Arg Term -> Arg QName -> Maybe (Maybe Term)
       check a ax = do
@@ -657,7 +662,6 @@ etaContractRecord r c ci args = do
           (_, Just (h, es)) | Proj _o f <- last es, unArg ax == f
                             -> Just $ Just $ h $ init es
           _                 -> Nothing
-      fallBack = return (mkCon c ci args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
@@ -670,6 +674,8 @@ etaContractRecord r c ci args = do
               else fallBack
           _ -> fallBack -- just irrelevant terms
         _ -> fallBack  -- a Nothing
+  where
+  fallBack = return (mkCon c ci args)
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.

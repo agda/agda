@@ -308,8 +308,8 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- List.nub . catMaybes <$> mapM (constructorData  . fst) rd
-        cs <- List.nub . concat    <$> mapM (dataConstructors . fst) rd
+        ds <- nubOn id . catMaybes <$> mapM (constructorData  . fst) rd
+        cs <- nubOn id . concat    <$> mapM (dataConstructors . fst) rd
         new <- concat <$> mapM rename (ds ++ cs)
         reportSLn "tc.mod.apply.complete" 30 $
           "also copying: " ++ prettyShow new

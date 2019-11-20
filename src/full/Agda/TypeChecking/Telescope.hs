@@ -13,6 +13,7 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
@@ -227,34 +228,24 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     m     = size is
     (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
 
-instantiateTelescopeN
-  :: Telescope    -- ^ ⊢ Γ
-  -> [(Int,Term)] -- ^ Γ ⊢ var k_i : A_i ascending order, Γ ⊢ u_i : A_i
-  -> Maybe (Telescope,    -- ⊢ Γ'
-            Substitution) -- Γ' ⊢ σ : Γ
-instantiateTelescopeN tel []         = return (tel, IdS)
-instantiateTelescopeN tel ((k,t):xs) = do
-  (tel', sigma, _) <- instantiateTelescope tel (size tel - k - 1) t
-  (tel'', sigma')  <- instantiateTelescopeN tel' (map (subtract 1 -*- applyPatSubst sigma) xs)
-  return (tel'', applyPatSubst sigma sigma')
-
 -- | Try to instantiate one variable in the telescope (given by its de Bruijn
 --   level) with the given value, returning the new telescope and a
 --   substitution to the old one. Returns Nothing if the given value depends
 --   (directly or indirectly) on the variable.
 instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
-  -> Int       -- ^ Γ ⊢ var k : A   deBruijn _level_
-  -> Term      -- ^ Γ ⊢ u : A
+  -> Int       -- ^ Γ ⊢ var k : A   de Bruijn _level_
+  -> DeBruijnPattern -- ^ Γ ⊢ u : A
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
             Permutation)         -- Γ  ⊢ flipP ρ : Γ'
-instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
+instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
   where
     names = teleNames tel
     ts0   = flattenTel tel
     n     = size tel
     j     = n-1-k
+    u     = patternToTerm p
 
     -- is0 is the part of Γ that is needed to type u
     is0   = varDependencies tel $ allFreeVars u
@@ -270,8 +261,8 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
-    us    = map (\i -> fromMaybe (dotP u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
+    p1    = renameP __IMPOSSIBLE__ perm p -- Γ' ⊢ p1 : A'
+    us    = map (\i -> fromMaybe p1 (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0
@@ -292,7 +283,8 @@ expandTelescopeVar gamma k delta c = (tel', rho)
                     splitExactlyAt k $ telToList gamma
 
     cpi         = noConPatternInfo
-      { conPRecord = Just PatOSystem
+      { conPInfo   = defaultPatternInfo
+      , conPRecord = True
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
@@ -484,11 +476,10 @@ isPath
   => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>
-                 Telescope -> Boundary -> [NamedArg (Pattern' a)]
+telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs
 
-telePatterns' :: (DeBruijn a, DeBruijn (Pattern' a)) =>
+telePatterns' :: DeBruijn a =>
                 (forall a. (DeBruijn a) => Telescope -> [NamedArg a]) -> Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns' f tel [] = f tel
 telePatterns' f tel boundary = recurse $ f tel
@@ -498,11 +489,10 @@ telePatterns' f tel boundary = recurse $ f tel
       snd <$> flip find boundary (\case
         (Var i [],_) -> i == x
         _            -> __IMPOSSIBLE__)
-    o = PatOSystem
     updateVar x =
       case deBruijnView x of
-        Just i | Just (t,u) <- matchVar i -> IApplyP o t u x
-        _                           -> VarP o x
+        Just i | Just (t,u) <- matchVar i -> IApplyP defaultPatternInfo t u x
+        _                                 -> VarP defaultPatternInfo x
 
 -- | Decomposing a function type.
 

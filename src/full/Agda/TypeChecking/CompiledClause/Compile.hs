@@ -39,10 +39,6 @@ data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPa
 
 compileClauses' :: RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
 compileClauses' recpat cs mSplitTree = do
-  -- Apply forcing translation. This only shuffles the deBruijn variables
-  -- so doesn't affect the right hand side.
-  cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-                 | c@Clause{ namedClausePats = ps } <- cs ]
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
@@ -126,7 +122,7 @@ unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) 
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) (unArg i) cs
+  SplitAt i lz ts -> Case i $ compiles lz ts $ splitOn (length ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
@@ -134,18 +130,20 @@ compileWithSplitTree t cs = case t of
     -- after end of split tree, continue with left-to-right strategy
 
   where
-    compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
-    compiles ts br@Branches{ projPatterns = cop
-                           , conBranches = cons
-                           , etaBranch   = Nothing
-                           , litBranches = lits
-                           , fallThrough = fT
-                           , catchAllBranch = catchAll }
+    compiles :: LazySplit -> SplitTrees -> Case Cls -> Case CompiledClauses
+    compiles lz ts br@Branches{ projPatterns = cop
+                              , conBranches = cons
+                              , etaBranch   = Nothing
+                              , litBranches = lits
+                              , fallThrough = fT
+                              , catchAllBranch = catchAll
+                              , lazyMatch = lazy }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
           , litBranches    = updLits lits
           , fallThrough    = fT
           , catchAllBranch = updCatchall catchAll
+          , lazyMatch      = lazy || lz == LazySplit
           }
       where
         updCons = Map.mapWithKey $ \ c cl ->
@@ -154,7 +152,7 @@ compileWithSplitTree t cs = case t of
         updLits = Map.mapWithKey $ \ l cl ->
           caseMaybe (lookup (SplitLit l) ts) compile compileWithSplitTree cl
         updCatchall = fmap $ caseMaybe (lookup SplitCatchall ts) compile compileWithSplitTree
-    compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
+    compiles _ _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: Cls -> CompiledClauses
 compile [] = Fail
@@ -199,7 +197,7 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern and/or a fallThrough one?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi || conPFallThrough cpi)
+properSplit (ConP _ cpi _) = Just ((conPRecord cpi && patOrigin (conPInfo cpi) == PatORec) || conPFallThrough cpi)
 properSplit DefP{}    = Just False
 properSplit LitP{}    = Just False
 properSplit ProjP{}   = Just False
@@ -234,7 +232,7 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
   DefP o q qs -> (conCase q False $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
-  LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
+  LitP _ l    -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
   where
@@ -337,14 +335,14 @@ expandCatchAlls single n cs =
     -- True if nth pattern exists and is variable.
     exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
-    classify (LitP l)     = Left l
+    classify (LitP _ l)   = Left l
     classify (ConP c _ _) = Right (Left c)
     classify (DefP _ q _) = Right (Right q)
     classify _            = __IMPOSSIBLE__
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` (classify . unArg . snd))
+    expansions = nubOn (classify . unArg . snd)
                . mapMaybe (notVarNth . clPats)
                $ cs
     notVarNth
@@ -368,7 +366,7 @@ expandCatchAlls single n cs =
             -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
-        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
+        LitP i l -> Cl (ps0 ++ [q $> LitP i l] ++ ps1) (substBody n' 0 (Lit l) b)
         DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
                             (substBody n' m (Def d (map Apply conArgs)) b)
           where

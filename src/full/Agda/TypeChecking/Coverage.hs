@@ -482,7 +482,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             ]
           -- TODO Andrea: do something with etaRecordSplits and qsss?
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n trees'
+              tree   = SplitAt n StrictSplit trees'   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     -- Try to split result
@@ -539,7 +539,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               psss  = map coverMissingClauses results
               qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
-              tree  = SplitAt n $ zip projs trees
+              tree  = SplitAt n StrictSplit $ zip projs trees   -- TODO: Lazy?
           return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
@@ -554,7 +554,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
            VarP  _ _    -> p : gatherEtaSplits (-1) sc ps
            DotP  _ _    -> __IMPOSSIBLE__
            ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
-           LitP  _      -> gatherEtaSplits (-1) sc ps
+           LitP{}       -> gatherEtaSplits (-1) sc ps
            ProjP{}      -> __IMPOSSIBLE__
            IApplyP{}    -> __IMPOSSIBLE__
            DefP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps -- __IMPOSSIBLE__ -- Andrea: maybe?
@@ -566,7 +566,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       DotP  _ _    -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       DefP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
-      LitP  _      -> gatherEtaSplits n sc ps
+      LitP{}       -> gatherEtaSplits n sc ps
       ProjP{}      -> gatherEtaSplits n sc ps
 
     addEtaSplits :: Int -> [NamedArg SplitPattern] -> SplitTree -> SplitTree
@@ -574,8 +574,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _ _     -> addEtaSplits (k+1) ps t
       DotP  _ _     -> addEtaSplits (k+1) ps t
-      ConP c cpi qs -> SplitAt (p $> k) [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
-      LitP  _       -> __IMPOSSIBLE__
+      ConP c cpi qs -> SplitAt (p $> k) LazySplit [(SplitCon (conName c) , addEtaSplits k (qs ++ ps) t)]
+      LitP{}        -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
       DefP{}        -> __IMPOSSIBLE__ -- Andrea: maybe?
       IApplyP{}     -> addEtaSplits (k+1) ps t
@@ -853,7 +853,8 @@ splitStrategy bs tel = return $ updateLast setBlockingVarOverlap xs
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
   where
-    xs       = bs
+    xs             = strict ++ lazy
+    (lazy, strict) = List.partition blockingVarLazy bs
 {- KEEP!
 --  Andreas, 2012-10-13
 --  The following split strategy which prefers all-constructor columns
@@ -1014,9 +1015,9 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
           -- conp = ConP con cpi $ applySubst rho2 $
           --          map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
           -- -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
-          defp = DefP PatOSystem hCompName . map (setOrigin Inserted) $
-                   map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dlvl
-                                      ,setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP PatOSystem $ dterm]
+          defp = DefP defaultPatternInfo hCompName . map (setOrigin Inserted) $
+                   map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dlvl
+                                      ,setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dterm]
                    ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
       -- Compute final context and substitution
       let rho3    = consS defp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
@@ -1097,8 +1098,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
 
-  -- All variables are flexible
-  let flex = allFlexVars delta1Gamma
+  cforced <- defForced <$> getConstInfo c
+      -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+      -- variables.
+  let forced = replicate (size delta1) NotForced ++ cforced
+      flex   = allFlexVars forced delta1Gamma -- All variables are flexible
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
@@ -1138,7 +1142,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
       -- Andreas, 2017-09-03, issue #2729: remember that pattern was generated by case split.
-      let cpi  = noConPatternInfo{ conPRecord = Just PatOSplit }
+      let cpi  = noConPatternInfo{ conPInfo = PatternInfo PatOSplit [] , conPRecord = True }
           conp = ConP con cpi $ applySubst rho0' $
                    map (mapArgInfo hiddenInserted) $ telePatterns' (tele2NamedArgs gamma0) gamma boundary
           -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
@@ -1242,7 +1246,7 @@ data AllowPartialCover
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbsurd c x =
-  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True)
+  split' CheckEmpty Inductive NoAllowPartialCover DontInsertTrailing c (BlockingVar x [] [] True False)
   -- Andreas, 2016-05-03, issue 1950:
   -- Do not introduce trailing pattern vars after split,
   -- because this does not work for with-clauses.
@@ -1251,7 +1255,7 @@ splitClauseWithAbsurd c x =
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True)
+splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
   where sc = SClause tel (toSplitPatterns ps) empty empty Nothing
 
 -- | @split ind splitClause x = return res@
@@ -1326,7 +1330,7 @@ split' :: CheckEmpty
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
 split' checkEmpty ind allowPartialCover inserttrailing
-       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap) =
+       sc@(SClause tel ps _ cps target) (BlockingVar x pcons' plits overlap lazy) =
  liftTCM $ runExceptT $ do
   debugInit tel x ps cps
 
@@ -1360,13 +1364,13 @@ split' checkEmpty ind allowPartialCover inserttrailing
         ns <- forM plits $ \lit -> do
           let delta2' = subst 0 (Lit lit) delta2
               delta'  = delta1 `abstract` delta2'
-              rho     = liftS x $ consS (LitP lit) idS
+              rho     = liftS x $ consS (litP lit) idS
               ps'     = applySubst rho ps
               cps'    = applySplitPSubst rho cps
           return (SplitLit lit , SClause delta' ps' rho cps' Nothing)
         ca <- do
           let delta' = tel -- telescope is unchanged for catchall branch
-              varp   = VarP PatOSplit $ SplitPatVar
+              varp   = VarP (PatternInfo PatOSplit []) $ SplitPatVar
                          { splitPatVarName   = underscore
                          , splitPatVarIndex  = 0
                          , splitExcludedLits = plits
@@ -1397,9 +1401,11 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   mHCompName <- getPrimitiveName' builtinHComp
 
+  erased <- asksTC hasQuantity0
+  reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
   case ns of
     []  -> do
-      let absurdp = VarP PatOAbsurd $ SplitPatVar underscore 0 []
+      let absurdp = VarP (PatternInfo PatOAbsurd []) $ SplitPatVar underscore 0 []
           rho = liftS x $ consS absurdp $ raiseS 1
           ps' = applySubst rho ps
       return $ Left $ SClause
@@ -1416,7 +1422,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
-    (_ : _ : _) | not (usableQuantity t) ->
+    (_ : _ : _) | not erased && not (usableQuantity t) ->
       throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     _ -> do

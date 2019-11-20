@@ -93,7 +93,7 @@ instance NamesIn a => NamesIn (Case a) where
 instance NamesIn (Pattern' a) where
   namesIn p = case p of
     VarP{}        -> Set.empty
-    LitP l        -> namesIn l
+    LitP _ l      -> namesIn l
     DotP _ v      -> namesIn v
     ConP c _ args -> namesIn (c, args)
     DefP o q args -> namesIn (q, args)

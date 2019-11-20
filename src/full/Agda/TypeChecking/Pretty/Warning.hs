@@ -19,7 +19,7 @@ import Agda.TypeChecking.Pretty.Call
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Scope.Base ( concreteNamesInScope )
+import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
@@ -125,6 +125,12 @@ prettyWarning wng = case wng of
 
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
+
+    ClashesViaRenaming nm xs -> fsep $ concat $
+      [ [ case nm of NameNotModule -> "Name"; ModuleNotName -> "Module" ]
+      , pwords "clashes introduced by `renaming':"
+      , map prettyTCM xs
+      ]
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 

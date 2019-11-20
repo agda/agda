@@ -9,6 +9,7 @@ import Data.Function
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Arrow
+import Agda.Utils.List (nubOn)
 
 mergeBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 mergeBy _ [] xs = xs
@@ -35,7 +36,7 @@ topSort nodes edges = mergeBy (<) nodes' <$> g m is
 
     nodes' = Set.toList $ Set.fromList nodes `Set.difference` Set.fromList (concatMap (\(a,b)->[a,b]) edges)
 
-    m = foldr f mempty $ nub edges
+    m = foldr f mempty $ nubOn id edges
     f (b, a)
         = Map.alter (Just . maybe (1, mempty) (first (+1))) b
         . Map.alter (Just . maybe (0, Set.singleton b) (second $ Set.insert b)) a

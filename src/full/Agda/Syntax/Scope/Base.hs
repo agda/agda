@@ -65,9 +65,6 @@ data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.
   | ImportedNS       -- ^ Things from open public, exported by this module.
-  | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
-                     --   but not exported when opening the module.
-                     --   Used for qualified constructors.
   deriving (Data, Eq, Bounded, Enum, Show)
 
 allNameSpaces :: [NameSpaceId]
@@ -78,7 +75,6 @@ type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess    = PublicNS
 localNameSpace PrivateAccess{} = PrivateNS
-localNameSpace OnlyQualified   = OnlyQualifiedNS
 
 nameSpaceAccess :: NameSpaceId -> Access
 nameSpaceAccess PrivateNS = PrivateAccess Inserted
@@ -295,7 +291,7 @@ data InScopeTag a where
   ModuleTag :: InScopeTag AbstractModule
 
 -- | Type class for some dependent-types trickery.
-class Eq a => InScope a where
+class Ord a => InScope a where
   inScopeTag :: InScopeTag a
 
 instance InScope AbstractName where
@@ -311,6 +307,10 @@ inNameSpace :: forall a. InScope a => NameSpace -> ThingsInScope a
 inNameSpace = case inScopeTag :: InScopeTag a of
   NameTag   -> nsNames
   ModuleTag -> nsModules
+
+-- | Non-dependent tag for name or module.
+data NameOrModule = NameNotModule | ModuleNotName
+  deriving (Data, Eq, Ord, Show, Enum, Bounded)
 
 ------------------------------------------------------------------------
 -- * Decorated names
@@ -640,7 +640,7 @@ allNamesInScope' s =
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
-exportedNamesInScope = namesInScope [PublicNS, ImportedNS, OnlyQualifiedNS]
+exportedNamesInScope = namesInScope [PublicNS, ImportedNS]
 
 namesInScope :: InScope a => [NameSpaceId] -> Scope -> ThingsInScope a
 namesInScope ids s =
@@ -680,7 +680,7 @@ setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const 
     zero  = emptyNameSpace
     one   = allThingsInScope s
     imp   = thingsInScope [ImportedNS] s
-    noimp = thingsInScope [PublicNS, PrivateNS, OnlyQualifiedNS] s
+    noimp = thingsInScope [PublicNS, PrivateNS] s
 
     ns b = case (a, b) of
       (PublicNS, PublicNS)   -> noimp
@@ -741,13 +741,56 @@ usingOrHiding i =
 --   However, the penalty of doing it in two passes should not be too high.
 --   (Doubling the run time.)
 applyImportDirective :: C.ImportDirective -> Scope -> Scope
-applyImportDirective dir@(ImportDirective{ impRenaming }) s
-  | null dir  = s  -- Since each run of applyImportDirective rebuilds the scope
-                   -- with cost O(n log n) time, it makes sense to test for the identity.
-  | otherwise = mergeScope
-      (useOrHide (usingOrHiding dir) s) -- Names kept via using/hiding.
-      (rename impRenaming s)            -- Things kept (under a different name) via renaming.
+applyImportDirective dir = fst . applyImportDirective_ dir
+
+-- | Version of 'applyImportDirective' that also returns sets of name
+--   and module name clashes introduced by @renaming@ to identifiers
+--   that are already imported by @using@ or lack of @hiding@.
+applyImportDirective_
+  :: C.ImportDirective
+  -> Scope
+  -> (Scope, (Set C.Name, Set C.Name)) -- ^ Merged scope, clashing names, clashing module names.
+applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
+  | null dir  = (s, (empty, empty))
+      -- Since each run of applyImportDirective rebuilds the scope
+      -- with cost O(n log n) time, it makes sense to test for the identity.
+  | otherwise = (mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
+    -- | Names kept via using/hiding.
+    sUse :: Scope
+    sUse = useOrHide (usingOrHiding dir) s
+
+    -- | Things kept (under a different name) via renaming.
+    sRen :: Scope
+    sRen = rename impRenaming s
+
+    -- | Which names are considered to be defined by a module?
+    --   The ones actually defined there publicly ('publicNS')
+    --   and the ones imported publicly ('ImportedNS')?
+    exportedNSs = [PublicNS, ImportedNS]
+
+    -- | Name clashes introduced by the @renaming@ clause.
+    nameClashes :: Set C.Name
+    nameClashes = Map.keysSet rNames `Set.intersection` Map.keysSet uNames
+      -- NB: `intersection` returns a subset of the first argument.
+      -- To get the correct error location, i.e., in the @renaming@ clause
+      -- rather than at the definition location, we neet to return
+      -- names from the @renaming@ clause.  (Issue #4154.)
+      where
+      uNames, rNames :: NamesInScope
+      uNames = namesInScope exportedNSs sUse
+      rNames = namesInScope exportedNSs sRen
+
+    -- | Module name clashes introduced by the @renaming@ clause.
+
+    -- Note: need to cut and paste because of 'InScope' dependent types trickery.
+    moduleClashes :: Set C.Name
+    moduleClashes = Map.keysSet uModules `Set.intersection` Map.keysSet rModules
+      where
+      uModules, rModules :: ModulesInScope
+      uModules = namesInScope exportedNSs sUse
+      rModules = namesInScope exportedNSs sRen
+
 
     -- Restrict scope by directive.
     useOrHide :: UsingOrHiding -> Scope -> Scope
@@ -821,10 +864,6 @@ restrictLocalPrivate m =
   where
     rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
     rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
-
--- | Remove names that can only be used qualified (when opening a scope)
-removeOnlyQualified :: Scope -> Scope
-removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
 
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope
@@ -960,7 +999,7 @@ scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
 scopeLookup' q scope =
-  List.nubBy ((==) `on` fst) $
+  nubOn fst $
     findName q root ++ maybeToList topImports ++ imports
   where
 
@@ -1175,7 +1214,6 @@ instance Pretty NameSpaceId where
     PublicNS        -> "public"
     PrivateNS       -> "private"
     ImportedNS      -> "imported"
-    OnlyQualifiedNS -> "only-qualified"
 
 instance Pretty NameSpace where
   pretty = vcat . prettyNameSpace

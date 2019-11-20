@@ -118,7 +118,7 @@ solveSizeConstraints flag =  do
 
   -- 1. Take out the size constraints normalised.
 
-  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints
+  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints (== CmpLeq)
     -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
@@ -161,6 +161,11 @@ solveSizeConstraints flag =  do
 
   constrainedMetas <- Set.unions <$> do
     forM  (ccs) $ \ (cs :: NonemptyList CC) -> do
+
+      reportSDoc "tc.size.solve" 60 $ vcat $ concat
+        [ [ "size constraint cluster:" ]
+        , map (text . show) $ toList cs
+        ]
 
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).

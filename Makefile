@@ -324,12 +324,12 @@ library-test : # up-to-date-std-lib
 	(cd std-lib && runhaskell GenerateEverything.hs && \
           time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
                            -i. -isrc README.agda \
-                           +RTS -s -H1G -M1.5G)
+                           +RTS -s -H2G -M3G)
 
 .PHONY : continue-library-test
 continue-library-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s -H1G -M1.5G)
+          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s -H2G -M3G)
 
 .PHONY : lib-succeed
 lib-succeed :

@@ -4,7 +4,11 @@ module Agda.TypeChecking.Level.Solve where
 
 import Control.Monad
 
+import qualified Data.IntSet as IntSet
+import Data.IntSet (IntSet)
 import Data.Maybe
+
+import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -19,31 +23,39 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Except
 import Agda.Utils.Monad
 
--- | Take all open metavariables of type level for which the only
---   constraints are upper bounds on the level, and instantiate them to
---   the lowest level.
-defaultOpenLevelsToZero :: forall m. (MonadMetaSolver m) => m ()
-defaultOpenLevelsToZero = do
-  xs <- openLevelMetas
-  allMetaTypes <- getOpenMetas >>= traverse metaType
-  progress <- forM xs $ \x -> do
-    cs <- filter (mentionsMeta x) <$> getAllConstraints
-    let notInTypeOfMeta = not $ mentionsMeta x allMetaTypes
-    if | notInTypeOfMeta , all (`isUpperBoundFor` x) cs -> do
-           m <- lookupMeta x
-           TelV tel t <- telView =<< metaType x
-           addContext tel $ assignV DirEq x (teleArgs tel) $ Level (ClosedLevel 0)
-           return True
-         `catchError` \_ -> return False
-       | otherwise -> return False
+-- | Run the given action. At the end take all new metavariables of
+--   type level for which the only constraints are upper bounds on the
+--   level, and instantiate them to the lowest level.
+defaultOpenLevelsToZero :: MonadMetaSolver m => m a -> m a
+defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
+  (result , newMetas) <- metasCreatedBy f
+  defaultLevelsToZero newMetas
+  return result
 
-  if | or progress -> defaultOpenLevelsToZero
-     | otherwise   -> return ()
-
+defaultLevelsToZero :: forall m. (MonadMetaSolver m) => IntSet -> m ()
+defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
   where
-    openLevelMetas :: m [MetaId]
-    openLevelMetas =
-      getOpenMetas
+    loop :: [MetaId] -> m ()
+    loop xs = do
+      let isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+      xs <- filterM isOpen xs
+      allMetaTypes <- getOpenMetas >>= traverse metaType
+      let notInTypeOfMeta x = not $ mentionsMeta x allMetaTypes
+      progress <- forM xs $ \x -> do
+        cs <- filter (mentionsMeta x) <$> getAllConstraints
+        if | notInTypeOfMeta x , all (`isUpperBoundFor` x) cs -> do
+               m <- lookupMeta x
+               TelV tel t <- telView =<< metaType x
+               addContext tel $ assignV DirEq x (teleArgs tel) (Level $ ClosedLevel 0) (AsTermsOf t)
+               return True
+             `catchError` \_ -> return False
+           | otherwise -> return False
+
+      if | or progress -> loop xs
+         | otherwise   -> return ()
+
+    openLevelMetas :: [MetaId] -> m [MetaId]
+    openLevelMetas xs = return xs
       >>= filterM (\m -> isNothing <$> isInteractionMeta m)
       >>= filterM (\m -> (== NoGeneralize) <$> isGeneralizableMeta m)
       >>= filterM isLevelMeta

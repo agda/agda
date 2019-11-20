@@ -348,6 +348,15 @@ instance EmbPrj Defn where
     valu [6]                                        = valuN GeneralizableVar
     valu _                                          = malformed
 
+instance EmbPrj LazySplit where
+  icod_ StrictSplit = icodeN' StrictSplit
+  icod_ LazySplit   = icodeN 0 LazySplit
+
+  value = vcase valu where
+    valu []  = valuN StrictSplit
+    valu [0] = valuN LazySplit
+    valu _   = malformed
+
 instance EmbPrj SplitTag where
   icod_ (SplitCon c)  = icodeN 0 SplitCon c
   icod_ (SplitLit l)  = icodeN 1 SplitLit l
@@ -361,12 +370,12 @@ instance EmbPrj SplitTag where
 
 instance EmbPrj a => EmbPrj (SplitTree' a) where
   icod_ (SplittingDone a) = icodeN' SplittingDone a
-  icod_ (SplitAt a b)     = icodeN 0 SplitAt a b
+  icod_ (SplitAt a b c)   = icodeN 0 SplitAt a b c
 
   value = vcase valu where
-    valu [a]       = valuN SplittingDone a
-    valu [0, a, b] = valuN SplitAt a b
-    valu _         = malformed
+    valu [a]          = valuN SplittingDone a
+    valu [0, a, b, c] = valuN SplitAt a b c
+    valu _            = malformed
 
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icodeN 0 FunStatic
@@ -430,7 +439,7 @@ instance EmbPrj I.Clause where
   value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b c d) = icodeN' ConPatternInfo a b c d
+  icod_ (ConPatternInfo a b c d e) = icodeN' ConPatternInfo a b c d e
 
   value = valueN ConPatternInfo
 
@@ -438,6 +447,11 @@ instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icodeN' DBPatVar a b
 
   value = valueN DBPatVar
+
+instance EmbPrj I.PatternInfo where
+  icod_ (PatternInfo a b) = icodeN' PatternInfo a b
+
+  value = valueN PatternInfo
 
 instance EmbPrj I.PatOrigin where
   icod_ PatOSystem  = icodeN' PatOSystem
@@ -465,7 +479,7 @@ instance EmbPrj I.PatOrigin where
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a b  ) = icodeN 0 VarP a b
   icod_ (ConP a b c) = icodeN 1 ConP a b c
-  icod_ (LitP a    ) = icodeN 2 LitP a
+  icod_ (LitP a b  ) = icodeN 2 LitP a b
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
   icod_ (IApplyP a b c d) = icodeN 5 IApplyP a b c d
@@ -474,7 +488,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   value = vcase valu where
     valu [0, a, b] = valuN VarP a b
     valu [1, a, b, c] = valuN ConP a b c
-    valu [2, a]    = valuN LitP a
+    valu [2, a, b] = valuN LitP a b
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
     valu [5, a, b, c, d] = valuN IApplyP a b c d

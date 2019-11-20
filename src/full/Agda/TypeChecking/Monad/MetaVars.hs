@@ -90,7 +90,7 @@ class ( MonadConstraint m
   --   @patternViolation@.  This error is caught by @catchConstraint@
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
-  assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
+  assignV :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> m ()
 
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
@@ -123,7 +123,7 @@ modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
 
 -- | Run a computation and record which new metas it created.
-metasCreatedBy :: TCM a -> TCM (a, IntSet)
+metasCreatedBy :: ReadTCState m => m a -> m (a, IntSet)
 metasCreatedBy m = do
   before <- IntMap.keysSet <$> useTC stMetaStore
   a <- m
@@ -254,7 +254,6 @@ constraintMetas c = metas c
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
-      TypeCmp _ t t'           -> return $ allMetas Set.singleton (t, t')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (l, l')
       UnquoteTactic m t h g    -> return $ Set.fromList [x | Just x <- [m]] `Set.union` allMetas Set.singleton (t, h, g)
       Guarded c _              -> metas c

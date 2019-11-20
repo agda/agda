@@ -13,6 +13,7 @@ checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 
 class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
+  addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
   updateContext :: Substitution -> (Context -> Context) -> m a -> m a
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 

@@ -682,7 +682,14 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
       typeError $ DuplicateImports m dup
 
     -- Apply the import directive.
-    let scope' = applyImportDirective dir' scope
+    let (scope', (nameClashes, moduleClashes)) = applyImportDirective_ dir' scope
+
+    -- Andreas, 2019-11-08, issue #4154, report clashes
+    -- introduced by the @renaming@.
+    unless (null nameClashes) $
+      warning $ ClashesViaRenaming NameNotModule $ Set.toList nameClashes
+    unless (null moduleClashes) $
+      warning $ ClashesViaRenaming ModuleNotName $ Set.toList moduleClashes
 
     -- Look up the defined names in the new scope.
     let namesInScope'   = (allNamesInScope scope' :: ThingsInScope AbstractName)
@@ -833,7 +840,7 @@ openModule kind mam cm dir = do
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
                 noGeneralizedVarsIfLetOpen kind .
-                removeOnlyQualified . restrictPrivate =<< getNamedScope m
+                restrictPrivate =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)

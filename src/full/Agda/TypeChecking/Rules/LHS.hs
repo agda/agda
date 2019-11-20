@@ -135,8 +135,8 @@ instance IsFlexiblePattern (I.Pattern' a) where
     case p of
       I.DotP{}  -> return DotFlex
       I.ConP _ i ps
-        | Just PatOSystem <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
-        | Just _          <- conPRecord i -> maybeFlexiblePattern ps
+        | conPRecord i , PatOSystem <- patOrigin (conPInfo i) -> return ImplicitFlex  -- expanded from ImplicitP
+        | conPRecord i -> maybeFlexiblePattern ps
         | otherwise -> mzero
       I.VarP{}  -> mzero
       I.LitP{}  -> mzero
@@ -181,6 +181,9 @@ updateProblemEqs eqs = do
     update :: ProblemEq -> TCM [ProblemEq]
     update eq@(ProblemEq A.WildP{} _ _) = return []
     update eq@(ProblemEq p@A.ProjP{} _ _) = typeError $ IllformedProjectionPattern p
+    update eq@(ProblemEq p@(A.AsP info x p') v a) =
+      (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
+
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -192,8 +195,7 @@ updateProblemEqs eqs = do
 
         p <- expandLitPattern p
         case p of
-          A.AsP info x p' ->
-            (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
+          A.AsP{} -> __IMPOSSIBLE__
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
 
@@ -388,8 +390,7 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
           , nest 2 $ pretty u
           , nest 2 $ pretty v
           ]
-    -- Should be ok to do noConstraints here
-    noConstraints $ equalTerm a u v
+    equalTerm a u v
 
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
@@ -489,43 +490,45 @@ transferOrigins ps qs = do
       | otherwise = (setOrigin Inserted q :) <$> transfers (p : ps) qs
 
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
-    transfer p q = case (snd (asView p) , q) of
+    transfer p q = case (asView p , q) of
 
-      (A.ConP pi _ ps , ConP c (ConPatternInfo mo ft mb l) qs) -> do
-        let cpi = ConPatternInfo (mo $> PatOCon) ft mb l
+      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      (A.RecP pi fs , ConP c (ConPatternInfo mo ft mb l) qs) -> do
+      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
-            cpi = ConPatternInfo (mo $> PatORec) ft mb l
+            cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
         ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
-      (p , ConP c (ConPatternInfo mo ft mb l) qs) -> do
-        let cpi = ConPatternInfo (mo $> patOrigin p) ft mb l
+      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+        let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
-      (p , VarP _ x) -> return $ VarP (patOrigin p) x
+      ((asB , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
 
-      (p , DotP _ u) -> return $ DotP (patOrigin p) u
+      ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
+
+      ((asB , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
 
       _ -> return q
 
-    patOrigin :: A.Pattern -> PatOrigin
-    patOrigin (A.VarP x)      = PatOVar (A.unBind x)
-    patOrigin A.DotP{}        = PatODot
-    patOrigin A.ConP{}        = PatOCon
-    patOrigin A.RecP{}        = PatORec
-    patOrigin A.WildP{}       = PatOWild
-    patOrigin A.AbsurdP{}     = PatOAbsurd
-    patOrigin A.LitP{}        = PatOLit
-    patOrigin A.EqualP{}      = PatOCon --TODO: origin for EqualP
-    patOrigin A.AsP{}         = __IMPOSSIBLE__
-    patOrigin A.ProjP{}       = __IMPOSSIBLE__
-    patOrigin A.DefP{}        = __IMPOSSIBLE__
-    patOrigin A.PatternSynP{} = __IMPOSSIBLE__
-    patOrigin A.WithP{}       = __IMPOSSIBLE__
+    patOrig :: A.Pattern -> PatOrigin
+    patOrig (A.VarP x)      = PatOVar (A.unBind x)
+    patOrig A.DotP{}        = PatODot
+    patOrig A.ConP{}        = PatOCon
+    patOrig A.RecP{}        = PatORec
+    patOrig A.WildP{}       = PatOWild
+    patOrig A.AbsurdP{}     = PatOAbsurd
+    patOrig A.LitP{}        = PatOLit
+    patOrig A.EqualP{}      = PatOCon --TODO: origin for EqualP
+    patOrig A.AsP{}         = __IMPOSSIBLE__
+    patOrig A.ProjP{}       = __IMPOSSIBLE__
+    patOrig A.DefP{}        = __IMPOSSIBLE__
+    patOrig A.PatternSynP{} = __IMPOSSIBLE__
+    patOrig A.WithP{}       = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
     matchingArgs p q
@@ -709,11 +712,6 @@ checkLeftHandSide call f ps a withSub' strippedPats =
           ]
 
         unless (null rps) __IMPOSSIBLE__
-
-        -- Update modalities of delta to match the modalities of the variables
-        -- after the forcing translation. We can't perform the forcing translation
-        -- yet, since that would mess with with-clause stripping.
-        delta <- forceTranslateTelescope delta qs0
 
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
@@ -1124,11 +1122,11 @@ checkLHS mf = updateModality checkLHS_ where
              = ConP c (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                               , conPFallThrough = True })
                           []
-          mkConP (Var i []) = VarP PatOSystem (DBPatVar "x" i)
+          mkConP (Var i []) = VarP defaultPatternInfo (DBPatVar "x" i)
           mkConP _          = __IMPOSSIBLE__
           rho0 = fmap mkConP sigma
 
-          rho    = liftS (size delta2) $ consS (DotP PatOSystem itisone) rho0
+          rho    = liftS (size delta2) $ consS (DotP defaultPatternInfo itisone) rho0
 
           delta'   = abstract gamma delta2
           eqs'     = applyPatSubst rho $ problem ^. problemEqs
@@ -1150,7 +1148,7 @@ checkLHS mf = updateModality checkLHS_ where
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
           delta' = abstract delta1 delta2
-          rho    = singletonS (size delta2) (LitP lit)
+          rho    = singletonS (size delta2) (litP lit)
           -- Andreas, 2015-06-13 Literals are closed, so no need to raise them!
           -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
@@ -1232,10 +1230,10 @@ checkLHS mf = updateModality checkLHS_ where
         Just ambC -> disambiguateConstructor ambC d pars
         Nothing   -> getRecordConstructor d pars a
 
-      -- Don't split on lazy constructor
+      -- Don't split on lazy (non-eta) constructor
       case focusPat of
-        A.ConP cpi _ _ | patLazy cpi == ConPatLazy -> softTypeError $
-          ForcedConstructorNotInstantiated focusPat
+        A.ConP cpi _ _ | conPatLazy cpi == ConPatLazy ->
+          unlessM (isEtaRecord d) $ softTypeError $ ForcedConstructorNotInstantiated focusPat
         _ -> return ()
 
       -- The type of the constructor will end in an application of the datatype
@@ -1280,13 +1278,19 @@ checkLHS mf = updateModality checkLHS_ where
               , "cixs   =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM cixs))
               ]
             ]
+                 -- We ignore forcing for make-case
+      cforced <- ifM (viewTC eMakeCase) (return []) $
+                 {-else-} defForced <$> getConstInfo (conName c)
 
       let delta1Gamma = delta1 `abstract` gamma
           da'  = raise (size gamma) da
           ixs' = raise (size gamma) ixs
+          -- Variables in Δ₁ are not forced, since the unifier takes care to not introduce forced
+          -- variables.
+          forced = replicate (size delta1) NotForced ++ cforced
 
       -- All variables are flexible.
-      let flex = allFlexVars $ delta1Gamma
+      let flex = allFlexVars forced $ delta1Gamma
 
       -- Unify constructor target and given type (in Δ₁Γ)
       -- Given: Δ₁  ⊢ D pars : Φ → Setᵢ
@@ -1355,10 +1359,14 @@ checkLHS mf = updateModality checkLHS_ where
           -- Also remember if we are a record pattern.
           isRec <- isRecord d
 
-          let cpi = ConPatternInfo { conPRecord = isRec $> PatOCon
+          -- Mark eta-record matches as lazy
+          lazy <- isEtaRecord d
+
+          let cpi = ConPatternInfo { conPInfo   = PatternInfo PatOCon []
+                                   , conPRecord = isJust isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
-                                   , conPLazy   = False }
+                                   , conPLazy   = lazy }
 
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)

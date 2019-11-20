@@ -144,9 +144,17 @@ forMM_ = flip mapMM_
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
+-- | A version of @'mapMaybeM'@ with a computation for the input list.
+mapMaybeMM :: Monad m => (a -> m (Maybe b)) -> m [a] -> m [b]
+mapMaybeMM f m = mapMaybeM f =<< m
+
 -- | The @for@ version of 'mapMaybeM'.
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
+
+-- | The @for@ version of 'mapMaybeMM'.
+forMaybeMM :: Monad m => m [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeMM = flip mapMaybeMM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
 dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]

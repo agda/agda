@@ -37,14 +37,17 @@ import Agda.Utils.Monad (ifM)
 --   @
 --   only that @v, v'@ are only fully instantiated to the depth
 --   where they are equal.
+--
+--   This means in particular that the returned @v,v'@ cannot be @MetaV@s
+--   that are instantiated.
 
 {-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
 {-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> ReduceM ((Type, Type), Bool) #-}
-checkSyntacticEquality :: (SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
+checkSyntacticEquality :: (Instantiate a, SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
 checkSyntacticEquality v v' = liftReduce $ do
   ifM (optSyntacticEquality <$> pragmaOptions)
   {-then-} (synEq v v' `runStateT` True)
-  {-else-} (return ((v, v'), False))
+  {-else-} ((,False) <$> instantiate (v,v'))
 
 -- | Monad for checking syntactic equality
 type SynEqM = StateT Bool ReduceM
