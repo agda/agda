@@ -225,6 +225,7 @@ jobs:
     # The builds involving the testsuite (60-80min) are run then.
     - &main-job
       stage: main
+      name: "Successful tests"
       env:
         GHC_VER=8.8.1
       addons:
@@ -259,30 +260,44 @@ jobs:
       ##############################################################################
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
-        - stack ${ARGS} exec -- ${MAKE_CMD} fail
-
     - <<: *main-job
+      name: "Failing tests"
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} fail
+    - <<: *main-job
+      name: "Standard library test"
       git:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} library-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
-        - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
-        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
-
     - <<: *main-job
+      name: "Successfull tests using the standard library"
+      git:
+        submodules: true
       script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} interaction
-        - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
-        - stack ${ARGS} exec -- ${MAKE_CMD} api-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} interactive
-        - stack ${ARGS} exec -- ${MAKE_CMD} examples
-        - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
-        - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
-
+        - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
     - <<: *main-job
+      name: "Interaction tests using the standard library"
+      git:
+        submodules: true
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
+    - <<: *main-job
+      name: "Benchmark suite without creating logs"
+      git:
+        submodules: true
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
+    - <<: *main-job
+      name: "Compiler tests"
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
+    - <<: *main-job
+      name: "Standard library compiler tests"
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
+    - <<: *main-job
+      name: "TAGS, size-solver, agda-bisect"
       script:
         - travis_retry cabal v1-update
         - make TAGS
@@ -297,6 +312,17 @@ jobs:
 
         # Build agda-bisect
         - make install-agda-bisect
+    - <<: *main-job
+      name: "Other test suites"
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} interaction
+        - stack ${ARGS} exec -- ${MAKE_CMD} interactive
+        - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} examples
+        - stack ${ARGS} exec -- ${MAKE_CMD} api-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
+        - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
 
     - &complete-job
       stage: complete
