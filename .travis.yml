@@ -39,7 +39,7 @@ git:
 stages:
   - name: check whitespace
   - name: compilation
-    if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ stack\s+skip|skip\s+stack)
+    if: NOT (commit_message =~ stack\s+skip|skip\s+stack)
   - name: main
     if: NOT (branch =~ /^release-.*/) OR NOT (tag IS present) OR NOT (commit_message =~ main\s+skip|skip\s+main)
   - name: complete
@@ -321,13 +321,10 @@ jobs:
       ##############################################################################
       script:
         - .travis/cabal_script
-
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
-
     - <<: *complete-job
       env: GHC_VER=8.4.4 CABAL_VER=2.2
-
     - <<: *complete-job
       env: GHC_VER=8.2.2 CABAL_VER=2.0
     - <<: *complete-job
