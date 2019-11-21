@@ -7,6 +7,10 @@
 -- Thus, a record constructor does not live in the record module
 -- any more.
 
+-- However, it still lives in the namespace aspect of the record module
+-- that does not depend on the module parameters (like open public).
+-- Thus, we can still use qualified record constructors.
+
 -- {-# OPTIONS -v tc.mod.apply:100 #-}
 
 record ⊤ : Set where
@@ -14,9 +18,9 @@ record ⊤ : Set where
 
 module Unit = ⊤ renaming (tt to unit)
   -- WAS: internal error
-  -- NOW: warning about tt not being in scope
 
 tt′ : ⊤
 tt′ = ⊤.tt
-  -- WAS: success
-  -- NOW: Not in scope: ⊤.tt
+
+test : ⊤
+test = Unit.unit

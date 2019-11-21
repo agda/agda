@@ -1,9 +1,0 @@
-Issue4189.agda:15,17-38
-The module Unit doesn't export the following: tt
-when scope checking the declaration
-  module Unit = ⊤ renaming (tt to unit)
-Issue4189.agda:20,7-11
-Not in scope:
-  ⊤.tt at Issue4189.agda:20,7-11
-    (did you mean 'tt'?)
-when scope checking ⊤.tt

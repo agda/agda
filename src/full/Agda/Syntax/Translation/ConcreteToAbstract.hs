@@ -1699,7 +1699,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                typeError $ DuplicateFields dups
         bindModule p x m
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c a p
+        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName m c a p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
@@ -2010,10 +2010,25 @@ bindConstructorName m x a p = do
 
 -- | Record constructors do not live in the record module (as it is parameterized).
 --   Abstract constructors are bound privately, so that they are not exported.
-bindRecordConstructorName :: C.Name -> IsAbstract -> Access -> ScopeM A.QName
-bindRecordConstructorName x a p = do
+--
+--   However, record constructors live in the namespace aspect of the record module.
+--   The record module has a concrete name for the constructor linking back to
+--   the abstract name for the constructor defined in the parent module.
+--   This, way we can qualify record constructors by the record name without
+--   causing confusion about the record parameter.
+--   The mechanism is the same as for open public.
+bindRecordConstructorName
+  :: ModuleName      -- ^ Name of @data@/@record@ module.
+  -> C.Name           -- ^ Constructor name.
+  -> IsAbstract
+  -> Access
+  -> ScopeM A.QName
+bindRecordConstructorName m x a p = do
+  -- The abstract name is the unqualified one.
   y <- freshAbstractQName' x
   bindName p' ConName x y
+  -- Bind it also in the record module for the sake of qualification.
+  withCurrentModule m $ bindName p'' ConName x y
   return y
   where
     -- An abstract constructor is private (abstract constructor means
@@ -2021,6 +2036,9 @@ bindRecordConstructorName x a p = do
     p' = case a of
            AbstractDef -> PrivateAccess Inserted
            _           -> p
+    p'' = case a of
+            AbstractDef -> PrivateAccess Inserted
+            _           -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
   toAbstract (ConstrDecl m a p d) = do
