@@ -56,7 +56,7 @@ instance PrettyTCM Call where
 
     CheckLHS lhs -> vcat $
       [ fsep $ pwords "when checking the clause left hand side"
-      , prettyA lhs
+      , prettyA $ lhs { A.spLhsInfo = (A.spLhsInfo lhs) { A.lhsEllipsis = NoEllipsis } }
       ]
 
     CheckPattern p tel t -> addContext tel $ fsep $

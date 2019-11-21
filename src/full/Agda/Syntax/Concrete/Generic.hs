@@ -179,7 +179,7 @@ instance ExprLike LamBinding where
 
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
-     LHS ps res wes -> LHS ps (mapE res) $ mapE wes
+     LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
    where mapE e = mapExpr f e
 
 instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where

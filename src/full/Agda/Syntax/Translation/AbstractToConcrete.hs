@@ -51,6 +51,7 @@ import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Pattern as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
@@ -889,14 +890,14 @@ instance ToConcrete LetBinding [C.Declaration] where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (isInstance info) $
                [ C.TypeSig info (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
+               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] [] NoEllipsis) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -991,10 +992,10 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
-          C.LHS p _ _ -> do
+          C.LHS p _ _ ell -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
@@ -1147,7 +1148,7 @@ instance ToConcrete A.SpineLHS C.LHS where
 instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
-          ret $ C.LHS lhs [] []
+          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
 
 instance ToConcrete A.LHSCore C.Pattern where
   bindToConcrete = bindToConcrete . lhsCoreToPattern

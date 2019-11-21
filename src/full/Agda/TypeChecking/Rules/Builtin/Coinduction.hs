@@ -135,6 +135,7 @@ bindBuiltinFlat x =
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
           , clauseUnreachable = Just False
+          , clauseEllipsis  = NoEllipsis
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection

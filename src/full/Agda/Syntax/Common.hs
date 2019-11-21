@@ -2351,3 +2351,30 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
   killRange = \case
     Rewrite es    -> killRange1 Rewrite es
     Invert qn pes -> killRange2 Invert qn pes
+
+-----------------------------------------------------------------------------
+-- * Information on expanded ellipsis (@...@)
+-----------------------------------------------------------------------------
+
+-- ^ When the ellipsis in a clause are expanded, we remember that we
+--   did so. We also store the number of with-arguments that are
+--   included in the expanded ellipsis.
+data ExpandedEllipsis
+  = ExpandedEllipsis
+  { ellipsisRange :: Range
+  , ellipsisWithArgs :: Int
+  }
+  | NoEllipsis
+  deriving (Data, Show, Eq)
+
+instance Null ExpandedEllipsis where
+  null  = (== NoEllipsis)
+  empty = NoEllipsis
+
+instance KillRange ExpandedEllipsis where
+  killRange (ExpandedEllipsis _ k) = ExpandedEllipsis noRange k
+  killRange NoEllipsis             = NoEllipsis
+
+instance NFData ExpandedEllipsis where
+  rnf (ExpandedEllipsis _ a) = rnf a
+  rnf NoEllipsis             = ()

@@ -2208,7 +2208,7 @@ validHaskellModuleName = all ok . splitOnDots
 
 -- | Turn an expression into a left hand side.
 exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
-exprToLHS e = LHS <$> exprToPattern e
+exprToLHS e = (\e rwr wth -> LHS e rwr wth NoEllipsis) <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -2283,11 +2283,11 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
       return [FunClause lhs rhs wh False]
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
-        LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
-        LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
-        LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
-        LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] []  -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p _ _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
+        LHS _ _ (_:_) _ -> parseError "Illegal: with in type signature"
+        LHS _ (_:_) _ _ -> parseError "Illegal: rewrite in type signature"
+        LHS p _ _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
+        LHS p [] [] _  -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
           return $ typeSig info x e
       _ -> parseError "A type signature cannot have a where clause"
@@ -2295,7 +2295,7 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s [FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca] | null (parseInp s) ->
+    ParseOk s [FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 

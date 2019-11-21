@@ -12,13 +12,17 @@ import Data.Foldable (traverse_)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
+import Data.Monoid
 import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Info
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete (NameInScope(..))
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Concrete.Pattern as C
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Pattern as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base  ( ResolvedName(..), BindingSource(..), KindOfName(..), exceptKindsOfNames, inverseScopeLookupName', AllowAmbiguousNames(..) )
@@ -202,7 +206,9 @@ recheckAbstractClause t sub cl = checkClauseLHS t sub cl $ \ lhs ->
                , clauseBody        = Nothing -- We don't need the body for make case
                , clauseType        = Just (lhsBodyType lhs)
                , clauseCatchall    = False
-               , clauseUnreachable = Nothing }
+               , clauseUnreachable = Nothing
+               , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS cl
+               }
 
 -- | Entry point for case splitting tactic.
 
@@ -235,6 +241,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
+      ell  = clauseEllipsis clause
   reportSDoc "interaction.case" 10 $ vcat
     [ "splitting clause:"
     , nest 2 $ vcat
@@ -243,6 +250,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       , "tel     =" <+> (inTopContext . prettyTCM) tel
       , "perm    =" <+> text (show perm)
       , "ps      =" <+> prettyTCMPatternList ps
+      , "ell     =" <+> text (show ell)
       ]
     ]
   reportSDoc "interaction.case" 60 $ vcat
@@ -264,7 +272,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- This will expand an ellipsis, if present.
 
   if concat vars == "." then do
-    cl <- makeAbstractClause f rhs $ clauseToSplitClause clause
+    cl <- makeAbstractClause f rhs NoEllipsis $ clauseToSplitClause clause
     return (f, casectxt, [cl])
 
   -- If we have no split variables, split on result.
@@ -313,7 +321,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return cov
     checkClauseIsClean ipCl
-    (f, casectxt,) <$> mapM (makeAbstractClause f rhs) scs
+    (f, casectxt,) <$> mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
@@ -325,6 +333,13 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
     scs <- split f toSplit sc
     reportSLn "interaction.case" 70 $ "makeCase: survived the splitting"
+
+    -- If any of the split variables is hidden by the ellipsis, we
+    -- should force the expansion of the ellipsis.
+    splitNames <- mapM nameOfBV toSplit
+    shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
+    let ell' | shouldExpandEllipsis = NoEllipsis
+             | otherwise            = ell
 
     -- CLEAN UP OF THE GENERATED CLAUSES
     -- 1. filter out the generated clauses that are already covered
@@ -350,18 +365,18 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     cs <- catMaybes <$> do
      forM scs $ \ (sc, isAbsurd) -> if isAbsurd
       -- absurd clause coming from a split asked for by the user
-      then Just <$> makeAbsurdClause f sc
+      then Just <$> makeAbsurdClause f ell' sc
       -- trivially empty clause due to the refined patterns
       else
         ifM (liftTCM $ isEmptyTel (scTel sc))
           {- then -} (pure Nothing)
-          {- else -} (Just <$> makeAbstractClause f rhs sc)
+          {- else -} (Just <$> makeAbstractClause f rhs ell' sc)
     reportSLn "interaction.case" 70 $ "makeCase: survived filtering out impossible clauses"
     -- 3. If the cleanup removed everything then we know that none of the clauses where
     --    absurd but that all of them were trivially empty. In this case we rewind and
     --    insert all the clauses (garbage in, garbage out!)
     cs <- if not (null cs) then pure cs
-          else mapM (makeAbstractClause f rhs . fst) scs
+          else mapM (makeAbstractClause f rhs ell' . fst) scs
 
     reportSDoc "interaction.case" 65 $ vcat
       [ "split result:"
@@ -419,8 +434,8 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
 
 -- | Make clause with no rhs (because of absurd match).
 
-makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel sps _ _ t) = do
+makeAbsurdClause :: QName -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
+makeAbsurdClause f ell (SClause tel sps _ _ t) = do
   let ps = fromSplitPatterns sps
   reportSDoc "interaction.case" 10 $ vcat
     [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
@@ -428,6 +443,7 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
       [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
       , "tel     =" <+> do inTopContext $ prettyTCM tel
       , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
+      , "ell     =" <+> text (show ell)
       ]
     ]
   withCurrentModule (qnameModule f) $ do
@@ -435,7 +451,7 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange noRange tel ps Nothing t False Nothing
+    let c = Clause noRange noRange tel ps Nothing t False Nothing ell
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
@@ -450,10 +466,10 @@ makeAbsurdClause f (SClause tel sps _ _ t) = do
 
 -- | Make a clause with a question mark as rhs.
 
-makeAbstractClause :: QName -> A.RHS -> SplitClause -> TCM A.Clause
-makeAbstractClause f rhs cl = do
+makeAbstractClause :: QName -> A.RHS -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
+makeAbstractClause f rhs ell cl = do
 
-  lhs <- A.clauseLHS <$> makeAbsurdClause f cl
+  lhs <- A.clauseLHS <$> makeAbsurdClause f ell cl
   reportSDoc "interaction.case" 60 $ "reified lhs: " <+> prettyA lhs
 
   return $ A.Clause lhs [] rhs A.noWhereDecls False
@@ -461,6 +477,28 @@ makeAbstractClause f rhs cl = do
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
   -- return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
+
+anyEllipsisVar :: QName -> A.SpineClause -> [Name] -> TCM Bool
+anyEllipsisVar f cl xs = do
+  let lhs = A.clauseLHS cl
+      ps  = A.spLhsPats lhs
+      ell = lhsEllipsis $ A.spLhsInfo lhs
+      anyVar :: A.Pattern -> Any -> Any
+      anyVar p acc = Any $ getAny acc || case p of
+        A.VarP x -> A.unBind x `elem` xs
+        _        -> False
+  case ell of
+    NoEllipsis           -> return False
+    ExpandedEllipsis _ k -> do
+      ps' <- snd <$> reifyDisplayFormP f ps []
+      let ellipsisPats :: A.Patterns
+          ellipsisPats = fst $ C.splitEllipsis k ps'
+      reportSDoc "interaction.case.ellipsis" 40 $ vcat
+        [ "should we expand the ellipsis?"
+        , nest 2 $ "xs           =" <+> prettyList_ (map prettyA xs)
+        , nest 2 $ "ellipsisPats =" <+> prettyList_ (map prettyA ellipsisPats)
+        ]
+      return $ getAny $ A.foldrAPattern anyVar ellipsisPats
 
 -- | Check that all names in the abstract thing are in scope.
 class CheckNamesInScope a where

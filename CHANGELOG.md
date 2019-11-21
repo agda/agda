@@ -320,6 +320,10 @@ Emacs mode
 * Agda now also displays the values of let-bound variables in the
   context instead of just their types.
 
+* Agda will now try to preserve the ellipsis (`...`) during case
+  splitting when possible. To manually expand the ellipsis, you may
+  ask Agda to case split on the special identifier `.`.
+
 GHC Backend
 -----------
 

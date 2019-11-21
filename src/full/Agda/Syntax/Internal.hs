@@ -491,6 +491,8 @@ data Clause = Clause
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
       --   @Just False@ means clause is not unreachable.
       --   @Just True@ means clause is unreachable.
+    , clauseEllipsis  :: ExpandedEllipsis
+      -- ^ Was this clause created by expansion of an ellipsis?
     }
   deriving (Data, Show)
 
@@ -1177,8 +1179,8 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing
-  null (Clause _ _ tel pats body _ _ _)
+  empty = Clause empty empty empty empty empty empty False Nothing empty
+  null (Clause _ _ tel pats body _ _ _ _)
     =  null tel
     && null pats
     && null body
@@ -1356,8 +1358,8 @@ instance KillRange a => KillRange (Pattern' a) where
       DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall unreachable) =
-    killRange8 Clause rl rf tel ps body t catchall unreachable
+  killRange (Clause rl rf tel ps body t catchall unreachable ell) =
+    killRange9 Clause rl rf tel ps body t catchall unreachable ell
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

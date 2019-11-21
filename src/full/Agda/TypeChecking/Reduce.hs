@@ -1472,13 +1472,14 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause rl rf tel ps b t catchall unreachable) =
+    instantiateFull' (Clause rl rf tel ps b t catchall unreachable ell) =
        Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t
        <*> return catchall
        <*> return unreachable
+       <*> return ell
 
 instance InstantiateFull Interface where
     instantiateFull' (Interface h s ft ms mod scope inside

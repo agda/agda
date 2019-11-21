@@ -217,14 +217,20 @@ instance KillRange MutualInfo where
     Left hand side information
  --------------------------------------------------------------------------}
 
-newtype LHSInfo = LHSRange Range
-  deriving (Data, Show, Eq, Null)
+data LHSInfo = LHSInfo
+  { lhsRange    :: Range
+  , lhsEllipsis :: ExpandedEllipsis
+  } deriving (Data, Show, Eq)
 
 instance HasRange LHSInfo where
-  getRange (LHSRange r) = r
+  getRange (LHSInfo r _) = r
 
 instance KillRange LHSInfo where
-  killRange (LHSRange r) = LHSRange noRange
+  killRange (LHSInfo r ell) = LHSInfo noRange ell
+
+instance Null LHSInfo where
+  null i = null (lhsRange i) && null (lhsEllipsis i)
+  empty  = LHSInfo empty empty
 
 {--------------------------------------------------------------------------
     Pattern information

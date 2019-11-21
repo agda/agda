@@ -229,6 +229,7 @@ coverageCheck f t cs = do
                       , clauseType        = Nothing
                       , clauseCatchall    = False
                       , clauseUnreachable = Just False
+                      , clauseEllipsis    = NoEllipsis
                       }
       reportSDoc "tc.cover.missing" 20 $ inTopContext $ do
         sep [ "adding missing absurd clause"
@@ -424,6 +425,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
                     , clauseUnreachable = clauseUnreachable cl
+                    , clauseEllipsis  = clauseEllipsis cl
                     }
       where
         (vs,qs) = unzip mps
@@ -813,6 +815,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                     , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                    , clauseEllipsis  = NoEllipsis
                     }
   addClauses f [cl]  -- Important: add at the end.
   return cl
@@ -842,6 +845,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseType      = Just t
                   , clauseCatchall  = False
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
+                  , clauseEllipsis  = NoEllipsis
                   }
   addClauses f [cl]  -- Important: add at the end.
   return cl

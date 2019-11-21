@@ -36,6 +36,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Info
 import Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -653,3 +654,12 @@ instance EmbPrj Empty where
   icod_ a = icod_ =<< lift (Empty.toImpossible a)
 
   value = fmap throwImpossible . value
+
+instance EmbPrj ExpandedEllipsis where
+  icod_ NoEllipsis = icodeN' NoEllipsis
+  icod_ (ExpandedEllipsis a b) = icodeN 1 ExpandedEllipsis a b
+
+  value = vcase valu where
+    valu []      = valuN NoEllipsis
+    valu [1,a,b] = valuN ExpandedEllipsis a b
+    valu _       = malformed

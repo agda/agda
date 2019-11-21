@@ -455,6 +455,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseCatchall  = False
                          , clauseBody      = Just $ rhs
                          , clauseUnreachable = Just False
+                         , clauseEllipsis  = NoEllipsis
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
@@ -469,6 +470,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseCatchall  = False
                          , clauseBody      = Just body
                          , clauseUnreachable = Just False
+                         , clauseEllipsis  = NoEllipsis
                          }
           reportSDoc "trans.rec" 17 $ text $ show c
           reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
@@ -630,6 +632,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
                             , clauseUnreachable = Just False
+                            , clauseEllipsis  = NoEllipsis
                             }
 
         let projection = Projection

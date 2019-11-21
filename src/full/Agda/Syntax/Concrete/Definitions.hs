@@ -962,7 +962,7 @@ niceDeclarations fixs ds = do
             [] -> case lhs of
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
-              LHS p [] [] | Just x <- isSingleIdentifierP p -> do
+              LHS p [] [] _ | Just x <- isSingleIdentifierP p -> do
                 d  <- mkFunDef defaultArgInfo termCheck covCheck x Nothing [d] -- fun def without type signature is relevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
@@ -1319,7 +1319,8 @@ niceDeclarations fixs ds = do
 
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
-    expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
+    expandEllipsis (d@(FunClause lhs@(LHS p _ _ ell) _ _ _) : ds)
+      | ExpandedEllipsis{} <- ell = __IMPOSSIBLE__
       | hasEllipsis p = (d :) <$> expandEllipsis ds
       | otherwise     = (d :) <$> expand (killRange p) ds
       where
@@ -1329,13 +1330,14 @@ niceDeclarations fixs ds = do
           case d of
             Pragma (CatchallPragma _) -> do
                   (d :) <$> expand p ds
-            FunClause (LHS p0 eqs es) rhs wh ca -> do
+            FunClause (LHS p0 eqs es NoEllipsis) rhs wh ca -> do
               case hasEllipsis' p0 of
                 ManyHoles -> throwError $ MultipleEllipses p0
-                OneHole cxt -> do
+                OneHole cxt ~(EllipsisP r) -> do
                   -- Replace the ellipsis by @p@.
                   let p1 = cxt p
-                  let d' = FunClause (LHS p1 eqs es) rhs wh ca
+                  let ell = ExpandedEllipsis r (numberOfWithPatterns p)
+                  let d' = FunClause (LHS p1 eqs es ell) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following
                   -- ellipses also get the additional patterns in p0.
                   (d' :) <$> expand (if null es then p else killRange p1) ds
@@ -1374,10 +1376,10 @@ niceDeclarations fixs ds = do
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
-        numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es = lhs
+        numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es _ = lhs
 
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS p0 _ _) _ _ _) : cs)
+        subClauses (c@(FunClause (LHS p0 _ _ _) _ _ _) : cs)
          | isEllipsis p0 ||
            numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
@@ -1391,7 +1393,7 @@ niceDeclarations fixs ds = do
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _) _ _ _) = hasEllipsis p ||
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) = hasEllipsis p ||
       let
       pns        = patternNames p
       xStrings   = nameStringParts x

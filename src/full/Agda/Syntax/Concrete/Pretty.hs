@@ -413,7 +413,7 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty (LHS p eqs es) = sep
+  pretty (LHS p eqs es ell) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
     , nest 2 $ prefixedThings "with" (map pretty es)

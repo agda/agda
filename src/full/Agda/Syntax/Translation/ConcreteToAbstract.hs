@@ -206,7 +206,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
+             [ C.Clause _ _ (C.LHS _p [] [] NoEllipsis) (C.RHS _) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -1392,7 +1392,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] []) (C.RHS rhs) NoWhere ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere ca) -> do
         mp  <- setCurrentRange p $
                  (Right <$> parsePattern p)
                    `catchError`
@@ -1458,7 +1458,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere []) = do
 {-
             p    <- parseLHS top p
             localToAbstract (snd $ lhsArgs p) $ \args ->
@@ -2161,7 +2161,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
         PatternSynResName (d :! []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs
+    lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
@@ -2202,13 +2202,13 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with ell) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p ell
     printLocals 10 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
@@ -2371,10 +2371,10 @@ instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern
+data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs) =
+    toAbstract (LeftHandSide top lhs ell) =
       traceCall (ScopeCheckLHS top lhs) $ do
         lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
@@ -2392,7 +2392,7 @@ instance ToAbstract LeftHandSide A.LHS where
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange lhs) lhscore
+        return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
 -- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
 mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]

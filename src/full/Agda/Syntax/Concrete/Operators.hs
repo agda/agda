@@ -497,22 +497,6 @@ buildParsers r flat kind exprNames = do
                   flip ($) <$> (noPlaceholder <$> (postLefts <|> higher))
                            <*> postLeft
 
----------------------------------------------------------------------------
--- * Helpers for pattern and lhs parsing
----------------------------------------------------------------------------
-
--- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
---   (in most cases a constructor).
---
---  Pattern needs to be parsed already (operators resolved).
-patternAppView :: Pattern -> [NamedArg Pattern]
-patternAppView p = case p of
-    AppP p arg      -> patternAppView p ++ [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
-    ParenP _ p      -> patternAppView p
-    RawAppP _ _     -> __IMPOSSIBLE__
-    _               -> [ defaultNamedArg p ]
-
 
 ---------------------------------------------------------------------------
 -- * Parse functions

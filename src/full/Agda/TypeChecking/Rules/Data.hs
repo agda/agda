@@ -520,6 +520,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
 
                | otherwise
@@ -532,6 +533,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
         cs = [clause]
       addClauses theName cs
@@ -580,6 +582,7 @@ defineProjections dataname con params names fsT t = do
           , clauseCatchall = False
           , clauseBody = Just $ var i
           , clauseUnreachable = Just False
+          , clauseEllipsis = NoEllipsis
           }
 
     noMutualBlock $ do

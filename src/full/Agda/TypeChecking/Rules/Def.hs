@@ -130,7 +130,7 @@ isAlias cs t =
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t ai delayed i name e mc =
-  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSRange $ getRange i) name []
+  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
@@ -173,6 +173,7 @@ checkAlias t ai delayed i name e mc =
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           , clauseUnreachable = Just False
+                          , clauseEllipsis = NoEllipsis
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
                       , funSplitTree = Just $ SplittingDone 0
@@ -309,6 +310,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
                        , clauseUnreachable = Just False
+                       , clauseEllipsis = NoEllipsis
                        }
                  return (cs ++ [c], Just sys)
 
@@ -702,6 +704,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
                  , clauseUnreachable = Nothing -- we don't know yet
+                 , clauseEllipsis  = lhsEllipsis i
                  }
 
 -- | Type check the @with@ and @rewrite@ lhss and/or the rhs.

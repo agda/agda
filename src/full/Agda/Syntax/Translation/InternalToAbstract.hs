@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   , reifyPatterns
   , reifyUnblocked
   , blankNotInScope
+  , reifyDisplayFormP
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
@@ -1223,8 +1224,9 @@ instance Reify NamedClause A.Clause where
       ++ "\n  f      = " ++ prettyShow f
       ++ "\n  toDrop = " ++ show toDrop
       ++ "\n  cl     = " ++ show cl
+    let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
-    lhs <- uncurry (SpineLHS empty) <$> reifyDisplayFormP f ps []
+    lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
     -- (e.g. for extended lambdas). We still get here with toDrop = True and
     -- pattern lambdas when doing make-case, so take care to drop the right
@@ -1272,7 +1274,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- reifyPatterns $ teleNamedArgs tel
       ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
       let
-        lhs = SpineLHS (LHSRange noRange) f ps
+        lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
