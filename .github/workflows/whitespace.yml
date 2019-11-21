@@ -1,0 +1,21 @@
+name: whitespace
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-haskell@v1
+        with:
+          ghc-version: 8.6.5
+          cabal-version: 2.4
+      - name: Install fix-agda-whitespace
+        run: |
+          cabal v1-update
+          cd src/fix-agda-whitespace/
+          cabal v1-install
+          cd ../..
+      - name: Check the whitespace issue
+        run: |
+          $HOME/.cabal/bin/fix-agda-whitespace --check
