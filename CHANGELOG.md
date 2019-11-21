@@ -353,6 +353,30 @@ GHC Backend
   This is especially important if Haskell bindings are to be
   produced automatically by third party tool.
 
+LaTeX backend
+-------------
+
+* Now the code environment complains if it is given unrecognised options.
+
+  It is also possible to write, say, `hide=true` instead of `hide`,
+  and `hide=false` means that the `hide` option should not be used.
+  Furthermore the same option can be given multiple times, in which
+  case later choices take precedence over earlier ones.
+
+* The code environment has a new option, `number`.
+
+  When the option `number` is used an equation number is generated for
+  the code listing. The number is set to the right, centered
+  vertically. By default the number is set in parentheses, but this
+  can be changed by redefining `\AgdaFormatCodeNumber`.
+
+  The option can optionally be given an argument: when `number=l` is
+  used a label `l`, referring to the code listing, is generated. It is
+  possible to use this option several times with different labels.
+
+  The option has no effect if used together with `hide`, `inline` or
+  `inline*`.
+
 API
 ----
 * Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
