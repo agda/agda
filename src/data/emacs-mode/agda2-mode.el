@@ -927,7 +927,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Replace the line at point with new clauses NEWCLS and reload."
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
-	 (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
+         (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
          (indent (current-column))
          cl)
     (delete-region p1 (line-end-position))
