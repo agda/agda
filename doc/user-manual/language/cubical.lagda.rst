@@ -14,7 +14,9 @@
              ; itIsOne to 1=1 )
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub
-    renaming ( primSubOut to outS )
+    renaming ( primSubOut to outS
+             ; inc        to inS
+             )
   open import Agda.Builtin.Cubical.Glue public
     using ( isEquiv
           ; equiv-proof
@@ -469,8 +471,8 @@ We can also define homogeneous filling of cubes as
           (u : ∀ i → Partial φ A) (u0 : A [ φ ↦ u i0 ])
           (i : I) → A
   hfill {φ = φ} u u0 i = hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
-                                        ; (i = i0) → ouc u0 })
-                               (ouc u0)
+                                        ; (i = i0) → outS u0 })
+                               (outS u0)
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
 ``hcomp u u0``. This can hence be seen as giving us the interior of an
@@ -878,7 +880,7 @@ The Cubical subtypes are exported by ``Agda.Builtin.Cubical.Sub``:
   {-# BUILTIN SUB Sub #-}
 
   postulate
-    inS : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
+    inc : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
 
   {-# BUILTIN SUBIN inS #-}
 
@@ -962,7 +964,7 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
     primIdElim : ∀ {a c} {A : Set a} {x : A}
                    (C : (y : A) → Id x y → Set c) →
                    ((φ : I) (y : A [ φ ↦ (λ _ → x) ])
-                    (w : (x ≡ ouc y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
-                    C (ouc y) (conid φ (ouc w))) →
+                    (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
+                    C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
 
