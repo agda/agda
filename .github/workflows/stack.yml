@@ -1,8 +1,8 @@
-name: stack
+name: stack build
 on: [push, pull_request]
 
 jobs:
-  build:
+  linux:
     runs-on: ubuntu-latest
 
     strategy:
@@ -20,7 +20,9 @@ jobs:
     - name: Install dependencies
       run: |
         stack build ${ARGS} ${FLAGS_1} --only-dependencies
-    - name: Build
+    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
       run: |
         stack build ${ARGS} ${FLAGS_1}
+    - name: Build Agda with -fenable-cluster-counting
+      run: |
         stack build ${ARGS} ${FLAGS_2}
