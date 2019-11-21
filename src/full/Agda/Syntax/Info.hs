@@ -139,36 +139,38 @@ instance KillRange LetInfo where
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
 
-data DefInfo = DefInfo
+data DefInfo' t = DefInfo
   { defFixity   :: Fixity'
   , defAccess   :: Access
   , defAbstract :: IsAbstract
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
+  , defTactic   :: Maybe t
   }
   deriving (Data, Show, Eq)
 
-mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
-mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r)
+mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo' t
+mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r) Nothing
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
-mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo
-mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r)
+mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r) Nothing
 
-instance HasRange DefInfo where
+instance HasRange (DefInfo' t) where
   getRange = getRange . defInfo
 
-instance SetRange DefInfo where
+instance SetRange (DefInfo' t) where
   setRange r i = i { defInfo = setRange r (defInfo i) }
 
-instance KillRange DefInfo where
-  killRange i = i { defInfo = killRange $ defInfo i }
+instance KillRange t => KillRange (DefInfo' t) where
+  killRange i = i { defInfo   = killRange $ defInfo i,
+                    defTactic = killRange $ defTactic i }
 
-instance LensIsAbstract DefInfo where
+instance LensIsAbstract (DefInfo' t) where
   lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
 
-instance AnyIsAbstract DefInfo where
+instance AnyIsAbstract (DefInfo' t) where
   anyIsAbstract = defAbstract
 
 

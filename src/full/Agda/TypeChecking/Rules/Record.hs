@@ -63,7 +63,7 @@ import Agda.Utils.Impossible
 --     [@fields@]  List of field signatures.
 --
 checkRecDef
-  :: Info.DefInfo              -- ^ Position and other info.
+  :: A.DefInfo                 -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> UniverseCheck             -- ^ Check universes?
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.

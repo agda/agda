@@ -189,6 +189,8 @@ data Declaration
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show)
 
+type DefInfo = DefInfo' Expr
+
 type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
 type ImportedName    = ImportedName'    QName ModuleName

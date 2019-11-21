@@ -188,9 +188,9 @@ recordConstructorType decls =
           mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
-        C.NiceField r pr ab inst x a -> do
+        C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBinder $ C.mkBoundName x fx) <$ a
+          let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
           tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
@@ -1523,18 +1523,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
-    C.NiceGeneralize r p i x t -> do
+    C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_
       reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      return [A.Generalize s (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r) i y t]
+      let info = (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r)
+                  { defTactic = tac }
+      return [A.Generalize s info i y t]
 
   -- Fields
-    C.NiceField r p a i x t -> do
+    C.NiceField r p a i tac x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1542,6 +1545,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- all question marks to underscores.  (See issue 1138.)
       let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
           maskIP e                     = e
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
@@ -1553,9 +1557,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
       --   -- this ensures that projections out of irrelevant fields cannot occur
       --   -- Ulf: unless you turn on --irrelevant-projections
-      do
-        bindName p FldName x y
-      return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
+      bindName p FldName x y
+      let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
+      return [ A.Field info y t' ]
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
@@ -1690,7 +1694,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                fs = concat $ forMaybe fields $ \case
                  C.Field _ fs -> Just $ fs <&> \case
                    -- a Field block only contains field signatures
-                   C.FieldSig _ f _ -> f
+                   C.FieldSig _ _ f _ -> f
                    _ -> __IMPOSSIBLE__
                  _ -> Nothing
            unlessNull (duplicates fs) $ \ dups -> do

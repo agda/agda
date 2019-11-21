@@ -459,8 +459,8 @@ ArgIds
 
 -- Modalities preceeding identifiers
 
-ModalArgIds :: { [Arg Name] }
-ModalArgIds : Attributes ArgIds  {% mapM (applyAttrs $1) $2 }
+ModalArgIds :: { ([Attr], [Arg Name]) }
+ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
 
@@ -1175,24 +1175,26 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo x $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
 ArgTypeSigs
-  : ModalArgIds ':' Expr { map (fmap (\ x -> typeSig defaultArgInfo x $3)) $1 }
+  : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
+                           map (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
-      let setOverlap x =
+      let (attrs, xs) = $2
+          setOverlap x =
             case getHiding x of
               Instance _ -> return $ makeInstance' YesOverlap x
               _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo x $4)) $2 }
+      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
   | 'instance' ArgTypeSignatures {
     let
-      setInstance (TypeSig info x t) = TypeSig (makeInstance info) x t
+      setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
       setInstance _ = __IMPOSSIBLE__ in
     map (fmap setInstance) $2 }
 
@@ -1262,7 +1264,7 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
                 inst i = case getHiding i of
                            Instance _ -> InstanceDef
                            _          -> NotInstanceDef
-                toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
+                toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
               in Field (fuseRange $1 $2) $ map toField $2 }
   -- | 'field' ModalArgTypeSignatures
   --           { let
@@ -1276,7 +1278,7 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
 Generalize :: { [Declaration] }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
-                toGeneralize (Arg info (TypeSig _ x t)) = TypeSig info x t
+                toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
               in [ Generalize (fuseRange $1 $2) (map toGeneralize $2) ] }
 
 -- Mutually recursive declarations.
@@ -2289,7 +2291,7 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
         LHS p _ _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
         LHS p [] [] _  -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
-          return $ typeSig info x e
+          return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
@@ -2299,8 +2301,8 @@ parseDisplayPragma r pos s =
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
-typeSig :: ArgInfo -> Name -> Expr -> Declaration
-typeSig i n e = TypeSig i n (Generalized e)
+typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
+typeSig i tac n e = TypeSig i tac n (Generalized e)
 
 -- * Attributes
 
@@ -2345,12 +2347,19 @@ applyAttrs rattrs arg = do
   checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
   foldM (flip applyAttr) arg attrs
 
--- | Set the tactic attribute if present.
+-- | Set the tactic attribute of a binder
 setTacticAttr :: [Attr] -> NamedArg Binder -> NamedArg Binder
 setTacticAttr as = updateNamedArg $ fmap $ \ b ->
+  case getTacticAttr as of
+    Just t  -> b { bnameTactic = Just t }
+    Nothing -> b
+
+-- | Get the tactic attribute if present.
+getTacticAttr :: [Attr] -> TacticAttribute
+getTacticAttr as =
   case tacticAttributes [ a | Attr _ _ a <- as ] of
-    [TacticAttribute e] -> b{ bnameTactic = Just e }
-    []                  -> b
+    [TacticAttribute e] -> Just e
+    []                  -> Nothing
     _                   -> __IMPOSSIBLE__
 
 -- | Report a parse error if two attributes in the list are of the same kind,

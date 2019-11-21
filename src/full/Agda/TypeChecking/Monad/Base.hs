@@ -1035,7 +1035,7 @@ data Constraint
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
     --   candidates yet)
-  | CheckFunDef Delayed Info.DefInfo QName [A.Clause]
+  | CheckFunDef Delayed A.DefInfo QName [A.Clause]
   | UnquoteTactic (Maybe MetaId) Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   deriving (Data, Show)
 
