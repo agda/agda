@@ -1,0 +1,26 @@
+name: stack
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ghc-ver: [8.8.1, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        additional-flags: [ "--flag Agda:cpphs --flag Agda:debug" , "" ]
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
+      FLAGS: "${{ matrix.additional-flags }} --flag Agda:enable-cluster-counting"
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+    - name: Install dependencies
+      run: |
+        echo Build with ${ARGS}
+        stack build ${ARGS} ${FLAGS} --only-dependencies
+    - name: Build
+      run: |
+        stack build ${ARGS} ${FLAGS}
