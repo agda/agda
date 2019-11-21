@@ -109,9 +109,9 @@ jobs:
         - stack build Agda ${ARGS} ${FLAGS_2} --fast
 
     - <<: *compilation-only-job # Use this version to run tests in the next stage
-      name: "This job builds Agda by the latest GHC to run tests. DO NOT CANCEL."
       env:
         GHC_VER=8.8.1
+        FOR_TEST=TRUE
       cache:
         directories:
           - $HOME/.stack
@@ -119,6 +119,9 @@ jobs:
       script:
         - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
         - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests
+        # shelltestrunner is used by `make test-size-solver`
+        # we need to cache it first.
+        - stack install shelltestrunner ${ARGS}
 
     - <<: *compilation-only-job
       env:
@@ -211,6 +214,7 @@ jobs:
       name: "Successful, failing, and compiler tests"
       env:
         GHC_VER=8.8.1
+        FOR_TEST=TRUE
       addons:
         apt:
           packages:
@@ -224,6 +228,9 @@ jobs:
           - $HOME/.stack
           - ${TRAVIS_BUILD_DIR}/.stack-work
       before_install:
+        # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
+        - cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
+
         # Setup ghc & cabal path
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
         - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
@@ -245,6 +252,9 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
         - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
+      before_cache:
+        - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
+
     - <<: *main-job
       name: "Test suites using standard library"
       git:
@@ -256,22 +266,6 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
     - <<: *main-job
-      name: "TAGS, size-solver, and agda-bisect"
-      script:
-        - travis_retry cabal v1-update
-        - make TAGS
-
-        # Build & install size-solver
-        - stack build ${ARGS} ${FLAGS} size-solver
-        - mkdir -p src/size-solver/dist/build/size-solver
-        - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
-        # Test size-solver
-        - stack install ${ARGS} shelltestrunner
-        - make -C src/size-solver/ test
-
-        # Build agda-bisect
-        - make install-agda-bisect
-    - <<: *main-job
       name: "Other test suites"
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} interaction
@@ -282,6 +276,19 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
+
+        - travis_retry cabal v1-update
+        - make TAGS
+
+        # Build & install size-solver
+        - stack build ${ARGS} ${FLAGS} size-solver
+        - mkdir -p src/size-solver/dist/build/size-solver
+        - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
+        # Test size-solver
+        - make -C src/size-solver/ test
+
+        # Build agda-bisect
+        - make install-agda-bisect
 
     - &complete-job
       stage: complete
