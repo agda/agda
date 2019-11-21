@@ -116,6 +116,7 @@ jobs:
         directories:
           - $HOME/.stack
           - $TRAVIS_BUILD_DIR/.stack-work
+          - $HOME/.local/bin
       script:
         - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests --only-dependencies
         - stack build Agda ${ARGS} ${FLAGS_2} --test --no-run-tests
@@ -227,6 +228,7 @@ jobs:
         directories:
           - $HOME/.stack
           - ${TRAVIS_BUILD_DIR}/.stack-work
+          - $HOME/.local/bin
       before_install:
         # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
         - cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
