@@ -26,3 +26,34 @@ jobs:
     - name: Build Agda with -fenable-cluster-counting
       run: |
         stack build ${ARGS} ${FLAGS_2}
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        ghc-ver: [8.8.1]
+        icu-ver: [58.2-3]
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
+      FLAGS: "--flag Agda:enable-cluster-counting"
+      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install stack and wget
+      run: |
+        choco install haskell-stack --no-progress
+        choco install wget --no-progress
+    - name: Install text-icu
+      shell: bash
+      run: |
+        wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
+        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
+    - name: Install dependencies
+      shell: bash
+      run: |
+        stack build ${ARGS} ${FLAGS} --only-dependencies
+    - name: Build with -fenable-cluster-counting
+      shell: bash
+      run: |
+        stack build ${ARGS} ${FLAGS}
