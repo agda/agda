@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
-  [44, 48] assert (g (_12 (y = false)) false ≡ g true false) refl
-           (_12 (y = false))
-             = true
-             : Bool
+  assert (g (_12 (y = false)) false ≡ g true false) refl
+  (_12 (y = false))
+    = true
+    : Bool
 Unsolved metas at the following locations:
   Issue691.agda:21,11-12
   Issue691.agda:26,10-14

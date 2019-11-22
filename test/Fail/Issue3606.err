@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  ?0 a x x₁ = ?0 b x x₁ : A
+  fst ?0 = fst x : A
 Unsolved metas at the following locations:
-  Issue3114.agda:13,7-11
+  Issue3606.agda:14,10-18
 Unsolved interaction metas at the following locations:
-  Issue3114.agda:10,10-11
+  Issue3606.agda:14,14-18

@@ -2,5 +2,5 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Bool → Bool → Bool ———— Errors ———————————————————————————————————————————————— Issue2426.agda:10,1-9 Incomplete pattern matching for f. Missing cases: f false y when checking the definition of f Failed to solve the following constraints: [37, 41] ?0 false false = true : Bool [32, 36] ?0 (f false x) y = y : Bool " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Bool → Bool → Bool ———— Errors ———————————————————————————————————————————————— Issue2426.agda:10,1-9 Incomplete pattern matching for f. Missing cases: f false y when checking the definition of f Failed to solve the following constraints: ?0 false false = true : Bool ?0 (f false x) y = y : Bool " nil)
 ((last . 1) . (agda2-goals-action '(0)))

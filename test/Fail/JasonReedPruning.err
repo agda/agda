@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [35, 39] _23 = f _23 : o
+  _23 = f _23 : o
 Unsolved metas at the following locations:
   JasonReedPruning.agda:23,11-12
   JasonReedPruning.agda:21,11-12

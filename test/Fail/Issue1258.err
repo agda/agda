@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [29, 32, 33] Foo _15 = Bool : Set
-  [28] Bool =< Foo _15
+  Foo _15 = Bool : Set
+  Bool =< Foo _15
 Unsolved metas at the following locations:
   Issue1258.agda:20,9-10
   Issue1258.agda:21,8-13

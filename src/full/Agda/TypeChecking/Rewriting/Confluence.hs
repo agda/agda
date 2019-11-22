@@ -307,7 +307,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ inAbstractMode $ do
         err -> throwError err
       `ifNoConstraints` return $ \pid _ -> do
         cs <- getConstraintsForProblem pid
-        prettyCs <- traverse prettyConstraint $ filter interestingConstraint cs
+        prettyCs <- prettyInterestingConstraints cs
         warning $ RewriteMaybeNonConfluent lhs1 lhs2 prettyCs
         return Nothing
 

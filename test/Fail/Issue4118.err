@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [38, 39, 40, 41] a _ab_20 = a ab : A
+  a _ab_20 = a ab : A
 Unsolved metas at the following locations:
   Issue4118.agda:47,14-15
   Issue4118.agda:47,12-15

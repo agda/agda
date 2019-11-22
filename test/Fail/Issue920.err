@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [23, 26] ?0 (B = A) = x : A
+  ?0 (B = A) = x : A
 Unsolved metas at the following locations:
   Issue920.agda:16,11-50
 Unsolved interaction metas at the following locations:

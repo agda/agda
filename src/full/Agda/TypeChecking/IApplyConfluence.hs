@@ -219,7 +219,7 @@ unifyElims idg es k | Just vs <- allApplyElims idg
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
 unifyElimsMeta :: MetaId -> Elims -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
-unifyElimsMeta m es_m cl k = do
+unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
                   mv <- lookupMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- getMetaType m

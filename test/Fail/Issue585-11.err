@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [33, 34] f₁ n (f₃ n i) = _24 (x = n) (x = i) : D₁
+  f₁ n (f₃ n i) = _24 (x = n) (x = i) : D₁
 Unsolved metas at the following locations:
   Issue585-11.agda:20,17-18
   Issue585-11.agda:23,17-30

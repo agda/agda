@@ -2,5 +2,5 @@ ConfluenceTypeLevelReduction.agda:25,13-16
 Couldn't determine overlap between left-hand sides
 f _u_18 (b _u_18) and f _u_18 (a _u_18)
 because of unsolved constraints:
-  [36, 38] b _u_18 = a _u_18 : A _u_18
+  b _u_18 = a _u_18 : A _u_18
 when checking confluence of the rewrite rule f-b with f-a

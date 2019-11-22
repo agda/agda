@@ -1,8 +1,8 @@
 Failed to solve the following constraints:
-  [112, 116] bla₂ _54 .fst = 0 : Nat
-  [81, 85] fst (blabla _41) = 1 : Nat
-  [53, 57] bla pred _28 = 1 : Nat
-  [43, 47] bla pred _23 = 0 : Nat
+  bla₂ _54 .fst = 0 : Nat
+  fst (blabla _41) = 1 : Nat
+  bla pred _28 = 1 : Nat
+  bla pred _23 = 0 : Nat
 Unsolved metas at the following locations:
   Issue2944.agda:38,17-18
   Issue2944.agda:38,8-26

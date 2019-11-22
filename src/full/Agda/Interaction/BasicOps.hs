@@ -490,10 +490,11 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
 
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
-  pretty (OutputForm r pids c)
-    | null pids = sep [pretty c, prange r]
-    | otherwise = sep [pretty pids, nest 2 $ sep [pretty c, prange r]]
+  pretty (OutputForm r pids c) = sep [pretty c, nest 2 $ prange r, nest 2 $ prPids pids]
     where
+      prPids []    = empty
+      prPids [pid] = parens $ "problem" <+> pretty pid
+      prPids pids  = parens $ "problems" <+> fsep (punctuate "," $ map pretty pids)
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"
         where s = prettyShow r
@@ -510,7 +511,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       CmpLevels cmp t t'   -> pcmp cmp t t'
       CmpTeles  cmp t t'   -> pcmp cmp t t'
       CmpSorts cmp s s'    -> pcmp cmp s s'
-      Guard o pid          -> pretty o <?> brackets ("blocked by problem" <+> pretty pid)
+      Guard o pid          -> pretty o <?> parens ("blocked by problem" <+> pretty pid)
       Assign m e           -> bin (pretty m) ":=" (pretty e)
       TypedAssign m e a    -> bin (pretty m) ":=" $ bin (pretty e) ":?" (pretty a)
       PostponedCheckArgs m es t0 t1 ->
@@ -540,17 +541,17 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
-      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx argumentCtx_ e
-                                               <*> toConcreteCtx argumentCtx_ e'
+      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
+                                               <*> toConcreteCtx TopCtx e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
-    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx argumentCtx_ e
-                                                  <*> toConcreteCtx argumentCtx_ e'
-    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx argumentCtx_ e
-                                                    <*> toConcreteCtx argumentCtx_ e'
+    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx TopCtx e
+                                                  <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx TopCtx e
+                                                    <*> toConcreteCtx TopCtx e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
-    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx argumentCtx_ e
-                                                  <*> toConcreteCtx argumentCtx_ e'
+    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx TopCtx e
+                                                  <*> toConcreteCtx TopCtx e'
     toConcrete (Guard o pid) = Guard <$> toConcrete o <*> pure pid
     toConcrete (Assign m e) = noTakenNames $ Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
@@ -634,8 +635,16 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
       | m == m' = Just es_m
     isMeta _  = Nothing
 
+    -- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
+    stripConstraintPids cs = map stripPids cs
+      where
+        interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
+        stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+        blocking (Guarded c pid) = pid : blocking c
+        blocking _               = []
+
     getConstrs g f = liftTCM $ do
-      cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+      cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s c) -> do
         c <- normalForm norm c
