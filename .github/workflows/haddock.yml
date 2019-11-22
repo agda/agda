@@ -6,8 +6,6 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    env:
-      BUILD_DIR: $HOME/dist
     steps:
     - uses: actions/checkout@v1
     - uses: actions/setup-haskell@v1
@@ -17,9 +15,9 @@ jobs:
     - name: Install dependencies
       run: |
         cabal update
-        cabal install alex happy
-        cabal configure --enable-tests -O0
-        cabal install --only-dependencies
+        cabal new-install alex happy
+        cabal new-configure --enable-tests -O0
+        cabal new-install --only-dependencies
     - name: Build
       run: |
-        cabal haddock
+        cabal new-haddock
