@@ -16,8 +16,8 @@ jobs:
       run: |
         cabal v1-update
         cabal v1-install alex happy
-        cabal v1-install --dependencies-only --enable-tests --force-reinstalls -O0
+        cabal v1-install --dependencies-only -fenable-cluster-counting --enable-tests --force-reinstalls --disable-library-profiling
     - name: Build
       run: |
-        cabal v1-configure -O0
+        cabal v1-configure -fenable-cluster-counting --enable-tests
         cabal v1-haddock
