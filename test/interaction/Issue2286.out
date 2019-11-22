@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Nat ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: [16, 19] ?0 (x = n) = n : Nat " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Nat ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: ?0 (x = n) = n : Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "———— Error ————————————————————————————————————————————————— Issue2286.agda:19,8-12 f n != n of type Nat when checking that the expression refl has type f n == n ———— Warning(s) ———————————————————————————————————————————— 1,1-4 Termination checking failed for the following functions: f Problematic calls: f x when checking that the expression f x has type Nat" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2286.agda" . 456)))

@@ -1,4 +1,4 @@
 NoConstraints.agda:29,8-19
 Failed to solve the following constraints:
-  [65, 66] P _b_20 =< Bool
+  P _b_20 =< Bool
 when checking that the expression unquote should-fail has type ⊤

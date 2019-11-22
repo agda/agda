@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
-  [137, 138] Lift (lsuc lzero ⊔ lsuc lzero) (prod (Lift 1ℓ ?0) b)
-               = Lift 1ℓ (prod a b)
-               : Set₁
+  Lift (lsuc lzero ⊔ lsuc lzero) (prod (Lift 1ℓ ?0) b)
+    = Lift 1ℓ (prod a b)
+    : Set₁
   _a_74 =< lsuc lzero
 Unsolved metas at the following locations:
   Issue3431.agda:49,24-28

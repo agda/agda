@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [156] _109 (us = us) =< us ⊆ us 
+  _109 (us = us) =< us ⊆ us
 Unsolved metas at the following locations:
   Issue3982.agda:24,3-43
   Issue3982.agda:30,8-12

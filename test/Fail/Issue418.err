@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [7, 9] Set = _3 : Set₁
+  Set = _3 : Set₁
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18
