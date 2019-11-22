@@ -55,8 +55,9 @@ interestingConstraint pc = go $ clValue (theConstraint pc)
     go _             = True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) cs'
+prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
   where
+    isBlocked = not . null . blocking . clValue . theConstraint
     cs' = filter interestingConstraint cs
     interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
     stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c

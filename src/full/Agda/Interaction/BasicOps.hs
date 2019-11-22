@@ -16,8 +16,10 @@ import Control.Monad.Identity
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
+import Data.Function (on)
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
@@ -635,14 +637,6 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
       | m == m' = Just es_m
     isMeta _  = Nothing
 
-    -- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
-    stripConstraintPids cs = map stripPids cs
-      where
-        interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
-        stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
-        blocking (Guarded c pid) = pid : blocking c
-        blocking _               = []
-
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
@@ -658,10 +652,19 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
             cl <- reify $ PConstr s c
             enterClosure cl abstractToConcrete_
 
+-- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
+stripConstraintPids :: Constraints -> Constraints
+stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
+  where
+    isBlocked = not . null . blocking . clValue . theConstraint
+    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
+    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    blocking (Guarded c pid) = pid : blocking c
+    blocking _               = []
 
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
 getConstraints' g f = liftTCM $ do
-    cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+    cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
