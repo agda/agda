@@ -77,7 +77,7 @@ recordPatternToProjections p =
     IApplyP{}    -> typeError $ ShouldBeRecordPattern p
     DefP{}       -> typeError $ ShouldBeRecordPattern p
   where
-    proj p = (`applyE` [Proj ProjSystem $ unArg p])
+    proj p = (`applyE` [Proj ProjSystem $ unDom p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
@@ -179,7 +179,7 @@ translateCompiledClauses cc = do
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo c >>= \ case
               RecordCon YesEta fs ->
-                let ch = ConHead c Inductive fs in
+                let ch = ConHead c Inductive (map argFromDom fs) in
                 yesEtaCase ch b
               _ -> noEtaCase
           _ -> noEtaCase
@@ -230,7 +230,7 @@ recordExpressionsToCopatterns = \case
                 traverse recordExpressionsToCopatterns $ Branches
                   { projPatterns   = True
                   , conBranches    = Map.fromList $
-                      zipWith (\ f v -> (unArg f, WithArity 0 $ Done xs v)) fs vs
+                      zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
                   , catchAllBranch = Nothing
@@ -770,7 +770,7 @@ recordTree p@(ConP c ci ps) | conPRecord ci , PatOSystem <- patOrigin (conPInfo 
       -- The content of an @Arg@ might not be reduced (if @Arg@ is @Irrelevant@).
       fields <- getRecordTypeFields =<< reduce (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
-      let proj p = (`applyE` [Proj ProjSystem $ unArg p])
+      let proj p = (`applyE` [Proj ProjSystem $ unDom p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@DefP{} = return $ Left $ translatePattern p

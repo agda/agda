@@ -156,7 +156,7 @@ getFullyAppliedConType c t = do
 
 data ConstructorInfo
   = DataCon Nat                  -- ^ Arity.
-  | RecordCon HasEta [Arg QName] -- ^ List of field names.
+  | RecordCon HasEta [Dom QName] -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.

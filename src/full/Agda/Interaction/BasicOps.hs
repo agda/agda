@@ -1087,8 +1087,8 @@ introTactic pmLambda ii = do
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
-            (return $ map unArg hfs)
-            (return [ unArg a | a <- hfs, visible a ])
+            (return $ map unDom hfs)
+            (return [ unDom a | a <- hfs, visible a ])
       let e = C.Rec noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
       return [ prettyShow e ]
@@ -1210,7 +1210,7 @@ getRecordContents norm ce = do
   (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
   case defn of
     Record{ recFields = fs, recTel = rtel } -> do
-      let xs   = map (nameConcrete . qnameName . unArg) fs
+      let xs   = map (nameConcrete . qnameName . unDom) fs
           tel  = apply rtel vs
           doms = flattenTel tel
       -- Andreas, 2019-04-10, issue #3687: use flattenTel

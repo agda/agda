@@ -1956,7 +1956,7 @@ data Defn = Axiom -- ^ Postulate
               -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
               -- ^ Does this record have a @constructor@?
-            , recFields         :: [Arg QName]
+            , recFields         :: [Dom QName]
               -- ^ The record field names.
             , recTel            :: Telescope
               -- ^ The record field telescope. (Includes record parameters.)

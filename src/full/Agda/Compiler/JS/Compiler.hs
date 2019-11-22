@@ -29,7 +29,7 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Type
-  , arity, nameFixity )
+  , arity, nameFixity, unDom )
 import Agda.Syntax.Literal ( Literal(..) )
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Treeless as T
@@ -330,7 +330,7 @@ definition' kit q d t ls = do
             ( (last ls , Lambda 1
                  (Apply (Lookup (Local (LocalId 0)) (last ls))
                    [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-            : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
+            : (zip [ jsMember (qnameName (unDom fld)) | fld <- flds ]
                  [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
         _ ->
           ret (curriedLambda (np + 1)
