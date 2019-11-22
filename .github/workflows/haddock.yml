@@ -11,13 +11,12 @@ jobs:
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: '8.8.1'
-        cabal-version: '3.0'
+        cabal-version: '2.4'
     - name: Install dependencies
       run: |
-        cabal v1-update
-        cabal v1-install alex happy
-        cabal v1-configure --enable-tests -O0
-        cabal v1-install --only-dependencies
+        cabal update
+        cabal install alex happy
+        cabal configure --enable-tests -O0
     - name: Build
       run: |
-        cabal v1-haddock
+        cabal haddock
