@@ -87,32 +87,31 @@ jobs:
         # we need to cache it first.
         - stack install shelltestrunner ${ARGS}
 
-    # Test documentation: haddock, user-manual.
-    # Since `stack haddock` compiles Agda but `cabal haddock` does
-    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-    - stage: compilation
-      name: Haddock
-      env: GHC_VER=8.8.1 CABAL_VER=2.4
-      addons:
-        apt:
-          packages:
-            - cabal-install-2.4
-            - ghc-8.8.1
-          sources:
-            - hvr-ghc
-      before_install:
-        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-        - export BUILD_DIR=$HOME/dist
-        - export PARALLEL_TESTS=2
-        - export PATH=$HOME/.cabal/bin:$PATH
-      install:
-        - .travis/haddock_install
-
-      ##############################################################################
-      # Testing Haddock [Issue 1773]
-      script:
-        - make BUILD_DIR=$BUILD_DIR haddock
-
+#    # Test documentation: haddock, user-manual.
+#    # Since `stack haddock` compiles Agda but `cabal haddock` does
+#    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
+#    - stage: compilation
+#      name: Haddock
+#      env: GHC_VER=8.8.1 CABAL_VER=2.4
+#      addons:
+#        apt:
+#          packages:
+#            - cabal-install-2.4
+#            - ghc-8.8.1
+#          sources:
+#            - hvr-ghc
+#      before_install:
+#        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+#        - export BUILD_DIR=$HOME/dist
+#        - export PARALLEL_TESTS=2
+#        - export PATH=$HOME/.cabal/bin:$PATH
+#      install:
+#        - .travis/haddock_install
+#
+#      ##############################################################################
+#      # Testing Haddock [Issue 1773]
+#      script:
+#        - make BUILD_DIR=$BUILD_DIR haddock
     - &main-job
       stage: main
       name: "Successful and failing tests"
