@@ -1,0 +1,24 @@
+name: Haddock
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+      BUILD_DIR: $HOME/dist
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: '8.8.1'
+        cabal-version: '3.0'
+    - name: Install dependencies
+      run: |
+        cabal v1-update
+        cabal v1-install alex happy
+        make CABAL_OPTS='--only-dependencies --ghc-option=-O0' install-bin
+    - name: Build
+      run: |
+        make CABAL_OPTS='--ghc-option=-O0' BUILD_DIR=$BUILD_DIR haddock
