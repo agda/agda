@@ -2,8 +2,20 @@
   ::
   module language.reflection where
 
-  open import language.built-ins
   open import Agda.Builtin.Sigma
+  open import Agda.Builtin.Unit
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.List
+  open import Agda.Builtin.Float
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Char
+  open import Agda.Builtin.String
+  open import Agda.Builtin.Word
+  open import Agda.Builtin.Equality
+
+  data ⊥ : Set where
+
+  pattern [_] x = x ∷ []
 
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
