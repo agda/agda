@@ -1426,6 +1426,12 @@ instance Pretty Term where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
+  pretty dom = pTac <+> pDom dom (pretty $ unDom dom)
+    where
+      pTac | Just t <- domTactic dom = "@" <> parens ("tactic" <+> pretty t)
+           | otherwise               = empty
+
 pDom :: LensHiding a => a -> Doc -> Doc
 pDom i =
   case getHiding i of

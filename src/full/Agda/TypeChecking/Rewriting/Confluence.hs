@@ -454,7 +454,7 @@ forceEtaExpansion a v (e:es) = case e of
 
     -- Eta-expand v at record type r, and get field corresponding to f
     (_ , c , ci , fields) <- etaExpandRecord_ r pars (theDef rdef) v
-    let fs        = recFields $ theDef rdef
+    let fs        = map argFromDom $ recFields $ theDef rdef
         i         = fromMaybe __IMPOSSIBLE__ $ elemIndex f $ map unArg fs
         fContent  = unArg $ fromMaybe __IMPOSSIBLE__ $ fields !!! i
         fUpdate w = Con c ci $ map Apply $ updateAt i (w <$) fields

@@ -1057,7 +1057,7 @@ compareProj d d'
           def <- theDef <$> getConstInfo r
           case def of
             Record{ recFields = fs } -> do
-              fs <- return $ map unArg fs
+              fs <- return $ map unDom fs
               case (List.find (d==) fs, List.find (d'==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller

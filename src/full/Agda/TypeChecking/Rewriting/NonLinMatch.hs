@@ -286,7 +286,7 @@ instance Match Type NLPat Term where
             def <- addContext k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
             ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-            let flds = recFields def
+            let flds = map argFromDom $ recFields def
                 mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
                 -- Issue #3335: when matching against the record constructor,
                 -- don't add projections but take record field directly.
@@ -327,7 +327,7 @@ instance Match Type NLPat Term where
           def <- addContext k $ theDef <$> getConstInfo d
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
           ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-          let flds = recFields def
+          let flds = map argFromDom $ recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
           match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
         _ -> no ""

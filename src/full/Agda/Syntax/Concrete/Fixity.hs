@@ -204,8 +204,8 @@ declaresName x = declaresNames [x]
 --   i.e., do not go into modules.
 declaredNames :: Declaration -> DeclaredNames
 declaredNames d = case d of
-  TypeSig _ x _        -> declaresName x
-  FieldSig _ x _       -> declaresName x
+  TypeSig _ _ x _      -> declaresName x
+  FieldSig _ _ x _     -> declaresName x
   Field _ fs           -> foldMap declaredNames fs
   FunClause (LHS p [] [] _) _ _ _
     | IdentP (QName x) <- removeSingletonRawAppP p

@@ -889,7 +889,7 @@ instance ToConcrete LetBinding [C.Declaration] where
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (isInstance info) $
-               [ C.TypeSig info (C.boundName x) t
+               [ C.TypeSig info Nothing (C.boundName x) t
                , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
                              e C.NoWhere False
                ]
@@ -985,7 +985,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
-    return $ C.TypeSig info x' t'
+    return $ C.TypeSig info Nothing x' t'
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = head <$> toConcrete d
 
@@ -1022,28 +1022,30 @@ instance ToConcrete A.Declaration [C.Declaration] where
         (case mp of
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
-        [C.Postulate (getRange i) [C.TypeSig info x' t']]
+        [C.Postulate (getRange i) [C.TypeSig info Nothing x' t']]
 
   toConcrete (A.Generalize s i j x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
+    tac <- traverse toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize (getRange i) [C.TypeSig j x' $ C.Generalized t']]
+      return [C.Generalize (getRange i) [C.TypeSig j tac x' $ C.Generalized t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
+    tac <- traverse toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.FieldSig (A.defInstance i) x' t']
+      return [C.FieldSig (A.defInstance i) tac x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo x' t']]
+      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo Nothing x' t']]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ _ cs) =

@@ -85,9 +85,10 @@ teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
-teleArgs tel =
-  [ Arg info (deBruijnVar i)
-  | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]
+teleArgs = map argFromDom . teleDoms
+
+teleDoms :: (DeBruijn a) => Tele (Dom t) -> [Dom a]
+teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
   where l = telToList tel
 
 -- UNUSED
@@ -98,10 +99,7 @@ teleArgs tel =
 --   where l = telToList tel
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
-teleNamedArgs tel =
-  [ fmap (deBruijnVar i <$) $ namedArgFromDom dom
-  | (i, dom) <- zip (downFrom $ size l) l ]
-  where l = telToList tel
+teleNamedArgs = map namedArgFromDom . teleDoms
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
 --   from the first telescope and the variable names from the second telescope.

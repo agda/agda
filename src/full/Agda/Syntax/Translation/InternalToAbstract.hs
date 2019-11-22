@@ -460,7 +460,7 @@ reifyTerm expandAnonDefs0 v0 = do
           r  <- getConstructorData x
           xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
           vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
+          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           def <- getConstInfo x
           let Constructor{conPars = np} = theDef def
@@ -1212,7 +1212,7 @@ tryRecPFromConP p = do
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps
         where
-          mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
+          mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
 instance Reify (QNamed I.Clause) A.Clause where

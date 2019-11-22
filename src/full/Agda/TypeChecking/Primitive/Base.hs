@@ -205,7 +205,7 @@ getSigmaKit = do
           return . Just $ SigmaKit
             { sigmaName = sigma
             , sigmaCon  = con
-            , sigmaFst  = unArg fst
-            , sigmaSnd  = unArg snd
+            , sigmaFst  = unDom fst
+            , sigmaSnd  = unDom snd
             }
         _ -> __IMPOSSIBLE__

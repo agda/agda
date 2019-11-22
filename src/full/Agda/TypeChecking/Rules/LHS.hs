@@ -245,7 +245,7 @@ updateProblemEqs eqs = do
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
           A.RecP pi fs -> do
-            axs <- recFields . theDef <$> getConstInfo d
+            axs <- map argFromDom . recFields . theDef <$> getConstInfo d
 
             -- Andreas, 2018-09-06, issue #3122.
             -- Associate the concrete record field names used in the record pattern
@@ -1207,7 +1207,7 @@ checkLHS mf = updateModality checkLHS_ where
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
-          axs <- recordFieldNames . theDef <$> getConstInfo d
+          axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
           ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
@@ -1510,7 +1510,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text $ "we are of record type r  = " ++ prettyShow r
         , text   "applied to parameters vs = " <+> prettyTCM vs
-        , text $ "and have fields       fs = " ++ prettyShow fs
+        , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
         ]
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
@@ -1564,7 +1564,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
     tryProj
       :: Bool                 -- ^ Are we allowed to create new constraints?
-      -> [Arg QName]          -- ^ Fields of record type under consideration.
+      -> [Dom QName]          -- ^ Fields of record type under consideration.
       -> QName                -- ^ Name of record type we are eliminating.
       -> Args                 -- ^ Parameters of record type we are eliminating.
       -> QName                -- ^ Candidate projection.
@@ -1593,7 +1593,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If the projection pattern name @d@ is not a field name,
         -- we have to try the next projection name.
         -- If this was not an ambiguous projection, that's an error.
-        argd <- maybe (wrongProj d) return $ List.find ((d ==) . unArg) fs
+        argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
 
         let ai = setModality (getModality argd) $ projArgInfo proj
 
@@ -1762,8 +1762,8 @@ checkParameters dc d pars = liftTCM $ do
     _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
-                        LensSort a, PrettyTCM a)
-                    => DataOrRecord -> a -> Maybe (Arg Type) -> m ()
+                        LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
+                    => DataOrRecord -> a -> Maybe ty -> m ()
 checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case

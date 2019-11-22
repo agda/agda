@@ -246,6 +246,19 @@ Language
   example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
   ```
 
+  Record fields can also be annotated with a tactic, allowing them to be
+  omitted in constructor applications, record constructions and co-pattern
+  matches:
+
+  ```agda
+  record Example : Set where
+    constructor mkExample
+    field x : A
+          @(tactic solveP x) {y} : P x
+  ```
+
+  where `solveP : (x : A) → Term → TC ⊤` is a tactic that tries to prove `P x`.
+
 * The legacy reflection framework using `quoteGoal` and `quoteContext` has been
   removed.
 
