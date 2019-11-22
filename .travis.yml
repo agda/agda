@@ -154,7 +154,7 @@ jobs:
 
     - &main-job
       stage: main
-      name: "Successful, failing, and compiler tests"
+      name: "Successful and failing tests"
       env:
         GHC_VER=8.8.1
       addons:
@@ -194,10 +194,8 @@ jobs:
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
-        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
       before_cache:
         - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
-
     - <<: *main-job
       name: "Test suites using standard library"
       git:
@@ -206,6 +204,12 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} library-test
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
+    - <<: *main-job
+      name: "Compiler tests and benchmark"
+      git:
+        submodules: true
+      script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
     - <<: *main-job
@@ -260,15 +264,5 @@ jobs:
       env: GHC_VER=8.4.4 CABAL_VER=2.2
     - <<: *complete-job
       env: GHC_VER=8.2.2 CABAL_VER=2.0
-
-    # Andreas, 2019-11-13, issue #4177, temporarily disable 8.0
-    # - <<: *complete-job
-    #   env: GHC_VER=8.0.2 CABAL_VER=1.24
-    #   addons:
-    #     apt:
-    #       packages:
-    #         - cabal-install-1.24
-    #         - ghc-8.0.2
-    #         - texlive-binaries
-    #       sources:
-    #         - hvr-ghc
+    - <<: *complete-job
+      env: GHC_VER=8.0.2 CABAL_VER=1.24
