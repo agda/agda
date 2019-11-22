@@ -16,9 +16,10 @@ jobs:
         cabal-version: '3.0'
     - name: Install dependencies
       run: |
-        cabal v1-update
-        cabal v1-install alex happy
+        cabal update
+        cabal install alex happy
+        cabal configure --enable-tests -O0
+        cabal install --only-dependencies
     - name: Build
       run: |
-        cabal v1-configure --enable-tests -O0
-        cabal v1-haddock
+        cabal haddock
