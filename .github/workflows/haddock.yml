@@ -18,7 +18,6 @@ jobs:
       run: |
         cabal v1-update
         cabal v1-install alex happy
-        cabal haddock --only-dependencies --ghc-option=-O0
     - name: Build
       run: |
-        cabal haddock --ghc-option=-O0
+        cabal v1-haddock --ghc-option=-O0
