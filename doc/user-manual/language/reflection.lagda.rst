@@ -619,6 +619,25 @@ For instance,
   test-g : g 4 ≡ 8
   test-g = refl
 
+Record fields can also be annotated with a tactic, allowing them to be
+omitted in constructor applications, record constructions and co-pattern
+matches::
+
+  record Bools : Set where
+    constructor mkBools
+    field fst : Bool
+          @(tactic defaultTo fst) {snd} : Bool
+  open Bools
+
+  tt₀ tt₁ tt₂ tt₃ : Bools
+  tt₀ = mkBools true {true}
+  tt₁ = mkBools true
+  tt₂ = record{ fst = true }
+  tt₃ .fst = true
+
+  test-tt : tt₁ ∷ tt₂ ∷ tt₃ ∷ [] ≡ tt₀ ∷ tt₀ ∷ tt₀ ∷ []
+  test-tt = refl
+
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~
 
