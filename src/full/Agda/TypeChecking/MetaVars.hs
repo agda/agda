@@ -491,7 +491,7 @@ etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
-etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
+etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
