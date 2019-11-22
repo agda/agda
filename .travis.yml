@@ -194,6 +194,7 @@ jobs:
         - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
       ##############################################################################
       script:
+        - stack ${ARGS} exec -- ${MAKE_CMD} bugs
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
       before_cache:
