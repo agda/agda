@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
+import Agda.TypeChecking.Rules.Term (unquoteTactic)
 
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
@@ -100,7 +101,7 @@ data SplitClause = SClause
   , scCheckpoints :: Map CheckpointId Substitution
     -- ^ We need to keep track of the module parameter checkpoints for the
     -- clause for the purpose of inferring missing instance clauses.
-  , scTarget :: Maybe (Arg Type)
+  , scTarget :: Maybe (Dom Type)
     -- ^ The type of the rhs, living in context 'scTel'.
     --   'fixTargetType' computes the new 'scTarget' by applying
     --   substitution 'scSubst'.
@@ -125,7 +126,7 @@ clauseToSplitClause cl = SClause
   , scPats   = toSplitPatterns $ namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scCheckpoints = Map.empty -- #2996: not __IMPOSSIBLE__ for debug printing
-  , scTarget = clauseType cl
+  , scTarget = domFromArg <$> clauseType cl
   }
 
 type CoverM = ExceptT SplitError TCM
@@ -167,7 +168,7 @@ coverageCheck f t cs = do
   checkpoints <- applySubst (raiseS (n - fv)) <$> viewTC eCheckpoints
 
       -- construct the initial split clause
-  let sc = SClause gamma xs idS checkpoints $ Just $ defaultArg a
+  let sc = SClause gamma xs idS checkpoints $ Just $ defaultDom a
 
   reportSDoc "tc.cover.top" 10 $ do
     let prCl cl = addContext (clauseTel cl) $
@@ -315,11 +316,10 @@ cover :: QName -> [Clause] -> SplitClause ->
 cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
     [ "checking coverage of pattern:"
-    , nest 2 $ "tel  =" <+> prettyTCM tel
-    , nest 2 $ "ps   =" <+> do addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
-    , nest 2 $ "target =" <+> do addContext tel $ maybe (text "<none>") prettyTCM target
-    , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unArg) target
+    , nest 2 $ prettyTCM sc
+    , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unDom) target
     ]
+  reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
   match cs ps >>= \case
     Yes (i,mps) -> do
       exact <- allM (map snd mps) isTrivialPattern
@@ -334,16 +334,18 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
-      case fmap getHiding target of
-        Just h | isInstance h -> do
+      let infer dom = isInstance dom || isJust (domTactic dom)
+      if maybe False infer target
+        then do
           -- Ulf, 2016-10-31: For now we only infer instance clauses. It would
           -- make sense to do it also for hidden, but since the value of a
           -- hidden clause is expected to be forced by later clauses, it's too
           -- late to add it now. If it was inferrable we would have gotten a
           -- type error before getting to this point.
+          -- Ulf, 2019-11-21: Also @tactic clauses.
           cl <- inferMissingClause f sc
           return $ CoverResult (SplittingDone (size tel)) Set.empty [] [cl] Set.empty
-        _ -> do
+        else do
           let ps' = fromSplitPatterns ps
           return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] [] Set.empty
 
@@ -734,7 +736,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
           -- Γ,x,Δ ⊢ f old_ps
           -- Γ ⊢ abstract hdelta (f old_ps)
           g <- open $ raise (3+size delta) $ abstract hdelta (Def f old_ps)
-          old_t <- open $ raise (3+size delta) $ abstract hdelta (unArg old_t)
+          old_t <- open $ raise (3+size delta) $ abstract hdelta (unDom old_t)
           let bapp a x = lazyAbsApp <$> a <*> x
           (delta_fill :: NamesT TCM (Abs Args)) <- (open =<<) $ do
             -- Γ,φ,u,u0,Δ(x = hcomp phi u u0) ⊢ x.Δ
@@ -830,19 +832,26 @@ inferMissingClause
    -> TCM Clause
 inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
   reportSDoc "tc.cover.infer" 20 $ addContext tel $ "Trying to infer right-hand side of type" <+> prettyTCM t
-  (_x, rhs) <- case getHiding t of
-    Instance{} -> addContext tel
-                   $ locallyTC eCheckpoints (const cps)
-                   $ checkpoint IdS    -- introduce a fresh checkpoint
-                   $ newInstanceMeta "" (unArg t)
-    Hidden     -> __IMPOSSIBLE__
-    NotHidden  -> __IMPOSSIBLE__
+  rhs <-
+    addContext tel
+    $ locallyTC eCheckpoints (const cps)
+    $ checkpoint IdS    -- introduce a fresh checkpoint
+    $ case getHiding t of
+        _ | Just tac <- domTactic t -> do
+          reportSDoc "tc.cover.infer" 40 $ vcat
+            [ "@tactic rhs"
+            , nest 2 $ "target =" <+> pretty t ]
+          (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq (unDom t)
+          v <$ unquoteTactic tac v (unDom t)
+        Instance{} -> snd <$> newInstanceMeta "" (unDom t)
+        Hidden     -> __IMPOSSIBLE__
+        NotHidden  -> __IMPOSSIBLE__
   let cl = Clause { clauseLHSRange  = noRange
                   , clauseFullRange = noRange
                   , clauseTel       = tel
                   , namedClausePats = fromSplitPatterns ps
                   , clauseBody      = Just rhs
-                  , clauseType      = Just t
+                  , clauseType      = Just (argFromDom t)
                   , clauseCatchall  = False
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis  = NoEllipsis
@@ -908,7 +917,7 @@ isDatatype ind at = do
     _ -> throw NotADatatype
 
 -- | Update the target type of the split clause after a case split.
-fixTargetType :: SplitClause -> Arg Type -> TCM SplitClause
+fixTargetType :: SplitClause -> Dom Type -> TCM SplitClause
 fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
     reportSDoc "tc.cover.target" 20 $ sep
       [ "split clause telescope: " <+> prettyTCM sctel
@@ -916,9 +925,9 @@ fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
     reportSDoc "tc.cover.target" 60 $ sep
       [ "substitution          : " <+> prettyTCM sigma
       ]
-    reportSDoc "tc.cover.target" 30 $ sep
-      [ "target type before substitution (variables may be wrong): " <+> do
-          addContext sctel $ prettyTCM target
+    reportSDoc "tc.cover.target" 60 $ sep
+      [ "target type before substitution:" <+> pretty target
+      , "             after substitution:" <+> pretty (applySplitPSubst sigma target)
       ]
     return $ sc { scTarget = Just $ applySplitPSubst sigma target }
 
@@ -928,7 +937,7 @@ fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
 insertTrailingArgs :: SplitClause -> TCM (Telescope, SplitClause)
 insertTrailingArgs sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } =
   caseMaybe target (return (empty,sc)) $ \ a -> do
-    (TelV tel b) <- telViewUpTo (-1) $ unArg a
+    (TelV tel b) <- telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
           addContext sctel $ prettyTCM tel
@@ -1165,7 +1174,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       let ps' = applySubst rho ps
       debugPlugged delta' ps'
 
-      let cps' = applySplitPSubst rho cps
+      let cps'  = applySplitPSubst rho cps
 
       return $ Just $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
@@ -1389,7 +1398,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         else computeNeighborhoods
 
   ns <- case target of
-    Just a  -> forM ns $ \(con,sc) -> lift $ (con,) <$> fixTargetType sc a
+    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType sc a
     Nothing -> return ns
 
   ns <- case inserttrailing of
@@ -1501,8 +1510,8 @@ splitResult f sc = do
 splitResultPath :: QName -> SplitClause -> TCM (Maybe SplitClause)
 splitResultPath f sc@(SClause tel ps _ _ target) = do
   caseMaybe target (return Nothing) $ \ t -> do
-        caseMaybeM (isPath (unArg t)) (return Nothing) $ \ _ -> do
-               (TelV i b, boundary) <- telViewUpToPathBoundary' 1 (unArg t)
+        caseMaybeM (isPath (unDom t)) (return Nothing) $ \ _ -> do
+               (TelV i b, boundary) <- telViewUpToPathBoundary' 1 (unDom t)
                let tel' = abstract tel i
                    rho  = raiseS 1
                    ps' = applySubst rho (scPats sc) ++ telePatterns i boundary
@@ -1526,12 +1535,12 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
   -- if we want to split projections, but have no target type, we give up
   let failure = return . Left
   caseMaybe target (failure CosplitNoTarget) $ \ t -> do
-    isR <- addContext tel $ isRecordType $ unArg t
+    isR <- addContext tel $ isRecordType $ unDom t
     case isR of
       Just (_r, vs, Record{ recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
           [ text $ "we are of record type _r = " ++ prettyShow _r
-          , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
+          , text   "applied to parameters vs =" <+> (addContext tel $ prettyTCM vs)
           , text $ "and have fields       fs = " ++ prettyShow fs
           ]
         -- Andreas, 2018-06-09, issue #2170, we always have irrelevant projections
@@ -1543,8 +1552,10 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
         -- Note: module parameters are part of ps
         let self  = defaultArg $ Def f [] `applyE` es
             pargs = vs ++ [self]
-        reportSDoc "tc.cover" 20 $ sep
-          [ text   "we are              self = " <+> (addContext tel $ prettyTCM $ unArg self)
+            fieldValues = for fs $ \ proj -> unArg self `applyE` [Proj ProjSystem (unDom proj)]
+        reportSDoc "tc.cover" 20 $ addContext tel $ sep
+          [ text   "we are              self =" <+> prettyTCM (unArg self)
+          , text   "            field values =" <+> prettyTCM fieldValues
           ]
         let n = defaultArg $ permRange $ fromMaybe __IMPOSSIBLE__ $ dbPatPerm $ fromSplitPatterns ps
             -- Andreas & James, 2013-11-19 includes the dot patterns!
@@ -1554,19 +1565,26 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
         -- Andreas, 2016-07-22 read the style of projections from the user's lips
         projOrigin <- ifM (optPostfixProjections <$> pragmaOptions) (return ProjPostfix) (return ProjPrefix)
         Right . Covering n <$> do
-          forM fs $ \ proj -> do
+          forM (zip fs $ List.inits fieldValues) $ \ (proj, prevFields) -> do
             -- compute the new target
-            dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
-            let -- type of projection instantiated at self
-                target' = Just $ proj $> dType `piApply` pargs      -- Always visible (#2287)
-                projArg = fmap (Named Nothing . ProjP projOrigin) $ setHiding NotHidden proj
+            dType <- defType <$> do getConstInfo $ unDom proj -- WRONG: typeOfConst $ unArg proj
+            let -- Substitution for parameters and previous fields. Needs to be applied to potential
+                -- tactic in proj.
+                fieldSub = reverse (map unArg vs ++ prevFields) ++# EmptyS __IMPOSSIBLE__
+                proj'    = applySubst fieldSub proj
+                -- type of projection instantiated at self
+                target' = Just $ proj' $> dType `piApply` pargs      -- Always visible (#2287)
+                projArg = fmap (Named Nothing . ProjP projOrigin) $ argFromDom $ setHiding NotHidden proj
                 sc' = sc { scPats   = scPats sc ++ [projArg]
                          , scSubst  = idS
                          , scTarget = target'
                          }
-            return (SplitCon (unArg proj), sc')
+            reportSDoc "tc.cover.copattern" 40 $ vcat
+              [ "fieldSub for" <+> prettyTCM (unDom proj)
+              , nest 2 $ pretty fieldSub ]
+            return (SplitCon (unDom proj), sc')
       _ -> addContext tel $ do
-        buildClosure (unArg t) >>= failure . CosplitNoRecordType
+        buildClosure (unDom t) >>= failure . CosplitNoRecordType
   -- Andreas, 2018-06-09, issue #2170: splitting with irrelevant fields is always fine!
   -- where
   -- -- A record type is strong if it has all the projections.
