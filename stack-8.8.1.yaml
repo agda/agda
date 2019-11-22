@@ -50,7 +50,6 @@ extra-deps:
 - old-time-1.1.0.3
 - polyparse-1.13
 # The following packages are used for testing
-- polyparse-1.13
 - QuickCheck-2.13.2
 - filemanip-0.3.6.3
 - process-extras-0.7.4
