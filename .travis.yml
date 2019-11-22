@@ -38,7 +38,9 @@ git:
 
 stages:
   - name: compilation
+    if: NOT (branch =~ /^release-.*/) AND NOT (tag IS present) AND NOT (commit_message =~ complete\s+tests)
   - name: main
+    if: NOT (branch =~ /^release-.*/) AND NOT (tag IS present) AND NOT (commit_message =~ complete\s+tests)
   - name: complete
     if: (branch =~ /^release-.*/) OR (tag IS present) OR (commit_message =~ complete\s+tests)
 
