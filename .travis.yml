@@ -87,24 +87,6 @@ jobs:
         # we need to cache it first.
         - stack install shelltestrunner ${ARGS}
 
-    - stage: compilation
-      name: User Manual
-      language: python
-      python: "3.4"
-      before_install:
-        - export BUILD_DIR=$HOME/dist
-        - export PATH=$HOME/.local/bin:$PATH
-        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-      install:
-        - .travis/manual_install
-      ##############################################################################
-      # Making the user manual
-
-      # Not running `make user-manual-linkcheck`.
-      script:
-        - make user-manual-html
-        - make user-manual-pdf
-
     # Test documentation: haddock, user-manual.
     # Since `stack haddock` compiles Agda but `cabal haddock` does
     # not, this test is faster using `BUILD=CABAL` [Issue #2188].
