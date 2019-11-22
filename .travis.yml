@@ -87,29 +87,6 @@ jobs:
         # we need to cache it first.
         - stack install shelltestrunner ${ARGS}
 
-    # Windows environment
-    - stage: compilation
-      os: windows
-      cache:
-        directories:
-          - $LOCALAPPDATA/Programs/stack
-          - $APPDATA/stack
-      language: c
-      env:
-        GHC_VER=8.8.1
-        ICU_VER=58.2-3
-      before_install:
-        - travis_retry choco install haskell-stack --no-progress
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export FLAGS="--flag Agda:enable-cluster-counting"
-      install:
-        - travis_retry wget -q http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
-        - yes | stack --compiler ghc-${GHC_VER} exec -- pacman -U mingw-w64-x86_64-icu-${ICU_VER}-any.pkg.tar.xz
-        - stack build --compiler ghc-${GHC_VER} text-icu
-        - stack build ${ARGS} ${FLAGS} --only-dependencies
-      script:
-        - stack build ${ARGS} ${FLAGS} --fast
-
     - stage: compilation
       name: User Manual
       language: python
