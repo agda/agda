@@ -14,9 +14,10 @@ jobs:
         cabal-version: '2.4'
     - name: Install dependencies
       run: |
-        cabal update
-        cabal install alex happy
-        cabal configure -O0
+        cabal v1-update
+        cabal v1-install alex happy
+        cabal v1-install --dependencies-only --enable-tests --force-reinstalls
     - name: Build
       run: |
-        cabal haddock
+        cabal v1-configure -O0
+        cabal v1-haddock
