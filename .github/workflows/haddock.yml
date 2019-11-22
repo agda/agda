@@ -20,4 +20,5 @@ jobs:
         cabal v1-install alex happy
     - name: Build
       run: |
-        cabal v1-haddock --ghc-option=-O0
+        cabal v1-configure --enable-tests -O0
+        cabal v1-haddock
