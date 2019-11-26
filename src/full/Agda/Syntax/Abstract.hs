@@ -210,7 +210,7 @@ data Pragma
   | BuiltinNoDefPragma String QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
-  | RewritePragma QName
+  | RewritePragma [QName]
   | CompilePragma String QName String
   | StaticPragma QName
   | EtaPragma QName

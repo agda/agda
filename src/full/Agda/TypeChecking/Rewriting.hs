@@ -148,9 +148,10 @@ addRewriteRules qs = do
     reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
     modifySignature $ addRewriteRulesFor f [rew] matchables
 
-  -- Run confluence check for the new rule
+  -- Run confluence check for the new rules
+  -- (should be done after adding all rules, see #3795)
   whenM (optConfluenceCheck <$> pragmaOptions) $
-    mapM_ checkConfluenceOfRule rews
+    checkConfluenceOfRules rews
 
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule

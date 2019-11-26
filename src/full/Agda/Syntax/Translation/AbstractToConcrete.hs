@@ -1131,7 +1131,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
     A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
-    A.RewritePragma x         -> C.RewritePragma r . singleton <$> toConcrete x
+    A.RewritePragma x         -> C.RewritePragma r <$> toConcrete x
     A.CompilePragma b x s -> do
       x <- toConcrete x
       return $ C.CompilePragma r b x s

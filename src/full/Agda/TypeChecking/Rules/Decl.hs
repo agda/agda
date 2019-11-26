@@ -691,7 +691,7 @@ checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
-        A.RewritePragma q -> addRewriteRules [q]
+        A.RewritePragma qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
           x' <- defName <$> getConstInfo x  -- Get the canonical name of x.

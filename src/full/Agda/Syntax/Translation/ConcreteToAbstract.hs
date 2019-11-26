@@ -90,6 +90,7 @@ import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -2051,14 +2052,14 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ xs) = concat <$> do
+  toAbstract (C.RewritePragma _ xs) = singleton . A.RewritePragma . concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
-      A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj _ p | Just x <- getUnambiguous p -> return [ A.RewritePragma x ]
+      A.Def x          -> return [ x ]
+      A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
       A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Con c | Just x <- getUnambiguous c -> return [ A.RewritePragma x ]
+      A.Con c | Just x <- getUnambiguous c -> return [ x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__

@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Checking confluence of rewrite rules.
 --
@@ -15,14 +16,15 @@
 -- Each of these leads to a *critical pair* @v₁ <-- u --> v₂@, which
 -- should satisfy @v₁ = v₂@.
 
-module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRule , checkConfluenceOfClause ) where
+module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules , checkConfluenceOfClause ) where
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 
+import Data.Function ( on )
 import Data.Functor ( ($>) )
-import Data.List ( elemIndex )
+import Data.List ( elemIndex , tails )
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -59,10 +61,10 @@ import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 
--- ^ Check confluence of the given rewrite rule wrt all other rewrite
---   rules (including itself).
-checkConfluenceOfRule :: RewriteRule -> TCM ()
-checkConfluenceOfRule = checkConfluenceOfRule' False
+-- ^ Check confluence of the given rewrite rules wrt all other rewrite
+--   rules (also amongst themselves).
+checkConfluenceOfRules :: [RewriteRule] -> TCM ()
+checkConfluenceOfRules = checkConfluenceOfRules' False
 
 -- ^ Check confluence of the given clause wrt rewrite rules of the
 -- constructors it matches against
@@ -70,14 +72,16 @@ checkConfluenceOfClause :: QName -> Int -> Clause -> TCM ()
 checkConfluenceOfClause f i cl = do
   fi <- clauseQName f i
   whenJust (clauseToRewriteRule f fi cl) $ \rew -> do
-    checkConfluenceOfRule' True rew
+    checkConfluenceOfRules' True [rew]
     let matchables = getMatchables rew
     reportSDoc "rewriting.confluence" 30 $
       "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
     modifySignature $ setMatchableSymbols f matchables
 
-checkConfluenceOfRule' :: Bool -> RewriteRule -> TCM ()
-checkConfluenceOfRule' isClause rew = inTopContext $ inAbstractMode $ do
+checkConfluenceOfRules' :: Bool -> [RewriteRule] -> TCM ()
+checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
+
+  forM_ (tails rews) $ listCase (return ()) $ \rew rewsRest -> do
 
   reportSDoc "rewriting.confluence" 10 $
     "Checking confluence of rule" <+> prettyTCM (rewName rew)
@@ -90,7 +94,7 @@ checkConfluenceOfRule' isClause rew = inTopContext $ inAbstractMode $ do
 
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getRulesFor f isClause) $ \ rew' ->
-    unless (rewName rew == rewName rew') $
+    unless (any (sameName rew') $ rew:rewsRest) $
       checkConfluenceTop hdf rew rew'
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
@@ -99,21 +103,25 @@ checkConfluenceOfRule' isClause rew = inTopContext $ inAbstractMode $ do
   forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole ->
     caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (g , hdg , _) -> do
       forMM_ (getRulesFor g isClause) $ \rew' ->
-        checkConfluenceSub hdf hdg rew rew' hole
+        unless (any (sameName rew') rewsRest) $
+          checkConfluenceSub hdf hdg rew rew' hole
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g -> do
     forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' -> do
-      es' <- nlPatToTerm (rewPats rew')
-      let tel' = rewContext rew'
-      def' <- getConstInfo g
-      (ga , hdg) <- addContext tel' $ makeHead def' (rewType rew')
-      forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole ->
-        caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (f' , _ , _) ->
-          when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
+      unless (any (sameName rew') rewsRest) $ do
+        es' <- nlPatToTerm (rewPats rew')
+        let tel' = rewContext rew'
+        def' <- getConstInfo g
+        (ga , hdg) <- addContext tel' $ makeHead def' (rewType rew')
+        forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole ->
+          caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (f' , _ , _) ->
+            when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
 
   where
+
+    sameName = (==) `on` rewName
 
     -- Check confluence of two rewrite rules that have the same head symbol,
     -- e.g. @f ps --> a@ and @f ps' --> b@.
