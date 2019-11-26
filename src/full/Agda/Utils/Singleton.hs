@@ -10,6 +10,8 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -23,8 +25,6 @@ import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Agda.Utils.NonemptyList (NonemptyList((:!)))
-
 class Singleton el coll | coll -> el where
   singleton :: el -> coll
 
@@ -32,8 +32,8 @@ instance Singleton a   (Maybe a)   where singleton = Just
 instance Singleton a   [a]         where singleton = (:[])
 instance Singleton a  ([a] -> [a]) where singleton = (:)
 instance Singleton a   (Endo [a])  where singleton = Endo . (:)
-instance Singleton a   (NonemptyList a)
-                                   where singleton = (:! [])
+instance Singleton a   (NonEmpty a)
+                                   where singleton = (:| [])
 instance Singleton a   (Seq a)     where singleton = Seq.singleton
 instance Singleton a   (Set a)     where singleton = Set.singleton
 instance Singleton Int IntSet      where singleton = IntSet.singleton

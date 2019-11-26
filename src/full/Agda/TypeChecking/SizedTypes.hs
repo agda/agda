@@ -8,6 +8,8 @@ import Control.Monad.Writer
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -28,7 +30,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty)
 import Agda.Utils.Singleton
@@ -305,9 +306,9 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
 -- | Compare two sizes in max view.
 compareMaxViews :: (MonadConversion m) => Comparison -> SizeMaxView -> SizeMaxView -> m ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
-  (CmpLeq, _, (DSizeInf :! _)) -> return ()
-  (cmp, u:![], v:![]) -> compareSizeViews cmp u v
-  (CmpLeq, us, v:![]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, _, (DSizeInf :| _)) -> return ()
+  (cmp, u:|[], v:|[]) -> compareSizeViews cmp u v
+  (CmpLeq, us, v:|[]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
   (CmpLeq, us, vs)    -> Fold.forM_ us $ \ u -> compareBelowMax u vs
   (CmpEq,  us, vs)    -> do
     compareMaxViews CmpLeq us vs
