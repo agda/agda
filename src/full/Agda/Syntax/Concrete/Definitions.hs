@@ -284,11 +284,11 @@ instance HasRange DeclarationException where
   getRange (BadMacroDef d)                      = getRange d
 
 instance HasRange DeclarationWarning where
-  getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
-  getRange (UnknownFixityInMixfixDecl xs)       = getRange . head $ xs
-  getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
-  getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
-  getRange (MissingDefinitions xs)              = getRange . head $ xs
+  getRange (UnknownNamesInFixityDecl xs)        = getRange xs
+  getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
+  getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
+  getRange (PolarityPragmasButNotPostulates xs) = getRange xs
+  getRange (MissingDefinitions xs)              = getRange xs
   getRange (UselessPrivate r)                   = r
   getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
