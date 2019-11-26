@@ -14,6 +14,8 @@ import Control.Monad
 import Data.Either (partitionEithers)
 import Data.Function
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -39,7 +41,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe (filterMaybe)
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -110,9 +111,9 @@ data ScopeInfo = ScopeInfo
       }
   deriving (Data, Show)
 
-type NameMap   = Map A.QName      (NonemptyList C.QName)
+type NameMap   = Map A.QName      (NonEmpty C.QName)
 type ModuleMap = Map A.ModuleName [C.QName]
--- type ModuleMap = Map A.ModuleName (NonemptyList C.QName)
+-- type ModuleMap = Map A.ModuleName (NonEmpty C.QName)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
@@ -441,13 +442,13 @@ data ResolvedName
     DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
-    FieldName (NonemptyList AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
+    FieldName (NonEmpty AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
 
   | -- | Data or record constructor name.
-    ConstructorName (NonemptyList AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
+    ConstructorName (NonEmpty AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
-    PatternSynResName (NonemptyList AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
+    PatternSynResName (NonEmpty AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
   | -- | Unbound name.
     UnknownName
@@ -1100,8 +1101,8 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     Left  m -> best $ filter unambiguousModule $ findModule m
     Right q -> best $ filter unambiguousName   $ findName q
   where
-    findName   x = maybe [] toList $ Map.lookup x (scope ^. scopeInverseName)
-    findModule x = fromMaybe []    $ Map.lookup x (scope ^. scopeInverseModule)
+    findName   x = maybe [] NonEmpty.toList $ Map.lookup x (scope ^. scopeInverseName)
+    findModule x = fromMaybe [] $ Map.lookup x (scope ^. scopeInverseModule)
 
     len :: C.QName -> Int
     len (C.QName _)  = 1

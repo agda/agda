@@ -4,6 +4,8 @@
 
 module Agda.Syntax.Internal.Names where
 
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -17,7 +19,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
-import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible
 
@@ -29,7 +30,7 @@ class NamesIn a where
 
 instance NamesIn a => NamesIn (Maybe a)              where
 instance NamesIn a => NamesIn [a]                    where
-instance NamesIn a => NamesIn (NonemptyList a)       where
+instance NamesIn a => NamesIn (NonEmpty a)           where
 instance NamesIn a => NamesIn (Arg a)                where
 instance NamesIn a => NamesIn (Dom a)                where
 instance NamesIn a => NamesIn (Named n a)            where

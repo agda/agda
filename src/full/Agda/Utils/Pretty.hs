@@ -10,13 +10,13 @@ module Agda.Utils.Pretty
 
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
-
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
 import Data.Semigroup ((<>))
 
-import Agda.Utils.NonemptyList
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -68,8 +68,8 @@ instance Pretty a => Pretty (Maybe a) where
 instance Pretty a => Pretty [a] where
   pretty = prettyList
 
-instance Pretty a => Pretty (NonemptyList a) where
-  pretty = prettyList . toList
+instance Pretty a => Pretty (NonEmpty a) where
+  pretty = prettyList . NonEmpty.toList
 
 -- * 'Doc' utilities
 

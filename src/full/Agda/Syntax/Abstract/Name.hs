@@ -14,6 +14,8 @@ import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
 import Data.List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Traversable (Traversable)
 import Data.Void
@@ -27,7 +29,6 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -79,24 +80,24 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: NonemptyList QName }
+newtype AmbiguousQName = AmbQ { unAmbQ :: NonEmpty QName }
   deriving (Eq, Ord, Data)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
-unambiguous x = AmbQ (x :! [])
+unambiguous x = AmbQ (x :| [])
 
 -- | Get the first of the ambiguous names.
 headAmbQ :: AmbiguousQName -> QName
-headAmbQ (AmbQ xs) = headNe xs
+headAmbQ (AmbQ xs) = NonEmpty.head xs
 
 -- | Is a name ambiguous.
 isAmbiguous :: AmbiguousQName -> Bool
-isAmbiguous (AmbQ (_ :! xs)) = not (null xs)
+isAmbiguous (AmbQ (_ :| xs)) = not (null xs)
 
 -- | Get the name if unambiguous.
 getUnambiguous :: AmbiguousQName -> Maybe QName
-getUnambiguous (AmbQ (x :! [])) = Just x
+getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
 
 -- | Check whether we are a projection pattern.
@@ -392,7 +393,7 @@ instance Pretty QName where
   pretty = hcat . punctuate "." . map pretty . qnameToList
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (toList qs)
+  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (NonEmpty.toList qs)
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b
@@ -416,7 +417,7 @@ instance HasRange QName where
 -- | The range of an @AmbiguousQName@ is the range of any of its
 --   disambiguations (they are the same concrete name).
 instance HasRange AmbiguousQName where
-  getRange (AmbQ (c :! _)) = getRange c
+  getRange (AmbQ (c :| _)) = getRange c
 
 -- ** SetRange
 

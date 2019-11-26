@@ -58,6 +58,8 @@ import Data.Foldable (foldMap, forM_)
 import qualified Data.Foldable as Fold
 import Data.Function
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -88,7 +90,6 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.NonemptyList as NeList
 
 import qualified Agda.Utils.List as List
 
@@ -143,9 +144,9 @@ solveSizeConstraints flag =  do
       sizeMetaSet `Set.intersection` allMetas singleton c)
 
   -- Now, some constraints may have no metas (clcs), the others have at least one (othercs).
-  let classify :: (a, [b]) -> Either a (a, NonemptyList b)
+  let classify :: (a, [b]) -> Either a (a, NonEmpty b)
       classify (cl, [])     = Left  cl
-      classify (cl, (x:xs)) = Right (cl, x :! xs)
+      classify (cl, (x:xs)) = Right (cl, x :| xs)
   let (clcs, othercs) = partitionEithers $ map classify cms
 
   -- We cluster the constraints by their metas.
@@ -160,11 +161,11 @@ solveSizeConstraints flag =  do
   -- Solve the clusters.
 
   constrainedMetas <- Set.unions <$> do
-    forM  (ccs) $ \ (cs :: NonemptyList CC) -> do
+    forM  (ccs) $ \ (cs :: NonEmpty CC) -> do
 
       reportSDoc "tc.size.solve" 60 $ vcat $ concat
         [ [ "size constraint cluster:" ]
-        , map (text . show) $ toList cs
+        , map (text . show) $ NonEmpty.toList cs
         ]
 
       -- Convert each constraint in the cluster to the largest context.
@@ -173,7 +174,7 @@ solveSizeConstraints flag =  do
       enterClosure (Fold.maximumBy (compare `on` (length . envContext . clEnv)) cs) $ \ _ -> do
         -- Get all constraints that can be cast to the longest context.
         cs' :: [TCM.Constraint] <- catMaybes <$> do
-          mapM (runMaybeT . castConstraintToCurrentContext) $ toList cs
+          mapM (runMaybeT . castConstraintToCurrentContext) $ NonEmpty.toList cs
 
         reportSDoc "tc.size.solve" 20 $ vcat $
           [ "converted size constraints to context: " <+> do
@@ -370,13 +371,13 @@ solveSizeConstraints_ flag cs0 = do
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
   let (csNoM, csMs) = (`List.partitionMaybe` ccs') $ \ p@(c0, c) ->
-        fmap (p,) $ NeList.fromList $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
+        fmap (p,) $ nonEmpty $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
-      css :: [NonemptyList (CC,HypSizeConstraint)]
+      css :: [NonEmpty (CC,HypSizeConstraint)]
       css = cluster' csMs
 
   -- Check that the closed constraints are valid.
-  whenJust (NeList.fromList csNoM) $ solveCluster flag
+  whenJust (nonEmpty csNoM) $ solveCluster flag
 
   -- Now, process the clusters.
   forM_ css $ solveCluster flag
@@ -385,10 +386,10 @@ solveSizeConstraints_ flag cs0 = do
 
 -- | Solve a cluster of constraints sharing some metas.
 --
-solveCluster :: DefaultToInfty -> NonemptyList (CC,HypSizeConstraint) -> TCM ()
+solveCluster :: DefaultToInfty -> NonEmpty (CC,HypSizeConstraint) -> TCM ()
 solveCluster flag ccs = do
   let cs = fmap snd ccs
-  let prettyCs   = map prettyTCM $ NeList.toList cs
+  let prettyCs   = map prettyTCM $ NonEmpty.toList cs
   let err reason = typeError . GenericDocError =<< do
         vcat $
           [ text $ "Cannot solve size constraints" ] ++ prettyCs ++
@@ -426,7 +427,7 @@ solveCluster flag ccs = do
   -- Canonicalize the constraints.
   -- This is unsound in the presence of hypotheses.
       csC :: [SizeConstraint]
-      csC = applyWhen (null hs) (mapMaybe canonicalizeSizeConstraint) $ NeList.toList csL
+      csC = applyWhen (null hs) (mapMaybe canonicalizeSizeConstraint) $ NonEmpty.toList csL
   reportSDoc "tc.size.solve" 30 $ vcat $
     [ "Size hypotheses" ] ++
     map (prettyTCM . HypSizeConstraint gamma hids hs) hs ++
@@ -562,7 +563,7 @@ solveCluster flag ccs = do
 
   -- Double check.
   when solvedAll $ do
-    let cs0 = map fst $ toList ccs
+    let cs0 = map fst $ NonEmpty.toList ccs
         -- Error for giving up
         cannotSolve = typeError . GenericDocError =<<
           vcat ("Cannot solve size constraints" : map prettyTCM cs0)

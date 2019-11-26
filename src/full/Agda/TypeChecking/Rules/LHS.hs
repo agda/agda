@@ -25,6 +25,8 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
@@ -84,7 +86,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
@@ -1532,7 +1533,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
-      case partitionEithers $ toList disambiguations of
+      case partitionEithers $ NonEmpty.toList disambiguations of
         (_ , (d,a) : disambs) | constraintsOk <= null disambs -> do
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
@@ -1542,7 +1543,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           return (d,a)
         other -> failure other
 
-    notRecord = wrongProj $ headNe ds
+    notRecord = wrongProj $ NonEmpty.head ds
 
     wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
@@ -1648,7 +1649,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
     tryDisambiguate constraintsOk cons d failure = do
       disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
         -- TODO: can we be more lazy, like using the ListT monad?
-      case partitionEithers $ toList disambiguations of
+      case partitionEithers $ NonEmpty.toList disambiguations of
         -- Andreas, 2019-10-14: The code from which I factored out 'tryDisambiguate'
         -- did allow several disambiguations in case @constraintsOk == False@.
         -- There was no comment explaining why, but "fixing" it and insisting on a

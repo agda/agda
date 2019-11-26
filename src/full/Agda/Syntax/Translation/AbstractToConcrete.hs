@@ -42,6 +42,8 @@ import qualified Data.Foldable as Fold
 import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -74,7 +76,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
 import Agda.Utils.Pretty
 
@@ -621,9 +622,9 @@ instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x      -> toConcrete x
-    FieldName xs         -> toConcrete (headNe xs)
-    ConstructorName xs   -> toConcrete (headNe xs)
-    PatternSynResName xs -> toConcrete (headNe xs)
+    FieldName xs         -> toConcrete (NonEmpty.head xs)
+    ConstructorName xs   -> toConcrete (NonEmpty.head xs)
+    PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
 -- Expression instance ----------------------------------------------------

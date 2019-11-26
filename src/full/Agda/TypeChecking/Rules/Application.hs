@@ -17,6 +17,8 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Either (partitionEithers)
 import Data.Traversable (sequenceA)
 import Data.Void
@@ -65,7 +67,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -839,7 +840,7 @@ checkConstructorApplication cmp org t c args = do
         dropPar _ [] = Nothing
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: NonemptyList QName -> Type -> TCM (Either (TCM Bool) ConHead)
+disambiguateConstructor :: NonEmpty QName -> Type -> TCM (Either (TCM Bool) ConHead)
 disambiguateConstructor cs0 t = do
   reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
@@ -853,10 +854,10 @@ disambiguateConstructor cs0 t = do
   -- See issue 279.
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
   (cs, cons)  <- unzip . snd . partitionEithers <$> do
-     forM (toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
+     forM (NonEmpty.toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
   reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow cons
   case cons of
-    []    -> typeError $ AbstractConstructorNotInScope $ headNe cs0
+    []    -> typeError $ AbstractConstructorNotInScope $ NonEmpty.head cs0
     [con] -> do
       let c = setConName (headWithDefault __IMPOSSIBLE__ cs) con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
@@ -894,7 +895,7 @@ disambiguateConstructor cs0 t = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> TCM (Term, Type)
+inferProjApp :: A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> TCM (Term, Type)
 inferProjApp e o ds args0 = do
   (v, t, _) <- inferOrCheckProjApp e o ds args0 Nothing
   return (v, t)
@@ -902,7 +903,7 @@ inferProjApp e o ds args0 = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> TCM Term
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Type -> TCM Term
 checkProjApp cmp e o ds args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
@@ -910,7 +911,7 @@ checkProjApp cmp e o ds args0 t = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjAppToKnownPrincipalArg'.
 
-checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
 checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt = do
   (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt
   coerce' cmp targetCheck v ti t
@@ -925,7 +926,7 @@ inferOrCheckProjApp
      -- ^ The whole expression which constitutes the application.
   -> ProjOrigin
      -- ^ The origin of the projection involved in this projection application.
-  -> NonemptyList QName
+  -> NonEmpty QName
      -- ^ The projection name (potentially ambiguous).
   -> A.Args
      -- ^ The arguments to the projection.
@@ -973,7 +974,7 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case forMaybe fs $ \ f -> List.find (unDom f ==) (toList ds) of
+          case forMaybe fs $ \ f -> List.find (unDom f ==) (NonEmpty.toList ds) of
             [] -> refuseProjNoMatching ds
             [d] -> do
               storeDisambiguatedName d
@@ -995,7 +996,7 @@ inferOrCheckProjApp e o ds args mt = do
 -- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
 --   value and type of the principal argument.
 inferOrCheckProjAppToKnownPrincipalArg ::
-  A.Expr -> ProjOrigin -> NonemptyList QName -> A.Args -> Maybe (Comparison, Type) ->
+  A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Maybe (Comparison, Type) ->
   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
 inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
@@ -1066,7 +1067,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
             guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))
 
-      cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (toList ds)
+      cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (NonEmpty.toList ds)
       case cands of
         [] -> refuseProjNoMatching ds
         [[]] -> refuseProjNoMatching ds
@@ -1098,13 +1099,13 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
 
               return (v, tc, NotCheckedTarget)
 
-refuseProj :: NonemptyList QName -> String -> TCM a
+refuseProj :: NonEmpty QName -> String -> TCM a
 refuseProj ds reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ headNe ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ NonEmpty.head ds)
         ++ " because " ++ reason
 
-refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonemptyList QName -> TCM a
+refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonEmpty QName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
 refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
 refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
