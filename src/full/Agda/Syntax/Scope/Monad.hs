@@ -14,6 +14,8 @@ import Control.Monad.State hiding (mapM, forM)
 
 import Data.Either ( partitionEithers )
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -48,7 +50,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList as NonemptyList
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -283,7 +284,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
+  :: (ReadTCState m, MonadError (NonEmpty A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -298,13 +299,13 @@ tryResolveName kinds names x = do
       ifNull (filterNames id ys)
         {-then-} (return $ VarName y{ nameConcrete = unqualify x } b)
         {-else-} $ \ ys' ->
-          throwError $ A.qualify_ y :! map anameName ys'
+          throwError $ A.qualify_ y :| map anameName ys'
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names of one of the given kinds
       let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
       -- Consider only names in the given set of names
-      caseListNe (filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
+      caseMaybe (nonEmpty $ filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
         ds       | all ((ConName ==) . anameKind . fst) ds ->
           return $ ConstructorName $ fmap (upd . fst) ds
 
@@ -314,7 +315,7 @@ tryResolveName kinds names x = do
         ds       | all ((PatternSynName ==) . anameKind . fst) ds ->
           return $ PatternSynResName $ fmap (upd . fst) ds
 
-        (d, a) :! [] ->
+        (d, a) :| [] ->
           return $ DefinedName a $ upd d
 
         ds -> throwError $ fmap (anameName . fst) ds
@@ -336,8 +337,8 @@ tryResolveName kinds names x = do
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
-  caseListNe ms (typeError $ NoSuchModule x) $ \ case
-    AbsModule m why :! [] -> return $ AbsModule (m `withRangeOf` x) why
+  caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
+    AbsModule m why :| [] -> return $ AbsModule (m `withRangeOf` x) why
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.
@@ -390,7 +391,7 @@ getNotation x ns = do
   where
     notation = namesToNotation x . qnameName . anameName
     oneNotation ds =
-      case mergeNotations $ map notation $ toList ds of
+      case mergeNotations $ map notation $ NonEmpty.toList ds of
         [n] -> n
         _   -> __IMPOSSIBLE__
 
@@ -436,7 +437,7 @@ bindName' acc kind meta x y = do
 
     ambiguous k ds =
       if kind == k && all ((== k) . anameKind) ds
-      then success else clash $ anameName (headNe ds)
+      then success else clash $ anameName (NonEmpty.head ds)
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
@@ -619,7 +620,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 -- | Warn about useless fixity declarations in @renaming@ directives.
 checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
 checkNoFixityInRenamingModule ren = do
-  whenJust (NonemptyList.fromList $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
+  whenJust (nonEmpty $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
     traceCall (SetRange $ getRange rs) $ do
       warning $ FixityInRenamingModule rs
   where

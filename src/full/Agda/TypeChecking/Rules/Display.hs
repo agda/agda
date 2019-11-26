@@ -1,6 +1,8 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
@@ -14,7 +16,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Impossible
-import Agda.Utils.NonemptyList
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
@@ -86,7 +87,7 @@ patternToTerm p ret =
     ambigErr thing (AmbQ xs) =
       genericDocError =<< do
         text ("Ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (map pshow $ toList xs))
+          fsep (punctuate comma (map pshow $ NonEmpty.toList xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do

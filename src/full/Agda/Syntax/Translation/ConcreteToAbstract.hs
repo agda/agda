@@ -30,6 +30,8 @@ import Data.Traversable (mapM, traverse)
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
@@ -86,7 +88,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
@@ -572,8 +573,8 @@ instance ToAbstract ResolveQName ResolvedName where
     q -> return q
 
 data APatName = VarPatName A.Name
-              | ConPatName (NonemptyList AbstractName)
-              | PatternSynPatName (NonemptyList AbstractName)
+              | ConPatName (NonEmpty AbstractName)
+              | PatternSynPatName (NonEmpty AbstractName)
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
@@ -622,9 +623,9 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
     case rx of
       DefinedName _ d      -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName ds   -> return $ anameName (headNe ds)   -- We'll throw out this one, so it doesn't matter which one we pick
-      FieldName ds         -> return $ anameName (headNe ds)
-      PatternSynResName ds -> return $ anameName (headNe ds)
+      ConstructorName ds   -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds         -> return $ anameName (NonEmpty.head ds)
+      PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
 
@@ -2158,12 +2159,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case qx of
         VarName x' _                -> return . (False,) $ A.qnameFromList [x']
         DefinedName _ d             -> return . (False,) $ anameName d
-        FieldName     (d :! [])     -> return . (False,) $ anameName d
+        FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName (d :! [])   -> return . (False,) $ anameName d
+        ConstructorName (d :| [])   -> return . (False,) $ anameName d
         ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         UnknownName                 -> notInScopeError top
-        PatternSynResName (d :! []) -> return . (True,) $ anameName d
+        PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
     lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis

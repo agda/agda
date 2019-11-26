@@ -11,6 +11,8 @@ module Agda.TypeChecking.Rules.Builtin
 
 import Control.Monad
 import Data.List (find, sortBy)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Function (on)
 
 import qualified Agda.Syntax.Abstract as A
@@ -46,7 +48,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -823,7 +824,7 @@ bindBuiltin b x = do
     -- Get the non-empty list of AbstractName for x
     xs <- case x of
       VarName{}            -> failure
-      DefinedName _ x      -> return $ x :! []
+      DefinedName _ x      -> return $ x :| []
       FieldName xs         -> return xs
       ConstructorName xs   -> return xs
       PatternSynResName xs -> failure
@@ -854,7 +855,7 @@ isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
   DefinedName _ x -> bindBuiltinName b (Def (anameName x) [])
-  FieldName (x :! []) -> bindBuiltinName b (Def (anameName x) [])
+  FieldName (x :| []) -> bindBuiltinName b (Def (anameName x) [])
   _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.

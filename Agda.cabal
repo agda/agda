@@ -532,7 +532,6 @@ library
                     Agda.Utils.Memo
                     Agda.Utils.Monad
                     Agda.Utils.Monoid
-                    Agda.Utils.NonemptyList
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
                     Agda.Utils.PartialOrd
