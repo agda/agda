@@ -58,6 +58,15 @@ followed:
 
     ./src/release-tools/change-version.bash VERSION RC_VERSION
 
+* Added to the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
+
+* Update the user manual:
+
+    make user-manual-pdf
+
 * Obtain and install the standard library branch related to the Agda:
 
     make up-to-date-std-lib
@@ -75,10 +84,6 @@ followed:
   `cabal --check`).
 
 * Remove the Cabal test-suite from Agda.cabal.
-
-* Update the user manual:
-
-    make user-manual-pdf
 
 * Build source distributions:
 
