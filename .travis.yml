@@ -165,13 +165,11 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} library-test
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
+        - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
     - <<: *main-job
       name: "Compiler tests and benchmark"
-      git:
-        submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
     - <<: *main-job
       name: "Other test suites"

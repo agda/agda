@@ -1,5 +1,14 @@
 name: stack build
-on: [push, pull_request]
+
+on:
+  push:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
 
 jobs:
   linux:

@@ -1,6 +1,14 @@
 name: cabal build
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+    - 'src/**'
+    - 'Agda.cabal'
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'Agda.cabal'
 
 jobs:
   build:
@@ -20,7 +28,7 @@ jobs:
       run: |
         cabal new-update
         cabal new-configure -O0
-        cabal new-install -O0 --only-dependencies
+        cabal new-install --only-dependencies
     - name: Build Agda
       run: |
-        cabal new-install -O0
+        cabal new-build

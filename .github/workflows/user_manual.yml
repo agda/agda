@@ -1,6 +1,12 @@
 name: User Manual
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+    - 'doc/user-manual/**'
+  pull_request:
+    paths:
+    - 'doc/user-manual/**'
 
 jobs:
   build:
