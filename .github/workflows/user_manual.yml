@@ -39,3 +39,7 @@ jobs:
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
+    - uses: actions/upload-artifact@master
+      with:
+        name: user-manual-pdf
+        path: doc/user-manual.pdf
