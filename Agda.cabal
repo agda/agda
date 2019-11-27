@@ -737,7 +737,7 @@ test-suite agda-tests
                     , Internal.Utils.ListT
                     , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
-                    , Internal.Utils.NonemptyList
+                    , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.Three
