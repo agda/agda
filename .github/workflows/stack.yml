@@ -1,5 +1,14 @@
 name: stack build
-on: [push, pull_request]
+
+on:
+  push:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
 
 jobs:
   linux:
@@ -43,7 +52,7 @@ jobs:
       run: |
         choco install haskell-stack --no-progress
         choco install wget --no-progress
-    - name: Install text-icu
+    - name: Install text-icu ${{ matrix.icu-ver }}
       shell: bash
       run: |
         wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
