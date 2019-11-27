@@ -80,7 +80,9 @@ noProblemRest (Problem _ rp _) = null rp
 --   @
 --      lhsTel        = [A : Set, m : Maybe A]
 --      lhsOutPat     = ["A", "m"]
---      lhsProblem    = Problem ["_", "just a"] [] [] []
+--      lhsProblem    = Problem ["A" = _, "just a" = "a"]
+--                              ["_", "just a"]
+--                              ["just b"] []
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
 --   @
 initLHSState

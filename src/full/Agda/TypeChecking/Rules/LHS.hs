@@ -789,8 +789,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   (result, block) <- inTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
 
--- | Determine in which order the splits should be tried by
---   reordering/inserting/dropping the problem equations.
+-- | Determine which splits should be tried.
 splitStrategy :: [ProblemEq] -> [ProblemEq]
 splitStrategy = filter shouldSplit
   where
