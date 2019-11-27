@@ -892,7 +892,7 @@ __DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
 dummyType :: String -> Int -> Type
-dummyType file line = El (DummyS "") $ dummyTerm' ("dummyType: " ++ file) line
+dummyType file line = El (dummySort file line) $ dummyTerm' ("dummyType: " ++ file) line
 
 __DUMMY_TYPE__ :: HasCallStack => Type
 __DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType

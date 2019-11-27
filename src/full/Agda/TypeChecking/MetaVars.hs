@@ -1398,7 +1398,7 @@ openMetasToPostulates = do
   ms <- IntMap.assocs <$> useTC stMetaStore
   forM_ ms $ \ (x, mv) -> do
     when (isOpenMeta $ mvInstantiation mv) $ do
-      let t = jMetaType $ mvJudgement mv
+      let t = dummyTypeToOmega $ jMetaType $ mvJudgement mv
 
       -- Create a name for the new postulate.
       let r = clValue $ miClosRange $ mvInfo mv
@@ -1424,6 +1424,14 @@ openMetasToPostulates = do
       let inst = InstV [] $ Def q []
       updateMetaVar (MetaId x) $ \ mv0 -> mv0 { mvInstantiation = inst }
       return ()
+  where
+    -- Unsolved sort metas can have a type ending in a Dummy if they are allowed to be instantiated
+    -- to Setω. This will crash the serializer (issue #3730). To avoid this we replace dummy type
+    -- codomains by Setω.
+    dummyTypeToOmega t =
+      case telView' t of
+        TelV tel (El _ Dummy{}) -> abstract tel topSort
+        _ -> t
 
 -- | Sort metas in dependency order.
 dependencySortMetas :: [MetaId] -> TCM (Maybe [MetaId])
