@@ -1,5 +1,7 @@
 name: Haddock
-
+# Test documentation: haddock, user-manual.
+# Since `stack haddock` compiles Agda but `cabal haddock` does
+# not, this test is faster using `BUILD=CABAL` [Issue #2188].
 on:
   push:
     paths:
@@ -23,6 +25,7 @@ jobs:
         cabal v1-update
         cabal v1-install alex happy
         cabal v1-install --dependencies-only -fenable-cluster-counting --enable-tests --force-reinstalls --disable-library-profiling
+    # Testing Haddock [Issue 1773]
     - name: Build
       run: |
         cabal v1-configure -fenable-cluster-counting --enable-tests

@@ -45,10 +45,6 @@ stages:
     if: (branch =~ /^release-.*/) OR (tag IS present) OR (commit_message =~ complete\s+tests)
 
 jobs:
-  allow_failures:
-    # - env: TEST=USER_MANUAL BUILD=NOTHING
-    #   language: python
-    #   python: "3.4"
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
 
@@ -87,31 +83,6 @@ jobs:
         # we need to cache it first.
         - stack install shelltestrunner ${ARGS}
 
-#    # Test documentation: haddock, user-manual.
-#    # Since `stack haddock` compiles Agda but `cabal haddock` does
-#    # not, this test is faster using `BUILD=CABAL` [Issue #2188].
-#    - stage: compilation
-#      name: Haddock
-#      env: GHC_VER=8.8.1 CABAL_VER=2.4
-#      addons:
-#        apt:
-#          packages:
-#            - cabal-install-2.4
-#            - ghc-8.8.1
-#          sources:
-#            - hvr-ghc
-#      before_install:
-#        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-#        - export BUILD_DIR=$HOME/dist
-#        - export PARALLEL_TESTS=2
-#        - export PATH=$HOME/.cabal/bin:$PATH
-#      install:
-#        - .travis/haddock_install
-#
-#      ##############################################################################
-#      # Testing Haddock [Issue 1773]
-#      script:
-#        - make BUILD_DIR=$BUILD_DIR haddock
     - &main-job
       stage: main
       name: "Successful and failing tests"
@@ -213,7 +184,6 @@ jobs:
         - export PARALLEL_TESTS=2
         - export PATH=$HOME/.cabal/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-          # - export AGDA_HOME=`pwd` this is $TRAVIS_BUILD_DIR
       install:
         - .travis/cabal_install
       ##############################################################################
