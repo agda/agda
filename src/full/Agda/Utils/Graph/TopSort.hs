@@ -8,6 +8,7 @@ import Data.Maybe
 import Data.Function
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Graph as Graph
 import Control.Arrow
 import Agda.Utils.List (nubOn)
 
@@ -21,22 +22,26 @@ mergeBy f (x:xs) (y:ys)
 -- | topoligical sort with smallest-numbered available vertex first
 -- | input: nodes, edges
 -- | output is Nothing if the graph is not a DAG
+--   Note: should be stable to preserve order of generalizable variables. Algorithm due to Richard
+--   Eisenberg, and works by walking over the list left-to-right and moving each node the minimum
+--   distance left to guarantee topological ordering.
 topSort :: Ord n => [n] -> [(n, n)] -> Maybe [n]
-topSort nodes edges = mergeBy (<) nodes' <$> g m is
+topSort nodes edges = go [] nodes
   where
-    g m []
-        | Map.null m = Just []
-        | otherwise = Nothing
-    g m ((n, Set.toList -> cs): ns)
-        = (n:) <$> g m' (mergeBy ((<) `on` fst) ns [(c, s) | c<-cs, (0, s) <- maybeToList $ Map.lookup c m'])
+    deps = (Map.!) $ Map.fromList [ (a, Set.fromList [ b | (a1, b) <- edges, a == a1 ]) | a <- nodes ]
+
+    -- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must
+    -- come before it
+    go acc [] = Just $ reverse $ map fst acc
+    go acc (n : ns) = (`go` ns) =<< insert n acc
+
+    insert a [] = Just [(a, deps a)]
+    insert a bs0@((b, before_b) : bs)
+      | before && after = Nothing
+      | before          = ((b, Set.union before_a before_b) :) <$> insert a bs  -- a must come before b
+      | otherwise       = Just $ (a, Set.union before_a before_b) : bs0
       where
-        m' = foldr (Map.adjust $ first (+(-1))) (Map.delete n m) cs
+        before_a = deps a
+        before = Set.member a before_b
+        after  = Set.member b before_a
 
-    is = map (second snd) . filter ((==0) . fst . snd) $ Map.toList m
-
-    nodes' = Set.toList $ Set.fromList nodes `Set.difference` Set.fromList (concatMap (\(a,b)->[a,b]) edges)
-
-    m = foldr f mempty $ nubOn id edges
-    f (b, a)
-        = Map.alter (Just . maybe (1, mempty) (first (+1))) b
-        . Map.alter (Just . maybe (0, Set.singleton b) (second $ Set.insert b)) a
