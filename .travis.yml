@@ -168,6 +168,8 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
     - <<: *main-job
       name: "Compiler tests and benchmark"
+      git:
+        submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
