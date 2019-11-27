@@ -20,7 +20,7 @@ jobs:
       run: |
         cabal new-update
         cabal new-configure -O0
-        cabal new-install   --only-dependencies
+        cabal new-install -O0 --only-dependencies
     - name: Build Agda
       run: |
-        cabal new-install
+        cabal new-install -O0
