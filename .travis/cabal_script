@@ -30,7 +30,7 @@ fold_timer_cmd "examples" "Suite of examples"\
 fold_timer_cmd "library.tests" "Standard library" \
   make BUILD_DIR=$BUILD_DIR library-test
 
-fold_timer_cmd "api.tests" "Successfull tests using Agda as a Haskell library"\
+fold_timer_cmd "api.tests" "Successful tests using Agda as a Haskell library"\
   make BUILD_DIR=$BUILD_DIR api-test
 
 fold_timer_cmd "user.manual.tests" "User manual"\
@@ -66,7 +66,7 @@ fi
 travis_time_finish
 travis_fold end "compiler.tests"
 
-fold_timer_cmd "lib.successful.tests" "Successfull tests using Agda as a Haskell library"\
+fold_timer_cmd "lib.successful.tests" "Successful tests using the standard library"\
   make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
 
 fold_timer_cmd "library.interaction.tests" "Interaction tests using the standard library"\

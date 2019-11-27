@@ -13,6 +13,7 @@ TOP=.
 include ./mk/paths.mk
 
 include ./mk/cabal.mk
+include ./mk/travis.mk
 STACK_CMD=stack
 
 # Run in interactive and parallel mode by default
@@ -233,25 +234,49 @@ internal-tests :
 
 .PHONY : succeed
 succeed :
+ifeq ($(TRAVIS),true)
+	@travis_fold start "succeed"
+	$(call title, "Suite of successful tests")
+else
 	@echo "======================================================================"
 	@echo "===================== Suite of successful tests ======================"
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
+endif
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed
+ifeq ($(TRAVIS),true)
+	@travis_fold end "succeed"
+endif
 
 .PHONY : interaction
 interaction :
+ifeq ($(TRAVIS),true)
+	@travis_fold start "interaction"
+	@(call title, "Suite of interaction tests")
+else
 	@echo "======================================================================"
 	@echo "===================== Suite of interaction tests ====================="
 	@echo "======================================================================"
+endif
 	@$(MAKE) -C test/interaction
+ifeq ($(TRAVIS),true)
+	@travis_fold end "interaction"
+endif
 
 .PHONY : interactive
 interactive :
+ifeq ($(TRAVIS),true)
+	@travis_fold start "interactive"
+	@(call title, "Suite of interactive tests")
+else
 	@echo "======================================================================"
 	@echo "===================== Suite of interactive tests ====================="
 	@echo "======================================================================"
+endif
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive
+ifeq ($(TRAVIS),true)
+	@travis_fold start "interactive"
+endif
 
 .PHONY : examples
 examples :
@@ -334,7 +359,7 @@ continue-library-test :
 .PHONY : lib-succeed
 lib-succeed :
 	@echo "======================================================================"
-	@echo "========== Successfull tests using the standard library =============="
+	@echo "========== Successful tests using the standard library =============="
 	@echo "======================================================================"
 	@find test/LibSucceed -type f -name '*.agdai' -delete
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed
@@ -363,7 +388,7 @@ stdlib-compiler-test :
 .PHONY : api-test
 api-test :
 	@echo "======================================================================"
-	@echo "======== Successfull tests using Agda as a Haskell library ==========="
+	@echo "======== Successful tests using Agda as a Haskell library ==========="
 	@echo "======================================================================"
 	@$(MAKE) -C test/api clean
 	@$(MAKE) -C test/api

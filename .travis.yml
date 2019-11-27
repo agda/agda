@@ -24,6 +24,7 @@ branches:
     - /^release-.*/
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
+    - trim-CI
 
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
@@ -122,6 +123,8 @@ jobs:
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
         - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
       ##############################################################################
+      before_script:
+        - export -f travis_fold
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
@@ -155,17 +158,14 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
-
         - travis_retry cabal v1-update
         - make TAGS
-
         # Build & install size-solver
         - stack build ${ARGS} ${FLAGS} size-solver
         - mkdir -p src/size-solver/dist/build/size-solver
         - cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
         # Test size-solver
         - make -C src/size-solver/ test
-
         # Build agda-bisect
         - make install-agda-bisect
 
