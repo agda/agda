@@ -3,10 +3,10 @@ name: Haddock
 on:
   push:
     paths:
-    - 'doc/user-manual/**'
+    - 'src/**.hs'
   pull_request:
     paths:
-    - 'doc/user-manual/**'
+    - 'src/**.hs'
 
 jobs:
   build:
