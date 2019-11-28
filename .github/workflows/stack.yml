@@ -91,5 +91,5 @@ jobs:
         cp -av .github/dist_install_system.bat upload
     - uses: actions/upload-artifact@master
       with:
-        name: agda-linux-${{ matrix.ghc-ver }}
+        name: agda-windows-${{ matrix.ghc-ver }}
         path: upload
