@@ -78,3 +78,18 @@ jobs:
       shell: bash
       run: |
         stack build ${ARGS} ${FLAGS}
+    - name: Pack artifacts
+      shell: bash
+      run: |
+        mkdir -p upload
+        mkdir -p upload/bin
+        cp -av .stack-work/dist/**/build/agda/agda.exe upload/bin
+        cp -av .stack-work/dist/**/build/agda-mode/agda-mode.exe upload/bin
+        cp -av .stack-work/dist/**/build/size-solver/size-solver.exe upload/bin
+        cp -avr src/data upload
+        cp -av .github/dist_install_user.bat upload
+        cp -av .github/dist_install_system.bat upload
+    - uses: actions/upload-artifact@master
+      with:
+        name: agda-linux-${{ matrix.ghc-ver }}
+        path: upload
