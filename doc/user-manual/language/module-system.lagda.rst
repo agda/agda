@@ -244,6 +244,7 @@ Sometimes the name of an imported module clashes with a local module. In this ca
   import M as M’
 
 It is also possible to attach modifiers to import statements, limiting or changing what names are visible from inside the module.
+Note that modifiers attached to ``open import`` statements apply to the ``open`` statement and not the ``import`` statement.
 
 Datatype modules and record modules
 -----------------------------------
