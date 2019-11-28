@@ -83,9 +83,9 @@ jobs:
       run: |
         mkdir -p upload
         mkdir -p upload/bin
-        cp -av .stack-work/dist/**/build/agda/agda.exe upload/bin
-        cp -av .stack-work/dist/**/build/agda-mode/agda-mode.exe upload/bin
-        cp -av .stack-work/dist/**/build/size-solver/size-solver.exe upload/bin
+        cp -av .stack-work/install/**/bin/agda.exe upload/bin
+        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
+        cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
         cp -avr src/data upload
         cp -av .github/dist_install_user.bat upload
         cp -av .github/dist_install_system.bat upload
