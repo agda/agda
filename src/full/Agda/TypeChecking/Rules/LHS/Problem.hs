@@ -181,7 +181,8 @@ firstChoice (x            : _ ) = x
 -- | The user patterns we still have to split on.
 data Problem a = Problem
   { _problemEqs      :: [ProblemEq]
-    -- ^ User patterns.
+    -- ^ User patterns which are typed
+    --   (including the ones generated from implicit arguments).
   , _problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
     --   Example:
@@ -199,6 +200,7 @@ data Problem a = Problem
     --   As we instantiate @b@ to @false@, the 'targetType' reduces to
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
   , _problemCont     :: LHSState a -> TCM a
+    -- ^ The code that checks the RHS.
   }
   deriving Show
 
@@ -234,7 +236,8 @@ data LHSState a = LHSState
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
-  , _lhsPartialSplit :: ![Maybe Int] -- ^ have we splitted with a PartialFocus?
+  , _lhsPartialSplit :: ![Maybe Int]
+    -- ^ have we splitted with a PartialFocus?
   }
 
 lhsTel :: Lens' Telescope (LHSState a)
