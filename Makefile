@@ -430,7 +430,7 @@ clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$
 .PHONY : clean
 clean :
 	$(call clean_helper,$(BUILD_DIR))
-	$(call clean_helper,$(QUICK_BUILD_DIR)
+	$(call clean_helper,$(QUICK_BUILD_DIR))
 
 ## Whitespace-related #####################################################
 
