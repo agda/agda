@@ -289,18 +289,6 @@ Language
 
   placed in Agda.Builtin.String.
 
-* New primitives for asking Agda to try to solve constraints [[Issue
-  #3791](https://github.com/agda/agda/issues/3791)]:
-
-  ```agda
-  solveConstraints           : TC ⊤
-  solveConstraintsMentioning : List Meta → TC ⊤
-  ```
-
-  The former one tries to solve all constraints, whereas the latter
-  one wakes up all constraints mentioning the given meta-variables,
-  and then tries to solve all awake constraints.
-
 * The builtin `IO` has been declared strictly positive in both its
   level and type argument.
 
