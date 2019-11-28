@@ -278,13 +278,6 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
-  -- Tries to solve all constraints.
-  solveConstraints : TC ⊤
-
-  -- Wakes up all constraints mentioning the given meta-variables, and
-  -- then tries to solve all awake constraints.
-  solveConstraintsMentioning : List Meta → TC ⊤
-
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
@@ -317,6 +310,4 @@ postulate
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
