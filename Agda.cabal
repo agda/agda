@@ -121,8 +121,8 @@ flag enable-cluster-counting
 -- ASR (2018-09-14). Every new setup dependency should also be added
 -- as a library dependency. See Issue #3225.
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.14
-                , Cabal >= 1.24.0.0 && < 3.1
+  setup-depends:  base >= 4.9.0.0 && < 4.15
+                , Cabal >= 1.24.0.0 && < 3.2
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -162,7 +162,7 @@ library
   build-depends:  aeson >= 0.11.3.0 && < 1.5
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.14
+                , base >= 4.9.0.0 && < 4.15
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -188,7 +188,7 @@ library
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
-                , haskeline >= 0.7.2.3 && < 0.8
+                , haskeline >= 0.7.2.3 && < 0.9
                 , ieee754 >= 0.7.8 && < 0.9
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -201,7 +201,7 @@ library
                 , split >= 0.2.0.0 && < 0.2.3.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.11.0.0 && < 2.16
+                , template-haskell >= 2.11.0.0 && < 2.17
                 , time >= 1.6.0.1 && < 1.10
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
@@ -210,7 +210,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.8.2)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.2)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -670,7 +670,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.14
+  build-depends:    base >= 4.9.0.0 && < 4.15
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -753,7 +753,7 @@ test-suite agda-tests
 
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6
-                , base >= 4.9.0.0 && < 4.14
+                , base >= 4.9.0.0 && < 4.15
                 , bytestring >= 0.10.8.1 && < 0.11
                 , containers >= 0.5.7.1 && < 0.7
                 , directory >= 1.2.6.2 && < 1.4
