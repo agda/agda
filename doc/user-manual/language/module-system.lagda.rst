@@ -106,6 +106,12 @@ An alternative to making definitions private is to exert finer control over what
 is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
 An omitted ``renaming`` modifier is equivalent to an empty renaming.
 
+To refer to a module ``M`` inside ``A`` you write ``module M``. For instance,
+
+.. code-block:: agda
+
+  open A using (module M)
+
 Since 2.6.1: The fixity of an operator can be set or changed in a ``renaming`` directive::
 
   module ExampleRenamingFixity where
