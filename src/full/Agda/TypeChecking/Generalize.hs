@@ -699,14 +699,15 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                   { conName      = con
                   , conInductive = Inductive
                   , conFields    = map argFromDom genRecFields }
-  forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
+  projIx <- succ . size <$> getContext
+  inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
     addConstant field $ defaultDefn (getArgInfo fld) field fieldTy $
       let proj = Projection { projProper   = Just genRecName
                             , projOrig     = field
                             , projFromType = defaultArg genRecName
-                            , projIndex    = 1
+                            , projIndex    = projIx
                             , projLams     = ProjLams [defaultArg "gtel"] } in
       Function { funClauses      = []
                , funCompiled     = Nothing
