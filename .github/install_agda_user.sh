@@ -16,11 +16,6 @@ chmod a+x ./bin/agda-mode
 
 ./bin/agda --version
 
-echo "Initialize Emacs mode ..."
-
-./bin/agda-mode setup
-./bin/agda-mode compile
-
 for prim in ./data/lib/prim/Agda/**/*.agda
 do
     echo "Checking "$prim

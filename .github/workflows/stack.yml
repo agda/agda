@@ -41,8 +41,9 @@ jobs:
         mkdir -p upload/bin
         cp -av .stack-work/dist/x86_64-linux/**/build/agda/agda upload/bin
         cp -av .stack-work/dist/x86_64-linux/**/build/agda-mode/agda-mode upload/bin
+        cp -av .stack-work/dist/x86_64-linux/**/build/size-solver/size-solver upload/bin
         cp -avr src/data upload
-        cp -av .github/dist_install_user.sh upload
+        cp -av .github/*.sh upload
     - uses: actions/upload-artifact@master
       with:
         name: agda-linux-${{ matrix.ghc-ver }}
@@ -88,8 +89,7 @@ jobs:
         cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
         cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
         cp -avr src/data upload
-        cp -av .github/dist_install_user.bat upload
-        cp -av .github/dist_install_system.bat upload
+        cp -av .github/*.bat upload
     - uses: actions/upload-artifact@master
       with:
         name: agda-windows-${{ matrix.ghc-ver }}
