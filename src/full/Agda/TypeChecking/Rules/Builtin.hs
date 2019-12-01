@@ -224,6 +224,14 @@ coreBuiltins =
                                                    , builtinAgdaTermPi, builtinAgdaTermSort
                                                    , builtinAgdaTermLit, builtinAgdaTermMeta
                                                    , builtinAgdaTermUnsupported])
+  , builtinAgdaCmpEq                         |-> BuiltinDataCons tcomparison
+  , builtinAgdaCmpLEq                        |-> BuiltinDataCons tcomparison
+  , builtinAgdaComparison                    |-> BuiltinData tset [builtinAgdaCmpEq, builtinAgdaCmpLEq]
+  , builtinAgdaAsTermsOf                     |-> BuiltinDataCons (ttype --> tcompareas)
+  , builtinAgdaAsTypes                       |-> BuiltinDataCons tcompareas
+  , builtinAgdaCompareAs                     |-> BuiltinData tset [builtinAgdaAsTermsOf, builtinAgdaAsTypes]
+  , builtinAgdaConstraintValueCmp            |-> BuiltinDataCons (tcomparison --> tcompareas --> tterm --> tterm --> tconstraint)
+  , builtinAgdaConstraint                    |-> BuiltinData tset [builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported ]
   , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
@@ -277,6 +285,7 @@ coreBuiltins =
   , (builtinAgdaTermLit                      |-> BuiltinDataCons (tliteral --> tterm))
   , (builtinAgdaTermMeta                     |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported              |-> BuiltinDataCons tterm)
+  , (builtinAgdaConstraintUnsupported        |-> BuiltinDataCons tconstraint)
   , (builtinAgdaLitNat                       |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitWord64                    |-> BuiltinDataCons (tword64 --> tliteral))
   , (builtinAgdaLitFloat                     |-> BuiltinDataCons (tfloat --> tliteral))
@@ -362,6 +371,7 @@ coreBuiltins =
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMSolveConstraints           |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMSolveConstraintsMentioning |-> builtinPostulate (tlist tmeta --> tTCM_ primUnit)
+  , builtinAgdaTCMGetConstraintsMentioning   |-> builtinPostulate (tlist tmeta --> tTCM_ (unEl <$> tlist (tconstraint)))
   , builtinAgdaTCMRunSpeculative          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                 tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@>
                                                                           (Lam defaultArgInfo . Abs "_" <$> primBool)) -->
@@ -388,40 +398,43 @@ coreBuiltins =
 
         elV x a = El (varSort x) <$> a
 
-        tsetL l    = return $ sort (varSort l)
-        tlevel     = el primLevel
-        tlist x    = el $ list (fmap unEl x)
-        targ x     = el (arg (fmap unEl x))
-        tabs x     = el (primAbs <@> fmap unEl x)
-        targs      = el (list (arg primAgdaTerm))
-        tterm      = el primAgdaTerm
-        terrorpart = el primAgdaErrorPart
-        tnat       = el primNat
-        tword64    = el primWord64
-        tinteger   = el primInteger
-        tfloat     = el primFloat
-        tchar      = el primChar
-        tstring    = el primString
-        tqname     = el primQName
-        tmeta      = el primAgdaMeta
-        tsize      = El sSizeUniv <$> primSize
-        tbool      = el primBool
-        thiding    = el primHiding
-        trelevance = el primRelevance
-        tassoc     = el primAssoc
-        tprec      = el primPrecedence
-        tfixity    = el primFixity
+        tsetL l     = return $ sort (varSort l)
+        tlevel      = el primLevel
+        tlist x     = el $ list (fmap unEl x)
+        targ x      = el (arg (fmap unEl x))
+        tabs x      = el (primAbs <@> fmap unEl x)
+        targs       = el (list (arg primAgdaTerm))
+        tterm       = el primAgdaTerm
+        tcomparison = el primAgdaComparison
+        tcompareas  = el primAgdaCompareAs
+        tconstraint = el primAgdaConstraint
+        terrorpart  = el primAgdaErrorPart
+        tnat        = el primNat
+        tword64     = el primWord64
+        tinteger    = el primInteger
+        tfloat      = el primFloat
+        tchar       = el primChar
+        tstring     = el primString
+        tqname      = el primQName
+        tmeta       = el primAgdaMeta
+        tsize       = El sSizeUniv <$> primSize
+        tbool       = el primBool
+        thiding     = el primHiding
+        trelevance  = el primRelevance
+        tassoc      = el primAssoc
+        tprec       = el primPrecedence
+        tfixity     = el primFixity
 --        tcolors    = el (list primAgdaTerm) -- TODO guilhem
-        targinfo   = el primArgInfo
-        ttype      = el primAgdaTerm
-        tsort      = el primAgdaSort
-        tdefn      = el primAgdaDefinition
-        tliteral   = el primAgdaLiteral
-        tpat       = el primAgdaPattern
-        tclause    = el primAgdaClause
-        tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
-        tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
-        tinterval  = El Inf <$> primInterval
+        targinfo    = el primArgInfo
+        ttype       = el primAgdaTerm
+        tsort       = el primAgdaSort
+        tdefn       = el primAgdaDefinition
+        tliteral    = el primAgdaLiteral
+        tpat        = el primAgdaPattern
+        tclause     = el primAgdaClause
+        tTCM l a    = elV l (primAgdaTCM <#> varM l <@> a)
+        tTCM_ a     = el (primAgdaTCM <#> primLevelZero <@> a)
+        tinterval   = El Inf <$> primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do

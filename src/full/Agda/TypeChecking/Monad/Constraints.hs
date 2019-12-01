@@ -9,6 +9,7 @@ import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.HashSet as HashSet
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
@@ -110,6 +111,12 @@ getAllConstraints :: ReadTCState m => m Constraints
 getAllConstraints = do
   s <- getTCState
   return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
+
+getConstraintsMentioning :: ReadTCState m => (ProblemConstraint -> m Bool) -> m Constraints
+getConstraintsMentioning p = do
+  c <- getAllConstraints
+  (mc , _) <- partitionM p c
+  return mc
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
 withConstraint f (PConstr pids c) = do

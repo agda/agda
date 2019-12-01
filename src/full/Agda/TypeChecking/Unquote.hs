@@ -490,6 +490,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
              , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
+             , (f `isDef` primAgdaTCMGetConstraintsMentioning,   tcFun1 tcGetConstraintsMentioning   u)
              ]
              failEval
     I.Def f [u, v] ->
@@ -617,6 +618,14 @@ evalTCM v = do
       wakeConstraints' (return . mentionsMetas (HashSet.fromList ms))
       solveAwakeConstraints
       primUnitUnit
+
+    tcGetConstraintsMentioning :: [MetaId] -> TCM Term
+    tcGetConstraintsMentioning ms = do
+      reportSDoc "tc.unquote.def" 10 "I was here"
+      debugConstraints
+      let cond = return . mentionsMetas (HashSet.fromList ms)
+      c <- getConstraintsMentioning cond
+      buildList <*> mapM quoteConstraint (map (clValue . theConstraint) c)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do

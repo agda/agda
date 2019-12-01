@@ -238,6 +238,32 @@ data ErrorPart : Set where
 {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
 {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
+
+-- Constraints --
+data Comparison : Set where
+  cmpEq  : Comparison
+  cmpLEq : Comparison
+
+{-# BUILTIN AGDACOMPARISON       Comparison #-}
+{-# BUILTIN AGDACMPEQ            cmpEq      #-}
+{-# BUILTIN AGDACMPLEQ           cmpLEq     #-}
+
+data CompareAs : Set where
+  asTermsOf : Term → CompareAs
+  asTypes   : CompareAs
+
+{-# BUILTIN AGDACOMPAREAS       CompareAs #-}
+{-# BUILTIN AGDAASTERMSOF       asTermsOf #-}
+{-# BUILTIN AGDAASTYPES         asTypes   #-}
+
+data Constraint : Set where
+  valueCmp    : Comparison → CompareAs → Term → Term → Constraint
+  unsupported : Constraint
+
+{-# BUILTIN AGDACONSTRAINT             Constraint  #-}
+{-# BUILTIN AGDACONSTRAINTVALUECMP     valueCmp    #-}
+{-# BUILTIN AGDACONSTRAINTUNSUPPORTED  unsupported #-}
+
 -- TC monad --
 
 postulate
@@ -285,6 +311,9 @@ postulate
   -- then tries to solve all awake constraints.
   solveConstraintsMentioning : List Meta → TC ⊤
 
+-- Gets all the constraints that mention the given meta-variables.
+  getConstraintsMentioning : List Meta → TC (List Constraint)
+
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
@@ -323,5 +352,6 @@ postulate
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
 {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
+{-# BUILTIN AGDATCMGETCONSTRAINTSMENTIONING   getConstraintsMentioning   #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMDELAYMACRO                 delayMacro                 #-}
