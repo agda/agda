@@ -141,15 +141,13 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
     - <<: *main-job
-      name: "Compiler tests and benchmark"
+      name: "Compiler tests, benchmark, and other test suites"
       git:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
-    - <<: *main-job
-      name: "Other test suites"
-      script:
+
         - stack ${ARGS} exec -- ${MAKE_CMD} interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} interactive
         - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
