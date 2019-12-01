@@ -188,7 +188,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaConstraintUnsupported, primAgdaTermMeta,
-    primAgdaCmpEq, primAgdaCmpLEq, primAgdaComparison, primAgdaAsTermsOf, primAgdaAsTypes, primAgdaCompareAs,
+    primAgdaCmpEq, primAgdaCmpLEq, primAgdaComparison, primAgdaAsTermsOf, primAgdaAsTypes, primAgdaAsSizes, primAgdaCompareAs,
     primAgdaConstraintValueCmp, primAgdaConstraint,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
@@ -345,6 +345,7 @@ primAgdaCmpLEq                        = getBuiltin builtinAgdaCmpLEq
 primAgdaComparison                    = getBuiltin builtinAgdaComparison
 primAgdaAsTermsOf                     = getBuiltin builtinAgdaAsTermsOf
 primAgdaAsTypes                       = getBuiltin builtinAgdaAsTypes
+primAgdaAsSizes                       = getBuiltin builtinAgdaAsSizes
 primAgdaCompareAs                     = getBuiltin builtinAgdaCompareAs
 primAgdaConstraintValueCmp            = getBuiltin builtinAgdaConstraintValueCmp
 primAgdaConstraint                    = getBuiltin builtinAgdaConstraint

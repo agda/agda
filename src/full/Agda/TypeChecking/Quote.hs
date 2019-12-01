@@ -82,6 +82,7 @@ quotingKit = do
   unsupported     <- primAgdaTermUnsupported
   asTermsOf       <- primAgdaAsTermsOf
   asTypes         <- primAgdaAsTypes
+  asSizes         <- primAgdaAsSizes
   cmpEq           <- primAgdaCmpEq
   cmpLEq          <- primAgdaCmpLEq
 
@@ -273,6 +274,7 @@ quotingKit = do
       quoteCompareAs :: CompareAs -> ReduceM Term
       quoteCompareAs (AsTermsOf typ) = asTermsOf !@ quoteType typ
       quoteCompareAs AsTypes         = pure asTypes
+      quoteCompareAs AsSizes         = pure asSizes
 
       quoteComparison :: Comparison -> ReduceM Term
       quoteComparison CmpLeq = pure cmpLEq

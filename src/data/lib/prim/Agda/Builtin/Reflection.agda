@@ -251,10 +251,12 @@ data Comparison : Set where
 data CompareAs : Set where
   asTermsOf : Term → CompareAs
   asTypes   : CompareAs
+  asSizes   : CompareAs
 
 {-# BUILTIN AGDACOMPAREAS       CompareAs #-}
 {-# BUILTIN AGDAASTERMSOF       asTermsOf #-}
 {-# BUILTIN AGDAASTYPES         asTypes   #-}
+{-# BUILTIN AGDAASSIZES         asSizes   #-}
 
 data Constraint : Set where
   valueCmp    : Comparison → CompareAs → Term → Term → Constraint

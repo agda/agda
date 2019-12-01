@@ -229,7 +229,8 @@ coreBuiltins =
   , builtinAgdaComparison                    |-> BuiltinData tset [builtinAgdaCmpEq, builtinAgdaCmpLEq]
   , builtinAgdaAsTermsOf                     |-> BuiltinDataCons (ttype --> tcompareas)
   , builtinAgdaAsTypes                       |-> BuiltinDataCons tcompareas
-  , builtinAgdaCompareAs                     |-> BuiltinData tset [builtinAgdaAsTermsOf, builtinAgdaAsTypes]
+  , builtinAgdaAsSizes                       |-> BuiltinDataCons tcompareas
+  , builtinAgdaCompareAs                     |-> BuiltinData tset [builtinAgdaAsTermsOf, builtinAgdaAsTypes, builtinAgdaAsSizes]
   , builtinAgdaConstraintValueCmp            |-> BuiltinDataCons (tcomparison --> tcompareas --> tterm --> tterm --> tconstraint)
   , builtinAgdaConstraint                    |-> BuiltinData tset [builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported ]
   , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
