@@ -1063,6 +1063,8 @@ instance PrettyTCM TypeError where
 
       UnquotePanic err -> __IMPOSSIBLE__
 
+      DelayedMacro _   -> __IMPOSSIBLE__
+
     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
     DeBruijnIndexOutOfScope i cxt names ->

@@ -1283,8 +1283,20 @@ unquoteTactic tac hole goal = do
         Just mi -> return (getRange mi, Just x)
       setCurrentRange r $
         addConstraint (UnquoteTactic meta tac hole goal)
+    Left (DelayedMacro oldState) -> do
+      putTC oldState
+      modifyDMacros (\ x -> DMacro tac hole goal : x)
     Left err -> typeError $ UnquoteFailed err
     Right _ -> return ()
+
+
+executeDMacros :: TCM ()
+executeDMacros = do
+  setTCLens stMacrosCanBeDelayed False
+  ms <- useTC stDelayedMacros
+  foldr (\(DMacro tac hole goal) _ -> unquoteTactic tac hole goal ) (return ()) ms
+  modifyDMacros (\ ms -> [])
+  setTCLens stMacrosCanBeDelayed True
 
 ---------------------------------------------------------------------------
 -- * Meta variables

@@ -203,6 +203,9 @@ checkDecl d = setCurrentRange d $ do
 
     whenNothingM (asksTC envMutualBlock) $ do
 
+      -- Execute the Delayed Macros.
+      executeDMacros
+
       -- Syntax highlighting.
       highlight_ DontHightlightModuleContents d
 
