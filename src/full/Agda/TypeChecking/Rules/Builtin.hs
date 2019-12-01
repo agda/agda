@@ -366,6 +366,7 @@ coreBuiltins =
                                                                 tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@>
                                                                           (Lam defaultArgInfo . Abs "_" <$> primBool)) -->
                                                                 tTCM 1 (varM 0))
+  , builtinAgdaTCMDelayMacro                 |-> builtinPostulate (tTCM_ primUnit)
   ]
   where
         (|->) = BuiltinInfo

@@ -289,6 +289,10 @@ postulate
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
   runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+  
+  -- Delay the execution of a macro till the Declaration it is
+  -- used in, has been typechecked.
+  delayMacro : TC ⊤
 
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
@@ -320,3 +324,4 @@ postulate
 {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
 {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+{-# BUILTIN AGDATCMDELAYMACRO                 delayMacro                 #-}

@@ -63,7 +63,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
-  builtinAgdaTCMRunSpeculative
+  builtinAgdaTCMRunSpeculative,
+  builtinAgdaTCMDelayMacro
   :: String
 
 builtinNat                               = "NATURAL"
@@ -246,6 +247,7 @@ builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
 builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
+builtinAgdaTCMDelayMacro                 = "AGDATCMDELAYMACRO"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

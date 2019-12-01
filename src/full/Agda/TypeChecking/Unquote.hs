@@ -478,6 +478,7 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
              , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
+             , (f `isDef` primAgdaTCMDelayMacro, tcDelayMacro)
              ]
              failEval
     I.Def f [u] ->
@@ -756,3 +757,12 @@ evalTCM v = do
           return x
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
+
+    tcDelayMacro :: UnquoteM Term
+    tcDelayMacro = do
+      s <- gets snd
+      d <- liftTCM $ useTC stMacrosCanBeDelayed
+      case d of
+        True  -> do
+          throwError (DelayedMacro s)
+        False -> liftTCM primUnitUnit

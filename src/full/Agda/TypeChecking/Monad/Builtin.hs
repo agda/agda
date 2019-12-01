@@ -214,7 +214,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
     primAgdaTCMSolveConstraints, primAgdaTCMSolveConstraintsMentioning,
-    primAgdaTCMRunSpeculative
+    primAgdaTCMRunSpeculative,
+    primAgdaTCMDelayMacro
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -395,6 +396,7 @@ primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
 primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
+primAgdaTCMDelayMacro                 = getBuiltin builtinAgdaTCMDelayMacro
 
 -- | The coinductive primitives.
 
