@@ -126,6 +126,8 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
       before_cache:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
+        - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.elc' -delete
+        - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agda.vim' -delete
         - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
 
     - <<: *main-job
