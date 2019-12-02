@@ -204,7 +204,7 @@ tags :
 
 .PHONY : TAGS
 TAGS :
-	@$(call decorate,"TAGS", "TAGS", \
+	@$(call decorate,"TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
 ## Testing ################################################################
@@ -319,7 +319,7 @@ compiler-test :
 
 .PHONY : stdlib-compiler-test
 stdlib-compiler-test :
-	@$(call decorate, "Standard Library Compiler tests", \ 
+	@$(call decorate, "Standard Library Compiler tests", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
 
 .PHONY : api-test
