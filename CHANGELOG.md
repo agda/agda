@@ -15,6 +15,15 @@ Installation and infrastructure
   The flag `--local-interfaces` forces Agda to revert back to storing
   interface files alongside module files no matter what.
 
+* Agda now uses the default RTS options `-H3.5G -M3.5G -A128M`.  If
+  you run Agda on a 32-bit system or a system with less than 8GB of
+  RAM, it is recommended to set the RTS options explicitly to a lower
+  value by running `agda` with option `+RTS -H0.6G -M1.2G -A64M -RTS`
+  (for example) or by setting the GHCRTS enviroment variable. See the
+  [GHC User's Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/runtime_control.html#setting-rts-options)
+  for more information.
+
+
 Pragmas and options
 -------------------
 
