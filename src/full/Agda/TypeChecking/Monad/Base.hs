@@ -1173,7 +1173,7 @@ instance TermLike CompareAs where
 -- * Delayed Macros
 ---------------------------------------------------------------------------
 
-type DelayedMacros = [DelayedMacro]
+type DelayedMacros = [Closure DelayedMacro]
 
 data DelayedMacro = DMacro
   { tac  :: Term
@@ -1185,7 +1185,9 @@ modifyDMacros :: (DelayedMacros -> DelayedMacros) -> TCM ()
 modifyDMacros = modifyTC . (over stDelayedMacros)
 
 addDMacro :: DelayedMacro -> TCM ()
-addDMacro m = modifyDMacros (\ ms -> m : ms)
+addDMacro m = do
+  cm <- buildClosure m
+  modifyDMacros (\ ms -> cm : ms)
 
 ---------------------------------------------------------------------------
 -- * Open things

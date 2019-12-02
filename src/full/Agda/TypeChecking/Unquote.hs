@@ -621,8 +621,6 @@ evalTCM v = do
 
     tcGetConstraintsMentioning :: [MetaId] -> TCM Term
     tcGetConstraintsMentioning ms = do
-      reportSDoc "tc.unquote.def" 10 "I was here"
-      debugConstraints
       let cond = return . mentionsMetas (HashSet.fromList ms)
       c <- getConstraintsMentioning cond
       buildList <*> mapM quoteConstraint (map (clValue . theConstraint) c)
