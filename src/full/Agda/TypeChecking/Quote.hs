@@ -180,7 +180,7 @@ quotingKit = do
       quoteList :: (a -> ReduceM Term) -> [a] -> ReduceM Term
       quoteList q xs = list (map q xs)
 
-      quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
+      quoteDom :: (a -> ReduceM Term) -> Dom a -> ReduceM Term
       quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
 
       quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
@@ -260,7 +260,7 @@ quotingKit = do
           Record{recConHead = c, recFields = fs} ->
             agdaDefinitionRecordDef
               !@! quoteName (conName c)
-              @@ quoteList (quoteArg (pure . quoteName)) fs
+              @@ quoteList (quoteDom (pure . quoteName)) fs
           Axiom{}       -> pure agdaDefinitionPostulate
           DataOrRecSig{} -> pure agdaDefinitionPostulate
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars

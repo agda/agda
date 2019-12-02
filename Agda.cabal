@@ -4,7 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Dominique Devriese, Péter Diviánszky, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
+author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Liang-Ting Chen, Dominique Devriese, Péter Diviánszky, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
@@ -41,7 +41,8 @@ tested-with:        GHC == 8.0.2
 
 extra-source-files: CHANGELOG.md
                     README.md
-                    doc/user-manual.pdf
+-- Liang-Ting (2019-11-26): See Issues #4216
+--                    doc/user-manual.pdf
                     stack-8.0.2.yaml
                     stack-8.2.2.yaml
                     stack-8.4.4.yaml
@@ -120,8 +121,8 @@ flag enable-cluster-counting
 -- ASR (2018-09-14). Every new setup dependency should also be added
 -- as a library dependency. See Issue #3225.
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.14
-                , Cabal >= 1.24.0.0 && < 3.1
+  setup-depends:  base >= 4.9.0.0 && < 4.15
+                , Cabal >= 1.24.0.0 && < 3.2
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -161,7 +162,7 @@ library
   build-depends:  aeson >= 0.11.3.0 && < 1.5
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.14
+                , base >= 4.9.0.0 && < 4.15
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -187,7 +188,7 @@ library
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
-                , haskeline >= 0.7.2.3 && < 0.8
+                , haskeline >= 0.7.2.3 && < 0.9
                 , ieee754 >= 0.7.8 && < 0.9
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -196,11 +197,11 @@ library
                 , murmur-hash >= 0.1 && < 0.2
                 , pretty >= 1.1.3.3 && < 1.2
                 , process >= 1.4.2.0 && < 1.7
-                , regex-tdfa >= 1.2.2 && < 1.4
+                , regex-tdfa >= 1.3.1.0 && < 1.4
                 , split >= 0.2.0.0 && < 0.2.3.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.11.0.0 && < 2.16
+                , template-haskell >= 2.11.0.0 && < 2.17
                 , time >= 1.6.0.1 && < 1.10
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
@@ -209,7 +210,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.8.2)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.2)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -532,7 +533,6 @@ library
                     Agda.Utils.Memo
                     Agda.Utils.Monad
                     Agda.Utils.Monoid
-                    Agda.Utils.NonemptyList
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
                     Agda.Utils.PartialOrd
@@ -610,7 +610,8 @@ library
 
   -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
+    ghc-options: -Wimplicit-kind-vars
+                 -Winaccessible-code
                  -Wstar-binder
                  -Wstar-is-type
 
@@ -663,12 +664,15 @@ executable agda
   -- Agda's memory usage, so we want this functionality enabled by
   -- default.
   ghc-options: -threaded -rtsopts
+               -with-rtsopts=-H3.5G
+               -with-rtsopts=-M3.5G
+               -with-rtsopts=-A128M
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.14
+  build-depends:    base >= 4.9.0.0 && < 4.15
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -736,7 +740,7 @@ test-suite agda-tests
                     , Internal.Utils.ListT
                     , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
-                    , Internal.Utils.NonemptyList
+                    , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
                     , Internal.Utils.Three
@@ -751,7 +755,7 @@ test-suite agda-tests
 
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6
-                , base >= 4.9.0.0 && < 4.14
+                , base >= 4.9.0.0 && < 4.15
                 , bytestring >= 0.10.8.1 && < 0.11
                 , containers >= 0.5.7.1 && < 0.7
                 , directory >= 1.2.6.2 && < 1.4
@@ -761,7 +765,7 @@ test-suite agda-tests
                 , process >= 1.4.2.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
                 , QuickCheck >= 2.13.1 && < 2.14
-                , regex-tdfa >= 1.2.2 && < 1.4
+                , regex-tdfa >= 1.3.1.0 && < 1.4
                 , tasty >= 1.1.0.4 && < 1.3
                 --, tasty >= 1.2.2 && < 1.3
                 , tasty-hunit >= 0.9.2 && < 0.11
@@ -862,6 +866,7 @@ test-suite agda-tests
 
   -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
+    ghc-options: -Wimplicit-kind-vars
+                 -Winaccessible-code
                  -Wstar-binder
                  -Wstar-is-type

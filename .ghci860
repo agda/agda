@@ -2,6 +2,7 @@
 -- It should be loaded automatically by the `.ghci` file in this directory.
 --
 :script .ghci820
+:set -Wimplicit-kind-vars
 :set -Winaccessible-code
 :set -Wstar-binder
 :set -Wstar-is-type

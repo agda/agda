@@ -21,6 +21,8 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -36,6 +38,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Info
 import Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -48,7 +51,6 @@ import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
-import Agda.Utils.NonemptyList
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
 
@@ -232,9 +234,9 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 --                            valu [x, xs] = valu2 (:) x xs
 --                            valu _       = malformed
 
-instance EmbPrj a => EmbPrj (NonemptyList a) where
-  icod_ = icod_ . toList
-  value = listCaseNe malformed return <=< value
+instance EmbPrj a => EmbPrj (NonEmpty a) where
+  icod_ = icod_ . NonEmpty.toList
+  value = maybe malformed return . nonEmpty <=< value
 
 instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
   icod_ m = icode (BiMap.toList m)
@@ -653,3 +655,12 @@ instance EmbPrj Empty where
   icod_ a = icod_ =<< lift (Empty.toImpossible a)
 
   value = fmap throwImpossible . value
+
+instance EmbPrj ExpandedEllipsis where
+  icod_ NoEllipsis = icodeN' NoEllipsis
+  icod_ (ExpandedEllipsis a b) = icodeN 1 ExpandedEllipsis a b
+
+  value = vcase valu where
+    valu []      = valuN NoEllipsis
+    valu [1,a,b] = valuN ExpandedEllipsis a b
+    valu _       = malformed

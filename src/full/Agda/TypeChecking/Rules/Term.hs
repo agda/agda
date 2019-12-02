@@ -635,6 +635,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
+                    , clauseEllipsis  = NoEllipsis
                     }
                   ]
               , funCompiled       = Just Fail
@@ -843,7 +844,7 @@ checkRecordExpression cmp mfs e t = do
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ prettyShow r
 
       reportSDoc "tc.term.rec" 30 $ "  xs  = " <> do
-        text =<< prettyShow . map unArg <$> getRecordFieldNames r
+        text =<< prettyShow . map unDom <$> getRecordFieldNames r
       reportSDoc "tc.term.rec" 30 $ "  ftel= " <> do
         prettyTCM =<< getRecordFieldTypes r
       reportSDoc "tc.term.rec" 30 $ "  con = " <> do
@@ -851,7 +852,7 @@ checkRecordExpression cmp mfs e t = do
 
       def <- getRecordDef r
       let -- Field names (C.Name) with ArgInfo from record type definition.
-          cxs  = recordFieldNames def
+          cxs  = map argFromDom $ recordFieldNames def
           -- Just field names.
           xs   = map unArg cxs
           -- Record constructor.
@@ -865,7 +866,7 @@ checkRecordExpression cmp mfs e t = do
       -- Andreas, 2018-09-06, issue #3122.
       -- Associate the concrete record field names used in the record expression
       -- to their counterpart in the record type definition.
-      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unArg $ recFields def)
+      disambiguateRecordFields (map _nameFieldA $ lefts mfs) (map unDom $ recFields def)
 
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       -- Andreas, 2019-03-18, issue #3122, also pick up non-visible fields from the modules.
@@ -949,14 +950,14 @@ checkRecordUpdate cmp ei recexpr fs e t = do
       v <- checkExpr' cmp recexpr t
       name <- freshNoName (getRange recexpr)
       addLetBinding defaultArgInfo name v t $ do
-        projs <- recFields <$> getRecordDef r
+        projs <- map argFromDom . recFields <$> getRecordDef r
 
         -- Andreas, 2018-09-06, issue #3122.
         -- Associate the concrete record field names used in the record expression
         -- to their counterpart in the record type definition.
         disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
 
-        axs <- getRecordFieldNames r
+        axs <- map argFromDom <$> getRecordFieldNames r
         let xs = map unArg axs
         es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es

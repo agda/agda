@@ -76,7 +76,7 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
-checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         def <- instantiateDef =<< getConstInfo name
@@ -128,9 +128,9 @@ isAlias cs t =
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
+checkAlias :: Type -> ArgInfo -> Delayed -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t ai delayed i name e mc =
-  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSRange $ getRange i) name []
+  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
@@ -173,6 +173,7 @@ checkAlias t ai delayed i name e mc =
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           , clauseUnreachable = Just False
+                          , clauseEllipsis = NoEllipsis
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
                       , funSplitTree = Just $ SplittingDone 0
@@ -190,12 +191,12 @@ checkAlias t ai delayed i name e mc =
 
 -- | Type check a definition by pattern matching.
 checkFunDef' :: Type             -- ^ the type we expect the function to have
-             -> ArgInfo        -- ^ is it irrelevant (for instance)
+             -> ArgInfo          -- ^ is it irrelevant (for instance)
              -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
-             -> Info.DefInfo     -- ^ range info
+             -> A.DefInfo        -- ^ range info
              -> QName            -- ^ the name of the function
              -> [A.Clause]       -- ^ the clauses to check
              -> TCM ()
@@ -204,12 +205,12 @@ checkFunDef' t ai delayed extlam with i name cs =
 
 -- | Type check a definition by pattern matching.
 checkFunDefS :: Type             -- ^ the type we expect the function to have
-             -> ArgInfo        -- ^ is it irrelevant (for instance)
+             -> ArgInfo          -- ^ is it irrelevant (for instance)
              -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
-             -> Info.DefInfo     -- ^ range info
+             -> A.DefInfo        -- ^ range info
              -> QName            -- ^ the name of the function
              -> Maybe Substitution -- ^ substitution (from with abstraction) that needs to be applied to module parameters
              -> [A.Clause]       -- ^ the clauses to check
@@ -309,6 +310,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
                        , clauseUnreachable = Just False
+                       , clauseEllipsis = NoEllipsis
                        }
                  return (cs ++ [c], Just sys)
 
@@ -702,6 +704,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
                  , clauseUnreachable = Nothing -- we don't know yet
+                 , clauseEllipsis  = lhsEllipsis i
                  }
 
 -- | Type check the @with@ and @rewrite@ lhss and/or the rhs.

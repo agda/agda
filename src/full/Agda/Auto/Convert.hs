@@ -137,7 +137,7 @@ tomy imi icns typs = do
        let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
 
-       projfcns <- mapM (\name -> getConst False name TMAll) (map Cm.unArg fields)
+       projfcns <- mapM (\name -> getConst False name TMAll) (map I.unDom fields)
 
        return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do
@@ -663,6 +663,7 @@ frommyClause (ids, pats, mrhs) = do
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
    , I.clauseUnreachable = Nothing -- TODO: Don't know here whether reachable or not !?
+   , I.clauseEllipsis = Cm.NoEllipsis
    }
 
 contains_constructor :: [CSPat O] -> Bool

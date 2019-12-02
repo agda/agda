@@ -325,12 +325,12 @@ revisitRecordPatternTranslation qs = do
 
 type FinalChecks = Maybe (TCM ())
 
-checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
+checkUnquoteDecl :: Info.MutualInfo -> [A.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
 checkUnquoteDecl mi is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDecl" <+> sep (map prettyTCM xs)
   Nothing <$ unquoteTop xs e
 
-checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()
+checkUnquoteDef :: [A.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do
   reportSDoc "tc.unquote.decl" 20 $ "Checking unquoteDef" <+> sep (map prettyTCM xs)
   () <$ unquoteTop xs e
@@ -519,7 +519,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
                "mutual definitions are not considered for projection-likeness"
 
 -- | Freeze metas created by given computation if in abstract mode.
-whenAbstractFreezeMetasAfter :: Info.DefInfo -> TCM a -> TCM a
+whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
   let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
   if not pubAbs then m else do
@@ -531,7 +531,7 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
       ]
     return a
 
-checkGeneralize :: Set QName -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
+checkGeneralize :: Set QName -> A.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
 checkGeneralize s i info x e = do
 
     reportSDoc "tc.decl.gen" 20 $ sep
@@ -555,14 +555,14 @@ checkGeneralize s i info x e = do
 
 
 -- | Type check an axiom.
-checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
+checkAxiom :: A.Axiom -> A.DefInfo -> ArgInfo ->
               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
 checkAxiom = checkAxiom' Nothing
 
 -- | Data and record type signatures need to remember the generalized
 --   parameters for when checking the corresponding definition, so for these we
 --   pass in the parameter telescope separately.
-checkAxiom' :: Maybe A.GeneralizeTelescope -> A.Axiom -> Info.DefInfo -> ArgInfo ->
+checkAxiom' :: Maybe A.GeneralizeTelescope -> A.Axiom -> A.DefInfo -> ArgInfo ->
                Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
 checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
@@ -656,7 +656,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
-checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkPrimitive :: A.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
@@ -694,7 +694,7 @@ checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
-        A.RewritePragma q -> addRewriteRule q
+        A.RewritePragma qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
           x' <- defName <$> getConstInfo x  -- Get the canonical name of x.

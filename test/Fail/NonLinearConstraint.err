@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [7, 11] _1 A A = A : Set
+  _1 A A = A : Set
 Unsolved metas at the following locations:
   NonLinearConstraint.agda:7,16-17
   NonLinearConstraint.agda:9,10-14

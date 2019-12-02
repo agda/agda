@@ -3,6 +3,8 @@ module Agda.TypeChecking.Level where
 
 import Data.Maybe
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -16,7 +18,6 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
-import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -222,14 +223,14 @@ unSingleLevels ls = levelMax n as
     n = maximum $ 0 : [m | SingleClosed m <- ls]
     as = [a | SinglePlus a <- ls]
 
-levelMaxView :: Level -> NonemptyList SingleLevel
+levelMaxView :: Level -> NonEmpty SingleLevel
 levelMaxView (Max n [])     = singleton $ SingleClosed n
-levelMaxView (Max 0 (a:as)) = SinglePlus a :! map SinglePlus as
-levelMaxView (Max n as)     = SingleClosed n :! map SinglePlus as
+levelMaxView (Max 0 (a:as)) = SinglePlus a :| map SinglePlus as
+levelMaxView (Max n as)     = SingleClosed n :| map SinglePlus as
 
 singleLevelView :: Level -> Maybe SingleLevel
 singleLevelView l = case levelMaxView l of
-  s :! [] -> Just s
+  s :| [] -> Just s
   _       -> Nothing
 
 instance Subst Term SingleLevel where

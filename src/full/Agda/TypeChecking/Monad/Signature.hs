@@ -498,6 +498,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
                         , clauseUnreachable = Just False -- definitely not unreachable
+                        , clauseEllipsis  = NoEllipsis
                         }
               where
                 -- The number of remaining parameters. We need to drop the

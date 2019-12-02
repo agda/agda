@@ -22,6 +22,7 @@ import Agda.Syntax.Scope.Monad (getCurrentModule)
 import Agda.Utils.Except
 import Agda.Utils.Monad
 import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Functor
 import Agda.Utils.Size
 
@@ -187,11 +188,11 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
   toAbstract (QNamed name (R.Clause pats rhs)) = do
     (names, pats) <- toAbstractPats pats
     rhs           <- local (names++) $ toAbstract rhs
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
     (_, pats) <- toAbstractPats pats
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where

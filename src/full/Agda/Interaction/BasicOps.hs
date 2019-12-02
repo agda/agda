@@ -16,8 +16,10 @@ import Control.Monad.Identity
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
+import Data.Function (on)
 
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
@@ -490,10 +492,11 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
 
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
-  pretty (OutputForm r pids c)
-    | null pids = sep [pretty c, prange r]
-    | otherwise = sep [pretty pids, nest 2 $ sep [pretty c, prange r]]
+  pretty (OutputForm r pids c) = sep [pretty c, nest 2 $ prange r, nest 2 $ prPids pids]
     where
+      prPids []    = empty
+      prPids [pid] = parens $ "problem" <+> pretty pid
+      prPids pids  = parens $ "problems" <+> fsep (punctuate "," $ map pretty pids)
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"
         where s = prettyShow r
@@ -510,7 +513,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       CmpLevels cmp t t'   -> pcmp cmp t t'
       CmpTeles  cmp t t'   -> pcmp cmp t t'
       CmpSorts cmp s s'    -> pcmp cmp s s'
-      Guard o pid          -> pretty o <?> brackets ("blocked by problem" <+> pretty pid)
+      Guard o pid          -> pretty o <?> parens ("blocked by problem" <+> pretty pid)
       Assign m e           -> bin (pretty m) ":=" (pretty e)
       TypedAssign m e a    -> bin (pretty m) ":=" $ bin (pretty e) ":?" (pretty a)
       PostponedCheckArgs m es t0 t1 ->
@@ -540,17 +543,17 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
-      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx argumentCtx_ e
-                                               <*> toConcreteCtx argumentCtx_ e'
+      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
+                                               <*> toConcreteCtx TopCtx e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
-    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx argumentCtx_ e
-                                                  <*> toConcreteCtx argumentCtx_ e'
-    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx argumentCtx_ e
-                                                    <*> toConcreteCtx argumentCtx_ e'
+    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx TopCtx e
+                                                  <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx TopCtx e
+                                                    <*> toConcreteCtx TopCtx e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
-    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx argumentCtx_ e
-                                                  <*> toConcreteCtx argumentCtx_ e'
+    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx TopCtx e
+                                                  <*> toConcreteCtx TopCtx e'
     toConcrete (Guard o pid) = Guard <$> toConcrete o <*> pure pid
     toConcrete (Assign m e) = noTakenNames $ Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
@@ -635,7 +638,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     isMeta _  = Nothing
 
     getConstrs g f = liftTCM $ do
-      cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+      cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s c) -> do
         c <- normalForm norm c
@@ -649,10 +652,19 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
             cl <- reify $ PConstr s c
             enterClosure cl abstractToConcrete_
 
+-- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
+stripConstraintPids :: Constraints -> Constraints
+stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
+  where
+    isBlocked = not . null . blocking . clValue . theConstraint
+    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
+    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    blocking (Guarded c pid) = pid : blocking c
+    blocking _               = []
 
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
 getConstraints' g f = liftTCM $ do
-    cs <- filter f <$> (mapM g =<< M.getAllConstraints)
+    cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
@@ -1087,8 +1099,8 @@ introTactic pmLambda ii = do
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
-            (return $ map unArg hfs)
-            (return [ unArg a | a <- hfs, visible a ])
+            (return $ map unDom hfs)
+            (return [ unDom a | a <- hfs, visible a ])
       let e = C.Rec noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
       return [ prettyShow e ]
@@ -1210,7 +1222,7 @@ getRecordContents norm ce = do
   (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
   case defn of
     Record{ recFields = fs, recTel = rtel } -> do
-      let xs   = map (nameConcrete . qnameName . unArg) fs
+      let xs   = map (nameConcrete . qnameName . unDom) fs
           tel  = apply rtel vs
           doms = flattenTel tel
       -- Andreas, 2019-04-10, issue #3687: use flattenTel

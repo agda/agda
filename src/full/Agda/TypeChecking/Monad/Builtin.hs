@@ -215,7 +215,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
-    primAgdaTCMSolveConstraints, primAgdaTCMSolveConstraintsMentioning,
     primAgdaTCMGetConstraintsMentioning,
     primAgdaTCMRunSpeculative,
     primAgdaTCMDelayMacro
@@ -406,8 +405,6 @@ primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
-primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
-primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
 primAgdaTCMGetConstraintsMentioning   = getBuiltin builtinAgdaTCMGetConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMDelayMacro                 = getBuiltin builtinAgdaTCMDelayMacro

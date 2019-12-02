@@ -54,6 +54,16 @@ interestingConstraint pc = go $ clValue (theConstraint pc)
     go (Guarded c _) = go c
     go _             = True
 
+prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
+prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
+  where
+    isBlocked = not . null . blocking . clValue . theConstraint
+    cs' = filter interestingConstraint cs
+    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
+    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    blocking (Guarded c pid) = pid : blocking c
+    blocking _               = []
+
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning wng = case wng of
@@ -66,12 +76,14 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs -> ifNull (filter interestingConstraint cs)
-      {-then-} (fsep $ pwords "Unsolved constraints")  -- #4065: keep minimal warning text
-      {-else-} $ \ cs' -> vcat
-        [ fsep $ pwords "Failed to solve the following constraints:"
-        , nest 2 $ P.vcat . List.nub <$> mapM prettyConstraint cs'
-        ]
+    UnsolvedConstraints cs -> do
+      pcs <- prettyInterestingConstraints cs
+      if null pcs
+        then fsep $ pwords "Unsolved constraints"  -- #4065: keep minimal warning text
+        else vcat
+          [ fsep $ pwords "Failed to solve the following constraints:"
+          , nest 2 $ return $ P.vcat $ List.nub pcs
+          ]
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper

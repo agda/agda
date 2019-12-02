@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [32, 36] _8 (A = A) false a b = b : A
-  [27, 31] _8 (A = A) true a b = a : A
+  _8 (A = A) false a b = b : A
+  _8 (A = A) true a b = a : A
 Unsolved metas at the following locations:
   DontPrune.agda:12,12-13
   DontPrune.agda:15,14-18

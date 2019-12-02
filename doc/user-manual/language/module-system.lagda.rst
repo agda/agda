@@ -106,6 +106,12 @@ An alternative to making definitions private is to exert finer control over what
 is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
 An omitted ``renaming`` modifier is equivalent to an empty renaming.
 
+To refer to a module ``M`` inside ``A`` you write ``module M``. For instance,
+
+.. code-block:: agda
+
+  open A using (module M)
+
 Since 2.6.1: The fixity of an operator can be set or changed in a ``renaming`` directive::
 
   module ExampleRenamingFixity where
@@ -244,6 +250,7 @@ Sometimes the name of an imported module clashes with a local module. In this ca
   import M as M’
 
 It is also possible to attach modifiers to import statements, limiting or changing what names are visible from inside the module.
+Note that modifiers attached to ``open import`` statements apply to the ``open`` statement and not the ``import`` statement.
 
 Datatype modules and record modules
 -----------------------------------

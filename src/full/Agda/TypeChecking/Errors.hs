@@ -20,6 +20,8 @@ import Prelude hiding ( null )
 
 import Data.Function
 import Data.List (sortBy, isInfixOf, dropWhileEnd)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Char (toLower)
 import qualified Data.Set as Set
@@ -57,7 +59,6 @@ import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
@@ -748,14 +749,14 @@ instance PrettyTCM TypeError where
     AmbiguousName x ys -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map nameWithBinding (toList ys)
+      , nest 2 $ vcat $ map nameWithBinding (NonEmpty.toList ys)
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
 
     AmbiguousModule x ys -> vcat
       [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map help (toList ys)
+      , nest 2 $ vcat $ map help (NonEmpty.toList ys)
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
       where
@@ -868,11 +869,11 @@ instance PrettyTCM TypeError where
     CannotResolveAmbiguousPatternSynonym defs -> vcat
       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
                pwords "since candidates have different shapes:"
-      , nest 2 $ vcat $ map prDef (toList defs)
+      , nest 2 $ vcat $ map prDef (NonEmpty.toList defs)
       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
       ]
       where
-        (x, _) = headNe defs
+        (x, _) = NonEmpty.head defs
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 

@@ -131,16 +131,39 @@ relView t = do
     let [a, b] = fmap snd <$> lastTwo
     return $ Just $ RelView tel delta a b core
 
--- | Add @q : Γ → rel us lhs rhs@ as rewrite rule
+-- | Check the given rewrite rules and add them to the signature.
+addRewriteRules :: [QName] -> TCM ()
+addRewriteRules qs = do
+
+  -- Check the rewrite rules
+  rews <- mapM checkRewriteRule qs
+
+  -- Add rewrite rules to the signature
+  forM_ rews $ \rew -> do
+    let f = rewHead rew
+        matchables = getMatchables rew
+    reportSDoc "rewriting" 10 $
+      "adding rule" <+> prettyTCM (rewName rew) <+>
+      "to the definition of" <+> prettyTCM f
+    reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
+    modifySignature $ addRewriteRulesFor f [rew] matchables
+
+  -- Run confluence check for the new rules
+  -- (should be done after adding all rules, see #3795)
+  whenM (optConfluenceCheck <$> pragmaOptions) $
+    checkConfluenceOfRules rews
+
+
+-- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
 --       Γ ⊢ lhs ↦ rhs : B
 --   @
---   to the signature where @B = A[us/Δ]@.
+--   where @B = A[us/Δ]@.
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
---   Returns the head symbol @f@ of the lhs.
-addRewriteRule :: QName -> TCM ()
-addRewriteRule q = do
+--   Returns the checked rewrite rule to be added to the signature.
+checkRewriteRule :: QName -> TCM RewriteRule
+checkRewriteRule q = do
   requireOptionRewriting
   let failNoBuiltin = typeError $ GenericError $
         "Cannot add rewrite rule without prior BUILTIN REWRITE"
@@ -224,7 +247,7 @@ addRewriteRule q = do
 
       ifNotAlreadyAdded f $ do
 
-      rew <- addContext gamma1 $ do
+      addContext gamma1 $ do
         -- Normalize lhs args: we do not want to match redexes.
         es <- normalise es
 
@@ -249,29 +272,14 @@ addRewriteRule q = do
           "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        return $ RewriteRule q gamma f ps rhs (unDom b)
+        let rew = RewriteRule q gamma f ps rhs (unDom b)
 
-      reportSDoc "rewriting" 10 $ vcat
-        [ "considering rewrite rule " , prettyTCM rew ]
-      reportSDoc "rewriting" 90 $ vcat
-        [ "considering rewrite rule" , text (show rew) ]
+        reportSDoc "rewriting" 10 $ vcat
+          [ "checked rewrite rule" , prettyTCM rew ]
+        reportSDoc "rewriting" 90 $ vcat
+          [ "checked rewrite rule" , text (show rew) ]
 
-      -- NO LONGER WORKS:
-      -- -- Check whether lhs can be rewritten with itself.
-      -- -- Otherwise, there are unbound variables in either gamma or rhs.
-      -- addContext gamma $
-      --   unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
-      --     failureFreeVars
-
-      -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-      reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-      let matchables = getMatchables rew
-      reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
-      modifySignature $ addRewriteRulesFor f [rew] matchables
-
-      -- Run confluence check for the new rule
-      whenM (optConfluenceCheck <$> pragmaOptions) $
-        checkConfluenceOfRule rew
+        return rew
 
     _ -> failureWrongTarget
 
@@ -307,14 +315,16 @@ addRewriteRule q = do
         , prettyTCM f , "is not a postulate, a function, or a constructor"
         ]
 
-    ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
+    ifNotAlreadyAdded :: QName -> TCM RewriteRule -> TCM RewriteRule
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      if any ((q ==) . rewName) rews then do
-        genericWarning =<< do
-          "Rewrite rule " <+> prettyTCM q <+> " has already been added"
-      else cont
+      case List.find ((q ==) . rewName) rews of
+        Just rew -> do
+          genericWarning =<< do
+            "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+          return rew
+        Nothing -> cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
     usedArgs occs = IntSet.fromList $ map snd $ usedIxs

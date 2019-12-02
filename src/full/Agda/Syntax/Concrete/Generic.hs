@@ -179,7 +179,7 @@ instance ExprLike LamBinding where
 
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
-     LHS ps res wes -> LHS ps (mapE res) $ mapE wes
+     LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
    where mapE e = mapExpr f e
 
 instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
@@ -204,8 +204,8 @@ instance ExprLike ModuleApplication where
 
 instance ExprLike Declaration where
   mapExpr f = \case
-     TypeSig ai x e            -> TypeSig ai x                         $ mapE e
-     FieldSig i n e            -> FieldSig i n                         $ mapE e
+     TypeSig ai t x e          -> TypeSig ai (mapE t) x (mapE e)
+     FieldSig i t n e          -> FieldSig i (mapE t) n (mapE e)
      Field r fs                -> Field r                              $ map (mapExpr f) fs
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e

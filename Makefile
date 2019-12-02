@@ -68,7 +68,7 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options="+RTS -M3G -RTS" $(CABAL_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
@@ -324,12 +324,12 @@ library-test : # up-to-date-std-lib
 	(cd std-lib && runhaskell GenerateEverything.hs && \
           time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
                            -i. -isrc README.agda \
-                           +RTS -s -H2G -M3G)
+                           +RTS -s)
 
 .PHONY : continue-library-test
 continue-library-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s -H2G -M3G)
+          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
 .PHONY : lib-succeed
 lib-succeed :
@@ -399,13 +399,13 @@ testing-emacs-mode:
 
 ## Clean ##################################################################
 
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) clean --builddir=$(1); fi;
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 
 .PHONY : clean
 clean :
 	$(call clean_helper,$(BUILD_DIR))
-	$(call clean_helper,$(QUICK_BUILD_DIR)
+	$(call clean_helper,$(QUICK_BUILD_DIR))
 
 ## Whitespace-related #####################################################
 
@@ -458,7 +458,7 @@ install-agda-bisect :
 	@echo "======================================================================"
 	@echo "============== Installing the agda-bisect program ===================="
 	@echo "======================================================================"
-	cd src/agda-bisect && $(CABAL_CMD) install
+	cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
 
 ###########################################################################
 # HPC

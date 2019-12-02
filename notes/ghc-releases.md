@@ -89,6 +89,8 @@ Let's suppose the new version of GHC is X.Y.Z.
 * User manual: Update the tested versions of GHC in
   `/doc/user-manual/getting-started/prerequisites.rst`.
 
+* Add the file `.ghciXY` and modify the `.ghci`.
+
 * Record your changes in the stable branch.
 
 * Merge the stable branch into the master.

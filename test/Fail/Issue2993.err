@@ -22,10 +22,10 @@ Failed to solve the following constraints:
       {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
-  [243, 244] F B =< _F_166 _B_164
-  [243] _F_166 (Vec _B_164 n) =< F (Vec B n)
-  [223] F B =< _F_160 _B_152
-  [228] _F_160 (Vec _B_152 n₁) =< F (Vec B n₁)
+  F B =< _F_166 _B_164
+  _F_166 (Vec _B_164 n) =< F (Vec B n)
+  F B =< _F_160 _B_152
+  _F_160 (Vec _B_152 n₁) =< F (Vec B n₁)
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85

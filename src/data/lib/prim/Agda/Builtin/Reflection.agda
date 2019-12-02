@@ -306,13 +306,6 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
-  -- Tries to solve all constraints.
-  solveConstraints : TC ⊤
-
-  -- Wakes up all constraints mentioning the given meta-variables, and
-  -- then tries to solve all awake constraints.
-  solveConstraintsMentioning : List Meta → TC ⊤
-
 -- Gets all the constraints that mention the given meta-variables.
   getConstraintsMentioning : List Meta → TC (List Constraint)
 
@@ -320,7 +313,7 @@ postulate
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
   runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
-  
+
   -- Delay the execution of a macro till the Declaration it is
   -- used in, has been typechecked.
   delayMacro : TC ⊤
@@ -352,8 +345,6 @@ postulate
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
 {-# BUILTIN AGDATCMGETCONSTRAINTSMENTIONING   getConstraintsMentioning   #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMDELAYMACRO                 delayMacro                 #-}

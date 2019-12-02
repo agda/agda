@@ -1,0 +1,5 @@
+-- This file should mirror the flags for GHC 8.8.* enabled in
+-- `Agda.cabal` (there were no flags when this file was created).
+-- It should be loaded automatically by the `.ghci` file in this directory.
+--
+:script .ghci860

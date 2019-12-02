@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   , reifyPatterns
   , reifyUnblocked
   , blankNotInScope
+  , reifyDisplayFormP
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
@@ -459,7 +460,7 @@ reifyTerm expandAnonDefs0 v0 = do
           r  <- getConstructorData x
           xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
           vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
+          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           def <- getConstInfo x
           let Constructor{conPars = np} = theDef def
@@ -1211,7 +1212,7 @@ tryRecPFromConP p = do
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps
         where
-          mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
+          mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
 instance Reify (QNamed I.Clause) A.Clause where
@@ -1223,8 +1224,9 @@ instance Reify NamedClause A.Clause where
       ++ "\n  f      = " ++ prettyShow f
       ++ "\n  toDrop = " ++ show toDrop
       ++ "\n  cl     = " ++ show cl
+    let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
-    lhs <- uncurry (SpineLHS empty) <$> reifyDisplayFormP f ps []
+    lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
     -- (e.g. for extended lambdas). We still get here with toDrop = True and
     -- pattern lambdas when doing make-case, so take care to drop the right
@@ -1272,7 +1274,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- reifyPatterns $ teleNamedArgs tel
       ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
       let
-        lhs = SpineLHS (LHSRange noRange) f ps
+        lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 

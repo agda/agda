@@ -56,7 +56,7 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef :: A.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
 checkDataDef i name uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) name ps cs) $ do
 
@@ -520,6 +520,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
 
                | otherwise
@@ -532,6 +533,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
         cs = [clause]
       addClauses theName cs
@@ -580,6 +582,7 @@ defineProjections dataname con params names fsT t = do
           , clauseCatchall = False
           , clauseBody = Just $ var i
           , clauseUnreachable = Just False
+          , clauseEllipsis = NoEllipsis
           }
 
     noMutualBlock $ do

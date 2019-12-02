@@ -30,6 +30,8 @@ import Data.Traversable (mapM, traverse)
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
@@ -86,10 +88,10 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -188,9 +190,9 @@ recordConstructorType decls =
           mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
-        C.NiceField r pr ab inst x a -> do
+        C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBinder $ C.mkBoundName x fx) <$ a
+          let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
           tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
@@ -206,7 +208,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
+             [ C.Clause _ _ (C.LHS _p [] [] NoEllipsis) (C.RHS _) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -571,8 +573,8 @@ instance ToAbstract ResolveQName ResolvedName where
     q -> return q
 
 data APatName = VarPatName A.Name
-              | ConPatName (NonemptyList AbstractName)
-              | PatternSynPatName (NonemptyList AbstractName)
+              | ConPatName (NonEmpty AbstractName)
+              | PatternSynPatName (NonEmpty AbstractName)
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
@@ -621,9 +623,9 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
     case rx of
       DefinedName _ d      -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName ds   -> return $ anameName (headNe ds)   -- We'll throw out this one, so it doesn't matter which one we pick
-      FieldName ds         -> return $ anameName (headNe ds)
-      PatternSynResName ds -> return $ anameName (headNe ds)
+      ConstructorName ds   -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds         -> return $ anameName (NonEmpty.head ds)
+      PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
 
@@ -1392,7 +1394,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] []) (C.RHS rhs) NoWhere ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere ca) -> do
         mp  <- setCurrentRange p $
                  (Right <$> parsePattern p)
                    `catchError`
@@ -1458,7 +1460,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere []) = do
 {-
             p    <- parseLHS top p
             localToAbstract (snd $ lhsArgs p) $ \args ->
@@ -1523,18 +1525,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
-    C.NiceGeneralize r p i x t -> do
+    C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_
       reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      return [A.Generalize s (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r) i y t]
+      let info = (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r)
+                  { defTactic = tac }
+      return [A.Generalize s info i y t]
 
   -- Fields
-    C.NiceField r p a i x t -> do
+    C.NiceField r p a i tac x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1542,6 +1547,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- all question marks to underscores.  (See issue 1138.)
       let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
           maskIP e                     = e
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
@@ -1553,9 +1559,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
       --   -- this ensures that projections out of irrelevant fields cannot occur
       --   -- Ulf: unless you turn on --irrelevant-projections
-      do
-        bindName p FldName x y
-      return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
+      bindName p FldName x y
+      let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
+      return [ A.Field info y t' ]
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
@@ -1690,7 +1696,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                fs = concat $ forMaybe fields $ \case
                  C.Field _ fs -> Just $ fs <&> \case
                    -- a Field block only contains field signatures
-                   C.FieldSig _ f _ -> f
+                   C.FieldSig _ _ f _ -> f
                    _ -> __IMPOSSIBLE__
                  _ -> Nothing
            unlessNull (duplicates fs) $ \ dups -> do
@@ -2047,14 +2053,14 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ xs) = concat <$> do
+  toAbstract (C.RewritePragma _ xs) = singleton . A.RewritePragma . concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
-      A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj _ p | Just x <- getUnambiguous p -> return [ A.RewritePragma x ]
+      A.Def x          -> return [ x ]
+      A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
       A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Con c | Just x <- getUnambiguous c -> return [ A.RewritePragma x ]
+      A.Con c | Just x <- getUnambiguous c -> return [ x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
@@ -2153,15 +2159,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case qx of
         VarName x' _                -> return . (False,) $ A.qnameFromList [x']
         DefinedName _ d             -> return . (False,) $ anameName d
-        FieldName     (d :! [])     -> return . (False,) $ anameName d
+        FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName (d :! [])   -> return . (False,) $ anameName d
+        ConstructorName (d :| [])   -> return . (False,) $ anameName d
         ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         UnknownName                 -> notInScopeError top
-        PatternSynResName (d :! []) -> return . (True,) $ anameName d
+        PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs
+    lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
@@ -2202,13 +2208,13 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with ell) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p ell
     printLocals 10 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
@@ -2371,10 +2377,10 @@ instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern
+data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs) =
+    toAbstract (LeftHandSide top lhs ell) =
       traceCall (ScopeCheckLHS top lhs) $ do
         lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
@@ -2392,7 +2398,7 @@ instance ToAbstract LeftHandSide A.LHS where
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange lhs) lhscore
+        return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
 -- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
 mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]

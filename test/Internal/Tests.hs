@@ -45,7 +45,7 @@ import qualified Internal.Utils.List                               as UtilList  
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
 import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
-import qualified Internal.Utils.NonemptyList                       as UtilNeList   ( tests )
+import qualified Internal.Utils.NonEmptyList                       as UtilNonEmpty ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
 import qualified Internal.Utils.Three                              as UtilThree    ( tests )
@@ -93,7 +93,7 @@ tests = testGroup "Internal"
   , UtilListT.tests
   , UtilMaybeS.tests
   , UtilMonoid.tests
-  , UtilNeList.tests
+  , UtilNonEmpty.tests
   , UtilPOrd.tests
   , UtilPerm.tests
   , UtilThree.tests

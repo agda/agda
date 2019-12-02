@@ -169,8 +169,11 @@ prettyCohesion a d =
   if render d == "_" then d else pretty (getCohesion a) <+> d
 
 prettyTactic :: BoundName -> Doc -> Doc
-prettyTactic BName{ bnameTactic = Nothing } d = d
-prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
+prettyTactic = prettyTactic' . bnameTactic
+
+prettyTactic' :: TacticAttribute -> Doc -> Doc
+prettyTactic' Nothing  d = d
+prettyTactic' (Just t) d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
@@ -413,7 +416,7 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty (LHS p eqs es) = sep
+  pretty (LHS p eqs es ell) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
     , nest 2 $ prefixedThings "with" (map pretty es)
@@ -446,15 +449,15 @@ instance Pretty Declaration where
     prettyList = vcat . map pretty
     pretty d =
         case d of
-            TypeSig i x e ->
-                sep [ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+            TypeSig i tac x e ->
+                sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
 
-            FieldSig inst x (Arg i e) ->
+            FieldSig inst tac x (Arg i e) ->
                 mkInst inst $ mkOverlap i $
                 prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-                pretty $ TypeSig (setRelevance Relevant i) x e
+                pretty $ TypeSig (setRelevance Relevant i) tac x e
 
                 where
 

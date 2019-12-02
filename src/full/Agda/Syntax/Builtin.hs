@@ -65,7 +65,6 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
-  builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
   builtinAgdaTCMGetConstraintsMentioning,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMDelayMacro
@@ -258,8 +257,6 @@ builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
-builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
-builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
 builtinAgdaTCMGetConstraintsMentioning   = "AGDATCMGETCONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMDelayMacro                 = "AGDATCMDELAYMACRO"

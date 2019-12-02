@@ -693,20 +693,21 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   current <- currentModule
   let freshQName s = qualify current <$> freshName_ (s :: String)
       mkFieldName  = freshQName . (generalizedFieldName ++) <=< getMetaNameSuggestion
-  genRecFields <- mapM (defaultArg <.> mkFieldName) sortedMetas
+  genRecFields <- mapM (defaultDom <.> mkFieldName) sortedMetas
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
                   { conName      = con
                   , conInductive = Inductive
-                  , conFields    = genRecFields }
-  forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
+                  , conFields    = map argFromDom genRecFields }
+  projIx <- succ . size <$> getContext
+  inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
-    let field = unArg fld
-    addConstant field $ defaultDefn (argInfo fld) field fieldTy $
+    let field = unDom fld
+    addConstant field $ defaultDefn (getArgInfo fld) field fieldTy $
       let proj = Projection { projProper   = Just genRecName
                             , projOrig     = field
                             , projFromType = defaultArg genRecName
-                            , projIndex    = 1
+                            , projIndex    = projIx
                             , projLams     = ProjLams [defaultArg "gtel"] } in
       Function { funClauses      = []
                , funCompiled     = Nothing
@@ -756,7 +757,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   args <- getContextArgs
   let genRecTy = El genRecSort $ Def genRecName $ map Apply args
   noConstraints $ equalType genRecTy genRecMeta
-  return (genRecName, genRecCon, map unArg genRecFields)
+  return (genRecName, genRecCon, map unDom genRecFields)
 
 -- | Once we have the generalized telescope we can fill in the missing details of the record type.
 fillInGenRecordDetails :: QName -> ConHead -> [QName] -> Type -> Telescope -> TCM ()

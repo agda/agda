@@ -477,7 +477,6 @@ evalTCM v = do
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
-             , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
              , (f `isDef` primAgdaTCMDelayMacro, tcDelayMacro)
              ]
              failEval
@@ -489,7 +488,6 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
-             , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
              , (f `isDef` primAgdaTCMGetConstraintsMentioning,   tcFun1 tcGetConstraintsMentioning   u)
              ]
              failEval
@@ -607,17 +605,6 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
-
-    tcSolveConstraints :: UnquoteM Term
-    tcSolveConstraints = liftTCM $ do
-      wakeupConstraints_
-      primUnitUnit
-
-    tcSolveConstraintsMentioning :: [MetaId] -> TCM Term
-    tcSolveConstraintsMentioning ms = do
-      wakeConstraints' (return . mentionsMetas (HashSet.fromList ms))
-      solveAwakeConstraints
-      primUnitUnit
 
     tcGetConstraintsMentioning :: [MetaId] -> TCM Term
     tcGetConstraintsMentioning ms = do

@@ -1,0 +1,6 @@
+Failed to solve the following constraints:
+  fst ?0 = fst x : A
+Unsolved metas at the following locations:
+  Issue3606.agda:14,10-18
+Unsolved interaction metas at the following locations:
+  Issue3606.agda:14,14-18

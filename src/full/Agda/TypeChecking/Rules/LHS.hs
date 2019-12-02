@@ -25,6 +25,8 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
@@ -84,7 +86,6 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
@@ -245,7 +246,7 @@ updateProblemEqs eqs = do
             updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
           A.RecP pi fs -> do
-            axs <- recFields . theDef <$> getConstInfo d
+            axs <- map argFromDom . recFields . theDef <$> getConstInfo d
 
             -- Andreas, 2018-09-06, issue #3122.
             -- Associate the concrete record field names used in the record pattern
@@ -789,8 +790,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   (result, block) <- inTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
 
--- | Determine in which order the splits should be tried by
---   reordering/inserting/dropping the problem equations.
+-- | Determine which splits should be tried.
 splitStrategy :: [ProblemEq] -> [ProblemEq]
 splitStrategy = filter shouldSplit
   where
@@ -1207,7 +1207,7 @@ checkLHS mf = updateModality checkLHS_ where
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
-          axs <- recordFieldNames . theDef <$> getConstInfo d
+          axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
           ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
@@ -1510,7 +1510,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text $ "we are of record type r  = " ++ prettyShow r
         , text   "applied to parameters vs = " <+> prettyTCM vs
-        , text $ "and have fields       fs = " ++ prettyShow fs
+        , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
         ]
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
@@ -1533,7 +1533,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
-      case partitionEithers $ toList disambiguations of
+      case partitionEithers $ NonEmpty.toList disambiguations of
         (_ , (d,a) : disambs) | constraintsOk <= null disambs -> do
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
@@ -1543,7 +1543,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           return (d,a)
         other -> failure other
 
-    notRecord = wrongProj $ headNe ds
+    notRecord = wrongProj $ NonEmpty.head ds
 
     wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
@@ -1564,7 +1564,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
 
     tryProj
       :: Bool                 -- ^ Are we allowed to create new constraints?
-      -> [Arg QName]          -- ^ Fields of record type under consideration.
+      -> [Dom QName]          -- ^ Fields of record type under consideration.
       -> QName                -- ^ Name of record type we are eliminating.
       -> Args                 -- ^ Parameters of record type we are eliminating.
       -> QName                -- ^ Candidate projection.
@@ -1593,7 +1593,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If the projection pattern name @d@ is not a field name,
         -- we have to try the next projection name.
         -- If this was not an ambiguous projection, that's an error.
-        argd <- maybe (wrongProj d) return $ List.find ((d ==) . unArg) fs
+        argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
 
         let ai = setModality (getModality argd) $ projArgInfo proj
 
@@ -1649,7 +1649,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
     tryDisambiguate constraintsOk cons d failure = do
       disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
         -- TODO: can we be more lazy, like using the ListT monad?
-      case partitionEithers $ toList disambiguations of
+      case partitionEithers $ NonEmpty.toList disambiguations of
         -- Andreas, 2019-10-14: The code from which I factored out 'tryDisambiguate'
         -- did allow several disambiguations in case @constraintsOk == False@.
         -- There was no comment explaining why, but "fixing" it and insisting on a
@@ -1762,8 +1762,8 @@ checkParameters dc d pars = liftTCM $ do
     _ -> __IMPOSSIBLE__
 
 checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
-                        LensSort a, PrettyTCM a)
-                    => DataOrRecord -> a -> Maybe (Arg Type) -> m ()
+                        LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
+                    => DataOrRecord -> a -> Maybe ty -> m ()
 checkSortOfSplitVar dr a mtarget = do
   infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case

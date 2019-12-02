@@ -30,7 +30,7 @@ import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 
 import qualified Text.Regex.TDFA as R
-import qualified Text.Regex.TDFA.String as R
+import qualified Text.Regex.TDFA.Text as RT ( compile )
 
 import Agda.Utils.Maybe
 
@@ -214,9 +214,7 @@ replace rgx new inp =
     -- of this by replacing the matches in last-to-first order,
     -- which means we don't have to worry about changing offsets.
 
-    -- ASR (2019-10-13). We could avoid the use of T.unpack after the
-    -- fix of https://github.com/ChrisKuklewicz/regex-tdfa/issues/5.
-    matches = R.matchAll rgx $ T.unpack inp
+    matches = R.matchAll rgx inp
 
     repl :: R.MatchArray -> T.Text -> T.Text
     repl match t =
@@ -224,11 +222,9 @@ replace rgx new inp =
       where
         (off, len) = match ! 0
 
--- ASR (2019-10-13). We could avoid the use of T.unpack after the fix
--- of https://github.com/ChrisKuklewicz/regex-tdfa/issues/5.
 mkRegex :: T.Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
-  R.compile R.defaultCompOpt R.defaultExecOpt $ T.unpack r
+  RT.compile R.defaultCompOpt R.defaultExecOpt r
 
 cleanOutput :: T.Text -> IO T.Text
 cleanOutput inp = do

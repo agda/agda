@@ -15,6 +15,15 @@ Installation and infrastructure
   The flag `--local-interfaces` forces Agda to revert back to storing
   interface files alongside module files no matter what.
 
+* Agda now uses the default RTS options `-H3.5G -M3.5G -A128M`.  If
+  you run Agda on a 32-bit system or a system with less than 8GB of
+  RAM, it is recommended to set the RTS options explicitly to a lower
+  value by running `agda` with option `+RTS -H0.6G -M1.2G -A64M -RTS`
+  (for example) or by setting the GHCRTS enviroment variable. See the
+  [GHC User's Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/runtime_control.html#setting-rts-options)
+  for more information.
+
+
 Pragmas and options
 -------------------
 
@@ -246,6 +255,19 @@ Language
   example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
   ```
 
+  Record fields can also be annotated with a tactic, allowing them to be
+  omitted in constructor applications, record constructions and co-pattern
+  matches:
+
+  ```agda
+  record Example : Set where
+    constructor mkExample
+    field x : A
+          @(tactic solveP x) {y} : P x
+  ```
+
+  where `solveP : (x : A) → Term → TC ⊤` is a tactic that tries to prove `P x`.
+
 * The legacy reflection framework using `quoteGoal` and `quoteContext` has been
   removed.
 
@@ -275,18 +297,6 @@ Language
   ```
 
   placed in Agda.Builtin.String.
-
-* New primitives for asking Agda to try to solve constraints [[Issue
-  #3791](https://github.com/agda/agda/issues/3791)]:
-
-  ```agda
-  solveConstraints           : TC ⊤
-  solveConstraintsMentioning : List Meta → TC ⊤
-  ```
-
-  The former one tries to solve all constraints, whereas the latter
-  one wakes up all constraints mentioning the given meta-variables,
-  and then tries to solve all awake constraints.
 
 * The builtin `IO` has been declared strictly positive in both its
   level and type argument.
@@ -319,6 +329,10 @@ Emacs mode
 
 * Agda now also displays the values of let-bound variables in the
   context instead of just their types.
+
+* Agda will now try to preserve the ellipsis (`...`) during case
+  splitting when possible. To manually expand the ellipsis, you may
+  ask Agda to case split on the special identifier `.`.
 
 GHC Backend
 -----------

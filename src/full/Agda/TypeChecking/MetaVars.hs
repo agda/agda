@@ -491,7 +491,7 @@ etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
-etaExpandMetaTCM kinds m = whenM (asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
+etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
@@ -1336,7 +1336,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               , length fs == length es
               , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
               , irrProj || all isRelevant fs -> do
-                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
+                let aux (Arg _ v) Dom{domInfo = info', unDom = f} = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding   = min (getHiding info) (getHiding info')
                        , argInfoModality = Modality
@@ -1398,7 +1398,7 @@ openMetasToPostulates = do
   ms <- IntMap.assocs <$> useTC stMetaStore
   forM_ ms $ \ (x, mv) -> do
     when (isOpenMeta $ mvInstantiation mv) $ do
-      let t = jMetaType $ mvJudgement mv
+      let t = dummyTypeToOmega $ jMetaType $ mvJudgement mv
 
       -- Create a name for the new postulate.
       let r = clValue $ miClosRange $ mvInfo mv
@@ -1424,6 +1424,14 @@ openMetasToPostulates = do
       let inst = InstV [] $ Def q []
       updateMetaVar (MetaId x) $ \ mv0 -> mv0 { mvInstantiation = inst }
       return ()
+  where
+    -- Unsolved sort metas can have a type ending in a Dummy if they are allowed to be instantiated
+    -- to Setω. This will crash the serializer (issue #3730). To avoid this we replace dummy type
+    -- codomains by Setω.
+    dummyTypeToOmega t =
+      case telView' t of
+        TelV tel (El _ Dummy{}) -> abstract tel topSort
+        _ -> t
 
 -- | Sort metas in dependency order.
 dependencySortMetas :: [MetaId] -> TCM (Maybe [MetaId])

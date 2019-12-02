@@ -63,7 +63,7 @@ import Agda.Utils.Impossible
 --     [@fields@]  List of field signatures.
 --
 checkRecDef
-  :: Info.DefInfo              -- ^ Position and other info.
+  :: A.DefInfo                 -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> UniverseCheck             -- ^ Check universes?
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
@@ -148,12 +148,15 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       etaenabled <- etaEnabled
 
-      let getName :: A.Declaration -> [Arg QName]
-          getName (A.Field _ x arg)    = [x <$ arg]
+      let getName :: A.Declaration -> [Dom QName]
+          getName (A.Field _ x arg)    = [x <$ domFromArg arg]
           getName (A.ScopedDecl _ [f]) = getName f
           getName _                    = []
 
-          fs = concatMap getName fields
+          setTactic dom f = f { domTactic = domTactic dom }
+
+          fs = zipWith setTactic (telToList ftel) $ concatMap getName fields
+
           -- indCo is what the user wrote: inductive/coinductive/Nothing.
           -- We drop the Range.
           indCo = rangedThing <$> ind
@@ -164,7 +167,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred NoEta) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction fs
+          con = ConHead conName conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
@@ -289,7 +292,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           [ "record section:"
           , nest 2 $ sep
             [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
-            , fsep $ punctuate comma $ map (return . P.pretty . getName) fields
+            , fsep $ punctuate comma $ map (return . P.pretty . map argFromDom . getName) fields
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
@@ -317,13 +320,13 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       -- we define composition here so that the projections are already in the signature.
       escapeContext npars $ do
-        addCompositionForRecord name con tel fs ftel rect
+        addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
       whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
-        cls <- defClauses <$> getConstInfo (unArg f)
+        cls <- defClauses <$> getConstInfo (unDom f)
         forM (zip cls [0..]) $ \(cl,i) ->
-          checkConfluenceOfClause (unArg f) i cl
+          checkConfluenceOfClause (unDom f) i cl
 
       return ()
 
@@ -455,6 +458,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseCatchall  = False
                          , clauseBody      = Just $ rhs
                          , clauseUnreachable = Just False
+                         , clauseEllipsis  = NoEllipsis
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
@@ -469,6 +473,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseCatchall  = False
                          , clauseBody      = Just body
                          , clauseUnreachable = Just False
+                         , clauseEllipsis  = NoEllipsis
                          }
           reportSDoc "trans.rec" 17 $ text $ show c
           reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
@@ -630,6 +635,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
                             , clauseUnreachable = Just False
+                            , clauseEllipsis  = NoEllipsis
                             }
 
         let projection = Projection

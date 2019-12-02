@@ -231,7 +231,7 @@ matchPattern p u = case (p, u) of
       (theDef <$> getConstInfo c) >>= \case
         Constructor{ conData = d } -> do
           (theDef <$> getConstInfo d) >>= \case
-            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just fs
+            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just $ map argFromDom fs
             _ -> return Nothing
         _ -> __IMPOSSIBLE__
   (DefP o q ps, v) -> do

@@ -27,6 +27,7 @@ module Agda.Syntax.Concrete
   , FieldAssignment, FieldAssignment'(..), nameFieldA, exprFieldA
   , ModuleAssignment(..)
   , BoundName(..), mkBoundName_, mkBoundName
+  , TacticAttribute
   , Telescope -- (..)
   , countTelVars
   , lamBindingsToTelescope
@@ -231,9 +232,11 @@ data LamBinding' a
 data BoundName = BName
   { boundName   :: Name
   , bnameFixity :: Fixity'
-  , bnameTactic :: Maybe Expr   -- From @tactic attribute
+  , bnameTactic :: TacticAttribute -- From @tactic attribute
   }
   deriving (Data, Eq)
+
+type TacticAttribute = Maybe Expr
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
@@ -288,6 +291,7 @@ data LHS = LHS
   { lhsOriginalPattern :: Pattern               -- ^ e.g. @f ps | wps@
   , lhsRewriteEqn      :: [RewriteEqn]          -- ^ @(rewrite e | with p <- e)@ (many)
   , lhsWithExpr        :: [WithHiding WithExpr] -- ^ @with e1 | {e2} | ...@ (many)
+  , lhsExpandedEllipsis :: ExpandedEllipsis     -- ^ Did we expand an ellipsis?
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
 
@@ -379,8 +383,8 @@ type TypeSignatureOrInstanceBlock = Declaration
 -}
 
 data Declaration
-  = TypeSig ArgInfo Name Expr
-  | FieldSig IsInstance Name (Arg Expr)
+  = TypeSig ArgInfo TacticAttribute Name Expr
+  | FieldSig IsInstance TacticAttribute Name (Arg Expr)
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field Range [FieldSignature]
@@ -737,8 +741,8 @@ instance HasRange ModuleAssignment where
   getRange (ModuleAssignment a b c) = fuseRange a b `fuseRange` c
 
 instance HasRange Declaration where
-  getRange (TypeSig _ x t)         = fuseRange x t
-  getRange (FieldSig _ x t)        = fuseRange x t
+  getRange (TypeSig _ _ x t)       = fuseRange x t
+  getRange (FieldSig _ _ x t)      = fuseRange x t
   getRange (Field r _)             = r
   getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
@@ -767,7 +771,7 @@ instance HasRange Declaration where
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
-  getRange (LHS p eqns ws) = p `fuseRange` eqns `fuseRange` ws
+  getRange (LHS p eqns ws ell) = p `fuseRange` eqns `fuseRange` ws
 
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps
@@ -874,8 +878,8 @@ instance KillRange BoundName where
   killRange (BName n f t) = killRange3 BName n f t
 
 instance KillRange Declaration where
-  killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
-  killRange (FieldSig i n e)        = killRange3 FieldSig i n e
+  killRange (TypeSig i t n e)       = killRange3 (TypeSig i) t n e
+  killRange (FieldSig i t n e)      = killRange4 FieldSig i t n e
   killRange (Generalize r ds )      = killRange1 (Generalize noRange) ds
   killRange (Field r fs)            = killRange1 (Field noRange) fs
   killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
@@ -947,7 +951,7 @@ instance KillRange LamBinding where
   killRange (DomainFull t) = killRange1 DomainFull t
 
 instance KillRange LHS where
-  killRange (LHS p r w)     = killRange3 LHS p r w
+  killRange (LHS p r w e)  = killRange4 LHS p r w e
 
 instance KillRange LamClause where
   killRange (LamClause a b c d) = killRange4 LamClause a b c d
@@ -1086,8 +1090,8 @@ instance NFData Pattern where
 -- | Ranges are not forced.
 
 instance NFData Declaration where
-  rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
-  rnf (FieldSig a b c)        = rnf a `seq` rnf b `seq` rnf c
+  rnf (TypeSig a b c d)       = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (FieldSig a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Generalize _ a)        = rnf a
   rnf (Field _ fs)            = rnf fs
   rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
@@ -1164,7 +1168,7 @@ instance NFData a => NFData (OpApp a) where
 -- | Ranges are not forced.
 
 instance NFData LHS where
-  rnf (LHS a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (LHS a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData a => NFData (FieldAssignment' a) where
   rnf (FieldAssignment a b) = rnf a `seq` rnf b

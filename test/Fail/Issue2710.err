@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [4] ?0 =< Loop → Loop
+  ?0 =< Loop → Loop
 Unsolved metas at the following locations:
   Issue2710.agda:8,13-14
 Unsolved interaction metas at the following locations:

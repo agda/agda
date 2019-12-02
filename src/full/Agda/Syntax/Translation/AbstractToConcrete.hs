@@ -42,6 +42,8 @@ import qualified Data.Foldable as Fold
 import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -51,6 +53,7 @@ import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Pattern as C
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
@@ -73,7 +76,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList
 import Agda.Utils.Singleton
 import Agda.Utils.Pretty
 
@@ -620,9 +622,9 @@ instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x      -> toConcrete x
-    FieldName xs         -> toConcrete (headNe xs)
-    ConstructorName xs   -> toConcrete (headNe xs)
-    PatternSynResName xs -> toConcrete (headNe xs)
+    FieldName xs         -> toConcrete (NonEmpty.head xs)
+    ConstructorName xs   -> toConcrete (NonEmpty.head xs)
+    PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
 -- Expression instance ----------------------------------------------------
@@ -888,15 +890,15 @@ instance ToConcrete LetBinding [C.Declaration] where
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (isInstance info) $
-               [ C.TypeSig info (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
+               [ C.TypeSig info Nothing (C.boundName x) t
+               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] [] NoEllipsis) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -984,17 +986,17 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
-    return $ C.TypeSig info x' t'
+    return $ C.TypeSig info Nothing x' t'
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
-          C.LHS p _ _ -> do
+          C.LHS p _ _ ell -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
@@ -1021,28 +1023,30 @@ instance ToConcrete A.Declaration [C.Declaration] where
         (case mp of
            Nothing   -> []
            Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
-        [C.Postulate (getRange i) [C.TypeSig info x' t']]
+        [C.Postulate (getRange i) [C.TypeSig info Nothing x' t']]
 
   toConcrete (A.Generalize s i j x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
+    tac <- traverse toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize (getRange i) [C.TypeSig j x' $ C.Generalized t']]
+      return [C.Generalize (getRange i) [C.TypeSig j tac x' $ C.Generalized t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
+    tac <- traverse toConcrete (defTactic i)
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.FieldSig (A.defInstance i) x' t']
+      return [C.FieldSig (A.defInstance i) tac x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo x' t']]
+      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo Nothing x' t']]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ _ cs) =
@@ -1128,7 +1132,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
     A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
-    A.RewritePragma x         -> C.RewritePragma r . singleton <$> toConcrete x
+    A.RewritePragma x         -> C.RewritePragma r <$> toConcrete x
     A.CompilePragma b x s -> do
       x <- toConcrete x
       return $ C.CompilePragma r b x s
@@ -1147,7 +1151,7 @@ instance ToConcrete A.SpineLHS C.LHS where
 instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
-          ret $ C.LHS lhs [] []
+          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
 
 instance ToConcrete A.LHSCore C.Pattern where
   bindToConcrete = bindToConcrete . lhsCoreToPattern

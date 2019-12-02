@@ -135,6 +135,7 @@ bindBuiltinFlat x =
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
           , clauseUnreachable = Just False
+          , clauseEllipsis  = NoEllipsis
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
@@ -161,7 +162,7 @@ bindBuiltinFlat x =
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }
     modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultArg flat] }
+      def { recConHead = sharpCon, recFields = [defaultDom flat] }
     return flatE
 
 -- The coinductive primitives.

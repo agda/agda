@@ -262,9 +262,11 @@ instance PrettyTCM Modality where
     ]
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids c)
-    | Set.null pids = prettyTCM c
-    | otherwise     = prettyList (map prettyTCM $ Set.toList pids) <+> prettyTCM c
+  prettyTCM (PConstr pids c) = prettyTCM c <?> prPids (Set.toList pids)
+    where
+      prPids []    = empty
+      prPids [pid] = parens $ "problem" <+> prettyTCM pid
+      prPids pids  = parens $ "problems" <+> fsep (punctuate "," $ map prettyTCM pids)
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
@@ -277,7 +279,7 @@ instance PrettyTCM Constraint where
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        Guarded c pid            -> prettyTCM c <?> (brackets $ "blocked on problem" <+> prettyTCM pid)
+        Guarded c pid            -> prettyTCM c <?> (parens $ "blocked by problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m
