@@ -24,7 +24,6 @@ branches:
     - /^release-.*/
     # Test all issue* branches. Saves you opening a PR.
     - /^issue.*/
-    - trim-CI
 
 ##############################################################################
 # The submodule is only needed by stdlib compiler test, so
