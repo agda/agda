@@ -103,6 +103,7 @@ jobs:
       before_install: |
         # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
         cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
+        cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori
 
         # Setup ghc & cabal path
         export PATH=/opt/ghc/$GHC_VER/bin:$PATH
@@ -128,6 +129,8 @@ jobs:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.elc' -delete
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agda.vim' -delete
+        - rm $(stack ${ARGS} ${FLAGS} path --local-install-root)/bin/size-solver
+        - mv $HOME/stack-work.sqlite3.ori ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3
         - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
 
     - <<: *main-job
