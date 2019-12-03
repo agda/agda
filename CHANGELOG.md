@@ -271,6 +271,20 @@ Language
 * The legacy reflection framework using `quoteGoal` and `quoteContext` has been
   removed.
 
+* New TC function `delayMacro` delays the macro till the declaration
+        it is used in, has been typechecked.
+
+  ```agda
+  delayMacro : TC ⊤
+  ```
+
+* New TC function `getConstraintsMentioning` gets all the constraints
+  that mention the given metavariables.
+
+  ```agda
+  getConstraintsMentioning : List Meta → TC (List Constraint)
+  ```
+
 ### Builtins
 
 * New primitives
@@ -301,6 +315,35 @@ Language
 * The builtin `IO` has been declared strictly positive in both its
   level and type argument.
 
+* New reflection Primitives that expose the internal agda Constraints.
+
+```agda
+  data Comparison : Set where
+    cmpEq  : Comparison
+    cmpLEq : Comparison
+
+  {-# BUILTIN AGDACOMPARISON       Comparison #-}
+  {-# BUILTIN AGDACMPEQ            cmpEq      #-}
+  {-# BUILTIN AGDACMPLEQ           cmpLEq     #-}
+
+  data CompareAs : Set where
+    asTermsOf : Term → CompareAs
+    asTypes   : CompareAs
+    asSizes   : CompareAs
+
+  {-# BUILTIN AGDACOMPAREAS       CompareAs #-}
+  {-# BUILTIN AGDAASTERMSOF       asTermsOf #-}
+  {-# BUILTIN AGDAASTYPES         asTypes   #-}
+  {-# BUILTIN AGDAASSIZES         asSizes   #-}
+
+  data Constraint : Set where
+    valueCmp    : Comparison → CompareAs → Term → Term → Constraint
+    unsupported : Constraint
+
+  {-# BUILTIN AGDACONSTRAINT             Constraint  #-}
+  {-# BUILTIN AGDACONSTRAINTVALUECMP     valueCmp    #-}
+  {-# BUILTIN AGDACONSTRAINTUNSUPPORTED  unsupported #-}
+  ```
 ### Warnings
 
 * New warning for a variable shadowing another in a telescope. If the two
