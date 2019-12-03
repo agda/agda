@@ -404,7 +404,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            found <- anyM ds ((d ==) <.> (liftTCM . getOriginalProjection))
+            found <- anyM ds $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
             -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
             if o /= o' then liftTCM $ mismatchOrigin o o' else do
             if not found then mismatch else do
