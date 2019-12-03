@@ -210,6 +210,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Relevant   -> return ()
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
+        case getQuantity ai of
+          Quantityω{} -> return ()
+          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
         -- compute which constructor arguments are forced (only point constructors)
