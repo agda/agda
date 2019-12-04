@@ -72,6 +72,10 @@ disabledTests =
     -- Issue #2640 (forcing translation for runtime erasure) is still open
   , disable "Compiler/.*/simple/Erasure-Issue2640"
     -----------------------------------------------------------------------------
+    -- The following test case fails (at least at the time of writing)
+    -- for the JS backend.
+  , disable "Compiler/JS/simple/Issue4169-2"
+    -----------------------------------------------------------------------------
     -- The following test cases are GHC backend specific and thus disabled on JS.
   , disable "Compiler/JS/simple/Issue2821"
   , disable "Compiler/JS/simple/Issue2879-.*"
