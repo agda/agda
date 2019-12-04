@@ -1012,6 +1012,9 @@ checkExpr'
   -> TCM Term
 checkExpr' cmp e t =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
+  reportResult "tc.term.expr.top" 15 (\ v -> vcat
+                                              [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
+                                              , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
