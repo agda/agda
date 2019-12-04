@@ -11,6 +11,8 @@ import qualified Data.Map as Map
 import qualified Data.Graph as Graph
 import Control.Arrow
 import Agda.Utils.List (nubOn)
+import Agda.Utils.SemiRing
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 
 mergeBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 mergeBy _ [] xs = xs
@@ -28,7 +30,11 @@ mergeBy f (x:xs) (y:ys)
 topSort :: Ord n => [n] -> [(n, n)] -> Maybe [n]
 topSort nodes edges = go [] nodes
   where
-    deps = (Map.!) $ Map.fromList [ (a, Set.fromList [ b | (a1, b) <- edges, a == a1 ]) | a <- nodes ]
+    -- #4253: The input edges do not necessarily include transitive dependencies, so take transitive
+    --        closure before sorting.
+    w      = Just () -- () is not a good edge label since it counts as a "zero" edge and will be ignored
+    g      = G.transitiveClosure $ G.fromNodes nodes `G.union` G.fromEdges [G.Edge a b w | (a, b) <- edges]
+    deps a = Map.keysSet $ G.graph g Map.! a
 
     -- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must
     -- come before it
