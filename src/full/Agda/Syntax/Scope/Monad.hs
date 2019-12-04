@@ -175,6 +175,17 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
+-- | Run a computation outside some number of local variables and add them back afterwards. This
+--   lets you bind variables in the middle of the context and is used when binding generalizable
+--   variables (#3735).
+outsideLocalVars :: Int -> ScopeM a -> ScopeM a
+outsideLocalVars n m = do
+  inner <- take n <$> getLocalVars
+  modifyLocalVars (drop n)
+  x <- m
+  modifyLocalVars (inner ++)
+  return x
+
 -- | Check that the newly added variable have unique names.
 
 withCheckNoShadowing :: ScopeM a -> ScopeM a
