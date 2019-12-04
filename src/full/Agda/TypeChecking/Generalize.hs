@@ -24,7 +24,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Scope.Monad (bindVariable)
+import Agda.Syntax.Scope.Monad (bindVariable, outsideLocalVars)
 import Agda.Syntax.Scope.Base (BindingSource(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Constraints
@@ -457,8 +457,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         (y, u) <- updateContext ρ (const newCxt) $ localScope $ do
 
           -- First, we add the named variables to the scope, to allow
-          -- them to be used in holes (#3341).
-          addNamedVariablesToScope rΘ
+          -- them to be used in holes (#3341). These should go outside Δ (#3735).
+          outsideLocalVars i $ addNamedVariablesToScope rΘ
 
           -- Now we can create the new meta
           newMetaFromOld mv ρ _A
