@@ -1,13 +1,13 @@
 Failed to solve the following constraints:
-  tt = _b_38
+  tt = _b_35
     : (λ { true → ⊤ ; false → ⊥ }) (test true (c (_b_21 (n = true))))
-    (blocked on any(_33, _35))
+    (blocked on any(_31, _32))
   ⊥ =< (λ { true → ⊤ ; false → ⊥ })
        (test false (c (_b_21 (n = false))))
-    (blocked on _23)
+    (blocked on _22)
   ⊤ =< (λ { true → ⊤ ; false → ⊥ })
        (test true (c (_b_21 (n = true))))
-    (blocked on _23)
+    (blocked on _22)
   _b_21 = n : Bool (blocked on _b_21)
 Unsolved metas at the following locations:
   Issue2640.agda:20,22-23

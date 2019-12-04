@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  x = _63 (A' = A) : A (blocked on _63)
-  _63 (A' = A) = x : A (blocked on _63)
+  x = _58 (A' = A) : A (blocked on _58)
+  _58 (A' = A) = x : A (blocked on _58)
 Unsolved metas at the following locations:
   Issue920a.agda:26,52-56
   Issue920a.agda:26,49-50

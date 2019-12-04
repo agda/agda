@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument _AF_165 : Applicative (λ v₁ → _F_180 v₁)
+  Resolve instance argument _AF_165 : Applicative (λ v₁ → _F_177 v₁)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -7,7 +7,7 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  Resolve instance argument _AF_176 : Applicative (λ v → _F_177 v)
+  Resolve instance argument _AF_174 : Applicative (λ v → _F_175 v)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -15,11 +15,11 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  F B =< _F_177 _B_175 (blocked on _F_177)
-  _F_177 (Vec _B_175 n) =< F (Vec B n) (blocked on _F_177)
-  _F_180 (Vec _B_164 n₁) =< F (Vec B n₁)
-    (blocked on any(_B_164, _F_180))
-  F B =< _F_180 _B_164 (blocked on _F_180)
+  F B =< _F_175 _B_173 (blocked on _F_175)
+  _F_175 (Vec _B_173 n) =< F (Vec B n) (blocked on _F_175)
+  _F_177 (Vec _B_164 n₁) =< F (Vec B n₁)
+    (blocked on any(_B_164, _F_177))
+  F B =< _F_177 _B_164 (blocked on _F_177)
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85

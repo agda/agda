@@ -260,10 +260,10 @@ solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
 solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these have their own unblocking logic (for now)
-  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (do
-        reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
-                                                  ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
-        addConstraint alwaysUnblock $ UnBlock m) $ do
+  ifM (not <$> asksTC envAssignMetas) (do
+      reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because meta assignments are turned off"]
+      addConstraint alwaysUnblock $ UnBlock m) $ do
+    unfreezeMeta m
     inst <- lookupMetaInstantiation m
     reportSDoc "tc.constr.unblock" 65 $ "unblocking a metavar yields the constraint:" <+> pretty inst
     case inst of

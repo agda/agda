@@ -1,4 +1,5 @@
 Failed to solve the following constraints:
+  Alpha = false : Foo Alpha (blocked on _16)
   Foo _15 = Bool : Set (blocked on _15)
   Bool =< Foo _15 (blocked on _15)
 Unsolved metas at the following locations:

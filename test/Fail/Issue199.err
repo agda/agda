@@ -6,8 +6,8 @@ Failed to solve the following constraints:
       because I get stuck when trying to solve the following unification
       problems (inferred index ≟ expected index):
         {D} ≟ {_T_13}
-        d ≟ _15
-      when checking that the pattern p _ has type P _15
+        d ≟ _14
+      when checking that the pattern p _ has type P _14
     (blocked on _T_13)
   D A =< _T_13 _A_12 (blocked on _T_13)
 Unsolved metas at the following locations:

@@ -525,7 +525,7 @@ blockTermOnProblem t v pid = do
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
     x   <- newMeta' (BlockedConst $ abstract tel v)
-                    Instantiable
+                    Frozen
                     i
                     lowMetaPriority
                     (idP $ size tel)
@@ -537,28 +537,30 @@ blockTermOnProblem t v pid = do
         (prettyTCM $ abstract tel v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
       ]
-    inst <- isInstantiatedMeta x
-    if inst
-      then instantiate (MetaV x es)
-      else do
-        -- We don't return the blocked term instead create a fresh metavariable
-        -- that we compare against the blocked term once it's unblocked. This way
-        -- blocked terms can be instantiated before they are unblocked, thus making
-        -- constraint solving a bit more robust against instantiation order.
-        -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-        reportSDoc "tc.meta.blocked" 30
-          $   "setting twin of"
-          <+> prettyTCM m'
-          <+> "to be"
-          <+> prettyTCM x
-        updateMetaVar m' (\mv -> mv { mvTwin = Just x })
-        i   <- fresh
-        -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint_ (unblockOnMeta x) (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
-        reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-        listenToMeta (CheckConstraint i cmp) x
-        return v
+
+    -- Issue 4067: Replacing the blocked term with a fresh meta means we lose the user-written term.
+    --             It's not clear that the improvements of constraint solving robustness is worth
+    --             this.
+    instantiate (MetaV x es)
+    -- Pre-4067 code:
+    -- inst <- isInstantiatedMeta x
+    -- case inst of
+    --   True  -> instantiate (MetaV x es)
+    --   False -> do
+    --     -- We don't return the blocked term instead create a fresh metavariable
+    --     -- that we compare against the blocked term once it's unblocked. This way
+    --     -- blocked terms can be instantiated before they are unblocked, thus making
+    --     -- constraint solving a bit more robust against instantiation order.
+    --     -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
+    --     (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
+    --     reportSDoc "tc.meta.blocked" 30 $ "setting twin of" <+> prettyTCM m' <+> "to be" <+> prettyTCM x
+    --     updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
+    --     i   <- fresh
+    --     -- This constraint is woken up when unblocking, so it doesn't need a problem id.
+    --     cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
+    --     reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
+    --     listenToMeta (CheckConstraint i cmp) x
+    --     return v
 
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)

@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
-  bla₂ _54 .fst = 0 : Nat (blocked on _54)
-  fst (blabla _41) = 1 : Nat (blocked on _41)
-  bla pred _28 = 1 : Nat (blocked on _28)
+  bla₂ _51 .fst = 0 : Nat (blocked on _51)
+  fst (blabla _39) = 1 : Nat (blocked on _39)
+  bla pred _27 = 1 : Nat (blocked on _27)
   bla pred _23 = 0 : Nat (blocked on _23)
 Unsolved metas at the following locations:
   Issue2944.agda:38,17-18

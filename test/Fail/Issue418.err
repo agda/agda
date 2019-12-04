@@ -7,12 +7,12 @@ Missing type signature for abstract definition C.
 Types of abstract definitions are never inferred since this would
 leak information that should be abstract.
 Failed to solve the following constraints:
-  Set₂ = _14 (blocked on _14)
-  Set₁ =< _15 (blocked on _15)
-  Set = _7 : Set₁ (blocked on _7)
+  Set₂ = _11 (blocked on _11)
+  Set₁ =< _12 (blocked on _12)
+  Set = _6 : Set₁ (blocked on _6)
   Set = _3 : Set₁ (blocked on _3)
-  Set₂ = _10 (blocked on _10)
-  Set₁ =< _11 (blocked on _11)
+  Set₂ = _8 (blocked on _8)
+  Set₁ =< _9 (blocked on _9)
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18
