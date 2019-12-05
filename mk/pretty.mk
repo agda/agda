@@ -24,7 +24,7 @@ else\
 	printf "\n";\
 fi   ;\
 $(2) ;\
-if [ -v TRAVIS ]; then                     \
+if [ "${TRAVIS}" = "true" ]; then                     \
   echo -e "travis_fold:end:$${LABEL}";       \
 fi
 endef
