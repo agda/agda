@@ -284,7 +284,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- section telescope changes the semantics, see e.g.
       -- test/Succeed/RecordInParModule.
       -- Ulf, 2016-03-02 but it's the right thing to do (#1759)
-      modifyContext (map hideOrKeepInstance) $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
 
         -- Add the record section.
 
@@ -303,7 +303,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- Andreas, 2016-02-09, Issue 1815 (see also issue 1759).
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
-      modifyContext (map hideOrKeepInstance) $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
 
         -- Check the types of the fields and the other record declarations.
         withCurrentModule m $ do

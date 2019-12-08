@@ -44,6 +44,10 @@ import Agda.Utils.Impossible
 modifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
 modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
+-- | Modify the 'Dom' part of context entries.
+modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
+modifyContextInfo f = modifyContext $ map f
+
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 safeInTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
