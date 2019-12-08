@@ -17,6 +17,7 @@ import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
@@ -135,7 +136,8 @@ findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
   defs  <- HMap.elems <$> useTC (stSignature . sigDefinitions)
   idefs <- HMap.elems <$> useTC (stImports   . sigDefinitions)
-  return $ cands defs ++ cands idefs
+  scope <- getScope
+  return $ filter (`isNameInScope` scope) $ cands defs ++ cands idefs
   where
     cands defs = [ defName d | d <- defs, possible d ]
     possible def =
