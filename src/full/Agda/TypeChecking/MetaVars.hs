@@ -979,7 +979,7 @@ assignMeta' m x t n ids v = do
     return $ applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
-  safeInTopContext $ do
+  inTopContext $ do
     -- Andreas, 2011-04-18 to work with irrelevant parameters
     -- we need to construct tel' from the type of the meta variable
     -- (no longer from ids which may not be the complete variable list

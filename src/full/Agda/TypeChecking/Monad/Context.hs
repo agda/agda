@@ -50,9 +50,9 @@ modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tc
 modifyContextInfo f = unsafeModifyContext $ map f
 
 -- | Change to top (=empty) context. Resets the checkpoints.
-{-# SPECIALIZE safeInTopContext :: TCM a -> TCM a #-}
-safeInTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
-safeInTopContext cont =
+{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
+inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
+inTopContext cont =
   unsafeModifyContext (const [])
         $ locallyTC eCurrentCheckpoint (const 0)
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
