@@ -46,15 +46,14 @@ modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-safeInTopContext :: MonadTCM tcm => tcm a -> tcm a
-safeInTopContext cont = do
-  locals <- liftTCM $ getLocalVars
-  liftTCM $ setLocalVars []
-  a <- modifyContext (const [])
+safeInTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
+safeInTopContext cont =
+  modifyContext (const [])
         $ locallyTC eCurrentCheckpoint (const 0)
-        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS) cont
-  liftTCM $ setLocalVars locals
-  return a
+        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
+        $ locallyTCState stModuleCheckpoints (const Map.empty)
+        $ locallyScope scopeLocals (const [])
+        $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
 --   not safe!

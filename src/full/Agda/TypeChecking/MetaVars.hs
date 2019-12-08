@@ -979,7 +979,7 @@ assignMeta' m x t n ids v = do
     return $ applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
-  inTopContext $ do
+  safeInTopContext $ do
     -- Andreas, 2011-04-18 to work with irrelevant parameters
     -- we need to construct tel' from the type of the meta variable
     -- (no longer from ids which may not be the complete variable list
@@ -1069,6 +1069,9 @@ checkSolutionForMeta x m v a = do
     HasType{ jComparison = cmp } -> do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
+      reportSDoc "tc.meta.check" 50 $ nest 2 $ do
+        ctx <- getContext
+        inTopContext $ "in context: " <+> prettyTCM (PrettyContext ctx)
       traceCall (CheckMetaSolution (getRange m) x a v) $
         checkInternal v cmp a
     IsSort{}  -> void $ do
