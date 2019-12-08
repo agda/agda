@@ -380,9 +380,9 @@ blockTermOnProblem t v pid =
                     Instantiable i lowMetaPriority (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    unsafeInTopContext $ addConstraint (Guarded (UnBlock x) pid)
+    inTopContext $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ "blocked" <+> prettyTCM x <+> ":=" <+> unsafeInTopContext (prettyTCM $ abstract tel v)
+      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext (prettyTCM $ abstract tel v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
     case inst of
@@ -439,7 +439,7 @@ postponeTypeCheckingProblem p unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () CmpLeq $ telePi_ tel t
-  unsafeInTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
+  inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
     [ "new meta" <+> prettyTCM m <+> ":" <+> prettyTCM (telePi_ tel t)
     , "for postponed typechecking problem" <+> prettyTCM p
     ]
@@ -547,7 +547,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                       newRecordMetaCtx (mvFrozen meta) r ps tel (idP $ size tel) $ teleArgs tel
                     -- Andreas, 2019-03-18, AIM XXIX, issue #3597
                     -- When meta is frozen instantiate it with in-turn frozen metas.
-                    unsafeInTopContext $ do
+                    inTopContext $ do
                       reportSDoc "tc.meta.eta" 15 $ sep
                           [ "eta expanding: " <+> pretty m <+> " --> "
                           , nest 2 $ prettyTCM u
@@ -679,7 +679,7 @@ assign dir x args v target = do
       cxt <- getContextTelescope
       vcat
         [ "context before projection expansion"
-        , nest 2 $ unsafeInTopContext $ prettyTCM cxt
+        , nest 2 $ inTopContext $ prettyTCM cxt
         ]
 
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
@@ -688,7 +688,7 @@ assign dir x args v target = do
         cxt <- getContextTelescope
         vcat
           [ "context after projection expansion"
-          , nest 2 $ unsafeInTopContext $ prettyTCM cxt
+          , nest 2 $ inTopContext $ prettyTCM cxt
           ]
 
       -- Andreas, 2019-11-16, issue #4159:
@@ -1071,7 +1071,7 @@ checkSolutionForMeta x m v a = do
         prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
       reportSDoc "tc.meta.check" 50 $ nest 2 $ do
         ctx <- getContext
-        unsafeInTopContext $ "in context: " <+> prettyTCM (PrettyContext ctx)
+        inTopContext $ "in context: " <+> prettyTCM (PrettyContext ctx)
       traceCall (CheckMetaSolution (getRange m) x a v) $
         checkInternal v cmp a
     IsSort{}  -> void $ do
@@ -1159,7 +1159,7 @@ etaExpandProjectedVar i v fail succeed = do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>
       " in terms " <+> prettyTCM v
-    unsafeInTopContext $ addContext delta $
+    inTopContext $ addContext delta $
       succeed $ applySubst tau v
 
 -- | Check whether one of the meta args is a projected var.

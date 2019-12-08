@@ -26,7 +26,7 @@ import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
 import Agda.Syntax.Position (noRange, Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
-import Agda.TypeChecking.Monad (Comparison(..), unsafeInTopContext, ProblemId(..), TCM)
+import Agda.TypeChecking.Monad (Comparison(..), inTopContext, ProblemId(..), TCM)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
@@ -310,7 +310,7 @@ encodeGoalSpecific :: InteractionId -> GoalDisplayInfo -> TCM Value
 encodeGoalSpecific ii = go
   where
   go (Goal_HelperFunction helperType) = kind "HelperFunction"
-    [ "signature"   #= unsafeInTopContext (prettyATop helperType)
+    [ "signature"   #= inTopContext (prettyATop helperType)
     ]
   go (Goal_NormalForm computeMode expr) = kind "NormalForm"
     [ "computeMode" @= computeMode

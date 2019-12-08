@@ -1068,7 +1068,7 @@ instance PrettyTCM TypeError where
         pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
     DeBruijnIndexOutOfScope i cxt names ->
         sep [ text ("de Bruijn index " ++ show i ++ " is not in scope in the context")
-            , unsafeInTopContext $ addContext ("_" :: String) $ prettyTCM cxt' ]
+            , inTopContext $ addContext ("_" :: String) $ prettyTCM cxt' ]
       where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
         nameCxt :: [Name] -> I.Telescope

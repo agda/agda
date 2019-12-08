@@ -253,7 +253,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               whenNothing extlam $ solveSizeConstraints DontDefaultToInfty
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
-              unsafeInTopContext $ addClauses name [c]
+              inTopContext $ addClauses name [c]
               return (c,b)
 
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
@@ -274,18 +274,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           typeError $ GenericError "no pattern matching or path copatterns in systems!"
 
 
-        reportSDoc "tc.def.fun" 70 $ unsafeInTopContext $ do
+        reportSDoc "tc.def.fun" 70 $ inTopContext $ do
           sep $ [ "checked clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
-        reportSDoc "tc.cc" 25 $ unsafeInTopContext $ do
+        reportSDoc "tc.cc" 25 $ inTopContext $ do
           sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
-        reportSDoc "tc.cc" 60 $ unsafeInTopContext $ do
+        reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ "raw clauses: "
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
@@ -330,7 +330,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         inv <- Bench.billTo [Bench.Injectivity] $
           checkInjectivity name cs
 
-        reportSDoc "tc.cc" 15 $ unsafeInTopContext $ do
+        reportSDoc "tc.cc" 15 $ inTopContext $ do
           sep [ "clauses before compilation"
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
@@ -341,7 +341,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               ]
 
         -- add clauses for the coverage (& confluence) checker (needs to reduce)
-        unsafeInTopContext $ addClauses name cs
+        inTopContext $ addClauses name cs
 
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
         reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
@@ -366,7 +366,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- some extra clauses.
         cs <- defClauses <$> getConstInfo name
 
-        reportSDoc "tc.cc" 60 $ unsafeInTopContext $ do
+        reportSDoc "tc.cc" 60 $ inTopContext $ do
           sep [ "compiled clauses of" <+> prettyTCM name
               , nest 2 $ pretty cc
               ]
@@ -379,12 +379,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Jesper, 2019-05-30: if the constructors used in the
         -- lhs of a clause have rewrite rules, we need to check
         -- confluence here
-        whenM (optConfluenceCheck <$> pragmaOptions) $ unsafeInTopContext $
+        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
           forM_ (zip cs [0..]) $ \(c , clauseNo) ->
             checkConfluenceOfClause name clauseNo c
 
         -- Add the definition
-        unsafeInTopContext $ addConstant name =<< do
+        inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           defn <- autoInline $
@@ -1135,7 +1135,7 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
 
     addSection m
 
-    reportSDoc "tc.section" 10 $ unsafeInTopContext $
+    reportSDoc "tc.section" 10 $ inTopContext $
       nest 4 $ "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont

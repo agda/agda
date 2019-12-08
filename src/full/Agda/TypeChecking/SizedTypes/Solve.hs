@@ -179,7 +179,7 @@ solveSizeConstraints flag =  do
         reportSDoc "tc.size.solve" 20 $ vcat $
           [ "converted size constraints to context: " <+> do
               tel <- getContextTelescope
-              unsafeInTopContext $ prettyTCM tel
+              inTopContext $ prettyTCM tel
           ] ++ map (nest 2 . prettyTCM) cs'
 
         -- Solve the converted constraints.
@@ -271,7 +271,7 @@ castConstraintToCurrentContext' cl = do
   -- Debug printing.
   reportSDoc "tc.constr.cast" 40 $ "casting constraint" $$ do
     tel <- getContextTelescope
-    unsafeInTopContext $ nest 2 $ vcat $
+    inTopContext $ nest 2 $ vcat $
       [ "current module                = " <+> prettyTCM modM
       , "current module telescope      = " <+> prettyTCM gamma1
       , "current context               = " <+> prettyTCM tel

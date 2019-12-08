@@ -56,7 +56,7 @@ etaExpandClause clause = liftTCM $ do
       let ctel' = telFromList $ telToList ctel ++ ltel
           ps'   = raise n ps ++ teleNamedArgs tel
           body' = raise n body `apply` teleArgs tel
-      reportSDoc "term.clause.expand" 30 $ unsafeInTopContext $ vcat
+      reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
         [ "etaExpandClause"
         , "  body    = " <+> (addContext ctel' $ prettyTCM body)
         , "  xs      = " <+> text (prettyShow xs)

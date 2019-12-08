@@ -124,7 +124,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
-        "gamma = " <+> unsafeInTopContext (prettyTCM gamma)
+        "gamma = " <+> inTopContext (prettyTCM gamma)
 
       -- record type (name applied to parameters)
       rect <- El s . Def name . map Apply <$> getContextArgs
@@ -291,7 +291,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
         reportSDoc "tc.rec.def" 10 $ sep
           [ "record section:"
           , nest 2 $ sep
-            [ prettyTCM m <+> (unsafeInTopContext . prettyTCM =<< getContextTelescope)
+            [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (return . P.pretty . map argFromDom . getName) fields
             ]
           ]
@@ -482,7 +482,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
           return c
   addClauses theName $ c' : cs
   reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
-  (mst, _, cc) <- unsafeInTopContext (compileClauses Nothing cs)
+  (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
   whenJust mst $ setSplitTree theName
   setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
@@ -527,8 +527,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       reportSDoc "tc.rec.proj" 5 $ sep
         [ "checking projection" <+> prettyTCM x
         , nest 2 $ vcat
-          [ "top   =" <+> (unsafeInTopContext . prettyTCM =<< getContextTelescope)
-          , "tel   =" <+> (unsafeInTopContext . prettyTCM $ tel)
+          [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          , "tel   =" <+> (inTopContext . prettyTCM $ tel)
           , "ftel1 =" <+> prettyTCM ftel1
           , "t     =" <+> prettyTCM t
           , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
@@ -579,7 +579,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                 (ftel2 `absApp` projcall ProjSystem) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
-        unsafeInTopContext $ prettyTCM finalt
+        inTopContext $ prettyTCM finalt
 
       -- -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- -- disabled by --no-irrelevant-projections
@@ -590,7 +590,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       do
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> ":" <+> unsafeInTopContext (prettyTCM finalt)
+          , nest 2 $ prettyTCM projname <+> ":" <+> inTopContext (prettyTCM finalt)
           ]
 
         -- The body should be
@@ -656,7 +656,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> "=" <+>
-                       unsafeInTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
+                       inTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"

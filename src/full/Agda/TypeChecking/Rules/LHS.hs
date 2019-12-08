@@ -781,7 +781,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let withSub = fromMaybe __IMPOSSIBLE__ withSub'
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
-  unsafeInTopContext $ addContext (st0 ^. lhsTel) $
+  inTopContext $ addContext (st0 ^. lhsTel) $
     forM_ withEqs recheckStrippedWithPattern
 
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0

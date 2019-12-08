@@ -109,7 +109,7 @@ verifyBuiltinRewrite v t = do
       Lam{}    -> __IMPOSSIBLE__
       Pi{}     -> __IMPOSSIBLE__
       _ -> failure $ "because its type does not end in a sort, but in "
-             <+> do unsafeInTopContext $ addContext tel $ prettyTCM core
+             <+> do inTopContext $ addContext tel $ prettyTCM core
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 data RelView = RelView
@@ -182,7 +182,7 @@ checkRewriteRule q = do
   let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
   reportSDoc "rewriting" 30 $ do
     "rewrite relation at type " <+> do
-      unsafeInTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
+      inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
         addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def

@@ -381,9 +381,9 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
-                 liftM modifyAbstractClause $ unsafeInTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable ell
+                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable ell
               moduleTel <- lookupSection (AN.qnameModule def)
-              pcs <- withInteractionId ii $ unsafeInTopContext $ addContext moduleTel $ mapM prettyA cls''
+              pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks
 
 

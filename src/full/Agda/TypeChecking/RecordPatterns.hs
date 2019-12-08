@@ -540,7 +540,7 @@ translateRecordPatterns clause = do
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
       [ "Original clause:"
-      , nest 2 $ unsafeInTopContext $ vcat
+      , nest 2 $ inTopContext $ vcat
         [ "delta =" <+> prettyTCM (clauseTel clause)
         , "pats  =" <+> text (show $ clausePats clause)
         ]

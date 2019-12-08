@@ -888,7 +888,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- Add the section with well-formed telescope.
     addContext (KeepNames aTel) $ do
       reportSDoc "tc.mod.apply" 80 $
-        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> unsafeInTopContext (prettyTCM tel))
+        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
       addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
@@ -897,7 +897,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       ]
     args <- instantiateFull $ vs ++ ts
     let n = size aTel
-    etaArgs <- unsafeInTopContext $ addContext aTel getContextArgs
+    etaArgs <- inTopContext $ addContext aTel getContextArgs
     addContext (KeepNames aTel) $
       applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 

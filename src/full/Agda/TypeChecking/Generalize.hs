@@ -201,7 +201,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
               [ text "Don't know how to generalize over"
               , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
               , text "in context"
-              , nest 2 $ unsafeInTopContext . prettyTCM =<< getContextTelescope
+              , nest 2 $ inTopContext . prettyTCM =<< getContextTelescope
               , text "permutation:" <+> text (show (m, xs))
               , text "subst:" <+> pretty msub ]
           return sameContext
@@ -383,7 +383,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
         reportSDoc "tc.generalize.prune" 30 $ vcat
           [ "pruning"
-          , nest 2 $ unsafeInTopContext $ prettyTCM (mvJudgement mv)
+          , nest 2 $ inTopContext $ prettyTCM (mvJudgement mv)
           , nest 2 $ "GenRecTel is var" <+> pretty i ]
 
         _ΓrΔ <- getContextTelescope
@@ -700,7 +700,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                   , conInductive = Inductive
                   , conFields    = map argFromDom genRecFields }
   projIx <- succ . size <$> getContext
-  unsafeInTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
+  inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
     addConstant field $ defaultDefn (getArgInfo fld) field fieldTy $
@@ -774,11 +774,11 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
           proj = Var 0 [Proj ProjSystem fld]
       mkFieldTypes _ _ = __IMPOSSIBLE__
   let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)
-  reportSDoc "tc.generalize" 40 $ text "Field types:" <+> unsafeInTopContext (nest 2 $ vcat $ map prettyTCM fieldTypes)
+  reportSDoc "tc.generalize" 40 $ text "Field types:" <+> inTopContext (nest 2 $ vcat $ map prettyTCM fieldTypes)
   zipWithM_ setType fields fieldTypes
   -- Constructor type
   let conType = fullTel `abstract` raise (size fieldTel) recTy
-  reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> unsafeInTopContext (prettyTCM conType)
+  reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
   modifyGlobalDefinition name $ \ r ->

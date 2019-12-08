@@ -141,7 +141,7 @@ giveExpr force mii mi e = do
               [ "meta was already set to value v' = " TP.<+> prettyTCM v'
                 TP.<+> " with free variables " TP.<+> return (fsep $ map pretty xs)
               , "now comparing it to given value v = " TP.<+> prettyTCM v
-              , "in context " TP.<+> unsafeInTopContext (prettyTCM ctx)
+              , "in context " TP.<+> inTopContext (prettyTCM ctx)
               ]
             -- The number of free variables should be at least the size of the context
             -- (Ideally, if we implemented contextual type theory, it should be the same.)
@@ -844,15 +844,15 @@ metaHelperType norm ii rng s = case words s of
         let (vs, as)   = unzipWith (fmap extractOtherType . whThing) vtys in
         let (vs', as') = unzipWith (fmap extractOtherType . whThing) vtys' in
         [ "generating helper function"
-        , TP.nest 2 $ "tel    = " TP.<+> unsafeInTopContext (prettyTCM tel)
+        , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
         , TP.nest 2 $ "a      = " TP.<+> prettyTCM a
         , TP.nest 2 $ "vs     = " TP.<+> prettyTCM vs
         , TP.nest 2 $ "as     = " TP.<+> prettyTCM as
-        , TP.nest 2 $ "delta1 = " TP.<+> unsafeInTopContext (prettyTCM delta1)
-        , TP.nest 2 $ "delta2 = " TP.<+> unsafeInTopContext (addContext delta1 $ prettyTCM delta2)
-        , TP.nest 2 $ "a'     = " TP.<+> unsafeInTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
-        , TP.nest 2 $ "as'    = " TP.<+> unsafeInTopContext (addContext delta1 $ prettyTCM as')
-        , TP.nest 2 $ "vs'    = " TP.<+> unsafeInTopContext (addContext delta1 $ prettyTCM vs')
+        , TP.nest 2 $ "delta1 = " TP.<+> inTopContext (prettyTCM delta1)
+        , TP.nest 2 $ "delta2 = " TP.<+> inTopContext (addContext delta1 $ prettyTCM delta2)
+        , TP.nest 2 $ "a'     = " TP.<+> inTopContext (addContext delta1 $ addContext delta2 $ prettyTCM a')
+        , TP.nest 2 $ "as'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM as')
+        , TP.nest 2 $ "vs'    = " TP.<+> inTopContext (addContext delta1 $ prettyTCM vs')
         ]
       return $ OfType' h a
   where

@@ -191,7 +191,7 @@ lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp 
 lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
   case kind of
     Goal_HelperFunction helperType -> do
-      doc <- unsafeInTopContext $ prettyATop helperType
+      doc <- inTopContext $ prettyATop helperType
       return [ L [ A "agda2-info-action-and-copy"
                  , A $ quote "*Helper function*"
                  , A $ quote (render doc ++ "\n")

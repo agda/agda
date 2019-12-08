@@ -76,7 +76,7 @@ initialInstanceCandidates t = do
     getContextVars :: ExceptT Blocked_ TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (unsafeInTopContext $ prettyTCM $ PrettyContext ctx)
+      reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
           vars = [ Candidate x t (isOverlappable info)

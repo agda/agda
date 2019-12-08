@@ -541,7 +541,7 @@ defineCompData d con params names fsT t boundary = do
             }
         cs = [clause]
       addClauses theName cs
-      (mst, _, cc) <- unsafeInTopContext (compileClauses Nothing cs)
+      (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
       setTerminates theName True
@@ -571,7 +571,7 @@ defineProjections dataname con params names fsT t = do
     let
       projType = abstract projTel <$> ty
 
-    unsafeInTopContext $ do
+    inTopContext $ do
       reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
@@ -591,7 +591,7 @@ defineProjections dataname con params names fsT t = do
 
     noMutualBlock $ do
       let cs = [clause]
-      (mst, _, cc) <- unsafeInTopContext $ compileClauses Nothing cs
+      (mst, _, cc) <- inTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True
@@ -602,7 +602,7 @@ defineProjections dataname con params names fsT t = do
       addConstant projName $
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
-      unsafeInTopContext $ do
+      inTopContext $ do
         reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
 
 
