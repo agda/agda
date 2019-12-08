@@ -5,8 +5,6 @@ module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
   , getConstInfo
-  , isInstantiatedMeta
-  , lookupMeta
   , askR, applyWhenVerboseS
   ) where
 
@@ -74,19 +72,6 @@ instance MonadAddContext ReduceM where
                                           fmap (applySubst rho) (envCheckpoints e)
                      }) ret
         -- let-bindings keep track of own their context
-
-lookupMeta' :: MetaId -> ReduceM (Maybe MetaVariable)
-lookupMeta' (MetaId i) = IntMap.lookup i <$> useR stMetaStore
-
-lookupMeta :: MetaId -> ReduceM MetaVariable
-lookupMeta = fromMaybe __IMPOSSIBLE__ <.> lookupMeta'
-
-isInstantiatedMeta :: MetaId -> ReduceM Bool
-isInstantiatedMeta i = do
-  mv <- lookupMeta i
-  return $ case mvInstantiation mv of
-    InstV{} -> True
-    _       -> False
 
 instance MonadDebug ReduceM where
 
