@@ -20,9 +20,3 @@ import Agda.Builtin.Sigma as .as
 -- `as' must be followed by an identifier
 -- when scope checking the declaration
 --   import Agda.Builtin.Sigma as .as
-
-import Agda.Builtin.String as _
-
--- `as' must be followed by an identifier; an underscore is not allowed here
--- when scope checking the declaration
---   import Agda.Builtin.String as _
