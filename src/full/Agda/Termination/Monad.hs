@@ -443,7 +443,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                 -- Q (2014-07-01): Should we normalize the type?
                 -- A (2017-01-13): Yes, since we also normalize during positivity check?
                 -- See issue #1899.
-                reportSDoc "term.guardedness" 40 $ inTopContext $ sep
+                reportSDoc "term.guardedness" 40 $ unsafeInTopContext $ sep
                   [ "looking for recursive occurrences of"
                   , sep (map prettyTCM mut)
                   , "in"

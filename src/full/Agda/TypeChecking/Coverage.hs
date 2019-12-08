@@ -236,7 +236,7 @@ coverageCheck f t cs = do
         sep [ "adding missing absurd clause"
             , nest 2 $ prettyTCM $ QNamed f cl
             ]
-      reportSDoc "tc.cover.missing" 80 $ inTopContext $ vcat
+      reportSDoc "tc.cover.missing" 80 $ unsafeInTopContext $ vcat
         [ "l   = " <+> pretty l
         , "i   = " <+> pretty i
         , "cl  = " <+> pretty (QNamed f cl)
@@ -314,7 +314,7 @@ data CoverResult = CoverResult
 cover :: QName -> [Clause] -> SplitClause ->
          TCM CoverResult
 cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
-  reportSDoc "tc.cover.cover" 10 $ inTopContext $ vcat
+  reportSDoc "tc.cover.cover" 10 $ unsafeInTopContext $ vcat
     [ "checking coverage of pattern:"
     , nest 2 $ prettyTCM sc
     , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unDom) target
@@ -1183,25 +1183,25 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       reportSDoc "tc.cover.split.con" 20 $ vcat
         [ "computeNeighbourhood"
         , nest 2 $ vcat
-          [ "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          [ "context=" <+> (unsafeInTopContext . prettyTCM =<< getContextTelescope)
           , "con    =" <+> prettyTCM con
           , "ctype  =" <+> prettyTCM ctype
-          , "ps     =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
+          , "ps     =" <+> do unsafeInTopContext $ addContext tel $ prettyTCMPatternList $ fromSplitPatterns ps
           , "d      =" <+> prettyTCM d
           , "pars   =" <+> do prettyList $ map prettyTCM pars
           , "ixs    =" <+> do addContext delta1 $ prettyList $ map prettyTCM ixs
           , "cixs   =" <+> do addContext gamma  $ prettyList $ map prettyTCM cixs
-          , "delta1 =" <+> do inTopContext $ prettyTCM delta1
-          , "delta2 =" <+> do inTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
-          , "gamma  =" <+> do inTopContext $ addContext delta1 $ prettyTCM gamma
-          , "tel  =" <+> do inTopContext $ prettyTCM tel
+          , "delta1 =" <+> do unsafeInTopContext $ prettyTCM delta1
+          , "delta2 =" <+> do unsafeInTopContext $ addContext delta1 $ addContext gamma $ prettyTCM delta2
+          , "gamma  =" <+> do unsafeInTopContext $ addContext delta1 $ prettyTCM gamma
+          , "tel  =" <+> do unsafeInTopContext $ prettyTCM tel
           , "hix    =" <+> text (show hix)
           ]
         ]
       reportSDoc "tc.cover.split.con" 70 $ vcat
         [ "computeNeighbourhood"
         , nest 2 $ vcat
-          [ "context=" <+> (inTopContext . (text . show) =<< getContextTelescope)
+          [ "context=" <+> (unsafeInTopContext . (text . show) =<< getContextTelescope)
           , "con    =" <+> (text . show) con
           , "ctype  =" <+> (text . show) ctype
           , "ps     =" <+> (text . show) ps
@@ -1234,13 +1234,13 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
     debugPs tel ps =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $
-        inTopContext $ addContext tel $ nest 2 $ vcat
+        unsafeInTopContext $ addContext tel $ nest 2 $ vcat
           [ "ps     =" <+> prettyTCMPatternList (fromSplitPatterns ps)
           ]
 
     debugPlugged delta' ps' = do
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $
-        inTopContext $ addContext delta' $ nest 2 $ vcat
+        unsafeInTopContext $ addContext delta' $ nest 2 $ vcat
           [ "ps'    =" <+> do prettyTCMPatternList $ fromSplitPatterns ps'
           ]
 
@@ -1464,11 +1464,11 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
-    inContextOfT      = addContext tel . escapeContext (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext x
+    inContextOfT      = addContext tel . unsafeEscapeContext (x + 1)
+    inContextOfDelta2 = addContext tel . unsafeEscapeContext x
 
     -- Debug printing
-    debugInit tel x ps cps = liftTCM $ inTopContext $ do
+    debugInit tel x ps cps = liftTCM $ unsafeInTopContext $ do
       reportSDoc "tc.cover.top" 10 $ vcat
         [ "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat

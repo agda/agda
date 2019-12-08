@@ -79,7 +79,7 @@ checkConfluenceOfClause f i cl = do
     modifySignature $ setMatchableSymbols f matchables
 
 checkConfluenceOfRules' :: Bool -> [RewriteRule] -> TCM ()
-checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
+checkConfluenceOfRules' isClause rews = unsafeInTopContext $ inAbstractMode $ do
 
   forM_ (tails rews) $ listCase (return ()) $ \rew rewsRest -> do
 

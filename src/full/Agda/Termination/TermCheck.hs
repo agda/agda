@@ -91,7 +91,7 @@ type Result = [TerminationError]
 --   Precondition: 'envMutualBlock' must be set correctly.
 
 termDecl :: A.Declaration -> TCM Result
-termDecl d = inTopContext $ termDecl' d
+termDecl d = unsafeInTopContext $ termDecl' d
 
 
 -- | Termination check a single declaration
@@ -152,7 +152,7 @@ termMutual
      --   (For error-reporting only.)
   -> TCM Result
 termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempty) $ {-else-}
- inTopContext $ do
+ unsafeInTopContext $ do
 
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced

@@ -19,7 +19,7 @@ import Agda.Utils.Impossible
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
-  df <- inTopContext $ do
+  df <- unsafeInTopContext $ do
           pappToTerm f id ps $ \n args -> do
             let lhs = map I.Apply args
             v <- exprToTerm e

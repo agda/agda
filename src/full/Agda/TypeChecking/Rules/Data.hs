@@ -149,7 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            escapeContext npars $ do
+            unsafeEscapeContext npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -241,12 +241,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        escapeContext (size tel) $ do
+        unsafeEscapeContext (size tel) $ do
 
           -- Cannot compose indexed inductive types yet.
           (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
             then return (ConHead c Inductive [], emptyCompKit, Nothing)
-            else inTopContext $ do
+            else unsafeInTopContext $ do
               -- Name for projection of ith field of constructor c is just c-i
               names <- forM [0 .. size fields - 1] $ \ i ->
                 freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
@@ -541,7 +541,7 @@ defineCompData d con params names fsT t boundary = do
             }
         cs = [clause]
       addClauses theName cs
-      (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
+      (mst, _, cc) <- unsafeInTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
       setTerminates theName True
@@ -571,7 +571,7 @@ defineProjections dataname con params names fsT t = do
     let
       projType = abstract projTel <$> ty
 
-    inTopContext $ do
+    unsafeInTopContext $ do
       reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
@@ -591,7 +591,7 @@ defineProjections dataname con params names fsT t = do
 
     noMutualBlock $ do
       let cs = [clause]
-      (mst, _, cc) <- inTopContext $ compileClauses Nothing cs
+      (mst, _, cc) <- unsafeInTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True
@@ -602,7 +602,7 @@ defineProjections dataname con params names fsT t = do
       addConstant projName $
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
           { defNoCompilation = True }
-      inTopContext $ do
+      unsafeInTopContext $ do
         reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
 
 

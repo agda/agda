@@ -832,7 +832,7 @@ bindBuiltin b x = do
       failure
   -- Since the name was define in a parameter-free context, we can switch to the empty context.
   -- (And we should!)
-  inTopContext $ do
+  unsafeInTopContext $ do
   if | b == builtinRefl  -> warning $ OldBuiltin b builtinEquality
      | b == builtinZero  -> now builtinNat b
      | b == builtinSuc   -> now builtinNat b
@@ -862,7 +862,7 @@ bindUntypedBuiltin b = \case
 -- parameterized module when we declare them.
 -- We simply ignore the parameters.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()
-bindBuiltinNoDef b q = inTopContext $ do
+bindBuiltinNoDef b q = unsafeInTopContext $ do
   when (b `elem` sizeBuiltins) $ unlessM sizedTypesOption $
     genericError $ "Cannot declare size BUILTIN " ++ b ++ " with option --no-sized-types"
   case builtinDesc <$> findBuiltinInfo b of

@@ -124,7 +124,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
-        "gamma = " <+> inTopContext (prettyTCM gamma)
+        "gamma = " <+> unsafeInTopContext (prettyTCM gamma)
 
       -- record type (name applied to parameters)
       rect <- El s . Def name . map Apply <$> getContextArgs
@@ -197,7 +197,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      escapeContext npars $ do
+      unsafeEscapeContext npars $ do
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -291,12 +291,12 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
         reportSDoc "tc.rec.def" 10 $ sep
           [ "record section:"
           , nest 2 $ sep
-            [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
+            [ prettyTCM m <+> (unsafeInTopContext . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (return . P.pretty . map argFromDom . getName) fields
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> escapeContext 1 (prettyTCM ftel)
+          [ "field tel =" <+> unsafeEscapeContext 1 (prettyTCM ftel)
           ]
         addSection m
 
@@ -319,7 +319,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
 
       -- we define composition here so that the projections are already in the signature.
-      escapeContext npars $ do
+      unsafeEscapeContext npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
@@ -341,7 +341,7 @@ addCompositionForRecord
   -> TCM ()
 addCompositionForRecord name con tel fs ftel rect = do
   cxt <- getContextTelescope
-  inTopContext $ do
+  unsafeInTopContext $ do
 
     -- Record has no fields: attach composition data to record constructor
     if null fs then do
@@ -482,7 +482,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
           return c
   addClauses theName $ c' : cs
   reportSDoc "trans.rec" 15 $ text $ "compiling clauses for " ++ show theName
-  (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
+  (mst, _, cc) <- unsafeInTopContext (compileClauses Nothing cs)
   whenJust mst $ setSplitTree theName
   setCompiledClauses theName cc
   reportSDoc "trans.rec" 15 $ text $ "compiled"
@@ -527,8 +527,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       reportSDoc "tc.rec.proj" 5 $ sep
         [ "checking projection" <+> prettyTCM x
         , nest 2 $ vcat
-          [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          , "tel   =" <+> (inTopContext . prettyTCM $ tel)
+          [ "top   =" <+> (unsafeInTopContext . prettyTCM =<< getContextTelescope)
+          , "tel   =" <+> (unsafeInTopContext . prettyTCM $ tel)
           , "ftel1 =" <+> prettyTCM ftel1
           , "t     =" <+> prettyTCM t
           , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
@@ -579,7 +579,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                 (ftel2 `absApp` projcall ProjSystem) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
-        inTopContext $ prettyTCM finalt
+        unsafeInTopContext $ prettyTCM finalt
 
       -- -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- -- disabled by --no-irrelevant-projections
@@ -590,7 +590,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       do
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> ":" <+> inTopContext (prettyTCM finalt)
+          , nest 2 $ prettyTCM projname <+> ":" <+> unsafeInTopContext (prettyTCM finalt)
           ]
 
         -- The body should be
@@ -656,7 +656,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> "=" <+>
-                       inTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
+                       unsafeInTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"
@@ -674,7 +674,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        escapeContext (size tel) $ do
+        unsafeEscapeContext (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
               emptyFunction

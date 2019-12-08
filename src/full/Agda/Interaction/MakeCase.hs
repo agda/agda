@@ -90,10 +90,10 @@ parseVariables f tel ii rng ss = do
       vcat
        [ "parseVariables:"
        , "current module  =" <+> prettyTCM m
-       , "current section =" <+> inTopContext (prettyTCM tel)
+       , "current section =" <+> unsafeInTopContext (prettyTCM tel)
        , text $ "function's fvs  = " ++ show fv
        , text $ "number of locals= " ++ show nlocals
-       , "context         =" <+> do inTopContext $ prettyTCM cxt
+       , "context         =" <+> do unsafeInTopContext $ prettyTCM cxt
        , "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
        ]
 
@@ -244,8 +244,8 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     [ "splitting clause:"
     , nest 2 $ vcat
       [ "f       =" <+> prettyTCM f
-      , "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
-      , "tel     =" <+> (inTopContext . prettyTCM) tel
+      , "context =" <+> ((unsafeInTopContext . prettyTCM) =<< getContextTelescope)
+      , "tel     =" <+> (unsafeInTopContext . prettyTCM) tel
       , "perm    =" <+> text (show perm)
       , "ps      =" <+> prettyTCMPatternList ps
       , "ell     =" <+> text (show ell)
@@ -255,7 +255,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     [ "splitting clause:"
     , nest 2 $ vcat
       [ "f       =" <+> (text . show) f
-      , "context =" <+> ((inTopContext . (text . show)) =<< getContextTelescope)
+      , "context =" <+> ((unsafeInTopContext . (text . show)) =<< getContextTelescope)
       , "tel     =" <+> (text . show) tel
       , "perm    =" <+> text (show perm)
       , "ps      =" <+> (text . show) ps
@@ -438,9 +438,9 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ "Interaction.MakeCase.makeAbsurdClause: split clause:"
     , nest 2 $ vcat
-      [ "context =" <+> do (inTopContext . prettyTCM) =<< getContextTelescope
-      , "tel     =" <+> do inTopContext $ prettyTCM tel
-      , "ps      =" <+> do inTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
+      [ "context =" <+> do (unsafeInTopContext . prettyTCM) =<< getContextTelescope
+      , "tel     =" <+> do unsafeInTopContext $ prettyTCM tel
+      , "ps      =" <+> do unsafeInTopContext $ addContext tel $ prettyTCMPatternList ps -- P.sep <$> prettyTCMPatterns ps
       , "ell     =" <+> text (show ell)
       ]
     ]
@@ -453,7 +453,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
     reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
-    inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
+    unsafeInTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 
 -- | Make a clause with a question mark as rhs.

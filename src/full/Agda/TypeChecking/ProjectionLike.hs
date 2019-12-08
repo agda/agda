@@ -234,7 +234,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 
 makeProjection :: QName -> TCM ()
 makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
- inTopContext $ do
+ unsafeInTopContext $ do
   reportSLn "tc.proj.like" 70 $ "Considering " ++ prettyShow x ++ " for projection likeness"
   defn <- getConstInfo x
   let t = defType defn

@@ -179,7 +179,7 @@ solveSizeConstraints flag =  do
         reportSDoc "tc.size.solve" 20 $ vcat $
           [ "converted size constraints to context: " <+> do
               tel <- getContextTelescope
-              inTopContext $ prettyTCM tel
+              unsafeInTopContext $ prettyTCM tel
           ] ++ map (nest 2 . prettyTCM) cs'
 
         -- Solve the converted constraints.
@@ -271,7 +271,7 @@ castConstraintToCurrentContext' cl = do
   -- Debug printing.
   reportSDoc "tc.constr.cast" 40 $ "casting constraint" $$ do
     tel <- getContextTelescope
-    inTopContext $ nest 2 $ vcat $
+    unsafeInTopContext $ nest 2 $ vcat $
       [ "current module                = " <+> prettyTCM modM
       , "current module telescope      = " <+> prettyTCM gamma1
       , "current context               = " <+> prettyTCM tel
@@ -507,7 +507,7 @@ solveCluster flag ccs = do
     -- unless ok $ err "ill-scoped solution for size meta variable"
     u <- if ok then return u else primSizeInf
     t <- getMetaType x
-    reportSDoc "tc.size.solve" 20 $ inTopContext $ modifyContext (const gamma) $ do
+    reportSDoc "tc.size.solve" 20 $ unsafeInTopContext $ unsafeModifyContext (const gamma) $ do
       let args = map (Apply . defaultArg . var) xs
       "solution " <+> prettyTCM (MetaV x args) <+> " := " <+> prettyTCM u
     reportSDoc "tc.size.solve" 60 $ vcat
@@ -573,7 +573,7 @@ solveCluster flag ccs = do
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
-getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
+getSizeHypotheses gamma = unsafeInTopContext $ unsafeModifyContext (const gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
@@ -735,7 +735,7 @@ instance Flexs SizeMeta HypSizeConstraint where
 
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
-    inTopContext $ modifyContext (const cxt) $ do
+    unsafeInTopContext $ unsafeModifyContext (const cxt) $ do
       let cxtNames = reverse $ map (fst . unDom) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
@@ -747,7 +747,7 @@ instance PrettyTCM HypSizeConstraint where
 computeSizeConstraint :: Closure TCM.Constraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
   let cxt = envContext $ clEnv c
-  inTopContext $ modifyContext (const cxt) $ do
+  unsafeInTopContext $ unsafeModifyContext (const cxt) $ do
     case clValue c of
       ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep $

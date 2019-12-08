@@ -868,11 +868,11 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     reportSDoc "tc.mod.apply" 15 $ vcat
       [ "applying section" <+> prettyTCM m2
       , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
+      , nest 2 $ "ptel =" <+> unsafeEscapeContext (size ptel) (prettyTCM ptel)
       , nest 2 $ "tel  =" <+> prettyTCM tel
       , nest 2 $ "tel' =" <+> prettyTCM tel'
       , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      , nest 2 $ "eta  =" <+> unsafeEscapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
     ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
@@ -888,7 +888,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     -- Add the section with well-formed telescope.
     addContext (KeepNames aTel) $ do
       reportSDoc "tc.mod.apply" 80 $
-        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
+        "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> unsafeInTopContext (prettyTCM tel))
       addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
@@ -897,7 +897,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       ]
     args <- instantiateFull $ vs ++ ts
     let n = size aTel
-    etaArgs <- inTopContext $ addContext aTel getContextArgs
+    etaArgs <- unsafeInTopContext $ addContext aTel getContextArgs
     addContext (KeepNames aTel) $
       applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 

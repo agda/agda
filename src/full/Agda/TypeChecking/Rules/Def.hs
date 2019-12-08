@@ -253,7 +253,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               whenNothing extlam $ solveSizeConstraints DontDefaultToInfty
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
-              inTopContext $ addClauses name [c]
+              unsafeInTopContext $ addClauses name [c]
               return (c,b)
 
         (cs, CPC isOneIxs) <- return $ (second mconcat . unzip) cs
@@ -274,18 +274,18 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           typeError $ GenericError "no pattern matching or path copatterns in systems!"
 
 
-        reportSDoc "tc.def.fun" 70 $ inTopContext $ do
+        reportSDoc "tc.def.fun" 70 $ unsafeInTopContext $ do
           sep $ [ "checked clauses:" ] ++ map (nest 2 . text . show) cs
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
-        reportSDoc "tc.cc" 25 $ inTopContext $ do
+        reportSDoc "tc.cc" 25 $ unsafeInTopContext $ do
           sep [ "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
               ]
-        reportSDoc "tc.cc" 60 $ inTopContext $ do
+        reportSDoc "tc.cc" 60 $ unsafeInTopContext $ do
           sep [ "raw clauses: "
               , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
@@ -299,7 +299,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- also add an absurd clause for the cases not needed.
         (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
+                 sys <- unsafeInTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
@@ -330,7 +330,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         inv <- Bench.billTo [Bench.Injectivity] $
           checkInjectivity name cs
 
-        reportSDoc "tc.cc" 15 $ inTopContext $ do
+        reportSDoc "tc.cc" 15 $ unsafeInTopContext $ do
           sep [ "clauses before compilation"
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
@@ -341,7 +341,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
               ]
 
         -- add clauses for the coverage (& confluence) checker (needs to reduce)
-        inTopContext $ addClauses name cs
+        unsafeInTopContext $ addClauses name cs
 
         reportSDoc "tc.cc.type" 60 $ "  type   : " <+> (text . prettyShow) t
         reportSDoc "tc.cc.type" 60 $ "  context: " <+> (text . prettyShow =<< getContextTelescope)
@@ -352,7 +352,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Coverage check and compile the clauses
         (mst, _recordExpressionBecameCopatternLHS, cc) <- Bench.billTo [Bench.Coverage] $
-          inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
+          unsafeInTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
         -- Andreas, 2019-10-21 (see also issue #4142):
         -- We ignore whether the clause compilation turned some
@@ -366,7 +366,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- some extra clauses.
         cs <- defClauses <$> getConstInfo name
 
-        reportSDoc "tc.cc" 60 $ inTopContext $ do
+        reportSDoc "tc.cc" 60 $ unsafeInTopContext $ do
           sep [ "compiled clauses of" <+> prettyTCM name
               , nest 2 $ pretty cc
               ]
@@ -379,12 +379,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Jesper, 2019-05-30: if the constructors used in the
         -- lhs of a clause have rewrite rules, we need to check
         -- confluence here
-        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+        whenM (optConfluenceCheck <$> pragmaOptions) $ unsafeInTopContext $
           forM_ (zip cs [0..]) $ \(c , clauseNo) ->
             checkConfluenceOfClause name clauseNo c
 
         -- Add the definition
-        inTopContext $ addConstant name =<< do
+        unsafeInTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           defn <- autoInline $
@@ -643,7 +643,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         -- the context with the parent (but withSub will take you from parent
         -- to child).
 
-        inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+        unsafeInTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
 
         whenM (optDoubleCheck <$> pragmaOptions) $ case body of
           Just v  -> do
@@ -657,14 +657,14 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
           , nest 2 $ vcat
-            [ "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
+            [ "delta =" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
             , "type  =" <+> prettyTCM t
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 60 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 60 $ unsafeEscapeContext (size delta) $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
@@ -932,7 +932,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
@@ -952,7 +952,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta1 =" <+> prettyTCM delta1
           , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
@@ -981,13 +981,13 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith whThing vtys in
-          [ "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-          , "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
           , "with function call" <+> prettyTCM v
           , "           context" <+> (prettyTCM =<< getContextTelescope)
-          , "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
-          , "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
-          , "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "             delta" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
+          , "            delta1" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
           , "              body" <+> prettyTCM v
           ]
 
@@ -1135,7 +1135,7 @@ newSection m gtel@(A.GeneralizeTel _ tel) cont = do
 
     addSection m
 
-    reportSDoc "tc.section" 10 $ inTopContext $
+    reportSDoc "tc.section" 10 $ unsafeInTopContext $
       nest 4 $ "actual tele:" <+> do prettyTCM =<< lookupSection m
 
     withCurrentModule m cont

@@ -781,13 +781,13 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let withSub = fromMaybe __IMPOSSIBLE__ withSub'
   withEqs <- updateProblemEqs $ applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
-  inTopContext $ addContext (st0 ^. lhsTel) $
+  unsafeInTopContext $ addContext (st0 ^. lhsTel) $
     forM_ withEqs recheckStrippedWithPattern
 
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
-  (result, block) <- inTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
+  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
 
 -- | Determine which splits should be tried.

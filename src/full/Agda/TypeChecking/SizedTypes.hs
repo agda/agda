@@ -53,7 +53,7 @@ checkSizeLtSat t = whenM haveSizeLt $ do
     sep
       [ "checking that " <+> prettyTCM t <+> " is not an empty type of sizes"
       , if null tel then empty else do
-        "in context " <+> inTopContext (prettyTCM tel)
+        "in context " <+> unsafeInTopContext (prettyTCM tel)
       ]
   reportSLn "tc.size" 60 $ "- raw type = " ++ show t
   let postpone :: Term -> TCM ()
