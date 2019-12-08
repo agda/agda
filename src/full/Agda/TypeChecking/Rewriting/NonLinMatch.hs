@@ -319,7 +319,7 @@ instance Match Type NLPat Term where
           match r gamma k (ti , var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar i $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
