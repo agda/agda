@@ -299,7 +299,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- also add an absurd clause for the cases not needed.
         (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
+                 sys <- unsafeInTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
@@ -352,7 +352,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Coverage check and compile the clauses
         (mst, _recordExpressionBecameCopatternLHS, cc) <- Bench.billTo [Bench.Coverage] $
-          inTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
+          unsafeInTopContext $ compileClauses (if isSystem then Nothing else (Just (name, fullType)))
                                         cs
         -- Andreas, 2019-10-21 (see also issue #4142):
         -- We ignore whether the clause compilation turned some
@@ -643,7 +643,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         -- the context with the parent (but withSub will take you from parent
         -- to child).
 
-        inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+        unsafeInTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
 
         whenM (optDoubleCheck <$> pragmaOptions) $ case body of
           Just v  -> do
@@ -657,14 +657,14 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
           , nest 2 $ vcat
-            [ "delta =" <+> do escapeContext (size delta) $ prettyTCM delta
+            [ "delta =" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
             , "type  =" <+> prettyTCM t
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 60 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 60 $ unsafeEscapeContext (size delta) $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
@@ -932,7 +932,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
@@ -952,7 +952,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
           [ "delta1 =" <+> prettyTCM delta1
           , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
@@ -981,13 +981,13 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith whThing vtys in
-          [ "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-          , "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
           , "with function call" <+> prettyTCM v
           , "           context" <+> (prettyTCM =<< getContextTelescope)
-          , "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
-          , "            delta1" <+> do escapeContext (size delta) $ prettyTCM delta1
-          , "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "             delta" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
+          , "            delta1" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
           , "              body" <+> prettyTCM v
           ]
 
@@ -1041,7 +1041,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
     checkType withFunType
 
   -- With display forms are closed
-  df <- safeInTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
+  df <- inTopContext $ makeOpen =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 

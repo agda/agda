@@ -971,10 +971,14 @@ performKill kills m a = do
   -- (de Bruijn level order).
   let perm = Perm n
              [ i | (i, Arg _ False) <- zip [0..] kills ]
+      -- The permutation for the old meta might range over a prefix of the arguments
+      oldPerm = liftP (max 0 $ n - m) p
+        where p = mvPermutation mv
+              m = size p
       judg = case mvJudgement mv of
         HasType{ jComparison = cmp } -> HasType __IMPOSSIBLE__ cmp a
         IsSort{}  -> IsSort  __IMPOSSIBLE__ a
-  m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) perm judg
+  m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) (composeP perm oldPerm) judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
   let -- Arguments to new meta (de Bruijn indices)

@@ -562,7 +562,7 @@ translateRecordPatterns clause = do
         ]
 
   reportSDoc "tc.lhs.recpat" 10 $
-    escapeContext (size $ clauseTel clause) $ vcat
+    unsafeEscapeContext (size $ clauseTel clause) $ vcat
       [ "Translated clause:"
       , nest 2 $ vcat
         [ "delta =" <+> prettyTCM (clauseTel c)

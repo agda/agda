@@ -303,6 +303,26 @@ Testing and documentation
   Internal tests for a module `Agda.Foo.Bar` should reside in module
   `InternalTests.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
 
+Testing with Travis CI and GitHub Actions
+=========================================
+Since Dec 2019.
+
+Instead of running all test suites locally, it is encouraged that you compile
+Agda and run test suites by GitHub Actions and Travis on your own GitHub fork
+when hacking Agda.
+
+Different tool chains, compilation flags, and platforms are tested. These tests
+are executed in parallel when possible for efficiency, so ideally it also saves
+you some time. One caveat:
+
+* *Travis CI* is not active by default. See:
+  https://docs.travis-ci.com/user/tutorial/
+
+  for signing up.
+
+You should see the status in your GitHub Actions page and
+the Travis dashboard page, if successful.
+
 Some Agda Hacking Lore
 ======================
 

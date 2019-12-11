@@ -560,7 +560,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
         -- we can drop the erased arguments here, doing a complete job of dropping erased arguments.
         True  -> do
           f <- lift $ HS.Con <$> conhqn c
-          coe f `apps` [ t | (t, False) <- zip ts erased ]
+          hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
         -- Otherwise, we translate the eta-expanded constructor application.
         False -> do
           let n = length missing

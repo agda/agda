@@ -787,7 +787,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   let st = over (lhsProblem . problemEqs) (++ withEqs) st0
 
   -- doing the splits:
-  (result, block) <- inTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
+  (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
   return result
 
 -- | Determine which splits should be tried.
@@ -1314,14 +1314,11 @@ checkLHS mf = updateModality checkLHS_ where
           -- Also remember if we are a record pattern.
           isRec <- isRecord d
 
-          -- Mark eta-record matches as lazy
-          lazy <- isEtaRecord d
-
           let cpi = ConPatternInfo { conPInfo   = PatternInfo PatOCon []
                                    , conPRecord = isJust isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
-                                   , conPLazy   = lazy }
+                                   , conPLazy   = False } -- Don't mark eta-record matches as lazy (#4254)
 
           -- compute final context and substitution
           let crho    = ConP c cpi $ applySubst rho0 $ (telePatterns gamma boundary)

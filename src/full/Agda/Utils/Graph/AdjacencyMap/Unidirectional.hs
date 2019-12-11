@@ -62,6 +62,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
     -- * Transitive closure
   , gaussJordanFloydWarshallMcNaughtonYamada
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
+  , transitiveClosure
   , complete, completeIter
   )
   where
@@ -862,3 +863,10 @@ gaussJordanFloydWarshallMcNaughtonYamada g =
       starTimes = otimes (ostar (lookup' k k))
 
       lookup' s t = fromMaybe ozero (lookup s t g)
+
+-- | The transitive closure. Using 'gaussJordanFloydWarshallMcNaughtonYamada'.
+--   NOTE: DO NOT USE () AS EDGE LABEL SINCE THIS MEANS EVERY EDGE IS CONSIDERED A ZERO EDGE AND NO
+--         NEW EDGES WILL BE ADDED! Use 'Maybe ()' instead.
+transitiveClosure :: (Ord n, Eq e, StarSemiRing e) => Graph n e -> Graph n e
+transitiveClosure = fst . gaussJordanFloydWarshallMcNaughtonYamada
+

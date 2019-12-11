@@ -1464,8 +1464,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
-    inContextOfT      = addContext tel . escapeContext (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext x
+    inContextOfT      = addContext tel . unsafeEscapeContext (x + 1)
+    inContextOfDelta2 = addContext tel . unsafeEscapeContext x
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do

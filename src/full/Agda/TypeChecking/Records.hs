@@ -17,6 +17,7 @@ import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
@@ -135,7 +136,8 @@ findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
   defs  <- HMap.elems <$> useTC (stSignature . sigDefinitions)
   idefs <- HMap.elems <$> useTC (stImports   . sigDefinitions)
-  return $ cands defs ++ cands idefs
+  scope <- getScope
+  return $ filter (`isNameInScope` scope) $ cands defs ++ cands idefs
   where
     cands defs = [ defName d | d <- defs, possible d ]
     possible def =
@@ -696,7 +698,7 @@ isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' T
 isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
                    => Bool -> QName -> Args -> m (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
-  reportSLn "tc.meta.eta" 30 $ "Is " ++ prettyShow r ++ " a singleton record type?"
+  reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
   isRecord r >>= \case
     Nothing  -> return $ Right Nothing
     Just def -> do
@@ -736,7 +738,7 @@ isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuilti
                  => Bool -> Type -> m (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
-    ifBlocked t (\ m _ -> return $ Left m) $ \ _ t -> do
+    ifBlocked t (\ m _ -> return $ Left m) $ \ _ t -> addContext tel $ do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | YesEta <- recEtaEquality def -> do

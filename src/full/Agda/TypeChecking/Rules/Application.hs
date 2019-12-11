@@ -87,7 +87,9 @@ type MaybeRanges = [Maybe Range]
 --   (and continues to 'checkConstructorApplication')
 --   and resolves pattern synonyms.
 checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
-checkApplication cmp hd args e t = postponeInstanceConstraints $ do
+checkApplication cmp hd args e t =
+  turnOffExpandLastIfExistingMeta hd $
+  postponeInstanceConstraints $ do
   reportSDoc "tc.check.app" 20 $ vcat
     [ "checkApplication"
     , nest 2 $ "hd   = " <+> prettyA hd
@@ -477,6 +479,19 @@ checkHeadApplication cmp e t hd args = do
       v <- unfoldInlined (f vs)
       coerce' cmp checkedTarget v t1 t
 
+-- Issue #3019 and #4170: Don't insert trailing implicits when checking arguments to existing
+-- metavariables.
+turnOffExpandLastIfExistingMeta :: A.Expr -> TCM a -> TCM a
+turnOffExpandLastIfExistingMeta hd
+  | isExistingMeta = reallyDontExpandLast
+  | otherwise      = id
+  where
+    isExistingMeta = isJust $ A.metaNumber =<< metaInfo hd
+    metaInfo (A.QuestionMark i _) = Just i
+    metaInfo (A.Underscore i)     = Just i
+    metaInfo (A.ScopedExpr _ e)   = metaInfo e
+    metaInfo _                    = Nothing
+
 -----------------------------------------------------------------------------
 -- * Spines
 -----------------------------------------------------------------------------
@@ -514,10 +529,10 @@ checkArgumentsE'
   -> ExceptT (MaybeRanges, Elims, [NamedArg A.Expr], Type) TCM (MaybeRanges, Elims, Type, CheckedTarget)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' chk DontExpandLast _ [] t0 _ = return ([], [], t0, chk)
+checkArgumentsE' chk exh _ [] t0 _ | isDontExpandLast exh = return ([], [], t0, chk)
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' chk ExpandLast r [] t0 mt1 =
+checkArgumentsE' chk _ExpandLast r [] t0 mt1 =
     traceCallE (CheckArguments r [] t0 mt1) $ lift $ do
       mt1' <- traverse (unEl <.> reduce) mt1
       (us, t) <- implicitArgs (-1) (expand mt1') t0

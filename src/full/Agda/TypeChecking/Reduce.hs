@@ -24,9 +24,7 @@ import Agda.Syntax.Literal
 
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
-import Agda.TypeChecking.Monad hiding ( enterClosure, isInstantiatedMeta
-                                      , getConstInfo, lookupMeta
-                                      , getPrimitive, constructorForm )
+import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
@@ -75,7 +73,7 @@ simplify = liftReduce . simplify'
 -- | Meaning no metas left in the instantiation.
 isFullyInstantiatedMeta :: MetaId -> TCM Bool
 isFullyInstantiatedMeta m = do
-  mv <- TCM.lookupMeta m
+  mv <- lookupMeta m
   case mvInstantiation mv of
     InstV _tel v -> noMetas <$> instantiateFull v
     _ -> return False

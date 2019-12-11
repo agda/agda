@@ -103,7 +103,7 @@ liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUn
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
   packUnquoteM $ \ cxt s ->
-    modifyContext (const cxt) $ unpackUnquoteM m cxt s
+    unsafeModifyContext (const cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftTCM tm

@@ -1012,6 +1012,9 @@ checkExpr'
   -> TCM Term
 checkExpr' cmp e t =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
+  reportResult "tc.term.expr.top" 15 (\ v -> vcat
+                                              [ "checkExpr" <?> fsep [ prettyTCM e, ":", prettyTCM t ]
+                                              , "  returns" <?> prettyTCM v ]) $
   traceCall (CheckExprCall cmp e t) $ localScope $ doExpandLast $ unfoldInlined =<< do
     reportSDoc "tc.term.expr.top" 15 $
         "Checking" <+> sep
@@ -1194,9 +1197,12 @@ checkExpr' cmp e t =
         , not (hiddenLambdaOrHole h e)
         = do
       let proceed = doInsert (setOrigin Inserted info) $ absName b
+      expandHidden <- asksTC envExpandLast
       -- If we skip the lambda insertion for an introduction,
       -- we will hit a dead end, so proceed no matter what.
-      if definitelyIntroduction then proceed else do
+      if definitelyIntroduction then proceed else
+        -- #3019 and #4170: don't insert implicit lambdas in arguments to existing metas
+        if expandHidden == ReallyDontExpandLast then fallback else do
         -- Andreas, 2017-01-19, issue #2412:
         -- We do not want to insert a hidden lambda if A is
         -- possibly empty type of sizes, as this will produce an error.
