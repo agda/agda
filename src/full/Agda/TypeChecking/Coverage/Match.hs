@@ -209,7 +209,7 @@ isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
 isTrivialPattern p = case p of
   VarP{}      -> return True
   DotP{}      -> return True
-  ConP c i ps -> andM $ return (conPLazy i)
+  ConP c i ps -> andM $ ((conPLazy i ||) <$> isEtaCon (conName c))
                       : (map (isTrivialPattern . namedArg) ps)
   DefP{}      -> return False
   LitP{}      -> return False
