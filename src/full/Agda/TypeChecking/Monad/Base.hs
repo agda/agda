@@ -2959,7 +2959,13 @@ aModeToDef _ = Nothing
 data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
   | DontExpandLast  -- ^ Do not append implicit arguments.
+  | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
   deriving (Eq, Data)
+
+isDontExpandLast :: ExpandHidden -> Bool
+isDontExpandLast ExpandLast           = False
+isDontExpandLast DontExpandLast       = True
+isDontExpandLast ReallyDontExpandLast = True
 
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
