@@ -347,8 +347,9 @@ termFunction name = do
   let index = fromMaybe __IMPOSSIBLE__ $ List.elemIndex name allNames
 
   -- Retrieve the target type of the function to check.
-
-  target <- liftTCM $ do typeEndsInDef =<< typeOfConst name
+  -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
+  -- checking is running in the empty context, but with the current module unchanged.
+  target <- liftTCM $ do typeEndsInDef . defType =<< getConstInfo name
   reportTarget target
   terSetTarget target $ do
 
