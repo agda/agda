@@ -1189,16 +1189,11 @@ solutionStep retry s
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++ show varmod
   reportSDoc "tc.lhs.unify" 65 $ text $ "Solution must be usable in a " ++ show mod ++ " position."
   -- Andreas, 2018-10-18
-  -- Currently, the modality check that would correspond to the
-  -- relevance check has problems with meta-variables created in the type signature,
-  -- and thus, in quantity 0, that get into terms using the unifier,
-  -- and there are checked to be non-erased, i.e., have quantity ω.
-  -- Thus, at the moment we only check relevances, being aware
-  -- that uses of the 0-quantity might create segfaults in the compiled program
-  -- situations analogous to #2640 (issue with projecting forced constructor fields).
-  --
-  -- usable <- liftTCM $ addContext (varTel s) $ usableMod mod u  -- TODO
-  usable <- liftTCM $ addContext (varTel s) $ usableRel (getRelevance mod) u
+  -- Currently, the modality check has problems with meta-variables created in the type signature,
+  -- and thus, in quantity 0, that get into terms using the unifier, and there are checked to be
+  -- non-erased, i.e., have quantity ω.
+  -- Ulf, 2019-12-13. We still do it though.
+  usable <- liftTCM $ addContext (varTel s) $ usableMod mod u
   reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
   unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
 
