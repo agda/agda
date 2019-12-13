@@ -23,7 +23,7 @@ else\
 	printf '=%.0s' {1..${MSG_WIDTH}};\
 	printf "\n";\
 fi   ;\
-$(2) ;\
+$(2) &&\
 if [ "${TRAVIS}" = "true" ]; then                     \
   echo -e "travis_fold:end:$${LABEL}";       \
 fi
