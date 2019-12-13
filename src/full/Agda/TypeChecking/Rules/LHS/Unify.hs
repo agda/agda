@@ -1219,7 +1219,7 @@ solutionStep retry s
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
-    Nothing -> return $ DontKnow []
+    Nothing -> return $ DontKnow [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify :: UnifyState -> UnifyStrategy -> UnifyM (UnificationResult' UnifyState)

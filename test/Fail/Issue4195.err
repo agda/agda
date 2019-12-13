@@ -3,4 +3,7 @@ I'm not sure if there should be a case for the constructor refl,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
   n + 0 ≟ m
+Possible reason why unification failed:
+  Cannot solve variable m of type Nat with solution n + 0 because the
+  solution cannot be used at relevant, unrestricted modality
 when checking that the pattern refl has type n + 0 ≡ m
