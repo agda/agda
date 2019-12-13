@@ -536,7 +536,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- Non-terminating functions
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
-      -- are not unfolded unless explicitely permitted.
+      -- are not unfolded unless explicitly permitted.
       dontUnfold =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
         || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
