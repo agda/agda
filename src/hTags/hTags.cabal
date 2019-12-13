@@ -7,17 +7,18 @@ tested-with: GHC == 8.0.2
              GHC == 8.2.2
              GHC == 8.4.4
              GHC == 8.6.5
+             GHC == 8.8.1
 
 executable hTags
   main-is: Main.hs
   other-modules: Tags
 
-  build-depends:  base >= 4.9.0.0 && < 4.13
-                , Cabal >= 1.24.0.0  && < 2.5
+  build-depends:  base >= 4.9.0.0 && < 4.14
+                , Cabal >= 1.24.0.0  && < 3.1
                 , containers >= 0.5.7.1 && < 0.7
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
-                , ghc >= 8.0.2 && < 8.7
+                , ghc >= 8.0.2 && < 8.9
                 , mtl >= 2.2.1 && < 2.3
                 , process >= 1.4.2.0 && < 1.7
                 , strict >= 0.3.2 && < 0.4

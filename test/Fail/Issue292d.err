@@ -1,4 +1,4 @@
-Issue292d.agda:33,1-13
+Issue292d.agda:33,1-7
 I'm not sure if there should be a case for the constructor d₂,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):

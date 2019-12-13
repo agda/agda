@@ -2,7 +2,7 @@ Issue2985-2.agda:25,1-27,43
 Termination checking failed for the following functions:
   u
 Problematic calls:
-  λ { .force → u (λ {i} → cons) }
+  λ { .force → u cons }
     (at Issue2985-2.agda:27,21-42)
-  u (λ {i} → cons)
+  u cons
     (at Issue2985-2.agda:27,34-35)

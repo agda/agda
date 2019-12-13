@@ -7,26 +7,24 @@ module Agda.TypeChecking.Patterns.Match where
 
 import Prelude hiding (null)
 
+import Control.Monad
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Monoid
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp)
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -59,24 +57,21 @@ buildSubstitution :: (DeBruijn a)
 buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
 
 
--- 'mappend' is UNUSED.
---
--- instance Monoid (Match a) where
---     mempty = Yes mempty []
+instance Semigroup (Match a) where
+    -- @NotBlocked (StuckOn e)@ means blocked by a variable.
+    -- In this case, no instantiation of meta-variables will make progress.
+    DontKnow b <> DontKnow b'      = DontKnow $ b <> b'
+    DontKnow m <> _                = DontKnow m
+    _          <> DontKnow m       = DontKnow m
+    -- One could imagine DontKnow _ <> No = No, but would break the
+    -- equivalence to case-trees (Issue 2964).
+    No         <> _                = No
+    _          <> No               = No
+    Yes s us   <> Yes s' vs        = Yes (s <> s') (us <> vs)
 
---     Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
---     Yes _ _    `mappend` No               = No
---     Yes _ _    `mappend` DontKnow m       = DontKnow m
---     No         `mappend` _                = No
-
---     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
---     -- In this case, no instantiation of
---     -- meta-variables will make progress.
---     DontKnow b `mappend` DontKnow b'      = DontKnow $ b `mappend` b'
-
---     -- One could imagine DontKnow _ `mappend` No = No, but would break the
---     -- equivalence to case-trees.
---     DontKnow m `mappend` _                = DontKnow m
+instance Monoid (Match a) where
+    mempty = empty
+    mappend = (<>)
 
 -- | Instead of 'zipWithM', we need to use this lazy version
 --   of combining pattern matching computations.
@@ -108,7 +103,7 @@ foldMatch match = loop where
         (r, v') <- match p v
         case r of
           No | Just{} <- isProjP p -> return (No, v' : vs)
-          No         -> do
+          No -> do
             -- Issue 2964: Even when the first pattern doesn't match we should
             -- continue to the next patterns (and potentially block on them)
             -- because the splitting order in the case tree may not be
@@ -117,19 +112,11 @@ foldMatch match = loop where
             -- Issue 2968: do not use vs' here, because it might
             -- contain ill-typed terms due to eta-expansion at wrong
             -- type.
-            let vs1 = v' : vs
-            case r' of
-              Yes s' us' -> return (No         , vs1)
-              No         -> return (No         , vs1)
-              DontKnow m -> return (DontKnow m , vs1)
+            return (r <> r', v' : vs)
           DontKnow m -> return (DontKnow m, v' : vs)
-          Yes s us   -> do
+          Yes{} -> do
             (r', vs') <- loop ps vs
-            let vs1 = v' : vs'
-            case r' of
-              Yes s' us' -> return (Yes (s `mappend` s') (us `mappend` us'), vs1)
-              No         -> return (No                                     , vs1)
-              DontKnow m -> return (DontKnow m                             , vs1)
+            return (r <> r', v' : vs')
       _ -> __IMPOSSIBLE__
 
 
@@ -214,7 +201,7 @@ matchPattern p u = case (p, u) of
   (VarP _ x , arg          ) -> return (Yes NoSimplification entry, arg)
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
-  (LitP l , arg@(Arg _ v)) -> do
+  (LitP _ l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case w of
@@ -228,7 +215,7 @@ matchPattern p u = case (p, u) of
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
-    if isNothing $ conPRecord cpi then fallback c ps (Arg info v) else do
+    if not (conPRecord cpi) then fallback c ps (Arg info v) else do
     isEtaRecordCon (conName c) >>= \case
       Nothing -> fallback c ps (Arg info v)
       Just fs -> do
@@ -244,7 +231,7 @@ matchPattern p u = case (p, u) of
       (theDef <$> getConstInfo c) >>= \case
         Constructor{ conData = d } -> do
           (theDef <$> getConstInfo d) >>= \case
-            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just fs
+            r@Record{ recFields = fs } | YesEta <- recEtaEquality r -> return $ Just $ map argFromDom fs
             _ -> return Nothing
         _ -> __IMPOSSIBLE__
   (DefP o q ps, v) -> do
@@ -317,3 +304,40 @@ matchPattern p u = case (p, u) of
 yesSimplification :: (Match a, b) -> (Match a, b)
 yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
 yesSimplification r              = r
+
+-- Matching patterns against patterns -------------------------------------
+
+-- | Match a single pattern.
+matchPatternP :: DeBruijnPattern
+             -> Arg DeBruijnPattern
+             -> ReduceM (Match DeBruijnPattern)
+matchPatternP p (Arg info (DotP _ v)) = do
+  (m, arg) <- matchPattern p (Arg info v)
+  return $ fmap (DotP defaultPatternInfo) m
+matchPatternP p arg@(Arg info q) = do
+  let varMatch x = return $ Yes NoSimplification $ singleton (dbPatVarIndex x, arg)
+      termMatch  = do
+        (m, arg) <- matchPattern p (fmap patternToTerm arg)
+        return $ fmap (DotP defaultPatternInfo) m
+  case p of
+    ProjP{}         -> __IMPOSSIBLE__
+    IApplyP _ _ _ x -> varMatch x
+    VarP _ x        -> varMatch x
+    DotP _ _        -> return $ Yes NoSimplification empty
+    LitP{}          -> termMatch -- Literal patterns bind no variables so we can fall back to the Term version.
+    DefP{}          -> termMatch
+
+    ConP c cpi ps ->
+      case q of
+        ConP c' _ qs | c == c'   -> matchPatternsP ps ((map . fmap) namedThing qs)
+                     | otherwise -> return No
+        LitP{} -> fmap toLitP <$> termMatch
+          where toLitP (DotP _ (Lit l)) = litP l   -- All bindings should be to literals
+                toLitP _                = __IMPOSSIBLE__
+        _      -> termMatch
+
+matchPatternsP :: [NamedArg DeBruijnPattern]
+               -> [Arg DeBruijnPattern]
+               -> ReduceM (Match DeBruijnPattern)
+matchPatternsP ps qs = do
+  mconcat <$> zipWithM matchPatternP (map namedArg ps) qs

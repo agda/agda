@@ -1,3 +1,3 @@
 ShouldBePi.agda:8,8-15
-(x : _4) → _4 !=< One of type Set
+(x : _4) → _4 !=< One
 when checking that the expression λ x → x has type One

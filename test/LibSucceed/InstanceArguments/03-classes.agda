@@ -3,20 +3,18 @@
 module InstanceArguments.03-classes where
 
 open import Algebra
-open import Algebra.Structures
-open import Algebra.FunctionProperties
 open import Data.Nat.Properties as NatProps
 open import Data.Nat
-open import Data.Bool.Properties using (isCommutativeSemiring-∧-∨)
+open import Data.Bool.Properties using (∧-∨-isCommutativeSemiring)
 open import Data.Product using (proj₁)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary
 
 open import Level renaming (zero to lzero; suc to lsuc)
 
-open CommutativeSemiring NatProps.commutativeSemiring using (semiring)
-open IsCommutativeSemiring isCommutativeSemiring using (isSemiring)
-open IsCommutativeSemiring isCommutativeSemiring-∧-∨ using () renaming (isSemiring to Bool-isSemiring)
+open CommutativeSemiring NatProps.*-+-commutativeSemiring using (semiring)
+open IsCommutativeSemiring *-+-isCommutativeSemiring using (isSemiring)
+open IsCommutativeSemiring ∧-∨-isCommutativeSemiring using () renaming (isSemiring to Bool-isSemiring)
 
 record S (A : Set) : Set₁ where
   field

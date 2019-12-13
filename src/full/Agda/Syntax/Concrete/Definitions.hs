@@ -45,20 +45,15 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative hiding (empty)
+import Control.Arrow ((&&&), (***), second)
 import Control.Monad.Except
 import Control.Monad.State
 
-import Data.Either ( partitionEithers )
-import Data.Function ( on )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
-import Data.Semigroup ( Semigroup, (<>) )
 import qualified Data.List as List
-import qualified Data.Set as Set
+import qualified Data.Foldable as Fold
 import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
@@ -71,19 +66,17 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
-import Agda.Utils.Except ( MonadError(throwError,catchError) )
-import Agda.Utils.Function
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (caseList, headMaybe, isSublistOf)
+import Agda.Utils.List (isSublistOf)
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty
@@ -125,9 +118,9 @@ data NiceDeclaration
       --
       --   'ArgInfo' argument: Axioms and functions can be declared irrelevant.
       --   ('Hiding' should be 'NotHidden'.)
-  | NiceField Range Access IsAbstract IsInstance Name (Arg Expr)
+  | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
   | PrimitiveFunction Range Access IsAbstract Name Expr
-  | NiceMutual Range TerminationCheck PositivityCheck [NiceDeclaration]
+  | NiceMutual Range TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
   | NiceModule Range Access IsAbstract QName Telescope [Declaration]
   | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
   | NiceOpen Range QName ImportDirective
@@ -135,12 +128,12 @@ data NiceDeclaration
   | NicePragma Range Pragma
   | NiceRecSig Range Access IsAbstract PositivityCheck UniverseCheck Name [LamBinding] Expr
   | NiceDataSig Range Access IsAbstract PositivityCheck UniverseCheck Name [LamBinding] Expr
-  | NiceFunClause Range Access IsAbstract TerminationCheck Catchall Declaration
+  | NiceFunClause Range Access IsAbstract TerminationCheck CoverageCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
-  | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck Name Expr
-  | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck Name [Clause]
+  | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
+  | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
@@ -149,10 +142,10 @@ data NiceDeclaration
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name (Maybe (Ranged Induction)) (Maybe HasEta)
            (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | NicePatternSyn Range Name [Arg Name] Pattern
-  | NiceGeneralize Range Access ArgInfo Name Expr
-  | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck [Name] Expr
-  | NiceUnquoteDef Range Access IsAbstract TerminationCheck [Name] Expr
+  | NicePatternSyn Range Access Name [Arg Name] Pattern
+  | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
+  | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
+  | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
   deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -201,6 +194,7 @@ data DeclarationWarning
   | EmptyPrivate Range    -- ^ Empty @private@   block.
   | EmptyGeneralize Range -- ^ Empty @variable@  block.
   | EmptyPrimitive Range  -- ^ Empty @primitive@ block.
+  | EmptyField Range      -- ^ Empty @field@     block.
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
@@ -213,7 +207,10 @@ data DeclarationWarning
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
-  | MissingDefinitions [Name]
+  | InvalidCoverageCheckPragma Range
+      -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function
+  | MissingDefinitions [(Name, Range)]
+  | ShadowingInTelescope [(Name, [Range])]
   | NotAllowedInMutual Range String
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
@@ -227,6 +224,8 @@ data DeclarationWarning
   | UselessAbstract Range
   | UselessInstance Range
   | UselessPrivate Range
+  | OpenPublicPrivate Range
+  | OpenPublicAbstract Range
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
@@ -239,11 +238,14 @@ declarationWarningName dw = case dw of
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyGeneralize{}                 -> EmptyGeneralize_
   EmptyPrimitive{}                  -> EmptyPrimitive_
+  EmptyField{}                      -> EmptyField_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
+  InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
   MissingDefinitions{}              -> MissingDefinitions_
+  ShadowingInTelescope{}            -> ShadowingInTelescope_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
@@ -254,6 +256,8 @@ declarationWarningName dw = case dw of
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
   UselessPrivate{}                  -> UselessPrivate_
+  OpenPublicPrivate{}               -> OpenPublicPrivate_
+  OpenPublicAbstract{}              -> OpenPublicAbstract_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
@@ -280,11 +284,11 @@ instance HasRange DeclarationException where
   getRange (BadMacroDef d)                      = getRange d
 
 instance HasRange DeclarationWarning where
-  getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
-  getRange (UnknownFixityInMixfixDecl xs)       = getRange . head $ xs
-  getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
-  getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
-  getRange (MissingDefinitions xs)              = getRange . head $ xs
+  getRange (UnknownNamesInFixityDecl xs)        = getRange xs
+  getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
+  getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
+  getRange (PolarityPragmasButNotPostulates xs) = getRange xs
+  getRange (MissingDefinitions xs)              = getRange xs
   getRange (UselessPrivate r)                   = r
   getRange (NotAllowedInMutual r x)             = r
   getRange (UselessAbstract r)                  = r
@@ -297,39 +301,44 @@ instance HasRange DeclarationWarning where
   getRange (EmptyPostulate r)                   = r
   getRange (EmptyGeneralize r)                  = r
   getRange (EmptyPrimitive r)                   = r
+  getRange (EmptyField r)                       = r
   getRange (InvalidTerminationCheckPragma r)    = r
+  getRange (InvalidCoverageCheckPragma r)       = r
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
   getRange (PragmaNoTerminationCheck r)         = r
   getRange (PragmaCompiled r)                   = r
+  getRange (OpenPublicAbstract r)               = r
+  getRange (OpenPublicPrivate r)                = r
+  getRange (ShadowingInTelescope ns)            = getRange ns
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
-  getRange (NiceField r _ _ _ _ _)         = r
-  getRange (NiceMutual r _ _ _)            = r
+  getRange (NiceField r _ _ _ _ _ _)       = r
+  getRange (NiceMutual r _ _ _ _)          = r
   getRange (NiceModule r _ _ _ _ _ )       = r
   getRange (NiceModuleMacro r _ _ _ _ _)   = r
   getRange (NiceOpen r _ _)                = r
   getRange (NiceImport r _ _ _ _)          = r
   getRange (NicePragma r _)                = r
   getRange (PrimitiveFunction r _ _ _ _)   = r
-  getRange (FunSig r _ _ _ _ _ _ _ _)      = r
-  getRange (FunDef r _ _ _ _ _ _)          = r
+  getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
+  getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
   getRange (NiceRecDef r _ _ _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _)    = r
   getRange (NiceDataSig r _ _ _ _ _ _ _)   = r
-  getRange (NicePatternSyn r _ _ _)        = r
-  getRange (NiceGeneralize r _ _ _ _)      = r
-  getRange (NiceFunClause r _ _ _ _ _)     = r
-  getRange (NiceUnquoteDecl r _ _ _ _ _ _) = r
-  getRange (NiceUnquoteDef r _ _ _ _ _)    = r
+  getRange (NicePatternSyn r _ _ _ _)      = r
+  getRange (NiceGeneralize r _ _ _ _ _)    = r
+  getRange (NiceFunClause r _ _ _ _ _ _)   = r
+  getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
+  getRange (NiceUnquoteDef r _ _ _ _ _ _)    = r
 
 instance Pretty NiceDeclaration where
   pretty = \case
     Axiom _ _ _ _ _ x _            -> text "postulate" <+> pretty x <+> colon <+> text "_"
-    NiceField _ _ _ _ x _          -> text "field" <+> pretty x
+    NiceField _ _ _ _ _ x _        -> text "field" <+> pretty x
     PrimitiveFunction _ _ _ x _    -> text "primitive" <+> pretty x
     NiceMutual{}                   -> text "mutual"
     NiceModule _ _ _ x _ _         -> text "module" <+> pretty x <+> text "where"
@@ -340,14 +349,14 @@ instance Pretty NiceDeclaration where
     NiceRecSig _ _ _ _ _ x _ _     -> text "record" <+> pretty x
     NiceDataSig _ _ _ _ _ x _ _    -> text "data" <+> pretty x
     NiceFunClause{}                -> text "<function clause>"
-    FunSig _ _ _ _ _ _ _ x _       -> pretty x <+> colon <+> text "_"
-    FunDef _ _ _ _ _ x _           -> pretty x <+> text "= _"
+    FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
+    FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
     NiceRecDef _ _ _ _ _ x _ _ _ _ _   -> text "record" <+> pretty x <+> text "where"
-    NicePatternSyn _ x _ _         -> text "pattern" <+> pretty x
-    NiceGeneralize _ _ _ x _       -> text "variable" <+> pretty x
-    NiceUnquoteDecl _ _ _ _ _ xs _ -> text "<unquote declarations>"
-    NiceUnquoteDef _ _ _ _ xs _    -> text "<unquote definitions>"
+    NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
+    NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
+    NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
+    NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
@@ -398,9 +407,9 @@ instance Pretty DeclarationWarning where
     ++ punctuate comma  (map pretty xs)
   pretty (MissingDefinitions xs) = fsep $
    pwords "The following names are declared but not accompanied by a definition:"
-   ++ punctuate comma (map pretty xs)
+   ++ punctuate comma (map (pretty . fst) xs)
   pretty (NotAllowedInMutual r nd) = fsep $
-    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of mutual block by manually ordering declarations"
+    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -418,8 +427,11 @@ instance Pretty DeclarationWarning where
   pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
   pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
   pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
+  pretty (EmptyField _)      = fsep $ pwords "Empty field block."
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
+  pretty (InvalidCoverageCheckPragma _)    = fsep $
+    pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
     pwords "NO_POSITIVITY_CHECKING pragmas can only precede a data/record definition or a mutual block (that contains a data/record definition)."
   pretty (InvalidCatchallPragma _) = fsep $
@@ -430,6 +442,13 @@ instance Pretty DeclarationWarning where
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (PragmaCompiled _) = fsep $
     pwords "COMPILE pragma not allowed in safe mode."
+  pretty (OpenPublicAbstract _) = fsep $
+    pwords "public does not have any effect in an abstract block."
+  pretty (OpenPublicPrivate _) = fsep $
+    pwords "public does not have any effect in a private block."
+  pretty (ShadowingInTelescope nrs) = fsep $
+    pwords "Shadowing in telescope, repeated variable names:"
+    ++ punctuate comma (map (pretty . fst) nrs)
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -466,16 +485,16 @@ data InMutual
 
 data DataRecOrFun
   = DataName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a data type
   | RecName
-    { kindPosCheck :: PositivityCheck
-    , kindUniCheck :: UniverseCheck
+    { _kindPosCheck :: PositivityCheck
+    , _kindUniCheck :: UniverseCheck
     }
     -- ^ Name of a record type
-  | FunName TerminationCheck
+  | FunName TerminationCheck CoverageCheck
     -- ^ Name of a function.
   deriving Data
 
@@ -499,13 +518,17 @@ sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
 sameKind = (==)
 
 terminationCheck :: DataRecOrFun -> TerminationCheck
-terminationCheck (FunName tc) = tc
+terminationCheck (FunName tc _) = tc
 terminationCheck _ = TerminationCheck
+
+coverageCheck :: DataRecOrFun -> CoverageCheck
+coverageCheck (FunName _ cc) = cc
+coverageCheck _ = YesCoverageCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
-positivityCheck _               = True
+positivityCheck _               = YesPositivityCheck
 
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
@@ -515,8 +538,8 @@ universeCheck _               = YesUniverseCheck
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
 --   NO_TERMINATION_CHECK pragma.
-combineTermChecks :: Range -> [TerminationCheck] -> Nice TerminationCheck
-combineTermChecks r tcs = loop tcs where
+combineTerminationChecks :: Range -> [TerminationCheck] -> Nice TerminationCheck
+combineTerminationChecks r tcs = loop tcs where
   loop :: [TerminationCheck] -> Nice TerminationCheck
   loop []         = return TerminationCheck
   loop (tc : tcs) = do
@@ -541,6 +564,12 @@ combineTermChecks r tcs = loop tcs where
       (Terminating           , NonTerminating        ) -> failure r
       (NonTerminating        , NoTerminationCheck    ) -> failure r
       (NonTerminating        , Terminating           ) -> failure r
+
+combineCoverageChecks :: [CoverageCheck] -> CoverageCheck
+combineCoverageChecks = Fold.fold
+
+combinePositivityChecks :: [PositivityCheck] -> PositivityCheck
+combinePositivityChecks = Fold.fold
 
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
@@ -569,11 +598,25 @@ data NiceEnv = NiceEnv
     -- ^ Universe checking pragma waiting for a data/rec signature or definition.
   , _catchall :: Catchall
     -- ^ Catchall pragma waiting for a function clause.
+  , _covChk  :: CoverageCheck
+    -- ^ Coverage pragma waiting for a definition.
   , niceWarn :: NiceWarnings
     -- ^ Stack of warnings. Head is last warning.
   }
 
-type LoneSigs   = Map Name DataRecOrFun
+data LoneSig = LoneSig
+  { loneSigRange :: Range
+  , loneSigName  :: Name
+  , loneSigKind  :: DataRecOrFun
+  }
+
+type LoneSigs     = Map Name LoneSig
+     -- ^ We retain the 'Name' also in the codomain since
+     --   'Name' as a key is up to @Eq Name@ which ignores the range.
+     --   However, without range names are not unique in case the
+     --   user gives a second definition of the same name.
+     --   This causes then problems in 'replaceSigs' which might
+     --   replace the wrong signature.
 type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
@@ -583,9 +626,10 @@ initNiceEnv :: NiceEnv
 initNiceEnv = NiceEnv
   { _loneSigs = empty
   , _termChk  = TerminationCheck
-  , _posChk   = True
+  , _posChk   = YesPositivityCheck
   , _uniChk   = YesUniverseCheck
   , _catchall = False
+  , _covChk   = YesCoverageCheck
   , niceWarn  = []
   }
 
@@ -598,9 +642,9 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
 
-addLoneSig :: Name -> DataRecOrFun -> Nice ()
-addLoneSig x k = loneSigs %== \ s -> do
-   let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
+addLoneSig :: Range -> Name -> DataRecOrFun -> Nice ()
+addLoneSig r x k = loneSigs %== \ s -> do
+   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x k) s
    case mr of
      Nothing -> return s'
      Just{}  -> throwError $ DuplicateDefinition x
@@ -613,7 +657,7 @@ removeLoneSig x = loneSigs %= Map.delete x
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig x = Map.lookup x <$> use loneSigs
+getSig x = fmap loneSigKind . Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -622,10 +666,24 @@ noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
 
-checkLoneSigs :: Map Name DataRecOrFun -> Nice ()
+forgetLoneSigs :: Nice ()
+forgetLoneSigs = loneSigs .= Map.empty
+
+checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
-  loneSigs .= Map.empty
-  unless (Map.null xs) (niceWarning $ MissingDefinitions $ Map.keys xs)
+  forgetLoneSigs
+  unless (Map.null xs) $ niceWarning $ MissingDefinitions $
+    map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
+
+-- | Get names of lone function signatures.
+
+loneFuns :: LoneSigs -> [Name]
+loneFuns = map fst . filter (isFunName . loneSigKind . snd) . Map.toList
+
+-- | Create a 'LoneSigs' map from an association list.
+
+loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -> LoneSigs
+loneSigsFromLoneNames = Map.fromList . map (\(r,x,k) -> (x, LoneSig r x k))
 
 -- | Lens for field '_termChk'.
 
@@ -638,6 +696,17 @@ withTerminationCheckPragma tc f = do
   terminationCheckPragma .= tc
   result <- f
   terminationCheckPragma .= tc_old
+  return result
+
+coverageCheckPragma :: Lens' CoverageCheck NiceEnv
+coverageCheckPragma f e = f (_covChk e) <&> \ s -> e { _covChk = s }
+
+withCoverageCheckPragma :: CoverageCheck -> Nice a -> Nice a
+withCoverageCheckPragma tc f = do
+  tc_old <- use coverageCheckPragma
+  coverageCheckPragma .= tc
+  result <- f
+  coverageCheckPragma .= tc_old
   return result
 
 -- | Lens for field '_posChk'.
@@ -698,19 +767,19 @@ niceWarning :: DeclarationWarning -> Nice ()
 niceWarning w = modify $ \ st -> st { niceWarn = w : niceWarn st }
 
 data DeclKind
-    = LoneSig DataRecOrFun Name
+    = LoneSigDecl Range DataRecOrFun Name
     | LoneDefs DataRecOrFun [Name]
     | OtherDecl
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ _ tc x _)        = LoneSig (FunName tc) x
-declKind (NiceRecSig _ _ _ pc uc x pars _)  = LoneSig (RecName pc uc) x
-declKind (NiceDataSig _ _ _ pc uc x pars _) = LoneSig (DataName pc uc) x
-declKind (FunDef r _ abs ins tc x _)        = LoneDefs (FunName tc) [x]
+declKind (FunSig r _ _ _ _ _ tc cc x _)     = LoneSigDecl r (FunName tc cc) x
+declKind (NiceRecSig r _ _ pc uc x pars _)  = LoneSigDecl r (RecName pc uc) x
+declKind (NiceDataSig r _ _ pc uc x pars _) = LoneSigDecl r (DataName pc uc) x
+declKind (FunDef r _ abs ins tc cc x _)     = LoneDefs (FunName tc cc) [x]
 declKind (NiceDataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc) [x]
 declKind (NiceRecDef _ _ _ pc uc x _ _ _ pars _)= LoneDefs (RecName pc uc) [x]
-declKind (NiceUnquoteDef _ _ _ tc xs _)     = LoneDefs (FunName tc) xs
+declKind (NiceUnquoteDef _ _ _ tc cc xs _)  = LoneDefs (FunName tc cc) xs
 declKind Axiom{}                            = OtherDecl
 declKind NiceField{}                        = OtherDecl
 declKind PrimitiveFunction{}                = OtherDecl
@@ -728,7 +797,7 @@ declKind NiceUnquoteDecl{}                  = OtherDecl
 -- | Replace (Data/Rec/Fun)Sigs with Axioms for postulated names
 --   The first argument is a list of axioms only.
 replaceSigs
-  :: Map Name DataRecOrFun  -- ^ Lone signatures to be turned into Axioms
+  :: LoneSigs               -- ^ Lone signatures to be turned into Axioms
   -> [NiceDeclaration]      -- ^ Declarations containing them
   -> [NiceDeclaration]      -- ^ In the output, everything should be defined
 replaceSigs ps = if Map.null ps then id else \case
@@ -737,7 +806,11 @@ replaceSigs ps = if Map.null ps then id else \case
     case replaceable d of
       -- If declaration d of x is mentioned in the map of lone signatures then replace
       -- it with an axiom
-      Just (x, axiom) | (Just{}, ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+      Just (x, axiom)
+        | (Just (LoneSig _ x' _), ps') <- Map.updateLookupWithKey (\ _ _ -> Nothing) x ps
+        , getRange x == getRange x'
+            -- Use the range as UID to ensure we do not replace the wrong signature.
+            -- This could happen if the user wrote a duplicate definition.
         -> axiom : replaceSigs ps' ds
       _ -> d     : replaceSigs ps  ds
 
@@ -747,7 +820,7 @@ replaceSigs ps = if Map.null ps then id else \case
     -- @Axiom@ out of it.
     replaceable :: NiceDeclaration -> Maybe (Name, NiceDeclaration)
     replaceable = \case
-      FunSig r acc abst inst _ argi _ x e ->
+      FunSig r acc abst inst _ argi _ _ x e ->
         Just (x, Axiom r acc abst inst argi x e)
       NiceRecSig r acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
@@ -790,37 +863,42 @@ niceDeclarations fixs ds = do
       case declKind d of
         OtherDecl    -> (d :) <$> inferMutualBlocks ds
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
-        LoneSig k x  -> do
-          addLoneSig x k
-          let tcpc = (pure . terminationCheck) &&& (pure . positivityCheck) $ k
-          ((tcs, pcs), (nds0, ds1)) <- untilAllDefined tcpc ds
+        LoneSigDecl r k x  -> do
+          addLoneSig r x k
+          let tcccpc = ([terminationCheck k], [coverageCheck k], [positivityCheck k])
+          ((tcs, ccs, pcs), (nds0, ds1)) <- untilAllDefined tcccpc ds
           -- If we still have lone signatures without any accompanying definition,
           -- we postulate the definition and substitute the axiom for the lone signature
           ps <- use loneSigs
           checkLoneSigs ps
           let ds0 = replaceSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
           -- We then keep processing the rest of the block
-          tc <- combineTermChecks (getRange d) tcs
-          (NiceMutual (getRange ds0) tc (and pcs) ds0 :) <$> inferMutualBlocks ds1
+          tc <- combineTerminationChecks (getRange d) tcs
+          let cc = combineCoverageChecks ccs
+          let pc = combinePositivityChecks pcs
+          (NiceMutual (getRange ds0) tc cc pc ds0 :) <$> inferMutualBlocks ds1
       where
-        untilAllDefined :: ([TerminationCheck], [PositivityCheck])
+        untilAllDefined :: ([TerminationCheck], [CoverageCheck], [PositivityCheck])
                         -> [NiceDeclaration]
-                        -> Nice (([TerminationCheck], [PositivityCheck]), ([NiceDeclaration], [NiceDeclaration]))
-        untilAllDefined tcpc@(tc, pc) ds = do
+                        -> Nice (([TerminationCheck], [CoverageCheck], [PositivityCheck]) -- checks for this block
+                                , ([NiceDeclaration]                                      -- mutual block
+                                , [NiceDeclaration])                                      -- leftovers
+                                )
+        untilAllDefined tcccpc@(tc, cc, pc) ds = do
           done <- noLoneSigs
-          if done then return (tcpc, ([], ds)) else
+          if done then return (tcccpc, ([], ds)) else
             case ds of
-              []     -> return (tcpc, ([], ds))
+              []     -> return (tcccpc, ([], ds))
               d : ds -> case declKind d of
-                LoneSig k x -> do
-                  addLoneSig x k
-                  let tcpc' = (terminationCheck k : tc, positivityCheck k : pc)
-                  cons d (untilAllDefined tcpc' ds)
+                LoneSigDecl r k x -> do
+                  addLoneSig r x k
+                  let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
+                  cons d (untilAllDefined tcccpc' ds)
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
-                  let tcpc' = (terminationCheck k : tc, positivityCheck k : pc)
-                  cons d (untilAllDefined tcpc' ds)
-                OtherDecl   -> cons d (untilAllDefined tcpc ds)
+                  let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
+                  cons d (untilAllDefined tcccpc' ds)
+                OtherDecl   -> cons d (untilAllDefined tcccpc ds)
           where
             -- ASR (26 December 2015): Type annotated version of the @cons@ function.
             -- cons d = fmap $
@@ -845,26 +923,30 @@ niceDeclarations fixs ds = do
 
       case d of
 
-        (TypeSig info x t)            -> do
+        TypeSig info _tac x t -> do
           termCheck <- use terminationCheckPragma
+          covCheck  <- use coverageCheckPragma
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig x $ FunName termCheck
-          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t] , ds)
+          addLoneSig r x $ FunName termCheck covCheck
+          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t] , ds)
+
+        -- Should not show up: all FieldSig are part of a Field block
+        FieldSig{} -> __IMPOSSIBLE__
 
         Generalize r [] -> justWarning $ EmptyGeneralize r
         Generalize r sigs -> do
           gs <- forM sigs $ \case
-            sig@(TypeSig info x t) -> do
-              return $ NiceGeneralize (getRange sig) PublicAccess info x t
+            sig@(TypeSig info tac x t) -> do
+              return $ NiceGeneralize (getRange sig) PublicAccess info tac x t
             _ -> __IMPOSSIBLE__
           return (gs, ds)
 
         (FunClause lhs _ _ _)         -> do
           termCheck <- use terminationCheckPragma
+          covCheck  <- use coverageCheckPragma
           catchall  <- popCatchallPragma
-          xs <- map fst . filter (isFunName . snd) . Map.toList
-                <$> use loneSigs
+          xs <- loneFuns <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           case [ (x, (fits, rest))
@@ -880,26 +962,29 @@ niceDeclarations fixs ds = do
             [] -> case lhs of
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
-              LHS p [] [] | Just x <- isSingleIdentifierP p -> do
-                d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
+              LHS p [] [] _ | Just x <- isSingleIdentifierP p -> do
+                d  <- mkFunDef defaultArgInfo termCheck covCheck x Nothing [d] -- fun def without type signature is relevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
               -- A missing type signature error might be raise in ConcreteToAbstract
               _ -> do
-                return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck catchall d] , ds)
+                return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
                ds  <- expandEllipsis fits
                cs  <- mkClauses x ds False
-               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck x cs] , rest)
+               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
-            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
+            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l
+                 -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
-        Field{}                       -> (,ds) <$> niceAxioms FieldBlock [ d ]
+        Field r [] -> justWarning $ EmptyField r
+        Field _ fs -> (,ds) <$> niceAxioms FieldBlock fs
+
         DataSig r CoInductive _ _ _   -> throwError (Codata r)
         Data r CoInductive _ _ _ _    -> throwError (Codata r)
         DataDef r CoInductive _ _ _   -> throwError (Codata r)
@@ -907,7 +992,7 @@ niceDeclarations fixs ds = do
         DataSig r Inductive x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ DataName pc uc
+          addLoneSig r x $ DataName pc uc
           (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
               <*> return ds
 
@@ -938,7 +1023,7 @@ niceDeclarations fixs ds = do
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig x $ RecName pc uc
+          addLoneSig r x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
         Record r x i e c tel t cs   -> do
@@ -967,9 +1052,13 @@ niceDeclarations fixs ds = do
                     return r x ((tel,) <$> mt) (Just (tel, cs))
               <*> return ds
 
-        Mutual r []  -> justWarning $ EmptyMutual r
-        Mutual r ds' ->
-          (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
+        Mutual r ds' -> do
+          -- The lone signatures encountered so far are not in scope
+          -- for the mutual definition
+          forgetLoneSigs
+          case ds' of
+            [] -> justWarning $ EmptyMutual r
+            _  -> (,ds) <$> (singleton <$> (mkOldMutual r =<< nice ds'))
 
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
@@ -1006,21 +1095,22 @@ niceDeclarations fixs ds = do
         Syntax _ _ -> return ([], ds)
 
         PatternSyn r n as p -> do
-          return ([NicePatternSyn r n as p] , ds)
+          return ([NicePatternSyn r PublicAccess n as p] , ds)
         Open r x is         -> return ([NiceOpen r x is] , ds)
         Import r x as op is -> return ([NiceImport r x as op is] , ds)
 
         UnquoteDecl r xs e -> do
-          tc  <- use terminationCheckPragma
-          return ([NiceUnquoteDecl r PublicAccess ConcreteDef NotInstanceDef tc xs e] , ds)
+          tc <- use terminationCheckPragma
+          cc <- use coverageCheckPragma
+          return ([NiceUnquoteDecl r PublicAccess ConcreteDef NotInstanceDef tc cc xs e] , ds)
 
         UnquoteDef r xs e -> do
-          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          sigs <- loneFuns <$> use loneSigs
           let missing = filter (`notElem` sigs) xs
           if null missing
             then do
               mapM_ removeLoneSig xs
-              return ([NiceUnquoteDef r PublicAccess ConcreteDef TerminationCheck xs e] , ds)
+              return ([NiceUnquoteDef r PublicAccess ConcreteDef TerminationCheck YesCoverageCheck xs e] , ds)
             else throwError $ UnquoteDefRequiresSignature missing
 
         Pragma p -> nicePragma p ds
@@ -1047,6 +1137,13 @@ niceDeclarations fixs ds = do
         niceWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
+    nicePragma (NoCoverageCheckPragma r) ds =
+      if canHaveCoverageCheckPragma ds then
+        withCoverageCheckPragma NoCoverageCheck $ nice1 ds
+      else do
+        niceWarning $ InvalidCoverageCheckPragma r
+        nice1 ds
+
     nicePragma (CatchallPragma r) ds =
       if canHaveCatchallPragma ds then
         withCatchallPragma True $ nice1 ds
@@ -1056,7 +1153,7 @@ niceDeclarations fixs ds = do
 
     nicePragma (NoPositivityCheckPragma r) ds =
       if canHaveNoPositivityCheckPragma ds then
-        withPositivityCheckPragma False $ nice1 ds
+        withPositivityCheckPragma NoPositivityCheck $ nice1 ds
       else do
         niceWarning $ InvalidNoPositivityCheckPragma r
         nice1 ds
@@ -1095,6 +1192,9 @@ niceDeclarations fixs ds = do
       UnquoteDecl{} -> True
       (Pragma p) | isAttachedPragma p -> canHaveTerminationCheckPragma ds
       _             -> False
+
+    canHaveCoverageCheckPragma :: [Declaration] -> Bool
+    canHaveCoverageCheckPragma = canHaveTerminationCheckPragma
 
     canHaveCatchallPragma :: [Declaration] -> Bool
     canHaveCatchallPragma []     = False
@@ -1189,10 +1289,10 @@ niceDeclarations fixs ds = do
 
     niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
     niceAxiom b d = case d of
-      TypeSig rel x t -> do
+      TypeSig rel _tac x t -> do
         return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
-      Field i x argt | b == FieldBlock -> do
-        return [ NiceField (getRange d) PublicAccess ConcreteDef i x argt ]
+      FieldSig i tac x argt | b == FieldBlock -> do
+        return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Pragma p@(RewritePragma r _) -> do
@@ -1204,11 +1304,11 @@ niceDeclarations fixs ds = do
     toPrim _                       = __IMPOSSIBLE__
 
     -- Create a function definition.
-    mkFunDef info termCheck x mt ds0 = do
+    mkFunDef info termCheck covCheck x mt ds0 = do
       ds <- expandEllipsis ds0
       cs <- mkClauses x ds False
-      return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck x t
-             , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck x cs ]
+      return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
+             , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
           t = case mt of
                 Just t  -> t
@@ -1219,7 +1319,8 @@ niceDeclarations fixs ds = do
 
     expandEllipsis :: [Declaration] -> Nice [Declaration]
     expandEllipsis [] = return []
-    expandEllipsis (d@(FunClause lhs@(LHS p _ _) _ _ _) : ds)
+    expandEllipsis (d@(FunClause lhs@(LHS p _ _ ell) _ _ _) : ds)
+      | ExpandedEllipsis{} <- ell = __IMPOSSIBLE__
       | hasEllipsis p = (d :) <$> expandEllipsis ds
       | otherwise     = (d :) <$> expand (killRange p) ds
       where
@@ -1229,13 +1330,14 @@ niceDeclarations fixs ds = do
           case d of
             Pragma (CatchallPragma _) -> do
                   (d :) <$> expand p ds
-            FunClause (LHS p0 eqs es) rhs wh ca -> do
+            FunClause (LHS p0 eqs es NoEllipsis) rhs wh ca -> do
               case hasEllipsis' p0 of
                 ManyHoles -> throwError $ MultipleEllipses p0
-                OneHole cxt -> do
+                OneHole cxt ~(EllipsisP r) -> do
                   -- Replace the ellipsis by @p@.
                   let p1 = cxt p
-                  let d' = FunClause (LHS p1 eqs es) rhs wh ca
+                  let ell = ExpandedEllipsis r (numberOfWithPatterns p)
+                  let d' = FunClause (LHS p1 eqs es ell) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following
                   -- ellipses also get the additional patterns in p0.
                   (d' :) <$> expand (if null es then p else killRange p1) ds
@@ -1274,10 +1376,10 @@ niceDeclarations fixs ds = do
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
-        numWith = numberOfWithPatterns p + length es where LHS p _ es = lhs
+        numWith = numberOfWithPatterns p + length (filter visible es) where LHS p _ es _ = lhs
 
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS p0 _ _) _ _ _) : cs)
+        subClauses (c@(FunClause (LHS p0 _ _ _) _ _ _) : cs)
          | isEllipsis p0 ||
            numberOfWithPatterns p0 >= numWith = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
@@ -1291,7 +1393,7 @@ niceDeclarations fixs ds = do
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _) _ _ _) = hasEllipsis p ||
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) = hasEllipsis p ||
       let
       pns        = patternNames p
       xStrings   = nameStringParts x
@@ -1302,7 +1404,7 @@ niceDeclarations fixs ds = do
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
-      case (headMaybe pns, mFixity) of
+      case (listToMaybe pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
         (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ prettyShow y) $ True
         -- are the parts of x contained in p
@@ -1325,7 +1427,7 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
-        let ps = Map.fromList loneNames
+        let ps = loneSigsFromLoneNames loneNames
         checkLoneSigs ps
         let ds = replaceSigs ps ds'
 
@@ -1356,8 +1458,9 @@ niceDeclarations fixs ds = do
             Axiom{}             -> top
             NiceField{}         -> top
             PrimitiveFunction{} -> top
-            -- Nested mutual blocks should have been flattened by now.
-            NiceMutual{}        -> __IMPOSSIBLE__
+            -- Andreas, 2019-07-23 issue #3932:
+            -- Nested mutual blocks are not supported.
+            NiceMutual{}        -> invalid "mutual blocks"
             -- Andreas, 2018-10-29, issue #3246
             -- We could allow modules (top), but this is potentially confusing.
             NiceModule{}        -> invalid "Module definitions"
@@ -1373,7 +1476,7 @@ niceDeclarations fixs ds = do
             FunDef{}            -> bottom
             NiceDataDef{}       -> bottom
             NiceRecDef{}        -> bottom
-            -- Andreas, 2018-05-11, issue #3052, allow pat.syn.s in mutual blocks
+            -- Andreas, 2018-05-11, issue #3051, allow pat.syn.s in mutual blocks
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types
             -- just above them.
@@ -1414,6 +1517,7 @@ niceDeclarations fixs ds = do
               NoPositivityCheckPragma{} -> __IMPOSSIBLE__
               PolarityPragma{}          -> __IMPOSSIBLE__
               NoUniverseCheckPragma{}   -> __IMPOSSIBLE__
+              NoCoverageCheckPragma{}   -> __IMPOSSIBLE__
 
         -- -- Pull type signatures to the top
         -- let (sigs, other) = List.partition isTypeSig ds
@@ -1431,14 +1535,19 @@ niceDeclarations fixs ds = do
         -- Compute termination checking flag for mutual block
         tc0 <- use terminationCheckPragma
         let tcs = map termCheck ds
-        tc <- combineTermChecks r (tc0:tcs)
+        tc <- combineTerminationChecks r (tc0:tcs)
+
+        -- Compute coverage checking flag for mutual block
+        cc0 <- use coverageCheckPragma
+        let ccs = map covCheck ds
+        let cc = combineCoverageChecks (cc0:ccs)
 
         -- Compute positivity checking flag for mutual block
         pc0 <- use positivityCheckPragma
-        let pc :: PositivityCheck
-            pc = pc0 && all positivityCheckOldMutual ds
+        let pcs = map positivityCheckOldMutual ds
+        let pc = combinePositivityChecks (pc0:pcs)
 
-        return $ NiceMutual r tc pc $ top ++ bottom
+        return $ NiceMutual r tc cc pc $ top ++ bottom
         -- return $ NiceMutual r tc pc $ other ++ defs
         -- return $ NiceMutual r tc pc $ sigs ++ other
       where
@@ -1447,35 +1556,61 @@ niceDeclarations fixs ds = do
         -- isTypeSig d | LoneSig{} <- declKind d = True
         -- isTypeSig _                           = False
 
-        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds' ]
+        sigNames  = [ (r, x, k) | LoneSigDecl r k x <- map declKind ds' ]
         defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds', x <- xs ]
         -- compute the set difference with equality just on names
-        loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
+        loneNames = [ (r, x, k) | (r, x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 
+        termCheck :: NiceDeclaration -> TerminationCheck
         -- Andreas, 2013-02-28 (issue 804):
         -- do not termination check a mutual block if any of its
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
-        termCheck (FunSig _ _ _ _ _ _ tc _ _)      = tc
-        termCheck (FunDef _ _ _ _ tc _ _)          = tc
+        termCheck (FunSig _ _ _ _ _ _ tc _ _ _)      = tc
+        termCheck (FunDef _ _ _ _ tc _ _ _)          = tc
         -- ASR (28 December 2015): Is this equation necessary?
-        termCheck (NiceMutual _ tc _ _)            = __IMPOSSIBLE__
-        termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
-        termCheck (NiceUnquoteDef _ _ _ tc _ _)    = tc
-        termCheck Axiom{}                          = TerminationCheck
-        termCheck NiceField{}                      = TerminationCheck
-        termCheck PrimitiveFunction{}              = TerminationCheck
-        termCheck NiceModule{}                     = TerminationCheck
-        termCheck NiceModuleMacro{}                = TerminationCheck
-        termCheck NiceOpen{}                       = TerminationCheck
-        termCheck NiceImport{}                     = TerminationCheck
-        termCheck NicePragma{}                     = TerminationCheck
-        termCheck NiceRecSig{}                     = TerminationCheck
-        termCheck NiceDataSig{}                    = TerminationCheck
-        termCheck NiceFunClause{}                  = TerminationCheck
-        termCheck NiceDataDef{}                    = TerminationCheck
-        termCheck NiceRecDef{}                         = TerminationCheck
-        termCheck NicePatternSyn{}                 = TerminationCheck
-        termCheck NiceGeneralize{}                 = TerminationCheck
+        termCheck (NiceMutual _ tc _ _ _)            = tc
+        termCheck (NiceUnquoteDecl _ _ _ _ tc _ _ _) = tc
+        termCheck (NiceUnquoteDef _ _ _ tc _ _ _)    = tc
+        termCheck Axiom{}             = TerminationCheck
+        termCheck NiceField{}         = TerminationCheck
+        termCheck PrimitiveFunction{} = TerminationCheck
+        termCheck NiceModule{}        = TerminationCheck
+        termCheck NiceModuleMacro{}   = TerminationCheck
+        termCheck NiceOpen{}          = TerminationCheck
+        termCheck NiceImport{}        = TerminationCheck
+        termCheck NicePragma{}        = TerminationCheck
+        termCheck NiceRecSig{}        = TerminationCheck
+        termCheck NiceDataSig{}       = TerminationCheck
+        termCheck NiceFunClause{}     = TerminationCheck
+        termCheck NiceDataDef{}       = TerminationCheck
+        termCheck NiceRecDef{}        = TerminationCheck
+        termCheck NicePatternSyn{}    = TerminationCheck
+        termCheck NiceGeneralize{}    = TerminationCheck
+
+        covCheck :: NiceDeclaration -> CoverageCheck
+        covCheck (FunSig _ _ _ _ _ _ _ cc _ _)      = cc
+        covCheck (FunDef _ _ _ _ _ cc _ _)          = cc
+        -- ASR (28 December 2015): Is this equation necessary?
+        covCheck (NiceMutual _ _ cc _ _)            = cc
+        covCheck (NiceUnquoteDecl _ _ _ _ _ cc _ _) = cc
+        covCheck (NiceUnquoteDef _ _ _ _ cc _ _)    = cc
+        covCheck Axiom{}             = YesCoverageCheck
+        covCheck NiceField{}         = YesCoverageCheck
+        covCheck PrimitiveFunction{} = YesCoverageCheck
+        covCheck NiceModule{}        = YesCoverageCheck
+        covCheck NiceModuleMacro{}   = YesCoverageCheck
+        covCheck NiceOpen{}          = YesCoverageCheck
+        covCheck NiceImport{}        = YesCoverageCheck
+        covCheck NicePragma{}        = YesCoverageCheck
+        covCheck NiceRecSig{}        = YesCoverageCheck
+        covCheck NiceDataSig{}       = YesCoverageCheck
+        covCheck NiceFunClause{}     = YesCoverageCheck
+        covCheck NiceDataDef{}       = YesCoverageCheck
+        covCheck NiceRecDef{}        = YesCoverageCheck
+        covCheck NicePatternSyn{}    = YesCoverageCheck
+        covCheck NiceGeneralize{}    = YesCoverageCheck
+
+
 
         -- ASR (26 December 2015): Do not positivity check a mutual
         -- block if any of its inner declarations comes with a
@@ -1483,18 +1618,18 @@ niceDeclarations fixs ds = do
         positivityCheckOldMutual :: NiceDeclaration -> PositivityCheck
         positivityCheckOldMutual (NiceDataDef _ _ _ pc _ _ _ _) = pc
         positivityCheckOldMutual (NiceDataSig _ _ _ pc _ _ _ _) = pc
-        positivityCheckOldMutual (NiceMutual _ _ pc _)          = __IMPOSSIBLE__
+        positivityCheckOldMutual (NiceMutual _ _ _ pc _)        = pc
         positivityCheckOldMutual (NiceRecSig _ _ _ pc _ _ _ _)  = pc
-        positivityCheckOldMutual (NiceRecDef _ _ _ pc _ _ _ _ _ _ _)= pc
-        positivityCheckOldMutual _                              = True
+        positivityCheckOldMutual (NiceRecDef _ _ _ pc _ _ _ _ _ _ _) = pc
+        positivityCheckOldMutual _                              = YesPositivityCheck
 
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.
 
     abstractBlock _ [] = return []
     abstractBlock r ds = do
-      let (ds', anyChange) = runChange $ mkAbstract ds
-          inherited        = r == noRange
+      (ds', anyChange) <- runChangeT $ mkAbstract ds
+      let inherited = r == noRange
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
         unless inherited $ niceWarning $ UselessAbstract r
@@ -1502,7 +1637,7 @@ niceDeclarations fixs ds = do
 
     privateBlock _ _ [] = return []
     privateBlock r o ds = do
-      let (ds', anyChange) = runChange $ mkPrivate o ds
+      (ds', anyChange) <- runChangeT $ mkPrivate o ds
       if anyChange then return ds' else do
         when (o == UserWritten) $ niceWarning $ UselessPrivate r
         return ds -- no change!
@@ -1516,42 +1651,40 @@ niceDeclarations fixs ds = do
 
     -- Make a declaration eligible for instance search.
     mkInstance :: Updater NiceDeclaration
-    mkInstance d =
-      case d of
+    mkInstance = \case
         Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance i
-        FunSig r p a i m rel tc x e    -> (\ i -> FunSig r p a i m rel tc x e) <$> setInstance i
-        NiceUnquoteDecl r p a i tc x e -> (\ i -> NiceUnquoteDecl r p a i tc x e) <$> setInstance i
-        NiceMutual r termCheck pc ds   -> NiceMutual r termCheck pc <$> mapM mkInstance ds
-        NiceFunClause{}                -> return d
-        FunDef r ds a i tc x cs        -> (\ i -> FunDef r ds a i tc x cs) <$> setInstance i
-        NiceField{}                    -> return d  -- Field instance are handled by the parser
-        PrimitiveFunction{}            -> return d
-        NiceUnquoteDef{}               -> return d
-        NiceRecSig{}                   -> return d
-        NiceDataSig{}                  -> return d
-        NiceModuleMacro{}              -> return d
-        NiceModule{}                   -> return d
-        NicePragma{}                   -> return d
-        NiceOpen{}                     -> return d
-        NiceImport{}                   -> return d
-        NiceDataDef{}                  -> return d
-        NiceRecDef{}                       -> return d
-        NicePatternSyn{}               -> return d
-        NiceGeneralize{}               -> return d
+        FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance i
+        NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance i
+        NiceMutual r tc cc pc ds        -> NiceMutual r tc cc pc <$> mapM mkInstance ds
+        d@NiceFunClause{}              -> return d
+        FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance i
+        d@NiceField{}                  -> return d  -- Field instance are handled by the parser
+        d@PrimitiveFunction{}          -> return d
+        d@NiceUnquoteDef{}             -> return d
+        d@NiceRecSig{}                 -> return d
+        d@NiceDataSig{}                -> return d
+        d@NiceModuleMacro{}            -> return d
+        d@NiceModule{}                 -> return d
+        d@NicePragma{}                 -> return d
+        d@NiceOpen{}                   -> return d
+        d@NiceImport{}                 -> return d
+        d@NiceDataDef{}                -> return d
+        d@NiceRecDef{}                 -> return d
+        d@NicePatternSyn{}             -> return d
+        d@NiceGeneralize{}             -> return d
 
     setInstance :: Updater IsInstance
-    setInstance i = case i of
-      InstanceDef -> return i
-      _           -> dirty $ InstanceDef
+    setInstance = \case
+      i@InstanceDef -> return i
+      _             -> dirty $ InstanceDef
 
     macroBlock r ds = mapM mkMacro ds
 
     mkMacro :: NiceDeclaration -> Nice NiceDeclaration
-    mkMacro d =
-      case d of
-        FunSig r p a i _ rel tc x e -> return $ FunSig r p a i MacroDef rel tc x e
-        FunDef{}                    -> return d
-        _                           -> throwError (BadMacroDef d)
+    mkMacro = \case
+        FunSig r p a i _ rel tc cc x e -> return $ FunSig r p a i MacroDef rel tc cc x e
+        d@FunDef{}                     -> return d
+        d                              -> throwError (BadMacroDef d)
 
 -- | Make a declaration abstract.
 --
@@ -1562,8 +1695,8 @@ niceDeclarations fixs ds = do
 -- Then, nested @abstract@s would sometimes also be complained about.
 
 class MakeAbstract a where
-  mkAbstract :: Updater a
-  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => Updater a
+  mkAbstract :: UpdaterT Nice a
+  default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => UpdaterT Nice a
   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract a => MakeAbstract [a] where
@@ -1575,39 +1708,40 @@ instance MakeAbstract a => MakeAbstract [a] where
 --   mkAbstract = traverse mkAbstract
 
 instance MakeAbstract IsAbstract where
-  mkAbstract a = case a of
-    AbstractDef -> return a
+  mkAbstract = \case
+    a@AbstractDef -> return a
     ConcreteDef -> dirty $ AbstractDef
 
 instance MakeAbstract NiceDeclaration where
-  mkAbstract d =
-    case d of
-      NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mkAbstract ds
-      FunDef r ds a i tc x cs          -> (\ a -> FunDef r ds a i tc x) <$> mkAbstract a <*> mkAbstract cs
+  mkAbstract = \case
+      NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract ds
+      FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract a <*> mkAbstract cs
       NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract a <*> mkAbstract cs
       NiceRecDef r o a pc uc x i e c ps cs -> (\ a -> NiceRecDef r o a pc uc x i e c ps) <$> mkAbstract a <*> return cs
-      NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> mkAbstract a
+      NiceFunClause r p a tc cc catchall d  -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract a
       -- The following declarations have an @InAbstract@ field
       -- but are not really definitions, so we do count them into
       -- the declarations which can be made abstract
       -- (thus, do not notify progress with @dirty@).
       Axiom r p a i rel x e          -> return $ Axiom             r p AbstractDef i rel x e
-      FunSig r p a i m rel tc x e    -> return $ FunSig            r p AbstractDef i m rel tc x e
+      FunSig r p a i m rel tc cc x e -> return $ FunSig            r p AbstractDef i m rel tc cc x e
       NiceRecSig r p a pc uc x ls t  -> return $ NiceRecSig        r p AbstractDef pc uc x ls t
       NiceDataSig r p a pc uc x ls t -> return $ NiceDataSig       r p AbstractDef pc uc x ls t
-      NiceField r p _ i x e          -> return $ NiceField         r p AbstractDef i x e
+      NiceField r p _ i tac x e      -> return $ NiceField         r p AbstractDef i tac x e
       PrimitiveFunction r p _ x e    -> return $ PrimitiveFunction r p AbstractDef x e
       -- Andreas, 2016-07-17 it does have effect on unquoted defs.
       -- Need to set updater state to dirty!
-      NiceUnquoteDecl r p _ i t x e  -> dirty $ NiceUnquoteDecl r p AbstractDef i t x e
-      NiceUnquoteDef r p _ t x e     -> dirty $ NiceUnquoteDef r p AbstractDef t x e
-      NiceModule{}                     -> return d
-      NiceModuleMacro{}                -> return d
-      NicePragma{}                     -> return d
-      NiceOpen{}                       -> return d
-      NiceImport{}                     -> return d
-      NicePatternSyn{}                 -> return d
-      NiceGeneralize{}                 -> return d
+      NiceUnquoteDecl r p _ i tc cc x e -> tellDirty $> NiceUnquoteDecl r p AbstractDef i tc cc x e
+      NiceUnquoteDef r p _ tc cc x e    -> tellDirty $> NiceUnquoteDef r p AbstractDef tc cc x e
+      d@NiceModule{}                 -> return d
+      d@NiceModuleMacro{}            -> return d
+      d@NicePragma{}                 -> return d
+      d@(NiceOpen _ _ directives)              -> do
+        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicAbstract
+        return d
+      d@NiceImport{}                 -> return d
+      d@NicePatternSyn{}             -> return d
+      d@NiceGeneralize{}             -> return d
 
 instance MakeAbstract Clause where
   mkAbstract (Clause x catchall lhs rhs wh with) = do
@@ -1629,8 +1763,8 @@ instance MakeAbstract WhereClause where
 -- Then, nested @private@s would sometimes also be complained about.
 
 class MakePrivate a where
-  mkPrivate :: Origin -> Updater a
-  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> Updater a
+  mkPrivate :: Origin -> UpdaterT Nice a
+  default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> UpdaterT Nice a
   mkPrivate o = traverse $ mkPrivate o
 
 instance MakePrivate a => MakePrivate [a] where
@@ -1642,35 +1776,36 @@ instance MakePrivate a => MakePrivate [a] where
 --   mkPrivate = traverse mkPrivate
 
 instance MakePrivate Access where
-  mkPrivate o p = case p of
-    PrivateAccess{} -> return p  -- OR? return $ PrivateAccess o
-    _               -> dirty $ PrivateAccess o
+  mkPrivate o = \case
+    p@PrivateAccess{} -> return p  -- OR? return $ PrivateAccess o
+    _                 -> dirty $ PrivateAccess o
 
 instance MakePrivate NiceDeclaration where
-  mkPrivate o d =
-    case d of
-      Axiom r p a i rel x e                    -> (\ p -> Axiom r p a i rel x e)                    <$> mkPrivate o p
-      NiceField r p a i x e                    -> (\ p -> NiceField r p a i x e)                    <$> mkPrivate o p
-      PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)              <$> mkPrivate o p
-      NiceMutual r termCheck pc ds             -> (\ p -> NiceMutual r termCheck pc p)              <$> mkPrivate o ds
-      NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)                <$> mkPrivate o p
-      NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)           <$> mkPrivate o p
-      FunSig r p a i m rel tc x e              -> (\ p -> FunSig r p a i m rel tc x e)              <$> mkPrivate o p
-      NiceRecSig r p a pc uc x ls t            -> (\ p -> NiceRecSig r p a pc uc x ls t)            <$> mkPrivate o p
-      NiceDataSig r p a pc uc x ls t           -> (\ p -> NiceDataSig r p a pc uc x ls t)           <$> mkPrivate o p
-      NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> mkPrivate o p
-      NiceUnquoteDecl r p a i t x e            -> (\ p -> NiceUnquoteDecl r p a i t x e)            <$> mkPrivate o p
-      NiceUnquoteDef r p a t x e               -> (\ p -> NiceUnquoteDef r p a t x e)               <$> mkPrivate o p
-      NiceGeneralize r p i x t                 -> (\ p -> NiceGeneralize r p i x t)                 <$> mkPrivate o p
-      NicePragma _ _                           -> return $ d
-      NiceOpen _ _ _                           -> return $ d
-      NiceImport _ _ _ _ _                     -> return $ d
+  mkPrivate o = \case
+      Axiom r p a i rel x e                    -> (\ p -> Axiom r p a i rel x e)                <$> mkPrivate o p
+      NiceField r p a i tac x e                -> (\ p -> NiceField r p a i tac x e)            <$> mkPrivate o p
+      PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)          <$> mkPrivate o p
+      NiceMutual r tc cc pc ds                 -> (\ ds-> NiceMutual r tc cc pc ds)             <$> mkPrivate o ds
+      NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)            <$> mkPrivate o p
+      NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)       <$> mkPrivate o p
+      FunSig r p a i m rel tc cc x e           -> (\ p -> FunSig r p a i m rel tc cc x e)       <$> mkPrivate o p
+      NiceRecSig r p a pc uc x ls t            -> (\ p -> NiceRecSig r p a pc uc x ls t)        <$> mkPrivate o p
+      NiceDataSig r p a pc uc x ls t           -> (\ p -> NiceDataSig r p a pc uc x ls t)       <$> mkPrivate o p
+      NiceFunClause r p a tc cc catchall d     -> (\ p -> NiceFunClause r p a tc cc catchall d) <$> mkPrivate o p
+      NiceUnquoteDecl r p a i tc cc x e        -> (\ p -> NiceUnquoteDecl r p a i tc cc x e)    <$> mkPrivate o p
+      NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate o p
+      NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate o p
+      NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
+      d@NicePragma{}                           -> return d
+      d@(NiceOpen _ _ directives)              -> do
+        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicPrivate
+        return d
+      d@NiceImport{}                           -> return d
       -- Andreas, 2016-07-08, issue #2089
       -- we need to propagate 'private' to the named where modules
-      FunDef r ds a i tc x cls                 -> FunDef r ds a i tc x <$> mkPrivate o cls
-      NiceDataDef{}                            -> return $ d
-      NiceRecDef{}                             -> return $ d
-      NicePatternSyn _ _ _ _                   -> return $ d
+      FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate o cls
+      d@NiceDataDef{}                          -> return d
+      d@NiceRecDef{}                           -> return d
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -1693,12 +1828,11 @@ instance MakePrivate WhereClause where
 -- | (Approximately) convert a 'NiceDeclaration' back to a list of
 -- 'Declaration's.
 notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
-notSoNiceDeclarations d =
-  case d of
-    Axiom _ _ _ i rel x e          -> inst i [TypeSig rel x e]
-    NiceField _ _ _ i x argt       -> [Field i x argt]
-    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig defaultArgInfo x e]]
-    NiceMutual r _ _ ds            -> [Mutual r $ concatMap notSoNiceDeclarations ds]
+notSoNiceDeclarations = \case
+    Axiom _ _ _ i rel x e          -> inst i [TypeSig rel Nothing x e]
+    NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
+    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig defaultArgInfo Nothing x e]]
+    NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ x tel ds      -> [Module r x tel ds]
     NiceModuleMacro r _ x ma o dir -> [ModuleMacro r x ma o dir]
     NiceOpen r x dir               -> [Open r x dir]
@@ -1706,25 +1840,24 @@ notSoNiceDeclarations d =
     NicePragma _ p                 -> [Pragma p]
     NiceRecSig r _ _ _ _ x bs e    -> [RecordSig r x bs e]
     NiceDataSig r _ _ _ _ x bs e   -> [DataSig r Inductive x bs e]
-    NiceFunClause _ _ _ _ _ d      -> [d]
-    FunSig _ _ _ i _ rel tc x e    -> inst i [TypeSig rel x e]
-    FunDef _r ds _ _ _ _ _         -> ds
+    NiceFunClause _ _ _ _ _ _ d    -> [d]
+    FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel Nothing x e]
+    FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r Inductive x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x i e c bs ds -> [RecordDef r x i e c bs ds]
-    NicePatternSyn r n as p        -> [PatternSyn r n as p]
-    NiceGeneralize r _ i n e       -> [Generalize r [TypeSig i n e]]
-    NiceUnquoteDecl r _ _ i _ x e  -> inst i [UnquoteDecl r x e]
-    NiceUnquoteDef r _ _ _ x e     -> [UnquoteDef r x e]
+    NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
+    NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
+    NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
+    NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
   where
     inst InstanceDef    ds = [InstanceB (getRange ds) ds]
     inst NotInstanceDef ds = ds
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
-niceHasAbstract d =
-  case d of
+niceHasAbstract = \case
     Axiom{}                       -> Nothing
-    NiceField _ _ a _ _ _         -> Just a
+    NiceField _ _ a _ _ _ _       -> Just a
     PrimitiveFunction _ _ a _ _   -> Just a
     NiceMutual{}                  -> Nothing
     NiceModule _ _ a _ _ _        -> Just a
@@ -1734,12 +1867,12 @@ niceHasAbstract d =
     NicePragma{}                  -> Nothing
     NiceRecSig{}                  -> Nothing
     NiceDataSig{}                 -> Nothing
-    NiceFunClause _ _ a _ _ _     -> Just a
+    NiceFunClause _ _ a _ _ _ _   -> Just a
     FunSig{}                      -> Nothing
-    FunDef _ _ a _ _ _ _          -> Just a
+    FunDef _ _ a _ _ _ _ _        -> Just a
     NiceDataDef _ _ a _ _ _ _ _   -> Just a
     NiceRecDef _ _ a _ _ _ _ _ _ _ _ -> Just a
     NicePatternSyn{}              -> Nothing
     NiceGeneralize{}              -> Nothing
-    NiceUnquoteDecl _ _ a _ _ _ _ -> Just a
-    NiceUnquoteDef _ _ a _ _ _    -> Just a
+    NiceUnquoteDecl _ _ a _ _ _ _ _ -> Just a
+    NiceUnquoteDef _ _ a _ _ _ _    -> Just a

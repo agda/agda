@@ -1,6 +1,10 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
+    , namedMetaOf
     , showGoals
+    , showInfoError
+    , explainWhyInScope
+    , prettyTypeOfMeta
     ) where
 
 import Control.Monad.State hiding (state)
@@ -88,7 +92,7 @@ lispifyResponse (Resp_GiveAction ii s)
         Give_String str -> quote str
         Give_Paren      -> "'paren"
         Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCase variant pcs) = return
+lispifyResponse (Resp_MakeCase ii variant pcs) = return
   [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ] ]
   where
   cmd = case variant of
@@ -168,8 +172,8 @@ lispifyDisplayInfo info = case info of
     Info_WhyInScope s cwd v xs ms -> do
       doc <- explainWhyInScope s cwd v xs ms
       format (render doc) "*Scope Info*"
-    Info_Context ctx -> do
-      doc <- localTCState (prettyRespContext False ctx)
+    Info_Context ii ctx -> do
+      doc <- localTCState (prettyResponseContext ii False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
@@ -197,8 +201,8 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
-    Goal_GoalType norm aux ctx constraints -> do
-      ctxDoc <- prettyRespContext True ctx
+    Goal_GoalType norm aux ctx bndry constraints -> do
+      ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
             GoalOnly -> return empty
@@ -208,6 +212,11 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
             GoalAndElaboration term -> do
               doc <- TCP.prettyTCM term
               return $ "Elaborates to:" <+> doc
+      let boundaryDoc
+            | null bndry = []
+            | otherwise  = [ text $ delimiter "Boundary"
+                           , vcat $ map pretty bndry
+                           ]
       let constraintsDoc = if (null constraints)
             then  []
             else  [ text $ delimiter "Constraints"
@@ -216,6 +225,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       let doc = vcat $
             [ "Goal:" <+> goalDoc
             , auxDoc
+            , vcat boundaryDoc
             , text (replicate 60 '\x2014')
             , ctxDoc
             ] ++ constraintsDoc
@@ -325,14 +335,21 @@ explainWhyInScope s _ v xs ms = TCP.vcat
     names   = TCP.vcat . map pName
     modules = TCP.vcat . map pMod
 
-    pKind DefName        = "defined name"
-    pKind ConName        = "constructor"
-    pKind FldName        = "record field"
-    pKind PatternSynName = "pattern synonym"
-    pKind GeneralizeName = "generalizable variable"
-    pKind DisallowedGeneralizeName = "generalizable variable from let open"
-    pKind MacroName      = "macro name"
-    pKind QuotableName   = "quotable name"
+    pKind = \case
+      ConName                  -> "constructor"
+      FldName                  -> "record field"
+      PatternSynName           -> "pattern synonym"
+      GeneralizeName           -> "generalizable variable"
+      DisallowedGeneralizeName -> "generalizable variable from let open"
+      MacroName                -> "macro name"
+      QuotableName             -> "quotable name"
+      -- previously DefName:
+      DataName                 -> "data type"
+      RecName                  -> "record type"
+      AxiomName                -> "postulate"
+      PrimName                 -> "primitive function"
+      FunName                  -> "defined name"
+      OtherDefName             -> "defined name"
 
     pName :: AbstractName -> TCM Doc
     pName a = TCP.sep
@@ -370,31 +387,55 @@ explainWhyInScope s _ v xs ms = TCP.vcat
 
 -- | Pretty-prints the context of the given meta-variable.
 
-prettyRespContext
-  :: Bool           -- ^ Print the elements in reverse order?
-  -> [RespContextEntry]
+prettyResponseContext
+  :: InteractionId  -- ^ Context of this meta-variable.
+  -> Bool           -- ^ Print the elements in reverse order?
+  -> [ResponseContextEntry]
   -> TCM Doc
-prettyRespContext rev ctx = do
-  pairs <- mapM compose ctx
-  return $ align 10 $ applyWhen rev reverse pairs
+prettyResponseContext ii rev ctx = withInteractionId ii $ do
+  mod   <- asksTC getModality
+  align 10 . concat . applyWhen rev reverse <$> do
+    forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
+      let
+        prettyCtxName :: String
+        prettyCtxName
+          | n == x                 = prettyShow x
+          | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
+          | otherwise              = prettyShow x
+
+        -- Some attributes are useful to report whenever they are not
+        -- in the default state.
+        attribute :: String
+        attribute = c ++ if null c then "" else " "
+          where c = prettyShow (getCohesion ai)
+
+        extras :: [Doc]
+        extras = concat $
+          [ [ "not in scope" | isInScope nis == C.NotInScope ]
+            -- Print erased if hypothesis is erased by goal is non-erased.
+          , [ "erased"       | not $ getQuantity  ai `moreQuantity` getQuantity  mod ]
+            -- Print irrelevant if hypothesis is strictly less relevant than goal.
+          , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
+          ]
+      ty <- prettyATop expr
+      maybeVal <- traverse prettyATop letv
+
+      return $
+        [ (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) ] ++
+        [ (prettyShow x, "=" <+> val) | val <- maybeToList maybeVal ]
+
   where
-    compose :: RespContextEntry -> TCM (String, Doc)
-    compose (a, b, c, d) = do
-      t <- prettyCtxType c d
-      return (prettyCtxName a b, t)
-    prettyCtxName :: C.Name -> C.Name -> String
-    prettyCtxName n x
-      | n == x                 = prettyShow x
-      | isInScope n == InScope = prettyShow n ++ " = " ++ prettyShow x
-      | otherwise              = prettyShow x
-    prettyCtxType :: A.Expr -> NameInScope -> TCM Doc
-    prettyCtxType expr nis = do
-      doc <- prettyATop expr
-      return $ ":" <+> (doc <> notInScopeMarker nis)
-    notInScopeMarker :: NameInScope -> Doc
-    notInScopeMarker nis = case isInScope nis of
-      C.InScope    -> ""
-      C.NotInScope -> "  (not in scope)"
+    parenSep :: [Doc] -> Doc
+    parenSep docs
+      | null docs = empty
+      | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
+
+namedMetaOf :: B.OutputConstraint A.Expr a -> a
+namedMetaOf (B.OfType i _) = i
+namedMetaOf (B.JustType i) = i
+namedMetaOf (B.JustSort i) = i
+namedMetaOf (B.Assign i _) = i
+namedMetaOf _ = __IMPOSSIBLE__
 
 -- | Print open metas nicely.
 showGoals :: Goals -> TCM String
@@ -405,14 +446,9 @@ showGoals (ims, hms) = do
   dh <- mapM showA' hms
   return $ unlines $ map show di ++ dh
   where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i _) = i
-    metaId _ = __IMPOSSIBLE__
     showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
-      let i = nmid $ metaId m
+      let i = nmid $ namedMetaOf m
       r <- getMetaRange i
       d <- B.withMetaId i (prettyATop m)
       return $ show d ++ "  [ at " ++ show r ++ " ]"

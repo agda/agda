@@ -3,14 +3,13 @@
 
 module Agda.TypeChecking.Serialise.Instances.Internal where
 
-import Control.Monad.State.Strict
+import Control.Monad.IO.Class
 
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
-import Agda.TypeChecking.Serialise.Instances.Compilers ()
+import Agda.TypeChecking.Serialise.Instances.Compilers () --instance only
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
@@ -97,7 +96,9 @@ instance EmbPrj I.Term where
   icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy s _)    = __IMPOSSIBLE__
+  icod_ (Dummy s _)    = do
+    liftIO $ putStrLn $ "Dummy term in serialization: " ++ s
+    __IMPOSSIBLE__
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -113,18 +114,14 @@ instance EmbPrj I.Term where
     valu _         = malformed
 
 instance EmbPrj Level where
-  icod_ (Max a) = icodeN' Max a
+  icod_ (Max a b) = icodeN' Max a b
 
   value = valueN Max
 
 instance EmbPrj PlusLevel where
-  icod_ (ClosedLevel a) = icodeN' ClosedLevel a
-  icod_ (Plus a b)      = icodeN' Plus a b
+  icod_ (Plus a b) = icodeN' Plus a b
 
-  value = vcase valu where
-    valu [a]    = valuN ClosedLevel a
-    valu [a, b] = valuN Plus a b
-    valu _      = malformed
+  value = valueN Plus
 
 instance EmbPrj LevelAtom where
   icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
@@ -148,7 +145,9 @@ instance EmbPrj I.Sort where
   icod_ (UnivSort a) = icodeN 5 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 6 DefS a b
-  icod_ (DummyS s)   = __IMPOSSIBLE__
+  icod_ (DummyS s)   = do
+    liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
+    __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -207,22 +206,37 @@ instance EmbPrj NLPat where
   icod_ (PDef a b)      = icodeN 1 PDef a b
   icod_ (PLam a b)      = icodeN 2 PLam a b
   icod_ (PPi a b)       = icodeN 3 PPi a b
-  icod_ (PBoundVar a b) = icodeN 4 PBoundVar a b
-  icod_ (PTerm a)       = icodeN 5 PTerm a
+  icod_ (PSort a)       = icodeN 4 PSort a
+  icod_ (PBoundVar a b) = icodeN 5 PBoundVar a b
+  icod_ (PTerm a)       = icodeN 6 PTerm a
 
   value = vcase valu where
     valu [0, a, b]    = valuN PVar a b
     valu [1, a, b]    = valuN PDef a b
     valu [2, a, b]    = valuN PLam a b
     valu [3, a, b]    = valuN PPi a b
-    valu [4, a, b]    = valuN PBoundVar a b
-    valu [5, a]       = valuN PTerm a
+    valu [4, a]       = valuN PSort a
+    valu [5, a, b]    = valuN PBoundVar a b
+    valu [6, a]       = valuN PTerm a
     valu _            = malformed
 
 instance EmbPrj NLPType where
   icod_ (NLPType a b) = icodeN' NLPType a b
 
   value = valueN NLPType
+
+instance EmbPrj NLPSort where
+  icod_ (PType a)   = icodeN 0 PType a
+  icod_ (PProp a)   = icodeN 1 PProp a
+  icod_ PInf        = icodeN 2 PInf
+  icod_ PSizeUniv   = icodeN 3 PSizeUniv
+
+  value = vcase valu where
+    valu [0, a] = valuN PType a
+    valu [1, a] = valuN PProp a
+    valu [2]    = valuN PInf
+    valu [3]    = valuN PSizeUniv
+    valu _      = malformed
 
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f
@@ -318,7 +332,7 @@ instance EmbPrj Defn where
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
   icod_ (Datatype    a b c d e f g h i)                 = icodeN 2 Datatype a b c d e f g h i
   icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
-  icod_ (Constructor a b c d e f g h i)                 = icodeN 4 Constructor a b c d e f g h i
+  icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
   icod_ GeneralizableVar                                = icodeN 6 GeneralizableVar
@@ -329,10 +343,19 @@ instance EmbPrj Defn where
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h, i]             = valuN Datatype a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
-    valu [4, a, b, c, d, e, f, g, h, i]             = valuN Constructor a b c d e f g h i
+    valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
     valu [6]                                        = valuN GeneralizableVar
     valu _                                          = malformed
+
+instance EmbPrj LazySplit where
+  icod_ StrictSplit = icodeN' StrictSplit
+  icod_ LazySplit   = icodeN 0 LazySplit
+
+  value = vcase valu where
+    valu []  = valuN StrictSplit
+    valu [0] = valuN LazySplit
+    valu _   = malformed
 
 instance EmbPrj SplitTag where
   icod_ (SplitCon c)  = icodeN 0 SplitCon c
@@ -347,12 +370,12 @@ instance EmbPrj SplitTag where
 
 instance EmbPrj a => EmbPrj (SplitTree' a) where
   icod_ (SplittingDone a) = icodeN' SplittingDone a
-  icod_ (SplitAt a b)     = icodeN 0 SplitAt a b
+  icod_ (SplitAt a b c)   = icodeN 0 SplitAt a b c
 
   value = vcase valu where
-    valu [a]       = valuN SplittingDone a
-    valu [0, a, b] = valuN SplitAt a b
-    valu _         = malformed
+    valu [a]          = valuN SplittingDone a
+    valu [0, a, b, c] = valuN SplitAt a b c
+    valu _            = malformed
 
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icodeN 0 FunStatic
@@ -411,12 +434,12 @@ instance EmbPrj TermHead where
     valu _      = malformed
 
 instance EmbPrj I.Clause where
-  icod_ (Clause a b c d e f g h) = icodeN' Clause a b c d e f g h
+  icod_ (Clause a b c d e f g h i) = icodeN' Clause a b c d e f g h i
 
   value = valueN Clause
 
 instance EmbPrj I.ConPatternInfo where
-  icod_ (ConPatternInfo a b c d) = icodeN' ConPatternInfo a b c d
+  icod_ (ConPatternInfo a b c d e) = icodeN' ConPatternInfo a b c d e
 
   value = valueN ConPatternInfo
 
@@ -424,6 +447,11 @@ instance EmbPrj I.DBPatVar where
   icod_ (DBPatVar a b) = icodeN' DBPatVar a b
 
   value = valueN DBPatVar
+
+instance EmbPrj I.PatternInfo where
+  icod_ (PatternInfo a b) = icodeN' PatternInfo a b
+
+  value = valueN PatternInfo
 
 instance EmbPrj I.PatOrigin where
   icod_ PatOSystem  = icodeN' PatOSystem
@@ -451,7 +479,7 @@ instance EmbPrj I.PatOrigin where
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a b  ) = icodeN 0 VarP a b
   icod_ (ConP a b c) = icodeN 1 ConP a b c
-  icod_ (LitP a    ) = icodeN 2 LitP a
+  icod_ (LitP a b  ) = icodeN 2 LitP a b
   icod_ (DotP a b  ) = icodeN 3 DotP a b
   icod_ (ProjP a b ) = icodeN 4 ProjP a b
   icod_ (IApplyP a b c d) = icodeN 5 IApplyP a b c d
@@ -460,7 +488,7 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
   value = vcase valu where
     valu [0, a, b] = valuN VarP a b
     valu [1, a, b, c] = valuN ConP a b c
-    valu [2, a]    = valuN LitP a
+    valu [2, a, b] = valuN LitP a b
     valu [3, a, b] = valuN DotP a b
     valu [4, a, b] = valuN ProjP a b
     valu [5, a, b, c, d] = valuN IApplyP a b c d

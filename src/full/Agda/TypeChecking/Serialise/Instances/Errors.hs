@@ -2,30 +2,20 @@
 
 module Agda.TypeChecking.Serialise.Instances.Errors where
 
-import Data.Maybe
-
 import Control.Monad
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common
-import Agda.TypeChecking.Serialise.Instances.Internal ()
-import Agda.TypeChecking.Serialise.Instances.Abstract ()
+import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
+import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
-import Agda.Syntax.Abstract.Name (ModuleName)
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library
 import Agda.Interaction.Library.Parse
 import Agda.Termination.CutOff
-import Agda.TypeChecking.Positivity.Occurrence ()
-import Agda.Syntax.Parser.Monad (ParseWarning( OverlappingTokensWarning ))
 import Agda.Utils.Pretty
-import Agda.Utils.FileName ()
-
-import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 
@@ -57,6 +47,8 @@ instance EmbPrj Warning where
   icod_ SafeFlagNoPositivityCheck    = __IMPOSSIBLE__
   icod_ SafeFlagPolarity             = __IMPOSSIBLE__
   icod_ SafeFlagNoUniverseCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagNoCoverageCheck      = __IMPOSSIBLE__
+  icod_ SafeFlagInjective            = __IMPOSSIBLE__
   icod_ (ParseWarning a)             = __IMPOSSIBLE__
   icod_ (DeprecationWarning a b c)   = icodeN 6 DeprecationWarning a b c
   icod_ (NicifierIssue a)            = icodeN 7 NicifierIssue a
@@ -77,7 +69,10 @@ instance EmbPrj Warning where
   icod_ WrongInstanceDeclaration     = icodeN 22 WrongInstanceDeclaration
   icod_ (RewriteNonConfluent a b c d) = icodeN 23 RewriteNonConfluent a b c d
   icod_ (RewriteMaybeNonConfluent a b c) = icodeN 24 RewriteMaybeNonConfluent a b c
-  icod_ (PragmaCompileErased a b) = icodeN 25 PragmaCompileErased a b
+  icod_ (PragmaCompileErased a b)        = icodeN 25 PragmaCompileErased a b
+  icod_ (FixityInRenamingModule a)       = icodeN 26 FixityInRenamingModule a
+  icod_ (NotInScopeW ns)                 = icodeN 27 NotInScopeW ns
+  icod_ (ClashesViaRenaming a b)         = icodeN 28 ClashesViaRenaming a b
 
   value = vcase valu where
       valu [0, a, b]    = valuN UnreachableClauses a b
@@ -106,6 +101,9 @@ instance EmbPrj Warning where
       valu [23, a, b, c, d] = valuN RewriteNonConfluent a b c d
       valu [24, a, b, c]    = valuN RewriteMaybeNonConfluent a b c
       valu [25, a, b]   = valuN PragmaCompileErased a b
+      valu [26, a]      = valuN FixityInRenamingModule a
+      valu [27, ns]     = valuN NotInScopeW ns
+      valu [28, a, b]   = valuN ClashesViaRenaming a b
       valu _ = malformed
 
 instance EmbPrj DeclarationWarning where
@@ -133,6 +131,11 @@ instance EmbPrj DeclarationWarning where
     EmptyGeneralize a                 -> icodeN 20 EmptyGeneralize a
     PragmaCompiled r                  -> icodeN 21 PragmaCompiled r
     EmptyPrimitive a                  -> icodeN 22 EmptyPrimitive a
+    EmptyField r                      -> icodeN 23 EmptyField r
+    ShadowingInTelescope nrs          -> icodeN 24 ShadowingInTelescope nrs
+    InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
+    OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
+    OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -158,6 +161,11 @@ instance EmbPrj DeclarationWarning where
     [20,a]   -> valuN EmptyGeneralize a
     [21,a]   -> valuN PragmaCompiled a
     [22,a]   -> valuN EmptyPrimitive a
+    [23,r]   -> valuN EmptyField r
+    [24,nrs] -> valuN ShadowingInTelescope nrs
+    [25,r]   -> valuN InvalidCoverageCheckPragma r
+    [26,r]   -> valuN OpenPublicAbstract r
+    [27,r]   -> valuN OpenPublicPrivate r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -191,10 +199,12 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn -> icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn]   -> valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu
     _ -> malformed
 
 instance EmbPrj WarningMode where

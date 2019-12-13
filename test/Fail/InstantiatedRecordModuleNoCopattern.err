@@ -1,3 +1,4 @@
-InstantiatedRecordModuleNoCopattern.agda:24,1-16
+InstantiatedRecordModuleNoCopattern.agda:24,1-10
 Cannot eliminate type  R  with projection  out
-when checking that the clause out wrong = Set has type R
+when checking the clause left hand side
+out wrong

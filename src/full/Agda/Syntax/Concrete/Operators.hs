@@ -8,6 +8,7 @@
     It also contains the function that puts parenthesis back given the
     precedence of the context.
 -}
+
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseModuleApplication
@@ -16,9 +17,8 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
-import Control.Applicative ( Alternative((<|>)), liftA2 )
-import Control.Arrow ((***), (&&&), first, second)
-import Control.DeepSeq
+import Control.Applicative ( Alternative((<|>)))
+import Control.Arrow (second)
 import Control.Monad
 
 import Data.Either (partitionEithers)
@@ -33,10 +33,8 @@ import qualified Data.Set as Set
 import Data.Traversable (traverse)
 import qualified Data.Traversable as Trav
 
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
-import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Operators.Parser
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import Agda.Syntax.Concrete.Pattern
@@ -51,7 +49,6 @@ import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State (getScope)
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Pretty
@@ -84,18 +81,17 @@ type FlatScope = Map QName [AbstractName]
 -- | Compute all defined names in scope and their fixities/notations.
 -- Note that overloaded names (constructors) can have several
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
-getDefinedNames :: [KindOfName] -> FlatScope -> [[NewNotation]]
+getDefinedNames :: KindsOfNames -> FlatScope -> [[NewNotation]]
 getDefinedNames kinds names =
-  [ mergeNotations $
-      map (\d -> namesToNotation x (A.qnameName $ anameName d)) ds
+  [ mergeNotations $ map (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
-  , any ((`elem` kinds) . anameKind) ds
+  , any ((`elemKindsOfNames` kinds) . anameKind) ds
   , not (null ds)
+  ]
   -- Andreas, 2013-03-21 see Issue 822
   -- Names can have different kinds, i.e., 'defined' and 'constructor'.
   -- We need to consider all names that have *any* matching kind,
   -- not only those whose first appearing kind is matching.
-  ]
 
 -- | Compute all names (first component) and operators/notations
 -- (second component) in scope.
@@ -104,7 +100,7 @@ localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
   locals <- nubOn fst . notShadowedLocals <$> getLocalVars
   -- Note: Debug printout aligned with the one in buildParsers.
-  reportSLn "scope.operators" 50 $ unlines
+  reportS "scope.operators" 50
     [ "flat  = " ++ show flat
     , "defs  = " ++ show defs
     , "locals= " ++ show locals
@@ -262,7 +258,7 @@ buildParsers r flat kind exprNames = do
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames
-                       [ConName, FldName, PatternSynName] flat
+                       (someKindsOfNames [ConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . head) cons
@@ -325,7 +321,7 @@ buildParsers r flat kind exprNames = do
 
         -- The triples have the form (level, operators). The lowest
         -- level comes first.
-        relatedOperators :: [(Integer, [NotationSection])]
+        relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
           map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
           List.groupBy ((==) `on` fst) .
@@ -343,7 +339,7 @@ buildParsers r flat kind exprNames = do
           unrelatedOperators ++
           nonWithSections
 
-    reportSLn "scope.operators" 50 $ unlines
+    reportS "scope.operators" 50
       [ "unrelatedOperators = " ++ show unrelatedOperators
       , "nonWithSections    = " ++ show nonWithSections
       , "relatedOperators   = " ++ show relatedOperators
@@ -393,7 +389,7 @@ buildParsers r flat kind exprNames = do
 
     return (parseSections, everything, g)
     where
-        level :: NewNotation -> PrecedenceLevel
+        level :: NewNotation -> FixityLevel
         level = fixityLevel . notaFixity
 
         nonfix, isinfix, isprefix, ispostfix :: NewNotation -> Bool
@@ -412,7 +408,7 @@ buildParsers r flat kind exprNames = do
              &&
           fixityAssoc (notaFixity (sectNotation s)) == ass
 
-        mkP :: Either Integer Integer
+        mkP :: PrecedenceKey
                -- ^ Memoisation key.
             -> ParseSections
             -> Parser e e
@@ -501,22 +497,6 @@ buildParsers r flat kind exprNames = do
                   flip ($) <$> (noPlaceholder <$> (postLefts <|> higher))
                            <*> postLeft
 
----------------------------------------------------------------------------
--- * Helpers for pattern and lhs parsing
----------------------------------------------------------------------------
-
--- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
---   (in most cases a constructor).
---
---  Pattern needs to be parsed already (operators resolved).
-patternAppView :: Pattern -> [NamedArg Pattern]
-patternAppView p = case p of
-    AppP p arg      -> patternAppView p ++ [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
-    ParenP _ p      -> patternAppView p
-    RawAppP _ _     -> __IMPOSSIBLE__
-    _               -> [ defaultNamedArg p ]
-
 
 ---------------------------------------------------------------------------
 -- * Parse functions
@@ -525,7 +505,7 @@ patternAppView p = case p of
 -- | Returns the list of possible parses.
 parsePat ::
   (ParseSections, Parser Pattern Pattern) -> Pattern -> [Pattern]
-parsePat prs p = case p of
+parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
@@ -533,15 +513,15 @@ parsePat prs p = case p of
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> parsePat prs p
-    DotP r e         -> return $ DotP r e
+    p@DotP{}         -> return p
     ParenP r p       -> fullParen' <$> parsePat prs p
-    WildP _          -> return p
-    AbsurdP _        -> return p
-    LitP _           -> return p
-    QuoteP _         -> return p
-    IdentP _         -> return p
+    p@WildP{}        -> return p
+    p@AbsurdP{}      -> return p
+    p@LitP{}         -> return p
+    p@QuoteP{}       -> return p
+    p@IdentP{}       -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
-    EqualP{}         -> return p -- Andrea: cargo culted from DotP
+    p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
     EllipsisP _      -> fail "bad ellipsis"
     WithP r p        -> WithP r <$> parsePat prs p
 
@@ -582,33 +562,53 @@ parsePat prs p = case p of
    - the applied patterns
 -}
 
+-- | The result of 'parseLHS' is either a pattern ('Left') or a lhs ('Right').
 type ParseLHS = Either Pattern (QName, LHSCore)
 
--- | The returned list contains all operators/notations/sections that
--- were used to generate the grammar.
+-- | Parses a left-hand side, workhorse for 'parseLHS'.
+--
+parseLHS'
+  :: LHSOrPatSyn
+       -- ^ Are we trying to parse a lhs or a pattern synonym?
+       --   For error reporting only!
+  -> Maybe QName
+       -- ^ Name of the function/patSyn definition if we parse a lhs.
+       --   'Nothing' if we parse a pattern.
+  -> Pattern
+       -- ^ Thing to parse.
+  -> ScopeM (ParseLHS, [NotationSection])
+       -- ^ The returned list contains all operators/notations/sections that
+       -- were used to generate the grammar.
 
-parseLHS' ::
-  LHSOrPatSyn -> Maybe QName -> Pattern ->
-  ScopeM (ParseLHS, [NotationSection])
 parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
     return (Right (qn, LHSHead qn []), [])
+
 parseLHS' lhsOrPatSyn top p = do
+
+    -- Build parser.
     let names = patternQNames p
         ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
     (parseSections, ops, parsers) <-
       buildParsers (getRange p) flat IsPattern names
     let patP = (parseSections, pTop parsers)
-    let cons = getNames [ConName, PatternSynName] flat
-    let flds = getNames [FldName] flat
-    case [ res | let result = parsePat patP p
-               , p' <- foldr seq () result `seq` result
-               , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
-        [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
-                          "Parsed lhs:" <+> pretty lhs
+
+    -- Run parser, forcing result.
+    let ps   = let result = parsePat patP p
+               in  foldr seq () result `seq` result
+
+    -- Classify parse results.
+    let cons = getNames (someKindsOfNames [ConName, PatternSynName]) flat
+    let flds = getNames (someKindsOfNames [FldName]) flat
+    let conf = PatternCheckConfig top cons flds
+    case mapMaybe (validPattern conf) ps of
+        -- Unique result.
+        [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
                         return (lhs, ops)
+        -- No result.
         []        -> typeError $ OperatorInformation ops
                                $ NoParseForLHS lhsOrPatSyn p
+        -- Ambiguous result.
         rs        -> typeError $ OperatorInformation ops
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
@@ -616,18 +616,19 @@ parseLHS' lhsOrPatSyn top p = do
         getNames kinds flat =
           map (notaName . head) $ getDefinedNames kinds flat
 
-        -- validPattern returns an empty or singleton list (morally a Maybe)
-        validPattern :: PatternCheckConfig -> Pattern -> [(Pattern, ParseLHS)]
-        validPattern conf p = case (classifyPattern conf p, top) of
-            (Just r@(Left _), Nothing) -> [(p, r)] -- expect pattern
-            (Just r@(Right _), Just{}) -> [(p, r)] -- expect lhs
-            _ -> []
+        -- The pattern is retained for error reporting in case of ambiguous parses.
+        validPattern :: PatternCheckConfig -> Pattern -> Maybe (Pattern, ParseLHS)
+        validPattern conf p =
+          case (classifyPattern conf p, top) of
+            (Just res@Left{}, Nothing) -> Just (p, res)  -- expect pattern
+            (Just res@Right{}, Just{}) -> Just (p, res)  -- expect lhs
+            _ -> Nothing
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
-  { topName  :: Maybe QName -- ^ name of defined symbol
-  , conNames :: [QName]     -- ^ valid constructor names
-  , fldNames :: [QName]     -- ^ valid field names
+  { topName  :: Maybe QName -- ^ Name of defined symbol.
+  , conNames :: [QName]     -- ^ Valid constructor names.
+  , fldNames :: [QName]     -- ^ Valid field names.
   }
 
 -- | Returns zero or one classified patterns.
@@ -720,7 +721,7 @@ appView p = case p of
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
-  List.nub $ filter (not . null) $ map (init . qnameParts) qs
+  nubOn id $ filter (not . null) $ map (init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr

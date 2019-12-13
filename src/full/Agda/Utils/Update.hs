@@ -1,7 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Utils.Update
-  ( Change
+  ( ChangeT
+  , runChangeT, mapChangeT
+  , UpdaterT
+  , runUpdaterT
+  , Change
   , MonadChange(..)
   , runChange
   , Updater
@@ -13,8 +17,10 @@ module Agda.Utils.Update
   , Updater2(..)
   ) where
 
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Identity
 import Control.Monad.Trans
+import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict
 
 import Data.Traversable (Traversable(..), traverse)
@@ -30,7 +36,7 @@ class Monad m => MonadChange m where
 
 -- | The @ChangeT@ monad transformer.
 newtype ChangeT m a = ChangeT { fromChangeT :: WriterT Any m a }
-  deriving (Functor, Applicative, Monad, MonadTrans)
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadFail, MonadIO)
 
 instance Monad m => MonadChange (ChangeT m) where
   tellDirty     = ChangeT $ tell $ Any True
@@ -38,45 +44,63 @@ instance Monad m => MonadChange (ChangeT m) where
     (a, Any dirty) <- listen (fromChangeT m)
     return (a, dirty)
 
--- | A mock change monad.
+-- | Run a 'ChangeT' computation, returning result plus change flag.
+runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
+runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
+
+-- | Run a 'ChangeT' computation, but ignore change flag.
+execChangeT :: Functor m => ChangeT m a -> m a
+execChangeT = fmap fst . runChangeT
+
+-- | Map a 'ChangeT' computation (monad transformer action).
+mapChangeT :: (m (a, Any) -> n (b, Any)) -> ChangeT m a -> ChangeT n b
+mapChangeT f (ChangeT m) = ChangeT (mapWriterT f m)
+
+-- Don't actually track changes with the identity monad:
+
+-- | A mock change monad.  Always assume change has happened.
 instance MonadChange Identity where
-  tellDirty                = Identity ()
-  listenDirty (Identity a) = Identity (a, True)
+  tellDirty   = return ()
+  listenDirty = fmap (,True)
+
+instance Monad m => MonadChange (IdentityT m) where
+  tellDirty   = IdentityT    $ return ()
+  listenDirty = mapIdentityT $ fmap (,True)
 
 -- * Pure endo function and updater
 
-type EndoFun a = a -> a
-type Updater a = a -> Change a
-
--- BEGIN REAL STUFF
-
--- | The @Change@ monad.
-newtype Change a = Change { fromChange :: Writer Any a }
-  deriving (Functor, Applicative, Monad)
-
-instance MonadChange Change where
-  tellDirty = Change $ tell $ Any True
-  listenDirty m = Change $ do
-    (a, Any dirty) <- listen (fromChange m)
-    return (a, dirty)
-
--- | Run a 'Change' computation, returning result plus change flag.
-runChange :: Change a -> (a, Bool)
-runChange = mapSnd getAny . runWriter . fromChange
+type UpdaterT m a = a -> ChangeT m a
 
 -- | Blindly run an updater.
+runUpdaterT :: Functor m => UpdaterT m a -> a -> m (a, Bool)
+runUpdaterT f a = runChangeT $ f a
+
+type EndoFun a = a -> a
+type Change  a = ChangeT Identity a
+type Updater a = UpdaterT Identity a
+
+fromChange :: Change a -> Writer Any a
+fromChange = fromChangeT
+
+-- | Run a 'Change' computation, returning result plus change flag.
+{-# INLINE runChange #-}
+runChange :: Change a -> (a, Bool)
+runChange = runIdentity . runChangeT
+
+-- | Blindly run an updater.
+{-# INLINE runUpdater #-}
 runUpdater :: Updater a -> a -> (a, Bool)
 runUpdater f a = runChange $ f a
 
 -- | Mark a computation as dirty.
-dirty :: Updater a
+dirty :: Monad m => UpdaterT m a
 dirty a = do
   tellDirty
   return a
 
 {-# SPECIALIZE ifDirty :: Change a -> (a -> Change b) -> (a -> Change b) -> Change b #-}
 {-# SPECIALIZE ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b #-}
-ifDirty :: MonadChange m => m a -> (a -> m b) -> (a -> m b) -> m b
+ifDirty :: (Monad m, MonadChange m) => m a -> (a -> m b) -> (a -> m b) -> m b
 ifDirty m f g = do
   (a, dirty) <- listenDirty m
   if dirty then f a else g a
@@ -84,14 +108,14 @@ ifDirty m f g = do
 -- * Proper updater (Q-combinators)
 
 -- | Replace result of updating with original input if nothing has changed.
-sharing :: Updater a -> Updater a
+sharing :: Monad m => UpdaterT m a -> UpdaterT m a
 sharing f a = do
   (a', changed) <- listenDirty $ f a
   return $ if changed then a' else a
 
 -- | Eval an updater (using 'sharing').
 evalUpdater :: Updater a -> EndoFun a
-evalUpdater f a = fst $ runWriter $ fromChange $ sharing f a
+evalUpdater f a = fst $ runChange $ sharing f a
 
 -- END REAL STUFF
 

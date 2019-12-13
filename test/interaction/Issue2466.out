@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("test .p _ (c p {p'} x pp) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-((last . 2) . (agda2-make-case-action '("test .p (c {p} {p'} {x} pp) = ?")))
+((last . 2) . (agda2-make-case-action '("test .p (c {p} {p'} {x = x} pp) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))

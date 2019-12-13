@@ -66,7 +66,7 @@ toVim :: NamesInScope -> String
 toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
     where
         cons = [ x | (x, def:_) <- Map.toList ns, anameKind def == ConName ]
-        defs = [ x | (x, def:_) <- Map.toList ns, anameKind def == DefName ]
+        defs = [ x | (x, def:_) <- Map.toList ns, isDefName (anameKind def)]
         flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName ]
 
         mcons = map show cons

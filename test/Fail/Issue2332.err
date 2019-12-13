@@ -1,3 +1,4 @@
-Issue2332.agda:6,1-12
+Issue2332.agda:6,1-6
 Cannot eliminate type  Set → Set₁  with projection  R._A
-when checking that the clause P R.A = Set has type Set → Set₁
+when checking the clause left hand side
+P R.A

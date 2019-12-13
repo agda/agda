@@ -15,8 +15,10 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinComp, builtinPOr,
   builtinTrans, builtinHComp,
   builtinSub, builtinSubIn, builtinSubOut,
-  builtinEquiv, builtinEquivFun, builtinEquivProof, builtinPathToEquiv,
+  builtinEquiv, builtinEquivFun, builtinEquivProof,
+  builtinTranspProof,
   builtinGlue, builtin_glue, builtin_unglue,
+  builtin_glueU, builtin_unglueU,
   builtinFaceForall,
   builtinId, builtinConId, builtinIdElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -60,7 +62,6 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
-  builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
   builtinAgdaTCMRunSpeculative
   :: String
 
@@ -109,10 +110,12 @@ builtinItIsOne                           = "ITISONE"
 builtinEquiv                             = "EQUIV"
 builtinEquivFun                          = "EQUIVFUN"
 builtinEquivProof                        = "EQUIVPROOF"
-builtinPathToEquiv                       = "PATHTOEQUIV"
+builtinTranspProof                       = "TRANSPPROOF"
 builtinGlue                              = "primGlue"
 builtin_glue                             = "prim^glue"
 builtin_unglue                           = "prim^unglue"
+builtin_glueU                            = "prim^glueU"
+builtin_unglueU                          = "prim^unglueU"
 builtinFaceForall                        = "primFaceForall"
 builtinIsOne1                            = "ISONE1"
 builtinIsOne2                            = "ISONE2"
@@ -239,8 +242,6 @@ builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
-builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
-builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 
 -- | Builtins that come without a definition in Agda syntax.

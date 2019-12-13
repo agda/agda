@@ -15,16 +15,16 @@ import Control.Applicative hiding (empty)
 import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames)
+import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -43,10 +43,11 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List   ( hasElem )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
@@ -367,9 +368,9 @@ withUsableVars pats m = do
 -- | Set 'terUseSizeLt' when going under constructor @c@.
 conUseSizeLt :: QName -> TerM a -> TerM a
 conUseSizeLt c m = do
-  caseMaybeM (liftTCM $ isRecordConstructor c)
+  ifM (liftTCM $ isEtaOrCoinductiveRecordConstructor c)  -- Non-eta inductive records are the same as datatypes
+    (terSetUseSizeLt False m)
     (terSetUseSizeLt True m)
-    (const $ terSetUseSizeLt False m)
 
 -- | Set 'terUseSizeLt' for arguments following projection @q@.
 --   We disregard j<i after a non-coinductive projection.
@@ -451,9 +452,9 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  "found" <+> if null names then "none" else sep (map prettyTCM names)
+                  "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
@@ -491,7 +492,7 @@ patternDepth = getMaxNat . foldrPattern depth where
 --   for structural descent.
 
 unusedVar :: DeBruijnPattern
-unusedVar = LitP (LitString noRange "term.unused.pat.var")
+unusedVar = litP (LitString noRange "term.unused.pat.var")
 
 -- | Extract variables from 'DeBruijnPattern's that could witness a decrease
 --   via a SIZELT constraint.

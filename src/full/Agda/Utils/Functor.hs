@@ -22,7 +22,7 @@ import Control.Applicative ( Const(Const), getConst )
 import Data.Functor ((<$>), ($>))
 import Data.Functor.Identity
 import Data.Functor.Compose
-import Data.Functor.Classes
+
 
 infixr 9 <.>
 

@@ -1,0 +1,10 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > MisspelledKeywordInRecord.agda:4,3-11
+out > This declaration is illegal in a record before the last field
+out > when scope checking the declaration
+out >   record R where
+out >     indutive
+out >     field A : Set
+out >

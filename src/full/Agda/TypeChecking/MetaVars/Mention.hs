@@ -31,10 +31,9 @@ instance MentionsMeta Term where
       mm v = mentionsMetas xs v
 
 instance MentionsMeta Level where
-  mentionsMetas xs (Max as) = mentionsMetas xs as
+  mentionsMetas xs (Max _ as) = mentionsMetas xs as
 
 instance MentionsMeta PlusLevel where
-  mentionsMetas xs ClosedLevel{} = False
   mentionsMetas xs (Plus _ a) = mentionsMetas xs a
 
 instance MentionsMeta LevelAtom where
@@ -53,7 +52,7 @@ instance MentionsMeta Sort where
     Prop l     -> mentionsMetas xs l
     Inf        -> False
     SizeUniv   -> False
-    PiSort s1 s2 -> mentionsMetas xs (s1, s2)
+    PiSort a s -> mentionsMetas xs (a, s)
     UnivSort s -> mentionsMetas xs s
     MetaS m es -> HashSet.member m xs || mentionsMetas xs es
     DefS d es  -> mentionsMetas xs es
@@ -103,7 +102,6 @@ instance MentionsMeta Constraint where
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
-    TypeCmp _ a b       -> mm (a, b)
     TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
     Guarded{}           -> False  -- This gets woken up when the problem it's guarded by is solved
@@ -119,8 +117,15 @@ instance MentionsMeta Constraint where
     UnquoteTactic bl tac hole goal -> case bl of
       Nothing -> False
       Just m  -> HashSet.member m xs
+    CheckMetaInst m     -> True   -- TODO
     where
       mm v = mentionsMetas xs v
+
+instance MentionsMeta CompareAs where
+  mentionsMetas xs = \case
+    AsTermsOf a -> mentionsMetas xs a
+    AsSizes -> False
+    AsTypes -> False
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta

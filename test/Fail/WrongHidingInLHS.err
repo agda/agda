@@ -1,3 +1,4 @@
-WrongHidingInLHS.agda:5,1-10
+WrongHidingInLHS.agda:5,1-6
 Unexpected implicit argument
-when checking that the clause f {x} = x has type Set → Set
+when checking the clause left hand side
+f {x}

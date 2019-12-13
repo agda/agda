@@ -26,14 +26,11 @@ module Agda.Syntax.Parser
 
 import Control.Arrow (second)
 import Control.Exception
-import Control.Monad ((>=>), forM_)
+import Control.Monad (forM_)
 import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -43,20 +40,16 @@ import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Literate
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Definitions
 import Agda.Syntax.Parser.Tokens
 
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty
-
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Wrapping parse results

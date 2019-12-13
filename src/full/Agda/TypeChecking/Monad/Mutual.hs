@@ -3,10 +3,10 @@ module Agda.TypeChecking.Monad.Mutual where
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
+
 
 import Data.Functor ((<$>))
-import Data.Set (Set)
+
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
@@ -15,7 +15,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 
-import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
 

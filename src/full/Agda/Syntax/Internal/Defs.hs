@@ -81,17 +81,16 @@ instance GetDefs Sort where
     Prop l    -> getDefs l
     Inf       -> return ()
     SizeUniv  -> return ()
-    PiSort s s' -> getDefs s >> getDefs s'
+    PiSort a s  -> getDefs a >> getDefs s
     UnivSort s  -> getDefs s
     MetaS x es  -> getDefs x >> getDefs es
     DefS d es   -> doDef d >> getDefs es
     DummyS{}    -> return ()
 
 instance GetDefs Level where
-  getDefs (Max ls) = getDefs ls
+  getDefs (Max _ ls) = getDefs ls
 
 instance GetDefs PlusLevel where
-  getDefs ClosedLevel{} = return ()
   getDefs (Plus _ l)    = getDefs l
 
 instance GetDefs LevelAtom where

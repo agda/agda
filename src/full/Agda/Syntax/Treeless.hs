@@ -14,7 +14,6 @@ module Agda.Syntax.Treeless
 
 import Control.Arrow (first, second)
 
-import Data.Map (Map)
 import Data.Data (Data)
 import Data.Word
 
@@ -95,17 +94,34 @@ data TPrim
 isPrimEq :: TPrim -> Bool
 isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ, PEq64]
 
+-- | Strip leading coercions and indicate whether there were some.
+coerceView :: TTerm -> (Bool, TTerm)
+coerceView = \case
+  TCoerce t -> (True,) $ snd $ coerceView t
+  t         -> (False, t)
+
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x           [] = x
 mkTApp (TApp x as) bs = TApp x (as ++ bs)
 mkTApp x           as = TApp x as
 
-tAppView :: TTerm -> [TTerm]
-tAppView = view
-  where
-    view t = case t of
-      TApp a bs -> view a ++ bs
-      _         -> [t]
+tAppView :: TTerm -> (TTerm, [TTerm])
+tAppView = \case
+  TApp a bs -> second (++ bs) $ tAppView a
+  t         -> (t, [])
+
+-- | Expose the format @coerce f args@.
+--
+--   We fuse coercions, even if interleaving with applications.
+--   We assume that coercion is powerful enough to satisfy
+--   @
+--      coerce (coerce f a) b = coerce f a b
+--   @
+coerceAppView :: TTerm -> ((Bool, TTerm), [TTerm])
+coerceAppView = \case
+  TCoerce t -> first ((True,) . snd) $ coerceAppView t
+  TApp a bs -> second (++ bs) $ coerceAppView a
+  t         -> ((False, t), [])
 
 tLetView :: TTerm -> ([TTerm], TTerm)
 tLetView (TLet e b) = first (e :) $ tLetView b
@@ -215,4 +231,3 @@ instance Unreachable TTerm where
 
 instance KillRange Compiled where
   killRange c = c -- bogus, but not used anyway
-

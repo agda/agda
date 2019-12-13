@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.
 --
@@ -64,7 +65,7 @@ module Agda.TypeChecking.Free.Lazy where
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
-import Data.Coerce (coerce)
+
 import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -72,8 +73,8 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Set (Set)
-import qualified Data.Set as Set
+
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -216,8 +217,12 @@ data VarOcc' a = VarOcc
   { varFlexRig   :: FlexRig' a
   , varModality  :: Modality
   }
-  deriving (Eq, Show)
+  deriving (Show)
 type VarOcc = VarOcc' MetaSet
+
+-- | Equality up to origin.
+instance Eq a => Eq (VarOcc' a) where
+  VarOcc fr m == VarOcc fr' m' = fr == fr' && sameModality m m'
 
 instance LensModality (VarOcc' a) where
   getModality = varModality
@@ -256,13 +261,13 @@ instance Semigroup a => Semigroup (VarOcc' a) where
 --   This is also the absorptive element for 'composeVarOcc', if we ignore
 --   the 'MetaSet' in 'Flexible'.
 instance (Semigroup a, Monoid a) => Monoid (VarOcc' a) where
-  mempty  = VarOcc (Flexible mempty) $ Modality Irrelevant Quantity0
+  mempty  = VarOcc (Flexible mempty) zeroModality
   mappend = (<>)
 
 -- | The absorptive element of variable occurrence under aggregation:
 --   strongly rigid, relevant.
 topVarOcc :: VarOcc' a
-topVarOcc = VarOcc StronglyRigid $ Modality Relevant Quantityω
+topVarOcc = VarOcc StronglyRigid topModality
 
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
@@ -271,7 +276,7 @@ composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded $ Modality Relevant Quantity1
+oneVarOcc = VarOcc Unguarded mempty
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -478,12 +483,16 @@ underConstructor (ConHead c i fs) =
   case (i,fs) of
     -- Coinductive (record) constructors admit infinite cycles:
     (CoInductive, _)   -> underFlexRig WeaklyRigid
-    -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> underFlexRig StronglyRigid
-    -- Inductive record constructors do not admit infinite cycles,
-    -- but this cannot be proven inside Agda.
-    -- Thus, unification should not prove it either.
-    (Inductive, (_:_)) -> id
+    -- Inductive constructors do not admit infinite cycles:
+    (Inductive, _)    -> underFlexRig StronglyRigid
+    -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
+    -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
+    -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
+    -- WAS:
+    -- -- Inductive record constructors do not admit infinite cycles,
+    -- -- but this cannot be proven inside Agda.
+    -- -- Thus, unification should not prove it either.
+    -- (Inductive, (_:_)) -> id
 
 ---------------------------------------------------------------------------
 -- * Recursively collecting free variables.
@@ -494,6 +503,10 @@ class Free t where
   -- {-# SPECIALIZE freeVars' :: a -> FreeM Any #-}
   -- So you cannot specialize all instances in one go. :(
   freeVars' :: IsVarSet a c => t -> FreeM a c
+
+  default freeVars' :: (t ~ f b, Foldable f, Free b) => IsVarSet a c => t -> FreeM a c
+  freeVars' = foldMap freeVars'
+
 
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see
@@ -521,7 +534,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality Irrelevant mempty) $ freeVars' mt
+    DontCare mt  -> underModality (Modality Irrelevant mempty mempty) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where
@@ -538,17 +551,17 @@ instance Free Sort where
       Prop a     -> freeVars' a
       Inf        -> mempty
       SizeUniv   -> mempty
-      PiSort s1 s2 -> underFlexRig WeaklyRigid $ freeVars' (s1, s2)
+      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es
       DummyS{}   -> mempty
 
 instance Free Level where
-  freeVars' (Max as) = freeVars' as
+  freeVars' (Max _ as) = freeVars' as
 
 instance Free PlusLevel where
-  freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
 instance Free LevelAtom where
@@ -558,11 +571,9 @@ instance Free LevelAtom where
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 
-instance Free t => Free [t] where
-  freeVars' = foldMap freeVars'
-
-instance Free t => Free (Maybe t) where
-  freeVars' = foldMap freeVars'
+instance Free t => Free [t]            where
+instance Free t => Free (Maybe t)      where
+instance Free t => Free (WithHiding t) where
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u

@@ -302,6 +302,11 @@ instance TagName name => HasTags (Pat name) where
 #else
     VarPat x                   -> tagsLN x
 #endif
+#if MIN_VERSION_ghc(8,8,1)
+    SigPat _ p _               -> tags p
+#elif MIN_VERSION_ghc(8,6,1)
+    SigPat _ p                 -> tags p
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     LazyPat _ p                -> tags p
     AsPat _ x p                -> tags (fmap Name x, p)
@@ -309,7 +314,6 @@ instance TagName name => HasTags (Pat name) where
     BangPat _ p                -> tags p
     ListPat _ ps               -> tags ps
     TuplePat _ ps _            -> tags ps
-    SigPat _ p                 -> tags p
     XPat _                     -> missingImp "XPat"
 #else
     LazyPat p                  -> tags p

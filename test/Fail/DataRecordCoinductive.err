@@ -1,4 +1,4 @@
-DataRecordCoinductive.agda:36,1-37
+DataRecordCoinductive.agda:36,1-24
 Pattern matching on coinductive types is not allowed
-when checking that the clause consume (cons (x ∷ xs)) = consume xs
-has type {A : Set} → Stream A → ⊥
+when checking the clause left hand side
+consume (cons (x ∷ xs))

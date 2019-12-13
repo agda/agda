@@ -1,12 +1,17 @@
 
 -- | Additional functions for association lists.
 
-module Agda.Utils.AssocList where
+module Agda.Utils.AssocList
+  ( module Agda.Utils.AssocList
+  , lookup
+  ) where
 
 import Prelude hiding (lookup)
 
-import qualified Data.List as List
 import Data.Function
+import Data.List (lookup)
+import qualified Data.List as List
+import qualified Data.Map  as Map
 
 import Agda.Utils.Tuple
 
@@ -17,10 +22,20 @@ import Agda.Utils.Impossible
 --   Invariant: at most one value per key.
 type AssocList k v = [(k,v)]
 
--- | O(n).
---   Reexport 'List.lookup'.
-lookup :: Eq k => k -> AssocList k v -> Maybe v
-lookup = List.lookup
+-- Lookup, reexported from Data.List.
+-- O(n).
+-- lookup :: Eq k => k -> AssocList k v -> Maybe v
+
+-- | Lookup keys in the same association list often.
+--   Use partially applied to create partial function
+--   @apply m :: k -> Maybe v@.
+--
+--   * First time: @O(n log n)@ in the worst case.
+--   * Subsequently: @O(log n)@.
+--
+--   Specification: @apply m == (`lookup` m)@.
+apply :: Ord k => AssocList k v -> k -> Maybe v
+apply m = (`Map.lookup` Map.fromListWith (\ _new old -> old) m)
 
 -- | O(n).
 --   Get the domain (list of keys) of the finite map.

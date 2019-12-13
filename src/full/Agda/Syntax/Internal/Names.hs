@@ -4,8 +4,8 @@
 
 module Agda.Syntax.Internal.Names where
 
-import Data.Foldable
-import Data.Map (Map)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -19,8 +19,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
-import Agda.Utils.Functor
-import Agda.Utils.NonemptyList
 
 import Agda.Utils.Impossible
 
@@ -32,7 +30,7 @@ class NamesIn a where
 
 instance NamesIn a => NamesIn (Maybe a)              where
 instance NamesIn a => NamesIn [a]                    where
-instance NamesIn a => NamesIn (NonemptyList a)       where
+instance NamesIn a => NamesIn (NonEmpty a)           where
 instance NamesIn a => NamesIn (Arg a)                where
 instance NamesIn a => NamesIn (Dom a)                where
 instance NamesIn a => NamesIn (Named n a)            where
@@ -46,6 +44,9 @@ instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
 
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
   namesIn (x, y, z) = namesIn (x, (y, z))
+
+instance (NamesIn a, NamesIn b, NamesIn c, NamesIn d) => NamesIn (a, b, c, d) where
+  namesIn (x, y, z, u) = namesIn ((x, y), (z, u))
 
 instance NamesIn CompKit where
   namesIn (CompKit a b) = namesIn (a,b)
@@ -69,15 +70,15 @@ instance NamesIn Defn where
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)
     Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
-    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, (fs, comp))
+    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, fs, comp)
       -- Don't need recTel since those will be reachable from the constructor
-    Constructor { conSrcCon = c, conData = d, conComp = cn }       -> namesIn (c, d, cn)
+    Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }        -> namesIn (c, d, kit, fs)
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
     AbstractDefn{} -> __IMPOSSIBLE__
 
 instance NamesIn Clause where
   namesIn Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t } =
-    namesIn ((tel, ps, b), t)
+    namesIn (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where
   namesIn (Case _ c) = namesIn c
@@ -93,7 +94,7 @@ instance NamesIn a => NamesIn (Case a) where
 instance NamesIn (Pattern' a) where
   namesIn p = case p of
     VarP{}        -> Set.empty
-    LitP l        -> namesIn l
+    LitP _ l      -> namesIn l
     DotP _ v      -> namesIn v
     ConP c _ args -> namesIn (c, args)
     DefP o q args -> namesIn (q, args)
@@ -130,11 +131,10 @@ instance NamesIn Term where
     Dummy{}      -> Set.empty
 
 instance NamesIn Level where
-  namesIn (Max ls) = namesIn ls
+  namesIn (Max _ ls) = namesIn ls
 
 instance NamesIn PlusLevel where
-  namesIn ClosedLevel{} = Set.empty
-  namesIn (Plus _ l)    = namesIn l
+  namesIn (Plus _ l) = namesIn l
 
 instance NamesIn LevelAtom where
   namesIn l = case l of

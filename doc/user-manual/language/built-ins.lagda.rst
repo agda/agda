@@ -4,6 +4,7 @@
   module language.built-ins where
 
   open import Agda.Builtin.Equality public
+  open import Agda.Primitive
 
   data Maybe (A : Set) : Set where
     just : A → Maybe A
@@ -71,6 +72,29 @@ The unit type is bound to the built-in ``UNIT`` as follows::
 Agda needs to know about the unit type since some of the primitive operations
 in the :ref:`reflected type checking monad <reflection-tc-monad>` return values
 in the unit type.
+
+.. _built-in-sigma:
+
+The Σ-type
+----------
+
+.. code-block:: agda
+
+  module Agda.Builtin.Sigma
+
+The built-in ``Σ``-type of dependent pairs is defined as follows::
+
+  record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+    constructor _,_
+    field
+      fst : A
+      snd : B fst
+
+  open Σ public
+
+  infixr 4 _,_
+
+  {-# BUILTIN SIGMA Σ #-}
 
 .. _built-in-bool:
 
@@ -235,7 +259,7 @@ but can be defined in a library using :ref:`primTrustMe`.
 
 
 Basic arithmetic operations can be defined on ``Word64`` by converting to
-natural numbers, peforming the corresponding operation, and then converting
+natural numbers, performing the corresponding operation, and then converting
 back. The compiler will optimise these to use 64-bit arithmetic. For
 instance::
 
@@ -615,19 +639,19 @@ Universe levels
 :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
 pragmas. In contrast to the ``Agda.Builtin`` modules, the ``Agda.Primitive`` module
 is auto-imported and thus it is not possible to change the level built-ins. For
-reference these are the bindings::
-
-  postulate
-    Level : Set
-    lzero : Level
-    lsuc  : Level → Level
-    _⊔_   : Level → Level → Level
+reference these are the bindings:
 
 ..
   This code cannot be typechecked because the identifiers are already bound
   in Agda.Primitive and are auto-imported.
 
 .. code-block:: agda
+
+  postulate
+    Level : Set
+    lzero : Level
+    lsuc  : Level → Level
+    _⊔_   : Level → Level → Level
 
   {-# BUILTIN LEVEL     Level #-}
   {-# BUILTIN LEVELZERO lzero #-}

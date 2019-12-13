@@ -1,0 +1,34 @@
+name: cabal build
+
+on:
+  push:
+    paths:
+    - 'src/**'
+    - 'Agda.cabal'
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'Agda.cabal'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ghc-ver: [8.8.1]
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: '3.0'
+    - name: Install dependencies
+      run: |
+        cabal new-update
+        cabal new-configure -O0
+        cabal new-install --only-dependencies
+    - name: Build Agda
+      run: |
+        cabal new-build

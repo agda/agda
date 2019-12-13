@@ -17,12 +17,12 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Positivity.Occurrence
-
 import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 
+import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -37,6 +37,7 @@ deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
 deriving instance Show Pattern
+deriving instance Show a => Show (Binder' a)
 deriving instance Show TypedBinding
 deriving instance Show LamBinding
 deriving instance Show BoundName
@@ -163,9 +164,16 @@ prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a d =
   if render d == "_" then d else pretty (getQuantity a) <+> d
 
+prettyCohesion :: LensCohesion a => a -> Doc -> Doc
+prettyCohesion a d =
+  if render d == "_" then d else pretty (getCohesion a) <+> d
+
 prettyTactic :: BoundName -> Doc -> Doc
-prettyTactic BName{ bnameTactic = Nothing } d = d
-prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
+prettyTactic = prettyTactic' . bnameTactic
+
+prettyTactic' :: TacticAttribute -> Doc -> Doc
+prettyTactic' Nothing  d = d
+prettyTactic' (Just t) d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
@@ -181,11 +189,34 @@ instance Pretty Relevance where
   pretty Irrelevant = "."
   pretty NonStrict  = ".."
 
+instance Pretty Q0Origin where
+  pretty = \case
+    Q0Inferred -> empty
+    Q0{}       -> "@0"
+    Q0Erased{} -> "@erased"
+
+instance Pretty Q1Origin where
+  pretty = \case
+    Q1Inferred -> empty
+    Q1{}       -> "@1"
+    Q1Linear{} -> "@linear"
+
+instance Pretty QωOrigin where
+  pretty = \case
+    QωInferred -> empty
+    Qω{}       -> "@ω"
+    QωPlenty{} -> "@plenty"
+
 instance Pretty Quantity where
   pretty = \case
-    Quantity0 -> "@0"
-    Quantity1 -> "@1"
-    Quantityω -> empty
+    Quantity0 o -> ifNull (pretty o) "@0" id
+    Quantity1 o -> ifNull (pretty o) "@1" id
+    Quantityω o -> pretty o
+
+instance Pretty Cohesion where
+  pretty Flat   = "@♭"
+  pretty Continuous = mempty
+  pretty Squash  = "@⊤"
 
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
@@ -202,7 +233,6 @@ instance Pretty Expr where
             Lit l            -> pretty l
             QuestionMark _ n -> "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
---          Underscore _ n   -> underscore <> maybe empty (text . show) n
             App _ _ _        ->
                 case appView e of
                     AppView e1 args     ->
@@ -226,7 +256,7 @@ instance Pretty Expr where
             AbsurdLam _ h -> lambda <+> absurd h
             ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
             Fun _ e1 e2 ->
-                sep [ prettyQuantity e1 (pretty e1) <+> arrow
+                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -256,16 +286,10 @@ instance Pretty Expr where
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             ETel []  -> "()"
             ETel tel -> fsep $ map pretty tel
-            QuoteGoal _ x e -> sep ["quoteGoal" <+> pretty x <+> "in",
-                                    nest 2 $ pretty e]
-            QuoteContext _ -> "quoteContext"
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
-            Unquote _ -> "unquote"
-            Tactic _ t es ->
-              sep [ "tactic" <+> pretty t
-                  , fsep [ "|" <+> pretty e | e <- es ]
-                  ]
+            Unquote _  -> "unquote"
+            Tactic _ t -> "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> "=" <+> pretty b
@@ -297,25 +321,41 @@ instance Pretty LamClause where
 instance Pretty BoundName where
   pretty BName{ boundName = x } = pretty x
 
-data NamedBinding = NamedBinding { withHiding   :: Bool
-                                 , namedBinding :: NamedArg BoundName }
+data NamedBinding = NamedBinding
+  { withHiding   :: Bool
+  , namedBinding :: NamedArg Binder
+  }
 
-getLabel :: NamedArg a -> Maybe String
-getLabel = fmap rangedThing . nameOf . unArg
-
-isLabeled :: NamedArg BoundName -> Bool
+isLabeled :: NamedArg Binder -> Maybe ArgName
 isLabeled x
-  | visible x            = False  -- Ignore labels on visible arguments
-  | Just l <- getLabel x = l /= nameToRawName (boundName $ namedArg x)
-  | otherwise            = False
+  | visible x              = Nothing  -- Ignore labels on visible arguments
+  | Just l <- bareNameOf x = boolToMaybe (l /= nameToRawName (boundName $ binderName $ namedArg x)) l
+  | otherwise              = Nothing
+
+instance Pretty a => Pretty (Binder' a) where
+  pretty (Binder mpat n) = let d = pretty n in case mpat of
+    Nothing  -> d
+    Just pat -> d <+> "@" <+> parens (pretty pat)
 
 instance Pretty NamedBinding where
-  pretty (NamedBinding withH x) =
-    prH $ if | isLabeled x -> text (fromMaybe __IMPOSSIBLE__ $ getLabel x) <+> "=" <+> pretty (namedArg x)
-             | otherwise   -> pretty (namedArg x)
+  pretty (NamedBinding withH x) = prH $
+    if | Just l <- isLabeled x -> text l <+> "=" <+> pretty xb
+       | otherwise             -> pretty xb
+
     where
-      prH | withH     = prettyRelevance x . prettyHiding x id . prettyQuantity x . prettyTactic (namedArg x)
-          | otherwise = id
+
+    xb = namedArg x
+    bn = binderName xb
+    prH | withH     = prettyRelevance x
+                    . prettyHiding x mparens
+                    . prettyCohesion x
+                    . prettyQuantity x
+                    . prettyTactic bn
+        | otherwise = id
+    -- Parentheses are needed when an attribute @... is present
+    mparens
+      | noUserQuantity x, Nothing <- bnameTactic bn = id
+      | otherwise = parens
 
 instance Pretty LamBinding where
     pretty (DomainFree x) = pretty (NamedBinding True x)
@@ -326,17 +366,21 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (map (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
-      [ prettyRelevance y $ prettyHiding y parens $ prettyQuantity y $ prettyTactic (namedArg y) $
+      [ prettyRelevance y
+        $ prettyHiding y parens
+        $ prettyCohesion y
+        $ prettyQuantity y
+        $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
       | ys@(y : _) <- groupBinds xs ]
       where
         groupBinds [] = []
         groupBinds (x : xs)
-          | isLabeled x = [x] : groupBinds xs
+          | Just{} <- isLabeled x = [x] : groupBinds xs
           | otherwise   = (x : ys) : groupBinds zs
           where (ys, zs) = span (same x) xs
-                same x y = getArgInfo x == getArgInfo y && not (isLabeled y)
+                same x y = getArgInfo x == getArgInfo y && isNothing (isLabeled y)
 
 newtype Tel = Tel Telescope
 
@@ -372,17 +416,11 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty lhs = case lhs of
-    LHS p eqs es  -> pr (pretty p) eqs es
-    where
-      pr d eqs es =
-        sep [ d
-            , nest 2 $ pThing "rewrite" eqs
-            , nest 2 $ pThing "with" es
-            ]
-      pThing thing []       = empty
-      pThing thing (e : es) = fsep $ (text thing <+> pretty e)
-                                   : map (("|" <+>) . pretty) es
+  pretty (LHS p eqs es ell) = sep
+    [ pretty p
+    , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
+    , nest 2 $ prefixedThings "with" (map pretty es)
+    ]
 
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps
@@ -411,22 +449,28 @@ instance Pretty Declaration where
     prettyList = vcat . map pretty
     pretty d =
         case d of
-            TypeSig i x e ->
-                sep [ prettyRelevance i $ prettyQuantity i $ pretty x <+> ":"
+            TypeSig i tac x e ->
+                sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
-            Field inst x (Arg i e) ->
-                sep [ "field"
-                    , nest 2 $ mkInst inst $ mkOverlap i $
-                      prettyRelevance i $ prettyHiding i id $ prettyQuantity i $
-                        pretty $ TypeSig (setRelevance Relevant i) x e
-                    ]
+
+            FieldSig inst tac x (Arg i e) ->
+                mkInst inst $ mkOverlap i $
+                prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+                pretty $ TypeSig (setRelevance Relevant i) tac x e
+
                 where
+
                   mkInst InstanceDef    d = sep [ "instance", nest 2 d ]
                   mkInst NotInstanceDef d = d
 
                   mkOverlap i d | isOverlappable i = "overlap" <+> d
                                 | otherwise        = d
+
+            Field _ fs ->
+              sep [ "field"
+                  , nest 2 $ vcat (map pretty fs)
+                  ]
             FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs
@@ -578,6 +622,7 @@ instance Pretty Pragma where
         NonTerminating         -> "NON_TERMINATING"
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
+    pretty (NoCoverageCheckPragma _) = "NON_COVERING"
     pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text str ]
     pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text str ]
     pretty (CatchallPragma _) = "CATCHALL"
@@ -589,7 +634,7 @@ instance Pretty Pragma where
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
-    pretty (Fixity _ (Related n) ass) = s <+> text (show n)
+    pretty (Fixity _ (Related d) ass) = s <+> text (toStringWithoutDotZero d)
       where
       s = case ass of
             LeftAssoc  -> "infixl"
@@ -619,8 +664,9 @@ instance Pretty a => Pretty (Arg a) where
                         | otherwise = id
 
 instance Pretty e => Pretty (Named_ e) where
-    prettyPrec p (Named Nothing e) = prettyPrec p e
-    prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> "=", pretty e ]
+  prettyPrec p (Named nm e)
+    | Just s <- bareNameOf nm = mparens (p > 0) $ sep [ text s <+> "=", pretty e ]
+    | otherwise               = prettyPrec p e
 
 instance Pretty Pattern where
     prettyList = fsep . map pretty
@@ -700,24 +746,32 @@ instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
             , rename $ impRenaming i
             ]
         where
-            public True  = "public"
-            public False = empty
+            public Just{}  = "public"
+            public Nothing = empty
 
             prettyHiding [] = empty
             prettyHiding xs = "hiding" <+> parens (fsep $ punctuate ";" $ map pretty xs)
 
             rename [] = empty
             rename xs = hsep [ "renaming"
-                             , parens $ fsep $ punctuate ";" $ map pr xs
+                             , parens $ fsep $ punctuate ";" $ map pretty xs
                              ]
-
-            pr r = hsep [ pretty (renFrom r), "to", pretty (renTo r) ]
 
 instance (Pretty a, Pretty b) => Pretty (Using' a b) where
     pretty UseEverything = empty
     pretty (Using xs)    =
         "using" <+> parens (fsep $ punctuate ";" $ map pretty xs)
 
+instance (Pretty a, Pretty b) => Pretty (Renaming' a b) where
+    pretty (Renaming from to mfx _r) = hsep
+      [ pretty from
+      , "to"
+      , maybe empty pretty mfx
+      , case to of
+          ImportedName a   -> pretty a
+          ImportedModule b -> pretty b   -- don't print "module" here
+      ]
+
 instance (Pretty a, Pretty b) => Pretty (ImportedName' a b) where
-    pretty (ImportedName x)     = pretty x
-    pretty (ImportedModule x)   = "module" <+> pretty x
+    pretty (ImportedName   a) = pretty a
+    pretty (ImportedModule b) = "module" <+> pretty b

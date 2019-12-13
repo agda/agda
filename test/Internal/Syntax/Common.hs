@@ -5,6 +5,7 @@ module Internal.Syntax.Common ( tests ) where
 import Control.Applicative
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position ( noRange )
 
 import Internal.Helpers
 
@@ -13,15 +14,55 @@ import Internal.Helpers
 
 instance CoArbitrary Modality
 instance Arbitrary Modality where
-  arbitrary = liftA2 Modality arbitrary arbitrary
+  arbitrary = Modality <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance CoArbitrary Q0Origin where
+  coarbitrary = \case
+    Q0Inferred -> variant 0
+    Q0{}       -> variant 1
+    Q0Erased{} -> variant 2
+
+instance CoArbitrary Q1Origin where
+  coarbitrary = \case
+    Q1Inferred -> variant 0
+    Q1{}       -> variant 1
+    Q1Linear{} -> variant 2
+
+instance CoArbitrary QωOrigin where
+  coarbitrary = \case
+    QωInferred -> variant 0
+    Qω{}       -> variant 1
+    QωPlenty{} -> variant 2
+
+instance Arbitrary Q0Origin where
+  arbitrary = elements [ Q0Inferred, Q0 noRange, Q0Erased noRange ]
+
+instance Arbitrary Q1Origin where
+  arbitrary = elements [ Q1Inferred, Q1 noRange, Q1Linear noRange ]
+
+instance Arbitrary QωOrigin where
+  arbitrary = elements [ QωInferred, Qω noRange, QωPlenty noRange ]
 
 instance CoArbitrary Quantity
 instance Arbitrary Quantity where
-  arbitrary = elements [minBound..maxBound]
+  arbitrary = elements [ Quantity0 mempty, Quantity1 mempty, Quantityω mempty ]
+  -- Andreas, 2019-07-04, TODO:
+  -- The monoid laws hold only modulo origin information.
+  -- Thus, we generate here only origin-free quantities.
+  -- arbitrary = oneof
+  --   [ Quantity0 <$> arbitrary
+  --   , Quantity1 <$> arbitrary
+  --   , Quantityω <$> arbitrary
+  --   ]
 
 instance CoArbitrary Relevance
 instance Arbitrary Relevance where
   arbitrary = elements allRelevances
+
+instance CoArbitrary Cohesion
+instance Arbitrary Cohesion where
+  arbitrary = elements $ filter (/= Squash) allCohesions
+  -- left division does not respect laws for Squash on the left.
 
 instance Arbitrary NameId where
   arbitrary = elements [ NameId x y | x <- [0, 1], y <- [0, 1] ]
@@ -62,7 +103,7 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 prop_monoid_Quantity :: Property3 Quantity
 prop_monoid_Quantity = isMonoid
 
-prop_monotone_comp_Quantity :: Property4 Quantity
+prop_monotone_comp_Quantity :: Property3 Quantity
 prop_monotone_comp_Quantity = isMonotoneComposition
 
 -- -- | Quantities ω=ℕ, 1={1}, 0={0}  do not form a Galois connection.
@@ -80,7 +121,7 @@ prop_monotone_comp_Quantity = isMonotoneComposition
 prop_monoid_Relevance :: Property3 Relevance
 prop_monoid_Relevance = isMonoid
 
-prop_monotone_comp_Relevance :: Property4 Relevance
+prop_monotone_comp_Relevance :: Property3 Relevance
 prop_monotone_comp_Relevance = isMonotoneComposition
 
 prop_Galois_Relevance :: Prop3 Relevance
@@ -97,7 +138,7 @@ prop_right_absorptive_invcomp_Relevance x = x `inverseComposeRelevance` Relevant
 prop_monoid_Modality :: Property3 Modality
 prop_monoid_Modality = isMonoid
 
-prop_monotone_comp_Modality :: Property4 Modality
+prop_monotone_comp_Modality :: Property3 Modality
 prop_monotone_comp_Modality = isMonotoneComposition
 
 -- -- | The following does not hold, see prop_Galois_Quanity.

@@ -13,7 +13,9 @@ Language Reference
    copatterns
    core-language
    cubical
+   cumulativity
    data-types
+   flat
    foreign-function-interface
    function-definitions
    function-types

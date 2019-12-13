@@ -1,8 +1,9 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import qualified Data.List as List
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -14,7 +15,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.NonemptyList
+import Agda.Utils.Impossible
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
@@ -26,26 +27,26 @@ checkDisplayPragma f ps e = do
   reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
   addDisplayForm f df
 
--- Compute a left-hand side for a display form. Inserts implicits, but no type
--- checking so does the wrong thing if implicitness is computed. Binds variables.
-displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
-displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
+--UNUSED Liang-Ting 2019-07-16
+---- Compute a left-hand side for a display form. Inserts implicits, but no type
+---- checking so does the wrong thing if implicitness is computed. Binds variables.
+--displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
+--displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
 
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
 patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
   patternsToTerms EmptyTel ps     $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-patternsToTerms (ExtendTel a tel) (p : ps) ret = do
-  let isMatch = sameHiding p a &&
-                (visible p || isNothing (nameOf (unArg p)) ||
-                 Just (absName tel) == (rangedThing <$> nameOf (unArg p)))
-  case isMatch of
-    True ->
+patternsToTerms (ExtendTel a tel) (p : ps) ret
+  -- Andreas, 2019-07-22, while #3353: we should use domName, not absName !!
+  -- WAS: -- | sameHiding p a, visible p || maybe True (absName tel ==) (bareNameOf p) =  -- no ArgName or same as p
+  | fromMaybe __IMPOSSIBLE__ $ fittingNamedArg p a =
       patternToTerm (namedArg p) $ \n v ->
       patternsToTerms (unAbs tel) ps  $ \m vs -> ret (n + m) (inheritHiding p v : vs)
-    False ->
-      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs -> ret (1 + n) (inheritHiding a (Var 0 []) : vs)
+  | otherwise =
+      bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs ->
+      ret (1 + n) (inheritHiding a (Var 0 []) : vs)
 
 inheritHiding :: LensHiding a => a -> b -> Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)
@@ -86,7 +87,7 @@ patternToTerm p ret =
     ambigErr thing (AmbQ xs) =
       genericDocError =<< do
         text ("Ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (map pshow $ toList xs))
+          fsep (punctuate comma (map pshow $ NonEmpty.toList xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do

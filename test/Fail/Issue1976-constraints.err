@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [21] _4 = B : Set
-  [14] _2 = B : Set
+  _4 = B : Set
+  _2 = B : Set
 Unsolved metas at the following locations:
   Issue1976-constraints.agda:16,10-11
   Issue1976-constraints.agda:24,10-11

@@ -4,25 +4,22 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.Fail (MonadFail)
 
-import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
-import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
@@ -39,16 +36,12 @@ import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
-import Agda.Utils.Singleton
-import Agda.Utils.Size
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
@@ -97,7 +90,7 @@ class ( MonadConstraint m
   --   @patternViolation@.  This error is caught by @catchConstraint@
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
-  assignV :: CompareDirection -> MetaId -> Args -> Term -> m ()
+  assignV :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> m ()
 
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
@@ -130,7 +123,7 @@ modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
 
 -- | Run a computation and record which new metas it created.
-metasCreatedBy :: TCM a -> TCM (a, IntSet)
+metasCreatedBy :: ReadTCState m => m a -> m (a, IntSet)
 metasCreatedBy m = do
   before <- IntMap.keysSet <$> useTC stMetaStore
   a <- m
@@ -141,9 +134,13 @@ metasCreatedBy m = do
 lookupMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
 lookupMeta' m = IntMap.lookup (metaId m) <$> getMetaStore
 
-lookupMeta :: (ReadTCState m) => MetaId -> m MetaVariable
+lookupMeta :: (MonadFail m, ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
   where failure = fail $ "no such meta variable " ++ prettyShow m
+
+-- | Type of a term or sort meta.
+metaType :: (MonadFail m, ReadTCState m) => MetaId -> m Type
+metaType x = jMetaType . mvJudgement <$> lookupMeta x
 
 -- | Update the information associated with a meta variable.
 updateMetaVarTCM :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
@@ -153,10 +150,10 @@ updateMetaVarTCM m f = modifyMetaStore $ IntMap.adjust f $ metaId m
 insertMetaVar :: MetaId -> MetaVariable -> TCM ()
 insertMetaVar m mv = modifyMetaStore $ IntMap.insert (metaId m) mv
 
-getMetaPriority :: ReadTCState m => MetaId -> m MetaPriority
+getMetaPriority :: (MonadFail m, ReadTCState m) => MetaId -> m MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
 
-isSortMeta :: ReadTCState m => MetaId -> m Bool
+isSortMeta :: (MonadFail m, ReadTCState m) => MetaId -> m Bool
 isSortMeta m = isSortMeta_ <$> lookupMeta m
 
 isSortMeta_ :: MetaVariable -> Bool
@@ -164,7 +161,7 @@ isSortMeta_ mv = case mvJudgement mv of
     HasType{} -> False
     IsSort{}  -> True
 
-getMetaType :: ReadTCState m => MetaId -> m Type
+getMetaType :: (MonadFail m, ReadTCState m) => MetaId -> m Type
 getMetaType m = do
   mv <- lookupMeta m
   return $ case mvJudgement mv of
@@ -179,7 +176,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
   return $ permute (takeP (length args) p) args
 
 -- | Given a meta, return the type applied to the current context.
-getMetaTypeInContext :: (MonadTCEnv m, ReadTCState m, MonadReduce m)
+getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m)
                      => MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupMeta m
@@ -187,10 +184,14 @@ getMetaTypeInContext m = do
     HasType{ jMetaType = t } -> piApplyM t =<< getMetaContextArgs mv
     IsSort{}                 -> __IMPOSSIBLE__
 
+-- | Is it a meta that might be generalized?
+isGeneralizableMeta :: (ReadTCState m, MonadFail m) => MetaId -> m DoGeneralize
+isGeneralizableMeta x = unArg . miGeneralizable . mvInfo <$> lookupMeta x
+
 -- | Check whether all metas are instantiated.
 --   Precondition: argument is a meta (in some form) or a list of metas.
 class IsInstantiatedMeta a where
-  isInstantiatedMeta :: (ReadTCState m) => a -> m Bool
+  isInstantiatedMeta :: (MonadFail m, ReadTCState m) => a -> m Bool
 
 instance IsInstantiatedMeta MetaId where
   isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
@@ -207,7 +208,8 @@ instance IsInstantiatedMeta Term where
       _          -> __IMPOSSIBLE__
 
 instance IsInstantiatedMeta Level where
-  isInstantiatedMeta (Max ls) = isInstantiatedMeta ls
+  isInstantiatedMeta (Max n ls) | n == 0 = isInstantiatedMeta ls
+  isInstantiatedMeta _ = __IMPOSSIBLE__
 
 instance IsInstantiatedMeta PlusLevel where
   isInstantiatedMeta (Plus n l) | n == 0 = isInstantiatedMeta l
@@ -230,49 +232,13 @@ instance IsInstantiatedMeta a => IsInstantiatedMeta (Arg a) where
 instance IsInstantiatedMeta a => IsInstantiatedMeta (Abs a) where
   isInstantiatedMeta = isInstantiatedMeta . unAbs
 
-isInstantiatedMeta' :: (ReadTCState m) => MetaId -> m (Maybe Term)
+isInstantiatedMeta' :: (MonadFail m, ReadTCState m) => MetaId -> m (Maybe Term)
 isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
     InstV tel v -> Just $ foldr mkLam v tel
     _           -> Nothing
 
-
--- | Returns every meta-variable occurrence in the given type, except
--- for those in 'Sort's.
-allMetas :: (TermLike a, Monoid m) => (MetaId -> m) -> a -> m
-allMetas singl = foldTerm metas
-  where
-  metas (MetaV m _) = singl m
-  metas (Level l)   = levelMetas l
-  metas _           = mempty
-
-  levelMetas (Max as) = foldMap plusLevelMetas as
-
-  plusLevelMetas ClosedLevel{} = mempty
-  plusLevelMetas (Plus _ l)    = levelAtomMetas l
-
-  levelAtomMetas (MetaLevel m _) = singl m
-  levelAtomMetas _               = mempty
-
--- | Returns 'allMetas' in a list.
---   @allMetasList = allMetas (:[])@.
---
---   Note: this resulting list is computed via difference lists.
---   Thus, use this function if you actually need the whole list of metas.
---   Otherwise, use 'allMetas' with a suitable monoid.
-allMetasList :: TermLike a => a -> [MetaId]
-allMetasList t = allMetas singleton t `appEndo` []
-
--- | 'True' if thing contains no metas.
---   @noMetas = null . allMetasList@.
-noMetas :: TermLike a => a -> Bool
-noMetas = getAll . allMetas (\ _m -> All False)
-
--- | Returns the first meta it find in the thing, if any.
---   @firstMeta == headMaybe . allMetasList@.
-firstMeta :: TermLike a => a -> Maybe MetaId
-firstMeta = getFirst . allMetas (First . Just)
 
 -- | Returns all metavariables in a constraint. Slightly complicated by the
 --   fact that blocked terms are represented by two meta variables. To find the
@@ -288,7 +254,6 @@ constraintMetas c = metas c
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
-      TypeCmp _ t t'           -> return $ allMetas Set.singleton (t, t')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (l, l')
       UnquoteTactic m t h g    -> return $ Set.fromList [x | Just x <- [m]] `Set.union` allMetas Set.singleton (t, h, g)
       Guarded c _              -> metas c
@@ -301,6 +266,7 @@ constraintMetas c = metas c
       CheckSizeLtSat{}         -> return mempty
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
+      CheckMetaInst x          -> return mempty
 
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
@@ -333,7 +299,7 @@ setValueMetaName v s = do
         "cannot set meta name; newMeta returns " ++ show u
       return ()
 
-getMetaNameSuggestion :: ReadTCState m => MetaId -> m MetaNameSuggestion
+getMetaNameSuggestion :: (MonadFail m, ReadTCState m) => MetaId -> m MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
 setMetaNameSuggestion :: MonadMetaSolver m => MetaId -> MetaNameSuggestion -> m ()
@@ -414,7 +380,7 @@ registerInteractionPoint preciseRange r maybeId = do
 findInteractionPoint_ :: Range -> InteractionPoints -> Maybe InteractionId
 findInteractionPoint_ r m = do
   guard $ not $ null r
-  headMaybe $ mapMaybe sameRange $ Map.toList m
+  listToMaybe $ mapMaybe sameRange $ Map.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
     sameRange (ii, InteractionPoint r' _ _ _) | r == r' = Just ii
@@ -463,7 +429,7 @@ isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 -- | Get the information associated to an interaction point.
 {-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
 lookupInteractionPoint
-  :: (ReadTCState m, MonadError TCErr m)
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m)
   => InteractionId -> m InteractionPoint
 lookupInteractionPoint ii =
   fromMaybeM err $ Map.lookup ii <$> useR stInteractionPoints
@@ -473,7 +439,7 @@ lookupInteractionPoint ii =
 -- | Get 'MetaId' for an interaction point.
 --   Precondition: interaction point is connected.
 lookupInteractionId
-  :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m)
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m)
   => InteractionId -> m MetaId
 lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
@@ -514,12 +480,12 @@ newMetaTCM' inst frozen mi p perm j = do
 -- | Get the 'Range' for an interaction point.
 {-# SPECIALIZE getInteractionRange :: InteractionId -> TCM Range #-}
 getInteractionRange
-  :: (MonadInteractionPoints m, MonadError TCErr m)
+  :: (MonadInteractionPoints m, MonadFail m, MonadError TCErr m)
   => InteractionId -> m Range
 getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
-getMetaRange :: ReadTCState m => MetaId -> m Range
+getMetaRange :: (MonadFail m, ReadTCState m) => MetaId -> m Range
 getMetaRange = getRange <.> lookupMeta
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
@@ -571,7 +537,7 @@ unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
 -- | Get the listeners to a meta.
-getMetaListeners :: ReadTCState m => MetaId -> m [Listener]
+getMetaListeners :: (MonadFail m, ReadTCState m) => MetaId -> m [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
 clearMetaListeners :: MonadMetaSolver m => MetaId -> m ()
@@ -618,7 +584,7 @@ unfreezeMetas' cond = modifyMetaStore $ IntMap.mapWithKey $ unfreeze . MetaId
     | cond m    = mvar { mvFrozen = Instantiable }
     | otherwise = mvar
 
-isFrozen :: ReadTCState m => MetaId -> m Bool
+isFrozen :: (MonadFail m, ReadTCState m) => MetaId -> m Bool
 isFrozen x = do
   mvar <- lookupMeta x
   return $ mvFrozen mvar == Frozen
@@ -631,7 +597,7 @@ class UnFreezeMeta a where
 instance UnFreezeMeta MetaId where
   unfreezeMeta x = do
     updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
-    unfreezeMeta =<< do jMetaType . mvJudgement <$> lookupMeta x
+    unfreezeMeta =<< metaType x
 
 instance UnFreezeMeta Type where
   unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t
@@ -649,11 +615,10 @@ instance UnFreezeMeta Sort where
   unfreezeMeta _             = return ()
 
 instance UnFreezeMeta Level where
-  unfreezeMeta (Max ls)      = unfreezeMeta ls
+  unfreezeMeta (Max _ ls)      = unfreezeMeta ls
 
 instance UnFreezeMeta PlusLevel where
   unfreezeMeta (Plus _ a)    = unfreezeMeta a
-  unfreezeMeta ClosedLevel{} = return ()
 
 instance UnFreezeMeta LevelAtom where
   unfreezeMeta (MetaLevel x _)    = unfreezeMeta x

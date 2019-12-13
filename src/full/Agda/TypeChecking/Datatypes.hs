@@ -16,7 +16,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Functor
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
@@ -157,14 +156,14 @@ getFullyAppliedConType c t = do
 
 data ConstructorInfo
   = DataCon Nat                  -- ^ Arity.
-  | RecordCon HasEta [Arg QName] -- ^ List of field names.
+  | RecordCon HasEta [Dom QName] -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
 --
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
-getConstructorInfo :: QName -> TCM ConstructorInfo
+getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
 getConstructorInfo c = do
   (theDef <$> getConstInfo c) >>= \case
     Constructor{ conData = d, conArity = n } -> do
@@ -237,14 +236,22 @@ getConHeads d = fromMaybe __IMPOSSIBLE__ <$>
 
 -- | 'Nothing' if not data or record type name.
 getConHeads' :: QName -> TCM (Maybe [ConHead])
-getConHeads' d = getConHeads_ . theDef <$> getConstInfo d
+getConHeads' d = theDef <$> getConstInfo d >>= \case
+  Record{recConHead = h}  -> return $ Just [h]
+  Datatype{dataCons = cs} -> Just <$> mapM makeConHead cs
+  _                       -> return $ Nothing
 
--- | 'Nothing' if not data or record definition.
-getConHeads_ :: Defn -> Maybe [ConHead]
-getConHeads_ = \case
-    Datatype{dataCons = cs} -> Just $ map (\ c -> ConHead c Inductive []) cs
-    Record{recConHead = h}  -> Just [h]
-    _                       -> Nothing
+-- | Fills in the fields.
+makeConHead :: QName -> TCM ConHead
+makeConHead c = do
+  def <- getConstInfo c
+  case theDef def of
+    Constructor{conPars = n, conProj = Just fs} -> do
+      TelV tel _ <- telView (defType def)
+      let ai = map getArgInfo $ drop n $ telToList tel
+      return $ ConHead c Inductive $ zipWith Arg ai fs
+    Constructor{conProj = Nothing} -> return $ ConHead c Inductive []
+    _ -> __IMPOSSIBLE__
 
 {- UNUSED
 data DatatypeInfo = DataInfo

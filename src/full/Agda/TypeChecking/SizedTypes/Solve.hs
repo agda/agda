@@ -52,23 +52,23 @@ import Prelude hiding (null)
 
 import Control.Monad hiding (forM, forM_)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Reader (asks)
 
-import Data.Foldable (Foldable, foldMap, forM_)
+import Data.Either
+import Data.Foldable (foldMap, forM_)
 import qualified Data.Foldable as Fold
 import Data.Function
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
-import Data.Traversable (Traversable, forM)
-
-import Agda.Interaction.Options
+import Data.Traversable (forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad as TCM hiding (Offset)
 import Agda.TypeChecking.Monad.Builtin
@@ -78,7 +78,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints as C
 
 import qualified Agda.TypeChecking.SizedTypes as S
@@ -87,12 +86,10 @@ import Agda.TypeChecking.SizedTypes.Utils
 import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
 
 import Agda.Utils.Cluster
-import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.NonemptyList as NeList
 
 import qualified Agda.Utils.List as List
 
@@ -103,7 +100,6 @@ import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
@@ -123,7 +119,7 @@ solveSizeConstraints flag =  do
 
   -- 1. Take out the size constraints normalised.
 
-  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints
+  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints (== CmpLeq)
     -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
@@ -148,10 +144,10 @@ solveSizeConstraints flag =  do
       sizeMetaSet `Set.intersection` allMetas singleton c)
 
   -- Now, some constraints may have no metas (clcs), the others have at least one (othercs).
-  let classify :: (a, [b]) -> Either a (a, NonemptyList b)
+  let classify :: (a, [b]) -> Either a (a, NonEmpty b)
       classify (cl, [])     = Left  cl
-      classify (cl, (x:xs)) = Right (cl, x :! xs)
-  let (clcs, othercs) = List.mapEither classify cms
+      classify (cl, (x:xs)) = Right (cl, x :| xs)
+  let (clcs, othercs) = partitionEithers $ map classify cms
 
   -- We cluster the constraints by their metas.
   let ccs = cluster' othercs
@@ -165,7 +161,12 @@ solveSizeConstraints flag =  do
   -- Solve the clusters.
 
   constrainedMetas <- Set.unions <$> do
-    forM  (ccs) $ \ (cs :: NonemptyList CC) -> do
+    forM  (ccs) $ \ (cs :: NonEmpty CC) -> do
+
+      reportSDoc "tc.size.solve" 60 $ vcat $ concat
+        [ [ "size constraint cluster:" ]
+        , map (text . show) $ NonEmpty.toList cs
+        ]
 
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
@@ -173,7 +174,7 @@ solveSizeConstraints flag =  do
       enterClosure (Fold.maximumBy (compare `on` (length . envContext . clEnv)) cs) $ \ _ -> do
         -- Get all constraints that can be cast to the longest context.
         cs' :: [TCM.Constraint] <- catMaybes <$> do
-          mapM (runMaybeT . castConstraintToCurrentContext) $ toList cs
+          mapM (runMaybeT . castConstraintToCurrentContext) $ NonEmpty.toList cs
 
         reportSDoc "tc.size.solve" 20 $ vcat $
           [ "converted size constraints to context: " <+> do
@@ -370,13 +371,13 @@ solveSizeConstraints_ flag cs0 = do
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
   let (csNoM, csMs) = (`List.partitionMaybe` ccs') $ \ p@(c0, c) ->
-        fmap (p,) $ NeList.fromList $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
+        fmap (p,) $ nonEmpty $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
-      css :: [NonemptyList (CC,HypSizeConstraint)]
+      css :: [NonEmpty (CC,HypSizeConstraint)]
       css = cluster' csMs
 
   -- Check that the closed constraints are valid.
-  whenJust (NeList.fromList csNoM) $ solveCluster flag
+  whenJust (nonEmpty csNoM) $ solveCluster flag
 
   -- Now, process the clusters.
   forM_ css $ solveCluster flag
@@ -385,10 +386,10 @@ solveSizeConstraints_ flag cs0 = do
 
 -- | Solve a cluster of constraints sharing some metas.
 --
-solveCluster :: DefaultToInfty -> NonemptyList (CC,HypSizeConstraint) -> TCM ()
+solveCluster :: DefaultToInfty -> NonEmpty (CC,HypSizeConstraint) -> TCM ()
 solveCluster flag ccs = do
   let cs = fmap snd ccs
-  let prettyCs   = map prettyTCM $ NeList.toList cs
+  let prettyCs   = map prettyTCM $ NonEmpty.toList cs
   let err reason = typeError . GenericDocError =<< do
         vcat $
           [ text $ "Cannot solve size constraints" ] ++ prettyCs ++
@@ -426,7 +427,7 @@ solveCluster flag ccs = do
   -- Canonicalize the constraints.
   -- This is unsound in the presence of hypotheses.
       csC :: [SizeConstraint]
-      csC = applyWhen (null hs) (mapMaybe canonicalizeSizeConstraint) $ NeList.toList csL
+      csC = applyWhen (null hs) (mapMaybe canonicalizeSizeConstraint) $ NonEmpty.toList csL
   reportSDoc "tc.size.solve" 30 $ vcat $
     [ "Size hypotheses" ] ++
     map (prettyTCM . HypSizeConstraint gamma hids hs) hs ++
@@ -473,7 +474,7 @@ solveCluster flag ccs = do
   -- Construct the hypotheses graph.
   let hyps = map (fmap (metaId . sizeMetaId)) hs
   -- There cannot be negative cycles in hypotheses graph due to scoping.
-  let hg = fromRight __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
+  let hg = either __IMPOSSIBLE__ id $ hypGraph (rigids csF) hyps
 
   -- -- Construct the constraint graph.
   -- --    g :: Size.Graph NamedRigid Int Label
@@ -506,7 +507,7 @@ solveCluster flag ccs = do
     -- unless ok $ err "ill-scoped solution for size meta variable"
     u <- if ok then return u else primSizeInf
     t <- getMetaType x
-    reportSDoc "tc.size.solve" 20 $ inTopContext $ modifyContext (const gamma) $ do
+    reportSDoc "tc.size.solve" 20 $ unsafeInTopContext $ unsafeModifyContext (const gamma) $ do
       let args = map (Apply . defaultArg . var) xs
       "solution " <+> prettyTCM (MetaV x args) <+> " := " <+> prettyTCM u
     reportSDoc "tc.size.solve" 60 $ vcat
@@ -554,7 +555,7 @@ solveCluster flag ccs = do
           reportSDoc "tc.size.solve" 20 $
             "solution " <+> prettyTCM (MetaV m []) <+>
             " := "      <+> prettyTCM inf
-          t <- jMetaType . mvJudgement <$> lookupMeta m
+          t <- metaType m
           TelV tel core <- telView t
           unlessM (isJust <$> isSizeType core) __IMPOSSIBLE__
           assignMeta 0 m t (List.downFrom $ size tel) inf
@@ -562,7 +563,7 @@ solveCluster flag ccs = do
 
   -- Double check.
   when solvedAll $ do
-    let cs0 = map fst $ toList ccs
+    let cs0 = map fst $ NonEmpty.toList ccs
         -- Error for giving up
         cannotSolve = typeError . GenericDocError =<<
           vcat ("Cannot solve size constraints" : map prettyTCM cs0)
@@ -572,7 +573,7 @@ solveCluster flag ccs = do
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
-getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
+getSizeHypotheses gamma = unsafeInTopContext $ unsafeModifyContext (const gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
@@ -734,7 +735,7 @@ instance Flexs SizeMeta HypSizeConstraint where
 
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
-    inTopContext $ modifyContext (const cxt) $ do
+    unsafeInTopContext $ unsafeModifyContext (const cxt) $ do
       let cxtNames = reverse $ map (fst . unDom) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
@@ -746,7 +747,7 @@ instance PrettyTCM HypSizeConstraint where
 computeSizeConstraint :: Closure TCM.Constraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
   let cxt = envContext $ clEnv c
-  inTopContext $ modifyContext (const cxt) $ do
+  unsafeInTopContext $ unsafeModifyContext (const cxt) $ do
     case clValue c of
       ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep $

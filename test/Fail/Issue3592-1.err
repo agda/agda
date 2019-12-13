@@ -3,5 +3,5 @@ P is not strictly positive, because it occurs
 in the first argument of f
 in the first argument of P
 (in the first clause
- in the definition of Q), which occurs
-                        in the definition of P.
+ in the definition of Q), which is
+an index of P.

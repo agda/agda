@@ -1,10 +1,10 @@
 module Agda.TypeChecking.Monad.Env where
 
-import Control.Monad.Reader
+
 import qualified Data.List as List
-import qualified Data.Map as Map
+
 import Data.Maybe (fromMaybe)
-import Data.Monoid
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -71,10 +71,16 @@ withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False 
 
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
-doExpandLast = localTC $ \ e -> e { envExpandLast = ExpandLast }
+doExpandLast = localTC $ \ e -> e { envExpandLast = setExpand (envExpandLast e) }
+  where
+    setExpand ReallyDontExpandLast = ReallyDontExpandLast
+    setExpand _                    = ExpandLast
 
 dontExpandLast :: TCM a -> TCM a
 dontExpandLast = localTC $ \ e -> e { envExpandLast = DontExpandLast }
+
+reallyDontExpandLast :: TCM a -> TCM a
+reallyDontExpandLast = localTC $ \ e -> e { envExpandLast = ReallyDontExpandLast }
 
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.

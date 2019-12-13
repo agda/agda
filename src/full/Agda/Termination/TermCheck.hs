@@ -19,9 +19,7 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding (empty)
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Foldable (toList)
 import qualified Data.List as List
@@ -37,7 +35,6 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Translation.InternalToAbstract ( reifyPatterns )
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -51,11 +48,9 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
@@ -76,7 +71,6 @@ import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
@@ -193,12 +187,12 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK
-  if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
+  if (Info.mutualTerminationCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 10 $ "Skipping termination check for " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
-    else if (Info.mutualTermCheck i == NonTerminating) then do
+    else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
@@ -296,7 +290,7 @@ reportCalls no calls = do
   -- We work in TCM exclusively.
   liftTCM $ do
 
-    reportS "term.lex" 20 $ unlines
+    reportS "term.lex" 20
       [ "Calls (" ++ no ++ "dot patterns): " ++ prettyShow calls
       ]
 
@@ -353,8 +347,9 @@ termFunction name = do
   let index = fromMaybe __IMPOSSIBLE__ $ List.elemIndex name allNames
 
   -- Retrieve the target type of the function to check.
-
-  target <- liftTCM $ do typeEndsInDef =<< typeOfConst name
+  -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
+  -- checking is running in the empty context, but with the current module unchanged.
+  target <- liftTCM $ do typeEndsInDef . defType =<< getConstInfo name
   reportTarget target
   terSetTarget target $ do
 
@@ -493,7 +488,7 @@ termType = return mempty
 
   -- create n variable patterns
   mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP PatOSystem $ DBPatVar (prettyShow x) i
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -578,7 +573,7 @@ instance TermToPattern Term DeBruijnPattern where
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-    Lit l       -> return $ LitP l
+    Lit l       -> return $ litP l
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
@@ -682,7 +677,7 @@ instance ExtractCalls Sort where
       SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
-      PiSort s1 s2 -> extract (s1, s2)
+      PiSort a s -> extract (a, s)
       UnivSort s -> extract s
       MetaS x es -> return empty
       DefS d es  -> return empty
@@ -926,11 +921,11 @@ instance ExtractCalls Term where
 
 -- | Extract recursive calls from level expressions.
 
-deriving instance ExtractCalls Level
+instance ExtractCalls Level where
+  extract (Max n as) = extract as
 
 instance ExtractCalls PlusLevel where
-  extract (ClosedLevel n) = return $ mempty
-  extract (Plus n l)      = extract l
+  extract (Plus n l) = extract l
 
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es
@@ -1002,11 +997,11 @@ compareArgs es = do
 --   off, if inductive.
 --
 --   UNUSED
-annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
-annotatePatsWithUseSizeLt = loop where
-  loop [] = return []
-  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
-  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
+--annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
+--annotatePatsWithUseSizeLt = loop where
+--  loop [] = return []
+--  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+--  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
 
 
 -- | @compareElim e dbpat@
@@ -1063,7 +1058,7 @@ compareProj d d'
           def <- theDef <$> getConstInfo r
           case def of
             Record{ recFields = fs } -> do
-              fs <- return $ map unArg fs
+              fs <- return $ map unDom fs
               case (List.find (d==) fs, List.find (d'==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller
@@ -1095,20 +1090,21 @@ composeGuardedness _ _ = __IMPOSSIBLE__
 -- | Stripping off a record constructor is not counted as decrease, in
 --   contrast to a data constructor.
 --   A record constructor increases/decreases by 0, a data constructor by 1.
-offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
-offsetFromConstructor c = maybe 1 (const 0) <$> do
-  liftTCM $ isRecordConstructor c
+offsetFromConstructor :: HasConstInfo tcm => QName -> tcm Int
+offsetFromConstructor c =
+  ifM (isEtaOrCoinductiveRecordConstructor c) (return 0) (return 1)
 
--- | Compute the proper subpatterns of a 'DeBruijnPattern'.
-subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
-subPatterns = foldPattern $ \case
-  ConP _ _ ps -> map namedArg ps
-  DefP _ _ ps -> map namedArg ps -- TODO check semantics
-  VarP _ _    -> mempty
-  LitP _      -> mempty
-  DotP _ _    -> mempty
-  ProjP _ _   -> mempty
-  IApplyP{}   -> mempty
+--UNUSED Liang-Ting 2019-07-16
+---- | Compute the proper subpatterns of a 'DeBruijnPattern'.
+--subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
+--subPatterns = foldPattern $ \case
+--  ConP _ _ ps -> map namedArg ps
+--  DefP _ _ ps -> map namedArg ps -- TODO check semantics
+--  VarP _ _    -> mempty
+--  LitP _      -> mempty
+--  DotP _ _    -> mempty
+--  ProjP _ _   -> mempty
+--  IApplyP{}   -> mempty
 
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
@@ -1219,7 +1215,7 @@ compareTerm' v mp@(Masked m p) = do
 
     _ | m -> return Order.unknown
 
-    (Lit l, LitP l')
+    (Lit l, LitP _ l')
       | l == l'     -> return Order.le
       | otherwise   -> return Order.unknown
 
@@ -1259,7 +1255,7 @@ subTerm t p = if equal t p then Order.le else properSubTerm t p
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps
     equal (Var i []) (VarP _ x) = i == dbPatVarIndex x
-    equal (Lit l)    (LitP l') = l == l'
+    equal (Lit l)    (LitP _ l') = l == l'
     -- Terms.
     -- Checking for identity here is very fragile.
     -- However, we cannot do much more, as we are not allowed to normalize t.

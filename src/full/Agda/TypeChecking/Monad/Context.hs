@@ -5,34 +5,33 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
+import Control.Monad.Fail (MonadFail)
 
 import qualified Data.List as List
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name (LensInScope(..))
+import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Except
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -40,44 +39,48 @@ import Agda.Utils.Impossible
 
 -- * Modifying the context
 
--- | Modify a 'Context' in a computation.
-{-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
-modifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
-modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+-- | Modify a 'Context' in a computation.  Warning: does not update
+--   the checkpoints. Use @updateContext@ instead.
+{-# SPECIALIZE unsafeModifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
+unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
+unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+
+-- | Modify the 'Dom' part of context entries.
+modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
+modifyContextInfo f = unsafeModifyContext $ map f
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-safeInTopContext :: MonadTCM tcm => tcm a -> tcm a
-safeInTopContext cont = do
-  locals <- liftTCM $ getLocalVars
-  liftTCM $ setLocalVars []
-  a <- modifyContext (const [])
+inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
+inTopContext cont =
+  unsafeModifyContext (const [])
         $ locallyTC eCurrentCheckpoint (const 0)
-        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS) cont
-  liftTCM $ setLocalVars locals
-  return a
+        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
+        $ locallyTCState stModuleCheckpoints (const Map.empty)
+        $ locallyScope scopeLocals (const [])
+        $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
 --   not safe!
-{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-inTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
-inTopContext cont =
+{-# SPECIALIZE unsafeInTopContext :: TCM a -> TCM a #-}
+unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
+unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
-    modifyContext (const []) cont
+    unsafeModifyContext (const []) cont
 
 -- | Delete the last @n@ bindings from the context.
 --
 --   Doesn't update checkpoints! Use `updateContext rho (drop n)` instead,
 --   for an appropriate substitution `rho`.
-{-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
-escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-escapeContext n = modifyContext $ drop n
+{-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
+unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
+unsafeEscapeContext n = unsafeModifyContext $ drop n
 
 -- * Manipulating checkpoints --
 
 -- | Add a new checkpoint. Do not use directly!
 checkpoint
-  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm)
+  :: (MonadDebug tcm, MonadTCM tcm, MonadFresh CheckpointId tcm, ReadTCState tcm)
   => Substitution -> tcm a -> tcm a
 checkpoint sub k = do
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 $ "New checkpoint {"
@@ -145,8 +148,12 @@ class MonadTCEnv m => MonadAddContext m where
   --   Warning: Does not update module parameter substitution!
   addCtx :: Name -> Dom Type -> m a -> m a
 
-  -- | Update the context. Requires a substitution from the old context to the
-  --   new.
+  -- | Add a let bound variable to the context
+  addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
+
+  -- | Update the context.
+  --   Requires a substitution that transports things living in the old context
+  --   to the new.
   updateContext :: Substitution -> (Context -> Context) -> m a -> m a
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
@@ -163,51 +170,81 @@ withFreshName_ = withFreshName noRange
 
 instance MonadAddContext m => MonadAddContext (MaybeT m) where
   addCtx x a = MaybeT . addCtx x a . runMaybeT
+  addLetBinding' x u a = MaybeT . addLetBinding' x u a . runMaybeT
   updateContext sub f = MaybeT . updateContext sub f . runMaybeT
   withFreshName r x = MaybeT . withFreshName r x . (runMaybeT .)
 
 instance MonadAddContext m => MonadAddContext (ExceptT e m) where
   addCtx x a = mkExceptT . addCtx x a . runExceptT
+  addLetBinding' x u a = mkExceptT . addLetBinding' x u a . runExceptT
   updateContext sub f = mkExceptT . updateContext sub f . runExceptT
   withFreshName r x = mkExceptT . withFreshName r x . (runExceptT .)
 
 instance MonadAddContext m => MonadAddContext (ReaderT r m) where
   addCtx x a = ReaderT . (addCtx x a .) . runReaderT
+  addLetBinding' x u a = ReaderT . (addLetBinding' x u a .) . runReaderT
   updateContext sub f = ReaderT . (updateContext sub f .) . runReaderT
   withFreshName r x ret = ReaderT $ \env -> withFreshName r x $ \n -> runReaderT (ret n) env
 
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m) where
   addCtx x a = WriterT . addCtx x a . runWriterT
+  addLetBinding' x u a = WriterT . addLetBinding' x u a . runWriterT
   updateContext sub f = WriterT . updateContext sub f . runWriterT
   withFreshName r x = WriterT . withFreshName r x . (runWriterT .)
 
 instance MonadAddContext m => MonadAddContext (StateT r m) where
   addCtx x a = StateT . (addCtx x a .) . runStateT
+  addLetBinding' x u a = StateT . (addLetBinding' x u a .) . runStateT
   updateContext sub f = StateT . (updateContext sub f .) . runStateT
   withFreshName r x ret = StateT $ \s -> withFreshName r x $ \n -> runStateT (ret n) s
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a = liftListT $ addCtx x a
+  addLetBinding' x u a = liftListT $ addLetBinding' x u a
   updateContext sub f = liftListT $ updateContext sub f
   withFreshName r x ret = ListT $ withFreshName r x $ \n -> runListT (ret n)
 
-instance MonadAddContext TCM where
-  addCtx x a ret = do
-    when (not $ isNoName x) $ do
-      registerForShadowing x
-      ys <- getContextNames
-      forM_ ys $ \y ->
-        when (not (isNoName y) && sameRoot x y) $ tellShadowing x y
-    defaultAddCtx x a ret
+-- | Run the given TCM action, and register the given variable as
+--   being shadowed by all the names with the same root that are added
+--   to the context during this TCM action.
+withShadowingNameTCM :: Name -> TCM b -> TCM b
+withShadowingNameTCM x f = do
+  reportSDoc "tc.cxt.shadowing" 80 $ pure $ "registered" <+> pretty x <+> "for shadowing"
+  when (isInScope x == InScope) $ tellUsedName x
+  (result , useds) <- listenUsedNames f
+  reportSDoc "tc.cxt.shadowing" 90 $ pure $ "all used names: " <+> text (show useds)
+  tellShadowing x useds
+  return result
 
     where
-      -- add x to the map of possibly shadowed names
-      registerForShadowing x = modifyTCLens stShadowingNames $ Map.insert x []
+      listenUsedNames f = do
+        origUsedNames <- useTC stUsedNames
+        setTCLens stUsedNames Map.empty
+        result <- f
+        newUsedNames <- useTC stUsedNames
+        setTCLens stUsedNames $ Map.unionWith (++) origUsedNames newUsedNames
+        return (result , newUsedNames)
 
-      -- register the fact that x possibly shadows the name y
-      tellShadowing x y = modifyTCLens stShadowingNames $ Map.adjust (x:) y
+      tellUsedName x = do
+        let concreteX = nameConcrete x
+            rawX      = nameToRawName concreteX
+            rootX     = nameRoot concreteX
+        modifyTCLens (stUsedNames . key rootX) $ Just . (rawX:) . concat
 
-  updateContext sub f = modifyContext f . checkpoint sub
+      tellShadowing x useds = case Map.lookup (nameRoot $ nameConcrete x) useds of
+        Just shadows -> do
+          reportSDoc "tc.cxt.shadowing" 80 $ pure $ "names shadowing" <+> pretty x <+> ": " <+> prettyList_ (map pretty shadows)
+          modifyTCLens stShadowingNames $ Map.insertWith (++) x shadows
+        Nothing      -> return ()
+
+instance MonadAddContext TCM where
+  addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddCtx x a ret
+
+  addLetBinding' x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddLetBinding' x u a ret
+
+  updateContext sub f = unsafeModifyContext f . checkpoint sub
 
   withFreshName r x m = freshName r x >>= m
 
@@ -327,6 +364,13 @@ underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ 
 underAbstraction_ :: (Subst t a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
 
+-- | Map a monadic function on the thing under the abstraction, adding
+--   the abstracted variable to the context.
+mapAbstraction
+  :: (Subst t a, Subst t' b, Free b, MonadAddContext m)
+  => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
+mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
+
 getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
 getLetBindings = do
   bs <- asksTC envLetBindings
@@ -334,14 +378,14 @@ getLetBindings = do
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-addLetBinding' :: MonadTCEnv m => Name -> Term -> Dom Type -> m a -> m a
-addLetBinding' x v t ret = do
+defaultAddLetBinding' :: MonadTCEnv m => Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' x v t ret = do
     vt <- makeOpen (v, t)
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadTCEnv m => ArgInfo -> Name -> Term -> Type -> m a -> m a
+addLetBinding :: MonadAddContext m => ArgInfo -> Name -> Term -> Type -> m a -> m a
 addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 
 
@@ -387,7 +431,7 @@ lookupBV' n = do
   return $ raise (n + 1) <$> ctx !!! n
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: MonadTCEnv m => Nat -> m (Dom (Name, Type))
+lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   let failure = do
         ctx <- getContext
@@ -396,26 +440,26 @@ lookupBV n = do
   maybeM failure return $ lookupBV' n
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Type
+typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> domOfBV i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
-nameOfBV' :: (Applicative m, MonadTCEnv m) => Nat -> m (Maybe Name)
+nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
 nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: (Applicative m, MonadTCEnv m) => Nat -> m Name
+nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
 nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: MonadTCEnv m => Name -> m (Term, Dom Type)
+getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings

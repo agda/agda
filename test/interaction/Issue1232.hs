@@ -3,6 +3,7 @@
 import System.Directory
 
 import RunAgda
+import Agda.Version
 
 file       = "Issue1232.agda"
 firstCode  = "import Issue1232.List"
@@ -33,6 +34,6 @@ main = runAgda [ "--no-libraries"
 
   -- Clean up.
   writeUTF8File file "\n"
-  removeFile $ file ++ "i"
+  removeFile $ concat [ "_build/", version, "/agda/", file, "i" ]
 
   return ()

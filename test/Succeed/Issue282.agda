@@ -5,7 +5,7 @@ module Works where
   record R : Set where
     constructor c
 
-  foo = R.c
+  -- foo = R.c  -- Andreas, 2019-11-11, #4189, no more qualified record constructors
 
 module Doesn't_work where
 
@@ -14,7 +14,7 @@ module Doesn't_work where
     record R : Set where
       constructor c
 
-  foo = R.c
+  -- foo = R.c  -- Andreas, 2019-11-11, #4189, no more qualified record constructors
 
 -- Bug.agda:17,9-12
 -- Not in scope:

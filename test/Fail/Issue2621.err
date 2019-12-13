@@ -2,7 +2,7 @@ Issue2621.agda:17,13-15
 I'm not sure if there should be a case for the constructor [],
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
-  {_} ≟ {_}
+  {zero} ≟ {_k_61 (R = R) (h = h)}
   [] ≟ a
   [] ≟ b
 when checking that the pattern [] has type All₂ R a b

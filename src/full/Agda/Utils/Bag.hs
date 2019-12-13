@@ -5,17 +5,13 @@ module Agda.Utils.Bag where
 
 import Prelude hiding (null, map)
 
-import Control.Applicative hiding (empty)
-import Text.Show.Functions ()
+import Text.Show.Functions () -- instance only
 
 import Data.Foldable (Foldable(foldMap))
-import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Semigroup
-import qualified Data.Set as Set
-import Data.Traversable
 
 import Agda.Utils.Functor
 
@@ -112,7 +108,7 @@ toList = concat . groups
 keys :: Bag a -> [a]
 keys = Map.keys . bag
 -- Works because of the invariant!
--- keys = catMaybes . map headMaybe . Map.elems . bag
+-- keys = catMaybes . map listToMaybe . Map.elems . bag
 --   -- Map.keys does not work, as zero copies @(a,[])@
 --   -- should count as not present in the bag.
 
@@ -146,7 +142,7 @@ traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
 ------------------------------------------------------------------------
 
 instance Show a => Show (Bag a) where
-  showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . showsPrec 0 b . (')':)
+  showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . shows b . (')':)
 
 instance Ord a => Semigroup (Bag a) where
   (<>) = union

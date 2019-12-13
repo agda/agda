@@ -1,3 +1,3 @@
 Issue2169.agda:17,7-11
-0.0 !=< -0.0 of type Float
+0.0 != -0.0 of type Float
 when checking that the expression refl has type 0.0 ≡ -0.0

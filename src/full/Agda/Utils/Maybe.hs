@@ -9,11 +9,11 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
-import Control.Monad
+
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe
-import Data.Functor
+
 
 -- * Conversion.
 
@@ -23,12 +23,13 @@ boolToMaybe b x = if b then Just x else Nothing
 
 -- * Collection operations.
 
--- | @unionWith@ for collections of size <= 1.
-unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
-unionMaybeWith f Nothing mb      = mb
-unionMaybeWith f ma      Nothing = ma
-unionMaybeWith f (Just a) (Just b) = Just $ f a b
-
+-- UNUSED Liang-Ting Chen 05-07-2019
+---- | @unionWith@ for collections of size <= 1.
+--unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
+--unionMaybeWith f Nothing mb      = mb
+--unionMaybeWith f ma      Nothing = ma
+--unionMaybeWith f (Just a) (Just b) = Just $ f a b
+--
 -- | Unzipping a list of length <= 1.
 
 unzipMaybe :: Maybe (a,b) -> (Maybe a, Maybe b)

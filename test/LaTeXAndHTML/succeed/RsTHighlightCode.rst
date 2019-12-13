@@ -31,7 +31,7 @@ Keine:
 .. raw:: html
    <a id="388" class="Keyword">record</a> <a id="Colist"></a><a id="395" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="402" class="Symbol">(</a><a id="403" href="RsTHighlightCode.html#403" class="Bound">A</a> <a id="405" class="Symbol">:</a> <a id="407" class="PrimitiveType">Set</a><a id="410" class="Symbol">)</a> <a id="412" class="Symbol">:</a> <a id="414" class="PrimitiveType">Set</a> <a id="418" class="Keyword">where</a>
      <a id="429" class="Keyword">coinductive</a>
-     <a id="446" class="Keyword">constructor</a> <a id="Colist._::_"></a><a id="458" href="RsTHighlightCode.html#458" class="CoinductiveConstructor Operator">_::_</a>
+     <a id="446" class="Keyword">constructor</a> <a id="_::_"></a><a id="458" href="RsTHighlightCode.html#458" class="CoinductiveConstructor Operator">_::_</a>
      <a id="468" class="Keyword">field</a>
        <a id="Colist.cohead"></a><a id="481" href="RsTHighlightCode.html#481" class="Field">cohead</a> <a id="488" class="Symbol">:</a> <a id="490" href="RsTHighlightCode.html#403" class="Bound">A</a>
        <a id="Colist.cotail"></a><a id="499" href="RsTHighlightCode.html#499" class="Field">cotail</a> <a id="506" class="Symbol">:</a> <a id="508" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="515" href="RsTHighlightCode.html#403" class="Bound">A</a>

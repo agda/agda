@@ -1,8 +1,9 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
-import Data.Maybe
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -63,6 +64,10 @@ class Abstract t where
 
 class DeBruijn t => Subst t a | a -> t where
   applySubst :: Substitution' t -> a -> a
+
+  default applySubst :: (a ~ f b, Functor f, Subst t b) => Substitution' t -> a -> a
+  applySubst rho = fmap (applySubst rho)
+
 
 -- | Raise de Bruijn index, i.e. weakening
 raise :: Subst t a => Nat -> a -> a

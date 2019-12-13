@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
+{-# LANGUAGE CPP  #-}
 
 -- | @ListT@ done right,
 --   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative
@@ -15,7 +16,9 @@ import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Agda.Utils.Maybe
 

@@ -1,14 +1,8 @@
-TerminationRecordPatternListAppend.agda:31,1-33,32
-Termination checking failed for the following functions:
-  append
-Problematic calls:
-  append (t unit) l'
-    (at TerminationRecordPatternListAppend.agda:32,50-56)
-TerminationRecordPatternListAppend.agda:37,1-45,29
+TerminationRecordPatternListAppend.agda:39,1-47,29
 Termination checking failed for the following functions:
   append1
 Problematic calls:
   append1' (isCons l') (head l') (tail l') l
-    (at TerminationRecordPatternListAppend.agda:38,20-28)
+    (at TerminationRecordPatternListAppend.agda:40,20-28)
   append1 (t unit) l
-    (at TerminationRecordPatternListAppend.agda:44,47-54)
+    (at TerminationRecordPatternListAppend.agda:46,47-54)

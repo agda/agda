@@ -3,17 +3,11 @@ module Agda.TypeChecking.Telescope.Path where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Control.Monad (unless, guard)
-
-import Data.Foldable (forM_, find)
 import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
@@ -23,7 +17,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 
@@ -69,7 +62,7 @@ telePiPath reAbs tel t bs = do
                          ]
           Nothing    -> do
             b <- b
-            return $ El (piSort (getSort a) (getSort <$> b)) (Pi a (reAbs b))
+            return $ El (piSort a (getSort <$> b)) (Pi a (reAbs b))
       where
         b  = traverse (telePiPath xs) tel
     telePiPath _     EmptyTel = __IMPOSSIBLE__

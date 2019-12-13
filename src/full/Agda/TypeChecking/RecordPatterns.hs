@@ -18,16 +18,13 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
-import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty hiding (pretty)
@@ -40,13 +37,12 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
-import Agda.Utils.List
-import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.Update (MonadChange, tellDirty)
 
 import Agda.Utils.Impossible
 
@@ -67,7 +63,7 @@ recordPatternToProjections p =
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
-      whenNothing (conPRecord ci) $
+      unless (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
       let t = unArg $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       reportSDoc "tc.rec" 45 $ vcat
@@ -81,7 +77,7 @@ recordPatternToProjections p =
     IApplyP{}    -> typeError $ ShouldBeRecordPattern p
     DefP{}       -> typeError $ ShouldBeRecordPattern p
   where
-    proj p = (`applyE` [Proj ProjSystem $ unArg p])
+    proj p = (`applyE` [Proj ProjSystem $ unDom p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
@@ -95,11 +91,12 @@ recordPatternToProjections p =
 conjColumns :: [[Bool]] -> [Bool]
 conjColumns =  foldl1 (zipWith (&&))
 
--- | @insertColumn i a m@ inserts a column before the @i@th column in
---   matrix @m@ and fills it with value @a@.
-insertColumn :: Int -> a -> [[a]] -> [[a]]
-insertColumn i a rows = map ins rows where
-  ins row = let (init, last) = splitAt i row in init ++ a : last
+-- UNUSED Liang-Ting 2019-07-16
+---- | @insertColumn i a m@ inserts a column before the @i@th column in
+----   matrix @m@ and fills it with value @a@.
+--insertColumn :: Int -> a -> [[a]] -> [[a]]
+--insertColumn i a rows = map ins rows where
+--  ins row = let (init, last) = splitAt i row in init ++ a : last
 
 {- UNUSED
 -- | @cutColumn i m@ removes the @i@th column from matrix @m@.
@@ -113,13 +110,14 @@ cutColumns :: Int -> Int -> [[a]] -> ([[a]], [[a]])
 cutColumns i n rows = unzip (map (cutSublist i n) rows)
 -}
 
--- | @cutSublist i n xs = (xs', ys, xs'')@ cuts out a sublist @ys@
---   of width @n@ from @xs@, starting at column @i@.
-cutSublist :: Int -> Int -> [a] -> ([a], [a], [a])
-cutSublist i n row =
-  let (init, rest) = splitAt i row
-      (mid , last) = splitAt n rest
-  in  (init, mid, last)
+-- UNUSED Liang-Ting 2019-07-16
+---- | @cutSublist i n xs = (xs', ys, xs'')@ cuts out a sublist @ys@
+----   of width @n@ from @xs@, starting at column @i@.
+--cutSublist :: Int -> Int -> [a] -> ([a], [a], [a])
+--cutSublist i n row =
+--  let (init, rest) = splitAt i row
+--      (mid , last) = splitAt n rest
+--  in  (init, mid, last)
 
 getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
@@ -129,8 +127,10 @@ getEtaAndArity (SplitCon c) =
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
-translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
-translateCompiledClauses cc = do
+translateCompiledClauses
+  :: forall m. (HasConstInfo m, MonadChange m)
+  => CompiledClauses -> m CompiledClauses
+translateCompiledClauses cc = ignoreAbstractMode $ do
   reportSDoc "tc.cc.record" 20 $ vcat
     [ "translate record patterns in compiled clauses"
     , nest 2 $ return $ pretty cc
@@ -148,7 +148,7 @@ translateCompiledClauses cc = do
   return cc
   where
 
-    loop :: CompiledClauses -> TCM (CompiledClauses)
+    loop :: CompiledClauses -> m (CompiledClauses)
     loop cc = case cc of
       Fail      -> return cc
       Done{}    -> return cc
@@ -156,7 +156,7 @@ translateCompiledClauses cc = do
 
     loops :: Arg Int              -- ^ split variable
           -> Case CompiledClauses -- ^ original split tree
-          -> TCM CompiledClauses
+          -> m CompiledClauses
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
                        , etaBranch      = eta
@@ -179,7 +179,7 @@ translateCompiledClauses cc = do
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo c >>= \ case
               RecordCon YesEta fs ->
-                let ch = ConHead c Inductive fs in
+                let ch = ConHead c Inductive (map argFromDom fs) in
                 yesEtaCase ch b
               _ -> noEtaCase
           _ -> noEtaCase
@@ -208,136 +208,145 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 
 -- | Transform definitions returning record expressions to use copatterns
 --   instead. This prevents terms from blowing up when reduced.
-recordExpressionsToCopatterns :: CompiledClauses -> TCM CompiledClauses
-recordExpressionsToCopatterns cc =
-  case cc of
+recordExpressionsToCopatterns
+  :: (HasConstInfo m, MonadChange m)
+  => CompiledClauses
+  -> m CompiledClauses
+recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
-    Fail      -> return cc
-    Done xs (Con c i es) | i == ConORec -> do  -- don't translate if using the record constructor
-      Constructor{conData = d, conArity = ar} <- theDef <$> getConstInfo (conName c)
-      ddef <- theDef <$> getConstInfo d
+    cc@Fail   -> return cc
+    cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
+      let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
         RecordCon YesEta fs
           | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
-            length es == ar,                           -- where the constructor application is saturated
+            length vs == ar,                           -- where the constructor application is saturated
             irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
-              let body (Apply v) = WithArity 0 $ Done xs (unArg v)
-                  body _ = __IMPOSSIBLE__
-                  bs     = Branches True (Map.fromList $ zip (map unArg fs) (map body es))
-                                    Nothing Map.empty Nothing Nothing False
-              -- translate new cases recursively (there might be nested record expressions)
-              Case (defaultArg $ length xs) <$> traverse recordExpressionsToCopatterns bs
+              tellDirty
+              Case (defaultArg $ length xs) <$> do
+                -- translate new cases recursively (there might be nested record expressions)
+                traverse recordExpressionsToCopatterns $ Branches
+                  { projPatterns   = True
+                  , conBranches    = Map.fromList $
+                      zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
+                  , etaBranch      = Nothing
+                  , litBranches    = Map.empty
+                  , catchAllBranch = Nothing
+                  , fallThrough    = Nothing
+                  , lazyMatch      = False
+                  }
         _ -> return cc
-    Done{} -> return cc
+    cc@Done{} -> return cc
 
--- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
---   (counted from left) by projections @projs_1 i .. projs_n i@.
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
+----   (counted from left) by projections @projs_1 i .. projs_n i@.
+----
+----   If @n==0@, we matched on a zero-field record, which means that
+----   we are actually introduce a new variable, increasing split
+----   positions greater or equal to @i@ by one.
+----   Otherwise, we have to lower
+----
+--replaceByProjections :: Arg Int -> [QName] -> CompiledClauses -> CompiledClauses
+--replaceByProjections (Arg ai i) projs cc =
+--  let n = length projs
 --
---   If @n==0@, we matched on a zero-field record, which means that
---   we are actually introduce a new variable, increasing split
---   positions greater or equal to @i@ by one.
---   Otherwise, we have to lower
+--      loop :: Int -> CompiledClauses -> CompiledClauses
+--      loop i cc = case cc of
+--        Case j cs
 --
-replaceByProjections :: Arg Int -> [QName] -> CompiledClauses -> CompiledClauses
-replaceByProjections (Arg ai i) projs cc =
-  let n = length projs
+--        -- if j < i, we leave j untouched, but we increase i by the number
+--        -- of variables replacing j in the branches
+--          | unArg j < i -> Case j $ loops i cs
+--
+--        -- if j >= i then we shrink j by (n-1)
+--          | otherwise   -> Case (j <&> \ k -> k - (n-1)) $ fmap (loop i) cs
+--
+--        Done xs v ->
+--        -- we have to delete (n-1) variables from xs
+--        -- and instantiate v suitably with the projections
+--          let (xs0,xs1,xs2)     = cutSublist i n xs
+--              names | null xs1  = ["r"]
+--                    | otherwise = map unArg xs1
+--              x                 = Arg ai $ foldr1 appendArgNames names
+--              xs'               = xs0 ++ x : xs2
+--              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
+--              -- go from level (i + n - 1) to index (subtract from |xs|-1)
+--              index             = length xs - (i + n)
+--          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
+--          -- The body is NOT guarded by lambdas!
+--          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
+--
+--        Fail -> Fail
+--
+--      loops :: Int -> Case CompiledClauses -> Case CompiledClauses
+--      loops i bs@Branches{ conBranches    = conMap
+--                         , litBranches    = litMap
+--                         , catchAllBranch = catchAll } =
+--        bs{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
+--          , litBranches    = fmap (loop (i - 1)) litMap
+--          , catchAllBranch = fmap (loop i) catchAll
+--          }
+--  in  loop i cc
 
-      loop :: Int -> CompiledClauses -> CompiledClauses
-      loop i cc = case cc of
-        Case j cs
-
-        -- if j < i, we leave j untouched, but we increase i by the number
-        -- of variables replacing j in the branches
-          | unArg j < i -> Case j $ loops i cs
-
-        -- if j >= i then we shrink j by (n-1)
-          | otherwise   -> Case (j <&> \ k -> k - (n-1)) $ fmap (loop i) cs
-
-        Done xs v ->
-        -- we have to delete (n-1) variables from xs
-        -- and instantiate v suitably with the projections
-          let (xs0,xs1,xs2)     = cutSublist i n xs
-              names | null xs1  = ["r"]
-                    | otherwise = map unArg xs1
-              x                 = Arg ai $ foldr1 appendArgNames names
-              xs'               = xs0 ++ x : xs2
-              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
-              -- go from level (i + n - 1) to index (subtract from |xs|-1)
-              index             = length xs - (i + n)
-          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
-          -- The body is NOT guarded by lambdas!
-          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
-
-        Fail -> Fail
-
-      loops :: Int -> Case CompiledClauses -> Case CompiledClauses
-      loops i bs@Branches{ conBranches    = conMap
-                         , litBranches    = litMap
-                         , catchAllBranch = catchAll } =
-        bs{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
-          , litBranches    = fmap (loop (i - 1)) litMap
-          , catchAllBranch = fmap (loop i) catchAll
-          }
-  in  loop i cc
-
--- | Check if a split is on a record constructor, and return the projections
---   if yes.
-isRecordCase :: Case c -> TCM (Maybe ([QName], c))
-isRecordCase (Branches { conBranches = conMap
-                       , litBranches = litMap
-                       , catchAllBranch = Nothing })
-  | Map.null litMap
-  , [(con, WithArity _ br)] <- Map.toList conMap = do
-    isRC <- isRecordConstructor con
-    case isRC of
-      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
-      Just (r, _) -> __IMPOSSIBLE__
-      Nothing -> return Nothing
-isRecordCase _ = return Nothing
+-- UNUSED Liang-Ting 2019-07-16
+---- | Check if a split is on a record constructor, and return the projections
+----   if yes.
+--isRecordCase :: Case c -> TCM (Maybe ([QName], c))
+--isRecordCase (Branches { conBranches = conMap
+--                       , litBranches = litMap
+--                       , catchAllBranch = Nothing })
+--  | Map.null litMap
+--  , [(con, WithArity _ br)] <- Map.toList conMap = do
+--    isRC <- isRecordConstructor con
+--    case isRC of
+--      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
+--      Just (r, _) -> __IMPOSSIBLE__
+--      Nothing -> return Nothing
+--isRecordCase _ = return Nothing
 
 ---------------------------------------------------------------------------
 -- * Record pattern translation for split trees
 ---------------------------------------------------------------------------
-
--- | Split tree annotation.
-data RecordSplitNode = RecordSplitNode
-  { splitTag           :: SplitTag
-                                 -- ^ Constructor name/literal for this branch.
-  , splitArity         :: Int    -- ^ Arity of the constructor.
-  , splitRecordPattern :: Bool   -- ^ Should we translate this split away?
-  }
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Split tree annotation.
+--data RecordSplitNode = RecordSplitNode
+--  { _splitTag           :: SplitTag -- ^ Constructor name/literal for this branch.
+--  , _splitArity         :: Int      -- ^ Arity of the constructor.
+--  , _splitRecordPattern :: Bool     -- ^ Should we translate this split away?
+--  }
 
 -- | Split tree annotated for record pattern translation.
-type RecordSplitTree  = SplitTree' RecordSplitNode
-type RecordSplitTrees = SplitTrees' RecordSplitNode
+--type RecordSplitTree  = SplitTree' RecordSplitNode
+--type RecordSplitTrees = SplitTrees' RecordSplitNode
 
-
-
--- | Bottom-up procedure to annotate split tree.
-recordSplitTree :: SplitTree -> TCM RecordSplitTree
-recordSplitTree t = snd <$> loop t
-  where
-
-    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
-    loop t = case t of
-      SplittingDone n -> return (replicate n True, SplittingDone n)
-      SplitAt i ts    -> do
-        (xs, ts) <- loops (unArg i) ts
-        return (xs, SplitAt i ts)
-
-    loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
-    loops i ts = do
-      (xss, ts) <- unzip <$> do
-        forM ts $ \ (c, t) -> do
-          (xs, t) <- loop t
-          (isRC, n) <- getEtaAndArity c
-          let (xs0, rest) = splitAt i xs
-              (xs1, xs2)  = splitAt n rest
-              x           = isRC && and xs1
-              xs'         = xs0 ++ x : xs2
-          return (xs, (RecordSplitNode c n x, t))
-      return (foldl1 (zipWith (&&)) xss, ts)
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Bottom-up procedure to annotate split tree.
+--recordSplitTree :: SplitTree -> TCM RecordSplitTree
+--recordSplitTree t = snd <$> loop t
+--  where
+--
+--    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
+--    loop t = case t of
+--      SplittingDone n -> return (replicate n True, SplittingDone n)
+--      SplitAt i ts    -> do
+--        (xs, ts) <- loops (unArg i) ts
+--        return (xs, SplitAt i ts)
+--
+--    loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
+--    loops i ts = do
+--      (xss, ts) <- unzip <$> do
+--        forM ts $ \ (c, t) -> do
+--          (xs, t) <- loop t
+--          (isRC, n) <- getEtaAndArity c
+--          let (xs0, rest) = splitAt i xs
+--              (xs1, xs2)  = splitAt n rest
+--              x           = isRC && and xs1
+--              xs'         = xs0 ++ x : xs2
+--          return (xs, (RecordSplitNode c n x, t))
+--      return (foldl1 (zipWith (&&)) xss, ts)
 
 -- | Bottom-up procedure to record-pattern-translate split tree.
 translateSplitTree :: SplitTree -> TCM SplitTree
@@ -353,7 +362,7 @@ translateSplitTree t = snd <$> loop t
       SplittingDone n ->
         -- start with n virgin variables
         return (replicate n True, SplittingDone n)
-      SplitAt i ts    -> do
+      SplitAt i lz ts    -> do
         (x, xs, ts) <- loops (unArg i) ts
         -- if we case on record constructor, drop case
         let t' = if x then
@@ -361,7 +370,7 @@ translateSplitTree t = snd <$> loop t
                      [(c,t)] -> t
                      _       -> __IMPOSSIBLE__
                   -- else retain case
-                  else SplitAt i ts
+                  else SplitAt i lz ts
         return (xs, t')
 
     -- @loops i ts = return (x, xs, ts')@ cf. @loop@
@@ -402,9 +411,9 @@ class DropFrom a where
 instance DropFrom (SplitTree' c) where
   dropFrom i n t = case t of
     SplittingDone m -> SplittingDone (m - n)
-    SplitAt x@(Arg ai j) ts
-      | j >= i + n -> SplitAt (Arg ai $ j - n) $ dropFrom i n ts
-      | j < i      -> SplitAt x $ dropFrom i n ts
+    SplitAt x@(Arg ai j) lz ts
+      | j >= i + n -> SplitAt (Arg ai $ j - n) lz $ dropFrom i n ts
+      | j < i      -> SplitAt x lz $ dropFrom i n ts
       | otherwise  -> __IMPOSSIBLE__
 
 instance DropFrom (c, SplitTree' c) where
@@ -553,7 +562,7 @@ translateRecordPatterns clause = do
         ]
 
   reportSDoc "tc.lhs.recpat" 10 $
-    escapeContext (size $ clauseTel clause) $ vcat
+    unsafeEscapeContext (size $ clauseTel clause) $ vcat
       [ "Translated clause:"
       , nest 2 $ vcat
         [ "delta =" <+> prettyTCM (clauseTel c)
@@ -702,7 +711,7 @@ removeTree tree = do
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
   -- Andreas, 2015-05-28 only translate implicit record patterns
-  | Just PatOSystem <- conPRecord ci = do
+  | conPRecord ci , PatOSystem <- patOrigin (conPInfo ci) = do
       r <- recordTree p
       case r of
         Left  r -> r
@@ -742,7 +751,7 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 -- Andreas, 2015-05-28 only translate implicit record patterns
-recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
+recordTree p@(ConP c ci ps) | conPRecord ci , PatOSystem <- patOrigin (conPInfo ci) = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
@@ -761,7 +770,7 @@ recordTree p@(ConP c ci ps) | Just PatOSystem <- conPRecord ci = do
       -- The content of an @Arg@ might not be reduced (if @Arg@ is @Irrelevant@).
       fields <- getRecordTypeFields =<< reduce (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
-      let proj p = (`applyE` [Proj ProjSystem $ unArg p])
+      let proj p = (`applyE` [Proj ProjSystem $ unDom p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@DefP{} = return $ Left $ translatePattern p

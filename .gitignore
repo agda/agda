@@ -4,6 +4,7 @@
 .*.vim
 .cabal-sandbox/
 .stack-work/
+.stack-work-quick/
 .DS_Store
 .sw[a-p]
 *.agdai
@@ -39,6 +40,7 @@ src/full/Agda/Syntax/Parser/Parser.hs
 src/full/tags
 src/full/TAGS
 stack.yaml
+stack.yaml.lock
 test/**/MAlonzo
 test/compiler/Main
 test/hello

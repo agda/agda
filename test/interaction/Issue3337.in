@@ -1,0 +1,3 @@
+top_command (cmd_load currentFile [])
+top_command (cmd_compute_toplevel DefaultCompute "p")
+top_command (cmd_compute_toplevel DefaultCompute "test")

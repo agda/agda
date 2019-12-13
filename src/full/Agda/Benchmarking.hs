@@ -11,7 +11,7 @@ import Data.IORef
 import System.IO.Unsafe
 
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B

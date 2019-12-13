@@ -5,13 +5,11 @@
 
 module Agda.Compiler.MAlonzo.Pretty where
 
-import Data.Generics.Geniplate
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Text.PrettyPrint (empty)
 
 import Agda.Compiler.MAlonzo.Encode
 import Agda.Utils.Pretty
-import Agda.Utils.Impossible
 
 
 prettyPrint :: Pretty a => a -> String

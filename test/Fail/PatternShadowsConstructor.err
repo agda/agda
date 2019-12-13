@@ -1,3 +1,4 @@
 PatternShadowsConstructor.agda:14,6-7
 The pattern variable x has the same name as the constructor A.x
-when checking the clause f (c x) = x
+when checking the clause left hand side
+f (c x)

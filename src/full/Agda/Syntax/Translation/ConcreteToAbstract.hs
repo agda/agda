@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -26,10 +27,11 @@ import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
-import Data.List ((\\), nub, foldl')
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
@@ -51,20 +53,18 @@ import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
-import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 
 import Agda.TypeChecking.Monad.Base hiding (ModuleInfo, MetaInfo)
-import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern, getCurrentPath)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, builtinKindOfName)
 
@@ -72,14 +72,13 @@ import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 import Agda.TypeChecking.Warnings
 
-import Agda.Interaction.FindFile (checkModuleName, rootNameModule)
+import Agda.Interaction.FindFile (checkModuleName, rootNameModule, SourceFile(SourceFile))
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -89,10 +88,10 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -119,9 +118,9 @@ notAValidLetBinding d = typeError $ NotAValidLetBinding d
 {--------------------------------------------------------------------------
     Helpers
  --------------------------------------------------------------------------}
-
-annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
-annotateDecl m = annotateDecls $ (:[]) <$> m
+--UNUSED Liang-Ting Chen 2019-07-16
+--annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
+--annotateDecl m = annotateDecls $ (:[]) <$> m
 
 annotateDecls :: ScopeM [A.Declaration] -> ScopeM A.Declaration
 annotateDecls m = do
@@ -154,10 +153,10 @@ noDotorEqPattern err = dot
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
-
--- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
-noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
-noDotPattern err = traverse $ const $ genericError err
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
+--noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
+--noDotPattern err = traverse $ const $ genericError err
 
 newtype RecordConstructorType = RecordConstructorType [C.Declaration]
 
@@ -191,25 +190,25 @@ recordConstructorType decls =
           mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
-        C.NiceField r pr ab inst x a -> do
+        C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
-          let bv = unnamed (C.mkBoundName x fx) <$ a
+          let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
           tel <- toAbstract $ C.TBind r [bv] (unArg a)
           return tel
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
         C.NiceOpen r m dir -> do
-          mkLet $ C.NiceOpen r m dir{ publicOpen = False }
+          mkLet $ C.NiceOpen r m dir{ publicOpen = Nothing }
         C.NiceModuleMacro r p x modapp open dir -> do
-          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = False }
+          mkLet $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = Nothing }
 
         -- Do some rudimentary matching here to get NotValidBeforeField instead
         -- of NotAValidLetDecl.
-        C.NiceMutual _ _ _
-          [ C.FunSig _ _ _ _instanc macro _info _ _ _
-          , C.FunDef _ _ abstract _ _ _
-             [ C.Clause _top _catchall (C.LHS _p [] []) (C.RHS _rhs) NoWhere [] ]
+        C.NiceMutual _ _ _ _
+          [ C.FunSig _ _ _ _ macro _ _ _ _ _
+          , C.FunDef _ _ abstract _ _ _ _
+             [ C.Clause _ _ (C.LHS _p [] [] NoEllipsis) (C.RHS _) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -253,13 +252,9 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     -- Scope check the old module name and the module args.
     m1    <- toAbstract $ OldModuleName m
     args' <- toAbstractCtx (ArgumentCtx PreferParen) args
-    -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
-    -- isn't properly in the record module, so copying it will lead to badness.
-    let noRecConstr | null args = id
-                    | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
     (adir, s) <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
-    (s', copyInfo) <- copyScope m m0 (noRecConstr s)
+    (s', copyInfo) <- copyScope m m0 s
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
@@ -278,7 +273,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
-    (s', copyInfo) <- copyScope recN m0 (removeOnlyQualified s)
+    (s', copyInfo) <- copyScope recN m0 s
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
@@ -308,7 +303,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
       ]
-    notPublicWithoutOpen open dir
+    dir <- notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
     reportSDoc "scope.decl" 90 $ "NewModuleName: m0 =" <+> prettyA m0
@@ -320,7 +315,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     -- "public" is always applied to the "open".
     let (moduleDir, openDir) = case (open, isNoName x) of
           (DoOpen,   False) -> (defaultImportDir, dir)
-          (DoOpen,   True)  -> ( dir { publicOpen = False }
+          (DoOpen,   True)  -> ( dir { publicOpen = Nothing }
                                , defaultImportDir { publicOpen = publicOpen dir }
                                )
           (DontOpen, _)     -> (dir, defaultImportDir)
@@ -373,10 +368,12 @@ checkModuleMacro apply kind r p x modapp open dir = do
 
 -- | The @public@ keyword must only be used together with @open@.
 
-notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM ()
-notPublicWithoutOpen DoOpen   dir = return ()
-notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ genericError
-    "The public keyword must only be used together with the open keyword"
+notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM C.ImportDirective
+notPublicWithoutOpen DoOpen   dir = return dir
+notPublicWithoutOpen DontOpen dir = do
+  whenJust (publicOpen dir) $ \ r ->
+    setCurrentRange r $ warning UselessPublic
+  return $ dir { publicOpen = Nothing }
 
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
@@ -401,9 +398,9 @@ checkOpen r mam x dir = do
       , text $ "  C.ImportDirective      = " ++ prettyShow dir
       ]
   -- Andreas, 2017-01-01, issue #2377: warn about useless `public`
-  when (publicOpen dir) $ do
+  whenJust (publicOpen dir) $ \ r -> do
     whenM ((A.noModuleName ==) <$> getCurrentModule) $ do
-      warning $ UselessPublic
+      setCurrentRange r $ warning UselessPublic
 
   m <- caseMaybe mam (toAbstract (OldModuleName x)) return
   printScope "open" 20 $ "opening " ++ prettyShow x
@@ -443,22 +440,24 @@ toAbstractCtx :: ToAbstract concrete abstract =>
                  Precedence -> concrete -> ScopeM abstract
 toAbstractCtx ctx c = withContextPrecedence ctx $ toAbstract c
 
-toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
-toAbstractTopCtx = toAbstractCtx TopCtx
+--UNUSED Liang-Ting Chen 2019-07-16
+--toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
+--toAbstractTopCtx = toAbstractCtx TopCtx
 
 toAbstractHiding :: (LensHiding h, ToAbstract c a) => h -> c -> ScopeM a
 toAbstractHiding h | visible h = toAbstract -- don't change precedence if visible
 toAbstractHiding _             = toAbstractCtx TopCtx
 
-setContextCPS :: Precedence -> (a -> ScopeM b) ->
-                 ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
-setContextCPS p ret f = do
-  old <- useScope scopePrecedence
-  withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
-
-localToAbstractCtx :: ToAbstract concrete abstract =>
-                     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
-localToAbstractCtx ctx c ret = setContextCPS ctx ret (localToAbstract c)
+--UNUSED Liang-Ting Chen 2019-07-16
+--setContextCPS :: Precedence -> (a -> ScopeM b) ->
+--                 ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
+--setContextCPS p ret f = do
+--  old <- useScope scopePrecedence
+--  withContextPrecedence p $ f $ \ x -> setContextPrecedence old >> ret x
+--
+--localToAbstractCtx :: ToAbstract concrete abstract =>
+--                     Precedence -> concrete -> (abstract -> ScopeM a) -> ScopeM a
+--localToAbstractCtx ctx c ret = setContextCPS ctx ret (localToAbstract c)
 
 -- | This operation does not affect the scope, i.e. the original scope
 --   is restored upon completion.
@@ -471,6 +470,9 @@ localToAbstract' :: ToAbstract c a => c -> (a -> ScopeM b) -> ScopeM (b, ScopeIn
 localToAbstract' x ret = do
   scope <- getScope
   withScope scope $ ret =<< toAbstract x
+
+instance ToAbstract () () where
+  toAbstract = pure
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) => ToAbstract (c1,c2) (a1,a2) where
   toAbstract (x,y) = (,) <$> toAbstract x <*> toAbstract y
@@ -494,13 +496,20 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 data NewName a = NewName
-  { newBinder   :: Binder -- what kind of binder?
+  { newBinder   :: A.BindingSource -- what kind of binder?
   , newName     :: a
-  }
+  } deriving (Functor)
 
-data OldQName     = OldQName C.QName (Maybe (Set A.Name))
-  -- ^ If a set is given, then the first name must correspond to one
-  -- of the names in the set.
+data OldQName = OldQName
+  C.QName              -- ^ Concrete name to be resolved
+  (Maybe (Set A.Name)) -- ^ If a set is given, then the first name must
+                       --   correspond to one of the names in the set.
+
+-- | We sometimes do not want to fail hard if the name is not actually
+--   in scope because we have a strategy to recover from this problem
+--   (e.g. drop the offending COMPILE pragma)
+data MaybeOldQName = MaybeOldQName OldQName
+
 newtype OldName a = OldName a
 
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
@@ -517,17 +526,21 @@ instance ToAbstract (NewName C.Name) A.Name where
     return y
 
 instance ToAbstract (NewName C.BoundName) A.BindName where
-  toAbstract (NewName b BName{ boundName = x, bnameFixity = fx }) = do
+  toAbstract NewName{ newBinder = b, newName = BName{ boundName = x, bnameFixity = fx }} = do
     y <- freshAbstractName fx x
     bindVariable b x y
     return $ A.BindName y
 
 instance ToAbstract OldQName A.Expr where
-  toAbstract (OldQName x ns) = do
+  toAbstract q@(OldQName x _) =
+    fromMaybeM (notInScopeError x) $ toAbstract (MaybeOldQName q)
+
+instance ToAbstract MaybeOldQName (Maybe A.Expr) where
+  toAbstract (MaybeOldQName (OldQName x ns)) = do
     qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
-      VarName x' _         -> return $ A.Var x'
+      VarName x' _         -> return $ Just $ A.Var x'
       DefinedName _ d      -> do
         -- In case we find a defined name, we start by checking whether there's
         -- a warning attached to it
@@ -548,31 +561,31 @@ instance ToAbstract OldQName A.Expr where
               text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
           _ -> return ()
         -- and then we return the name
-        return $ nameToExpr d
-      FieldName     ds     -> return $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
-      ConstructorName ds   -> return $ A.Con $ AmbQ (fmap anameName ds)
-      UnknownName          -> notInScope x
-      PatternSynResName ds -> return $ A.PatternSyn $ AmbQ (fmap anameName ds)
+        return $ Just $ nameToExpr d
+      FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
+      ConstructorName ds   -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
+      UnknownName          -> pure Nothing
+      PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
-    UnknownName -> notInScope x
+    UnknownName -> notInScopeError x
     q -> return q
 
 data APatName = VarPatName A.Name
-              | ConPatName (NonemptyList AbstractName)
-              | PatternSynPatName (NonemptyList AbstractName)
+              | ConPatName (NonEmpty AbstractName)
+              | PatternSynPatName (NonEmpty AbstractName)
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
-    rx <- resolveName' [ConName, PatternSynName] ns x
+    rx <- resolveName' (someKindsOfNames [ConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
     case (rx, x) of
       (VarName y _,     C.QName x)                          -> bindPatVar x
       (FieldName d,     C.QName x)                          -> bindPatVar x
-      (DefinedName _ d, C.QName x) | DefName == anameKind d -> bindPatVar x
+      (DefinedName _ d, C.QName x) | isDefName (anameKind d)-> bindPatVar x
       (UnknownName,     C.QName x)                          -> bindPatVar x
       (ConstructorName ds, _)                               -> patCon ds
       (PatternSynResName d, _)                              -> patSyn d
@@ -610,11 +623,11 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
     case rx of
       DefinedName _ d      -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName ds   -> return $ anameName (headNe ds)   -- We'll throw out this one, so it doesn't matter which one we pick
-      FieldName ds         -> return $ anameName (headNe ds)
-      PatternSynResName ds -> return $ anameName (headNe ds)
+      ConstructorName ds   -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds         -> return $ anameName (NonEmpty.head ds)
+      PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
-      UnknownName          -> notInScope (toQName x)
+      UnknownName          -> notInScopeError (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -625,7 +638,7 @@ freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
 
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
-  ms <- scopeLookup (C.QName x) <$> getScope
+  ms :: [AbstractModule] <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
     reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ prettyShow ms
     reportSLn "scope.clash" 60 $ "clashing modules ms = " ++ show ms
@@ -657,22 +670,22 @@ instance ToAbstract OldModuleName A.ModuleName where
     amodName <$> resolveModule q
 
 -- Expressions ------------------------------------------------------------
-
--- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
-mkNamedArg :: C.Expr -> NamedArg C.Expr
-mkNamedArg (C.HiddenArg   _ e) = Arg (hide         defaultArgInfo) e
-mkNamedArg (C.InstanceArg _ e) = Arg (makeInstance defaultArgInfo) e
-mkNamedArg e                   = Arg defaultArgInfo $ unnamed e
+--UNUSED Liang-Ting Chen 2019-07-16
+---- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
+--mkNamedArg :: C.Expr -> NamedArg C.Expr
+--mkNamedArg (C.HiddenArg   _ e) = Arg (hide         defaultArgInfo) e
+--mkNamedArg (C.InstanceArg _ e) = Arg (makeInstance defaultArgInfo) e
+--mkNamedArg e                   = Arg defaultArgInfo $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg' :: ArgInfo -> C.Expr -> Arg C.Expr
 mkArg' info (C.HiddenArg   _ e) = Arg (hide         info) $ namedThing e
 mkArg' info (C.InstanceArg _ e) = Arg (makeInstance info) $ namedThing e
 mkArg' info e                   = Arg (setHiding NotHidden info) e
-
--- | By default, arguments are @Relevant@.
-mkArg :: C.Expr -> Arg C.Expr
-mkArg e = mkArg' defaultArgInfo e
+--UNUSED Liang-Ting 2019-07-16
+---- | By default, arguments are @Relevant@.
+--mkArg :: C.Expr -> Arg C.Expr
+--mkArg e = mkArg' defaultArgInfo e
 
 inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
@@ -703,7 +716,10 @@ toAbstractDot prec e = do
 toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
 toAbstractLam r bs e ctx = do
   -- Translate the binders
+  lvars0 <- getLocalVars
   localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \ bs -> do
+    lvars1 <- getLocalVars
+    checkNoShadowing lvars0 lvars1
     -- Translate the body
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
@@ -719,17 +735,19 @@ scopeCheckExtendedLam r cs = do
     genericError "Extended lambdas are not allowed in dot patterns"
 
   -- Find an unused name for the extended lambda definition.
-  cname <- nextlamname r 0 extendedLambdaName
+  cname <- freshConcreteName r 0 extendedLambdaName
   name  <- freshAbstractName_ cname
-  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ prettyShow name
+  a <- asksTC (^. lensIsAbstract)
+  reportSDoc "scope.extendedLambda" 10 $ vcat
+    [ text $ "new extended lambda name (" ++ show a ++ "): " ++ prettyShow name
+    ]
   verboseS "scope.extendedLambda" 60 $ do
     forM_ cs $ \ c -> do
       reportSLn "scope.extendedLambda" 60 $ "extended lambda lhs: " ++ show (C.lamLHS c)
   qname <- qualifyName_ name
-  bindName (PrivateAccess Inserted) DefName cname qname
+  bindName (PrivateAccess Inserted) FunName cname qname
 
   -- Compose a function definition and scope check it.
-  a <- aModeToDef <$> asksTC envAbstractMode
   let
     insertApp :: C.Pattern -> ScopeM C.Pattern
     insertApp (C.RawAppP r es) = return $ C.RawAppP r $ IdentP (C.QName cname) : es
@@ -758,7 +776,10 @@ scopeCheckExtendedLam r cs = do
     --       _ -> __IMPOSSIBLE__
     --   __IMPOSSIBLE__
 
-  d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ cname <$> do
+  -- Andreas, 2019-08-20
+  -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
+  -- for testing issue #4016.
+  d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
           forM cs $ \ (LamClause lhs rhs wh ca) -> do -- wh == NoWhere, see parser for more info
             lhs' <- mapLhsOriginalPatternM insertApp lhs
             return $ C.Clause cname ca lhs' rhs wh []
@@ -771,15 +792,7 @@ scopeCheckExtendedLam r cs = do
       return $ A.ExtendedLam (ExprRange r) di qname' cs
     _ -> __IMPOSSIBLE__
 
-  where
-    -- Get a concrete name that is not yet in scope.
-    nextlamname :: Range -> Int -> String -> ScopeM C.Name
-    nextlamname r i s = do
-      let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-      rn <- resolveName $ C.QName cname
-      case rn of
-        UnknownName -> return cname
-        _           -> nextlamname r (i+1) s
+-- | Scope check an expression.
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -877,11 +890,14 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.Fun (ExprRange r) e1 e2
 
   -- Dependent function type
-      e0@(C.Pi tel e) ->
+      e0@(C.Pi tel e) -> do
+        lvars0 <- getLocalVars
         localToAbstract tel $ \tel -> do
-        e    <- toAbstractCtx TopCtx e
-        let info = ExprRange (getRange e0)
-        return $ A.Pi info tel e
+          lvars1 <- getLocalVars
+          checkNoShadowing lvars0 lvars1
+          e <- toAbstractCtx TopCtx e
+          let info = ExprRange (getRange e0)
+          return $ A.Pi info tel e
 
   -- Sorts
       C.Set _    -> return $ A.Set (ExprRange $ getRange e) 0
@@ -934,20 +950,15 @@ instance ToAbstract C.Expr A.Expr where
       C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
 
   -- Quoting
-      C.QuoteGoal _ x e -> do
-        x' <- toAbstract (NewName LetBound x)
-        e' <- toAbstract e
-        return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
-      C.QuoteContext r -> return $ A.QuoteContext (ExprRange r)
       C.Quote r -> return $ A.Quote (ExprRange r)
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
-      C.Tactic r e es -> do
+      C.Tactic r e -> do
         let AppView e' args = appView e
-        e' : es <- toAbstract (e' : es)
-        args    <- toAbstract args
-        return $ A.Tactic (ExprRange r) e' args (map defaultNamedArg es)
+        e'   <- toAbstract e'
+        args <- toAbstract args
+        return $ A.Tactic (ExprRange r) e' args
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
@@ -972,10 +983,29 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
   toAbstract = traverse toAbstract
 
+instance ToAbstract (C.Binder' (NewName C.BoundName)) A.Binder where
+  toAbstract (C.Binder p n) = do
+    let name = C.boundName $ newName n
+    -- If we do have a pattern then the variable needs to be inserted
+    -- so we do need a proper internal name for it.
+    n <- if not (isNoName name && isJust p) then pure n else do
+           n' <- freshConcreteName (getRange $ newName n) 0 patternInTeleName
+           pure $ fmap (\ n -> n { C.boundName = n' }) n
+    n <- toAbstract n
+    -- Actually parsing the pattern, checking it is linear,
+    -- and bind its variables
+    p <- traverse parsePattern p
+    p <- toAbstract p
+    checkPatternLinearity p $ \ys ->
+      typeError $ RepeatedVariablesInPattern ys
+    bindVarsToBind
+    p <- toAbstract p
+    pure $ A.Binder p n
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree x)  = do
-    tac <- traverse toAbstract $ bnameTactic $ namedArg x
-    A.DomainFree tac <$> toAbstract ((fmap . fmap) (NewName LambdaBound) x)
+    tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
+    A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
   toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
@@ -986,10 +1016,13 @@ makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    tac <- traverse toAbstract $ case mapMaybe (bnameTactic . namedArg) xs of
-              []      -> Nothing
-              tac : _ -> Just tac -- Invariant: all tactics are the same (distributed in the parser, TODO: don't)
-    xs' <- toAbstract $ (map . fmap . fmap) (NewName LambdaBound) xs
+    tac <- traverse toAbstract $
+             case mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+               []      -> Nothing
+               tac : _ -> Just tac
+               -- Invariant: all tactics are the same
+               -- (distributed in the parser, TODO: don't)
+    xs' <- toAbstract $ map (updateNamedArg (fmap $ NewName LambdaBound)) xs
     return $ A.TBind r tac xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1040,7 +1073,7 @@ scopeCheckNiceModule r p name tel checkDs
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
         openModule TopOpenModule (Just aname) (C.QName name) $
-          defaultImportDir { publicOpen = p == PublicAccess }
+          defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) noRange }
       return ds
 
 -- | Check whether a telescope has open declarations or module macros.
@@ -1079,22 +1112,20 @@ telHasLetStms = any isLetBind
 class EnsureNoLetStms a where
   ensureNoLetStms :: a -> ScopeM ()
 
-{- From ghc 7.2, there is LANGUAGE DefaultSignatures
-  default ensureNoLetStms :: Foldable t => t a -> ScopeM ()
+  default ensureNoLetStms :: (Foldable t, EnsureNoLetStms b, t b ~ a) => a -> ScopeM ()
   ensureNoLetStms = traverse_ ensureNoLetStms
--}
+
+instance EnsureNoLetStms C.Binder where
+  ensureNoLetStms arg@(C.Binder p n) =
+    when (isJust p) $ typeError $ IllegalPatternInTelescope arg
 
 instance EnsureNoLetStms C.TypedBinding where
-  ensureNoLetStms tb =
-    case tb of
-      C.TLet{}  -> typeError $ IllegalLetInTelescope tb
-      C.TBind{} -> return ()
+  ensureNoLetStms = \case
+    tb@C.TLet{}    -> typeError $ IllegalLetInTelescope tb
+    C.TBind _ xs _ -> traverse_ (ensureNoLetStms . namedArg) xs
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
-  ensureNoLetStms = traverse_ ensureNoLetStms
-
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
-  ensureNoLetStms = traverse_ ensureNoLetStms
 
 
 -- | Returns the scope inside the checked module.
@@ -1205,7 +1236,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                 -- We need to check the module name against the file name here.
                 -- Otherwise one could sneak in a lie and confuse the scope
                 -- checker.
-                  checkModuleName (C.toTopLevelModuleName m0) file $ Just expectedMName
+                  checkModuleName (C.toTopLevelModuleName m0) (SourceFile file) $ Just expectedMName
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
@@ -1213,7 +1244,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          let scope = mapScopeInfo (restrictLocalPrivate am) insideScope
+          let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           setScope scope
           return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
 
@@ -1235,7 +1266,9 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
   isBuiltin <- Lens.isBuiltinModule . filePath =<< getCurrentPath
   let warns = if isSafe && not isBuiltin then warns' else filter notOnlyInSafeMode warns'
 
-  unless (null warns) $ do
+  -- Respect the @DoWarn@ directive. For this to be sound, we need to know for
+  -- sure that each @Declaration@ is checked at least once with @DoWarn@.
+  unless (warn == NoWarn || null warns) $ do
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
     when isSafe $ do
@@ -1260,38 +1293,72 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
 
 instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
   toAbstract ds = do
-    -- When --safe is active the termination checker (Issue 586) and
-    -- positivity checker (Issue 1614) may not be switched off, and
-    -- polarities may not be assigned.
-    ds <- ifM (Lens.getSafeMode <$> commandLineOptions)
-              (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity >=> noNoUniverseCheck) ds)
-              (return ds)
+    -- When --safe is active the termination checker (Issue 586),
+    -- positivity checker (Issue 1614) and the coverage checker
+    -- may not be switched off, and polarities may not be assigned.
+    ds <- ifM (Lens.getSafeMode <$> pragmaOptions)
+               {- then -} (mapM noUnsafePragma ds)
+               {- else -} (return ds)
+
     niceDecls DoWarn ds toAbstract
    where
-    -- ASR (31 December 2015). We don't pattern-match on
-    -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
-    -- was removed. See Issue 1763.
-    noNoTermCheck :: C.Declaration -> TCM C.Declaration
-    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNonTerminating)
-    noNoTermCheck d@(C.Pragma (C.TerminationCheckPragma r Terminating)) =
-      d <$ (setCurrentRange d $ warning SafeFlagTerminating)
-    noNoTermCheck d = return d
 
-    noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
-    noNoPositivityCheck d@(C.Pragma (C.NoPositivityCheckPragma _)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNoPositivityCheck)
-    noNoPositivityCheck d = return d
+     -- We need to dig deep into a declaration, otherwise it is possible
+     -- to hide an illegal pragma in a block. Cf. Issue #3983
+     noUnsafePragma :: C.Declaration -> TCM C.Declaration
+     noUnsafePragma = \case
+       C.Pragma pr                         -> warnUnsafePragma pr
+       C.RecordDef r n ind eta ins lams ds -> C.RecordDef r n ind eta ins lams <$> mapM noUnsafePragma ds
+       C.Record r n ind eta ins lams e ds  -> C.Record r n ind eta ins lams e <$> mapM noUnsafePragma ds
+       C.Mutual r ds                       -> C.Mutual r <$> mapM noUnsafePragma ds
+       C.Abstract r ds                     -> C.Abstract r <$> mapM noUnsafePragma ds
+       C.Private r o ds                    -> C.Private r o <$> mapM noUnsafePragma ds
+       C.InstanceB r ds                    -> C.InstanceB r <$> mapM noUnsafePragma ds
+       C.Macro r ds                        -> C.Macro r <$> mapM noUnsafePragma ds
+       d -> pure d
 
-    noPolarity :: C.Declaration -> TCM C.Declaration
-    noPolarity d@(C.Pragma C.PolarityPragma{}) =
-      d <$ (setCurrentRange d $ warning SafeFlagPolarity)
-    noPolarity d                               = return d
+     warnUnsafePragma :: C.Pragma -> TCM C.Declaration
+     warnUnsafePragma pr = C.Pragma pr <$ do
+       ifM (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)
+         {- then -} (pure ())
+         {- else -} $ case unsafePragma pr of
+         Nothing -> pure ()
+         Just w  -> setCurrentRange pr $ warning w
 
-    noNoUniverseCheck :: C.Declaration -> TCM C.Declaration
-    noNoUniverseCheck d@(C.Pragma (C.NoUniverseCheckPragma _)) =
-      d <$ (setCurrentRange d $ warning SafeFlagNoUniverseCheck)
-    noNoUniverseCheck d = return d
+     unsafePragma :: C.Pragma -> Maybe Warning
+     unsafePragma = \case
+       C.NoCoverageCheckPragma{}    -> Just SafeFlagNoCoverageCheck
+       C.NoPositivityCheckPragma{}  -> Just SafeFlagNoPositivityCheck
+       C.PolarityPragma{}           -> Just SafeFlagPolarity
+       C.NoUniverseCheckPragma{}    -> Just SafeFlagNoUniverseCheck
+       C.InjectivePragma{}          -> Just SafeFlagInjective
+       C.TerminationCheckPragma _ m -> case m of
+         NonTerminating       -> Just SafeFlagNonTerminating
+         Terminating          -> Just SafeFlagTerminating
+         TerminationCheck     -> Nothing
+         TerminationMeasure{} -> Nothing
+         -- ASR (31 December 2015). We don't pattern-match on
+         -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
+         -- was removed. See Issue #1763.
+         NoTerminationCheck -> Nothing
+       -- exhaustive match to get told by ghc we should have a look at this
+       -- when we add new pragmas.
+       C.OptionsPragma{}    -> Nothing
+       C.BuiltinPragma{}    -> Nothing
+       C.ForeignPragma{}    -> Nothing
+       C.StaticPragma{}     -> Nothing
+       C.InlinePragma{}     -> Nothing
+       C.ImpossiblePragma{} -> Nothing
+       C.EtaPragma{}        -> Nothing
+       C.WarningOnUsage{}   -> Nothing
+       C.WarningOnImport{}  -> Nothing
+       C.DisplayPragma{}    -> Nothing
+       C.CatchallPragma{}   -> Nothing
+       -- @RewritePragma@ already requires --rewriting which is incompatible with --safe
+       C.RewritePragma{}    -> Nothing
+       -- @CompilePragma@ already handled in the nicifier
+       C.CompilePragma{}    -> Nothing
+
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
@@ -1303,7 +1370,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ d@[C.FunSig _ _ _ instanc macro info _ x t, C.FunDef _ _ abstract _ _ _ [cl]] ->
+      NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
               when (macro == MacroDef) $ do
@@ -1327,7 +1394,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] []) (C.RHS rhs) NoWhere ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere ca) -> do
         mp  <- setCurrentRange p $
                  (Right <$> parsePattern p)
                    `catchError`
@@ -1345,9 +1412,9 @@ instance ToAbstract LetDef [A.LetBinding] where
           Left err ->
             case definedName p of
               Nothing -> throwError err
-              Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
-                , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__
+              Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
+                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x (C.Underscore (getRange x) Nothing)
+                , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
@@ -1366,14 +1433,14 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
               definedName C.WithP{}              = Nothing
-              definedName C.RawAppP{}            = __IMPOSSIBLE__
+              definedName (C.RawAppP _ [])       = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
-              definedName C.EllipsisP{}          = __IMPOSSIBLE__
+              definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
-        when (publicOpen dirs) $ warning UselessPublic
+        whenJust (publicOpen dirs) $ \r -> setCurrentRange r $ warning UselessPublic
         m    <- toAbstract (OldModuleName x)
         adir <- openModule_ LetOpenModule x dirs
         let minfo = ModuleInfo
@@ -1386,14 +1453,14 @@ instance ToAbstract LetDef [A.LetBinding] where
         return [A.LetOpen minfo m adir]
 
       NiceModuleMacro r p x modapp open dir -> do
-        when (publicOpen dir) $ warning UselessPublic
+        whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere []) = do
 {-
             p    <- parseLHS top p
             localToAbstract (snd $ lhsArgs p) $ \args ->
@@ -1415,26 +1482,31 @@ instance ToAbstract LetDef [A.LetBinding] where
 
         -- Named patterns not allowed in let definitions
         lambda e (Arg info (Named Nothing (A.VarP x))) =
-                return $ A.Lam i (A.mkDomainFree $ unnamedArg info x) e
+                return $ A.Lam i (A.mkDomainFree $ unnamedArg info $ A.mkBinder x) e
             where i = ExprRange (fuseRange x e)
         lambda e (Arg info (Named Nothing (A.WildP i))) =
             do  x <- freshNoName (getRange i)
-                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBindName x) e
+                return $ A.Lam i' (A.mkDomainFree $ unnamedArg info $ A.mkBinder_ x) e
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
-newtype Blind a = Blind { unBlind :: a }
-
-instance ToAbstract (Blind a) (Blind a) where
-  toAbstract = return
+--UNUSED Liang-Ting Chen 2019-07-16
+--newtype Blind a = Blind { unBlind :: a }
+--
+--instance ToAbstract (Blind a) (Blind a) where
+--  toAbstract = return
 
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
-    traceSLn "scope.decl.trace" 50 (unlines
+    traceS "scope.decl.trace" 50
       [ "scope checking declaration"
       , "  " ++  prettyShow d
-      ]) $
+      ] $
+    traceS "scope.decl.trace" 80  -- keep this debug message for testing issue #4016
+      [ "scope checking declaration (raw)"
+      , "  " ++  show d
+      ] $
     traceCall (ScopeCheckDeclaration d) $
     -- Andreas, 2015-10-05, Issue 1677:
     -- We record in the environment whether we are scope checking an
@@ -1453,18 +1525,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- check the postulate
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
-    C.NiceGeneralize r p i x t -> do
+    C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t_ <- toAbstractCtx TopCtx t
       let (s, t) = unGeneralized t_
       reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      return [A.Generalize s (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r) i y t]
+      let info = (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r)
+                  { defTactic = tac }
+      return [A.Generalize s info i y t]
 
   -- Fields
-    C.NiceField r p a i x t -> do
+    C.NiceField r p a i tac x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1472,6 +1547,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- all question marks to underscores.  (See issue 1138.)
       let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
           maskIP e                     = e
+      tac <- traverse (toAbstractCtx TopCtx) tac
       t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
@@ -1483,54 +1559,56 @@ instance ToAbstract NiceDeclaration A.Declaration where
       --   -- Andreas, 2010-09-24: irrelevant fields are not in scope
       --   -- this ensures that projections out of irrelevant fields cannot occur
       --   -- Ulf: unless you turn on --irrelevant-projections
-      do
-        bindName p FldName x y
-      return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
+      bindName p FldName x y
+      let info = (mkDefInfoInstance x f p a i NotMacroDef r) { defTactic = tac }
+      return [ A.Field info y t' ]
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
       t' <- toAbstractCtx TopCtx t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
-      bindName p DefName x y
+      bindName p PrimName x y
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r termCheck pc ds -> do
+    NiceMutual r tc cc pc ds -> do
       ds' <- toAbstract ds
       -- We only termination check blocks that do not have a measure.
-      return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
+      return [ A.Mutual (MutualInfo tc cc pc r) ds' ]
 
     C.NiceRecSig r p a _pc _uc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
-        -- Minor hack: record types don't have indices so we include t when
-        -- computing generalised parameters, but in the type checker any named
-        -- generalizable arguments in the sort should be bound variables.
-        (ls', _) <- toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        t'  <- toAbstract t
-        f   <- getConcreteFixity x
-        x'  <- freshAbstractQName f x
-        bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+        (ls', _) <- withCheckNoShadowing $
+          -- Minor hack: record types don't have indices so we include t when
+          -- computing generalised parameters, but in the type checker any named
+          -- generalizable arguments in the sort should be bound variables.
+          toAbstract (GenTelAndType (map makeDomainFull ls) t)
+        t' <- toAbstract t
+        f  <- getConcreteFixity x
+        x' <- freshAbstractQName f x
+        bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r p a _pc _uc x ls t -> withLocalVars $ do
+    C.NiceDataSig r p a _pc _uc x ls t -> do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
-          ls' <- toAbstract $ GenTel $ map makeDomainFull ls
+          ls' <- withCheckNoShadowing $
+            toAbstract $ GenTel $ map makeDomainFull ls
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
-          bindName' p DefName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          bindName' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
-    C.FunSig r p a i m rel tc x t ->
+    C.FunSig r p a i m rel _ _ x t ->
         toAbstractNiceAxiom A.FunSig m (C.Axiom r p a i rel x t)
 
   -- Function definitions
-    C.FunDef r ds a i tc x cs -> do
+    C.FunDef r ds a i _ _ x cs -> do
         printLocals 10 $ "checking def " ++ prettyShow x
         (x',cs) <- toAbstract (OldName x,cs)
         -- Andreas, 2017-12-04 the name must reside in the current module
@@ -1542,17 +1620,19 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return [ A.FunDef (mkDefInfoInstance x f PublicAccess a i NotMacroDef r) x' delayed cs ]
 
   -- Uncategorized function clauses
-    C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls ca) ->
+    C.NiceFunClause _ _ _ _ _ _ (C.FunClause lhs _ _ _) ->
       genericError $
         "Missing type signature for left hand side " ++ prettyShow lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.NiceDataDef r o a _ uc x pars cons -> withLocalVars $ do
+    C.NiceDataDef r o a _ uc x pars cons -> do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
           DefinedName p ax -> do
+            clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+            clashIfModuleAlreadyDefinedInCurrentModule x ax
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
@@ -1560,9 +1640,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
           gvars <- bindGeneralizablesIfInserted o ax
           -- Check for duplicate constructors
           do cs <- mapM conName cons
-             let dups = nub $ cs \\ nub cs
-                 bad  = filter (`elem` dups) cs
-             unless (distinct cs) $
+             unlessNull (duplicates cs) $ \ dups -> do
+               let bad = filter (`elem` dups) cs
                setCurrentRange bad $
                  typeError $ DuplicateConstructors dups
 
@@ -1573,7 +1652,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           let m = mnameFromList $ qnameToList x'
           createModule (Just IsData) m
           bindModule p x m  -- make it a proper module
-          cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
+          cons <- toAbstract (map (ConstrDecl m a p) cons)
           printScope "data" 20 $ "Checked data " ++ prettyShow x
           f <- getConcreteFixity x
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
@@ -1586,7 +1665,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
+          clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
+          clashIfModuleAlreadyDefinedInCurrentModule x ax
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
@@ -1611,16 +1692,20 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return afields
         -- Andreas, 2017-07-13 issue #2642 disallow duplicate fields
         -- Check for duplicate fields. (See "Check for duplicate constructors")
-        do let fs = forMaybe fields $ \case
-                 C.Field _ f _ -> Just f
+        do let fs :: [C.Name]
+               fs = concat $ forMaybe fields $ \case
+                 C.Field _ fs -> Just $ fs <&> \case
+                   -- a Field block only contains field signatures
+                   C.FieldSig _ _ f _ -> f
+                   _ -> __IMPOSSIBLE__
                  _ -> Nothing
-           let dups = nub $ fs \\ nub fs
-               bad  = filter (`elem` dups) fs
-           unless (distinct fs) $
+           unlessNull (duplicates fs) $ \ dups -> do
+             let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups
         bindModule p x m
-        cm' <- mapM (\(c, _) -> bindConstructorName m c a p YesRec) cm
+        -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
+        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c a p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
@@ -1664,7 +1749,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return $ map (A.Pragma r) ps
 
     NiceImport r x as open dir -> setCurrentRange r $ do
-      notPublicWithoutOpen open dir
+      dir <- notPublicWithoutOpen open dir
 
       -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
       let illformedAs s = traceCall (SetRange $ getRange as) $ do
@@ -1749,24 +1834,24 @@ instance ToAbstract NiceDeclaration A.Declaration where
             }
       return [ A.Import minfo m adir ]
 
-    NiceUnquoteDecl r p a i tc xs e -> do
+    NiceUnquoteDecl r p a i tc cc xs e -> do
       fxs <- mapM getConcreteFixity xs
       ys <- zipWithM freshAbstractQName fxs xs
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
-      let mi = MutualInfo tc True r
+      zipWithM_ (rebindName p OtherDefName) xs ys
+      let mi = MutualInfo tc cc YesPositivityCheck r
       return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
-    NiceUnquoteDef r p a tc xs e -> do
+    NiceUnquoteDef r p a _ _ xs e -> do
       fxs <- mapM getConcreteFixity xs
       ys <- mapM (toAbstract . OldName) xs
       zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
-      zipWithM_ (rebindName p DefName) xs ys
+      zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternSyn r n as p -> do
+    NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
@@ -1776,13 +1861,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          p <- noDotorEqPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
            typeError . GenericDocError =<< do
              "Unbound variables in pattern synonym: " <+>
                sep (map prettyA xs)
          return (as, p)
       y <- freshAbstractQName' n
-      bindName PublicAccess PatternSynName n y
+      bindName a PatternSynName n y
       -- Expanding pattern synonyms already at definition makes it easier to
       -- fold them back when printing (issue #2762).
       ep <- expandPatternSynonyms p
@@ -1799,7 +1884,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
         let kind | isMacro == MacroDef = MacroName
-                 | otherwise           = DefName
+                 | otherwise           = OtherDefName  -- could be a type signature
         bindName p kind x y
         return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
@@ -1832,10 +1917,13 @@ createBoundNamesForGeneralizables vs =
 
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
+  fvBefore <- length <$> getLocalVars
   (s, res) <- collectGeneralizables m
+  fvAfter  <- length <$> getLocalVars
   -- We should bind the named generalizable variables as fresh variables
   binds <- createBoundNamesForGeneralizables s
-  bindGeneralizables binds
+  -- Issue #3735: We need to bind the generalizable variables outside any variables bound by `m`.
+  outsideLocalVars (fvAfter - fvBefore) $ bindGeneralizables binds
   return (binds, res)
 
 bindGeneralizables :: Map A.QName A.Name -> ScopeM ()
@@ -1877,19 +1965,41 @@ instance LivesInCurrentModule AbstractName where
 instance LivesInCurrentModule A.QName where
   livesInCurrentModule x = do
     m <- getCurrentModule
-    reportSLn "scope.data.def" 30 $ unlines
+    reportS "scope.data.def" 30
       [ "  A.QName of data type: " ++ show x
       , "  current module: " ++ show m
       ]
     unless (A.qnameModule x == m) $
       genericError $ "Definition in different module than its type signature"
 
-data IsRecordCon = YesRec | NoRec
-data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
+-- | Unless the resolved 'AbstractName' has the given 'KindOfName',
+--   report a 'ClashingDefinition' for the 'C.Name'.
+clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
+clashUnless x k ax = unless (anameKind ax == k) $
+  typeError $ ClashingDefinition (C.QName x) (anameName ax)
 
-bindConstructorName :: ModuleName -> C.Name -> IsAbstract ->
-                       Access -> IsRecordCon -> ScopeM A.QName
-bindConstructorName m x a p record = do
+-- | If a (data/record) module with the given name is already present in the current module,
+--   we take this as evidence that a data/record with that name is already defined.
+clashIfModuleAlreadyDefinedInCurrentModule :: C.Name -> AbstractName -> ScopeM ()
+clashIfModuleAlreadyDefinedInCurrentModule x ax = do
+  datRecMods <- catMaybes <$> do
+    mapM (isDatatypeModule . amodName) =<< lookupModuleInCurrentModule x
+  unlessNull datRecMods $ const $
+    typeError $ ClashingDefinition (C.QName x) (anameName ax)
+
+lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
+lookupModuleInCurrentModule x =
+  fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
+
+data ConstrDecl = ConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
+
+bindConstructorName
+  :: ModuleName      -- ^ Name of @data@/@record@ module.
+  -> C.Name          -- ^ Constructor name.
+  -> IsAbstract
+  -> Access
+  -> ScopeM A.QName
+bindConstructorName m x a p = do
   f <- getConcreteFixity x
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x
@@ -1903,13 +2013,26 @@ bindConstructorName m x a p record = do
     p' = case a of
            AbstractDef -> PrivateAccess Inserted
            _           -> p
-    p'' = case (a, record) of
-            (AbstractDef, _) -> PrivateAccess Inserted
-            (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
-            _                -> PublicAccess
+    p'' = case a of
+            AbstractDef -> PrivateAccess Inserted
+            _           -> PublicAccess
+
+-- | Record constructors do not live in the record module (as it is parameterized).
+--   Abstract constructors are bound privately, so that they are not exported.
+bindRecordConstructorName :: C.Name -> IsAbstract -> Access -> ScopeM A.QName
+bindRecordConstructorName x a p = do
+  y <- freshAbstractQName' x
+  bindName p' ConName x y
+  return y
+  where
+    -- An abstract constructor is private (abstract constructor means
+    -- abstract datatype, so the constructor should not be exported).
+    p' = case a of
+           AbstractDef -> PrivateAccess Inserted
+           _           -> p
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl record m a p d) = do
+  toAbstract (ConstrDecl m a p d) = do
     case d of
       C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
@@ -1918,7 +2041,7 @@ instance ToAbstract ConstrDecl A.Declaration where
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
-        y <- bindConstructorName m x a p record
+        y <- bindConstructorName m x a p
         printScope "con" 15 "bound constructor"
         return $ A.Axiom NoFunSig (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
@@ -1933,22 +2056,25 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ xs) = concat <$> do
+  toAbstract (C.RewritePragma _ xs) = singleton . A.RewritePragma . concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
-      A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj _ p | Just x <- getUnambiguous p -> return [ A.RewritePragma x ]
+      A.Def x          -> return [ x ]
+      A.Proj _ p | Just x <- getUnambiguous p -> return [ x ]
       A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
-      A.Con c | Just x <- getUnambiguous c -> return [ A.RewritePragma x ]
+      A.Con c | Just x <- getUnambiguous c -> return [ x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
   toAbstract (C.CompilePragma _ b x s) = do
-    e <- toAbstract $ OldQName x Nothing
-    let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
-    y <- case e of
+    me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
+    case me of
+      Nothing -> [] <$ notInScopeWarning x
+      Just e  -> do
+        let err what = genericError $ "Cannot COMPILE " ++ what ++ " " ++ prettyShow x
+        y <- case e of
           A.Def x             -> return x
           A.Proj _ p | Just x <- getUnambiguous p -> return x
           A.Proj _ x          -> err "ambiguous projection"
@@ -1957,7 +2083,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
           _                   -> __IMPOSSIBLE__
-    return [ A.CompilePragma b y s ]
+        return [ A.CompilePragma b y s ]
 
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2006,7 +2132,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
             modifyCurrentScope $ removeNameFromScope PublicNS x
           -- We then happily bind the name
           y <- freshAbstractQName' x
-          kind <- fromMaybe __IMPOSSIBLE__ <$> builtinKindOfName b
+          let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
           bindName PublicAccess kind x y
           return [ A.BuiltinNoDefPragma b y ]
         _ -> genericError $
@@ -2036,15 +2162,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case qx of
         VarName x' _                -> return . (False,) $ A.qnameFromList [x']
         DefinedName _ d             -> return . (False,) $ anameName d
-        FieldName     (d :! [])     -> return . (False,) $ anameName d
+        FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName (d :! [])   -> return . (False,) $ anameName d
+        ConstructorName (d :| [])   -> return . (False,) $ anameName d
         ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        UnknownName                 -> notInScope top
-        PatternSynResName (d :! []) -> return . (True,) $ anameName d
+        UnknownName                 -> notInScopeError top
+        PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs
+    lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
@@ -2073,30 +2199,31 @@ instance ToAbstract C.Pragma [A.Pragma] where
     stWarningOnImport `setTCLens` Just str
     pure []
 
-  -- Termination checking pragmes are handled by the nicifier
-  toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
-
-  toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
-
-  -- No positivity checking pragmas are handled by the nicifier.
+  -- Termination, Coverage, Positivity, Universe, and Catchall
+  -- pragmes are handled by the nicifier
+  toAbstract C.TerminationCheckPragma{}  = __IMPOSSIBLE__
+  toAbstract C.NoCoverageCheckPragma{}   = __IMPOSSIBLE__
   toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
+  toAbstract C.NoUniverseCheckPragma{}   = __IMPOSSIBLE__
+  toAbstract C.CatchallPragma{}          = __IMPOSSIBLE__
 
   -- Polarity pragmas are handled by the niceifier.
   toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
-  -- No universe checking pragmas are handled by the niceifier.
-  toAbstract C.NoUniverseCheckPragma{} = __IMPOSSIBLE__
-
 instance ToAbstract C.Clause A.Clause where
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with ell) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
-    vars <- getLocalVars
-    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
+    vars0 <- getLocalVars
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p ell
     printLocals 10 "after lhs:"
+    vars1 <- getLocalVars
+    eqs <- mapM (toAbstractCtx TopCtx) eqs
+    vars2 <- getLocalVars
+    let vars = dropEnd (length vars1) vars2 ++ vars0
+    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
           -- Andreas, 2016-07-17 issues #2081 and #2101
@@ -2160,23 +2287,29 @@ whereToAbstract r whname whds inner = do
   when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule TopOpenModule (Just am) (C.QName m) $
-      defaultImportDir { publicOpen = True }
+      defaultImportDir { publicOpen = Just noRange }
   return (x, A.WhereDecls (am <$ whname) ds)
 
 data RightHandSide = RightHandSide
-  { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
-  , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
-  , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
-  , rhs           :: C.RHS
-  , rhsWhereName  :: Maybe (C.Name, Access)  -- ^ The name of the @where@ module (if any).
-  , rhsWhereDecls :: [C.Declaration]         -- ^ The contents of the @where@ module.
+  { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]
+    -- ^ @rewrite e | with p <- e@ (many)
+  , _rhsWithExpr   :: [WithHiding C.WithExpr]
+    -- ^ @with e@ (many)
+  , _rhsSubclauses :: [ScopeM C.Clause]
+    -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  , _rhs           :: C.RHS
+  , _rhsWhereName  :: Maybe (C.Name, Access)
+    -- ^ The name of the @where@ module (if any).
+  , _rhsWhereDecls :: [C.Declaration]
+    -- ^ The contents of the @where@ module.
   }
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
+  | WithRHS' [WithHiding A.Expr] [ScopeM C.Clause]
+    -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2188,20 +2321,47 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
+instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) A.RewriteEqn where
+  toAbstract = \case
+    Rewrite es -> fmap Rewrite $ forM es $ \ (_, e) -> do
+      qn <- withFunctionName "-rewrite"
+      pure (qn, e)
+    Invert _ pes -> do
+      qn <- withFunctionName "-invert"
+      pure $ Invert qn pes
+
+instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
+  toAbstract = \case
+    Rewrite es   -> Rewrite <$> mapM toAbstract es
+    Invert _ pes -> Invert () <$> do
+      let (ps, es) = unzip pes
+      -- first check the expressions: the patterns may shadow some of the variables
+      -- mentioned in them!
+      es <- toAbstract es
+      -- then parse the patterns and go through the motions of converting them,
+      -- checking them for linearity, binding the variable introduced in them
+      -- and finally producing an abstract pattern.
+      ps <- forM ps $ \ p -> do
+        p <- parsePattern p
+        p <- toAbstract p
+        checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
+        bindVarsToBind
+        toAbstract p
+      pure $ zip ps es
+
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
   toAbstract (RHS' e c)            = return $ A.RHS e $ Just c
   toAbstract (RewriteRHS' eqs rhs wh) = do
-    auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
-    rhs  <- toAbstract rhs
-    return $ RewriteRHS (zip auxs eqs) [] rhs wh
+    eqs <- toAbstract eqs
+    rhs <- toAbstract rhs
+    return $ RewriteRHS eqs [] rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    eqs <- toAbstractCtx TopCtx eqs
     (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
                   toAbstract (RightHandSide [] es cs rhs Nothing [])
     return $ RewriteRHS' eqs rhs ds
@@ -2220,10 +2380,10 @@ instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern
+data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
 
 instance ToAbstract LeftHandSide A.LHS where
-    toAbstract (LeftHandSide top lhs) =
+    toAbstract (LeftHandSide top lhs ell) =
       traceCall (ScopeCheckLHS top lhs) $ do
         lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
@@ -2241,7 +2401,7 @@ instance ToAbstract LeftHandSide A.LHS where
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange lhs) lhscore
+        return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
 -- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
 mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]
@@ -2268,7 +2428,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         qx <- resolveName d
         ds <- case qx of
                 FieldName ds -> return $ fmap anameName ds
-                UnknownName -> notInScope d
+                UnknownName -> notInScopeError d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ prettyShow d ++ " isn't one"
@@ -2483,7 +2643,7 @@ toAbstractOpApp op ns es = do
     op <- toAbstract (OldQName op (Just ns))
     es <- left (notaFixity nota) nonBindingParts es
     -- Prepend the generated section binders (if any).
-    let body = foldl' app op es
+    let body = List.foldl' app op es
     return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
@@ -2545,7 +2705,7 @@ toAbstractOpApp op ns es = do
         x <- freshName noRange "section"
         let i = setOrigin Inserted $ argInfo a
         (ls, ns) <- replacePlaceholders as
-        return ( A.mkDomainFree (unnamedArg i $ A.mkBindName x) : ls
+        return ( A.mkDomainFree (unnamedArg i $ A.mkBinder_ x) : ls
                , set (Left (Var x)) a : ns
                )
       where
@@ -2560,4 +2720,6 @@ toAbstractOpApp op ns es = do
 -- | Content of interaction hole.
 
 instance ToAbstract C.HoleContent A.HoleContent where
-  toAbstract = mapM toAbstract
+  toAbstract = \case
+    HoleContentExpr e     -> HoleContentExpr <$> toAbstract e
+    HoleContentRewrite es -> HoleContentRewrite <$> toAbstract es

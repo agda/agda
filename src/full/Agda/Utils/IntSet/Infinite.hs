@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- |  Possibly infinite sets of integers (but with finitely many consecutive
 --    segments). Used for checking guard coverage in int/nat cases in the
 --    treeless compiler.
@@ -8,9 +9,10 @@ module Agda.Utils.IntSet.Infinite
   , invariant )
   where
 
-import Control.Arrow (first, second)
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (All(..))
-import Data.List
+#endif
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -39,7 +41,7 @@ instance Eq IntSet where
 below' :: Integer -> IntSet -> IntSet
 below' _  All = All
 below' lo r@(Some xs)
-  | elem lo xs = below' (lo + 1) r
+  | lo `Set.member` xs = below' (lo + 1) r
   | otherwise  = Below lo $ Some $ Set.filter (>= lo) xs
 below' lo r0@(Below lo' r)
   | lo' >= lo = r0
@@ -51,7 +53,7 @@ below' lo (Above hi r)
 above' :: Integer -> IntSet -> IntSet
 above' _  All = All
 above' hi r@(Some xs)
-  | elem (hi - 1) xs = above' (hi - 1) r
+  | (hi - 1) `Set.member` xs = above' (hi - 1) r
   | otherwise        = Above hi $ Some $ Set.filter (< hi) xs
 above' hi r0@(Above hi' r)
   | hi' <= hi = r0
@@ -65,10 +67,10 @@ some' xs r | null xs = r
 some' xs (Some ys) = Some (Set.union xs ys)
 some' _  All = All
 some' xs (Below lo r)
-  | elem lo xs = some' xs (Below (lo + 1) r)
+  | lo `Set.member` xs = some' xs (Below (lo + 1) r)
   | otherwise  = below' lo $ some' (Set.filter (>= lo) xs) r
 some' xs (Above hi r)
-  | elem (hi - 1) xs = some' xs (Above (hi - 1) r)
+  | (hi - 1) `Set.member` xs = some' xs (Above (hi - 1) r)
   | otherwise        = above' hi $ some' (Set.filter (< hi) xs) r
 
 difference :: IntSet -> IntSet -> IntSet

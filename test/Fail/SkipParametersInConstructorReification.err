@@ -1,4 +1,4 @@
 SkipParametersInConstructorReification.agda:19,8-12
-Bool !=< P {Bool} (c {_} {false}) of type Set
+Bool !=< P {Bool} (c {_} {false})
 when checking that the expression true has type
 P {Bool} (c {_} {false})

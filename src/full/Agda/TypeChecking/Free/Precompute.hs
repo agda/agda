@@ -11,8 +11,7 @@ import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Utils.Functor
-import Agda.Utils.Impossible
+
 
 
 type FV = Writer IntSet
@@ -81,17 +80,16 @@ instance PrecomputeFreeVars Sort where
       Prop a     -> Prop <$> precomputeFreeVars a
       Inf        -> pure s
       SizeUniv   -> pure s
-      PiSort s1 s2 -> uncurry PiSort <$> precomputeFreeVars (s1, s2)
+      PiSort a s -> uncurry PiSort <$> precomputeFreeVars (a, s)
       UnivSort s -> UnivSort <$> precomputeFreeVars s
       MetaS x es -> MetaS x <$> precomputeFreeVars es
       DefS d es  -> DefS d <$> precomputeFreeVars es
       DummyS{}   -> pure s
 
 instance PrecomputeFreeVars Level where
-  precomputeFreeVars (Max ls) = Max <$> precomputeFreeVars ls
+  precomputeFreeVars (Max n ls) = Max n <$> precomputeFreeVars ls
 
 instance PrecomputeFreeVars PlusLevel where
-  precomputeFreeVars l@ClosedLevel{} = pure l
   precomputeFreeVars (Plus n l) = Plus n <$> precomputeFreeVars l
 
 instance PrecomputeFreeVars LevelAtom where

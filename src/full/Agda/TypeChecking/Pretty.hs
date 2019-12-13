@@ -8,12 +8,10 @@ module Agda.TypeChecking.Pretty
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
@@ -28,7 +26,6 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
-import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
@@ -206,7 +203,7 @@ instance PrettyTCM Clause where
     prettyTCM (QNamed x cl)
 
 instance PrettyTCM a => PrettyTCM (Judgement a) where
-  prettyTCM (HasType a t) = prettyTCM a <+> ":" <+> prettyTCM t
+  prettyTCM (HasType a cmp t) = prettyTCM a <+> ":" <+> prettyTCM t
   prettyTCM (IsSort  a t) = "Sort" <+> prettyTCM a <+> ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
@@ -253,15 +250,10 @@ instance PrettyTCM A.TypedBinding where
   prettyTCM = prettyA
 
 instance PrettyTCM Relevance where
-  prettyTCM Irrelevant = "."
-  prettyTCM NonStrict  = ".."
-  prettyTCM Relevant   = empty
+  prettyTCM = pretty
 
 instance PrettyTCM Quantity where
-  prettyTCM = \case
-    Quantity0 -> "@0"
-    Quantity1 -> "@1"
-    Quantityω -> empty
+  prettyTCM = pretty
 
 instance PrettyTCM Modality where
   prettyTCM mod = hsep
@@ -270,23 +262,24 @@ instance PrettyTCM Modality where
     ]
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids c)
-    | Set.null pids = prettyTCM c
-    | otherwise     = prettyList (map prettyTCM $ Set.toList pids) <+> prettyTCM c
+  prettyTCM (PConstr pids c) = prettyTCM c <?> prPids (Set.toList pids)
+    where
+      prPids []    = empty
+      prPids [pid] = parens $ "problem" <+> prettyTCM pid
+      prPids pids  = parens $ "problems" <+> fsep (punctuate "," $ map prettyTCM pids)
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-        ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (":" <+> prettyTCMCtx TopCtx ty)
+        ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
             <?> (":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
-        TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        Guarded c pid            -> prettyTCM c <?> (brackets $ "blocked on problem" <+> prettyTCM pid)
+        Guarded c pid            -> prettyTCM c <?> (parens $ "blocked by problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m
@@ -303,7 +296,7 @@ instance PrettyTCM Constraint where
               -- Thus, this case is not IMPOSSIBLE.
               --
               -- InstV args t -> do
-              --   reportSLn "impossible" 10 $ unlines
+              --   reportS "impossible" 10
               --     [ "UnBlock meta " ++ show m ++ " surprisingly has InstV instantiation:"
               --     , show m ++ show args ++ " := " ++ show t
               --     ]
@@ -341,6 +334,11 @@ instance PrettyTCM Constraint where
         UnquoteTactic _ v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
+        CheckMetaInst x -> do
+          m <- lookupMeta x
+          case mvJudgement m of
+            HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
+            IsSort{} -> prettyTCM x <+> "is a sort"
 
       where
         prettyCmp
@@ -348,6 +346,10 @@ instance PrettyTCM Constraint where
           => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
+instance PrettyTCM CompareAs where
+  prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
+  prettyTCM AsSizes       = ":" <+> do prettyTCM =<< sizeType
+  prettyTCM AsTypes       = empty
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =
@@ -412,7 +414,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
-        b = maybe False (/= PatOCon) $ conPRecord i
+        b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
         showRec :: MonadPretty m => m Doc
         showRec = sep
           [ "record"
@@ -424,7 +426,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         showCon :: MonadPretty m => m Doc
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
-  prettyTCM (LitP l)      = text (P.prettyShow l)
+  prettyTCM (LitP _ l)    = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 
 -- | Proper pretty printing of patterns:
@@ -449,13 +451,20 @@ instance PrettyTCM NLPat where
   prettyTCM (PPi a b)   = parens $
     text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
     (addContext (absName b) $ prettyTCM $ unAbs b)
+  prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType PTerm{} a) = prettyTCM a
-  prettyTCM (NLPType l       a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
+  prettyTCM (NLPType s a) = prettyTCM a
+
+instance PrettyTCM NLPSort where
+  prettyTCM = \case
+    PType l   -> parens $ "Set" <+> prettyTCM l
+    PProp l   -> parens $ "Prop" <+> prettyTCM l
+    PInf      -> prettyTCM (Inf :: Sort)
+    PSizeUniv -> prettyTCM (SizeUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

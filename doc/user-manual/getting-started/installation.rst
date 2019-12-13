@@ -76,7 +76,7 @@ However, due to significant packaging bugs [such as this](https://bugs.archlinux
 Debian / Ubuntu
 ---------------
 
-Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karmic onwards. To install:
+Prebuilt packages are available for Debian and Ubuntu from Karmic onwards. To install:
 
 .. code-block:: bash
 
@@ -84,7 +84,7 @@ Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karm
 
 This should install Agda and the Emacs mode.
 
-The standard library is available in Debian testing/unstable and Ubuntu from Lucid onwards. To install:
+The standard library is available in Debian and Ubuntu from Lucid onwards. To install:
 
 .. code-block:: bash
 
@@ -186,7 +186,7 @@ Installation of the Development Version
 =======================================
 
 After getting the development version following the instructions in
-the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 
 * Install the :ref:`prerequisites <prerequisites>`
 

@@ -4,13 +4,11 @@ module Agda.TypeChecking.Injectivity where
 import Prelude hiding (mapM)
 
 import Control.Applicative
-import Control.Arrow (first, second)
 import Control.Monad.Fail
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
 import Control.Monad.Trans.Maybe
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -22,21 +20,19 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -75,7 +71,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
-    Con c _ _ -> Just . ConsHead <$> canonicalName (conName c)
+    -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
+    Con c _ _ -> ignoreAbstractMode $ Just . ConsHead <$> canonicalName (conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
@@ -149,8 +146,12 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
       varToArg _ h           = return h
 
   -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> addContext (clauseTel c) (headSymbol body))
+  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
+          varToArg c =<< do
+            lift $ fromMaybe UnknownHead <$> do
+              addContext (clauseTel c) $
+                headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
@@ -240,7 +241,7 @@ data InvView = Inv QName [Elim] (InversionMap Clause)
 
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Type -> Term -> Term -> m ()
+useInjectivity :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -257,7 +258,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, ":", prettyTCM ty ]
+        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
           allUnique       = all isUnique hdMap
           isUnique [_] = True
@@ -300,7 +301,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
             where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
     fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
-    success blk' = app (compareTerm cmp ty) blk' neu
+    success blk' = app (compareAs cmp ty) blk' neu
 
     (cmp, app) = case dir of
       DirEq -> (CmpEq, id)
@@ -399,7 +400,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     metaPat (IApplyP{})      = nextMeta
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
     metaPat (DefP o q args)  = Def q . map Apply <$> metaArgs args
-    metaPat (LitP l)         = return $ Lit l
+    metaPat (LitP _ l)       = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__
 
 forcePiUsingInjectivity :: Type -> TCM Type

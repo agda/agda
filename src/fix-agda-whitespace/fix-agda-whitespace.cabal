@@ -7,12 +7,13 @@ tested-with:     GHC == 8.0.2
                  GHC == 8.2.2
                  GHC == 8.4.4
                  GHC == 8.6.5
+                 GHC == 8.8.1
 
 executable fix-agda-whitespace
   hs-source-dirs:   .
   main-is:          FixWhitespace.hs
 
-  build-depends:  base >= 4.9.0.0 && < 4.13
+  build-depends:  base >= 4.9.0.0 && < 4.14
                 , directory >= 1.2.6.2 && < 1.4
                 , filemanip >= 0.3.6.2 && < 0.4
                 , filepath >= 1.4.1.0 && < 1.5

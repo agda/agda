@@ -16,6 +16,11 @@ data ⊥ : Set where
 elim : (i : Size) → R i → ⊥
 elim i (c j r) = elim j r
 
+-- UPDATE:
+-- elim should be accepted. We don't do record pattern translation
+-- for recursive records.
+
+-- BEFORE:
 -- elim should be rejected by termination checker.
 
 -- Being accepted, its is translated into
@@ -31,4 +36,3 @@ R.j inh = ∞
 R.r inh = inh
 
 -- inh should also be rejected
-

@@ -2,5 +2,5 @@ Issue1371.agda:32,1-9
 "other" ≡ "other" should be empty, but the following constructor
 patterns are valid:
   refl
-when checking that the clause Issue1371.with-28 () has type
-"other" ≡ "other" → ⊥
+when checking the clause left hand side
+Issue1371.with-28 ()

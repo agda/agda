@@ -9,6 +9,7 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   ) where
 
 import Control.Monad (zipWithM)
+import Control.Monad.Fail (MonadFail)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
 
@@ -26,7 +27,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.MAlonzo.Misc
-import Agda.Compiler.MAlonzo.Pretty
+import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.Except
@@ -129,7 +130,7 @@ getHsType x = do
     Just HsData{}      -> namedType
     _                  -> throwError $ NoPragmaFor x
 
-getHsVar :: MonadTCM tcm => Nat -> tcm HS.Name
+getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i = HS.Ident . encodeName <$> nameOfBV i
   where
     encodeName x = "x" ++ concatMap encode (prettyShow x)
@@ -178,8 +179,8 @@ haskellType q = do
   def <- getConstInfo q
   let (np, erased) =
         case theDef def of
-          Constructor{ conPars = np, conErased = erased }
-            -> (np, erased ++ repeat False)
+          Constructor{ conPars, conErased }
+            -> (conPars, fromMaybe [] conErased ++ repeat False)
           _ -> (0, repeat False)
       stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
       stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t

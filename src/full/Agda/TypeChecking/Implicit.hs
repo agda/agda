@@ -17,12 +17,11 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Tuple
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
+import Agda.Utils.Tuple
 
-import Agda.Utils.Impossible
-
--- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
+-- | @implicitArgs n expand t@ generates up to @n@ implicit argument
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 
@@ -51,8 +50,8 @@ implicitNamedArgs n expand t0 = do
     reportSDoc "tc.term.args" 30 $ "implicitNamedArgs" <+> prettyTCM t0'
     reportSDoc "tc.term.args" 80 $ "implicitNamedArgs" <+> text (show t0')
     case unEl t0' of
-      Pi Dom{domInfo = info, domName = name, domTactic = tac, unDom = a} b
-        | let x = maybe "_" rangedThing name, expand (getHiding info) x -> do
+      Pi dom@Dom{domInfo = info, domTactic = tac, unDom = a} b
+        | let x = bareNameWithDefault "_" dom, expand (getHiding info) x -> do
           info' <- if hidden info then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
               "inserting instance meta for type" <+> prettyTCM a
@@ -62,9 +61,9 @@ implicitNamedArgs n expand t0 = do
               ]
 
             return $ makeInstance info
-          (_, v) <- newMetaArg info' x a
+          (_, v) <- newMetaArg info' x CmpLeq a
           whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
-          let narg = Arg info (Named (Just $ unranged x) v)
+          let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
@@ -72,34 +71,38 @@ implicitNamedArgs n expand t0 = do
 
 newMetaArg
   :: MonadMetaSolver m
-  => ArgInfo   -- ^ Kind/relevance of meta.
-  -> ArgName   -- ^ Name suggestion for meta.
-  -> Type      -- ^ Type of meta.
+  => ArgInfo    -- ^ Kind/relevance of meta.
+  -> ArgName    -- ^ Name suggestion for meta.
+  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
+  -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
-newMetaArg info x a = do
-  applyModalityToContext info $
+newMetaArg info x cmp a = do
+  prp <- isPropM a
+  let irrelevantIfProp = if prp then applyRelevanceToContext Irrelevant else id
+  applyModalityToContext info $ irrelevantIfProp $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)
-    newMeta Instance{} = newInstanceMeta
-    newMeta Hidden     = newNamedValueMeta RunMetaOccursCheck
-    newMeta NotHidden  = newNamedValueMeta RunMetaOccursCheck
+    newMeta Instance{} n = newInstanceMeta n
+    newMeta Hidden     n = newNamedValueMeta RunMetaOccursCheck n cmp
+    newMeta NotHidden  n = newNamedValueMeta RunMetaOccursCheck n cmp
 
 -- | Create a questionmark according to the 'Hiding' info.
 
 newInteractionMetaArg
-  :: ArgInfo   -- ^ Kind/relevance of meta.
-  -> ArgName   -- ^ Name suggestion for meta.
-  -> Type      -- ^ Type of meta.
+  :: ArgInfo    -- ^ Kind/relevance of meta.
+  -> ArgName    -- ^ Name suggestion for meta.
+  -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
+  -> Type       -- ^ Type of meta.
   -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
-newInteractionMetaArg info x a = do
+newInteractionMetaArg info x cmp a = do
   applyModalityToContext info $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Instance{} = newInstanceMeta
-    newMeta Hidden     = newNamedValueMeta' RunMetaOccursCheck
-    newMeta NotHidden  = newNamedValueMeta' RunMetaOccursCheck
+    newMeta Instance{} n = newInstanceMeta n
+    newMeta Hidden     n = newNamedValueMeta' RunMetaOccursCheck n cmp
+    newMeta NotHidden  n = newNamedValueMeta' RunMetaOccursCheck n cmp
 
 ---------------------------------------------------------------------------
 
@@ -122,10 +125,9 @@ insertImplicit
   :: NamedArg e  -- ^ Next given argument @a@.
   -> [Dom a]     -- ^ Expected arguments @ts@.
   -> ImplicitInsertion
-insertImplicit a doms = insertImplicit' a $ map name doms
-  where
-    name dom = x <$ dom
-      where x = maybe "_" rangedThing $ domName dom
+insertImplicit a doms = insertImplicit' a $
+  for doms $ \ dom ->
+    dom $> bareNameWithDefault "_" dom
 
 -- | If the next given argument is @a@ and the expected arguments are @ts@
 --   @insertImplicit' a ts@ returns the prefix of @ts@ that precedes @a@.
@@ -144,7 +146,7 @@ insertImplicit' a ts
 
   -- If @a@ is named, take prefix of @ts@ until the name of @a@ (with correct hiding).
   -- If the name is not found, throw exception 'NoSuchName'.
-  | Just x <- rangedThing <$> nameOf (unArg a) = maybe (NoSuchName x) ImpInsert $
+  | Just x <- bareNameOf a = maybe (NoSuchName x) ImpInsert $
       takeHiddenUntil (\ t -> x == unDom t && sameHiding a t) ts
 
   -- If @a@ is neither visible nor named, take prefix of @ts@ with different hiding than @a@.

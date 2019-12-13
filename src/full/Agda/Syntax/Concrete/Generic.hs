@@ -6,9 +6,7 @@
 
 module Agda.Syntax.Concrete.Generic where
 
-import Data.Traversable
-import Data.Monoid
-import Data.Foldable
+import Data.Bifunctor
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
@@ -35,6 +33,9 @@ class ExprLike a where
 
 -- * Instances for things that do not contain expressions.
 
+instance ExprLike () where
+  mapExpr f = id
+
 instance ExprLike Name where
   mapExpr f = id
 
@@ -45,6 +46,11 @@ instance ExprLike Bool where
   mapExpr f = id
 
 -- * Instances for functors.
+
+instance ExprLike a => ExprLike (WithHiding a) where
+  mapExpr      = fmap     . mapExpr
+  traverseExpr = traverse . traverseExpr
+  foldExpr     = foldMap  . foldExpr
 
 instance ExprLike a => ExprLike (Named name a) where
   mapExpr      = fmap     . mapExpr
@@ -72,7 +78,7 @@ instance ExprLike a => ExprLike (MaybePlaceholder a) where
   foldExpr     = foldMap  . foldExpr
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
-  mapExpr f      = mapEither (mapExpr f) (mapExpr f)
+  mapExpr f      = bimap (mapExpr f) (mapExpr f)
   traverseExpr f = traverseEither (traverseExpr f) (traverseExpr f)
   foldExpr f     = either (foldExpr f) (foldExpr f)
 
@@ -139,9 +145,7 @@ instance ExprLike Expr where
      As r x e           -> f $ As r x                 $ mapE e
      Dot r e            -> f $ Dot r                  $ mapE e
      ETel tel           -> f $ ETel                   $ mapE tel
-     QuoteGoal r x e    -> f $ QuoteGoal r x          $ mapE e
-     QuoteContext r     -> f $ e0
-     Tactic r e es      -> f $ Tactic r     (mapE e)  $ mapE es
+     Tactic r e         -> f $ Tactic r     (mapE e)
      Quote{}            -> f $ e0
      QuoteTerm{}        -> f $ e0
      Unquote{}          -> f $ e0
@@ -175,8 +179,13 @@ instance ExprLike LamBinding where
 
 instance ExprLike LHS where
   mapExpr f e0 = case e0 of
-     LHS ps res wes -> LHS ps (mapE res) $ mapE wes
+     LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
    where mapE e = mapExpr f e
+
+instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
+  mapExpr f = \case
+    Rewrite es    -> Rewrite (mapExpr f es)
+    Invert qn pes -> Invert qn (map (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
   mapExpr f (LamClause lhs rhs wh ca) =
@@ -194,9 +203,10 @@ instance ExprLike ModuleApplication where
    where mapE e = mapExpr f e
 
 instance ExprLike Declaration where
-  mapExpr f e0 = case e0 of
-     TypeSig ai x e            -> TypeSig ai x                         $ mapE e
-     Field i x e               -> Field i x                            $ mapE e
+  mapExpr f = \case
+     TypeSig ai t x e          -> TypeSig ai (mapE t) x (mapE e)
+     FieldSig i t n e          -> FieldSig i (mapE t) n (mapE e)
+     Field r fs                -> Field r                              $ map (mapExpr f) fs
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e
      DataDef r ind n bs cs     -> DataDef r ind n (mapE bs)            $ mapE cs
@@ -204,9 +214,9 @@ instance ExprLike Declaration where
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
      RecordDef r n ind eta c tel ds -> RecordDef r n ind eta c (mapE tel) $ mapE ds
      Record r n ind eta c tel e ds  -> Record r n ind eta c (mapE tel) (mapE e) $ mapE ds
-     Infix{}                   -> e0
-     Syntax{}                  -> e0
-     PatternSyn{}              -> e0
+     e@Infix{}                 -> e
+     e@Syntax{}                -> e
+     e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
@@ -215,13 +225,13 @@ instance ExprLike Declaration where
      Postulate r ds            -> Postulate r                          $ mapE ds
      Primitive r ds            -> Primitive r                          $ mapE ds
      Generalize r ds           -> Generalize r                         $ mapE ds
-     Open{}                    -> e0
-     Import{}                  -> e0
+     e@Open{}                  -> e
+     e@Import{}                -> e
      ModuleMacro r n es op dir -> ModuleMacro r n (mapE es) op dir
      Module r n tel ds         -> Module r n (mapE tel)                $ mapE ds
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
-     Pragma{}                  -> e0
+     e@Pragma{}                -> e
    where mapE e = mapExpr f e
 
 {- Template

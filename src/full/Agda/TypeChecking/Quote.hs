@@ -3,40 +3,23 @@ module Agda.TypeChecking.Quote where
 
 import Control.Arrow ((&&&))
 import Control.Monad
-import Control.Monad.State (runState, get, put)
-import Control.Monad.Reader (asks)
-import Control.Monad.Writer (execWriterT, tell)
-import Control.Monad.Trans (lift)
 
-import Data.Char
 import Data.Maybe (fromMaybe)
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
-import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Impossible
-import Agda.Utils.Monad ( ifM )
-import Agda.Utils.Permutation ( Permutation(Perm), compactP, reverseP )
-import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.FileName
 import Agda.Utils.Size
 
@@ -140,9 +123,8 @@ quotingKit = do
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
       quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitNat noRange 0)
-      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitNat noRange n)
-      quoteSortLevelTerm l                     = set !@ quoteTerm (unlevelWithKit lkit l)
+      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat noRange n)
+      quoteSortLevelTerm l               = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t
@@ -170,7 +152,7 @@ quotingKit = do
       quotePat (VarP o x)        = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _ _)        = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
-      quotePat (LitP l)          = litP !@ quoteLit l
+      quotePat (LitP _ l)        = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
       quotePat (IApplyP o t u x) = pure unsupported
       quotePat DefP{}            = pure unsupported
@@ -190,7 +172,7 @@ quotingKit = do
       quoteList :: (a -> ReduceM Term) -> [a] -> ReduceM Term
       quoteList q xs = list (map q xs)
 
-      quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
+      quoteDom :: (a -> ReduceM Term) -> Dom a -> ReduceM Term
       quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
 
       quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
@@ -270,7 +252,7 @@ quotingKit = do
           Record{recConHead = c, recFields = fs} ->
             agdaDefinitionRecordDef
               !@! quoteName (conName c)
-              @@ quoteList (quoteArg (pure . quoteName)) fs
+              @@ quoteList (quoteDom (pure . quoteName)) fs
           Axiom{}       -> pure agdaDefinitionPostulate
           DataOrRecSig{} -> pure agdaDefinitionPostulate
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars

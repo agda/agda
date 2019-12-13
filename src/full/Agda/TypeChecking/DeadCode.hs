@@ -1,35 +1,24 @@
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
-import Control.Monad
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (foldMap, Foldable)
 import Data.Traversable (traverse)
+import qualified Data.HashMap.Strict as HMap
 
-import Agda.Syntax.Common
-import Agda.Syntax.Literal
-import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad
 
 import qualified Agda.Benchmarking as Bench
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Reduce
 
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
-
-import Agda.Utils.Impossible
 
 -- | Run before serialisation to remove any definitions that are not reachable
 --   from the public interface to the module.

@@ -67,15 +67,15 @@ module Agda.Syntax.Position
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding (empty)
-import Control.Monad
-import Control.Monad.Writer (runWriter, Writer, tell)
+import Control.Monad.Writer (runWriter, tell)
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -91,7 +91,6 @@ import GHC.Generics (Generic)
 import Agda.Utils.FileName
 import Agda.Utils.List
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
@@ -262,6 +261,9 @@ instance HasRange Interval where
 instance HasRange Range where
     getRange = id
 
+instance HasRange () where
+  getRange _ = noRange
+
 instance HasRange Bool where
     getRange _ = noRange
 
@@ -272,7 +274,7 @@ instance HasRange a => HasRange [a] where
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
-instance HasRange a => HasRange (NonemptyList a) where
+instance HasRange a => HasRange (NonEmpty a) where
     getRange = Fold.foldr fuseRange noRange
 
 -- | Precondition: The ranges of the tuple elements must point to the
@@ -306,8 +308,7 @@ instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f
     getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
 instance HasRange a => HasRange (Maybe a) where
-    getRange Nothing  = noRange
-    getRange (Just a) = getRange a
+    getRange = maybe noRange getRange
 
 instance (HasRange a, HasRange b) => HasRange (Either a b) where
     getRange = either getRange getRange
@@ -322,6 +323,9 @@ instance SetRange Range where
   setRange = const
 
 instance SetRange a => SetRange [a] where
+  setRange r = fmap $ setRange r
+
+instance SetRange a => SetRange (Maybe a) where
   setRange r = fmap $ setRange r
 
 -- | Killing the range of an object sets all range information to 'noRange'.
@@ -478,7 +482,7 @@ instance KillRange Integer where
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
   killRange = map killRange
 
-instance KillRange a => KillRange (NonemptyList a) where
+instance KillRange a => KillRange (NonEmpty a) where
   killRange = fmap killRange
 
 -- | Overlaps with @KillRange [a]@.
@@ -503,6 +507,9 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
   killRange (x, y, z, u) = killRange4 (,,,) x y z u
 
 instance KillRange a => KillRange (Maybe a) where
+  killRange = fmap killRange
+
+instance KillRange a => KillRange (Strict.Maybe a) where
   killRange = fmap killRange
 
 instance (KillRange a, KillRange b) => KillRange (Either a b) where

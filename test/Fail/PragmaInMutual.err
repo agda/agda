@@ -1,3 +1,3 @@
 PragmaInMutual.agda:11,3-30
 BUILTIN pragmas in mutual blocks are not supported. Suggestion: get
-rid of mutual block by manually ordering declarations
+rid of the mutual block by manually ordering declarations

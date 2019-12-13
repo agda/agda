@@ -9,10 +9,15 @@ PROFVERB=7
 # Various paths and commands
 
 TOP=.
+
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-CABAL_CMD=cabal
+include ./mk/cabal.mk
+
+# mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
+include ./mk/pretty.mk
+STACK_CMD=stack
 
 # Run in interactive and parallel mode by default
 
@@ -45,13 +50,20 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
+CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
+STACK_BUILD = $(STACK_CMD) build Agda --no-haddock
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
 # https://github.com/haskell/cabal/issues/1893).
 
-QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
+QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+
+QUICK_STACK_BUILD_WORK_DIR = .stack-work-quick
+QUICK_STACK_BUILD = $(STACK_BUILD) \
+                    --ghc-options=-O0 \
+                    --work-dir=$(QUICK_STACK_BUILD_WORK_DIR)
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
@@ -60,13 +72,19 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-CABAL_INSTALL_OPTS = -fenable-cluster-counting $(CABAL_OPTS)
+CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options="+RTS -M3G -RTS" $(CABAL_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
+
+STACK_INSTALL_OPTS     = --flag Agda:enable-cluster-counting $(STACK_OPTS)
+STACK_INSTALL_BIN_OPTS = --test \
+                         --no-run-tests \
+                         --no-library-profiling \
+                         $(STACK_INSTALL_OPTS)
 
 # Ensures that the Git hash that is sometimes displayed by --version
 # is correct (#2988).
@@ -78,44 +96,43 @@ ensure-hash-is-correct :
 quick-install-bin : ensure-hash-is-correct
 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
+.PHONY : quicker-stack-install-bin
+quicker-stack-install-bin: ensure-hash-is-correct
+	$(QUICK_STACK_BUILD) $(STACK_INSTALL_BIN_OPTS)
+
+.PHONY : quicker-stack-copy-artefacts
+quicker-stack-copy-artefacts : quicker-stack-install-bin
+	mkdir -p $(QUICK_BUILD_DIR)/build/
+	cp -r $(shell stack path --dist-dir --work-dir=$(QUICK_STACK_BUILD_WORK_DIR))/build $(QUICK_BUILD_DIR)
+
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 .PHONY : quicker-install-bin
 quicker-install-bin : ensure-hash-is-correct
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
-
-# Install Agda using Stack
-.PHONY : stack-install-bin
-stack-install-bin :
-	stack build Agda:exe:agda \
-		--flag Agda:enable-cluster-counting \
-		--no-haddock \
-		--no-library-profiling
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	time $(MAKE) quicker-stack-copy-artefacts
+else
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
+endif
 
 # The Stack version of `Cabal install --enable-test`
-.PHONY : stack-install-test
-stack-install-test :
-	stack build Agda:test:agda-tests \
-		--no-run-tests \
-		--flag Agda:enable-cluster-counting \
-		--no-haddock \
-		--no-library-profiling
+.PHONY : stack-install-bin
+stack-install-bin:
+	$(STACK_BUILD) $(STACK_INSTALL_BIN_OPTS)
 
 # Copy the artefacts built by Stack as if they were build by Cabal.
 .PHONY : stack-copy-artefacts
-stack-copy-artefacts : stack-install-bin stack-install-test
+stack-copy-artefacts : stack-install-bin
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 
 .PHONY : install-bin
-
 install-bin : ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo ""===================== Installing using Stack =============================""
-	$(MAKE) stack-install-bin
-	$(MAKE) stack-install-test
-	$(MAKE) stack-copy-artefacts
+	@echo "===================== Installing using Stack ============================="
+	time $(MAKE) stack-copy-artefacts
 else
+	@echo "===================== Installing using Cabal ============================="
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
@@ -159,25 +176,17 @@ haddock :
 
 .PHONY : user-manual-html
 user-manual-html :
-	@echo "======================================================================"
-	@echo "===================== User Manual (html) ============================="
-	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual html
+	@$(call decorate, "User Manual (html)", $(MAKE) -C doc/user-manual html)
 
 .PHONY : user-manual-pdf
 user-manual-pdf :
-	@echo "======================================================================"
-	@echo "====================== User Manual (pdf) ============================="
-	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual latexpdf
+	@$(call decorate, "User Manual (pdf)", $(MAKE) -C doc/user-manual latexpdf)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 .PHONY : user-manual-linkcheck
 user-manual-linkcheck :
-	@echo "======================================================================"
-	@echo "================== User Manual (linkcheck) ==========================="
-	@echo "======================================================================"
-	$(MAKE) -C doc/user-manual linkcheck
+	@$(call decorate, "User Manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
+	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 ## Making the full language ###############################################
 
@@ -195,10 +204,8 @@ tags :
 
 .PHONY : TAGS
 TAGS :
-	@echo "======================================================================"
-	@echo "================================ TAGS ================================"
-	@echo "======================================================================"
-	$(MAKE) -C $(FULL_SRC_DIR) TAGS
+	@$(call decorate,"TAGS", \
+		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
 ## Testing ################################################################
 
@@ -206,81 +213,66 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
+test : check-whitespace succeed fail bugs interaction examples library-test interactive latex-html-test api-test internal-tests benchmark-without-logs compiler-test stdlib-compiler-test lib-succeed lib-interaction user-manual-test test-size-solver
 
 .PHONY : quicktest
 quicktest : succeed fail
 
 .PHONY : internal-tests
 internal-tests :
-	@echo "======================================================================"
-	@echo "======================== Internal test suite ========================="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal
+	@$(call decorate, "Internal test suite", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
 .PHONY : succeed
 succeed :
-	@echo "======================================================================"
-	@echo "===================== Suite of successfull tests ====================="
-	@echo "======================================================================"
-	@$(MAKE) -C test/Common
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed
+	@$(call decorate, "Suite of Successful tests", \
+		$(MAKE) -C test/Common; \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
 
 .PHONY : interaction
 interaction :
-	@echo "======================================================================"
-	@echo "===================== Suite of interaction tests ====================="
-	@echo "======================================================================"
-	@$(MAKE) -C test/interaction
+	@$(call decorate, "Suite of interaction tests", \
+		$(MAKE) -C test/interaction)
 
 .PHONY : interactive
 interactive :
-	@echo "======================================================================"
-	@echo "===================== Suite of interactive tests ====================="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive
+	@$(call decorate, "Suite of interactive tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive)
 
 .PHONY : examples
 examples :
-	@echo "======================================================================"
-	@echo "========================= Suite of examples =========================="
-	@echo "======================================================================"
-	@$(MAKE) -C examples
+	@$(call decorate, "Suite of examples", \
+		$(MAKE) -C examples)
 
 .PHONY : fail
 fail :
-	@echo "======================================================================"
-	@echo "======================= Suite of failing tests ======================="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
+	@$(call decorate, "Suite of failing tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
+
+.PHONY : bugs
+bugs :
+	@$(call decorate, "Suite of tests for bugs", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs)
 
 .PHONY : latex-html-test
 latex-html-test :
-	@echo "======================================================================"
-	@echo "=========== Suite of tests for the LaTeX and HTML backends ==========="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML
+	@$(call decorate, "Suite of tests for the LaTeX and HTML backends", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML)
 
 .PHONY : html-test
 html-test :
-	@echo "======================================================================"
-	@echo "================ Suite of tests for the HTML backend ================="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly
+	@$(call decorate, "Suite of tests for the HTML backend", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly)
 
 .PHONY : latex-test
 latex-test :
-	@echo "======================================================================"
-	@echo "================ Suite of tests for the LaTeX backend ================"
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly
+	@$(call decorate, "Suite of tests for the LaTeX backend", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly)
 
 .PHONY : quicklatex-test
 quicklatex-test :
-	@echo "======================================================================"
-	@echo "============= Suite of tests for the QuickLaTeX backend =============="
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly
+	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
 
 .PHONY : std-lib
 std-lib :
@@ -298,87 +290,73 @@ fast-forward-std-lib :
 
 .PHONY : library-test
 library-test : # up-to-date-std-lib
-	@echo "======================================================================"
-	@echo "========================== Standard library =========================="
-	@echo "======================================================================"
-	(cd std-lib && runhaskell GenerateEverything.hs && \
-          time $(AGDA_BIN) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
-                           -i. -isrc README.agda \
-                           +RTS -s -H1G -M1.5G)
+	@$(call decorate, "Standard library", \
+		(cd std-lib && runhaskell GenerateEverything.hs && \
+						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
+														 -i. -isrc README.agda \
+														 +RTS -s))
 
 .PHONY : continue-library-test
 continue-library-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s -H1G -M1.5G)
+          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
 .PHONY : lib-succeed
 lib-succeed :
-	@echo "======================================================================"
-	@echo "========== Successfull tests using the standard library =============="
-	@echo "======================================================================"
-	@find test/LibSucceed -type f -name '*.agdai' -delete
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed
+	@$(call decorate, "Successful tests using the standard library", \
+	  find test/LibSucceed -type f -name '*.agdai' -delete ; \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed)
 
 .PHONY : lib-interaction
 lib-interaction :
-	@echo "======================================================================"
-	@echo "========== Interaction tests using the standard library =============="
-	@echo "======================================================================"
-	@$(MAKE) -C test/$@
+	@$(call decorate, "Interaction tests using the standard library", \
+	  $(MAKE) -C test/$@)
 
 .PHONY : compiler-test
 compiler-test :
-	@echo "======================================================================"
-	@echo "========================== Compiler tests ============================"
-	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
+	@$(call decorate, "Compiler tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib)
+
+.PHONY : stdlib-compiler-test
+stdlib-compiler-test :
+	@$(call decorate, "Standard Library Compiler tests", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
 
 .PHONY : api-test
 api-test :
-	@echo "======================================================================"
-	@echo "======== Successfull tests using Agda as a Haskell library ==========="
-	@echo "======================================================================"
-	@$(MAKE) -C test/api clean
-	@$(MAKE) -C test/api
+	@$(call decorate, "Successful tests using Agda as a Haskell library", \
+		$(MAKE) -C test/api clean; $(MAKE) -C test/api)
 
 .PHONY : benchmark
 benchmark :
-	@echo "======================================================================"
-	@echo "========================= Benchmark suite ============================"
-	@echo "======================================================================"
-	@$(MAKE) -C benchmark
+	@$(call decorate, "Benchmark suite", \
+		$(MAKE) -C benchmark)
 
 .PHONY : benchmark-without-logs
 benchmark-without-logs :
-	@echo "======================================================================"
-	@echo "============ Benchmark suite without creating logs ==================="
-	@echo "======================================================================"
-	@$(MAKE) -C benchmark without-creating-logs
+	@$(call decorate, "Benchmark suite without creating logs", \
+	  $(MAKE) -C benchmark without-creating-logs)
 
 .PHONY : user-manual-test
 user-manual-test :
-	@echo "======================================================================"
-	@echo "=========================== User manual =============================="
-	@echo "======================================================================"
-	@find doc/user-manual -type f -name '*.agdai' -delete
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual
+	@$(call decorate, "User manual", \
+		find doc/user-manual -type f -name '*.agdai' -delete; \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
 .PHONY : testing-emacs-mode
 testing-emacs-mode:
-	@echo "======================================================================"
-	@echo "===================== Testing the Emacs mode ========================="
-	@echo "======================================================================"
-	$(AGDA_MODE) compile
+	@$(call decorate, "Testing the Emacs mode", \
+	  $(AGDA_MODE) compile)
 
 ## Clean ##################################################################
 
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) clean --builddir=$(1); fi;
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 
 .PHONY : clean
 clean :
 	$(call clean_helper,$(BUILD_DIR))
-	$(call clean_helper,$(BUILD_DIR)-quick)
+	$(call clean_helper,$(QUICK_BUILD_DIR))
 
 ## Whitespace-related #####################################################
 
@@ -403,7 +381,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FAW_PATH)/dist/build/fix-agda-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-agda-whitespace $(FAW_BIN)
 else
-	cd $(FAW_PATH) && $(CABAL_CMD) clean && $(CABAL_CMD) build
+	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
 ## size-solver standalone program #########################################
@@ -412,26 +390,20 @@ endif
 # before installing the `size-solver` program.
 .PHONY : install-size-solver
 install-size-solver :
-	@echo "======================================================================"
-	@echo "============== Installing the size-solver program ===================="
-	@echo "======================================================================"
-	$(MAKE) -C src/size-solver install-bin
+	@$(call decorate, "Installing the size-solver program", \
+		$(MAKE) -C src/size-solver install-bin)
 
 .PHONY : test-size-solver
 test-size-solver : install-size-solver
-	@echo "======================================================================"
-	@echo "=============== Testing the size-solver program ======================"
-	@echo "======================================================================"
-	$(MAKE) -C src/size-solver test
+	@$(call decorate, "Testing the size-solver program", \
+		$(MAKE) -C src/size-solver test)
 
 ## agda-bisect standalone program #########################################
 
 .PHONY : install-agda-bisect
 install-agda-bisect :
-	@echo "======================================================================"
-	@echo "============== Installing the agda-bisect program ===================="
-	@echo "======================================================================"
-	cd src/agda-bisect && $(CABAL_CMD) install
+	@$(call decorate, "Installing the agda-bisect program", \
+		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
 
 ###########################################################################
 # HPC

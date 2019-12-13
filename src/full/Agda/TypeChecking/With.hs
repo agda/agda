@@ -2,19 +2,18 @@
 
 module Agda.TypeChecking.With where
 
-import Control.Arrow ((&&&), (***), first, second)
-import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
 import Data.Either
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import Data.Monoid
-import Data.Traversable (traverse)
+import Data.Foldable ( foldrM )
+import Data.Traversable ( traverse )
 
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Pattern (IsWithP(..))
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -24,7 +23,6 @@ import Agda.Syntax.Info
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
@@ -34,8 +32,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.ReconstructParameters
-import Agda.TypeChecking.Rules.Term
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -45,7 +41,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
@@ -53,7 +48,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-
 
 -- | Split pattern variables according to with-expressions.
 
@@ -63,39 +57,32 @@ import Agda.Utils.Impossible
 --
 --   [@Δ ⊢ t@]     type of rhs.
 --
---   [@Δ ⊢ as@]    types of with arguments.
---
---   [@Δ ⊢ vs@]    with arguments.
---
+--   [@Δ ⊢ vs : as@]    with arguments and their types
 --
 --   Output:
 --
---   [@Δ₁@]        part of context needed for with arguments and their types.
+--   [@Δ₁@]              part of context needed for with arguments and their types.
 --
---   [@Δ₂@]        part of context not needed for with arguments and their types.
+--   [@Δ₂@]              part of context not needed for with arguments and their types.
 --
---   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+--   [@π@]               permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
 --
---   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
+--   [@Δ₁Δ₂ ⊢ t'@]       type of rhs under @π@
 --
---   [@Δ₁ ⊢ as'@]  types of with-arguments depending only on @Δ₁@.
---
---   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+--   [@Δ₁ ⊢ vs' : as'@]  with-arguments and their types depending only on @Δ₁@.
 
 splitTelForWith
   -- Input:
-  :: Telescope      -- ^ __@Δ@__        context of types and with-arguments.
-  -> Type           -- ^ __@Δ ⊢ t@__    type of rhs.
-  -> [EqualityView] -- ^ __@Δ ⊢ as@__   types of with arguments.
-  -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
+  :: Telescope                         -- ^ __@Δ@__             context of types and with-arguments.
+  -> Type                              -- ^ __@Δ ⊢ t@__         type of rhs.
+  -> [WithHiding (Term, EqualityView)] -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
   -- Output:
-  -> ( Telescope    -- @Δ₁@       part of context needed for with arguments and their types.
-     , Telescope    -- @Δ₂@       part of context not needed for with arguments and their types.
-     , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
-     , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [EqualityView] -- @Δ₁ ⊢ as'@ types of with- and rewrite-arguments depending only on @Δ₁@.
-     , [Term]       -- @Δ₁ ⊢ vs'@ with- and rewrite-arguments under @π@.
-     )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
+  -> ( Telescope                         -- @Δ₁@             part of context needed for with arguments and their types.
+     , Telescope                         -- @Δ₂@             part of context not needed for with arguments and their types.
+     , Permutation                       -- @π@              permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+     , Type                              -- @Δ₁Δ₂ ⊢ t'@      type of rhs under @π@
+     , [WithHiding (Term, EqualityView)] -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
+     )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@vtys'@__) where
 --
 --   [@Δ₁@]        part of context needed for with arguments and their types.
 --
@@ -105,22 +92,12 @@ splitTelForWith
 --
 --   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
 --
---   [@Δ₁ ⊢ as'@]  types with with-arguments depending only on @Δ₁@.
---
---   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+--   [@Δ₁ ⊢ vtys'@]  with-arguments and their types under @π@.
 
-splitTelForWith delta t as vs = let
-    -- Andreas, 2016-01-27, unfixing issue 1692
-    -- Due to public protests, we do not rewrite in the types of rewrite
-    -- expressions.
-    -- Otherwise, we cannot rewrite twice after another with the same equation
-    -- as it turns into a reflexive equation in the first rewrite.
-    -- Thus we include the fvs of the rewrite terms in Δ₁.
-    rewriteTerms = map snd $ filter (isEqualityType . fst) $ zip as vs
-
+splitTelForWith delta t vtys = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff.
-    fv = allFreeVars (as, vs)
+    fv = allFreeVars vtys
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
@@ -132,12 +109,10 @@ splitTelForWith delta t as vs = let
 
     -- We need Δ₁Δ₂ ⊢ t'
     t' = applySubst pi t
-    -- and Δ₁ ⊢ as'
-    as' = applySubst rhopi as
-    -- and Δ₁ ⊢ vs' : as'
-    vs' = applySubst rhopi vs
+    -- and Δ₁ ⊢ vtys'
+    vtys' = applySubst rhopi vtys
 
-  in (delta1, delta2, perm, t', as', vs')
+  in (delta1, delta2, perm, t', vtys')
 
 
 -- | Abstract with-expressions @vs@ to generate type for with-helper function.
@@ -145,18 +120,17 @@ splitTelForWith delta t as vs = let
 -- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
-  :: Telescope      -- ^ @Δ₁@                       context for types of with types.
-  -> [Term]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
-  -> [EqualityView] -- ^ @Δ₁ ⊢ as@                  types of with and rewrite-expressions.
-  -> Telescope      -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
-  -> Type           -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
+  :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
+  -> [WithHiding (Term, EqualityView)]  -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
+  -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
+  -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> TCM (Type, Nat)
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
     --     @[vs/wtel]b′ = b@.
     -- Plus the final number of with-arguments.
-withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
+withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
 
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
 
@@ -171,16 +145,13 @@ withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
   d2b  <- etaContract d2b
   dbg 30 "eta-contracted Δ₂ → B" d2b
 
-  vs <- etaContract =<< normalise vs
-  as <- etaContract =<< normalise as  -- do we need this?
+  vtys <- etaContract =<< normalise vtys
 
-  let piAbstractVs []         b = return b
-      piAbstractVs (va : vas) b = piAbstract va =<< piAbstractVs vas b
   -- wd2db = wtel → [vs : as] (Δ₂ → B)
-  wd2b <- piAbstractVs (zip vs as) d2b
+  wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  return (telePi_ delta1 wd2b, countWithArgs as)
+  return (telePi_ delta1 wd2b, countWithArgs (map (snd . whThing) vtys))
 
 countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
@@ -190,8 +161,8 @@ countWithArgs = sum . map countArgs
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [Term] -> [EqualityView] -> [Term]
-withArguments vs as = concat $ for (zip vs as) $ \case
+withArguments :: [WithHiding (Term, EqualityView)] -> [WithHiding Term]
+withArguments vtys = flip concatMap vtys $ traverse $ \case
   (v, OtherType a) -> [v]
   (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
 
@@ -362,6 +333,15 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   return (strippedPats, psp)
   where
 
+    -- We need to get the correct hiding from the lhs context. The unifier may have moved bindings
+    -- sites around so we can't trust the hiding of the parent pattern variables. We should preserve
+    -- the origin though.
+    varArgInfo = \ x -> let n = dbPatVarIndex x in
+                        if n < length infos then infos !! n else __IMPOSSIBLE__
+      where infos = reverse $ map getArgInfo $ telToList delta
+
+    setVarArgInfo x p = setOrigin (getOrigin p) $ setArgInfo (varArgInfo x) p
+
     strip
       :: Term                         -- ^ Self.
       -> Type                         -- ^ The type to be eliminated.
@@ -393,7 +373,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
       let implicit (A.WildP{})     = True
-          implicit (A.ConP ci _ _) = patOrigin ci == ConOSystem
+          implicit (A.ConP ci _ _) = conPatOrigin ci == ConOSystem
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
         typeError $ GenericError $ "Too many arguments given in with-clause"
@@ -420,13 +400,13 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       case namedArg q of
         ProjP o d -> case A.isProjP p of
           Just (o', AmbQ ds) -> do
+            -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
+            if o /= o' then liftTCM $ mismatchOrigin o o' else do
             -- Andreas, 2016-12-28, issue #2360:
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            found <- anyM ds ((d ==) <.> (liftTCM . getOriginalProjection))
-            -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
-            if o /= o' then liftTCM $ mismatchOrigin o o' else do
+            found <- anyM ds $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
             if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
@@ -439,15 +419,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        -- If a variable pattern in the parent clause was written as a dot
-        -- pattern by the user both in the parent clause and the with clause,
-        -- we can strip the dot from the with clause.
-        VarP PatODot x | A.DotP _ u <- namedArg p
-                       , A.Var y <- unScope u ->
-          (setNamedArg p (A.VarP $ A.mkBindName y) :) <$>
+        -- We can safely strip dots from variables. The unifier will put them back when required.
+        VarP _ x | A.DotP _ u <- namedArg p
+                 , A.Var y <- unScope u -> do
+          (setVarArgInfo x (setNamedArg p $ A.VarP $ A.mkBindName y) :) <$>
             recurse (var (dbPatVarIndex x))
 
-        VarP _ x  -> (p :) <$> recurse (var (dbPatVarIndex x))
+        VarP _ x  ->
+          (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
 
         IApplyP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of Path patterns" -- TODO maybe we can support them now?
         DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
@@ -475,7 +454,15 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           -- Jesper, 2017-11-16. This is now also allowed for data constructors.
           A.DotP r e -> do
             tell [ProblemEq (A.DotP r e) (patternToTerm q') a]
-            let ps' = map (unnamed (A.WildP empty) <$) qs'
+            ps' <-
+              case appView e of
+                -- If dot-pattern is an application of the constructor, try to preserve the
+                -- arguments.
+                Application (A.Con (A.AmbQ cs')) es -> do
+                  cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
+                  unless (elem c cs') mismatch
+                  return $ (map . fmap . fmap) (A.DotP r) es
+                _  -> return $ map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
 
           -- Andreas, 2016-12-29, issue #2363.
@@ -500,13 +487,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ do snd . partitionEithers <$> mapM getConForm (toList cs')
+            cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
 
           A.RecP _ fs -> caseMaybeM (liftTCM $ isRecord d) mismatch $ \ def -> do
-            ps' <- liftTCM $ insertMissingFields d (const $ A.WildP empty) fs (recordFieldNames def)
+            ps' <- liftTCM $ insertMissingFields d (const $ A.WildP empty) fs
+                                                 (map argFromDom $ recordFieldNames def)
             stripConP d us b c ConORec qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
@@ -519,7 +507,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
              text $ "with clause pattern is  " ++ show p
            mismatch
 
-        LitP lit -> case namedArg p of
+        LitP _ lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> recurse $ Lit lit
           A.WildP{}                 -> recurse $ Lit lit
 
@@ -726,12 +714,14 @@ patsToElims = map $ toElim . fmap namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
-      IApplyP o _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
+      IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP PatODot x -> DDot  $ var $ dbPatVarIndex x
-      VarP o x      -> DTerm  $ var $ dbPatVarIndex x
-      DotP PatOVar{} t@(Var i []) -> DTerm t
-      DotP o t    -> DDot   $ t
+      VarP i x -> case patOrigin i of
+        PatODot -> DDot  $ var $ dbPatVarIndex x
+        _       -> DTerm  $ var $ dbPatVarIndex x
+      DotP i t -> case patOrigin i of
+        PatOVar{} | Var i [] <- t -> DTerm t
+        _                         -> DDot   $ t
       ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP l      -> DTerm  $ Lit l
-      DefP o q ps -> DDef q $ map Apply $ toTerms ps
+      LitP _ l    -> DTerm  $ Lit l
+      DefP _ q ps -> DDef q $ map Apply $ toTerms ps

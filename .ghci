@@ -1,5 +1,5 @@
 -- Loads the appropriate .ghci file
--- (.ghci860, .ghci820, .ghci800)
+-- (.ghci880, .ghci860, .ghci820, .ghci800)
 --
 :{
 :def agda_load_ghci_by_version \varcmd ->
@@ -8,6 +8,8 @@
   in
     if (length ghcVersion /= 2)
     then return "putStrLn \"Strange GHC version…\""
+    else if ghcVersion >= [8,8]
+    then return ":script .ghci880"
     else if ghcVersion >= [8,6]
     then return ":script .ghci860"
     else if ghcVersion >= [8,2]

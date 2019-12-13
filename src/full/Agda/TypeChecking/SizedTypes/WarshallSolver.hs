@@ -4,7 +4,7 @@ module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
 import Prelude hiding ( null, truncate )
 
-import Control.Applicative hiding (Const, empty)
+
 import Control.Monad
 
 import Data.Function (on)

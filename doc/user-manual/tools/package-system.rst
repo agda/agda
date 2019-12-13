@@ -83,7 +83,7 @@ paths are relative to the location of the library-file.
 Each of the three fields is optional.
 Naturally, unnamed libraries cannot be depended upon.
 But dropping the ``name`` is possible if the library file only serves to list
-include pathes and/or dependencies of the current project.
+include paths and/or dependencies of the current project.
 
 
 Installing libraries

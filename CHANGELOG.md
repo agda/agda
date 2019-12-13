@@ -4,7 +4,25 @@ Release notes for Agda version 2.6.1
 Installation and infrastructure
 -------------------------------
 
+* Added support for GHC 8.8.1.
+
 * Removed support for GHC 7.10.3.
+
+* Interface files are now written in directory `_build/VERSION/agda/` at
+  the project root (the closest enclosing directory where an `.agda-lib`
+  file is present). If there is no project root then the interface file
+  is written alongside the module it corresponds to.
+  The flag `--local-interfaces` forces Agda to revert back to storing
+  interface files alongside module files no matter what.
+
+* Agda now uses the default RTS options `-H3.5G -M3.5G -A128M`.  If
+  you run Agda on a 32-bit system or a system with less than 8GB of
+  RAM, it is recommended to set the RTS options explicitly to a lower
+  value by running `agda` with option `+RTS -H0.6G -M1.2G -A64M -RTS`
+  (for example) or by setting the GHCRTS enviroment variable. See the
+  [GHC User's Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/runtime_control.html#setting-rts-options)
+  for more information.
+
 
 Pragmas and options
 -------------------
@@ -15,6 +33,306 @@ Pragmas and options
 * New option `--confluence-check` (off by default) enables confluence
   checking of user-defined rewrite rules (this only has an effect when
   `--rewriting` is also enabled).
+
+* New option `--no-projection-like` to turn off the analysis whether a
+  type signature likens that of a projection.
+  Projection-likeness is an optimization that reduces the size of
+  terms by dropping parameter-like reconstructible function arguments.
+  Thus, it is advisable to leave this optimization on, the flag is
+  meant for debugging Agda.
+
+* Option `--no-forcing` is now a pragma option, i.e., the forcing analysis
+  can be switched off on a per-file basis via
+  ```agda
+  {-# OPTIONS --no-forcing #-}
+  ```
+  at the beginning of the file.
+
+* New pragma option `--no-flat-split` disables pattern matching on `@♭` arguments.
+
+* New pragma option `--allow-incomplete-matches`. It is similar to
+  `--allow-unsolved-metas`: modules containing partial function definitions
+  can be imported. Its local equivalent is is the `NON_COVERING` pragma to
+  be placed before the function (or the block of mutually defined functions)
+  which the user knows to be partial.
+
+* Option `--interaction-json` now brings more information about goals,
+  unsolved metas, warnings, errors.
+  It also displays pretty-printed terms.
+
+* New pragma option `--keep-pattern-variables` to prevent case
+  splitting from replacing variables with dot patterns.
+
+Language
+--------
+
+### Syntax
+
+* Fractional precedence levels are now supported, see issue
+  [#3991](https://github.com/agda/agda/issues/3991). Example:
+  ```agda
+  infix 3.14 _<_
+  ```
+  Note that this includes a respective change in the reflected Agda syntax.
+
+* Fixities can now be changed during import in a `renaming` directive, see issue
+  [#1346](https://github.com/agda/agda/issues/1346). Example:
+  ```agda
+  open M using (_∙_)
+  open M renaming (_∙_ to infixl 10 _*_)
+  ```
+  After this, `_∙_` is in scope with its original fixity, and as `_*_` as left
+  associative operator of precedence 10.
+
+* Implicit non-dependent function spaces `{A} → B` and `{{A}} → B` are now supported.
+
+* Idiom brackets
+
+  Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
+  if there are two additional operations
+  ```agda
+  empty : ∀ {A} → F A
+  _<|>_ : ∀ {A} → F A → F A → F A
+  ```
+  i.e. an Alternative type class in Haskell.
+  As usual, the new idiom brackets desugar before scope checking.
+
+  Idiom brackets with multiple applications
+  ```agda
+  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
+  ```
+  expand to (assuming right associative `_<|>_`)
+  ```agda
+  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
+  ```
+  Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
+
+
+* Irrefutable With
+
+  Users can now match on irrefutable patterns on the LHS using a
+  pattern-matching `with`. An expression of the form:
+
+  ```agda
+  f xs with p1 <- e1 | ... | pn <- en
+       with q1 <- f1 | ... | qm <- fm = rhs
+  ```
+
+  is translated to nested `with` clauses, essentially equivalent to:
+
+  ```agda
+  f xs with e1 | ... | en
+  ... | p1 | ... | pn
+       with f1 | ... | fm
+  ... | q1 | ... | qm = rhs
+  ```
+
+* Record patterns in telescopes
+
+  Users can now use record patterns in telescope and lambda abstractions.
+  The type of the second projection from a dependent pair is the prototypical
+  example It can be defined as follows:
+
+  ```agda
+  snd : ((a , _) : Σ A B) → B a
+  ```
+
+  And this second projection can be implemented with a lamba-abstraction using
+  one of these irrefutable patterns:
+
+  ```agda
+  snd = λ (a , b) → b
+  ```
+
+  Using an as-pattern, users can get a name for the value as well as for its
+  subparts. We can for instance prove that any pair is equal to the pairing
+  of its first and second projections:
+
+  ```agda
+  eta : (p@(a , b) : Σ A B) → p ≡ (a , b)
+  eta p = refl
+  ```
+
+* Absurd match in a do block
+  The last expression in a do block can now also be an absurd match `() <- f`.
+
+* Named `where` modules are now in scope in the rhs of the clause
+  (see issue [#4050](https://github.com/agda/agda/issues/4050)).  Example:
+  ```agda
+  record Wrap : Set₂ where
+    field wrapped : Set₁
+
+  test : Wrap
+  test = record { M }
+    module M where
+      wrapped : Set₁
+      wrapped = Set
+  ```
+
+* `{{-` is now lexed as `{ {-` rather than `{{ -`,
+  see issue [#3962](https://github.com/agda/agda/issues/3962).
+
+* Syntax for large numbers: you can now separate groups of 3 digits using `_`.
+  e.g. write `1_000_000` instead of `1000000`.
+
+* `quoteGoal` and `quoteContext` are no longer keywords.
+
+* Record constructors can no longer be qualified by the record module.
+  (See issue [#4189](https://github.com/agda/agda/issues/4189).)
+  ```agda
+  record Foo : Set where
+    constructor foo
+
+  works = foo
+  fails = Foo.foo
+  ```
+
+### Modalities
+
+* New Flat Modality
+
+  New modality `@♭/@flat` (previously only available in the branch "flat").
+  An idempotent comonadic modality modeled after spatial/crisp type theory.
+  See "Flat Modality" in the documentation for more.
+
+### Universe levels
+
+* New (experimental) option `--cumulativity`
+
+  When the ``--cumulativity`` flag is enabled, Agda uses the subtyping
+  rule ``Set i =< Set j`` whenever ``i =< j``. For example, in
+  addition to its usual type ``Set``, ``Nat`` also has the type
+  ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
+  about this new option can be found in the [user
+  manual](https://agda.readthedocs.io/en/latest/language/cumulativity.html).
+
+### Termination checking
+
+* The "with inlining" feature of the termination checker has been
+  removed. As a consequence, some functions defined using `with` are
+  no longer accepted as terminating. See issue
+  [#59](https://github.com/agda/agda/issues/59) for why this feature
+  was originally introduced and
+  [#3604](https://github.com/agda/agda/issues/3604) for why it had to
+  be removed.
+
+### Irrelevance and Prop
+
+* Agda will no longer reduce irrelevant definitions and definitions
+  with a type in `Prop`. This does not have an effect on the
+  semantics, but should lead to improved performance (see issues
+  [#4115](https://github.com/agda/agda/issues/4115),
+  [#4118](https://github.com/agda/agda/issues/4118),
+  [#4120](https://github.com/agda/agda/issues/4120),
+  [#4122](https://github.com/agda/agda/issues/4122)).
+
+* Terms of a type in `Prop` are now printed as `_`. To show the actual
+  term, you can use the `--show-irrelevant` flag (see issue
+  [#3337](https://github.com/agda/agda/issues/3337).
+
+### Rewrite rules
+
+* Rewrite rules (option `--rewriting`) with data or record types as
+  the head symbol are no longer allowed (see issue
+  [#3846](https://github.com/agda/agda/issues/3846)).
+
+### Tactics & Reflection
+
+* Implicit arguments solved by user-defined tactics
+
+  You can declare tactics to be used to solve a particular implicit argument
+  using the following syntax:
+
+  ```agda
+  example : {@(tactic f) x : A} → B
+  ```
+
+  where `f : Term → TC ⊤`. At calls to `example`, `f` is called on the
+  metavariable inserted for `x`. `f` can be an arbitrary term and may depend on
+  previous arguments to the function. For instance,
+
+  ```agda
+  example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
+  ```
+
+  Record fields can also be annotated with a tactic, allowing them to be
+  omitted in constructor applications, record constructions and co-pattern
+  matches:
+
+  ```agda
+  record Example : Set where
+    constructor mkExample
+    field x : A
+          @(tactic solveP x) {y} : P x
+  ```
+
+  where `solveP : (x : A) → Term → TC ⊤` is a tactic that tries to prove `P x`.
+
+* The legacy reflection framework using `quoteGoal` and `quoteContext` has been
+  removed.
+
+### Builtins
+
+* New primitives
+
+  ```agda
+  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+
+  primFloatToWord64           : Float → Word64
+  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+
+  primMetaToNat               : Meta → Nat
+  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+  primQNameToWord64s          : Name → Word64 × Word64
+  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+  ```
+
+  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+
+* New Primitive for showing Natural numbers:
+
+  ```agda
+  primShowNat : Nat → String
+  ```
+
+  placed in Agda.Builtin.String.
+
+* The builtin `IO` has been declared strictly positive in both its
+  level and type argument.
+
+### Warnings
+
+* New warning for a variable shadowing another in a telescope. If the two
+  variables are introduced in different telescopes then the warning is not
+  raised.
+
+  ```agda
+  f : {a : Level} {A : Set a} (a : A) → A   -- warning raised: repeated a
+  g : {a : Level} {A : Set a} → (a : A) → A -- warning not raised: two distinct telescopes
+  ```
+
+  Note that this warning is turned off by default (you can use
+  `-WShadowingInTelescope` or `--warning ShadowingInTelescope` to turn
+  it on, `-Wall` would also naturally work).
+
+
+Emacs mode
+----------
+
+* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+
+* Syntax highlighting: in literate modes, the pure texts
+  (other than Agda code and the code-text separators) are no longer highlighted
+  (it was highlighted as comments before).
+  This somehow provides more information about how Agda lexes literate files.
+
+* Agda now also displays the values of let-bound variables in the
+  context instead of just their types.
+
+* Agda will now try to preserve the ellipsis (`...`) during case
+  splitting when possible. To manually expand the ellipsis, you may
+  ask Agda to case split on the special identifier `.`.
 
 GHC Backend
 -----------
@@ -49,110 +367,48 @@ GHC Backend
   This is especially important if Haskell bindings are to be
   produced automatically by third party tool.
 
-Language
---------
+LaTeX backend
+-------------
 
-### Builtins
+* Now the code environment complains if it is given unrecognised options.
 
-* New primitives
+  It is also possible to write, say, `hide=true` instead of `hide`,
+  and `hide=false` means that the `hide` option should not be used.
+  Furthermore the same option can be given multiple times, in which
+  case later choices take precedence over earlier ones.
 
-  ```agda
-  primWord64ToNatInjective    : ∀ a b → primWord64ToNat a ≡ primWord64ToNat b → a ≡ b
+* The code environment has a new option, `number`.
 
-  primFloatToWord64           : Float → Word64
-  primFloatToWord64Injective  : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+  When the option `number` is used an equation number is generated for
+  the code listing. The number is set to the right, centered
+  vertically. By default the number is set in parentheses, but this
+  can be changed by redefining `\AgdaFormatCodeNumber`.
 
-  primMetaToNat               : Meta → Nat
-  primMetaToNatInjective      : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+  The option can optionally be given an argument: when `number=l` is
+  used a label `l`, referring to the code listing, is generated. It is
+  possible to use this option several times with different labels.
 
-  primQNameToWord64s          : Name → Word64 × Word64
-  primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
-  ```
+  The option has no effect if used together with `hide`, `inline` or
+  `inline*`.
 
-  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+API
+----
+* Removed module `Agda.Utils.HashMap`. It only re-exported `Data.HashMap.Strict`
+  from the package `unordered-containers`. Use `Data.HashMap.Strict` instead.
 
-* New Primitive for showing Natural numbers:
+* Removed module `Agda.Utils.Char`. It used to provide functions converting a
+  `Char` in base 8, 10, and 16 to the corresponding `Int`. Use `digitToInt` in
+  `Data.Char` instead. The rest of module was about Unicode test which was not
+  used.
 
-  ```agda
-  primShowNat : Nat → String
-  ```
+* `Agda.Utils.List` no longer provides `headMaybe`.
+  Use `listToMaybe` in `Data.Maybe` instead.
 
-  placed in Agda.Builtin.String.
+* `Agda.Utils.Either` no longer provides `mapEither`. Use `bimap` in
+  `Data.Bifunctor` instead.
 
-* New primitives for asking Agda to try to solve constraints [[Issue
-  #3791](https://github.com/agda/agda/issues/3791)]:
-
-  ```agda
-  solveConstraints           : TC ⊤
-  solveConstraintsMentioning : List Meta → TC ⊤
-  ```
-
-  The former one tries to solve all constraints, whereas the latter
-  one wakes up all constraints mentioning the given meta-variables,
-  and then tries to solve all awake constraints.
-
-### Syntax
-
-* Idiom brackets
-
-  Idiom brackets can accommodate none or multiple applications separated by a vertical bar `|`
-  if there are two additional operations
-  ```agda
-  empty : ∀ {A} → F A
-  _<|>_ : ∀ {A} → F A → F A → F A
-  ```
-  i.e. an Alternative type class in Haskell.
-  As usual, the new idiom brackets desugar before scope checking.
-
-  Idiom brackets with multiple applications
-  ```agda
-  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
-  ```
-  expand to (assuming right associative `_<|>_`)
-  ```agda
-  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
-  ```
-  Idiom brackets with no application `(|)` or `⦇⦈` are equivalent to `empty`.
-
-### Termination checking
-
-* The "with inlining" feature of the termination checker has been
-  removed. As a consequence, some functions defined using `with` are
-  no longer accepted as terminating. See issue
-  [#59](https://github.com/agda/agda/issues/59) for why this feature
-  was originally introduced and
-  [#3604](https://github.com/agda/agda/issues/3604) for why it had to
-  be removed.
-
-### Rewrite rules
-
-* Rewrite rules (option `--rewriting`) with data or record types as
-  the head symbol are no longer allowed (see issue
-  [#3846](https://github.com/agda/agda/issues/3846)).
-
-### Tactics
-
-* Implicit arguments solved by user-defined tactics
-
-  You can declare tactics to be used to solve a particular implicit argument
-  using the following syntax:
-
-  ```agda
-  example : {@(tactic f) x : A} → B
-  ```
-
-  where `f : Term → TC ⊤`. At calls to `example`, `f` is called on the
-  metavariable inserted for `x`. `f` can be an arbitrary term and may depend on
-  previous arguments to the function. For instance,
-
-  ```agda
-  example₂ : (depth : Nat) {@(tactic search depth) x : A} → B
-  ```
-
-Emacs mode
-----------
-
-* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+* `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
+  `allWithKey`, `unzip`, and `unzip3`.
 
 
 Release notes for Agda version 2.6.0.1
@@ -2191,7 +2447,7 @@ Emacs mode
   takes less time to reload the module.
 
   Warning: If a command is aborted while it is writing data to disk
-  (for instance .agdai files or Haskell files generated by the GHC
+  (for instance `.agdai` files or Haskell files generated by the GHC
   backend), then the resulting files may be corrupted. Note also that
   external commands (like GHC) are not aborted, and their output may
   continue to be sent to the Emacs mode.

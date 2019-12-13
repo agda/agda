@@ -1,12 +1,13 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Base where
 
 import Control.Exception (evaluate)
-import Control.Monad
+
 import Control.Monad.Catch (catchAll)
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)

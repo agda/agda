@@ -15,13 +15,13 @@ import Control.DeepSeq
 import Control.Monad
 
 import Data.Data (Data)
-import Data.Either
+
 import Data.Foldable (toList)
-import Data.Maybe
+
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -29,7 +29,6 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing

@@ -1,32 +1,44 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Agda.Utils.Tuple where
+module Agda.Utils.Tuple
+  ( (-*-)
+  , mapFst
+  , mapSnd
+  , (/\)
+  , fst3
+  , snd3
+  , thd3
+  , swap
+  , uncurry3
+  , uncurry4
+  , mapPairM
+  , mapFstM
+  , mapSndM
+  , List2(..)
+  ) where
 
-import Data.Foldable
-import Data.Traversable
+import Control.Arrow  ((&&&))
+import Data.Bifunctor (bimap, first, second)
+import Data.Tuple (swap)
 
 infix 2 -*-
 infix 3 /\ -- backslashes at EOL interact badly with CPP...
 
 -- | Bifunctoriality for pairs.
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)
-(f -*- g) ~(x,y) = (f x, g y)
+(-*-) = bimap
 
 -- | @mapFst f = f -*- id@
 mapFst :: (a -> c) -> (a,b) -> (c,b)
-mapFst f ~(x,y) = (f x, y)
+mapFst = first
 
 -- | @mapSnd g = id -*- g@
 mapSnd :: (b -> d) -> (a,b) -> (a,d)
-mapSnd g ~(x,y) = (x, g y)
+mapSnd = second
 
 -- | Lifted pairing.
 (/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
-(f /\ g) x = (f x, g x)
-
--- | Swap.  (Only in Data.Tuple from base-4.3)
-swap :: (a,b) -> (b,a)
-swap ~(a,b) = (b,a)
+(/\) = (&&&)
 
 -- * Triple (stolen from Data.Tuple.HT)
 

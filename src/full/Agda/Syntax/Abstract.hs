@@ -12,7 +12,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude
-import Control.Arrow (first, second, (***))
+import Control.Arrow (first)--, second, (***))
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -23,35 +23,25 @@ import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Traversable
 import Data.Void
-
 import Data.Data (Data)
 import Data.Monoid (mappend)
 
-import Agda.Syntax.Concrete.Name (NumHoles(..))
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty ()
-
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
-
 import qualified Agda.Syntax.Internal as I
-
 import Agda.Syntax.Common
 import Agda.Syntax.Info
-import Agda.Syntax.Fixity ( Fixity' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -116,13 +106,11 @@ data Expr
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
-  | QuoteGoal ExprInfo Name Expr       -- ^ Binds @Name@ to current type in @Expr@.
-  | QuoteContext ExprInfo              -- ^ Returns the current context.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-  | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
-                                       -- ^ @tactic e x1 .. xn | y1 | .. | yn@
+  | Tactic ExprInfo Expr [NamedArg Expr]
+                                       -- ^ @tactic e x1 .. xn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show)
 
@@ -201,21 +189,7 @@ data Declaration
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show)
 
-class GetDefInfo a where
-  getDefInfo :: a -> Maybe DefInfo
-
-instance GetDefInfo Declaration where
-  getDefInfo (Axiom _ i _ _ _ _)    = Just i
-  getDefInfo (Generalize _ i _ _ _) = Just i
-  getDefInfo (Field i _ _)          = Just i
-  getDefInfo (Primitive i _ _)      = Just i
-  getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
-  getDefInfo (FunDef i _ _ _)       = Just i
-  getDefInfo (DataSig i _ _ _)      = Just i
-  getDefInfo (DataDef i _ _ _ _)    = Just i
-  getDefInfo (RecSig i _ _ _)       = Just i
-  getDefInfo (RecDef i _ _ _ _ _ _ _ _) = Just i
-  getDefInfo _ = Nothing
+type DefInfo = DefInfo' Expr
 
 type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
@@ -236,7 +210,7 @@ data Pragma
   | BuiltinNoDefPragma String QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
-  | RewritePragma QName
+  | RewritePragma [QName]
   | CompilePragma String QName String
   | StaticPragma QName
   | EtaPragma QName
@@ -272,13 +246,32 @@ type Field          = TypeSignature
 
 type TacticAttr = Maybe Expr
 
+-- A Binder @x\@p@, the pattern is optional
+data Binder' a = Binder
+  { binderPattern :: Maybe Pattern
+  , binderName    :: a
+  } deriving (Data, Show, Eq, Functor, Foldable, Traversable)
+
+type Binder = Binder' BindName
+
+mkBinder :: a -> Binder' a
+mkBinder = Binder Nothing
+
+mkBinder_ :: Name -> Binder
+mkBinder_ = mkBinder . mkBindName
+
+extractPattern :: Binder' a -> Maybe (Pattern, a)
+extractPattern (Binder p a) = (,a) <$> p
+
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree TacticAttr (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
-  | DomainFull TypedBinding         -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+  = DomainFree TacticAttr (NamedArg Binder)
+    -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
+  | DomainFull TypedBinding
+    -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
-mkDomainFree :: NamedArg BindName -> LamBinding
+mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
@@ -296,13 +289,13 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr [NamedArg BindName] Expr
+  = TBind Range TacticAttr [NamedArg Binder] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
-mkTBind :: Range -> [NamedArg BindName] -> Expr -> TypedBinding
+mkTBind :: Range -> [NamedArg Binder] -> Expr -> TypedBinding
 mkTBind r = TBind r Nothing
 
 type Telescope  = [TypedBinding]
@@ -368,6 +361,7 @@ noWhereDecls = WhereDecls Nothing []
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
+type RewriteEqn  = RewriteEqn' QName Pattern Expr
 
 data RHS
   = RHS
@@ -378,10 +372,10 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [Expr] [Clause]
+  | WithRHS QName [WithHiding Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
-    { rewriteExprs      :: [(QName, Expr)]
+    { rewriteExprs      :: [RewriteEqn]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
     , rewriteStrippedPats :: [ProblemEq]
@@ -503,7 +497,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' Expr
+type HoleContent = C.HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -539,12 +533,10 @@ instance Eq Expr where
   ETel a1                 == ETel a2                 = a1 == a2
   Rec a1 b1               == Rec a2 b2               = (a1, b1) == (a2, b2)
   RecUpdate a1 b1 c1      == RecUpdate a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
-  QuoteGoal a1 b1 c1      == QuoteGoal a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
-  QuoteContext a1         == QuoteContext a2         = a1 == a2
   Quote a1                == Quote a2                = a1 == a2
   QuoteTerm a1            == QuoteTerm a2            = a1 == a2
   Unquote a1              == Unquote a2              = a1 == a2
-  Tactic a1 b1 c1 d1      == Tactic a2 b2 c2 d2      = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  Tactic a1 b1 c1         == Tactic a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   DontCare a1             == DontCare a2             = a1 == a2
 
   _                       == _                       = False
@@ -592,6 +584,9 @@ instance LensHiding TypedBinding where
   mapHiding f (TBind r t xs e)    = TBind r t ((map . mapHiding) f xs) e
   mapHiding f b@TLet{}            = b
 
+instance HasRange a => HasRange (Binder' a) where
+  getRange (Binder p n) = fuseRange p n
+
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
     getRange (DomainFull b)   = getRange b
@@ -624,12 +619,10 @@ instance HasRange Expr where
     getRange (RecUpdate i _ _)     = getRange i
     getRange (ETel tel)            = getRange tel
     getRange (ScopedExpr _ e)      = getRange e
-    getRange (QuoteGoal _ _ e)     = getRange e
-    getRange (QuoteContext i)      = getRange i
     getRange (Quote i)             = getRange i
     getRange (QuoteTerm i)         = getRange i
     getRange (Unquote i)           = getRange i
-    getRange (Tactic i _ _ _)      = getRange i
+    getRange (Tactic i _ _)        = getRange i
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
     getRange (Macro x)             = getRange x
@@ -685,10 +678,10 @@ instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS                = noRange
-    getRange (RHS e _)                = getRange e
-    getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
+    getRange AbsurdRHS                 = noRange
+    getRange (RHS e _)                 = getRange e
+    getRange (WithRHS _ e cs)          = fuseRange e cs
+    getRange (RewriteRHS xes _ rhs wh) = getRange (xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
   getRange (WhereDecls _ ds) = getRange ds
@@ -715,6 +708,9 @@ instance SetRange (Pattern' a) where
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
+
+instance KillRange a => KillRange (Binder' a) where
+  killRange (Binder a b) = killRange2 Binder a b
 
 instance KillRange LamBinding where
   killRange (DomainFree t x) = killRange2 DomainFree t x
@@ -754,12 +750,10 @@ instance KillRange Expr where
   killRange (RecUpdate i e fs)     = killRange3 RecUpdate i e fs
   killRange (ETel tel)             = killRange1 ETel tel
   killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
-  killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
-  killRange (QuoteContext i)       = killRange1 QuoteContext i
   killRange (Quote i)              = killRange1 Quote i
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
-  killRange (Tactic i e xs ys)     = killRange4 Tactic i e xs ys
+  killRange (Tactic i e xs)        = killRange3 Tactic i e xs
   killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
   killRange (Macro x)              = killRange1 Macro x
@@ -858,6 +852,7 @@ instanceUniverseBiT' [] [t| (Declaration, NamedArg LHSCore)  |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg BindName) |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg Expr)     |]
 instanceUniverseBiT' [] [t| (Declaration, NamedArg Pattern)  |]
+instanceUniverseBiT' [] [t| (Declaration, Quantity)          |]
 
 ------------------------------------------------------------------------
 -- Queries
@@ -886,6 +881,9 @@ instance AllNames a => AllNames (Named name a) where
 instance (AllNames a, AllNames b) => AllNames (a,b) where
   allNames (a,b) = allNames a >< allNames b
 
+instance (AllNames a, AllNames b, AllNames c) => AllNames (a,b,c) where
+  allNames (a,b,c) = allNames a >< allNames b >< allNames c
+
 instance AllNames QName where
   allNames q = Seq.singleton q
 
@@ -913,11 +911,16 @@ instance AllNames Declaration where
 instance AllNames Clause where
   allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
 
+instance (AllNames qn, AllNames e) => AllNames (RewriteEqn' qn p e) where
+    allNames = \case
+      Rewrite es    -> Fold.foldMap allNames es
+      Invert qn pes -> allNames qn >< foldMap (Fold.foldMap allNames) pes
+
 instance AllNames RHS where
   allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes _ rhs cls) = allNames (qes, rhs, cls)
 
 instance AllNames WhereDeclarations where
   allNames (WhereDecls _ ds) = allNames ds
@@ -946,12 +949,10 @@ instance AllNames Expr where
   allNames (Rec _ fields)          = allNames [ a ^. exprFieldA | Left a <- fields ]
   allNames (RecUpdate _ e fs)      = allNames e >< allNames (map (view exprFieldA) fs)
   allNames (ScopedExpr _ e)        = allNames e
-  allNames (QuoteGoal _ _ e)       = allNames e
-  allNames (QuoteContext _)        = Seq.empty
   allNames Quote{}                 = Seq.empty
   allNames QuoteTerm{}             = Seq.empty
   allNames Unquote{}               = Seq.empty
-  allNames (Tactic _ e xs ys)      = allNames e >< allNames xs >< allNames ys
+  allNames (Tactic _ e xs)         = allNames e >< allNames xs
   allNames DontCare{}              = Seq.empty
   allNames PatternSyn{}            = Seq.empty
   allNames Macro{}                 = Seq.empty
@@ -1016,7 +1017,12 @@ class NameToExpr a where
 instance NameToExpr AbstractName where
   nameToExpr d =
     case anameKind d of
-      DefName                  -> Def x
+      DataName                 -> Def x
+      RecName                  -> Def x
+      AxiomName                -> Def x
+      PrimName                 -> Def x
+      FunName                  -> Def x
+      OtherDefName             -> Def x
       GeneralizeName           -> Def x
       DisallowedGeneralizeName -> Def x
       FldName                  -> Proj ProjSystem ux
@@ -1037,7 +1043,7 @@ instance NameToExpr AbstractName where
 instance NameToExpr ResolvedName where
   nameToExpr = \case
     VarName x _          -> Var x
-    DefinedName _ x      -> nameToExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName _ x      -> nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
@@ -1071,9 +1077,9 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBindName n) $
-                            lambdaLiftExpr ns e
-
+lambdaLiftExpr (n:ns) e =
+  Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n) $
+  lambdaLiftExpr ns e
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
@@ -1132,12 +1138,10 @@ instance SubstExpr Expr where
     RecUpdate i e nes     -> RecUpdate i (substExpr s e) (substExpr s nes)
     -- XXX: Do we need to do more with ScopedExprs?
     ScopedExpr si e       -> ScopedExpr si (substExpr s e)
-    QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
-    QuoteContext i        -> e
     Quote i               -> e
     QuoteTerm i           -> e
     Unquote i             -> e
-    Tactic i e xs ys      -> Tactic i (substExpr s e) (substExpr s xs) (substExpr s ys)
+    Tactic i e xs         -> Tactic i (substExpr s e) (substExpr s xs)
     DontCare e            -> DontCare (substExpr s e)
     PatternSyn{}          -> e
     Macro{}               -> e
@@ -1154,8 +1158,13 @@ instance SubstExpr TypedBinding where
     TLet r lbs     -> TLet r $ substExpr s lbs
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->
-                            Maybe ([(Name, a)], [Arg Name])
+insertImplicitPatSynArgs
+  :: HasRange a
+  => (Range -> a)
+  -> Range
+  -> [Arg Name]
+  -> [NamedArg a]
+  -> Maybe ([(Name, a)], [Arg Name])
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
     matchNextArg r n as@(~(a : as'))
@@ -1164,10 +1173,9 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       | otherwise      = return (wild r, as)
 
     matchNext _ [] = False
-    matchNext n (a:as) = sameHiding n a && matchName
+    matchNext n (a:as) = sameHiding n a && maybe True (x ==) (bareNameOf a)
       where
-        x = unranged $ C.nameToRawName $ nameConcrete $ unArg n
-        matchName = maybe True (== x) (nameOf $ unArg a)
+        x = C.nameToRawName $ nameConcrete $ unArg n
 
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing

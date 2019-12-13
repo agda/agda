@@ -1,0 +1,84 @@
+#!/bin/bash
+source .travis/header.sh
+set -e
+
+subtitle "*** updating cabal tools ***"
+travis_retry cabal update
+subtitle "*** installing alex, happy, and shelltestrunner ***"
+travis_retry cabal fetch alex happy shelltestrunner
+cabal install -v0 alex happy
+cabal install -v0 --ghc-option=-w shelltestrunner
+
+##############################################################################
+# Build environment information
+
+travis_fold start "ghc.info"
+
+title "GHC build information"
+subtitle "*** GHC version ***"
+ghc --version
+subtitle "*** Cabal version ***"
+cabal --version
+subtitle "*** Alex version ***"
+alex --version
+subtitle "*** Happy version ***"
+happy --version | sed 2q
+subtitle "*** Haddock version ***"
+haddock --version
+subtitle "*** Emacs version ***"
+emacs --version | sed 2q
+
+# The container environment reports a wrong number of cores. We use
+# a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
+# commenting out `jobs: $ncpus` in the Cabal configuration file.
+sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config
+
+subtitle "*** Cabal configuration ***"
+cat $HOME/.cabal/config
+
+travis_fold end "ghc.info"
+
+##############################################################################
+# Installing the dependencies
+
+# N.B. `cabal install` doesn't set up the number of jobs by default
+# (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
+
+# We are using `make CABAL_OPTS...` because we are including the
+# options to `cabal install` set up in the `Makefile`.
+
+travis_fold start "build.dependencies"
+
+title "Building dependencies"
+# travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
+travis_retry make CABAL_OPTS='-v0 --only-dependencies' install-bin
+
+travis_fold end "build.dependencies"
+##############################################################################
+# Installing Agda
+
+travis_fold start "build.agda"
+
+title "Building Agda"
+make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+
+travis_fold end "build.agda"
+
+##############################################################################
+# Getting the standard library
+
+travis_fold start "fetch.std-lib"
+
+make up-to-date-std-lib
+
+travis_fold end "fetch.std-lib"
+
+###############################################################################
+## Installing a recent version of Node (see Issue #2192)
+#
+#cd $HOME
+#travis_retry wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL}
+#tar xJf ${NODE_TARBALL}
+#cd $AGDA_HOME
+#echo "*** Node version ***"
+#node --version

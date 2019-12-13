@@ -449,6 +449,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for confluence problems."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-missing-definition-face
+  '((((background light))
+     (:background "orange"))
+    (((background dark))
+     (:background "#804040")))
+  "The face used for type declarations with missing definitions."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-typechecks-face
   '((((background light))
      (:background "light blue" :foreground "black"))
@@ -460,8 +468,8 @@ If `agda2-highlight-face-groups' is nil."
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (comment                . font-lock-comment-face)
-    (background             . font-lock-comment-face)
-    (markup                 . font-lock-comment-face)
+    (background             . default)
+    (markup                 . font-lock-comment-delimiter-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
@@ -491,6 +499,7 @@ If `agda2-highlight-face-groups' is nil."
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (catchallclause         . agda2-highlight-catchall-clause-face)
     (confluenceproblem      . agda2-highlight-confluence-problem-face)
+    (missingdefinition      . agda2-highlight-missing-definition-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 

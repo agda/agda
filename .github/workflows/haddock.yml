@@ -1,0 +1,32 @@
+name: Haddock
+# Test documentation: haddock, user-manual.
+# Since `stack haddock` compiles Agda but `cabal haddock` does
+# not, this test is faster using `BUILD=CABAL` [Issue #2188].
+on:
+  push:
+    paths:
+    - 'src/**.hs'
+  pull_request:
+    paths:
+    - 'src/**.hs'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: '8.8.1'
+        cabal-version: '3.0'
+    - name: Install dependencies
+      run: |
+        cabal v1-update
+        cabal v1-install alex happy
+        cabal v1-install --dependencies-only -fenable-cluster-counting --enable-tests --force-reinstalls --disable-library-profiling
+    # Testing Haddock [Issue 1773]
+    - name: Build
+      run: |
+        cabal v1-configure -fenable-cluster-counting --enable-tests
+        cabal v1-haddock

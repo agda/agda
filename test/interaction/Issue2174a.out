@@ -5,7 +5,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "Issue2174a.agda:1,1-4 Set → Set !=< Set of type Set₁ when checking that the inferred type of an application Set → Set matches the expected type Set" nil)
+(agda2-info-action "*Error*" "Issue2174a.agda:1,1-4 Set → Set !=< Set when checking that the inferred type of an application Set → Set matches the expected type Set" nil)
 ((last . 3) . (agda2-maybe-goto '("Issue2174a.agda" . 1)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

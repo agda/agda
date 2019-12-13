@@ -1,0 +1,5 @@
+EqualityNotPositive.agda:10,1-11,16
+D is not strictly positive, because it occurs
+in the second argument of _≡_
+in the type of the constructor c
+in the definition of D.

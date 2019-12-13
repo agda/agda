@@ -19,6 +19,7 @@ import System.FilePath
 #ifdef mingw32_HOST_OS
 import Control.Exception (bracket)
 import System.Win32 (findFirstFile, findClose, getFindDataFileName)
+import Agda.Utils.Monad
 #endif
 
 import Data.Text (Text)
@@ -27,7 +28,6 @@ import Data.Function
 import Data.Hashable (Hashable)
 import Data.Data (Data)
 
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -71,9 +71,10 @@ rootPath = joinDrive "C:" [pathSeparator]
 rootPath = [pathSeparator]
 #endif
 
--- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
-rootName :: AbsolutePath -> String
-rootName = dropExtension . snd . splitFileName . filePath
+-- UNUSED Linag-Ting Chen 2019-07-16
+---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
+--rootName :: AbsolutePath -> String
+--rootName = dropExtension . snd . splitFileName . filePath
 
 -- | Makes the path absolute.
 --
@@ -117,5 +118,5 @@ doesFileExistCaseSensitive f = do
     bracket (findFirstFile f) (findClose . fst) $
       fmap (takeFileName f ==) . getFindDataFileName . snd
 #else
-doesFileExistCaseSensitive f = doesFileExist f
+doesFileExistCaseSensitive = doesFileExist
 #endif

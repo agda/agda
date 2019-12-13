@@ -3,11 +3,11 @@
 module Agda.TypeChecking.Rules.Data where
 
 import Control.Monad
-
-import Data.List (genericTake)
-import Data.Maybe (fromMaybe, catMaybes, isJust)
-import Control.Monad.Trans.Maybe
 import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
+
+import Data.Foldable (traverse_)
+import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -24,7 +24,6 @@ import Agda.Syntax.Fixity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin -- (primLevel)
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -42,8 +41,6 @@ import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Interaction.Options
-
 import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -59,7 +56,7 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef :: A.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
 checkDataDef i name uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) name ps cs) $ do
 
@@ -121,7 +118,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM withoutKOption $ checkIndexSorts s' ixTel
+            -- Andreas, 2019-07-16, issue #3916:
+            -- NoUniverseCheck should also disable the index sort check!
+            unless (uc == NoUniverseCheck) $
+              whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -149,7 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            escapeContext npars $ do
+            unsafeEscapeContext npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -210,10 +210,16 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Relevant   -> return ()
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
+        case getQuantity ai of
+          Quantityω{} -> return ()
+          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
-        -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations c t
+        -- compute which constructor arguments are forced (only point constructors)
+        forcedArgs <- if isPathCons == PointCons
+                      then computeForcingAnnotations c t
+                      else return []
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -235,12 +241,15 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
-        escapeContext (size tel) $ do
+        unsafeEscapeContext (size tel) $ do
 
-          cnames <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef) then return (emptyCompKit, Nothing) else do
-            inTopContext $ do
-              names <- forM [0 .. size fields - 1] (\ i -> freshAbstractQName'_ (P.prettyShow (A.qnameName c) ++ "-" ++ show i))
+          -- Cannot compose indexed inductive types yet.
+          (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+            then return (ConHead c Inductive [], emptyCompKit, Nothing)
+            else unsafeInTopContext $ do
+              -- Name for projection of ith field of constructor c is just c-i
+              names <- forM [0 .. size fields - 1] $ \ i ->
+                freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
 
               -- nofIxs == 0 means the data type can be reconstructed
               -- by appling the QName d to the parameters.
@@ -253,9 +262,11 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
                 , "names  =" <+> pretty names
                 ]
 
+              let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+
               defineProjections d con params names fields dataT
               comp <- defineCompData d con params names fields dataT boundary
-              return $ (comp, Just names)
+              return (con, comp, Just names)
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
@@ -265,14 +276,14 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conData   = d
               , conAbstr  = Info.defAbstract i
               , conInd    = Inductive
-              , conComp   = cnames
+              , conComp   = comp
+              , conProj   = projNames
               , conForced = forcedArgs
-              , conErased = []  -- computed during compilation to treeless
+              , conErased = Nothing  -- computed during compilation to treeless
               }
 
-          case snd cnames of
-            Nothing -> return ()
-            Just names -> mapM_ makeProjection names
+          -- Check generated projections for projection-likeness
+          traverse_ (mapM_ makeProjection) $ projNames
 
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do
@@ -492,7 +503,7 @@ defineCompData d con params names fsT t boundary = do
 
         -- Δ.Φ ⊢ u = Con con ConOSystem $ teleElims fsT boundary : R δ
 --        u = Con con ConOSystem $ teleElims fsT boundary
-        up = ConP con (ConPatternInfo Nothing False Nothing False) $
+        up = ConP con (ConPatternInfo defaultPatternInfo False False Nothing False) $
                telePatterns (d0 `applySubst` fsT) (liftS (size fsT) d0 `applySubst` boundary)
 --        gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
@@ -513,6 +524,7 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
 
                | otherwise
@@ -525,10 +537,11 @@ defineCompData d con params names fsT t boundary = do
             , clauseCatchall = False
             , clauseBody = Just $ body
             , clauseUnreachable = Just False
+            , clauseEllipsis = NoEllipsis
             }
         cs = [clause]
       addClauses theName cs
-      (mst, cc) <- inTopContext (compileClauses Nothing cs)
+      (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
       setTerminates theName True
@@ -562,7 +575,7 @@ defineProjections dataname con params names fsT t = do
       reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
 
     let
-      cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
+      cpi  = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
           { clauseTel = abstract params fsT
@@ -573,11 +586,12 @@ defineProjections dataname con params names fsT t = do
           , clauseCatchall = False
           , clauseBody = Just $ var i
           , clauseUnreachable = Just False
+          , clauseEllipsis = NoEllipsis
           }
 
     noMutualBlock $ do
       let cs = [clause]
-      (mst , cc) <- inTopContext $ compileClauses Nothing cs
+      (mst, _, cc) <- inTopContext $ compileClauses Nothing cs
       let fun = emptyFunction
                 { funClauses = cs
                 , funTerminates = Just True
@@ -1044,7 +1058,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of
-    NoInsertNeeded -> continue ps $ A.unBind x
+    NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
      typeError . GenericDocError =<< do

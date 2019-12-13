@@ -13,8 +13,6 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import qualified Data.Set as Set
-import Data.Set (Set)
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -23,7 +21,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Free.Precompute
 import Agda.Utils.Monad
 
@@ -133,12 +130,10 @@ instance ForceNotFree Term where
     Dummy{}    -> return t
 
 instance ForceNotFree Level where
-  forceNotFree' (Max as) = Max <$> forceNotFree' as
+  forceNotFree' (Max m as) = Max m <$> forceNotFree' as
 
 instance ForceNotFree PlusLevel where
-  forceNotFree' l = case l of
-    ClosedLevel{} -> return l
-    Plus k a      -> Plus k <$> forceNotFree' a
+  forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
 instance ForceNotFree LevelAtom where
   forceNotFree' l = case l of

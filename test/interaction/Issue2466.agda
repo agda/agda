@@ -31,4 +31,4 @@ module Implicit where
     where
     y = x
 
-  -- Expected: test .p (c {p} {p'} {x} pp) = ?
+  -- Expected: test .p (c {p} {p'} {x = x} pp) = ?

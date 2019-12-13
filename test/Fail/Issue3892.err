@@ -1,0 +1,5 @@
+Issue3892.agda:4,1-15
+Multiple definitions of Foo. Previous definition at
+Issue3892.agda:3,11-14
+when scope checking the declaration
+  data Foo where

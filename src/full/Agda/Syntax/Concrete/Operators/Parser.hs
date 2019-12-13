@@ -1,12 +1,12 @@
 {-# LANGUAGE GADTs        #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative ( Alternative((<|>), many) )
 
 import Data.Either
-import Data.Hashable
 import Data.Kind ( Type )
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
@@ -63,8 +63,9 @@ data ExprView e
 --    deriving (Show)
 
 class HasRange e => IsExpr e where
-    exprView   :: e -> ExprView e
-    unExprView :: ExprView e -> e
+  exprView    :: e -> ExprView e
+  unExprView  :: ExprView e -> e
+  patternView :: e -> Maybe Pattern
 
 instance IsExpr e => HasRange (ExprView e) where
   getRange = getRange . unExprView
@@ -90,6 +91,8 @@ instance IsExpr Expr where
         LamV bs e      -> Lam (fuseRange bs e) bs e
         WildV e        -> e
         OtherV e       -> e
+
+    patternView = isPattern
 
 instance IsExpr Pattern where
     exprView e = case e of
@@ -118,6 +121,8 @@ instance IsExpr Pattern where
         LamV _ _       -> __IMPOSSIBLE__
         WildV e        -> e
         OtherV e       -> e
+
+    patternView = pure
 
 -- | Should sections be parsed?
 data ParseSections = ParseSections | DoNotParseSections
@@ -209,20 +214,11 @@ atLeastTwoParts =
         _                                  -> Nothing
     _ -> Nothing
 
--- | Either a wildcard (@_@), or an unqualified name (possibly
--- containing multiple name parts).
+-- | Parses a potentially pattern-matching binder
 
-wildOrUnqualifiedName :: IsExpr e => Parser e (Maybe Name)
-wildOrUnqualifiedName =
-  (Nothing <$ partP [] "_")
-    <|>
-  (satNoPlaceholder $ \e ->
-     case exprView e of
-       LocalV (QName n) -> Just (Just n)
-       WildV _          -> Just Nothing
-       _                -> Nothing)
-    <|>
-  Just <$> atLeastTwoParts
+patternBinder :: IsExpr e => Parser e Binder
+patternBinder = inOnePart <|> mkBinder_ <$> atLeastTwoParts
+  where inOnePart = satNoPlaceholder $ \ e -> isBinderP =<< patternView e
 
 -- | Used to define the return type of 'opP'.
 
@@ -312,20 +308,17 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
             p
       <*> worker ms xs
   worker ms (WildHole h : xs) =
-    (\(r, es) -> (r, Right (mkBinding h $ Name noRange InScope [Hole]) : es))
+    (\(r, es) -> let anon = mkBinder_ (Name noRange InScope [Hole])
+                 in (r, Right (mkBinding h anon) : es))
       <$> worker ms xs
   worker ms (BindHole _ h : xs) = do
-    (\e (r, es) ->
-        let x = case e of
-                  Just name -> name
-                  Nothing   -> Name noRange InScope [Hole]
-        in (r, Right (mkBinding h x) : es))
+    (\ b (r, es) -> (r, Right (mkBinding h b) : es))
            -- Andreas, 2011-04-07 put just 'Relevant' here, is this
            -- correct?
-      <$> wildOrUnqualifiedName
+      <$> patternBinder
       <*> worker ms xs
 
-  mkBinding h x = (DomainFree $ defaultNamedArg $ mkBoundName_ x, h)
+  mkBinding h b = (DomainFree $ defaultNamedArg b, h)
 
   set x arg = fmap (fmap (const x)) arg
 

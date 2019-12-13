@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
 module Agda.Syntax.Concrete.Fixity
@@ -12,14 +13,16 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
+import Agda.Syntax.Builtin (builtinsNoDef)
 import Agda.Syntax.Common
-import Agda.Syntax.Position
+import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete
-import Agda.Syntax.Builtin (builtinsNoDef)
+import Agda.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 
 import Agda.Utils.Functor
@@ -50,11 +53,11 @@ plusFixities m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
     mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
-              where f | f1 == noFixity = f2
-                      | f2 == noFixity = f1
+              where f | null f1 = f2
+                      | null f2 = f1
                       | otherwise = __IMPOSSIBLE__
-                    s | s1 == noNotation = s2
-                      | s2 == noNotation = s1
+                    s | null s1 = s2
+                      | null s2 = s1
                       | otherwise = __IMPOSSIBLE__
 
     -- Compute a list of conflicts in a format suitable for error reporting.
@@ -63,8 +66,8 @@ plusFixities m1 m2
 
     -- Check for no conflict.
     compatible (Fixity' f1 s1 _) (Fixity' f2 s2 _) =
-      (f1 == noFixity   || f2 == noFixity  ) &&
-      (s1 == noNotation || s2 == noNotation)
+      (null f1 || null f2) &&
+      (null s1 || null s2)
 
 -- | While 'Fixities' and Polarities are not semigroups under disjoint
 --   union (which might fail), we get a semigroup instance for the
@@ -154,6 +157,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
   TypeSig     {}  -> mempty
+  FieldSig    {}  -> mempty
   Generalize  {}  -> mempty
   Field       {}  -> mempty
   FunClause   {}  -> mempty
@@ -174,7 +178,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
+data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =
@@ -200,9 +204,10 @@ declaresName x = declaresNames [x]
 --   i.e., do not go into modules.
 declaredNames :: Declaration -> DeclaredNames
 declaredNames d = case d of
-  TypeSig _ x _        -> declaresName x
-  Field _ x _          -> declaresName x
-  FunClause (LHS p [] []) _ _ _
+  TypeSig _ _ x _      -> declaresName x
+  FieldSig _ _ x _     -> declaresName x
+  Field _ fs           -> foldMap declaredNames fs
+  FunClause (LHS p [] [] _) _ _ _
     | IdentP (QName x) <- removeSingletonRawAppP p
                        -> declaresName x
   FunClause{}          -> mempty
@@ -234,4 +239,3 @@ declaredNames d = case d of
   Pragma (BuiltinPragma _ b (QName x))
     | b `elem` builtinsNoDef -> declaresName x
   Pragma{}             -> mempty
-

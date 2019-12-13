@@ -5,7 +5,6 @@ import Control.Arrow (first, second)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
-import Control.Monad.Trans (lift)
 
 import Data.Char
 import qualified Data.HashSet as HashSet
@@ -27,7 +26,6 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -47,7 +45,6 @@ import Agda.Utils.Except
   , runExceptT
   )
 import Agda.Utils.Either
-import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
@@ -106,7 +103,7 @@ liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUn
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
   packUnquoteM $ \ cxt s ->
-    modifyContext (const cxt) $ unpackUnquoteM m cxt s
+    unsafeModifyContext (const cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftTCM tm
@@ -170,9 +167,9 @@ pickName a =
               isAlpha c -> [toLower c]
     _        -> "_"
 
--- TODO: reflect Quantity
+-- TODO: reflect Quantity, Cohesion
 instance Unquote Modality where
-  unquote t = (`Modality` defaultQuantity) <$> unquote t
+  unquote t = (\ r -> Modality r defaultQuantity defaultCohesion) <$> unquote t
 
 instance Unquote ArgInfo where
   unquote t = do
@@ -480,7 +477,6 @@ evalTCM v = do
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
-             , (f `isDef` primAgdaTCMSolveConstraints, tcSolveConstraints)
              ]
              failEval
     I.Def f [u] ->
@@ -491,7 +487,6 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
-             , (f `isDef` primAgdaTCMSolveConstraintsMentioning, tcFun1 tcSolveConstraintsMentioning u)
              ]
              failEval
     I.Def f [u, v] ->
@@ -533,7 +528,7 @@ evalTCM v = do
       if norm then normalise v else instantiateFull v
 
     mkT l a = El s a
-      where s = Type $ Max [Plus 0 $ UnreducedLevel l]
+      where s = Type $ Max 0 [Plus 0 $ UnreducedLevel l]
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
@@ -608,17 +603,6 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
-
-    tcSolveConstraints :: UnquoteM Term
-    tcSolveConstraints = liftTCM $ do
-      wakeupConstraints_
-      primUnitUnit
-
-    tcSolveConstraintsMentioning :: [MetaId] -> TCM Term
-    tcSolveConstraintsMentioning ms = do
-      wakeConstraints' (return . mentionsMetas (HashSet.fromList ms))
-      solveAwakeConstraints
-      primUnitUnit
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
@@ -743,7 +727,9 @@ evalTCM v = do
         genericError $ "Missing declaration for " ++ prettyShow x
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
-      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange
+      let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
+      ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
+      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
       checkFunDef NotDelayed i x cs
       primUnitUnit
 

@@ -1,4 +1,4 @@
-
+{-# LANGUAGE CPP                        #-}
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
@@ -37,14 +37,15 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
 
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -124,6 +125,8 @@ data OtherAspect
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
     -- ^ Code which is being type-checked.
+  | MissingDefinition
+    -- ^ Function declaration without matching definition
   -- NB: We put CatchallClause last so that it is overwritten by other,
   -- more important, aspects in the emacs mode.
   | CatchallClause

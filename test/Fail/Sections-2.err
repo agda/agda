@@ -1,4 +1,4 @@
 Sections-2.agda:7,16-17
-Nat != (if section then Nat else Bool) of type Set
+Nat != (if section then Nat else Bool)
 when checking that the expression 5 has type
 if section then Nat else Bool

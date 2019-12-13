@@ -8,11 +8,11 @@ module Agda.Utils.Pointer
 
 import Control.DeepSeq
 import Control.Concurrent.MVar
-import Data.Foldable
+
 import Data.Function
 import Data.Hashable
 import Data.IORef
-import Data.Traversable
+
 import System.IO.Unsafe
 
 import Data.Data (Data (..))

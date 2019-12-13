@@ -10,9 +10,9 @@ import System.Directory
 import System.FilePath
 import Data.ByteString as BS
 
-import Paths_Agda
 
-import Agda.Utils.Functor
+
+
 
 -- | @copyDirContent src dest@ recursively copies directory @src@ onto @dest@.
 --
