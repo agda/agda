@@ -491,24 +491,9 @@ Closing issues reported in the CHANGELOG
 ========================================
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
-*all* the closed issues with milestone 1.2.3 (using the
-`closed-issues-by-milestone` program) except those issues tagged
-with one of the following labels:
-`closed-issues-program`
-`debug`
-`faq`
-`fix-agda-whitespace`
-`haddock`
-`not-in-changelog`
-`repository`
-`status: abandoned`
-`status: duplicate`
-`status: invalid`
-`status: wontfix`
-`status: working-as-intended`
-`style`
-`type: task`
-`typo`
+*all* the closed issues with milestone 1.2.3 except those issues
+tagged with the labels listed in `labelsNotInChangelog` in the
+`src/release-tools/closed-issues-for-milestone/Main.hs` file.
 
 Documentation
 =============
