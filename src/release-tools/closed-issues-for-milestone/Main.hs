@@ -63,8 +63,6 @@ usage = putStrLn $ unlines
 issueLabelsNames :: Issue -> [Text]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 
--- This list should be match the list of the labels in `HACKING.md`
--- (section "Closing issues").
 labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
   [ "closed-issues-program"
@@ -80,6 +78,8 @@ labelsNotInChangelog =
   , "status: wontfix"
   , "status: working-as-intended"
   , "style"
+  , "travis"
+  , "type: pull-request"
   , "type: task"
   , "typo"
   ]
