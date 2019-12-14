@@ -196,25 +196,12 @@ jobs:
         # #1675), but we still compare the generated tex/html files with the
         # golden files.
 
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
-            TASTY_ANSI_TRICKS=false \
-            BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" \
-            latex-html-test
-
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
         - make BUILD_DIR=$BUILD_DIR examples
         - make BUILD_DIR=$BUILD_DIR library-test
         - make BUILD_DIR=$BUILD_DIR api-test
-
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" \
-            TASTY_ANSI_TRICKS=false \
-            BUILD_DIR=$BUILD_DIR \
-            user-manual-test
-
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"\
-            TASTY_ANSI_TRICKS=false \
-            BUILD_DIR=$BUILD_DIR \
-            internal-tests
-
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
         - make BUILD_DIR=$BUILD_DIR benchmark-without-logs
 
         ##################################################################################
