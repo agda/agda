@@ -63,6 +63,7 @@ usage = putStrLn $ unlines
 issueLabelsNames :: Issue -> [Text]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 
+-- Please keep the labels in the list in alphabetic order!
 labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
   [ "closed-issues-program"
@@ -71,6 +72,7 @@ labelsNotInChangelog =
   , "fix-agda-whitespace"
   , "haddock"
   , "not-in-changelog"
+  , "regression on master"
   , "repository"
   , "status: abandoned"
   , "status: duplicate"

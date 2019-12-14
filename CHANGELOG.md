@@ -441,8 +441,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#3073](https://github.com/agda/agda/issues/3073): type-in-type and spurious levels
   -  [#3089](https://github.com/agda/agda/issues/3089): Nicer syntax for implicit @-patterns
   -  [#3095](https://github.com/agda/agda/issues/3095): Would like to make hidden variable visible but it is created ambiguous
-  -  [#3148](https://github.com/agda/agda/issues/3148): Regression: unification error in function application
-  -  [#3211](https://github.com/agda/agda/issues/3211): Rewriting/NonLinMatch.hs:192:9-54: Irrefutable pattern failed for pattern (Just (_, ct))
   -  [#3233](https://github.com/agda/agda/issues/3233): Type declarations not accompanied by a definition should be highlighted in the emacs mode
   -  [#3238](https://github.com/agda/agda/issues/3238): Printing of inserted hidden lambdas
   -  [#3293](https://github.com/agda/agda/issues/3293): Absurd match in a do block
@@ -454,7 +452,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#3493](https://github.com/agda/agda/issues/3493): Impossible to normalize elements in a proposition
   -  [#3525](https://github.com/agda/agda/issues/3525): Rewrite rules with non-linear patterns do not work in presence of Prop
   -  [#3545](https://github.com/agda/agda/issues/3545): JavaScript backend: mapping a function that returns Set fails
-  -  [#3550](https://github.com/agda/agda/issues/3550): Emacs: interrupt highlighting process when reloading `C-c C-l`
   -  [#3574](https://github.com/agda/agda/issues/3574): Support precedent rebind / changing the precedents in builtin library
   -  [#3582](https://github.com/agda/agda/issues/3582): Error message referring to Set instead of Prop
   -  [#3594](https://github.com/agda/agda/issues/3594): Occurs check throws error when a solution is possible by eta expansion
@@ -528,7 +525,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#3983](https://github.com/agda/agda/issues/3983): TERMINATING accepted with --safe if hidden in a block
   -  [#3991](https://github.com/agda/agda/issues/3991): Allow fractional precedence levels
   -  [#4000](https://github.com/agda/agda/issues/4000): How to get Agda to ignore `~/.agda`?
-  -  [#4005](https://github.com/agda/agda/issues/4005): Regression related to abstract
   -  [#4006](https://github.com/agda/agda/issues/4006): Internal error related to abstract and variable
   -  [#4007](https://github.com/agda/agda/issues/4007): Cannot give pattern-matching lambda in abstract setting
   -  [#4010](https://github.com/agda/agda/issues/4010): unquoteDef fails in abstract block
@@ -536,7 +532,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4020](https://github.com/agda/agda/issues/4020): Rewriting incorrectly considers level variables under lambdas as unbound in the LHS
   -  [#4032](https://github.com/agda/agda/issues/4032): Loss of subject reduction involving --rewriting even when --confluence-check is on and everything passes the confluence checker
   -  [#4038](https://github.com/agda/agda/issues/4038): Rewriting sometimes fails to rewrite in the presence of unsolved metas
-  -  [#4040](https://github.com/agda/agda/issues/4040): Performance regression
   -  [#4044](https://github.com/agda/agda/issues/4044): Equality checking uses too much memory in 2.6.0 (compared to 2.5.4)
   -  [#4048](https://github.com/agda/agda/issues/4048): Rewriting rule fails to trigger
   -  [#4049](https://github.com/agda/agda/issues/4049): Internal error with sized types if the target type of a constructor is an alias
@@ -544,7 +539,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4051](https://github.com/agda/agda/issues/4051): Internal error when importing a module with a hole in a type
   -  [#4053](https://github.com/agda/agda/issues/4053): Emacs-mode: Case split leaves part of old line behind
   -  [#4059](https://github.com/agda/agda/issues/4059): Two variants of irrefutable with?
-  -  [#4065](https://github.com/agda/agda/issues/4065): Missing error message (only error location given)
   -  [#4066](https://github.com/agda/agda/issues/4066): Regression related to instance resolution
   -  [#4115](https://github.com/agda/agda/issues/4115): Elements in a proposition are needlessly reduced when pattern matching
   -  [#4116](https://github.com/agda/agda/issues/4116): Internal error Forcing.hs:232
@@ -558,7 +552,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4141](https://github.com/agda/agda/issues/4141): Printing of DontCare should not use dot syntax
   -  [#4142](https://github.com/agda/agda/issues/4142): defCopatternLHS needs to be set when record expression were translated to copatterns
   -  [#4148](https://github.com/agda/agda/issues/4148): Internal error related to records and type-level indices
-  -  [#4149](https://github.com/agda/agda/issues/4149): Internal error with instance and variable
   -  [#4152](https://github.com/agda/agda/issues/4152): Variables in Prop position should not raise hard error in occurs check
   -  [#4154](https://github.com/agda/agda/issues/4154): Renaming declarations within a module may cause name clash
   -  [#4158](https://github.com/agda/agda/issues/4158): Double check failure (unaware of rewrite rule)
@@ -571,11 +564,8 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4205](https://github.com/agda/agda/issues/4205): Internal error in connection with with, copatterns, and open record
   -  [#4211](https://github.com/agda/agda/issues/4211): Cannot add as-pattern on literal pattern
   -  [#4215](https://github.com/agda/agda/issues/4215): Case splitting should respect Nat literals
-  -  [#4253](https://github.com/agda/agda/issues/4253): Regression related to generalisable variables
-  -  [#4254](https://github.com/agda/agda/issues/4254): Internal error in clause compiler
-  -  [#4256](https://github.com/agda/agda/issues/4256): Give triggers internal error
-  -  [#4259](https://github.com/agda/agda/issues/4259): Internal error in clause compiler
   -  [#4267](https://github.com/agda/agda/issues/4267): File order of checking matters (record disambiguation)
+  -  [#4283](https://github.com/agda/agda/issues/4283): DeBruijn issue(?) in standard library tests
 
 Release notes for Agda version 2.6.0.1
 ======================================
