@@ -195,7 +195,6 @@ jobs:
         # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues #1022 and
         # #1675), but we still compare the generated tex/html files with the
         # golden files.
-
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
         - make BUILD_DIR=$BUILD_DIR examples
         - make BUILD_DIR=$BUILD_DIR library-test
@@ -214,7 +213,6 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
         - make BUILD_DIR=$BUILD_DIR lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
-
         - make test-size-solver
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
