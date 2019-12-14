@@ -1,0 +1,6 @@
+Failed to solve the following constraints:
+  _43 (p = refl) = refl : Id l A (w/e l A) (w/e l A)
+Unsolved metas at the following locations:
+  Issue4283.agda:38,60-61
+  Issue4283.agda:38,14-110
+  Issue4283.agda:41,12-13
