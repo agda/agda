@@ -1159,7 +1159,7 @@ etaExpandProjectedVar i v fail succeed = do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>
       " in terms " <+> prettyTCM v
-    inTopContext $ addContext delta $
+    unsafeInTopContext $ addContext delta $
       succeed $ applySubst tau v
 
 -- | Check whether one of the meta args is a projected var.
