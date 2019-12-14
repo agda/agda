@@ -187,7 +187,7 @@ jobs:
       install:
         - .travis/cabal_install
       ##############################################################################
-      script: |
+      script:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
         - make BUILD_DIR=$BUILD_DIR interaction
