@@ -24,7 +24,7 @@ import GitHub.Auth ( Auth( OAuth ) )
 
 import GitHub.Data.Definitions
   ( IssueLabel ( IssueLabel, labelName )
-  , IssueNumber(IssueNumber)
+  , unIssueNumber
   )
 
 import GitHub.Data.Issues
@@ -44,8 +44,8 @@ import GitHub.Data.Options ( stateClosed )
 -- import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
 import GitHub.Data.URL ( URL, getUrl )
 
-import qualified GitHub.Endpoints.Issues.Milestones as GH ( milestones' )
-import qualified GitHub.Endpoints.Issues as GH ( issuesForRepo' )
+import GitHub.Endpoints.Issues.Milestones ( milestones' )
+import GitHub.Endpoints.Issues ( issuesForRepo' )
 
 envGHToken = "GITHUBTOKEN"
 owner = "agda"
@@ -101,7 +101,7 @@ run mileStoneTitle = do
   -- Log in to repo.
 
   -- Resolve milestone into milestone id.
-  mileStoneVector <- crashOr $ GH.milestones' (Just auth) (N owner) (N repo)
+  mileStoneVector <- crashOr $ milestones' (Just auth) (N owner) (N repo)
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
     []  -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " not found in github repo " ++ theRepo
     [m] -> return $ milestoneNumber m
@@ -111,7 +111,7 @@ run mileStoneTitle = do
   -- print mileStoneId
 
   -- Get list of issues.
-  issueVector <- crashOr $ GH.issuesForRepo' (Just auth) (N owner) (N repo) stateClosed
+  issueVector <- crashOr $ issuesForRepo' (Just auth) (N owner) (N repo) stateClosed
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
     --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
@@ -132,7 +132,7 @@ run mileStoneTitle = do
   -- Print issues.
 
   forM_ issues $ \ Issue{ issueNumber, issueTitle } -> do
-    let IssueNumber n = issueNumber
+    let n = unIssueNumber issueNumber
     putStrLn $
       "  [#" ++ show n
      ++ "](https://github.com/" ++ theRepo ++ "/issues/" ++ show n
