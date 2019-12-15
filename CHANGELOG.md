@@ -504,8 +504,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#3901](https://github.com/agda/agda/issues/3901): Unnamed implicit non-dependent function space {A} -> B and {{A}} -> B
   -  [#3903](https://github.com/agda/agda/issues/3903): Forcing translation produces segfaulting program
   -  [#3912](https://github.com/agda/agda/issues/3912): Generalisable variables generate unknown and explicit parameters
-  -  [#3915](https://github.com/agda/agda/issues/3915): Allow function spaces {{A}} -> B and {A} -> B
-  -  [#3918](https://github.com/agda/agda/issues/3918): List possible hidden arguments when giving wrong named argument
   -  [#3919](https://github.com/agda/agda/issues/3919): Case splitting fails in parameterized module
   -  [#3927](https://github.com/agda/agda/issues/3927): `import … hiding …` should be documented
   -  [#3928](https://github.com/agda/agda/issues/3928): The error message `Hiding … has no effect` should be improved
@@ -559,7 +557,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4179](https://github.com/agda/agda/issues/4179): Coverage check false positive
   -  [#4185](https://github.com/agda/agda/issues/4185): Agda uses η-equality for record types defined with no-eta-equality
   -  [#4189](https://github.com/agda/agda/issues/4189): Record constructors sometimes in record modules, sometimes not
-  -  [#4191](https://github.com/agda/agda/issues/4191): Removing record constructor from record module
   -  [#4199](https://github.com/agda/agda/issues/4199): Show values of let-bound variables when printing the context
   -  [#4205](https://github.com/agda/agda/issues/4205): Internal error in connection with with, copatterns, and open record
   -  [#4211](https://github.com/agda/agda/issues/4211): Cannot add as-pattern on literal pattern

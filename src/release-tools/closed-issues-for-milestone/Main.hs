@@ -33,6 +33,7 @@ import GitHub.Data.Issues
          , issueLabels
          , issueMilestone
          , issueNumber
+         , issuePullRequest
          , issueTitle
          , issueUrl
          )
@@ -86,7 +87,6 @@ labelsNotInChangelog =
   , "status: working-as-intended"
   , "style"
   , "travis"
-  , "type: pull-request"
   , "type: task"
   , "typo"
   ]
@@ -110,7 +110,9 @@ run mileStoneTitle = do
   -- Debug.
   -- print mileStoneId
 
-  -- Get list of issues.
+  -- Get list of issues. GitHub's REST API v3 considers every pull
+  -- request an issue. For this reason we get a list of both issues
+  -- and pull requests when using the function 'issuesForRepo''.
   issueVector <- crashOr $ issuesForRepo' (Just auth) (N owner) (N repo) stateClosed
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
@@ -118,16 +120,15 @@ run mileStoneTitle = do
     --     , issueRepoOptionsState     = Just StateClosed
     --     }
 
-  -- Filter by milestone and labels.
+  -- Filter by issues, milestone and labels.
   let issues :: [Issue]
       issues = reverse
         [ i
-        | i <- toList issueVector
+        | i <- filter (isNothing . issuePullRequest) $ toList issueVector
         , m <- maybeToList $ issueMilestone i
         , milestoneNumber m == mileStoneId
         , not $ any (`elem` issueLabelsNames i) labelsNotInChangelog
         ]
-
 
   -- Print issues.
 
@@ -145,7 +146,6 @@ run mileStoneTitle = do
   --     [ show issueNumber
   --     , Text.unpack issueTitle
   --     ]
-
 
 -- | Crash on exception.
 crashOr :: Show e => IO (Either e a) -> IO a
