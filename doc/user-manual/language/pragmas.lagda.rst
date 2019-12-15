@@ -36,7 +36,7 @@ Index of pragmas
 
 * :ref:`NOINLINE <inline_pragma>`
 
-* :samp:`NON_COVERING` (missing documentation)
+* :samp:`NON_COVERING`
 
 * :ref:`NON_TERMINATING <non_terminating_pragma>`
 
@@ -44,7 +44,7 @@ Index of pragmas
 
 * :ref:`POLARITY <polarity_pragma>`
 
-* :samp:`REWRITE` (missing documentation)
+* :samp:`REWRITE`
 
 * :ref:`STATIC <built-ins>`
 
