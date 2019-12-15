@@ -52,7 +52,7 @@ Pragmas and options
 
 * New pragma option `--allow-incomplete-matches`. It is similar to
   `--allow-unsolved-metas`: modules containing partial function definitions
-  can be imported. Its local equivalent is is the `NON_COVERING` pragma to
+  can be imported. Its local equivalent is the `NON_COVERING` pragma to
   be placed before the function (or the block of mutually defined functions)
   which the user knows to be partial.
 

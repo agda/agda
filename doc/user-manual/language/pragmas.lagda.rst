@@ -26,23 +26,29 @@ Index of pragmas
 
 * :ref:`FOREIGN <foreign-function-interface>`
 
+* :ref:`INJECTIVE <injective_pragma>`
+
+* :ref:`INLINE <inline_pragma>`
+
 * :ref:`NO_POSITIVITY_CHECK <no_positivity_check_pragma>`
 
 * :ref:`NO_TERMINATION_CHECK <terminating_pragma>`
 
+* :ref:`NOINLINE <inline_pragma>`
+
+* :samp:`NON_COVERING` (missing documentation)
+
 * :ref:`NON_TERMINATING <non_terminating_pragma>`
 
-* :samp:`NON_COVERING`
+* :ref:`OPTIONS <command-line-pragmas>`
 
 * :ref:`POLARITY <polarity_pragma>`
+
+* :samp:`REWRITE` (missing documentation)
 
 * :ref:`STATIC <built-ins>`
 
 * :ref:`TERMINATING <terminating_pragma>`
-
-* :ref:`INLINE <inline_pragma>`
-
-* :ref:`NOINLINE <inline_pragma>`
 
 * :ref:`WARNING_ON_USAGE <warning_pragma>`
 
@@ -86,6 +92,33 @@ Limitations
   - Since `DISPLAY` pragmas are not type checked implicit argument
     insertion may not work properly if the type of `f` computes to an
     implicit function space after pattern matching.
+
+.. _injective_pragma:
+
+The ``INJECTIVE`` pragmas
+_________________________
+
+Injective pragmas can be used to mark a definition as injective for
+the pattern matching unifier. This can be used as a version of
+``--injective-type-constructors`` that only applies to specific
+datatypes.
+
+Example::
+
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Nat
+
+  data Fin : Nat → Set where
+    zero : {n : Nat} → Fin (suc n)
+    suc  : {n : Nat} → Fin n → Fin (suc n)
+
+  {-# INJECTIVE Fin #-}
+
+  Fin-injective : {m n : Nat} → Fin m ≡ Fin n → m ≡ n
+  Fin-injective refl = refl
+
+Aside from datatypes, this pragma can also be used to mark other
+definitions as being injective (for example postulates).
 
 .. _inline_pragma:
 
