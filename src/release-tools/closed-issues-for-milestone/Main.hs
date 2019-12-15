@@ -22,7 +22,10 @@ import System.IO ( hPutStrLn, stderr )
 import GitHub.Auth ( Auth( OAuth ) )
 -- import GitHub.Data.Id ( Id(..) )
 
-import GitHub.Data.Definitions ( IssueLabel ( IssueLabel, labelName ) )
+import GitHub.Data.Definitions
+  ( IssueLabel ( IssueLabel, labelName )
+  , IssueNumber(IssueNumber)
+  )
 
 import GitHub.Data.Issues
   ( Issue( Issue
@@ -128,10 +131,12 @@ run mileStoneTitle = do
 
   -- Print issues.
 
-  forM_ issues $ \ Issue{ issueNumber, issueTitle } -> putStrLn $
-    "  [#" ++ show issueNumber
-    ++ "](https://github.com/" ++ theRepo ++ "/issues/" ++ show issueNumber
-    ++ "): " ++ Text.unpack issueTitle
+  forM_ issues $ \ Issue{ issueNumber, issueTitle } -> do
+    let IssueNumber n = issueNumber
+    putStrLn $
+      "  [#" ++ show n
+     ++ "](https://github.com/" ++ theRepo ++ "/issues/" ++ show n
+     ++ "): " ++ Text.unpack issueTitle
 
   -- TODO: output tsv
   --
