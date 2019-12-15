@@ -15,7 +15,7 @@ import qualified Data.ByteString.Char8 as BS
 
 import qualified Data.Vector as V
 
-import System.Environment ( getArgs, getEnv )
+import System.Environment ( getArgs, getEnv, getProgName )
 import System.Exit ( exitFailure )
 import System.IO ( hPutStrLn, stderr )
 
@@ -53,12 +53,14 @@ main :: IO ()
 main = getArgs >>= \case { [arg] -> run (Text.pack arg) ; _ -> usage }
 
 usage :: IO ()
-usage = putStrLn $ unlines
-  [ "Usage: ClosedIssuesForMilestone <milestone>"
-  , ""
-  , "Retrieves closed issues for the given milestone from github repository"
-  , theRepo ++ " and prints them as csv to stdout."
-  ]
+usage = do
+  progName <- getProgName
+  putStrLn $ unlines
+    [ "Usage: " ++ progName ++ " <milestone>"
+    , ""
+    , "Retrieves closed issues for the given milestone from github repository"
+    , theRepo ++ " and prints them as csv to stdout."
+    ]
 
 issueLabelsNames :: Issue -> [Text]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
