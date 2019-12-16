@@ -36,7 +36,7 @@ Index of pragmas
 
 * :ref:`NOINLINE <inline_pragma>`
 
-* :samp:`NON_COVERING`
+* :ref:`NON_COVERING <non_covering_pragma>`
 
 * :ref:`NON_TERMINATING <non_terminating_pragma>`
 
@@ -151,6 +151,18 @@ Example::
 
   {-# INLINE _o_ #-} -- force inlining
 
+.. _non_covering_pragma:
+
+The ``NON_COVERING`` pragma
+___________________________
+
+.. versionadded:: 2.6.1
+
+The ``NON_COVERING`` pragma can be placed before a function (or a
+block of mutually defined functions) which the user knows to be
+partial. To be used as a version of
+:option:`--allow-incomplete-matches` that only applies to specific
+functions.
 
 .. _warning_pragma:
 

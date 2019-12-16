@@ -236,8 +236,11 @@ Errors and warnings
 
 .. option:: --allow-incomplete-matches
 
+     .. versionadded:: 2.6.1
+
      Succeed and create interface file regardless of incomplete
-     pattern-matching definitions.
+     pattern-matching definitions. See, also, the
+     :ref:`NON_COVERING<non_covering_pragma>` pragma.
 
 .. option:: --no-positivity-check
 
