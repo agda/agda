@@ -107,7 +107,7 @@ Pragmas and Options
   replaced the ``NO_TERMINATION_CHECK`` pragma.
 
   The pragma must precede a function definition or a mutual block. The
-  pragma cannot be used in ``--safe`` mode.
+  pragma cannot be used in :option:`--safe` mode.
 
   Examples:
 

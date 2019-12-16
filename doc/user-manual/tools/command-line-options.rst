@@ -12,122 +12,142 @@ Agda accepts the following options.
 General options
 ~~~~~~~~~~~~~~~
 
-:samp:`--version -V`
-      Show version number
+.. option:: --version, -V
 
-:samp:`--help[={TOPIC}] -?[{TOPIC}]`
-      Show basically this help, or more help about :samp:`{TOPIC}`.
-      Current topics available: ``warning``.
+   Show version number
 
-:samp:`--interactive -I`
-      Start in interactive mode (no longer
-      supported)
+.. option:: --help[={TOPIC}], -?[{TOPIC}]
 
-:samp:`--interaction`
-      For use with the Emacs mode (no need to invoke
-      yourself)
+   Show basically this help, or more help about ``TOPIC``. Current
+   topics available: ``warning``.
 
-:samp:`--interaction-json`
-    For use with other editors such as Atom (no need to invoke
-    yourself)
+.. option:: --interactive, -I
 
-:samp:`--only-scope-checking`
-      Only scope-check the top-level module,
-      do not type-check it
+   Start in interactive mode (no longer supported).
+
+.. option:: --interaction
+
+   For use with the Emacs mode (no need to invoke yourself).
+
+.. option:: --interaction-json
+
+   For use with other editors such as Atom (no need to invoke
+   yourself).
+
+.. option:: --only-scope-checking
+
+   Only scope-check the top-level module, do not type-check it.
 
 Compilation
 ~~~~~~~~~~~
 
 See :ref:`compilers` for backend-specific options.
 
-:samp:`--no-main`
-      Do not treat the requested module as the main module
-      of a program when compiling
+.. option:: --no-main
 
-:samp:`--compile-dir={DIR}`
-      Set :samp:`{DIR}` as directory for
-      compiler output (default: the project root)
+   Do not treat the requested module as the main module of a program
+   when compiling.
 
-:samp:`--no-forcing`
-      Disable the forcing optimisation
+.. option:: --compile-dir={DIR}
 
-:samp:`--with-compiler={PATH}`
-      Set :samp:`PATH` as the executable to call to compile
-      the backend's output (default: ghc for the GHC backend).
+   Set ``DIR`` as directory for compiler output (default: the project
+   root).
+
+.. option:: --no-forcing
+
+   Disable the forcing optimisation.
+
+.. option:: --with-compiler={PATH}
+
+   Set ``PATH`` as the executable to call to compile the backend's
+   output (default: ghc for the GHC backend).
 
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--vim`
-      Generate Vim_ highlighting files
+.. option:: --vim
 
-:samp:`--latex`
-      Generate LaTeX with highlighted source code (see
-      :ref:`generating-latex`)
+   Generate Vim_ highlighting files.
 
-:samp:`--latex-dir={DIR}`
-      Set directory in which LaTeX files are
-      placed to :samp:`{DIR}` (default: latex)
+.. option:: --latex
 
-:samp:`--count-clusters`
-      Count extended grapheme clusters when
-      generating LaTeX code (see :ref:`grapheme-clusters`)
+   Generate LaTeX with highlighted source code (see
+   :ref:`generating-latex`).
 
-:samp:`--html`
-      Generate HTML files with highlighted source code (see
-      :ref:`generating-html`)
+.. option:: --latex-dir={DIR}
 
-:samp:`--html-dir={DIR}`
-      Set directory in which HTML files are placed
-      to :samp:`{DIR}` (default: html)
+   Set directory in which LaTeX files are placed to ``DIR`` (default:
+   latex).
 
-:samp:`--css={URL}`
-      Set URL of the CSS file used by the HTML files to
-      :samp:`{URL}` (can be relative)
+.. option:: --count-clusters
 
-:samp:`--html-highlight=[code,all,auto]`
-      Whether to highlight non-Agda code as comments in
-      generated HTML files (default: all;
-      see :ref: `generating-html`)
+   Count extended grapheme clusters when generating LaTeX code (see
+   :ref:`grapheme-clusters`).
 
-:samp:`--dependency-graph={FILE}`
-      Generate a Dot_ file :samp:`{FILE}`
-      with a module dependency graph
+.. option:: --html
+
+   Generate HTML files with highlighted source code (see
+   :ref:`generating-html`).
+
+.. option:: --html-dir={DIR}
+
+   Set directory in which HTML files are placed to ``DIR`` (default:
+   html).
+
+.. option:: --css={URL}
+
+   Set URL of the CSS file used by the HTML files to ``URL`` (can be
+   relative).
+
+.. option:: --html-highlight=[code,all,auto]
+
+   Whether to highlight non-Agda code as comments in generated HTML
+   files (default: all; see :ref:`generating-html`).
+
+.. option:: --dependency-graph={FILE}
+
+   Generate a Dot_ file ``FILE`` with a module dependency graph.
 
 Imports and libraries
 ~~~~~~~~~~~~~~~~~~~~~
 
 (see :ref:`package-system`)
 
-:samp:`--ignore-interfaces`
-      Ignore interface files (re-type check everything, except for
-      builtin and primitive modules)
+.. option:: --ignore-interfaces
 
-:samp:`--ignore-all-interfaces`
-      Ignore *all* interface files, including builtin and primitive
-      modules; only use this if you know what you are doing!
+   Ignore interface files (re-type check everything, except for
+   builtin and primitive modules).
 
-:samp:`--local-interfaces`
-      Read and write interface files next to the Agda files they
-      correspond to (i.e. do not attempt to regroup them in a
-      :samp:`_build/` directory at the project's root).
+.. option:: --ignore-all-interfaces
 
-:samp:`--include-path={DIR} -i={DIR}`
-      Look for imports in
-      :samp:`{DIR}`
+   Ignore *all* interface files, including builtin and primitive
+   modules; only use this if you know what you are doing!
 
-:samp:`--library={DIR} -l={LIB}`
-      Use library :samp:`{LIB}`
+.. option:: --local-interfaces
 
-:samp:`--library-file={FILE}`
-      Use :samp:`{FILE}` instead of the
-      standard libraries file
+   Read and write interface files next to the Agda files they
+   correspond to (i.e. do not attempt to regroup them in a ``_build/``
+   directory at the project's root).
 
-:samp:`--no-libraries`
-      Don't use any library files
+.. option:: --include-path={DIR}, -i={DIR}
 
-:samp:`--no-default-libraries`
-      Don't use default library files
+   Look for imports in ``DIR``.
+
+.. option:: --library={DIR}, -l={LIB}
+
+   Use library ``LIB``.
+
+.. option:: --library-file={FILE}
+
+   Use ``{FILE}`` instead of the standard libraries file.
+
+.. option:: --no-libraries
+
+   Don't use any library files.
+
+.. option:: --no-default-libraries
+
+   Don't use default library files.
 
 .. _command-line-pragmas:
 
@@ -140,196 +160,236 @@ The following options can also be given in .agda files in the
 Caching
 ~~~~~~~
 
-:samp:`--caching`
-      Enable caching of typechecking (default)
+.. option:: --caching
 
-:samp:`--no-caching`
-      Disable caching of typechecking
+   Enable caching of typechecking (default).
+
+.. option:: --no-caching
+
+   Disable caching of typechecking.
 
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--show-implicit`
-      Show implicit arguments when printing
+.. option:: --show-implicit
 
-:samp:`--show-irrelevant`
-      Show irrelevant arguments when printing
+   Show implicit arguments when printing.
 
-:samp:`--no-unicode`
-      Don't use unicode characters to print terms
+.. option:: --show-irrelevant
 
-:samp:`--verbose={N} -v={N}`
-      Set verbosity level to :samp:`{N}`
+   Show irrelevant arguments when printing.
+
+.. option:: --no-unicode
+
+   Don't use unicode characters to print terms.
+
+.. option:: --verbose={N}, -v={N}
+
+   Set verbosity level to ``N``.
 
 Copatterns and projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--copatterns`
-      Enable definitions by copattern matching
-      (default; see :ref:`copatterns`)
+.. option:: --copatterns
 
-:samp:`--no-copatterns`
-      Disable definitions by copattern matching
+   Enable definitions by copattern matching (default; see
+   :ref:`copatterns`).
 
-:samp:`--postfix-projections`
-      Make postfix projection notation the
-      default
+.. option:: --no-copatterns
+
+   Disable definitions by copattern matching.
+
+.. option:: --postfix-projections
+
+   Make postfix projection notation the default.
 
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--injective-type-constructors`
-      Enable injective type
-      constructors (makes Agda anti-classical and possibly
-      inconsistent)
+.. option:: --injective-type-constructors
 
-:samp:`--experimental-irrelevance`
-      Enable potentially unsound
-      irrelevance features (irrelevant levels, irrelevant data
-      matching) (see :ref:`irrelevance`)
+   Enable injective type constructors (makes Agda anti-classical and
+   possibly inconsistent).
 
-:samp:`--rewriting`
-      Enable declaration and use of REWRITE rules (see
-      :ref:`rewriting`)
+.. option:: --experimental-irrelevance
 
-:samp:`--cubical`
-      Enable cubical features. Turns on ``--without-K`` (see :ref:`cubical`)
+   Enable potentially unsound irrelevance features (irrelevant levels,
+   irrelevant data matching) (see :ref:`irrelevance`).
+
+.. option:: --rewriting
+
+   Enable declaration and use of REWRITE rules (see :ref:`rewriting`).
+
+.. option:: --cubical
+
+   Enable cubical features. Turns on :option:`--without-K` (see
+   :ref:`cubical`).
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
 
-:samp:`--allow-unsolved-metas`
-      Succeed and create interface file
-      regardless of unsolved meta variables (see :ref:`metavariables`)
+.. option:: --allow-unsolved-metas
 
-:samp:`--allow-incomplete-matches`
-      Succeed and create interface file
-      regardless of incomplete pattern-matching definitions
+   Succeed and create interface file regardless of unsolved meta
+   variables (see :ref:`metavariables`).
 
-:samp:`--no-positivity-check`
-      Do not warn about not strictly positive
-      data types (see :ref:`positivity-checking`)
+.. option:: --allow-incomplete-matches
 
-:samp:`--no-termination-check`
-      Do not warn about possibly
-      nonterminating code (see :ref:`termination-checking`)
+   Succeed and create interface file regardless of incomplete
+   pattern-matching definitions.
 
-:samp:`--warning={GROUP|FLAG} -W {GROUP|FLAG}`
-      Set warning group or flag (see :ref:`warnings`)
+.. option:: --no-positivity-check
+
+   Do not warn about not strictly positive data types (see
+   :ref:`positivity-checking`).
+
+.. option:: --no-termination-check
+
+   Do not warn about possibly nonterminating code (see
+   :ref:`termination-checking`).
+
+.. option:: --warning={GROUP|FLAG}, -W {GROUP|FLAG}
+
+   Set warning group or flag (see :ref:`warnings`).
 
 Pattern matching and equality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--without-K`
-      Disables definitions using Streicher’s K axiom
-      (see :ref:`without-K`)
+.. option:: --without-K
 
-:samp:`--with-K`
-      Overrides a global ``--without-K`` in a file (see
-      :ref:`without-K`)
+   Disables definitions using Streicher’s K axiom (see
+   :ref:`without-K`).
 
-:samp:`--no-pattern-matching`
-      Disable pattern matching completely
+.. option:: --with-K
 
-:samp:`--exact-split`
-      Require all clauses in a definition to hold as
-      definitional equalities unless marked ``CATCHALL`` (see
-      :ref:`case-trees`)
+   Overrides a global :option:`--without-K` in a file (see
+   :ref:`without-K`).
 
-:samp:`--no-exact-split`
-      Do not require all clauses in a definition to
-      hold as definitional equalities (default)
+.. option:: --no-pattern-matching
 
-:samp:`--no-eta-equality`
-      Default records to no-eta-equality (see
-      :ref:`eta-expansion`)
+   Disable pattern matching completely.
+
+.. option:: --exact-split
+
+   Require all clauses in a definition to hold as definitional
+   equalities unless marked ``CATCHALL`` (see :ref:`case-trees`).
+
+.. option:: --no-exact-split
+
+   Do not require all clauses in a definition to hold as definitional
+   equalities (default).
+
+.. option:: --no-eta-equality
+
+   Default records to no-eta-equality (see :ref:`eta-expansion`).
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:samp:`--termination-depth={N}`
-      Allow termination checker to count
-      decrease/increase upto :samp:`{N}` (default: 1; see
-      :ref:`termination-checking`)
+.. option:: --termination-depth={N}
 
-:samp:`--instance-search-depth={N}`
-      Set instance search depth to
-      :samp:`{N}` (default: 500; see :ref:`instance-arguments`)
+   Allow termination checker to count decrease/increase upto ``N``
+   (default: 1; see :ref:`termination-checking`).
 
-:samp:`--inversion-max-depth={N}`
-      Set maximum depth for pattern match inversion to :samp:`{N}` (default:
-      50). Should only be needed in pathological cases.
+.. option:: --instance-search-depth={N}
 
-:samp:`--no-overlapping-instances`
-      Don't consider recursive instance arguments during pruning of
-      instance candidates (default)
+   Set instance search depth to ``N`` (default: 500; see
+   :ref:`instance-arguments`),
 
-:samp:`--overlapping-instances`
-      Consider recursive instance arguments during pruning of instance
-      candidates
+.. option:: --inversion-max-depth={N}
+
+   Set maximum depth for pattern match inversion to ``N`` (default:
+   50). Should only be needed in pathological cases.
+
+.. option:: --no-overlapping-instances
+
+   Don't consider recursive instance arguments during pruning of
+   instance candidates (default).
+
+.. option:: --overlapping-instances
+
+   Consider recursive instance arguments during pruning of instance
+   candidates.
 
 
 Other features
 ~~~~~~~~~~~~~~
 
-:samp:`--safe`
-      Disable postulates, unsafe ``OPTION`` pragmas and
-      ``primTrustMe``. Turns off ``--sized-types`` and ``--guardedness`` (at most one can be turned back on again) (see :ref:`safe-agda`)
+.. option:: --safe
 
-:samp:`--type-in-type`
-      Ignore universe levels (this makes Agda
-      inconsistent; see :ref:`universe-levels`)
+   Disable postulates, unsafe ``OPTION`` pragmas and
+   ``primTrustMe``. Turns off :option:`--sized-types` and
+   :option:`--guardedness` (at most one can be turned back on again)
+   (see :ref:`safe-agda`).
 
-:samp:`--omega-in-omega`
-      Enable typing rule `Setω : Setω` (this makes
-      Agda inconsistent).
+.. option:: --type-in-type
 
-:samp:`--sized-types`
-      Enable sized types (default, inconsistent with constructor-based
-      guarded corecursion; see :ref:`sized-types`). Turned off by ``--safe``
-      (but can be turned on again, as long as not also ``--guardedness`` is on).
+   Ignore universe levels (this makes Agda inconsistent; see
+   :ref:`universe-levels`).
 
-:samp:`--no-sized-types`
-      Disable sized types (see :ref:`sized-types`)
+.. option:: --omega-in-omega
 
-:samp:`--guardedness`
-      Enable constructor-based guarded corecursion (default, inconsistent
-      with sized types; see :ref:`coinduction`). Turned off by ``--safe``
-      (but can be turned on again, as long as not also ``--sized-types`` is on).
+   Enable typing rule `Setω : Setω` (this makes Agda inconsistent).
 
-:samp:`--no-guardedness`
-      Disable constructor-based guarded corecursion (see :ref:`coinduction`)
+.. option:: --sized-types
 
-:samp:`--universe-polymorphism`
-      Enable universe polymorphism (default;
-      see :ref:`universe-levels`)
+   Enable sized types (default, inconsistent with constructor-based
+   guarded corecursion; see :ref:`sized-types`). Turned off by
+   :option:`--safe` (but can be turned on again, as long as not also
+   :option:`--guardedness` is on).
 
-:samp:`--no-universe-polymorphism`
-      Disable universe polymorphism (see
-      :ref:`universe-levels`)
+.. option:: --no-sized-types
 
-:samp:`--no-irrelevant-projections`
-      Disable projection of irrelevant
-      record fields (see :ref:`irrelevance`)
+   Disable sized types (see :ref:`sized-types`).
 
-:samp:`--no-auto-inline`
-      Disable automatic compile-time inlining.
-      Only definitions marked INLINE will be inlined.
+.. option:: --guardedness
 
-:samp:`--no-print-pattern-synonyms`
-      Always expand :ref:`pattern-synonyms` during printing. With this option
-      enabled you can use pattern synonyms freely, but Agda will not use any
-      pattern synonyms when printing goal types or error messages, or when generating
-      patterns for case splits.
+   Enable constructor-based guarded corecursion (default, inconsistent
+   with sized types; see :ref:`coinduction`). Turned off by
+   :option:`--safe` (but can be turned on again, as long as not also
+   :option:`--sized-types` is on).
 
-:samp:`--double-check`
-      Enable double-checking of all terms using the internal typechecker
+.. option:: --no-guardedness
 
-:samp:`--no-syntactic-equality`
-      Disable the syntactic equality shortcut in the conversion checker
+   Disable constructor-based guarded corecursion (see
+   :ref:`coinduction`).
 
-:samp:`--no-fast-reduce`
-      Disable reduction using the Agda Abstract Machine
+.. option:: --universe-polymorphism
+
+   Enable universe polymorphism (default; see :ref:`universe-levels`).
+
+.. option:: --no-universe-polymorphism
+
+   Disable universe polymorphism (see :ref:`universe-levels`).
+
+.. option:: --no-irrelevant-projections
+
+   Disable projection of irrelevant record fields (see
+   :ref:`irrelevance`).
+
+.. option:: --no-auto-inline
+
+   Disable automatic compile-time inlining.  Only definitions marked
+   ``INLINE`` will be inlined.
+
+.. option:: --no-print-pattern-synonyms
+
+   Always expand :ref:`pattern-synonyms` during printing. With this
+   option enabled you can use pattern synonyms freely, but Agda will
+   not use any pattern synonyms when printing goal types or error
+   messages, or when generating patterns for case splits.
+
+.. option:: --double-check
+
+   Enable double-checking of all terms using the internal typechecker.
+
+.. option:: --no-syntactic-equality
+
+   Disable the syntactic equality shortcut in the conversion checker.
+
+.. option:: --no-fast-reduce
+
+   Disable reduction using the Agda Abstract Machine.
 
 
 .. _warnings:
@@ -337,144 +397,279 @@ Other features
 Warnings
 ~~~~~~~~
 
-The ``-W`` or ``--warning`` option can be used to disable or enable
-different warnings. The flag ``-W error`` (or ``--warning=error``) can
-be used to turn all warnings into errors, while ``-W noerror`` turns
-this off again.
+The :option:`-W` or :option:`--warning` option can be used to disable
+or enable different warnings. The flag ``-W error`` (or
+``--warning=error``) can be used to turn all warnings into errors,
+while ``-W noerror`` turns this off again.
 
-A group of warnings can be enabled by ``-W {group}``, where
-:samp:`group` is one of the following:
+A group of warnings can be enabled by ``-W {group}``, where ``group``
+is one of the following:
 
-:samp:`all`
-      All of the existing warnings
-:samp:`warn`
-      Default warning level
-:samp:`ignore`
-      Ignore all warnings
+.. option:: all
+
+   All of the existing warnings.
+
+.. option:: warn.
+
+   Default warning level
+
+.. option:: ignore
+
+   Ignore all warnings.
 
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 
-:samp:`AbsurdPatternRequiresNoRHS`
-      RHS given despite an absurd pattern in the LHS.
-:samp:`CantGeneralizeOverSorts`
-      Attempt to generalize over sort metas in 'variable' declaration.
-:samp:`CoverageIssue`
-      Failed coverage checks.
-:samp:`CoverageNoExactSplit`
-      Failed exact split checks.
-:samp:`DeprecationWarning`
-      Feature deprecation.
-:samp:`EmptyAbstract`
-      Empty ``abstract`` blocks.
-:samp:`EmptyInstance`
-      Empty ``instance`` blocks.
-:samp:`EmptyMacro`
-      Empty ``macro`` blocks.
-:samp:`EmptyMutual`
-      Empty ``mutual`` blocks.
-:samp:`EmptyPostulate`
-      Empty ``postulate`` blocks.
-:samp:`EmptyPrimitive`
-      Empty ``primitive`` blocks.
-:samp:`EmptyPrivate`
-      Empty ``private`` blocks.
-:samp:`EmptyRewritePragma`
-      Empty ``REWRITE`` pragmas.
-:samp:`IllformedAsClause`
-      Illformed ``as``-clauses in ``import`` statements.
-:samp:`InstanceNoOutputTypeName`
-      Instance arguments whose type does not end in a named or variable type are never considered by instance search.
-:samp:`InstanceArgWithExplicitArg`
-      Instance arguments with explicit arguments are never considered by instance search.
-:samp:`InstanceWithExplicitArg`
-      Instance declarations with explicit arguments are never considered by instance search.
-:samp:`InvalidCatchallPragma`
-      ``CATCHALL`` pragmas before a non-function clause.
-:samp:`InvalidNoPositivityCheckPragma`
-      No positivity checking pragmas before non-`data``, ``record`` or ``mutual`` blocks.
-:samp:`InvalidTerminationCheckPragma`
-      Termination checking pragmas before non-function or ``mutual`` blocks.
-:samp:`InversionDepthReached`
-      Inversions of pattern-matching failed due to exhausted inversion depth.
-:samp:`LibUnknownField`
-      Unknown field in library file.
-:samp:`MissingDefinitions`
-      Names declared without an accompanying definition.
-:samp:`ModuleDoesntExport`
-      Names mentioned in an import statement which are not exported by the module in question.
-:samp:`NotAllowedInMutual`
-      Declarations not allowed in a mutual block.
-:samp:`NotStrictlyPositive`
-      Failed strict positivity checks.
-:samp:`OldBuiltin`
-      Deprecated ``BUILTIN`` pragmas.
-:samp:`OverlappingTokensWarning`
-      Multi-line comments spanning one or more literate text blocks.
-:samp:`PolarityPragmasButNotPostulates`
-      Polarity pragmas for non-postulates.
-:samp:`PragmaCompiled`
-      ``COMPILE`` pragmas not allowed in safe mode.
-:samp:`PragmaCompileErased`
-      ``COMPILE`` pragma targeting an erased symbol.
-:samp:`PragmaNoTerminationCheck`
-      ``NO_TERMINATION_CHECK`` pragmas are deprecated.
-:samp:`RewriteMaybeNonConfluent`
-      Failed confluence checks while computing overlap.
-:samp:`RewriteNonConfluent`
-      Failed confluence checks while joining critical pairs.
-:samp:`SafeFlagNonTerminating`
-      ``NON_TERMINATING`` pragmas with the safe flag.
-:samp:`SafeFlagNoPositivityCheck`
-      ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
-:samp:`SafeFlagNoUniverseCheck`
-      ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
-:samp:`SafeFlagPolarity`
-      ``POLARITY`` pragmas with the safe flag.
-:samp:`SafeFlagPostulate`
-      ``postulate`` blocks with the safe flag
-:samp:`SafeFlagPragma`
-      Unsafe ``OPTIONS`` pragmas with the safe flag.
-:samp:`SafeFlagTerminating`
-      ``TERMINATING`` pragmas with the safe flag.
-:samp:`SafeFlagWithoutKFlagPrimEraseEquality`
-      ``primEraseEquality`` used with the safe and without-K flags.
-:samp:`ShadowingInTelescope`
-      Repeated variable name in telescope.
-:samp:`TerminationIssue`
-      Failed termination checks.
-:samp:`UnknownFixityInMixfixDecl`
-      Mixfix names without an associated fixity declaration.
-:samp:`UnknownNamesInFixityDecl`
-      Names not declared in the same scope as their syntax or fixity declaration.
-:samp:`UnknownNamesInPolarityPragmas`
-      Names not declared in the same scope as their polarity pragmas.
-:samp:`UnreachableClauses`
-      Unreachable function clauses.
-:samp:`UnsolvedConstraints`
-      Unsolved constraints.
-:samp:`UnsolvedInteractionMetas`
-      Unsolved interaction meta variables.
-:samp:`UnsolvedMetaVariables`
-      Unsolved meta variables.
-:samp:`UselessAbstract`
-      ``abstract`` blocks where they have no effect.
-:samp:`UselessInline`
-      ``INLINE`` pragmas where they have no effect.
-:samp:`UselessInstance`
-      ``instance`` blocks where they have no effect.
-:samp:`UselessPrivate`
-      ``private`` blocks where they have no effect.
-:samp:`UselessPublic`
-      ``public`` blocks where they have no effect.
-:samp:`WithoutKFlagPrimEraseEquality`
-      ``primEraseEquality`` used with the without-K flags.
-:samp:`WrongInstanceDeclaration`
-      Terms marked as eligible for instance search should end with a name.
-:samp:`CoInfectiveImport`
-      Importing a file not using e.g. ``--safe``  from one which does.
-:samp:`InfectiveImport`
-      Importing a file using e.g. ``--cubical`` into one which doesn't.
+.. option:: AbsurdPatternRequiresNoRHS
+
+   RHS given despite an absurd pattern in the LHS.
+
+.. option:: CantGeneralizeOverSorts
+
+   Attempt to generalize over sort metas in 'variable' declaration.
+
+.. option:: CoInfectiveImport
+
+   Importing a file not using e.g. :option:`--safe` from one which
+   does.
+
+.. option:: CoverageIssue
+
+   Failed coverage checks.
+
+.. option:: CoverageNoExactSplit
+
+   Failed exact split checks.
+
+.. option:: DeprecationWarning
+
+   Feature deprecation.
+
+.. option:: EmptyAbstract
+
+   Empty ``abstract`` blocks.
+
+.. option:: EmptyInstance
+
+   Empty ``instance`` blocks.
+
+.. option:: EmptyMacro
+
+   Empty ``macro`` blocks.
+
+.. option:: EmptyMutual
+
+   Empty ``mutual`` blocks.
+
+.. option:: EmptyPostulate
+
+   Empty ``postulate`` blocks.
+
+.. option:: EmptyPrimitive
+
+   Empty ``primitive`` blocks.
+
+.. option:: EmptyPrivate
+
+   Empty ``private`` blocks.
+
+.. option:: EmptyRewritePragma
+
+   Empty ``REWRITE`` pragmas.
+
+.. option:: IllformedAsClause
+
+   Illformed ``as``-clauses in ``import`` statements.
+
+.. option:: InfectiveImport
+
+   Importing a file using e.g. :option;`--cubical` into one which
+   doesn't.
+
+.. option:: InstanceNoOutputTypeName
+
+   Instance arguments whose type does not end in a named or variable
+   type are never considered by instance search.
+
+.. option:: InstanceArgWithExplicitArg
+
+   Instance arguments with explicit arguments are never considered by
+   instance search.
+
+.. option:: InstanceWithExplicitArg
+
+   Instance declarations with explicit arguments are never considered
+   by instance search.
+
+.. option:: InvalidCatchallPragma
+
+   ``CATCHALL`` pragmas before a non-function clause.
+
+.. option:: InvalidNoPositivityCheckPragma
+
+   No positivity checking pragmas before non-`data``, ``record`` or
+   ``mutual`` blocks.
+
+.. option:: InvalidTerminationCheckPragma
+
+   Termination checking pragmas before non-function or ``mutual``
+   blocks.
+
+.. option:: InversionDepthReached
+
+   Inversions of pattern-matching failed due to exhausted inversion
+   depth.
+
+.. option:: LibUnknownField
+
+   Unknown field in library file.
+
+.. option:: MissingDefinitions
+
+   Names declared without an accompanying definition.
+
+.. option:: ModuleDoesntExport
+
+   Names mentioned in an import statement which are not exported by
+   the module in question.
+
+.. option:: NotAllowedInMutual
+
+   Declarations not allowed in a mutual block.
+
+.. option:: NotStrictlyPositive
+
+   Failed strict positivity checks.
+
+.. option:: OldBuiltin
+
+   Deprecated ``BUILTIN`` pragmas.
+
+.. option:: OverlappingTokensWarning
+
+   Multi-line comments spanning one or more literate text blocks.
+
+.. option:: PolarityPragmasButNotPostulates
+
+   Polarity pragmas for non-postulates.
+
+.. option:: PragmaCompiled
+
+   ``COMPILE`` pragmas not allowed in safe mode.
+
+.. option:: PragmaCompileErased
+
+   ``COMPILE`` pragma targeting an erased symbol.
+
+.. option:: PragmaNoTerminationCheck
+
+   ``NO_TERMINATION_CHECK`` pragmas are deprecated.
+
+.. option:: RewriteMaybeNonConfluent
+
+   Failed confluence checks while computing overlap.
+
+.. option:: RewriteNonConfluent
+
+   Failed confluence checks while joining critical pairs.
+
+.. option:: SafeFlagNonTerminating
+
+   ``NON_TERMINATING`` pragmas with the safe flag.
+
+.. option:: SafeFlagNoPositivityCheck
+
+   ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+
+.. option:: SafeFlagNoUniverseCheck
+
+   ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
+
+.. option:: SafeFlagPolarity
+
+   ``POLARITY`` pragmas with the safe flag.
+
+.. option:: SafeFlagPostulate
+
+   ``postulate`` blocks with the safe flag
+
+.. option:: SafeFlagPragma
+
+   Unsafe ``OPTIONS`` pragmas with the safe flag.
+
+.. option:: SafeFlagTerminating
+
+   ``TERMINATING`` pragmas with the safe flag.
+
+.. option:: SafeFlagWithoutKFlagPrimEraseEquality
+
+   ``primEraseEquality`` used with the safe and without-K flags.
+
+.. option:: ShadowingInTelescope
+
+   Repeated variable name in telescope.
+
+.. option:: TerminationIssue
+
+   Failed termination checks.
+
+.. option:: UnknownFixityInMixfixDecl
+
+   Mixfix names without an associated fixity declaration.
+
+.. option:: UnknownNamesInFixityDecl
+
+   Names not declared in the same scope as their syntax or fixity
+   declaration.
+
+.. option:: UnknownNamesInPolarityPragmas
+
+   Names not declared in the same scope as their polarity pragmas.
+
+.. option:: UnreachableClauses
+
+   Unreachable function clauses.
+
+.. option:: UnsolvedConstraints
+
+   Unsolved constraints.
+
+.. option:: UnsolvedInteractionMetas
+
+   Unsolved interaction meta variables.
+
+.. option:: UnsolvedMetaVariables
+
+   Unsolved meta variables.
+
+.. option:: UselessAbstract
+
+   ``abstract`` blocks where they have no effect.
+
+.. option:: UselessInline
+
+   ``INLINE`` pragmas where they have no effect.
+
+.. option:: UselessInstance
+
+   ``instance`` blocks where they have no effect.
+
+.. option:: UselessPrivate
+
+   ``private`` blocks where they have no effect.
+
+.. option:: UselessPublic
+
+   ``public`` blocks where they have no effect.
+
+.. option:: WithoutKFlagPrimEraseEquality
+
+   ``primEraseEquality`` used with the without-K flags.
+
+.. option:: WrongInstanceDeclaration
+
+   Terms marked as eligible for instance search should end with a
+   name.
 
 For example, the following command runs Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
@@ -496,52 +691,52 @@ An *infective* option is an option that if used in one module, must be
 used in all modules that depend on this module. The following options
 are infective:
 
-* ``--cubical``
+* :option:`--cubical`
 * ``--prop``
 
 A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
 options are coinfective:
 
-* ``--safe``
-* ``--without-K``
-* ``--no-universe-polymorphism``
-* ``--no-sized-types``
-* ``--no-guardedness``
+* :option:`--safe`
+* :option:`--without-K`
+* :option:`--no-universe-polymorphism`
+* :option:`--no-sized-types`
+* :option:`--no-guardedness`
 
 Agda records the options used when generating an interface file. If
 any of the following options differ when trying to load the interface
 again, the source file is re-typechecked instead:
 
-* ``--termination-depth``
-* ``--no-unicode``
-* ``--allow-unsolved-metas``
-* ``--allow-incomplete-matches``
-* ``--no-positivity-check``
-* ``--no-termination-check``
-* ``--type-in-type``
-* ``--omega-in-omega``
-* ``--no-sized-types``
-* ``--no-guardedness``
-* ``--injective-type-constructors``
+* :option:`--termination-depth`
+* :option:`--no-unicode`
+* :option:`--allow-unsolved-metas`
+* :option:`--allow-incomplete-matches`
+* :option:`--no-positivity-check`
+* :option:`--no-termination-check`
+* :option:`--type-in-type`
+* :option:`--omega-in-omega`
+* :option:`--no-sized-types`
+* :option:`--no-guardedness`
+* :option:`--injective-type-constructors`
 * ``--prop``
-* ``--no-universe-polymorphism``
+* :option:`--no-universe-polymorphism`
 * ``--irrelevant-projections``
-* ``--experimental-irrelevance``
-* ``--without-K``
-* ``--exact-split``
-* ``--no-eta-equality``
-* ``--rewriting``
-* ``--cubical``
-* ``--overlapping-instances``
-* ``--safe``
-* ``--double-check``
-* ``--no-syntactic-equality``
-* ``--no-auto-inline``
-* ``--no-fast-reduce``
-* ``--instance-search-depth``
-* ``--inversion-max-depth``
-* ``--warning``
+* :option:`--experimental-irrelevance`
+* :option:`--without-K`
+* :option:`--exact-split`
+* :option:`--no-eta-equality`
+* :option:`--rewriting`
+* :option:`--cubical`
+* :option:`--overlapping-instances`
+* :option:`--safe`
+* :option:`--double-check`
+* :option:`--no-syntactic-equality`
+* :option:`--no-auto-inline`
+* :option:`--no-fast-reduce`
+* :option:`--instance-search-depth`
+* :option:`--inversion-max-depth`
+* :option:`--warning`
 
 
 .. _Vim: https://www.vim.org/

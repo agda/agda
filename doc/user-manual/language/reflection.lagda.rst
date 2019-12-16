@@ -78,8 +78,9 @@ The fixity of a name can also be retrived.
   primitive
     primQNameFixity    : Name → Fixity
 
-To define a decidable propositional equality with the option ``--safe``,
-one can use the conversion to a pair of built-in 64-bit machine words
+To define a decidable propositional equality with the option
+:option:`--safe`, one can use the conversion to a pair of built-in
+64-bit machine words
 
 ::
 
@@ -129,7 +130,8 @@ of ``primMetaToNat``
   primitive
     primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
 
-which can be used to define a decidable propositional equality with the option ``--safe``.
+which can be used to define a decidable propositional equality with
+the option :option:`--safe`.
 
 Literals
 ~~~~~~~~

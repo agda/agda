@@ -100,7 +100,7 @@ _________________________
 
 Injective pragmas can be used to mark a definition as injective for
 the pattern matching unifier. This can be used as a version of
-``--injective-type-constructors`` that only applies to specific
+:option:`--injective-type-constructors` that only applies to specific
 datatypes.
 
 Example::
