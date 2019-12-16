@@ -23,19 +23,17 @@ import GitHub.Auth ( Auth( OAuth ) )
 -- import GitHub.Data.Id ( Id(..) )
 
 import GitHub.Data.Definitions
-  ( IssueLabel ( IssueLabel, labelName )
+  ( IssueLabel ( labelName )
   , unIssueNumber
   )
 
 import GitHub.Data.Issues
   ( Issue( Issue
-         , issueClosedBy
          , issueLabels
          , issueMilestone
          , issueNumber
          , issuePullRequest
          , issueTitle
-         , issueUrl
          )
   )
 
@@ -43,18 +41,21 @@ import GitHub.Data.Name ( Name( N ), untagName )
 import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
 import GitHub.Data.Options ( stateClosed )
 import GitHub.Data.Request ( FetchCount(FetchAll) )
--- import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
-import GitHub.Data.URL ( URL, getUrl )
 
 import GitHub.Endpoints.Issues.Milestones ( milestonesR )
 import GitHub.Endpoints.Issues ( issuesForRepoR )
 
 import GitHub.Request ( github )
 
+envGHToken :: String
 envGHToken = "GITHUBTOKEN"
+
+owner, repo :: Text
 owner = "agda"
 repo  = "agda"
-theRepo = owner ++ "/" ++ repo
+
+theRepo :: String
+theRepo = Text.unpack owner ++ "/" ++ Text.unpack repo
 
 main :: IO ()
 main = getArgs >>= \case { [arg] -> run (Text.pack arg) ; _ -> usage }
@@ -108,7 +109,7 @@ run mileStoneTitle = do
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
     []  -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " not found in github repo " ++ theRepo
     [m] -> return $ milestoneNumber m
-    ms  -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " ambiguous in github repo " ++ theRepo
+    _   -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " ambiguous in github repo " ++ theRepo
 
   -- Debug.
   -- print mileStoneId
