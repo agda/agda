@@ -367,10 +367,19 @@ Other features
 
      Disable universe polymorphism (see :ref:`universe-levels`).
 
+.. option:: --irrelevant-projections
+
+     .. versionadded:: 2.5.4
+
+     Enable projection of irrelevant record fields (inconsistent). See
+     :ref:`irrelevance`. Since Agda 2.6.1 is off by default.
+
 .. option:: --no-irrelevant-projections
 
-     Disable projection of irrelevant record fields (see
-     :ref:`irrelevance`).
+     .. versionadded:: 2.5.4
+
+     Disable projection of irrelevant record fields. See
+     :ref:`irrelevance`. Since Agda 2.6.1 is on by default.
 
 .. option:: --no-auto-inline
 
@@ -728,7 +737,7 @@ again, the source file is re-typechecked instead:
 * :option:`--injective-type-constructors`
 * ``--prop``
 * :option:`--no-universe-polymorphism`
-* ``--irrelevant-projections``
+* :option:`--irrelevant-projections`
 * :option:`--experimental-irrelevance`
 * :option:`--without-K`
 * :option:`--exact-split`

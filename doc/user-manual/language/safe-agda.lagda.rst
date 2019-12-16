@@ -40,7 +40,7 @@ Here is a list of the features ``--safe`` is incompatible with:
   the future.
 
 * :option:`--experimental-irrelevance` and
-  ``--irrelevant-projections``; enables potentially unsound
+  :option:`--irrelevant-projections`; enables potentially unsound
   irrelevance features (irrelevant levels, irrelevant data matching,
   and projection of irrelevant record fields, respectively).
 
