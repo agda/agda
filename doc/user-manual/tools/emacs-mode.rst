@@ -4,6 +4,11 @@
 Emacs Mode
 **********
 
+Agda programs are commonly edited using `Emacs
+<http://www.gnu.org/software/emacs/>`_ which is explained in this section.
+If you use Atom, please refer to the `agda-mode on Atom
+<https://atom.io/packages/agda-mode>`_.
+
 :ref:`quick-guide-introduction`
 ===============================
 
@@ -191,6 +196,9 @@ will either use the text inside the goal or ask the user for input.
 
 :kbd:`C-u C-u C-c C-n`
      Compute and print normal form of ``show <expression>``
+
+:kbd:`C-c C-w`
+     Why on scope, given a defined name returns how it was brought into scope and its definition
 
 Other commands
 ~~~~~~~~~~~~~~
