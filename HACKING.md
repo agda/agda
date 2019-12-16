@@ -474,8 +474,8 @@ To run `Ghci`:
 
     stack repl
 
-Closing issues by milestone program
-===================================
+Closed issues by milestone program
+==================================
 
 The `closed-issues-by-milestone` program requires a GitHub personal
 access token in the `GITHUBTOKEN` environment variable, i.e,
@@ -487,8 +487,8 @@ The personal access token can be generated from your GitHub user:
     Settings -> Developer settings -> Personal access tokens
 
 
-Closing issues reported in the CHANGELOG
-========================================
+Closed issues reported in the CHANGELOG
+=======================================
 
 Before releasing for example Agda 1.2.3 we add to the `CHANGELOG`
 *all* the closed issues with milestone 1.2.3 except those issues
