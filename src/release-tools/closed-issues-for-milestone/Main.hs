@@ -42,11 +42,14 @@ import GitHub.Data.Issues
 import GitHub.Data.Name ( Name( N ), untagName )
 import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
 import GitHub.Data.Options ( stateClosed )
+import GitHub.Data.Request ( FetchCount(FetchAll) )
 -- import GitHub.Data.Options ( IssueState(..), IssueRepoMod(..) ) -- not exported:, FilterBy(..) )
 import GitHub.Data.URL ( URL, getUrl )
 
-import GitHub.Endpoints.Issues.Milestones ( milestones' )
-import GitHub.Endpoints.Issues ( issuesForRepo' )
+import GitHub.Endpoints.Issues.Milestones ( milestonesR )
+import GitHub.Endpoints.Issues ( issuesForRepoR )
+
+import GitHub.Request ( github )
 
 envGHToken = "GITHUBTOKEN"
 owner = "agda"
@@ -101,7 +104,7 @@ run mileStoneTitle = do
   -- Log in to repo.
 
   -- Resolve milestone into milestone id.
-  mileStoneVector <- crashOr $ milestones' (Just auth) (N owner) (N repo)
+  mileStoneVector <- crashOr $ github auth (milestonesR (N owner) (N repo) FetchAll)
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
     []  -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " not found in github repo " ++ theRepo
     [m] -> return $ milestoneNumber m
@@ -113,7 +116,7 @@ run mileStoneTitle = do
   -- Get list of issues. GitHub's REST API v3 considers every pull
   -- request an issue. For this reason we get a list of both issues
   -- and pull requests when using the function 'issuesForRepo''.
-  issueVector <- crashOr $ issuesForRepo' (Just auth) (N owner) (N repo) stateClosed
+  issueVector <- crashOr $ github auth (issuesForRepoR (N owner) (N repo) stateClosed FetchAll)
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
     --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
