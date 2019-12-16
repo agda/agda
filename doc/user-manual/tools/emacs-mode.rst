@@ -198,7 +198,7 @@ will either use the text inside the goal or ask the user for input.
      Compute and print normal form of ``show <expression>``
 
 :kbd:`C-c C-w`
-     Why on scope, given a defined name returns how it was brought into scope and its definition
+     Why in scope, given a defined name returns how it was brought into scope and its definition
 
 Other commands
 ~~~~~~~~~~~~~~
