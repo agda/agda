@@ -14,29 +14,29 @@ General options
 
 .. option:: --version, -V
 
-   Show version number
+     Show version number
 
 .. option:: --help[={TOPIC}], -?[{TOPIC}]
 
-   Show basically this help, or more help about ``TOPIC``. Current
-   topics available: ``warning``.
+     Show basically this help, or more help about ``TOPIC``. Current
+     topics available: ``warning``.
 
 .. option:: --interactive, -I
 
-   Start in interactive mode (no longer supported).
+     Start in interactive mode (no longer supported).
 
 .. option:: --interaction
 
-   For use with the Emacs mode (no need to invoke yourself).
+     For use with the Emacs mode (no need to invoke yourself).
 
 .. option:: --interaction-json
 
-   For use with other editors such as Atom (no need to invoke
-   yourself).
+     For use with other editors such as Atom (no need to invoke
+     yourself).
 
 .. option:: --only-scope-checking
 
-   Only scope-check the top-level module, do not type-check it.
+     Only scope-check the top-level module, do not type-check it.
 
 Compilation
 ~~~~~~~~~~~
@@ -45,68 +45,68 @@ See :ref:`compilers` for backend-specific options.
 
 .. option:: --no-main
 
-   Do not treat the requested module as the main module of a program
-   when compiling.
+     Do not treat the requested module as the main module of a program
+     when compiling.
 
 .. option:: --compile-dir={DIR}
 
-   Set ``DIR`` as directory for compiler output (default: the project
-   root).
+     Set ``DIR`` as directory for compiler output (default: the
+     project root).
 
 .. option:: --no-forcing
 
-   Disable the forcing optimisation.
+     Disable the forcing optimisation.
 
 .. option:: --with-compiler={PATH}
 
-   Set ``PATH`` as the executable to call to compile the backend's
-   output (default: ghc for the GHC backend).
+     Set ``PATH`` as the executable to call to compile the backend's
+     output (default: ghc for the GHC backend).
 
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --vim
 
-   Generate Vim_ highlighting files.
+     Generate Vim_ highlighting files.
 
 .. option:: --latex
 
-   Generate LaTeX with highlighted source code (see
-   :ref:`generating-latex`).
+     Generate LaTeX with highlighted source code (see
+     :ref:`generating-latex`).
 
 .. option:: --latex-dir={DIR}
 
-   Set directory in which LaTeX files are placed to ``DIR`` (default:
-   latex).
+     Set directory in which LaTeX files are placed to ``DIR``
+     (default: latex).
 
 .. option:: --count-clusters
 
-   Count extended grapheme clusters when generating LaTeX code (see
-   :ref:`grapheme-clusters`).
+     Count extended grapheme clusters when generating LaTeX code (see
+     :ref:`grapheme-clusters`).
 
 .. option:: --html
 
-   Generate HTML files with highlighted source code (see
-   :ref:`generating-html`).
+     Generate HTML files with highlighted source code (see
+     :ref:`generating-html`).
 
 .. option:: --html-dir={DIR}
 
-   Set directory in which HTML files are placed to ``DIR`` (default:
-   html).
+     Set directory in which HTML files are placed to ``DIR`` (default:
+     html).
 
 .. option:: --css={URL}
 
-   Set URL of the CSS file used by the HTML files to ``URL`` (can be
-   relative).
+     Set URL of the CSS file used by the HTML files to ``URL`` (can be
+     relative).
 
 .. option:: --html-highlight=[code,all,auto]
 
-   Whether to highlight non-Agda code as comments in generated HTML
-   files (default: all; see :ref:`generating-html`).
+     Whether to highlight non-Agda code as comments in generated HTML
+     files (default: all; see :ref:`generating-html`).
 
 .. option:: --dependency-graph={FILE}
 
-   Generate a Dot_ file ``FILE`` with a module dependency graph.
+     Generate a Dot_ file ``FILE`` with a module dependency graph.
 
 Imports and libraries
 ~~~~~~~~~~~~~~~~~~~~~
@@ -115,39 +115,39 @@ Imports and libraries
 
 .. option:: --ignore-interfaces
 
-   Ignore interface files (re-type check everything, except for
-   builtin and primitive modules).
+     Ignore interface files (re-type check everything, except for
+     builtin and primitive modules).
 
 .. option:: --ignore-all-interfaces
 
-   Ignore *all* interface files, including builtin and primitive
-   modules; only use this if you know what you are doing!
+     Ignore *all* interface files, including builtin and primitive
+     modules; only use this if you know what you are doing!
 
 .. option:: --local-interfaces
 
-   Read and write interface files next to the Agda files they
-   correspond to (i.e. do not attempt to regroup them in a ``_build/``
-   directory at the project's root).
+     Read and write interface files next to the Agda files they
+     correspond to (i.e. do not attempt to regroup them in a
+     ``_build/`` directory at the project's root).
 
 .. option:: --include-path={DIR}, -i={DIR}
 
-   Look for imports in ``DIR``.
+     Look for imports in ``DIR``.
 
 .. option:: --library={DIR}, -l={LIB}
 
-   Use library ``LIB``.
+     Use library ``LIB``.
 
 .. option:: --library-file={FILE}
 
-   Use ``{FILE}`` instead of the standard libraries file.
+     Use ``{FILE}`` instead of the standard libraries file.
 
 .. option:: --no-libraries
 
-   Don't use any library files.
+     Don't use any library files.
 
 .. option:: --no-default-libraries
 
-   Don't use default library files.
+     Don't use default library files.
 
 .. _command-line-pragmas:
 
@@ -162,154 +162,155 @@ Caching
 
 .. option:: --caching
 
-   Enable caching of typechecking (default).
+     Enable caching of typechecking (default).
 
 .. option:: --no-caching
 
-   Disable caching of typechecking.
+     Disable caching of typechecking.
 
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --show-implicit
 
-   Show implicit arguments when printing.
+     Show implicit arguments when printing.
 
 .. option:: --show-irrelevant
 
-   Show irrelevant arguments when printing.
+     Show irrelevant arguments when printing.
 
 .. option:: --no-unicode
 
-   Don't use unicode characters to print terms.
+     Don't use unicode characters to print terms.
 
 .. option:: --verbose={N}, -v={N}
 
-   Set verbosity level to ``N``.
+     Set verbosity level to ``N``.
 
 Copatterns and projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --copatterns
 
-   Enable definitions by copattern matching (default; see
-   :ref:`copatterns`).
+     Enable definitions by copattern matching (default; see
+     :ref:`copatterns`).
 
 .. option:: --no-copatterns
 
-   Disable definitions by copattern matching.
+     Disable definitions by copattern matching.
 
 .. option:: --postfix-projections
 
-   Make postfix projection notation the default.
+     Make postfix projection notation the default.
 
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --injective-type-constructors
 
-   Enable injective type constructors (makes Agda anti-classical and
-   possibly inconsistent).
+     Enable injective type constructors (makes Agda anti-classical and
+     possibly inconsistent).
 
 .. option:: --experimental-irrelevance
 
-   Enable potentially unsound irrelevance features (irrelevant levels,
-   irrelevant data matching) (see :ref:`irrelevance`).
+     Enable potentially unsound irrelevance features (irrelevant
+     levels, irrelevant data matching) (see :ref:`irrelevance`).
 
 .. option:: --rewriting
 
-   Enable declaration and use of REWRITE rules (see :ref:`rewriting`).
+     Enable declaration and use of REWRITE rules (see
+     :ref:`rewriting`).
 
 .. option:: --cubical
 
-   Enable cubical features. Turns on :option:`--without-K` (see
-   :ref:`cubical`).
+     Enable cubical features. Turns on :option:`--without-K` (see
+     :ref:`cubical`).
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
 
 .. option:: --allow-unsolved-metas
 
-   Succeed and create interface file regardless of unsolved meta
-   variables (see :ref:`metavariables`).
+     Succeed and create interface file regardless of unsolved meta
+     variables (see :ref:`metavariables`).
 
 .. option:: --allow-incomplete-matches
 
-   Succeed and create interface file regardless of incomplete
-   pattern-matching definitions.
+     Succeed and create interface file regardless of incomplete
+     pattern-matching definitions.
 
 .. option:: --no-positivity-check
 
-   Do not warn about not strictly positive data types (see
-   :ref:`positivity-checking`).
+     Do not warn about not strictly positive data types (see
+     :ref:`positivity-checking`).
 
 .. option:: --no-termination-check
 
-   Do not warn about possibly nonterminating code (see
-   :ref:`termination-checking`).
+     Do not warn about possibly nonterminating code (see
+     :ref:`termination-checking`).
 
 .. option:: --warning={GROUP|FLAG}, -W {GROUP|FLAG}
 
-   Set warning group or flag (see :ref:`warnings`).
+     Set warning group or flag (see :ref:`warnings`).
 
 Pattern matching and equality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --without-K
 
-   Disables definitions using Streicher’s K axiom (see
-   :ref:`without-K`).
+     Disables definitions using Streicher’s K axiom (see
+     :ref:`without-K`).
 
 .. option:: --with-K
 
-   Overrides a global :option:`--without-K` in a file (see
-   :ref:`without-K`).
+     Overrides a global :option:`--without-K` in a file (see
+     :ref:`without-K`).
 
 .. option:: --no-pattern-matching
 
-   Disable pattern matching completely.
+     Disable pattern matching completely.
 
 .. option:: --exact-split
 
-   Require all clauses in a definition to hold as definitional
-   equalities unless marked ``CATCHALL`` (see :ref:`case-trees`).
+     Require all clauses in a definition to hold as definitional
+     equalities unless marked ``CATCHALL`` (see :ref:`case-trees`).
 
 .. option:: --no-exact-split
 
-   Do not require all clauses in a definition to hold as definitional
-   equalities (default).
+     Do not require all clauses in a definition to hold as
+     definitional equalities (default).
 
 .. option:: --no-eta-equality
 
-   Default records to no-eta-equality (see :ref:`eta-expansion`).
+     Default records to no-eta-equality (see :ref:`eta-expansion`).
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. option:: --termination-depth={N}
 
-   Allow termination checker to count decrease/increase upto ``N``
-   (default: 1; see :ref:`termination-checking`).
+     Allow termination checker to count decrease/increase upto ``N``
+     (default: 1; see :ref:`termination-checking`).
 
 .. option:: --instance-search-depth={N}
 
-   Set instance search depth to ``N`` (default: 500; see
-   :ref:`instance-arguments`),
+     Set instance search depth to ``N`` (default: 500; see
+     :ref:`instance-arguments`),
 
 .. option:: --inversion-max-depth={N}
 
-   Set maximum depth for pattern match inversion to ``N`` (default:
-   50). Should only be needed in pathological cases.
+     Set maximum depth for pattern match inversion to ``N`` (default:
+     50). Should only be needed in pathological cases.
 
 .. option:: --no-overlapping-instances
 
-   Don't consider recursive instance arguments during pruning of
-   instance candidates (default).
+     Don't consider recursive instance arguments during pruning of
+     instance candidates (default).
 
 .. option:: --overlapping-instances
 
-   Consider recursive instance arguments during pruning of instance
-   candidates.
+     Consider recursive instance arguments during pruning of instance
+     candidates.
 
 
 Other features
@@ -317,79 +318,82 @@ Other features
 
 .. option:: --safe
 
-   Disable postulates, unsafe ``OPTION`` pragmas and
-   ``primTrustMe``. Turns off :option:`--sized-types` and
-   :option:`--guardedness` (at most one can be turned back on again)
-   (see :ref:`safe-agda`).
+     Disable postulates, unsafe ``OPTION`` pragmas and
+     ``primTrustMe``. Turns off :option:`--sized-types` and
+     :option:`--guardedness` (at most one can be turned back on again)
+     (see :ref:`safe-agda`).
 
 .. option:: --type-in-type
 
-   Ignore universe levels (this makes Agda inconsistent; see
-   :ref:`universe-levels`).
+     Ignore universe levels (this makes Agda inconsistent; see
+     :ref:`universe-levels`).
 
 .. option:: --omega-in-omega
 
-   Enable typing rule `Setω : Setω` (this makes Agda inconsistent).
+     Enable typing rule `Setω : Setω` (this makes Agda inconsistent).
 
 .. option:: --sized-types
 
-   Enable sized types (default, inconsistent with constructor-based
-   guarded corecursion; see :ref:`sized-types`). Turned off by
-   :option:`--safe` (but can be turned on again, as long as not also
-   :option:`--guardedness` is on).
+     Enable sized types (default, inconsistent with constructor-based
+     guarded corecursion; see :ref:`sized-types`). Turned off by
+     :option:`--safe` (but can be turned on again, as long as not also
+     :option:`--guardedness` is on).
 
 .. option:: --no-sized-types
 
-   Disable sized types (see :ref:`sized-types`).
+     Disable sized types (see :ref:`sized-types`).
 
 .. option:: --guardedness
 
-   Enable constructor-based guarded corecursion (default, inconsistent
-   with sized types; see :ref:`coinduction`). Turned off by
-   :option:`--safe` (but can be turned on again, as long as not also
-   :option:`--sized-types` is on).
+     Enable constructor-based guarded corecursion (default,
+     inconsistent with sized types; see :ref:`coinduction`). Turned
+     off by :option:`--safe` (but can be turned on again, as long as
+     not also :option:`--sized-types` is on).
 
 .. option:: --no-guardedness
 
-   Disable constructor-based guarded corecursion (see
-   :ref:`coinduction`).
+     Disable constructor-based guarded corecursion (see
+     :ref:`coinduction`).
 
 .. option:: --universe-polymorphism
 
-   Enable universe polymorphism (default; see :ref:`universe-levels`).
+     Enable universe polymorphism (default; see
+     :ref:`universe-levels`).
 
 .. option:: --no-universe-polymorphism
 
-   Disable universe polymorphism (see :ref:`universe-levels`).
+     Disable universe polymorphism (see :ref:`universe-levels`).
 
 .. option:: --no-irrelevant-projections
 
-   Disable projection of irrelevant record fields (see
-   :ref:`irrelevance`).
+     Disable projection of irrelevant record fields (see
+     :ref:`irrelevance`).
 
 .. option:: --no-auto-inline
 
-   Disable automatic compile-time inlining.  Only definitions marked
-   ``INLINE`` will be inlined.
+     Disable automatic compile-time inlining.  Only definitions marked
+     ``INLINE`` will be inlined.
 
 .. option:: --no-print-pattern-synonyms
 
-   Always expand :ref:`pattern-synonyms` during printing. With this
-   option enabled you can use pattern synonyms freely, but Agda will
-   not use any pattern synonyms when printing goal types or error
-   messages, or when generating patterns for case splits.
+     Always expand :ref:`pattern-synonyms` during printing. With this
+     option enabled you can use pattern synonyms freely, but Agda will
+     not use any pattern synonyms when printing goal types or error
+     messages, or when generating patterns for case splits.
 
 .. option:: --double-check
 
-   Enable double-checking of all terms using the internal typechecker.
+     Enable double-checking of all terms using the internal
+     typechecker.
 
 .. option:: --no-syntactic-equality
 
-   Disable the syntactic equality shortcut in the conversion checker.
+     Disable the syntactic equality shortcut in the conversion
+     checker.
 
 .. option:: --no-fast-reduce
 
-   Disable reduction using the Agda Abstract Machine.
+     Disable reduction using the Agda Abstract Machine.
 
 
 .. _warnings:
@@ -407,89 +411,89 @@ is one of the following:
 
 .. option:: all
 
-   All of the existing warnings.
+     All of the existing warnings.
 
 .. option:: warn.
 
-   Default warning level
+     Default warning level
 
 .. option:: ignore
 
-   Ignore all warnings.
+     Ignore all warnings.
 
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 
 .. option:: AbsurdPatternRequiresNoRHS
 
-   RHS given despite an absurd pattern in the LHS.
+     RHS given despite an absurd pattern in the LHS.
 
 .. option:: CantGeneralizeOverSorts
 
-   Attempt to generalize over sort metas in 'variable' declaration.
+     Attempt to generalize over sort metas in 'variable' declaration.
 
 .. option:: CoInfectiveImport
 
-   Importing a file not using e.g. :option:`--safe` from one which
-   does.
+     Importing a file not using e.g. :option:`--safe` from one which
+     does.
 
 .. option:: CoverageIssue
 
-   Failed coverage checks.
+     Failed coverage checks.
 
 .. option:: CoverageNoExactSplit
 
-   Failed exact split checks.
+     Failed exact split checks.
 
 .. option:: DeprecationWarning
 
-   Feature deprecation.
+     Feature deprecation.
 
 .. option:: EmptyAbstract
 
-   Empty ``abstract`` blocks.
+     Empty ``abstract`` blocks.
 
 .. option:: EmptyInstance
 
-   Empty ``instance`` blocks.
+     Empty ``instance`` blocks.
 
 .. option:: EmptyMacro
 
-   Empty ``macro`` blocks.
+     Empty ``macro`` blocks.
 
 .. option:: EmptyMutual
 
-   Empty ``mutual`` blocks.
+     Empty ``mutual`` blocks.
 
 .. option:: EmptyPostulate
 
-   Empty ``postulate`` blocks.
+     Empty ``postulate`` blocks.
 
 .. option:: EmptyPrimitive
 
-   Empty ``primitive`` blocks.
+     Empty ``primitive`` blocks.
 
 .. option:: EmptyPrivate
 
-   Empty ``private`` blocks.
+     Empty ``private`` blocks.
 
 .. option:: EmptyRewritePragma
 
-   Empty ``REWRITE`` pragmas.
+     Empty ``REWRITE`` pragmas.
 
 .. option:: IllformedAsClause
 
-   Illformed ``as``-clauses in ``import`` statements.
+     Illformed ``as``-clauses in ``import`` statements.
 
 .. option:: InfectiveImport
 
-   Importing a file using e.g. :option;`--cubical` into one which
-   doesn't.
+     Importing a file using e.g. :option;`--cubical` into one which
+     doesn't.
 
 .. option:: InstanceNoOutputTypeName
 
-   Instance arguments whose type does not end in a named or variable
-   type are never considered by instance search.
+     Instance arguments whose type does not end in a named or variable
+     type are never considered by instance search.
 
 .. option:: InstanceArgWithExplicitArg
 
@@ -498,178 +502,178 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: InstanceWithExplicitArg
 
-   Instance declarations with explicit arguments are never considered
-   by instance search.
+     Instance declarations with explicit arguments are never
+     considered by instance search.
 
 .. option:: InvalidCatchallPragma
 
-   ``CATCHALL`` pragmas before a non-function clause.
+     ``CATCHALL`` pragmas before a non-function clause.
 
 .. option:: InvalidNoPositivityCheckPragma
 
-   No positivity checking pragmas before non-`data``, ``record`` or
-   ``mutual`` blocks.
+     No positivity checking pragmas before non-`data``, ``record`` or
+     ``mutual`` blocks.
 
 .. option:: InvalidTerminationCheckPragma
 
-   Termination checking pragmas before non-function or ``mutual``
-   blocks.
+     Termination checking pragmas before non-function or ``mutual``
+     blocks.
 
 .. option:: InversionDepthReached
 
-   Inversions of pattern-matching failed due to exhausted inversion
-   depth.
+     Inversions of pattern-matching failed due to exhausted inversion
+     depth.
 
 .. option:: LibUnknownField
 
-   Unknown field in library file.
+     Unknown field in library file.
 
 .. option:: MissingDefinitions
 
-   Names declared without an accompanying definition.
+     Names declared without an accompanying definition.
 
 .. option:: ModuleDoesntExport
 
-   Names mentioned in an import statement which are not exported by
-   the module in question.
+     Names mentioned in an import statement which are not exported by
+     the module in question.
 
 .. option:: NotAllowedInMutual
 
-   Declarations not allowed in a mutual block.
+     Declarations not allowed in a mutual block.
 
 .. option:: NotStrictlyPositive
 
-   Failed strict positivity checks.
+     Failed strict positivity checks.
 
 .. option:: OldBuiltin
 
-   Deprecated ``BUILTIN`` pragmas.
+     Deprecated ``BUILTIN`` pragmas.
 
 .. option:: OverlappingTokensWarning
 
-   Multi-line comments spanning one or more literate text blocks.
+     Multi-line comments spanning one or more literate text blocks.
 
 .. option:: PolarityPragmasButNotPostulates
 
-   Polarity pragmas for non-postulates.
+     Polarity pragmas for non-postulates.
 
 .. option:: PragmaCompiled
 
-   ``COMPILE`` pragmas not allowed in safe mode.
+     ``COMPILE`` pragmas not allowed in safe mode.
 
 .. option:: PragmaCompileErased
 
-   ``COMPILE`` pragma targeting an erased symbol.
+     ``COMPILE`` pragma targeting an erased symbol.
 
 .. option:: PragmaNoTerminationCheck
 
-   ``NO_TERMINATION_CHECK`` pragmas are deprecated.
+     ``NO_TERMINATION_CHECK`` pragmas are deprecated.
 
 .. option:: RewriteMaybeNonConfluent
 
-   Failed confluence checks while computing overlap.
+     Failed confluence checks while computing overlap.
 
 .. option:: RewriteNonConfluent
 
-   Failed confluence checks while joining critical pairs.
+     Failed confluence checks while joining critical pairs.
 
 .. option:: SafeFlagNonTerminating
 
-   ``NON_TERMINATING`` pragmas with the safe flag.
+     ``NON_TERMINATING`` pragmas with the safe flag.
 
 .. option:: SafeFlagNoPositivityCheck
 
-   ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+     ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
 
 .. option:: SafeFlagNoUniverseCheck
 
-   ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
+     ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
 
 .. option:: SafeFlagPolarity
 
-   ``POLARITY`` pragmas with the safe flag.
+     ``POLARITY`` pragmas with the safe flag.
 
 .. option:: SafeFlagPostulate
 
-   ``postulate`` blocks with the safe flag
+     ``postulate`` blocks with the safe flag
 
 .. option:: SafeFlagPragma
 
-   Unsafe ``OPTIONS`` pragmas with the safe flag.
+     Unsafe ``OPTIONS`` pragmas with the safe flag.
 
 .. option:: SafeFlagTerminating
 
-   ``TERMINATING`` pragmas with the safe flag.
+     ``TERMINATING`` pragmas with the safe flag.
 
 .. option:: SafeFlagWithoutKFlagPrimEraseEquality
 
-   ``primEraseEquality`` used with the safe and without-K flags.
+     ``primEraseEquality`` used with the safe and without-K flags.
 
 .. option:: ShadowingInTelescope
 
-   Repeated variable name in telescope.
+     Repeated variable name in telescope.
 
 .. option:: TerminationIssue
 
-   Failed termination checks.
+     Failed termination checks.
 
 .. option:: UnknownFixityInMixfixDecl
 
-   Mixfix names without an associated fixity declaration.
+     Mixfix names without an associated fixity declaration.
 
 .. option:: UnknownNamesInFixityDecl
 
-   Names not declared in the same scope as their syntax or fixity
-   declaration.
+     Names not declared in the same scope as their syntax or fixity
+     declaration.
 
 .. option:: UnknownNamesInPolarityPragmas
 
-   Names not declared in the same scope as their polarity pragmas.
+     Names not declared in the same scope as their polarity pragmas.
 
 .. option:: UnreachableClauses
 
-   Unreachable function clauses.
+     Unreachable function clauses.
 
 .. option:: UnsolvedConstraints
 
-   Unsolved constraints.
+     Unsolved constraints.
 
 .. option:: UnsolvedInteractionMetas
 
-   Unsolved interaction meta variables.
+     Unsolved interaction meta variables.
 
 .. option:: UnsolvedMetaVariables
 
-   Unsolved meta variables.
+     Unsolved meta variables.
 
 .. option:: UselessAbstract
 
-   ``abstract`` blocks where they have no effect.
+     ``abstract`` blocks where they have no effect.
 
 .. option:: UselessInline
 
-   ``INLINE`` pragmas where they have no effect.
+     ``INLINE`` pragmas where they have no effect.
 
 .. option:: UselessInstance
 
-   ``instance`` blocks where they have no effect.
+     ``instance`` blocks where they have no effect.
 
 .. option:: UselessPrivate
 
-   ``private`` blocks where they have no effect.
+     ``private`` blocks where they have no effect.
 
 .. option:: UselessPublic
 
-   ``public`` blocks where they have no effect.
+     ``public`` blocks where they have no effect.
 
 .. option:: WithoutKFlagPrimEraseEquality
 
-   ``primEraseEquality`` used with the without-K flags.
+     ``primEraseEquality`` used with the without-K flags.
 
 .. option:: WrongInstanceDeclaration
 
-   Terms marked as eligible for instance search should end with a
-   name.
+     Terms marked as eligible for instance search should end with a
+     name.
 
 For example, the following command runs Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
