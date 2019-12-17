@@ -308,11 +308,12 @@ Other features
 .. option:: --type-in-type
 
      Ignore universe levels (this makes Agda inconsistent; see
-     :ref:`universe-levels`).
+     :ref:`type-in-type <type-in-type>`).
 
 .. option:: --omega-in-omega
 
-     Enable typing rule `Setω : Setω` (this makes Agda inconsistent).
+     Enable typing rule `Setω : Setω` (this makes Agda inconsistent;
+     see :ref:`omega-in-omega <omega-in-omega>`).
 
 .. option:: --sized-types
 
