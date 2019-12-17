@@ -12,18 +12,10 @@ Agda accepts the following options.
 General options
 ~~~~~~~~~~~~~~~
 
-.. option:: --version, -V
-
-     Show version number
-
 .. option:: --help[={TOPIC}], -?[{TOPIC}]
 
      Show basically this help, or more help about ``TOPIC``. Current
      topics available: ``warning``.
-
-.. option:: --interactive, -I
-
-     Start in interactive mode (no longer supported).
 
 .. option:: --interaction
 
@@ -34,20 +26,23 @@ General options
      For use with other editors such as Atom (no need to invoke
      yourself).
 
+.. option:: --interactive, -I
+
+     Start in interactive mode (no longer supported).
+
 .. option:: --only-scope-checking
 
      Only scope-check the top-level module, do not type-check it (see
      :ref:`quickLaTeX`).
 
+.. option:: --version, -V
+
+     Show version number.
+
 Compilation
 ~~~~~~~~~~~
 
 See :ref:`compilers` for backend-specific options.
-
-.. option:: --no-main
-
-     Do not treat the requested module as the main module of a program
-     when compiling.
 
 .. option:: --compile-dir={DIR}
 
@@ -58,6 +53,11 @@ See :ref:`compilers` for backend-specific options.
 
      Disable the forcing optimisation.
 
+.. option:: --no-main
+
+     Do not treat the requested module as the main module of a program
+     when compiling.
+
 .. option:: --with-compiler={PATH}
 
      Set ``PATH`` as the executable to call to compile the backend's
@@ -66,24 +66,19 @@ See :ref:`compilers` for backend-specific options.
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --vim
-
-     Generate Vim_ highlighting files.
-
-.. option:: --latex
-
-     Generate LaTeX with highlighted source code (see
-     :ref:`generating-latex`).
-
-.. option:: --latex-dir={DIR}
-
-     Set directory in which LaTeX files are placed to ``DIR``
-     (default: latex).
-
 .. option:: --count-clusters
 
      Count extended grapheme clusters when generating LaTeX code (see
      :ref:`grapheme-clusters`).
+
+.. option:: --css={URL}
+
+     Set URL of the CSS file used by the HTML files to ``URL`` (can be
+     relative).
+
+.. option:: --dependency-graph={FILE}
+
+     Generate a Dot_ file ``FILE`` with a module dependency graph.
 
 .. option:: --html
 
@@ -95,42 +90,39 @@ Generating highlighted source code
      Set directory in which HTML files are placed to ``DIR`` (default:
      html).
 
-.. option:: --css={URL}
-
-     Set URL of the CSS file used by the HTML files to ``URL`` (can be
-     relative).
-
 .. option:: --html-highlight=[code,all,auto]
 
      Whether to highlight non-Agda code as comments in generated HTML
      files (default: all; see :ref:`generating-html`).
 
-.. option:: --dependency-graph={FILE}
+.. option:: --latex
 
-     Generate a Dot_ file ``FILE`` with a module dependency graph.
+     Generate LaTeX with highlighted source code (see
+     :ref:`generating-latex`).
+
+.. option:: --latex-dir={DIR}
+
+     Set directory in which LaTeX files are placed to ``DIR``
+     (default: latex).
+
+.. option:: --vim
+
+     Generate Vim_ highlighting files.
 
 Imports and libraries
 ~~~~~~~~~~~~~~~~~~~~~
 
 (see :ref:`package-system`)
 
-.. option:: --ignore-interfaces
-
-     Ignore interface files (re-type check everything, except for
-     builtin and primitive modules).
-
 .. option:: --ignore-all-interfaces
 
      Ignore *all* interface files, including builtin and primitive
      modules; only use this if you know what you are doing!
 
-.. option:: --local-interfaces
+.. option:: --ignore-interfaces
 
-     .. versionadded:: 2.6.1
-
-     Read and write interface files next to the Agda files they
-     correspond to (i.e. do not attempt to regroup them in a
-     ``_build/`` directory at the project's root).
+     Ignore interface files (re-type check everything, except for
+     builtin and primitive modules).
 
 .. option:: --include-path={DIR}, -i={DIR}
 
@@ -144,13 +136,21 @@ Imports and libraries
 
      Use ``{FILE}`` instead of the standard libraries file.
 
-.. option:: --no-libraries
+.. option:: --local-interfaces
 
-     Don't use any library files.
+     .. versionadded:: 2.6.1
+
+     Read and write interface files next to the Agda files they
+     correspond to (i.e. do not attempt to regroup them in a
+     ``_build/`` directory at the project's root).
 
 .. option:: --no-default-libraries
 
      Don't use default library files.
+
+.. option:: --no-libraries
+
+     Don't use any library files.
 
 .. _command-line-pragmas:
 
@@ -163,16 +163,18 @@ The following options can also be given in .agda files using the
 Caching
 ~~~~~~~
 
-.. option:: --caching
+.. option:: --caching, --no-caching
 
-     Enable caching of typechecking (default).
+     Enable [disable] caching of typechecking (default).
 
-.. option:: --no-caching
-
-     Disable caching of typechecking.
+     Default: ``--caching``
 
 Printing and debugging
 ~~~~~~~~~~~~~~~~~~~~~~
+
+.. option:: --no-unicode
+
+     Don't use unicode characters to print terms.
 
 .. option:: --show-implicit
 
@@ -182,10 +184,6 @@ Printing and debugging
 
      Show irrelevant arguments when printing.
 
-.. option:: --no-unicode
-
-     Don't use unicode characters to print terms.
-
 .. option:: --verbose={N}, -v={N}
 
      Set verbosity level to ``N``.
@@ -193,14 +191,12 @@ Printing and debugging
 Copatterns and projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --copatterns
+.. option:: --copatterns, --no-copatterns
 
-     Enable definitions by copattern matching (default; see
+     Enable [disable] definitions by copattern matching (see
      :ref:`copatterns`).
 
-.. option:: --no-copatterns
-
-     Disable definitions by copattern matching.
+     Default: ``--copatterns``
 
 .. option:: --postfix-projections
 
@@ -208,21 +204,6 @@ Copatterns and projections
 
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
-
-.. option:: --injective-type-constructors
-
-     Enable injective type constructors (makes Agda anti-classical and
-     possibly inconsistent).
-
-.. option:: --experimental-irrelevance
-
-     Enable potentially unsound irrelevance features (irrelevant
-     levels, irrelevant data matching) (see :ref:`irrelevance`).
-
-.. option:: --rewriting
-
-     Enable declaration and use of REWRITE rules (see
-     :ref:`rewriting`).
 
 .. option:: --confluence-check
 
@@ -236,13 +217,23 @@ Experimental features
      Enable cubical features. Turns on :option:`--without-K` (see
      :ref:`cubical`).
 
+.. option:: --experimental-irrelevance
+
+     Enable potentially unsound irrelevance features (irrelevant
+     levels, irrelevant data matching) (see :ref:`irrelevance`).
+
+.. option:: --injective-type-constructors
+
+     Enable injective type constructors (makes Agda anti-classical and
+     possibly inconsistent).
+
+.. option:: --rewriting
+
+     Enable declaration and use of REWRITE rules (see
+     :ref:`rewriting`).
+
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
-
-.. option:: --allow-unsolved-metas
-
-     Succeed and create interface file regardless of unsolved meta
-     variables (see :ref:`metavariables`).
 
 .. option:: --allow-incomplete-matches
 
@@ -251,6 +242,11 @@ Errors and warnings
      Succeed and create interface file regardless of incomplete
      pattern-matching definitions. See, also, the
      :ref:`NON_COVERING<non_covering-pragma>` pragma.
+
+.. option:: --allow-unsolved-metas
+
+     Succeed and create interface file regardless of unsolved meta
+     variables (see :ref:`metavariables`).
 
 .. option:: --no-positivity-check
 
@@ -269,41 +265,34 @@ Errors and warnings
 Pattern matching and equality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --without-K
+.. option:: --exact-split, --no-exact-split
 
-     Disables definitions using Streicher’s K axiom (see
-     :ref:`without-K`).
+     Require [do not require] all clauses in a definition to hold as
+     definitional equalities unless marked ``CATCHALL`` (see
+     :ref:`case-trees`).
+
+     Default: ``--no-exact-split``
+
+.. option:: --no-eta-equality
+
+     Default records to no-eta-equality (see :ref:`eta-expansion`).
+
+.. option:: --no-pattern-matching
+
+     Disable pattern matching completely.
 
 .. option:: --with-K
 
      Overrides a global :option:`--without-K` in a file (see
      :ref:`without-K`).
 
-.. option:: --no-pattern-matching
+.. option:: --without-K
 
-     Disable pattern matching completely.
-
-.. option:: --exact-split
-
-     Require all clauses in a definition to hold as definitional
-     equalities unless marked ``CATCHALL`` (see :ref:`case-trees`).
-
-.. option:: --no-exact-split
-
-     Do not require all clauses in a definition to hold as
-     definitional equalities (default).
-
-.. option:: --no-eta-equality
-
-     Default records to no-eta-equality (see :ref:`eta-expansion`).
+     Disables definitions using Streicher’s K axiom (see
+     :ref:`without-K`).
 
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. option:: --termination-depth={N}
-
-     Allow termination checker to count decrease/increase upto ``N``
-     (default: 1; see :ref:`termination-checking`).
 
 .. option:: --instance-search-depth={N}
 
@@ -315,19 +304,68 @@ Search depth and instances
      Set maximum depth for pattern match inversion to ``N`` (default:
      50). Should only be needed in pathological cases.
 
-.. option:: --no-overlapping-instances
+.. option:: --termination-depth={N}
 
-     Don't consider recursive instance arguments during pruning of
-     instance candidates (default).
+     Allow termination checker to count decrease/increase upto ``N``
+     (default: 1; see :ref:`termination-checking`).
 
-.. option:: --overlapping-instances
+.. option:: --overlapping-instances, --no-overlapping-instances
 
-     Consider recursive instance arguments during pruning of instance
-     candidates.
+     Consider [do not consider] recursive instance arguments during
+     pruning of instance candidates.
+
+     Default: ``--no-overlapping-instances``
 
 
 Other features
 ~~~~~~~~~~~~~~
+
+.. option:: --double-check
+
+     Enable double-checking of all terms using the internal
+     typechecker.
+
+.. option:: --guardedness, --no-guardedness
+
+     Enable [disable] constructor-based guarded corecursion (see
+     :ref:`coinduction`).
+
+     The option ``--guardedness`` is inconsistent with sized types and
+     it is turned off by :option:`--safe` (but can be turned on again,
+     as long as not also :option:`--sized-types` is on).
+
+     Default: ``--guardedness``
+
+.. option:: --irrelevant-projections, --no-irrelevant-projections
+
+     .. versionadded:: 2.5.4
+
+     Enable [disable] projection of irrelevant record fields (see
+     :ref:`irrelevance`). The option ``--irrelevant-projections``
+     makes Agda inconsistent.
+
+     Default (since Agda 2.6.1): ``--no-irrelevant-projections``
+
+.. option:: --no-auto-inline
+
+     Disable automatic compile-time inlining.  Only definitions marked
+     ``INLINE`` will be inlined.
+
+.. option:: --no-fast-reduce
+
+     Disable reduction using the Agda Abstract Machine.
+
+.. option:: --no-print-pattern-synonyms
+
+     Always expand :ref:`pattern-synonyms` during printing. With this
+     option enabled you can use pattern synonyms freely, but Agda will
+     not use any pattern synonyms when printing goal types or error
+     messages, or when generating patterns for case splits.
+
+.. option:: --no-syntactic-equality
+
+     Disable the syntactic equality shortcut in the conversion
+     checker.
 
 .. option:: --safe
 
@@ -335,6 +373,17 @@ Other features
      ``primTrustMe``. Turns off :option:`--sized-types` and
      :option:`--guardedness` (at most one can be turned back on again)
      (see :ref:`safe-agda`).
+
+.. option:: --sized-types, --no-sized-types
+
+     Enable [disable] sized types (see :ref:`sized-types`).
+
+     The option ``--sized-types`` is inconsistent with
+     constructor-based guarded corecursion and it is turned off by
+     :option:`--safe` (but can be turned on again, as long as not also
+     :option:`--guardedness` is on).
+
+     Default: ``--sized-types``
 
 .. option:: --type-in-type
 
@@ -346,78 +395,12 @@ Other features
      Enable typing rule `Setω : Setω` (this makes Agda inconsistent;
      see :ref:`omega-in-omega <omega-in-omega>`).
 
-.. option:: --sized-types
+.. option:: --universe-polymorphism, --no-universe-polymorphism
 
-     Enable sized types (default, inconsistent with constructor-based
-     guarded corecursion; see :ref:`sized-types`). Turned off by
-     :option:`--safe` (but can be turned on again, as long as not also
-     :option:`--guardedness` is on).
-
-.. option:: --no-sized-types
-
-     Disable sized types (see :ref:`sized-types`).
-
-.. option:: --guardedness
-
-     Enable constructor-based guarded corecursion (default,
-     inconsistent with sized types; see :ref:`coinduction`). Turned
-     off by :option:`--safe` (but can be turned on again, as long as
-     not also :option:`--sized-types` is on).
-
-.. option:: --no-guardedness
-
-     Disable constructor-based guarded corecursion (see
-     :ref:`coinduction`).
-
-.. option:: --universe-polymorphism
-
-     Enable universe polymorphism (default; see
+     Enable [disable] universe polymorphism (see
      :ref:`universe-levels`).
 
-.. option:: --no-universe-polymorphism
-
-     Disable universe polymorphism (see :ref:`universe-levels`).
-
-.. option:: --irrelevant-projections
-
-     .. versionadded:: 2.5.4
-
-     Enable projection of irrelevant record fields (inconsistent). See
-     :ref:`irrelevance`. Since Agda 2.6.1 is off by default.
-
-.. option:: --no-irrelevant-projections
-
-     .. versionadded:: 2.5.4
-
-     Disable projection of irrelevant record fields. See
-     :ref:`irrelevance`. Since Agda 2.6.1 is on by default.
-
-.. option:: --no-auto-inline
-
-     Disable automatic compile-time inlining.  Only definitions marked
-     ``INLINE`` will be inlined.
-
-.. option:: --no-print-pattern-synonyms
-
-     Always expand :ref:`pattern-synonyms` during printing. With this
-     option enabled you can use pattern synonyms freely, but Agda will
-     not use any pattern synonyms when printing goal types or error
-     messages, or when generating patterns for case splits.
-
-.. option:: --double-check
-
-     Enable double-checking of all terms using the internal
-     typechecker.
-
-.. option:: --no-syntactic-equality
-
-     Disable the syntactic equality shortcut in the conversion
-     checker.
-
-.. option:: --no-fast-reduce
-
-     Disable reduction using the Agda Abstract Machine.
-
+     Default: ``--universe-polymorphism``
 
 .. _warnings:
 
