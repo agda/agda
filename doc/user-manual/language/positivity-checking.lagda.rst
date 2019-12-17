@@ -11,7 +11,7 @@ Positivity Checking
 .. note::
    This is a stub.
 
-.. _no_positivity_check_pragma:
+.. _no_positivity_check-pragma:
 
 The ``NO_POSITIVITY_CHECK`` pragma
 __________________________________
@@ -90,7 +90,7 @@ Examples:
       data D where
         lam : (D → D) → D
 
-.. _polarity_pragma:
+.. _polarity-pragma:
 
 `POLARITY` pragmas
 __________________

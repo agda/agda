@@ -133,8 +133,8 @@ Imports and libraries
 Command-line and pragma options
 -------------------------------
 
-The following options can also be given in .agda files in the
-``{-# OPTIONS --{opt₁} --{opt₂} ... #-}`` form at the top of the file.
+The following options can also be given in .agda files using the
+:ref:`OPTIONS<options-pragma>` pragma.
 
 Caching
 ~~~~~~~
@@ -219,7 +219,7 @@ Errors and warnings
 
      Succeed and create interface file regardless of incomplete
      pattern-matching definitions. See, also, the
-     :ref:`NON_COVERING<non_covering_pragma>` pragma.
+     :ref:`NON_COVERING<non_covering-pragma>` pragma.
 
 .. option:: --no-positivity-check
 
@@ -498,7 +498,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: InvalidCatchallPragma
 
-     ``CATCHALL`` pragmas before a non-function clause.
+     :ref:`CATCHALL<catchall-pragma>` pragmas before a non-function clause.
 
 .. option:: InvalidNoPositivityCheckPragma
 
@@ -538,7 +538,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: OldBuiltin
 
-     Deprecated ``BUILTIN`` pragmas.
+     Deprecated :ref:`BUILTIN<built-ins>` pragmas.
 
 .. option:: OverlappingTokensWarning
 
@@ -550,15 +550,15 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: PragmaCompiled
 
-     ``COMPILE`` pragmas not allowed in safe mode.
+     :ref:`COMPILE<foreign-function-interface>` pragmas not allowed in safe mode.
 
 .. option:: PragmaCompileErased
 
-     ``COMPILE`` pragma targeting an erased symbol.
+     :ref:`COMPILE<foreign-function-interface>` pragma targeting an erased symbol.
 
 .. option:: PragmaNoTerminationCheck
 
-     ``NO_TERMINATION_CHECK`` pragmas are deprecated.
+     :ref:`NO_TERMINATION_CHECK<terminating-pragma>` pragmas are deprecated.
 
 .. option:: RewriteMaybeNonConfluent
 
@@ -570,11 +570,11 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: SafeFlagNonTerminating
 
-     ``NON_TERMINATING`` pragmas with the safe flag.
+     :ref:`NON_TERMINATING<non_terminating-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagNoPositivityCheck
 
-     ``NO_POSITIVITY_CHECK`` pragmas with the safe flag.
+     :ref:`NO_POSITIVITY_CHECK<no_positivity_check-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagNoUniverseCheck
 
@@ -582,7 +582,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: SafeFlagPolarity
 
-     ``POLARITY`` pragmas with the safe flag.
+     :ref:`POLARITY<polarity-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagPostulate
 
@@ -590,11 +590,11 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: SafeFlagPragma
 
-     Unsafe ``OPTIONS`` pragmas with the safe flag.
+     Unsafe :ref:`OPTIONS<options-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagTerminating
 
-     ``TERMINATING`` pragmas with the safe flag.
+     :ref:`TERMINATING<terminating-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagWithoutKFlagPrimEraseEquality
 
@@ -643,7 +643,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: UselessInline
 
-     ``INLINE`` pragmas where they have no effect.
+     :ref:`INLINE<inline-pragma>` pragmas where they have no effect.
 
 .. option:: UselessInstance
 

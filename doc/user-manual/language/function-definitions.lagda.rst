@@ -212,14 +212,16 @@ the result of writing clauses by hand instead of using Agda's case
 split tactic. These clauses are :ref:`highlighted <highlight>` by
 Emacs.
 
-The :option:`--exact-split` flag causes Agda to raise an error
-whenever a clause in a definition by pattern matching cannot be made
-to hold definitionally. Specific clauses can be excluded from this
-check by means of the ``{-# CATCHALL #-}`` pragma.
+.. _catchall-pragma:
+
+The ``--exact-split`` flag causes Agda to raise an error whenever a
+clause in a definition by pattern matching cannot be made to hold
+definitionally. Specific clauses can be excluded from this check by
+means of the ``{-# CATCHALL #-}`` pragma.
 
 For instance, the above definition of ``max`` will be rejected when
-using the :option:`--exact-split` flag because its second clause does
-not to hold definitionally.
+using the ``--exact-split`` flag because its second clause does not to
+hold definitionally.
 
 When using the :option:`--exact-split` flag, catch-all clauses have to
 be marked as such, for instance: ::

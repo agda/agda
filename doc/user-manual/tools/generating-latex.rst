@@ -145,7 +145,7 @@ backend:
 .. option:: --count-clusters
 
     Count extended grapheme clusters when generating LaTeX code. This
-    option can be given in ``OPTIONS`` pragmas. See
+    option can be given in :ref:`OPTIONS<options-pragma>` pragmas. See
     :ref:`grapheme-clusters`.
 
 The following options can be given when loading ``agda.sty`` by using

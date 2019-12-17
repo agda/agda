@@ -20,43 +20,43 @@ Index of pragmas
 
 * :ref:`BUILTIN <built-ins>`
 
-* :ref:`CATCHALL <case-trees>`
+* :ref:`CATCHALL <catchall-pragma>`
 
 * :ref:`COMPILE <foreign-function-interface>`
 
 * :ref:`FOREIGN <foreign-function-interface>`
 
-* :ref:`INJECTIVE <injective_pragma>`
+* :ref:`INJECTIVE <injective-pragma>`
 
-* :ref:`INLINE <inline_pragma>`
+* :ref:`INLINE <inline-pragma>`
 
-* :ref:`NO_POSITIVITY_CHECK <no_positivity_check_pragma>`
+* :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`
 
-* :ref:`NO_TERMINATION_CHECK <terminating_pragma>`
+* :ref:`NO_TERMINATION_CHECK <terminating-pragma>`
 
-* :ref:`NOINLINE <inline_pragma>`
+* :ref:`NOINLINE <inline-pragma>`
 
-* :ref:`NON_COVERING <non_covering_pragma>`
+* :ref:`NON_COVERING <non_covering-pragma>`
 
-* :ref:`NON_TERMINATING <non_terminating_pragma>`
+* :ref:`NON_TERMINATING <non_terminating-pragma>`
 
-* :ref:`OPTIONS <command-line-pragmas>`
+* :ref:`OPTIONS <options-pragma>`
 
-* :ref:`POLARITY <polarity_pragma>`
+* :ref:`POLARITY <polarity-pragma>`
 
 * :samp:`REWRITE`
 
 * :ref:`STATIC <built-ins>`
 
-* :ref:`TERMINATING <terminating_pragma>`
+* :ref:`TERMINATING <terminating-pragma>`
 
-* :ref:`WARNING_ON_USAGE <warning_pragma>`
+* :ref:`WARNING_ON_USAGE <warning-pragma>`
 
-* :ref:`WARNING_ON_IMPORT <warning_pragma>`
+* :ref:`WARNING_ON_IMPORT <warning-pragma>`
 
 See also :ref:`command-line-pragmas`.
 
-.. _display_pragma:
+.. _display-pragma:
 
 The ``DISPLAY`` pragma
 ______________________
@@ -93,10 +93,10 @@ Limitations
     insertion may not work properly if the type of `f` computes to an
     implicit function space after pattern matching.
 
-.. _injective_pragma:
+.. _injective-pragma:
 
-The ``INJECTIVE`` pragmas
-_________________________
+The ``INJECTIVE`` pragma
+________________________
 
 Injective pragmas can be used to mark a definition as injective for
 the pattern matching unifier. This can be used as a version of
@@ -120,7 +120,7 @@ Example::
 Aside from datatypes, this pragma can also be used to mark other
 definitions as being injective (for example postulates).
 
-.. _inline_pragma:
+.. _inline-pragma:
 
 The ``INLINE`` and ``NOINLINE`` pragmas
 _______________________________________
@@ -151,7 +151,7 @@ Example::
 
   {-# INLINE _o_ #-} -- force inlining
 
-.. _non_covering_pragma:
+.. _non_covering-pragma:
 
 The ``NON_COVERING`` pragma
 ___________________________
@@ -164,7 +164,18 @@ partial. To be used as a version of
 :option:`--allow-incomplete-matches` that only applies to specific
 functions.
 
-.. _warning_pragma:
+.. _options-pragma:
+
+The ``OPTIONS`` pragma
+___________________________
+
+Some options can be given at the top of .agda files in the form
+
+``{-# OPTIONS --{opt₁} --{opt₂} ... #-}``
+
+The possible options are listed in :ref:`command-line-pragmas`.
+
+.. _warning-pragma:
 
 The ``WARNING_ON_`` pragmas
 ___________________________
