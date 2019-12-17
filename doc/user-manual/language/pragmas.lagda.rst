@@ -183,10 +183,10 @@ The ``WARNING_ON_`` pragmas
 ___________________________
 
 A library author can use a ``WARNING_ON_USAGE`` pragma to attach to a defined
-name a warning to be raised whenever this name is used.
+name a warning to be raised whenever this name is used (since Agda 2.5.4).
 
 Similarly they can use a ``WARNING_ON_IMPORT`` pragma to attach to a module
-a warning to be raised whenever this module is imported.
+a warning to be raised whenever this module is imported (since Agda 2.6.1).
 
 This would typically be used to declare a name or a module 'DEPRECATED' and
 advise the end-user to port their code before the feature is dropped.
