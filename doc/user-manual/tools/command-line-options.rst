@@ -61,10 +61,6 @@ See :ref:`compilers` for backend-specific options.
      Set ``DIR`` as directory for compiler output (default: the
      project root).
 
-.. option:: --no-forcing
-
-     Disable the forcing optimisation.
-
 .. option:: --no-main
 
      Do not treat the requested module as the main module of a program
@@ -366,6 +362,11 @@ Other features
 .. option:: --no-fast-reduce
 
      Disable reduction using the Agda Abstract Machine.
+
+.. option:: --no-forcing
+
+     Disable the forcing optimisation. Since Agda 2.6.1 is a pragma
+     option.
 
 .. option:: --no-print-pattern-synonyms
 
