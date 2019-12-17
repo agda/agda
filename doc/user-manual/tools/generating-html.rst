@@ -13,7 +13,7 @@ the following command in a shell:
 
 You can change the way in which the code is highlighted by providing
 your own CSS file instead of the :download:`default, included one
-<../../../src/data/Agda.css>` (use the :option:`--css` option).
+<../../../src/data/Agda.css>` (use the ``--css`` option).
 
 If you're using Literate Agda with Markdown or reStructedText and you
 want to highlight your Agda codes with Agda's HTML backend and render
@@ -38,24 +38,18 @@ pure Agda code files rendered without HTML footer/header as well.
 To use ``code`` with literate Agda files and ``all`` with pure Agda
 files, use ``--html-highlight=auto``, which means auto-detection.
 
-.. _html-backend-options:
-
 Options
 -------
 
-.. option:: --html-dir={DIR}
-
+:samp:`--html-dir={directory}`
   Changes the directory where the output is placed to
-  ``DIR``. Default: html.
+  :samp:`{directory}`. Default: ``html``.
 
-.. option:: --css={URL}
+:samp:`--css={URL}`
+  The CSS_ file used by the HTML files (:samp:`{URL}` can be relative).
 
-     Set URL of the CSS_ file used by the HTML files to ``URL`` (can
-     be relative).
-
-.. option:: --html-highlight=[code,all,auto]
-
-     Highlight Agda code only or everything in the generated HTML
-     files. Default: all.
+:samp:`--html-highlight=[code,all,auto]`
+  Highlight Agda code only or everything in the generated HTML files.
+  Default: ``all``.
 
 .. _CSS:  https://www.w3.org/Style/CSS/

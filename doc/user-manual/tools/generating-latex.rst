@@ -132,41 +132,35 @@ Options
 The following command-line options change the behaviour of the LaTeX
 backend:
 
-.. option:: --latex-dir={DIR}
+:samp:`--latex-dir={directory}`
+  Changes the output directory where :file:`agda.sty` and the output
+  :file:`.tex` file are placed to :samp:`{directory}`. Default:
+  ``latex``.
 
-    Changes the output directory where :file:`agda.sty` and the output
-    :file:`.tex` file are placed to ``DIR``. Default: latex.
+``--only-scope-checking``
+  Generates highlighting without typechecking the file. See
+  :ref:`quickLaTeX`.
 
-.. option:: --only-scope-checking
-
-     Generates highlighting without typechecking the file. See
-     :ref:`quickLaTeX`.
-
-.. option:: --count-clusters
-
-    Count extended grapheme clusters when generating LaTeX code. This
-    option can be given in :ref:`OPTIONS<options-pragma>` pragmas. See
-    :ref:`grapheme-clusters`.
+``--count-clusters``
+  Count extended grapheme clusters when generating LaTeX code. This
+  option can be given in :ref:`OPTIONS<options-pragma>` pragmas.
+  See :ref:`grapheme-clusters`.
 
 The following options can be given when loading ``agda.sty`` by using
 ``\usepackage[options]{agda}``:
 
-.. option:: bw
+``bw``
+  Colour scheme which highlights in black and white.
 
-     Colour scheme which highlights in black and white.
+``conor``
+  Colour scheme similar to the colours used in Epigram 1.
 
-.. option:: conor
+``references``
+  Enables :ref:`inline typesetting <latex-inline-references>` of
+  referenced code.
 
-     Colour scheme similar to the colours used in Epigram 1.
-
-.. option:: references
-
-     Enables :ref:`inline typesetting <latex-inline-references>` of
-     referenced code.
-
-.. option:: links
-
-     Enables :ref:`hyperlink support <latex-links>`.
+``links``
+  Enables :ref:`hyperlink support <latex-links>`.
 
 .. _quickLaTeX:
 

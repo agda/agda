@@ -65,10 +65,6 @@ See :ref:`compilers` for backend-specific options.
 Generating highlighted source code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :ref:`LaTeX backend options<latex-backend-options>` and :ref:`HTML
-backend options<html-backend-options>` for specific options for LaTeX
-and HTML.
-
 .. option:: --vim
 
      Generate Vim_ highlighting files.
@@ -78,10 +74,35 @@ and HTML.
      Generate LaTeX with highlighted source code (see
      :ref:`generating-latex`).
 
+.. option:: --latex-dir={DIR}
+
+     Set directory in which LaTeX files are placed to ``DIR``
+     (default: latex).
+
+.. option:: --count-clusters
+
+     Count extended grapheme clusters when generating LaTeX code (see
+     :ref:`grapheme-clusters`).
+
 .. option:: --html
 
      Generate HTML files with highlighted source code (see
      :ref:`generating-html`).
+
+.. option:: --html-dir={DIR}
+
+     Set directory in which HTML files are placed to ``DIR`` (default:
+     html).
+
+.. option:: --css={URL}
+
+     Set URL of the CSS file used by the HTML files to ``URL`` (can be
+     relative).
+
+.. option:: --html-highlight=[code,all,auto]
+
+     Whether to highlight non-Agda code as comments in generated HTML
+     files (default: all; see :ref:`generating-html`).
 
 .. option:: --dependency-graph={FILE}
 
