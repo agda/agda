@@ -407,37 +407,43 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 
       -- First check that argsT is a valid type
       argsT <- workOnTypes $ isType_ typ
+      let tel = namedBindsToTel xs argsT
+      reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
+
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
       -- TODO: do we need to block checkExpr?
       checkSizeLtSat $ unEl argsT
 
-      -- In order to have as much type information as possible when checking
-      -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
-      -- is inconclusive we need to block the resulting term so we create a
-      -- fresh problem for the check.
-      let tel = namedBindsToTel xs argsT
-      reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
+      -- Jesper 2019-12-17, #4261: we need to postpone here if
+      -- checking of the record pattern fails; if we try to catch
+      -- higher up the metas created during checking of @argsT@ are
+      -- not available.
+      let postponeOnBlockedPattern m = m `catchIlltypedPatternBlockedOnMeta` \(err , x) -> do
+            reportSDoc "tc.term" 50 $ vcat $
+              [ "checking record pattern stuck on meta: " <+> text (show x) ]
+            t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
+            let e    = A.Lam A.exprNoRange (A.DomainFull b) body
+                tgt' = telePi tel t1
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') $ isInstantiatedMeta x
+            return (tgt' , w)
+
+      -- Now check body : ?t₁
       -- DONT USE tel for addContext, as it loses NameIds.
-      -- WRONG: t1 <- addContext tel $ workOnTypes newTypeMeta_
-      t1 <- addContext (xs, argsT) $  addTypedPatterns xps $
-              workOnTypes newTypeMeta_
+      -- WRONG: v <- addContext tel $ checkExpr body t1
+      (target0 , w) <- postponeOnBlockedPattern $
+         addContext (xs, argsT) $ addTypedPatterns xps $ do
+           t1 <- workOnTypes newTypeMeta_
+           v  <- checkExpr' cmp body t1
+           return (telePi tel t1 , teleLam tel v)
+
       -- Do not coerce hidden lambdas
       if notVisible info || any notVisible xs then do
-        pid <- newProblem_ $ leqType (telePi tel t1) target
-        -- Now check body : ?t₁
-        -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ addTypedPatterns xps $
-               checkExpr' cmp body t1
-        -- Block on the type comparison
-        blockTermOnProblem target (teleLam tel v) pid
-       else do
-        -- Now check body : ?t₁
-        -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ addTypedPatterns xps $
-               checkExpr' cmp body t1
-        -- Block on the type comparison
-        coerce cmp (teleLam tel v) (telePi tel t1) target
+        pid <- newProblem_ $ leqType target0 target
+        blockTermOnProblem target w pid
+      else do
+        coerce cmp w target0 target
+
 
     useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
