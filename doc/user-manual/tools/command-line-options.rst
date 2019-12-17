@@ -104,6 +104,8 @@ Imports and libraries
 
 .. option:: --local-interfaces
 
+     .. versionadded:: 2.6.1
+
      Read and write interface files next to the Agda files they
      correspond to (i.e. do not attempt to regroup them in a
      ``_build/`` directory at the project's root).
