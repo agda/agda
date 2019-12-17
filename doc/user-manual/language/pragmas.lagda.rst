@@ -33,7 +33,7 @@ Index of pragmas
 * :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`
 
 * :ref:`NO_TERMINATION_CHECK <terminating-pragma>`
-  
+
 * :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>`
 
 * :ref:`NOINLINE <inline-pragma>`

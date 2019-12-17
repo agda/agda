@@ -281,7 +281,7 @@ Pragmas and options
   locally.  Example:
 
   ::
-  
+
     {-# NO_UNIVERSE_CHECK #-}
     data U : Set where
       el : Set → U
