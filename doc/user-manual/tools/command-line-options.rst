@@ -200,6 +200,11 @@ Experimental features
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
 
+.. option:: --confluence-check
+
+     Enable optional confluence checking of REWRITE rules (see
+     :ref:`confluence-check`).
+
 .. option:: --cubical
 
      Enable cubical features. Turns on :option:`--without-K` (see
