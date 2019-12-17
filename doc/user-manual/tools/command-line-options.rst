@@ -30,6 +30,18 @@ General options
 
      Start in interactive mode (no longer supported).
 
+.. option:: --no-projection-like
+
+     .. versionadded:: 2.6.1
+
+     Turn off the analysis whether a type signature likens that of a
+     projection.
+
+     Projection-likeness is an optimization that reduces the size of
+     terms by dropping parameter-like reconstructible function
+     arguments. Thus, it is advisable to leave this optimization on,
+     the flag is meant for debugging Agda.
+
 .. option:: --only-scope-checking
 
      Only scope-check the top-level module, do not type-check it (see
