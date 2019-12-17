@@ -290,5 +290,7 @@ Pragmas and options
   type of each constructor argument is less than or equal to the
   universe level of the datatype, not to any other checks.
 
+  .. versionadded:: 2.6.0
+
 The options ``--type-in-type`` and ``--omega-in-omega`` and the pragma
 ``{-# NO_UNIVERSE_CHECK #-}`` cannot be used with `--safe`.

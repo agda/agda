@@ -608,7 +608,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 
 .. option:: SafeFlagNoUniverseCheck
 
-     ``NO_UNIVERSE_CHECK`` pragmas with the safe flag.
+     :ref:`NO_UNIVERSE_CHECK<no_universe_check-pragma>` pragmas with the safe flag.
 
 .. option:: SafeFlagPolarity
 
