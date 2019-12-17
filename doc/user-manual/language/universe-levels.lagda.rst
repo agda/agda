@@ -284,6 +284,7 @@ Pragmas and options
   
     {-# NO_UNIVERSE_CHECK #-}
     data U : Set where
+      el : Set → U
 
   This pragma applies only to the check that the universe level of the
   type of each constructor argument is less than or equal to the
