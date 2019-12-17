@@ -285,6 +285,13 @@ Pattern matching and equality
 
      Default records to no-eta-equality (see :ref:`eta-expansion`).
 
+.. option:: --no-flat-split
+
+     .. versionadded:: 2.6.1
+
+     Disable pattern matching on ``@♭`` arguments (see
+     :ref:`pattern-matching-on-flat`).
+
 .. option:: --no-pattern-matching
 
      Disable pattern matching completely.
