@@ -46,7 +46,7 @@ Index of pragmas
 
 * :ref:`POLARITY <polarity-pragma>`
 
-* :samp:`REWRITE`
+* :ref:`REWRITE<rewriting>`
 
 * :ref:`STATIC <built-ins>`
 

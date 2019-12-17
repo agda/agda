@@ -226,6 +226,8 @@ Experimental features
 
 .. option:: --confluence-check
 
+     .. versionadded:: 2.6.1
+
      Enable optional confluence checking of REWRITE rules (see
      :ref:`confluence-check`).
 
