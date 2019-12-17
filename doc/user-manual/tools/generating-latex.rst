@@ -132,7 +132,7 @@ Options
 The following command-line options change the behaviour of the LaTeX
 backend:
 
-:samp:`--latex-dir={directory}`
+``--latex-dir={directory}``
   Changes the output directory where :file:`agda.sty` and the output
   :file:`.tex` file are placed to :samp:`{directory}`. Default:
   ``latex``.

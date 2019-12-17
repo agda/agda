@@ -36,7 +36,8 @@ General options
 
 .. option:: --only-scope-checking
 
-     Only scope-check the top-level module, do not type-check it.
+     Only scope-check the top-level module, do not type-check it (see
+     :ref:`quickLaTeX`).
 
 Compilation
 ~~~~~~~~~~~
