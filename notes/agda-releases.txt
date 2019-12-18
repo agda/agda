@@ -117,7 +117,7 @@ When releasing the following procedure can be followed:
 
 * Add a new header to CHANGELOG.
 
-* Add a new entry in
+* Move the CHANGELOG for $MAJORVERSION to a new entry in
   doc/release-notes/<version-written-with-dashes>.md.
 
 * Close in the bug tracker the milestone $MAJORVERSION.
