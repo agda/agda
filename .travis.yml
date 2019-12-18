@@ -121,6 +121,8 @@ jobs:
         export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
         export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
         export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
+
+        echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
