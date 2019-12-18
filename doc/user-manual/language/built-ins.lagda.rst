@@ -419,8 +419,8 @@ which normalises all ``NaN`` to a canonical ``NaN`` with an injectivity proof::
 
     primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
 
-in the ``Properties`` module. These primitives can be used to define
-a decidable propositional equality with the ``--safe`` option.
+in the ``Properties`` module. These primitives can be used to define a
+decidable propositional equality with the :option:`--safe` option.
 
 .. _built-in-list:
 

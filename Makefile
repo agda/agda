@@ -176,16 +176,16 @@ haddock :
 
 .PHONY : user-manual-html
 user-manual-html :
-	@$(call decorate, "User Manual (html)", $(MAKE) -C doc/user-manual html)
+	@$(call decorate, "User manual (HTML)", $(MAKE) -C doc/user-manual html)
 
 .PHONY : user-manual-pdf
 user-manual-pdf :
-	@$(call decorate, "User Manual (pdf)", $(MAKE) -C doc/user-manual latexpdf)
+	@$(call decorate, "User manual (PDF)", $(MAKE) -C doc/user-manual latexpdf)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 .PHONY : user-manual-linkcheck
 user-manual-linkcheck :
-	@$(call decorate, "User Manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
+	@$(call decorate, "User manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 ## Making the full language ###############################################
@@ -204,7 +204,7 @@ tags :
 
 .PHONY : TAGS
 TAGS :
-	@$(call decorate,"TAGS", \
+	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
 ## Testing ################################################################
@@ -225,7 +225,7 @@ internal-tests :
 
 .PHONY : succeed
 succeed :
-	@$(call decorate, "Suite of Successful tests", \
+	@$(call decorate, "Suite of successful tests", \
 		$(MAKE) -C test/Common; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
 
@@ -319,7 +319,7 @@ compiler-test :
 
 .PHONY : stdlib-compiler-test
 stdlib-compiler-test :
-	@$(call decorate, "Standard Library Compiler tests", \
+	@$(call decorate, "Standard library compiler tests", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
 
 .PHONY : api-test
@@ -339,7 +339,7 @@ benchmark-without-logs :
 
 .PHONY : user-manual-test
 user-manual-test :
-	@$(call decorate, "User manual", \
+	@$(call decorate, "User manual (test)", \
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 

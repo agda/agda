@@ -132,7 +132,7 @@ Options
 The following command-line options change the behaviour of the LaTeX
 backend:
 
-:samp:`--latex-dir={directory}`
+``--latex-dir={directory}``
   Changes the output directory where :file:`agda.sty` and the output
   :file:`.tex` file are placed to :samp:`{directory}`. Default:
   ``latex``.
@@ -143,7 +143,7 @@ backend:
 
 ``--count-clusters``
   Count extended grapheme clusters when generating LaTeX code. This
-  option can be given in ``OPTIONS`` pragmas.
+  option can be given in :ref:`OPTIONS<options-pragma>` pragmas.
   See :ref:`grapheme-clusters`.
 
 The following options can be given when loading ``agda.sty`` by using

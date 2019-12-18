@@ -211,9 +211,9 @@ declaredNames d = case d of
     | IdentP (QName x) <- removeSingletonRawAppP p
                        -> declaresName x
   FunClause{}          -> mempty
-  DataSig _ _ x _ _    -> declaresName x
-  DataDef _ _ _ _ cs   -> foldMap declaredNames cs
-  Data _ _ x _ _ cs    -> declaresName x <> foldMap declaredNames cs
+  DataSig _ x _ _      -> declaresName x
+  DataDef _ _ _ cs     -> foldMap declaredNames cs
+  Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
   RecordDef _ x _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
   Record _ x _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)

@@ -217,17 +217,20 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-:samp:`cpphs`
-   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: off.
+.. option:: cpphs
 
-:samp:`debug`
-   Enable debugging features that may slow Agda down. Default: off.
+     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
+     of cpp. Default: off.
 
-:samp:`flag enable-cluster-counting`
-   Enable the ``--count-clusters`` flag (see
-   :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
-   is ``False``, then the ``--count-clusters`` flag triggers an error
-   message. Default: off.
+.. option:: debug
+
+     Enable debugging features that may slow Agda down. Default: off.
+
+.. option:: enable-cluster-counting
+
+     Enable the :option:`--count-clusters` flag. Note that if
+     ``enable-cluster-counting`` is ``False``, then the
+     :option:`--count-clusters` flag triggers an error
+     message. Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell

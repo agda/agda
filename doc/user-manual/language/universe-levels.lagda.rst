@@ -259,3 +259,38 @@ types that are part of ``Set n`` for some ``n : Level``, but ``(n :
 Level) → Set n`` belongs to ``Setω`` which is not of this form. The
 only type constructor that can be applied to expressions of kind
 ``Setω`` is ``→``.
+
+Pragmas and options
+-------------------
+
+.. _type-in-type:
+
+* The option ``--type-in-type`` disables the checking of universe level
+  consistency for the whole file.
+
+.. _omega-in-omega:
+
+* The option ``--omega-in-omega`` enables the typing rule ``Setω :
+  Setω`` (thus making Agda inconsistent) but otherwise leaves universe
+  checks intact.
+
+.. _no_universe_check-pragma:
+
+* The pragma ``{-# NO_UNIVERSE_CHECK #-}`` can be put in front of a
+  data or record type to disable universe consistency checking
+  locally.  Example:
+
+  ::
+
+    {-# NO_UNIVERSE_CHECK #-}
+    data U : Set where
+      el : Set → U
+
+  This pragma applies only to the check that the universe level of the
+  type of each constructor argument is less than or equal to the
+  universe level of the datatype, not to any other checks.
+
+  .. versionadded:: 2.6.0
+
+The options ``--type-in-type`` and ``--omega-in-omega`` and the pragma
+``{-# NO_UNIVERSE_CHECK #-}`` cannot be used with `--safe`.

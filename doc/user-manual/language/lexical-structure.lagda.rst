@@ -36,7 +36,6 @@ keywords
 
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
-  ``codata`` :ref:`coinductive <copatterns-coinductive-records>`
   ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
   :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
   ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``

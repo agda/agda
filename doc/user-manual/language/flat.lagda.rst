@@ -43,6 +43,7 @@ For example the following will not typecheck:
   unit : {@♭ l : Level} {@♭ A : Set l} → A → ♭ A
   unit x = con x
 
+.. _pattern-matching-on-flat:
 
 Pattern Matching on ``@♭``
 ----------------------------

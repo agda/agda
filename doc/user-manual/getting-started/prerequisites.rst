@@ -35,10 +35,10 @@ as root to get the correct files installed.
 
 Optionally one can also install the `ICU
 <http://site.icu-project.org>`_ library, which is used to implement
-the ``--count-clusters`` flag. Under Debian or Ubuntu it may suffice
+the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
 to install *libicu-dev*. Once the ICU library is installed one can
-hopefully enable the ``--count-clusters`` flag by giving the
-``-fenable-cluster-counting`` flag to *cabal install*.
+hopefully enable the :option:`--count-clusters` flag by giving the
+:option:`enable-cluster-counting` flag to *cabal install*.
 
 .. _emacs-under-windows:
 

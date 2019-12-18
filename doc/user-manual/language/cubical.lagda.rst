@@ -55,9 +55,9 @@ homogeneous composition and generalized transport. This is what makes
 the general schema for higher inductive types work, following the
 `CHM`_ paper.
 
-To use the cubical mode Agda needs to be run with the ``--cubical``
-command-line-option or with ``{-# OPTIONS --cubical #-}`` at the top
-of the file.
+To use the cubical mode Agda needs to be run with the
+:option:`--cubical` command-line-option or with ``{-#
+OPTIONS --cubical #-}`` at the top of the file.
 
 The cubical mode adds the following features to Agda:
 
