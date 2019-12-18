@@ -339,7 +339,7 @@ benchmark-without-logs :
 
 .PHONY : user-manual-test
 user-manual-test :
-	@$(call decorate, "User manual", \
+	@$(call decorate, "User manual test", \
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
