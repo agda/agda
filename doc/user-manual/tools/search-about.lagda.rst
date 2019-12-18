@@ -1,3 +1,7 @@
+..
+  ::
+  module tools.search-about where
+
 .. _search-about:
 
 *****************************
