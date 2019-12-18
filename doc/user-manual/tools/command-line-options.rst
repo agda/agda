@@ -19,6 +19,8 @@ General options
 
 .. option:: --interaction
 
+     .. versionadded:: 2.6.1
+
      For use with the Emacs mode (no need to invoke yourself).
 
 .. option:: --interaction-json
@@ -308,6 +310,8 @@ Pattern matching and equality
 
 .. option:: --keep-pattern-variables
 
+     .. versionadded:: 2.6.1
+
      Prevent interactive case splitting from replacing variables with
      dot patterns (see :ref:`dot-patterns`).
 
@@ -364,7 +368,7 @@ Other features
      :ref:`irrelevance`). The option ``--irrelevant-projections``
      makes Agda inconsistent.
 
-     Default (since Agda 2.6.1): ``--no-irrelevant-projections``
+     Default (since version 2.6.1): ``--no-irrelevant-projections``
 
 .. option:: --no-auto-inline
 
