@@ -7,11 +7,7 @@ When releasing the following procedure can be followed:
 
 * Use the branch used for releasing the release candidate.
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.md.
-
-  Copy the contents of the release notes to the top of the CHANGELOG
-  file.
+* Finish the release notes in the CHANGELOG.
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
@@ -121,7 +117,7 @@ When releasing the following procedure can be followed:
 
 * Add a new header to CHANGELOG.
 
-* Add a new entry in
+* Move the CHANGELOG for $MAJORVERSION to a new entry in
   doc/release-notes/<version-written-with-dashes>.md.
 
 * Close in the bug tracker the milestone $MAJORVERSION.

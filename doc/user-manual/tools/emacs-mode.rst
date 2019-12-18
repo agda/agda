@@ -121,7 +121,7 @@ Global commands
      M\ **o**\ dule c\ **o**\ ntents
 
 :kbd:`C-c C-z`
-     Search through definitions in scope
+     :ref:`search-about`
 
 :kbd:`C-c C-n`
      Compute **n**\ ormal form
