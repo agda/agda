@@ -306,6 +306,11 @@ Pattern matching and equality
      Disables definitions using Streicher’s K axiom (see
      :ref:`without-K`).
 
+.. option:: --keep-pattern-variables
+
+     Prevent interactive case splitting from replacing variables with
+     dot patterns (see :ref:`dot-patterns`).
+	  
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
