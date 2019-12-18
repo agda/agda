@@ -81,6 +81,8 @@ jobs:
         # shelltestrunner is used by `make test-size-solver`
         # we need to cache it first.
         stack install shelltestrunner ${ARGS}
+      before_cache:
+        - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
 
     - &main-job
       stage: main
