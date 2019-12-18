@@ -175,7 +175,9 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.1 CABAL_VER=2.4
+      env: GHC_VER=8.8.1 CABAL_VER=3.0
+      git:
+        submodules: true
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
