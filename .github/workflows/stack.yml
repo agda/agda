@@ -4,13 +4,15 @@ on:
   push:
     paths:
     - 'src/**'
-    - '.github/**'
     - 'stack*.yaml'
+    - '.github/*'
+    - '.github/workflows/stack.yml'
   pull_request:
     paths:
     - 'src/**'
-    - '.github/**'
     - 'stack*.yaml'
+    - '.github/*'
+    - '.github/workflows/stack.yml'
 
 jobs:
   linux:
