@@ -2,9 +2,9 @@
 source .travis/header.sh
 set -e
 
-subtitle "*** updating cabal tools ***"
+subtitle "*** Updating Cabal tools ***"
 travis_retry cabal update
-subtitle "*** installing alex, happy, and shelltestrunner ***"
+subtitle "*** Installing Alex, Happy, and shelltestrunner ***"
 travis_retry cabal fetch alex happy shelltestrunner
 cabal install -v0 alex happy
 cabal install -v0 --ghc-option=-w shelltestrunner
@@ -69,6 +69,7 @@ travis_fold end "build.agda"
 
 travis_fold start "fetch.std-lib"
 
+title "Fetching the standard library"
 make up-to-date-std-lib
 
 travis_fold end "fetch.std-lib"
