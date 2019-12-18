@@ -5,11 +5,13 @@ on:
     paths:
     - 'src/**'
     - 'Agda.cabal'
+    - 'cabal.project'
     - '.github/workflows/cabal.yml'
   pull_request:
     paths:
     - 'src/**'
     - 'Agda.cabal'
+    - 'cabal.project'
     - '.github/workflows/cabal.yml'
 
 jobs:
@@ -22,6 +24,8 @@ jobs:
         ghc-ver: [8.8.1]
     steps:
     - uses: actions/checkout@v1
+      with:
+        submodules: true
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
