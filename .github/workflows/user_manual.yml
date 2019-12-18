@@ -4,9 +4,11 @@ on:
   push:
     paths:
     - 'doc/user-manual/**'
+    - '.github/workflows/user_manual.yml'
   pull_request:
     paths:
     - 'doc/user-manual/**'
+    - '.github/workflows/user_manual.yml'
 
 jobs:
   build:

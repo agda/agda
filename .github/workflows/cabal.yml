@@ -5,10 +5,12 @@ on:
     paths:
     - 'src/**'
     - 'Agda.cabal'
+    - '.github/workflows/cabal.yml'
   pull_request:
     paths:
     - 'src/**'
     - 'Agda.cabal'
+    - '.github/workflows/cabal.yml'
 
 jobs:
   build:

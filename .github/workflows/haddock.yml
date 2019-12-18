@@ -6,9 +6,11 @@ on:
   push:
     paths:
     - 'src/**.hs'
+    - '.github/workflows/haddock.yml'
   pull_request:
     paths:
     - 'src/**.hs'
+    - '.github/workflows/haddock.yml'
 
 jobs:
   build:
