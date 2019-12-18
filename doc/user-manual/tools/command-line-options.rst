@@ -310,7 +310,7 @@ Pattern matching and equality
 
      Prevent interactive case splitting from replacing variables with
      dot patterns (see :ref:`dot-patterns`).
-	  
+
 Search depth and instances
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
