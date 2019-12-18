@@ -3,11 +3,7 @@ followed:
 
 * Verify that the Travis builds have no errors.
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.txt.
-
-  Copy the contents of the release notes to the top of the CHANGELOG
-  file.
+* Finish the release notes in the CHANGELOG.
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
