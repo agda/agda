@@ -1,0 +1,10 @@
+Issue4288.agda:1,22-29
+Empty private block.
+when scope checking the declaration
+  a = b
+    module M where
+      private
+Issue4288.agda:1,5-6
+Not in scope:
+  b at Issue4288.agda:1,5-6
+when scope checking b
