@@ -38,7 +38,10 @@ main = do
     -- a) there is an issue with the Agda interface files or
     --
     -- b) the Agda versions used for compiling Issue1168.hs and
-    -- type-checking Issue1168.agda are different.
+    --    type-checking Issue1168.agda are different,
+    --
+    -- c) there is a .agda/default file but there is not a
+    --    .agda/libraries-XYZ file.
     Right Nothing -> error "Nothing"
 
     -- Impossible.
