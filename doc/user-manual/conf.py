@@ -42,7 +42,7 @@ available at https://github.com/agda/agda/graphs/contributors'''
 author = u'The Agda Team'
 
 # The short X.Y version
-version = '2.6.1'
+version = '2.6.0.1.20191219'
 # The full version, including alpha/beta/rc tags
 release = version
 
