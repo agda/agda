@@ -1,6 +1,6 @@
 When releasing the following procedure can be followed:
 
-* Verify that the Travis builds have no errors.
+* Verify that the Travis builds and GitHub actions have no errors.
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).

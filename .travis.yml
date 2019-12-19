@@ -177,6 +177,7 @@ jobs:
       stage: complete
       env: GHC_VER=8.8.1 CABAL_VER=3.0
       git:
+        # Required by cabal-install >= 3.0.0.0.
         submodules: true
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&

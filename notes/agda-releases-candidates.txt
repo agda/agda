@@ -1,7 +1,7 @@
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds have no errors.
+* Verify that the Travis builds and GitHub actions have no errors.
 
 * Finish the release notes in the CHANGELOG.
 
@@ -43,8 +43,6 @@ followed:
 * Create the branch used for the release
 
     git checkout -b release-$MAJORVERSION
-
-* Added the branch release-$MAJORVERSION to Travis.
 
 * The version of the RC is $VERSION + current date
 
