@@ -417,7 +417,7 @@ instance UsableModality Term where
         text ("has modality " ++ show mmod ++ ", which is a " ++
               (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
       return ok `and2M` usableMod mod vs
-    DontCare _ -> return $ isIrrelevant mod
+    DontCare v -> usableMod mod v
     Dummy{}  -> return True
 
 instance UsableRelevance a => UsableModality (Type' a) where

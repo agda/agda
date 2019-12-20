@@ -297,9 +297,10 @@ instance Reduce Sort where
     reduce' s = do
       s <- instantiate' s
       case s of
-        PiSort a s -> do
-          (a,s) <- reduce' (a,s)
-          maybe (return $ PiSort a s) reduce' $ piSort' a s
+        PiSort a s2 -> do
+          (s1' , s2') <- reduce' (getSort a , s2)
+          let a' = set lensSort s1' a
+          maybe (return $ PiSort a' s2') reduce' $ piSort' a' s2'
         UnivSort s' -> do
           s' <- reduce' s'
           ui <- univInf

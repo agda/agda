@@ -2275,11 +2275,7 @@ whereToAbstract r whname whds inner = do
   am  <- toAbstract (NewModuleName m)
   (scope, ds) <- scopeCheckModule r (C.QName m) am tel $ toAbstract whds
   setScope scope
-  x <- localScope $ do
-    -- Andreas, 2019-05-30, issue #3823:
-    -- Temporarily bind where-module here so it can be referenced in rhs
-    bindModule acc m am
-    inner
+  x <- inner
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public

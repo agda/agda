@@ -1282,6 +1282,14 @@ instance PrettyTCM UnificationFailure where
       pwords "=" ++ [prettyTCM u] ++ pwords "of type" ++ [prettyTCM a] ++
       pwords "because K has been disabled."
 
+    UnifyUnusableModality tel a i u mod -> addContext tel $ fsep $
+      pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
+      pwords "of type " ++ [prettyTCM a] ++
+      pwords "with solution " ++ [prettyTCM u] ++
+      pwords "because the solution cannot be used at" ++
+             [ text (verbalize $ getRelevance mod) <> ","
+             , text $ verbalize $ getQuantity mod ] ++
+      pwords "modality"
 
 
 ---------------------------------------------------------------------------
