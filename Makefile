@@ -169,8 +169,8 @@ setup-emacs-mode : install-bin
 
 .PHONY : haddock
 haddock :
-	$(CABAL_CMD) configure $(CABAL_CONFIGURE_OPTS)
-	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
+	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
+	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
 ## Making the user manual ####################################################
 
@@ -191,7 +191,7 @@ user-manual-linkcheck :
 ## Making the full language ###############################################
 
 $(AGDA_BIN): ensure-hash-is-correct
-	$(CABAL_CMD) build $(CABAL_OPTS)
+	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
 .PHONY : full
 full : $(AGDA_BIN)
@@ -426,9 +426,9 @@ install-agda-bisect :
 
 .PHONY: hpc-build
 hpc-build: ensure-hash-is-correct
-	$(CABAL_CMD) clean $(CABAL_OPTS)
-	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_INSTALL_OPTS)
-	$(CABAL_CMD) build $(CABAL_OPTS)
+	$(CABAL_CMD) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
+	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
+	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
