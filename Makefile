@@ -216,7 +216,8 @@ quick : install-O0-bin quicktest
 test : check-whitespace \
        succeed \
        fail \
-       bugs interaction \
+       bugs \
+       interaction \
        examples \
        library-test interactive \
        latex-html-test \

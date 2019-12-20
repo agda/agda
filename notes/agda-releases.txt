@@ -69,6 +69,11 @@ When releasing the following procedure can be followed:
 
 * Remove the Cabal test-suite from Agda.cabal.
 
+* Added to the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
+
 * Update the user manual:
 
     make user-manual-pdf
@@ -106,6 +111,11 @@ When releasing the following procedure can be followed:
     cd $BASE
     cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
     cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
+
+* Remove from the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
 
 * Restore the Cabal test-suite in Agda.cabal.
 
