@@ -19,11 +19,11 @@ General options
 
 .. option:: --interaction
 
-     .. versionadded:: 2.6.1
-
      For use with the Emacs mode (no need to invoke yourself).
 
 .. option:: --interaction-json
+
+     .. versionadded:: 2.6.1
 
      For use with other editors such as Atom (no need to invoke
      yourself).
