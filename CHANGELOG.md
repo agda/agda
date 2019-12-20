@@ -438,6 +438,7 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#2284](https://github.com/agda/agda/issues/2284): Disallow duplicate bound variable in lambda and pi
   -  [#2414](https://github.com/agda/agda/issues/2414): Case splitting loses as-patterns
   -  [#2498](https://github.com/agda/agda/issues/2498): Resolution of unnamed instances
+  -  [#2512](https://github.com/agda/agda/issues/2512): Propose: Split the changelog
   -  [#2530](https://github.com/agda/agda/issues/2530): --ignore-interfaces should not recompile Primitive.agda
   -  [#2535](https://github.com/agda/agda/issues/2535): Expose name id in reflection API
   -  [#2589](https://github.com/agda/agda/issues/2589): Preserve the ellipsis (dots) when case splitting "with" arguments
@@ -487,7 +488,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#3812](https://github.com/agda/agda/issues/3812): Rewriting projected symbols leads to loss of subject reduction
   -  [#3813](https://github.com/agda/agda/issues/3813): Destructuring leads to invalid premises
   -  [#3818](https://github.com/agda/agda/issues/3818): For open import M, Agda should remember that M is an external module
-  -  [#3823](https://github.com/agda/agda/issues/3823): where module should be in scope in rhs of clause
   -  [#3824](https://github.com/agda/agda/issues/3824): rewrite drops named where module
   -  [#3825](https://github.com/agda/agda/issues/3825): record{M} syntax reports unsolved metas in module M instead of in record expression
   -  [#3828](https://github.com/agda/agda/issues/3828): Internal error in Agda/TypeChecking/Coverage.hs:467
@@ -536,6 +536,7 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4032](https://github.com/agda/agda/issues/4032): Loss of subject reduction involving --rewriting even when --confluence-check is on and everything passes the confluence checker
   -  [#4038](https://github.com/agda/agda/issues/4038): Rewriting sometimes fails to rewrite in the presence of unsolved metas
   -  [#4044](https://github.com/agda/agda/issues/4044): Equality checking uses too much memory in 2.6.0 (compared to 2.5.4)
+  -  [#4046](https://github.com/agda/agda/issues/4046): Remove (deprecated) codata keyword
   -  [#4048](https://github.com/agda/agda/issues/4048): Rewriting rule fails to trigger
   -  [#4049](https://github.com/agda/agda/issues/4049): Internal error with sized types if the target type of a constructor is an alias
   -  [#4050](https://github.com/agda/agda/issues/4050): Missing CHANGELOG entry for scoping of names of where-modules?
@@ -566,5 +567,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4205](https://github.com/agda/agda/issues/4205): Internal error in connection with with, copatterns, and open record
   -  [#4211](https://github.com/agda/agda/issues/4211): Cannot add as-pattern on literal pattern
   -  [#4215](https://github.com/agda/agda/issues/4215): Case splitting should respect Nat literals
-  -  [#4267](https://github.com/agda/agda/issues/4267): File order of checking matters (record disambiguation)
+  -  [#4261](https://github.com/agda/agda/issues/4261): Order of arguments affects lambda pattern matching
   -  [#4283](https://github.com/agda/agda/issues/4283): DeBruijn issue(?) in standard library tests
+  -  [#4297](https://github.com/agda/agda/issues/4297): Missing documentation: NO_UNIVERSE_CHECK pragma
