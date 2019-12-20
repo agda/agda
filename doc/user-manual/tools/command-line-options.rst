@@ -398,8 +398,8 @@ Other features
 
 .. option:: --safe
 
-     Disable postulates, unsafe ``OPTION`` pragmas and
-     ``primTrustMe``. Turns off :option:`--sized-types` and
+     Disable postulates, unsafe :ref:`OPTIONS<options-pragma>` pragmas
+     and ``primTrustMe``. Turns off :option:`--sized-types` and
      :option:`--guardedness` (at most one can be turned back on again)
      (see :ref:`safe-agda`).
 
