@@ -478,16 +478,19 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 # Debug
 
 debug :
-	@echo "AGDA_BIN           = $(AGDA_BIN)"
-	@echo "AGDA_TESTS_BIN     = $(AGDA_TESTS_BIN)"
-	@echo "AGDA_TESTS_OPTIONS = $(AGDA_TESTS_OPTIONS)"
-	@echo "BUILD_DIR          = $(BUILD_DIR)"
-	@echo "CABAL_BUILD_CMD    = $(CABAL_BUILD_CMD)"
-	@echo "CABAL_CLEAN_CMD    = $(CABAL_CLEAN_CMD)"
-	@echo "CABAL_CMD          = $(CABAL_CMD)"
-	@echo "CABAL_INSTALL_CMD  = $(CABAL_INSTALL_CMD)"
-	@echo "CABAL_OPTS         = $(CABAL_OPTS)"
-	@echo "GHC_VERSION        = $(GHC_VERSION)"
-	@echo "PARALLEL_TESTS     = $(PARALLEL_TESTS)"
+	@echo "AGDA_BIN             = $(AGDA_BIN)"
+	@echo "AGDA_TESTS_BIN       = $(AGDA_TESTS_BIN)"
+	@echo "AGDA_TESTS_OPTIONS   = $(AGDA_TESTS_OPTIONS)"
+	@echo "BUILD_DIR            = $(BUILD_DIR)"
+	@echo "CABAL_BUILD_CMD      = $(CABAL_BUILD_CMD)"
+	@echo "CABAL_CLEAN_CMD      = $(CABAL_CLEAN_CMD)"
+	@echo "CABAL_CMD            = $(CABAL_CMD)"
+	@echo "CABAL_CONFIGURE_CMD  = $(CABAL_CONFIGURE_CMD)"
+	@echo "CABAL_CONFIGURE_OPTS = $(CABAL_CONFIGURE_OPTS)"
+	@echo "CABAL_HADDOCK_CMD    = $(CABAL_HADDOCK_CMD)"
+	@echo "CABAL_INSTALL_CMD    =  $(CABAL_INSTALL_CMD)"
+	@echo "CABAL_OPTS           = $(CABAL_OPTS)"
+	@echo "GHC_VERSION          = $(GHC_VERSION)"
+	@echo "PARALLEL_TESTS       = $(PARALLEL_TESTS)"
 
 # EOF
