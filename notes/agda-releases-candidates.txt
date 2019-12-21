@@ -1,3 +1,5 @@
+Tested with `cabal-install 3.0.0.0`.
+
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
@@ -81,14 +83,14 @@ followed:
 
 * Build source distributions:
 
-    cabal configure
+    cabal v1-configure
     cabal check
-    cabal sdist
+    cabal v1-sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal haddock --for-hackage
+    cabal v1-haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -97,9 +99,9 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$RC_VERSION.tar.gz
     cd Agda-$RC_VERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
+    cabal install --program-suffix=-$RC_VERSION
+    agda-$RC_VERSION --version
+    agda-mode-$RC_VERSION compile
 
 * Tag the release candidate (do not forget to record the changes above
   first):
@@ -107,7 +109,7 @@ followed:
     cd $BASE
     git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate"
 
-* Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
+* Upload to Hackage the RC:
 
     cd $BASE
     cabal upload dist/Agda-$RC_VERSION.tar.gz

@@ -1,3 +1,5 @@
+Tested with `cabal-install 3.0.0.0`.
+
 When releasing the following procedure can be followed:
 
 * Verify that the Travis builds and GitHub actions have no errors.
@@ -57,10 +59,10 @@ When releasing the following procedure can be followed:
 
 * Run the test-suite:
 
-    make install
+    make compile-emacs-mode
     make test
 
-  Note that "make install" invokes "agda-mode compile", which should
+  Note that "compile-emacs-mode" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
@@ -80,14 +82,14 @@ When releasing the following procedure can be followed:
 
 * Build source distributions:
 
-    cabal configure
+    cabal v1-configure
     cabal check
-    cabal sdist
+    cabal v1-sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal haddock --for-hackage
+    cabal v1-haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -96,9 +98,9 @@ When releasing the following procedure can be followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
+    cabal install --program-suffix=-$MAJORVERSION
+    agda-$MAJOY_VERSION --version
+    agda-mode-$MAJOR_VERSION compile
 
 * Tag the relase (do not forget to record the changes above first):
 
