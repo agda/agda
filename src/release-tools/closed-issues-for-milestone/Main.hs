@@ -78,6 +78,7 @@ labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
   [ "closed-issues-program"
   , "debug"
+  , "documented-in-changelog"
   , "faq"
   , "fix-agda-whitespace"
   , "haddock"
