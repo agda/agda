@@ -9,7 +9,6 @@ maintainer:          <andreas.abel@gu.se>
 -- copyright:
 -- category:
 build-type:          Simple
-extra-source-files:  ChangeLog.md
 cabal-version:       >= 1.10
 tested-with:         GHC == 8.8.1
 
