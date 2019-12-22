@@ -4,7 +4,8 @@ Release notes for Agda version 2.6.1
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.8.1.
+* Added support for GHC 8.8.1
+  [Issue [#3725](https://github.com/agda/agda/issues/3725)].
 
 * Removed support for GHC 7.10.3.
 
@@ -45,10 +46,13 @@ Pragmas and options
 
 * Option `--no-forcing` is now a pragma option, i.e., the forcing analysis
   can be switched off on a per-file basis via
+
   ```agda
   {-# OPTIONS --no-forcing #-}
   ```
-  at the beginning of the file.
+
+  at the beginning of the file
+  [Issue [#3872](https://github.com/agda/agda/issues/3872)].
 
 * New pragma option `--no-flat-split` disables pattern matching on `@♭` arguments.
 
@@ -70,15 +74,18 @@ Language
 
 ### Syntax
 
-* Fractional precedence levels are now supported, see issue
-  [#3991](https://github.com/agda/agda/issues/3991). Example:
+* Fractional precedence levels are now supported, see
+  Issue [#3991](https://github.com/agda/agda/issues/3991). Example:
+
   ```agda
   infix 3.14 _<_
   ```
   Note that this includes a respective change in the reflected Agda syntax.
 
-* Fixities can now be changed during import in a `renaming` directive, see issue
-  [#1346](https://github.com/agda/agda/issues/1346). Example:
+* Fixities can now be changed during import in a `renaming` directive,
+  see
+  Issue [#1346](https://github.com/agda/agda/issues/1346). Example:
+
   ```agda
   open M using (_∙_)
   open M renaming (_∙_ to infixl 10 _*_)
@@ -158,8 +165,9 @@ Language
 * Absurd match in a do block
   The last expression in a do block can now also be an absurd match `() <- f`.
 
-* Named `where` modules are now in scope in the rhs of the clause
-  (see issue [#4050](https://github.com/agda/agda/issues/4050)).  Example:
+* Named `where` modules are now in scope in the rhs of the clause (see
+  Issue [#4050](https://github.com/agda/agda/issues/4050)).  Example:
+
   ```agda
   record Wrap : Set₂ where
     field wrapped : Set₁
@@ -172,7 +180,7 @@ Language
   ```
 
 * `{{-` is now lexed as `{ {-` rather than `{{ -`,
-  see issue [#3962](https://github.com/agda/agda/issues/3962).
+  see Issue [#3962](https://github.com/agda/agda/issues/3962).
 
 * Syntax for large numbers: you can now separate groups of 3 digits using `_`.
   e.g. write `1_000_000` instead of `1000000`.
@@ -180,7 +188,8 @@ Language
 * `quoteGoal` and `quoteContext` are no longer keywords.
 
 * Record constructors can no longer be qualified by the record module.
-  (See issue [#4189](https://github.com/agda/agda/issues/4189).)
+  (See Issue [#4189](https://github.com/agda/agda/issues/4189).)
+
   ```agda
   record Foo : Set where
     constructor foo
@@ -215,9 +224,9 @@ Language
 
 * The "with inlining" feature of the termination checker has been
   removed. As a consequence, some functions defined using `with` are
-  no longer accepted as terminating. See issue
-  [#59](https://github.com/agda/agda/issues/59) for why this feature
-  was originally introduced and
+  no longer accepted as terminating. See
+  Issue [#59](https://github.com/agda/agda/issues/59) for why this
+  feature was originally introduced and
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
 
@@ -225,21 +234,21 @@ Language
 
 * Agda will no longer reduce irrelevant definitions and definitions
   with a type in `Prop`. This does not have an effect on the
-  semantics, but should lead to improved performance (see issues
+  semantics, but should lead to improved performance (see Issues
   [#4115](https://github.com/agda/agda/issues/4115),
   [#4118](https://github.com/agda/agda/issues/4118),
   [#4120](https://github.com/agda/agda/issues/4120),
   [#4122](https://github.com/agda/agda/issues/4122)).
 
 * Terms of a type in `Prop` are now printed as `_`. To show the actual
-  term, you can use the `--show-irrelevant` flag (see issue
-  [#3337](https://github.com/agda/agda/issues/3337).
+  term, you can use the `--show-irrelevant` flag (see
+  Issue [#3337](https://github.com/agda/agda/issues/3337).
 
 ### Rewrite rules
 
 * Rewrite rules (option `--rewriting`) with data or record types as
-  the head symbol are no longer allowed (see issue
-  [#3846](https://github.com/agda/agda/issues/3846)).
+  the head symbol are no longer allowed (see
+  Issue [#3846](https://github.com/agda/agda/issues/3846)).
 
 ### Tactics & Reflection
 
@@ -293,7 +302,7 @@ Language
   primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
   ```
 
-  These can be used to define safe decidable propositional equality, see issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
+  These can be used to define safe decidable propositional equality, see Issue [agda-stdlib#698](https://github.com/agda/agda-stdlib/issues/698).
 
 * New Primitive for showing Natural numbers:
 
@@ -325,7 +334,9 @@ Language
 Emacs mode
 ----------
 
-* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and `H` (capital η).
+* Agda input method: new key bindings `\ G h` and `\ G H` for `η` and
+  `H` (capital η)
+  [Issue [#3856](https://github.com/agda/agda/issues/3856)].
 
 * Syntax highlighting: in literate modes, the pure texts
   (other than Agda code and the code-text separators) are no longer highlighted
@@ -343,7 +354,7 @@ GHC Backend
 -----------
 
 * Types which have a COMPILE GHC pragma are no longer erased
-  [[Issue #3732](https://github.com/agda/agda/issues/3732)].
+  [Issue [#3732](https://github.com/agda/agda/issues/3732)].
 
   ```agda
   data I : Set where
@@ -358,7 +369,7 @@ GHC Backend
   {-# FOREIGN GHC data S = Foo I #-}
   {-# COMPILE GHC S = data S (Foo) #-}
   ```
-  Previously [[Issue #2921](https://github.com/agda/agda/issues/2921)],
+  Previously [Issue [#2921](https://github.com/agda/agda/issues/2921)],
   the last binding was incorrect, since the argument of
   singleton type `I` was erased from the constructor `foo` during
   compilation.  The required shape of `S` was previously
