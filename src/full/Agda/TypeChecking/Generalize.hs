@@ -36,6 +36,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))
@@ -287,7 +288,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
       mv   <- lookupMeta m
       let info = getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
-      return [(Arg info $ miNameSuggestion $ mvInfo mv, piApply t args)]
+          perm = mvPermutation mv
+      t' <- piApplyM t $ permute (takeP (length args) perm) args
+      return [(Arg info $ miNameSuggestion $ mvInfo mv, t')]
   let genTel = buildGeneralizeTel genRecCon teleTypes
 
   reportSDoc "tc.generalize" 40 $ vcat
@@ -680,9 +683,9 @@ createGenValue x = setCurrentRange x $ do
       argTel     = telFromList $ map hideExplicit $ take nGen $ telToList tel
 
   args <- newTelMeta argTel
+  metaType <- piApplyM ty args
 
-  let metaType = piApply ty args
-      name     = show (nameConcrete $ qnameName x)
+  let name     = show (nameConcrete $ qnameName x)
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
