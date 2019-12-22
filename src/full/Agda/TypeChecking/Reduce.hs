@@ -528,6 +528,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es = do
 unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
 unfoldDefinitionStep unfoldDelayed v0 f es =
   {-# SCC "reduceDef" #-} do
+  traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> prettyTCM v0) $ do
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
@@ -592,6 +593,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
 
     reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
+      traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> prettyTCM v0) $ do
       case (def,rewr) of
         _ | dontUnfold -> defaultResult -- non-terminating or delayed
         ([],[])        -> defaultResult -- no definition for head
@@ -710,6 +712,7 @@ appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
 
 appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
+  traceSDoc "tc.reduce" 90 ("appDefE v = " <+> prettyTCM v) $ do
   r <- matchCompiledE cc es
   case r of
     YesReduction simpl t -> return $ YesReduction simpl t
@@ -720,7 +723,8 @@ appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Redu
 appDef' v cls rewr args = appDefE' v cls rewr $ map (fmap Apply) args
 
 appDefE' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE' v cls rewr es = goCls cls $ map ignoreReduced es
+appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM v) $ do
+  goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do

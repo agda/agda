@@ -431,6 +431,11 @@ Other features
 
      Default: ``--universe-polymorphism``
 
+.. option:: --cumulativity, --no-cumulativity
+
+     Enable [disable] cumulative subtyping of universes, i.e. if `A :
+     Set i` then also `A : Set j` for all `j >= i`.
+
 .. _warnings:
 
 Warnings
