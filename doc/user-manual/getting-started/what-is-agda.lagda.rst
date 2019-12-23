@@ -7,6 +7,10 @@
 What is Agda?
 *************
 
+.. image:: ../agda.svg
+  :width: 400
+  :alt: The official Agda logo
+
 Agda is a dependently typed programming language. It is an extension
 of Martin-Löf's type theory, and is the latest in the tradition of
 languages developed in the programming logic group at Chalmers.  Other

@@ -6,8 +6,9 @@ Agda 2
 [![Travis Status](https://travis-ci.org/agda/agda.svg?branch=master)](https://travis-ci.org/agda/agda)
 [![Stack Build Status via GH Actions](https://github.com/agda/agda/workflows/stack%20build/badge.svg)](https://github.com/agda/agda/actions?query=workflow%3A%22stack+build%22)
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/x6liln2dol0bg4qw/branch/master?svg=true)](https://ci.appveyor.com/project/gallais/agda)
-[![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=latest)](http://agda.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=latest)](http://agda.readthedocs.io/en/latest/?badge=latest) [![Join the chat at https://gitter.im/agda/agda](https://badges.gitter.im/agda/agda.svg)](https://gitter.im/agda/agda?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+![The official Agda logo](doc/user-manual/agda.svg)
 
 Note that this README is only about Agda, not its standard
 library. See the [Agda Wiki][agdawiki] for information about the

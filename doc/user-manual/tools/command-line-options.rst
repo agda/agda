@@ -433,6 +433,8 @@ Other features
 
 .. option:: --cumulativity, --no-cumulativity
 
+     .. versionadded:: 2.6.1
+
      Enable [disable] cumulative subtyping of universes, i.e. if `A :
      Set i` then also `A : Set j` for all `j >= i`.
 
