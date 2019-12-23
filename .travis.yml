@@ -95,6 +95,7 @@ jobs:
             - ghc-8.8.1
             - cabal-install-3.0
             - texlive-binaries
+            - librsvg2-bin
           sources:
             - hvr-ghc
       cache:
