@@ -365,7 +365,7 @@ cases doesn't have to match the interval formula exactly):
                         ; (i = i1) (j = i1) → true
                         ; (i = i0)          → false }
 
-Furthermore ``IsOne i0`` is actually absurd
+Furthermore ``IsOne i0`` is actually absurd.
 
 ::
 
