@@ -1552,13 +1552,8 @@ equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
-        let postpone = addConstraint (SortCmp CmpEq s1 s2)
-            yes      = return ()
+        let yes      = return ()
             no       = typeError $ UnequalSorts s1 s2
-            synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
-              ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-              if | equal     -> yes
-                 | otherwise -> postpone
 
         reportSDoc "tc.conv.sort" 30 $ sep
           [ "equalSort"
@@ -1582,7 +1577,7 @@ equalSort s1 s2 = do
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
             (MetaS x es , MetaS y es')
-              | x == y                 -> synEq
+              | x == y                 -> synEq s1 s2
               | x < y                  -> meta y es' s1
               | otherwise              -> meta x es s2
             (MetaS x es , _          ) -> meta x es s2
@@ -1600,49 +1595,21 @@ equalSort s1 s2 = do
             (Inf        , Type{}     )
               | typeInTypeEnabled      -> yes
 
-            -- if @PiSort a b == Set0@, then @b == Set0@
-            -- we use this fact to solve metas in @b@,
-            -- hopefully allowing the @PiSort@ to reduce.
-            (Type (ClosedLevel 0) , PiSort a b     )
-              | not propEnabled             -> piSortEqualsBottom set0 a b
-            (PiSort a b           , Type (ClosedLevel 0))
-              | not propEnabled             -> piSortEqualsBottom set0 a b
-            (Type (ClosedLevel 0) , FunSort a b    )
-              | not propEnabled             -> funSortEqualsBottom set0 a b
-            (FunSort a b          , Type (ClosedLevel 0))
-              | not propEnabled             -> funSortEqualsBottom set0 a b
+            -- equating @PiSort a b@ to another sort
+            (s1 , PiSort a b) -> piSortEquals s1 a b
+            (PiSort a b , s2) -> piSortEquals s2 a b
 
-            (Prop (ClosedLevel 0) , PiSort a b     ) -> piSortEqualsBottom prop0 a b
-            (PiSort a b           , Prop (ClosedLevel 0)) -> piSortEqualsBottom prop0 a b
-            (Prop (ClosedLevel 0) , FunSort a b    ) -> funSortEqualsBottom prop0 a b
-            (FunSort a b          , Prop (ClosedLevel 0)) -> funSortEqualsBottom prop0 a b
+            -- equating @FunSort a b@ to another sort
+            (s1 , FunSort a b) -> funSortEquals s1 a b
+            (FunSort a b , s2) -> funSortEquals s2 a b
 
-            -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
-            (SizeUniv   , PiSort a b ) ->
-              underAbstraction a b $ equalSort SizeUniv
-            (PiSort a b , SizeUniv   ) ->
-              underAbstraction a b $ equalSort SizeUniv
-            (SizeUniv    , FunSort a b) -> equalSort SizeUniv b
-            (FunSort a b , SizeUniv   ) -> equalSort SizeUniv b
-
-            -- @Prop0@ and @SizeUniv@ don't contain any universes,
-            -- so they cannot be a UnivSort
-            (Prop (ClosedLevel 0) , UnivSort s )     -> no
-            (UnivSort s           , Prop (ClosedLevel 0)) -> no
-            (SizeUniv        , UnivSort s )     -> no
-            (UnivSort s      , SizeUniv   )     -> no
-
-            -- PiSort, FunSort and UnivSort could compute later, so we postpone
-            (PiSort{}   , _          ) -> synEq
-            (_          , PiSort{}   ) -> synEq
-            (FunSort{}  , _          ) -> synEq
-            (_          , FunSort{}  ) -> synEq
-            (UnivSort{} , _          ) -> synEq
-            (_          , UnivSort{} ) -> synEq
+            -- equating @UnivSort s@ to another sort
+            (s1          , UnivSort s2) -> univSortEquals s1 s2
+            (UnivSort s1 , s2         ) -> univSortEquals s2 s1
 
             -- postulated sorts can only be equal if they have the same head
             (DefS d es  , DefS d' es')
-              | d == d'                -> synEq
+              | d == d'                -> synEq s1 s2
               | otherwise              -> no
 
             -- any other combinations of sorts are not equal
@@ -1656,24 +1623,146 @@ equalSort s1 s2 = do
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
         assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
+      -- fall back to syntactic equality check, postpone if it fails
+      synEq :: Sort -> Sort -> m ()
+      synEq s1 s2 = do
+        let postpone = addConstraint $ SortCmp CmpEq s1 s2
+        doSynEq <- optSyntacticEquality <$> pragmaOptions
+        if | doSynEq -> do
+               ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
+               if | equal     -> return ()
+                  | otherwise -> postpone
+           | otherwise -> postpone
+
       set0 = mkType 0
       prop0 = mkProp 0
 
-      -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
+      -- Equate a sort @s1@ to @univSort s2@
+      -- Precondition: @s1@ and @univSort s2@ are already reduced.
+      univSortEquals :: Sort -> Sort -> m ()
+      univSortEquals s1 s2 = do
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "univSortEquals"
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> prettyTCM s2
+          ]
+        let no = typeError $ UnequalSorts s1 (UnivSort s2)
+        case s1 of
+          Type l1 -> do
+            propEnabled <- isPropEnabled
+            if | not propEnabled -> do
+                   l2 <- case subLevel 1 l1 of
+                     Just l2 -> return l2
+                     Nothing -> do
+                       l2 <- newLevelMeta
+                       equalLevel l1 (levelSuc l2)
+                       return l2
+                   equalSort (Type l2) s2
+               | Inf      <- s2 -> no
+               | SizeUniv <- s2 -> no
+               | otherwise -> synEq (Type l1) (UnivSort s2)
+          Inf -> do
+            infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
+            if | infInInf  -> equalSort Inf s2
+               | otherwise -> no
+          Prop{}     -> no
+          SizeUniv{} -> no
+          _          -> synEq s1 (UnivSort s2)
+
+
+      -- Equate a sort @s@ to @piSort a b@
+      -- Precondition: @s@ and @piSort a b@ are already reduced.
+      piSortEquals :: Sort -> Dom Type -> Abs Sort -> m ()
+      piSortEquals s a NoAbs{} = __IMPOSSIBLE__
+      piSortEquals s a bAbs@(Abs x b) = do
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "piSortEquals"
+          , "  s =" <+> prettyTCM s
+          , "  a =" <+> prettyTCM a
+          , "  b =" <+> addContext (x,a) (prettyTCM b)
+          ]
+        propEnabled <- isPropEnabled
+        if | definitelyNotInf s         -> do
+               b' <- newSortMeta
+               addContext (x,a) $ equalSort b (raise 1 b')
+               funSortEquals s (getSort a) b'
+           | otherwise                  -> synEq (PiSort a bAbs) s
+
+      -- Equate a sort @s@ to @funSort s1 s2@
+      -- Precondition: @s@ and @funSort s1 s2@ are already reduced
+      funSortEquals :: Sort -> Sort -> Sort -> m ()
+      funSortEquals s0 s1 s2 = do
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "funSortEquals"
+          , "  s0 =" <+> prettyTCM s0
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> prettyTCM s2
+          ]
+        when (s1 == SizeUniv) __IMPOSSIBLE__
+        propEnabled <- isPropEnabled
+        sizedTypesEnabled <- sizedTypesOption
+        case s0 of
+          _   | isBottomSort propEnabled s0 -> do
+                  equalSort s0 s2
+                  -- If we have sized types, @s1@ could be @SizeUniv@
+                  if | sizedTypesEnabled -> case funSort' s1 s0 of
+                         Just s  -> equalSort s s0
+                         Nothing -> synEq s0 (FunSort s1 s0)
+                     | otherwise -> equalSort s0 s1
+          Inf | definitelyNotInf s1 && definitelyNotInf s2 -> do
+                  typeError $ UnequalSorts s0 (FunSort s1 s2)
+              | definitelyNotInf s1 -> equalSort Inf s2
+              | definitelyNotInf s2 -> equalSort Inf s1
+              | otherwise           -> synEq s0 (FunSort s1 s2)
+          Type l -> do
+            l2 <- forceType s2
+            if | propEnabled || sizedTypesEnabled -> case funSort' s1 (Type l2) of
+                   Just s  -> equalSort (Type l) s
+                   Nothing -> synEq (Type l) (FunSort s1 $ Type l2)
+               | otherwise -> do
+                   l1 <- forceType s1
+                   equalLevel l (levelLub l1 l2)
+          Prop l -> do
+            l2 <- forceProp s2
+            case funSort' s1 (Prop l2) of
+                   Just s  -> equalSort (Prop l) s
+                   Nothing -> synEq (Prop l) (FunSort s1 $ Prop l2)
+          SizeUniv -> equalSort SizeUniv s2
+          _        -> synEq s0 (FunSort s1 s2)
+
+      -- check if the given sort @s0@ is a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
-      piSortEqualsBottom s0 a b = do
-        underAbstraction a b $ equalSort s0
-        -- we may have instantiated some metas, so sort of @a@ could reduce
-        s1 <- reduce $ getSort a
-        case funSort' s1 s0 of
-          Just s  -> equalSort s s0
-          Nothing -> addConstraint $ SortCmp CmpEq (FunSort s1 s0) s0
-      -- equate @funSort s1 s2@ to bottom sort @s0@
-      funSortEqualsBottom s0 s1 s2 = do
-        equalSort s0 s2
-        case funSort' s1 s0 of
-          Just s  -> equalSort s s0
-          Nothing -> addConstraint $ SortCmp CmpEq (FunSort s1 s0) s0
+      isBottomSort :: Bool -> Sort -> Bool
+      isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
+      isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
+      isBottomSort propEnabled _                      = False
+
+      definitelyNotInf :: Sort -> Bool
+      definitelyNotInf = \case
+        Inf        -> False
+        Type{}     -> True
+        Prop{}     -> True
+        SizeUniv   -> True
+        PiSort{}   -> False
+        FunSort{}  -> False
+        UnivSort{} -> False
+        MetaS{}    -> False
+        DefS{}     -> False
+        DummyS{}   -> False
+
+      forceType :: Sort -> m Level
+      forceType (Type l) = return l
+      forceType s = do
+        l <- newLevelMeta
+        equalSort s (Type l)
+        return l
+
+      forceProp :: Sort -> m Level
+      forceProp (Prop l) = return l
+      forceProp s = do
+        l <- newLevelMeta
+        equalSort s (Prop l)
+        return l
 
       impossibleSort s = do
         reportS "impossible" 10
