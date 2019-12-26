@@ -142,9 +142,10 @@ instance EmbPrj I.Sort where
   icod_ SizeUniv    = icodeN 2 SizeUniv
   icod_ Inf         = icodeN 3 Inf
   icod_ (PiSort a b) = icodeN 4 PiSort a b
-  icod_ (UnivSort a) = icodeN 5 UnivSort a
+  icod_ (FunSort a b) = icodeN 5 FunSort a b
+  icod_ (UnivSort a) = icodeN 6 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
-  icod_ (DefS a b)   = icodeN 6 DefS a b
+  icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (DummyS s)   = do
     liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
     __IMPOSSIBLE__
@@ -155,8 +156,9 @@ instance EmbPrj I.Sort where
     valu [2]       = valuN SizeUniv
     valu [3]       = valuN Inf
     valu [4, a, b] = valuN PiSort a b
-    valu [5, a]    = valuN UnivSort a
-    valu [6, a, b] = valuN DefS a b
+    valu [5, a, b] = valuN FunSort a b
+    valu [6, a]    = valuN UnivSort a
+    valu [7, a, b] = valuN DefS a b
     valu _         = malformed
 
 instance EmbPrj DisplayForm where

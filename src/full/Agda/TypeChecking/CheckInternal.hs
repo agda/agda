@@ -410,6 +410,10 @@ checkSort action s =
       let dom' = dom $> El s1' a'
       s2' <- mapAbstraction dom' (checkSort action) s2
       return $ PiSort dom' s2'
+    FunSort s1 s2 -> do
+      s1' <- checkSort action s1
+      s2' <- checkSort action s2
+      return $ FunSort s1' s2'
     UnivSort s -> UnivSort <$> checkSort action s
     MetaS x es -> do -- we assume sort meta instantiations to be well-formed
       a <- metaType x

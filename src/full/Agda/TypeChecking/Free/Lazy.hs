@@ -553,6 +553,7 @@ instance Free Sort where
       SizeUniv   -> mempty
       PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
                     underFlexRig WeaklyRigid (freeVars' (getSort a, s))
+      FunSort s1 s2 -> freeVars' s1 `mappend` freeVars' s2
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es

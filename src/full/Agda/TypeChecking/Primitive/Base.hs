@@ -36,7 +36,7 @@ garr :: Monad m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
   a' <- a
   b' <- b
-  return $ El (funSort (defaultDom a') (getSort b')) $
+  return $ El (funSort (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadAddContext m, MonadDebug m)

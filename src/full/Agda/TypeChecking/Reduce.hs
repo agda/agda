@@ -301,6 +301,9 @@ instance Reduce Sort where
           (s1' , s2') <- reduce' (getSort a , s2)
           let a' = set lensSort s1' a
           maybe (return $ PiSort a' s2') reduce' $ piSort' a' s2'
+        FunSort s1 s2 -> do
+          (s1' , s2') <- reduce (s1 , s2)
+          maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
         UnivSort s' -> do
           s' <- reduce' s'
           ui <- univInf
@@ -865,6 +868,7 @@ instance Simplify Sort where
     simplify' s = do
       case s of
         PiSort a s -> piSort <$> simplify' a <*> simplify' s
+        FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> simplify' s
@@ -1012,6 +1016,7 @@ instance Normalise Sort where
       s <- reduce' s
       case s of
         PiSort a s -> piSort <$> normalise' a <*> normalise' s
+        FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> do
           ui <- univInf
           univSort ui <$> normalise' s
@@ -1196,6 +1201,7 @@ instance InstantiateFull Sort where
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
+            FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> do
               ui <- univInf
               univSort ui <$> instantiateFull' s

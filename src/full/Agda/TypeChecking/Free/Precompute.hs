@@ -81,6 +81,7 @@ instance PrecomputeFreeVars Sort where
       Inf        -> pure s
       SizeUniv   -> pure s
       PiSort a s -> uncurry PiSort <$> precomputeFreeVars (a, s)
+      FunSort s1 s2 -> uncurry FunSort <$> precomputeFreeVars (s1, s2)
       UnivSort s -> UnivSort <$> precomputeFreeVars s
       MetaS x es -> MetaS x <$> precomputeFreeVars es
       DefS d es  -> DefS d <$> precomputeFreeVars es

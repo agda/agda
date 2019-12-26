@@ -563,8 +563,9 @@ instance AllHoles Sort where
     Prop l       -> fmap Prop <$> allHoles_ l
     Inf          -> empty
     SizeUniv     -> empty
-    PiSort s1 s2 -> __IMPOSSIBLE__
-    UnivSort s   -> __IMPOSSIBLE__
+    PiSort{}     -> __IMPOSSIBLE__
+    FunSort{}    -> __IMPOSSIBLE__
+    UnivSort{}   -> __IMPOSSIBLE__
     MetaS{}      -> __IMPOSSIBLE__
     DefS f es    -> do
       fa <- defType <$> getConstInfo f
@@ -645,6 +646,7 @@ instance MetasToVars Sort where
     Inf        -> pure Inf
     SizeUniv   -> pure SizeUniv
     PiSort s t -> PiSort   <$> metasToVars s <*> metasToVars t
+    FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s
     MetaS x es -> MetaS x  <$> metasToVars es
     DefS f es  -> DefS f   <$> metasToVars es

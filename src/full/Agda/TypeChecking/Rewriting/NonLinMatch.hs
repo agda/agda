@@ -193,6 +193,7 @@ instance Match () NLPSort Sort where
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b
       (_ , PiSort{}  ) -> matchingBlocked b
+      (_ , FunSort{} ) -> matchingBlocked b
       (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
 
       -- all other cases do not match

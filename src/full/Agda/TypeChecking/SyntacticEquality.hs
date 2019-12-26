@@ -140,6 +140,7 @@ instance SynEq Sort where
     case (s, s') of
       (Type l  , Type l'   ) -> Type <$$> synEq l l'
       (PiSort a b, PiSort a' b') -> piSort <$$> synEq a a' <**> synEq' b b'
+      (FunSort a b, FunSort a' b') -> funSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'

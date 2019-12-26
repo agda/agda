@@ -295,6 +295,7 @@ data Sort' t
   | Inf         -- ^ @Setω@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
   | DefS QName [Elim' t] -- ^ A postulated sort.
@@ -1253,6 +1254,7 @@ instance TermSize Sort where
     Inf       -> 1
     SizeUniv  -> 1
     PiSort a s -> 1 + tsize a + tsize s
+    FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
     DefS _ es  -> 1 + tsize es
@@ -1321,6 +1323,7 @@ instance KillRange Sort where
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     PiSort a s -> killRange2 PiSort a s
+    FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
     DefS d es  -> killRange2 DefS d es
@@ -1495,6 +1498,8 @@ instance Pretty Sort where
         "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
                                       , nest 2 $ pretty (unAbs b) ])
+      FunSort a b -> mparens (p > 9) $
+        "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
       MetaS x es -> prettyPrec p $ MetaV x es
       DefS d es  -> prettyPrec p $ Def d es
@@ -1561,6 +1566,7 @@ instance NFData Sort where
     Inf      -> ()
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)
+    FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
     DefS _ es  -> rnf es

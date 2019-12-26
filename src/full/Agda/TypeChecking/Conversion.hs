@@ -1218,10 +1218,12 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- This shouldn't be necessary
       (UnivSort Inf , UnivSort Inf) -> yes
 
-      -- PiSort, UnivSort and MetaS might reduce once we instantiate
+      -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
       (PiSort{}, _       ) -> synEq
       (_       , PiSort{}) -> synEq
+      (FunSort{}, _      ) -> synEq
+      (_      , FunSort{}) -> synEq
       (UnivSort{}, _     ) -> synEq
       (_     , UnivSort{}) -> synEq
       (MetaS{} , _       ) -> synEq
@@ -1605,15 +1607,23 @@ equalSort s1 s2 = do
               | not propEnabled             -> piSortEqualsBottom set0 a b
             (PiSort a b           , Type (ClosedLevel 0))
               | not propEnabled             -> piSortEqualsBottom set0 a b
+            (Type (ClosedLevel 0) , FunSort a b    )
+              | not propEnabled             -> funSortEqualsBottom set0 a b
+            (FunSort a b          , Type (ClosedLevel 0))
+              | not propEnabled             -> funSortEqualsBottom set0 a b
 
             (Prop (ClosedLevel 0) , PiSort a b     ) -> piSortEqualsBottom prop0 a b
             (PiSort a b           , Prop (ClosedLevel 0)) -> piSortEqualsBottom prop0 a b
+            (Prop (ClosedLevel 0) , FunSort a b    ) -> funSortEqualsBottom prop0 a b
+            (FunSort a b          , Prop (ClosedLevel 0)) -> funSortEqualsBottom prop0 a b
 
             -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
             (SizeUniv   , PiSort a b ) ->
               underAbstraction a b $ equalSort SizeUniv
             (PiSort a b , SizeUniv   ) ->
               underAbstraction a b $ equalSort SizeUniv
+            (SizeUniv    , FunSort a b) -> equalSort SizeUniv b
+            (FunSort a b , SizeUniv   ) -> equalSort SizeUniv b
 
             -- @Prop0@ and @SizeUniv@ don't contain any universes,
             -- so they cannot be a UnivSort
@@ -1622,9 +1632,11 @@ equalSort s1 s2 = do
             (SizeUniv        , UnivSort s )     -> no
             (UnivSort s      , SizeUniv   )     -> no
 
-            -- PiSort and UnivSort could compute later, so we postpone
+            -- PiSort, FunSort and UnivSort could compute later, so we postpone
             (PiSort{}   , _          ) -> synEq
             (_          , PiSort{}   ) -> synEq
+            (FunSort{}  , _          ) -> synEq
+            (_          , FunSort{}  ) -> synEq
             (UnivSort{} , _          ) -> synEq
             (_          , UnivSort{} ) -> synEq
 
@@ -1651,11 +1663,18 @@ equalSort s1 s2 = do
       -- i.e. @piSort a b == s0@ implies @b == s0@.
       piSortEqualsBottom s0 a b = do
         underAbstraction a b $ equalSort s0
-        -- we may have instantiated some metas, so @a@ could reduce
-        a <- reduce a
-        case funSort' a s0 of
+        -- we may have instantiated some metas, so sort of @a@ could reduce
+        s1 <- reduce $ getSort a
+        case funSort' s1 s0 of
           Just s  -> equalSort s s0
-          Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
+          Nothing -> addConstraint $ SortCmp CmpEq (FunSort s1 s0) s0
+      -- equate @funSort s1 s2@ to bottom sort @s0@
+      funSortEqualsBottom s0 s1 s2 = do
+        equalSort s0 s2
+        case funSort' s1 s0 of
+          Just s  -> equalSort s s0
+          Nothing -> addConstraint $ SortCmp CmpEq (FunSort s1 s0) s0
+
       impossibleSort s = do
         reportS "impossible" 10
           [ "equalSort: found dummy sort with description:"

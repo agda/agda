@@ -810,6 +810,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
+    FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort Nothing $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
@@ -1429,8 +1430,8 @@ univInf =
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
-funSort' :: Dom Type -> Sort -> Maybe Sort
-funSort' a b = case (getSort a, b) of
+funSort' :: Sort -> Sort -> Maybe Sort
+funSort' a b = case (a, b) of
   (Inf           , _            ) -> Just Inf
   (_             , Inf          ) -> Just Inf
   (Type a , Type b) -> Just $ Type $ levelLub a b
@@ -1441,15 +1442,15 @@ funSort' a b = case (getSort a, b) of
   (Prop a , Prop b) -> Just $ Prop $ levelLub a b
   (a             , b            ) -> Nothing
 
-funSort :: Dom Type -> Sort -> Sort
-funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
+funSort :: Sort -> Sort -> Sort
+funSort a b = fromMaybe (FunSort a b) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
 piSort' :: Dom Type -> Abs Sort -> Maybe Sort
-piSort' a      (NoAbs _ b) = funSort' a b
+piSort' a      (NoAbs _ b) = funSort' (getSort a) b
 piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
-  Nothing -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
+  Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
   Just o -> case o of
     StronglyRigid -> Just Inf
     Unguarded     -> Just Inf
@@ -1485,7 +1486,10 @@ piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
 --     Flexible _    -> Nothing
 
 piSort :: Dom Type -> Abs Sort -> Sort
-piSort a b = fromMaybe (PiSort a b) $ piSort' a b
+piSort a b = case piSort' a b of
+  Just s -> s
+  Nothing | NoAbs _ b' <- b -> FunSort (getSort a) b'
+          | otherwise       -> PiSort a b
 
 ---------------------------------------------------------------------------
 -- * Level stuff

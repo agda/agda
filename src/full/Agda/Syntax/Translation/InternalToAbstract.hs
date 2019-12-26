@@ -1306,6 +1306,11 @@ instance Reify Sort Expr where
           (e1,e2) <- reify (getSort a, I.Lam defaultArgInfo $ fmap Sort s)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
+        I.FunSort s1 s2 -> do
+          funs <- freshName_ ("funSort" :: String) -- TODO: hack
+          (e1,e2) <- reify (s1 , s2)
+          let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
+          return $ A.Var funs `app` e1 `app` e2
         I.UnivSort s -> do
           univs <- freshName_ ("univSort" :: String) -- TODO: hack
           e <- reify s
