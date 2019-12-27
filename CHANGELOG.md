@@ -187,6 +187,15 @@ Language
   fails = Foo.foo
   ```
 
+* Imports can now be anonymous.
+  (See issue [#3727](https://github.com/agda/agda/issues/3727).)
+  For example, the following will **not** bring `Agda.Builtin.Unit` into scope:
+  ```agda
+  open import Agda.Builtin.Unit as _
+  blah :: ⊤
+  blah = tt
+  ```
+
 ### Modalities
 
 * New Flat Modality
