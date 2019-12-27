@@ -1,4 +1,3 @@
-{-# OPTIONS --no-sized-types #-}
 
 data _≡_ {X : Set} : X → X → Set where
   refl : {x : X} → x ≡ x

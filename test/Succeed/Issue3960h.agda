@@ -1,4 +1,3 @@
-{-# OPTIONS --no-sized-types #-}
 
 open import Agda.Primitive public
 

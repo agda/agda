@@ -1,13 +1,10 @@
 Failed to solve the following constraints:
+  _7 (m = Maybe) (mzero = mymaybemzero) = Set
+  _10 (m = Maybe) (mzero = mymaybemzero) = Set
   _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
   _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
-  Set = funSort (_7 (m = Maybe) (mzero = mymaybemzero)) Set
-  Set = funSort (_10 (m = Maybe) (mzero = mymaybemzero)) Set
-  _10 (m = Maybe) (mzero = mymaybemzero) = Set
-  _7 (m = Maybe) (mzero = mymaybemzero) = Set
-  _4 (m = Maybe) =< Maybe a
-  Set = funSort (_2 (m = Maybe)) Set
   _2 (m = Maybe) = Set
+  _4 (m = Maybe) =< Maybe a
   Set (Agda.Primitive.lsuc _a_30) = _0
   Set _a_30 → Set _a_30 =< _1
   piSort Set₁

@@ -1714,7 +1714,6 @@ equalSort s1 s2 = do
           , "  s1 =" <+> prettyTCM s1
           , "  s2 =" <+> prettyTCM s2
           ]
-        when (s1 == SizeUniv) __IMPOSSIBLE__
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
@@ -1733,7 +1732,8 @@ equalSort s1 s2 = do
             -- We must have @l2 =< l@, this might help us to solve
             -- more constraints (in particular when @l == 0@).
             leqLevel l2 l
-            if | propEnabled || sizedTypesEnabled -> case funSort' s1 (Type l2) of
+            -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
+            if | propEnabled {-|| sizedTypesEnabled-} -> case funSort' s1 (Type l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Just s  -> equalSort (Type l) s
