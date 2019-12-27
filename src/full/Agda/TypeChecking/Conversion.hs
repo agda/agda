@@ -1702,13 +1702,6 @@ equalSort s1 s2 = do
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
-          _   | isBottomSort propEnabled s0 -> do
-                  equalSort s0 s2
-                  -- If we have sized types, @s1@ could be @SizeUniv@
-                  if | sizedTypesEnabled -> case funSort' s1 s0 of
-                         Just s  -> equalSort s s0
-                         Nothing -> synEq s0 (FunSort s1 s0)
-                     | otherwise -> equalSort s0 s1
           Inf | definitelyNotInf s1 && definitelyNotInf s2 -> do
                   typeError $ UnequalSorts s0 (FunSort s1 s2)
               | definitelyNotInf s1 -> equalSort Inf s2
@@ -1716,6 +1709,7 @@ equalSort s1 s2 = do
               | otherwise           -> synEq s0 (FunSort s1 s2)
           Type l -> do
             l2 <- forceType s2
+            when (l == ClosedLevel 0) $ equalLevel l l2
             if | propEnabled || sizedTypesEnabled -> case funSort' s1 (Type l2) of
                    Just s  -> equalSort (Type l) s
                    Nothing -> synEq (Type l) (FunSort s1 $ Type l2)
@@ -1724,6 +1718,7 @@ equalSort s1 s2 = do
                    equalLevel l (levelLub l1 l2)
           Prop l -> do
             l2 <- forceProp s2
+            when (l == ClosedLevel 0) $ equalLevel l l2
             case funSort' s1 (Prop l2) of
                    Just s  -> equalSort (Prop l) s
                    Nothing -> synEq (Prop l) (FunSort s1 $ Prop l2)
