@@ -1730,7 +1730,9 @@ equalSort s1 s2 = do
           -- @SizeUniv@.
           Type l -> do
             l2 <- forceType s2
-            when (l == ClosedLevel 0) $ equalLevel l l2
+            -- We must have @l2 =< l@, this might help us to solve
+            -- more constraints (in particular when @l == 0@).
+            leqLevel l2 l
             if | propEnabled || sizedTypesEnabled -> case funSort' s1 (Type l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
@@ -1747,7 +1749,7 @@ equalSort s1 s2 = do
           -- l1@, or @SizeUniv@.
           Prop l -> do
             l2 <- forceProp s2
-            when (l == ClosedLevel 0) $ equalLevel l l2
+            leqLevel l2 l
             case funSort' s1 (Prop l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
