@@ -1648,9 +1648,16 @@ equalSort s1 s2 = do
           ]
         let no = typeError $ UnequalSorts s1 (UnivSort s2)
         case s1 of
+          -- @Set l1@ is the successor sort of either @Set l2@ or
+          -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
             propEnabled <- isPropEnabled
-            if | not propEnabled -> do
+               -- @s2@ is definitely not @Inf@ or @SizeUniv@
+            if | Inf      <- s2 -> no
+               | SizeUniv <- s2 -> no
+               -- If @Prop@ is not used, then @s2@ must be of the form
+               -- @Set l2@
+               | not propEnabled -> do
                    l2 <- case subLevel 1 l1 of
                      Just l2 -> return l2
                      Nothing -> do
@@ -1658,15 +1665,18 @@ equalSort s1 s2 = do
                        equalLevel l1 (levelSuc l2)
                        return l2
                    equalSort (Type l2) s2
-               | Inf      <- s2 -> no
-               | SizeUniv <- s2 -> no
+               -- Otherwise we postpone
                | otherwise -> synEq (Type l1) (UnivSort s2)
+          -- @Setω@ is only a successor sort if --type-in-type or
+          -- --omega-in-omega is enabled.
           Inf -> do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
             if | infInInf  -> equalSort Inf s2
                | otherwise -> no
+          -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
           SizeUniv{} -> no
+          -- Anything else: postpone
           _          -> synEq s1 (UnivSort s2)
 
 
@@ -1682,10 +1692,16 @@ equalSort s1 s2 = do
           , "  b =" <+> addContext (x,a) (prettyTCM b)
           ]
         propEnabled <- isPropEnabled
+           -- If @b@ is dependent, then @piSort a b@ computes to
+           -- @Setω@. Hence, if @s@ is definitely not @Setω@, then @b@
+           -- cannot be dependent.
         if | definitelyNotInf s         -> do
+               -- We force @b@ to be non-dependent by unifying it with
+               -- a fresh meta that does not depend on @x : a@
                b' <- newSortMeta
                addContext (x,a) $ equalSort b (raise 1 b')
                funSortEquals s (getSort a) b'
+           -- Otherwise: postpone
            | otherwise                  -> synEq (PiSort a bAbs) s
 
       -- Equate a sort @s@ to @funSort s1 s2@
@@ -1702,27 +1718,45 @@ equalSort s1 s2 = do
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
+          -- If @Setω == funSort s1 s2@, then either @s1@ or @s2@ must
+          -- be @Setω@.
           Inf | definitelyNotInf s1 && definitelyNotInf s2 -> do
                   typeError $ UnequalSorts s0 (FunSort s1 s2)
               | definitelyNotInf s1 -> equalSort Inf s2
               | definitelyNotInf s2 -> equalSort Inf s1
               | otherwise           -> synEq s0 (FunSort s1 s2)
+          -- If @Set l == funSort s1 s2@, then @s2@ must be of the
+          -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
+          -- @SizeUniv@.
           Type l -> do
             l2 <- forceType s2
             when (l == ClosedLevel 0) $ equalLevel l l2
             if | propEnabled || sizedTypesEnabled -> case funSort' s1 (Type l2) of
+                   -- If the work we did makes the @funSort@ compute,
+                   -- continue working.
                    Just s  -> equalSort (Type l) s
+                   -- Otherwise: postpone
                    Nothing -> synEq (Type l) (FunSort s1 $ Type l2)
+               -- If both Prop and sized types are disabled, only the
+               -- case @s1 == Set l1@ remains.
                | otherwise -> do
                    l1 <- forceType s1
                    equalLevel l (levelLub l1 l2)
+          -- If @Prop l == funSort s1 s2@, then @s2@ must be of the
+          -- form @Prop l2@, and @s1@ can be one of @Set l1@, Prop
+          -- l1@, or @SizeUniv@.
           Prop l -> do
             l2 <- forceProp s2
             when (l == ClosedLevel 0) $ equalLevel l l2
             case funSort' s1 (Prop l2) of
+                   -- If the work we did makes the @funSort@ compute,
+                   -- continue working.
                    Just s  -> equalSort (Prop l) s
+                   -- Otherwise: postpone
                    Nothing -> synEq (Prop l) (FunSort s1 $ Prop l2)
+          -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
           SizeUniv -> equalSort SizeUniv s2
+          -- Anything else: postpone
           _        -> synEq s0 (FunSort s1 s2)
 
       -- check if the given sort @s0@ is a (closed) bottom sort
