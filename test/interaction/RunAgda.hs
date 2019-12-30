@@ -116,7 +116,7 @@ data AgdaCommands = AgdaCommands
 -- | Takes the name of the Agda executable from the first argument
 -- on the command line.
 getAgda :: IO FilePath
-getAgda = do 
+getAgda = do
   args <- getArgs
   case args of
     agda : _ -> return agda

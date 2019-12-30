@@ -5,7 +5,7 @@ postulate
   A : Set
   _==_ : A → A → Set
 {-# BUILTIN REWRITE _==_ #-}
-  
+
 postulate
   a a₀' a₁' : A
   p₀ : a == a₀'
