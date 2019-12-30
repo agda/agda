@@ -209,9 +209,6 @@ TAGS :
 
 ## Testing ################################################################
 
-.PHONY : quick
-quick : install-O0-bin quicktest
-
 .PHONY : test
 test : check-whitespace \
        succeed \
@@ -368,7 +365,6 @@ testing-emacs-mode:
 
 clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
-
 .PHONY : clean
 clean :
 	$(call clean_helper,$(BUILD_DIR))
@@ -488,7 +484,7 @@ debug :
 	@echo "CABAL_CONFIGURE_CMD  = $(CABAL_CONFIGURE_CMD)"
 	@echo "CABAL_CONFIGURE_OPTS = $(CABAL_CONFIGURE_OPTS)"
 	@echo "CABAL_HADDOCK_CMD    = $(CABAL_HADDOCK_CMD)"
-	@echo "CABAL_INSTALL_CMD    =  $(CABAL_INSTALL_CMD)"
+	@echo "CABAL_INSTALL_CMD    = $(CABAL_INSTALL_CMD)"
 	@echo "CABAL_OPTS           = $(CABAL_OPTS)"
 	@echo "GHC_VERSION          = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS       = $(PARALLEL_TESTS)"
