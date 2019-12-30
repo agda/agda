@@ -449,7 +449,7 @@ mod-dot : module-dependency-graph.dot
 module-dependency-graph.pdf : %.pdf : %.dot
 	dot -Tpdf $< > $@
 
-module-dependency-graph.dot : Agda.cabal Makefile
+module-dependency-graph.dot :
 	graphmod --no-cluster --prune-edges > $@
 
 
