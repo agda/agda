@@ -188,14 +188,6 @@ user-manual-linkcheck :
 	@$(call decorate, "User manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
-## Making the full language ###############################################
-
-$(AGDA_BIN): ensure-hash-is-correct
-	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
-
-.PHONY : full
-full : $(AGDA_BIN)
-
 ## Making the source distribution #########################################
 
 .PHONY : tags
