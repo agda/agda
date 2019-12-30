@@ -156,11 +156,7 @@ levelView' a = do
           Underapplied{}          -> NeutralLevel r $ ignoreBlocking ba
           AbsurdMatch{}           -> NeutralLevel r $ ignoreBlocking ba
           MissingClauses{}        -> UnreducedLevel $ ignoreBlocking ba
-          -- Jesper, 2019-12-30: Currently ReallyNotBlocked is also
-          -- returned for functions that are already declared but not
-          -- yet defined, so we cannot be sure that this case is
-          -- neutral (see #4269).
-          ReallyNotBlocked{}      -> UnreducedLevel $ ignoreBlocking ba
+          ReallyNotBlocked{}      -> NeutralLevel r $ ignoreBlocking ba
         Blocked m _               -> BlockedLevel m $ ignoreBlocking ba
 
 -- | Given a level @l@, find the maximum constant @n@ such that @l = n + l'@
