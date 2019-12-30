@@ -40,6 +40,7 @@ import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules )
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
@@ -153,6 +154,9 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
+    whenM (optConfluenceCheck <$> pragmaOptions) $ do
+      reportSLn "import.iface.confluence" 20 $ "  Checking confluence of imported rewrite rules"
+      checkConfluenceOfRules $ concat $ HMap.elems $ sig ^. sigRewriteRules
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
