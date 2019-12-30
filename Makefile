@@ -12,7 +12,6 @@ TOP=.
 
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
-
 include ./mk/cabal.mk
 STACK_CMD=stack
 
@@ -36,19 +35,6 @@ include $(PARALLEL_TESTS_FILE)
 endif
 
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
-
-## Default target #########################################################
-
-.PHONY : default
-default: install-bin
-
-## Installation via cabal (or via stack if `stack.yaml` is present). ######
-
-.PHONY : install
-install: install-bin compile-emacs-mode setup-emacs-mode
-
-.PHONY : prof
-prof : install-prof-bin
 
 CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
 STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
@@ -86,36 +72,23 @@ STACK_INSTALL_BIN_OPTS = --no-library-profiling \
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
 
-# Ensures that the Git hash that is sometimes displayed by --version
-# is correct (#2988).
-.PHONY : ensure-hash-is-correct
-ensure-hash-is-correct :
+.PHONY: help ## Display help information. (Default)
+help: 
+	@sed -n 's/^\.PHONY[[:blank:]]*:[[:space:]]*\([[:alnum:]_-]*[[:blank:]]*##\)/\1/p' Makefile | awk 'BEGIN {FS = "##"}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: list ## List all targets.
+list: 
+	@sed -n 's/^\([[:alnum:]_-]*\)[[:blank:]]*:.*/\1/p' Makefile
+
+.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or via stack if stack.yaml exists).
+install: install-bin compile-emacs-mode setup-emacs-mode 
+
+.PHONY: ensure-hash-is-correct
+ensure-hash-is-correct:
 	touch src/full/Agda/VersionCommit.hs
 
-.PHONY : quick-install-bin
-quick-install-bin : ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo "===================== Installing using Stack ============================="
-	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-else
-	@echo "===================== Installing using Cabal ============================="
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-endif
-
-# Disabling optimizations leads to *much* quicker build times.
-# The performance loss is acceptable for running small tests.
-.PHONY : quicker-install-bin
-quicker-install-bin : ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo "===================== Installing using Stack with -O0 ===================="
-	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
-else
-	@echo "===================== Installing using Cabal with -O0 ===================="
-	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
-endif
-
-.PHONY : install-bin
-install-bin : ensure-hash-is-correct
+.PHONY: install-bin ## Install Agda and test suites via cabal (or via stack if stack.yaml is present).
+install-bin: ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -126,7 +99,29 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-.PHONY : install-prof-bin
+.PHONY: quick-install-bin ## Install Agda only.
+quick-install-bin: ensure-hash-is-correct
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo "===================== Installing using Stack ============================="
+	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+else
+	@echo "===================== Installing using Cabal ============================="
+	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+endif
+
+# Disabling optimizations leads to *much* quicker build times.
+# The performance loss is acceptable for running small tests.
+.PHONY: quicker-install-bin ## Install Agda only (-O0).
+quicker-install-bin: ensure-hash-is-correct
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo "===================== Installing using Stack with -O0 ===================="
+	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
+else
+	@echo "===================== Installing using Cabal with -O0 ===================="
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
+endif
+
+.PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
 install-prof-bin : ensure-hash-is-correct
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
           --program-suffix=_p $(CABAL_INSTALL_OPTS)
@@ -137,17 +132,17 @@ install-prof-bin : ensure-hash-is-correct
 # Builds Agda with the debug flag enabled. A separate build directory
 # is used. The suffix "-debug" is used for the binaries.
 
-.PHONY : install-debug
+.PHONY : install-debug ## Install Agda with debug enabled via cabal.
 install-debug : ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
         $(CABAL_INSTALL_OPTS)
 
-.PHONY : compile-emacs-mode
+.PHONY : compile-emacs-mode ## Compile Agda's Emacs mode.
 compile-emacs-mode: install-bin
 	$(AGDA_MODE) compile
 
-.PHONY : setup-emacs-mode
+.PHONY : setup-emacs-mode ## Configure Agda's Emacs mode.
 setup-emacs-mode : install-bin
 	@echo
 	@echo "If the agda-mode command is not found, make sure that the directory"
@@ -156,24 +151,23 @@ setup-emacs-mode : install-bin
 	$(AGDA_MODE) setup
 
 ## Making and testing the Haddock documentation ##############################
-
-.PHONY : haddock
+.PHONY : haddock ## Make and test the Haddock documentation.
 haddock :
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
 ## Making the user manual ####################################################
 
-.PHONY : user-manual-html
+.PHONY : user-manual-html ## Make the user manual (HTML)
 user-manual-html :
 	@$(call decorate, "User manual (HTML)", $(MAKE) -C doc/user-manual html)
 
-.PHONY : user-manual-pdf
-user-manual-pdf :
+.PHONY : user-manual-pdf ## Make the user manual (PDF)
+user-manual-pdf : 
 	@$(call decorate, "User manual (PDF)", $(MAKE) -C doc/user-manual latexpdf)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
-.PHONY : user-manual-linkcheck
+.PHONY: user-manual-linkcheck
 user-manual-linkcheck :
 	@$(call decorate, "User manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
@@ -190,8 +184,7 @@ TAGS :
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
 ## Testing ################################################################
-
-.PHONY : test
+.PHONY : test ## Run all test suites.
 test : check-whitespace \
        succeed \
        fail \
@@ -210,7 +203,7 @@ test : check-whitespace \
        user-manual-test \
        test-size-solver
 
-.PHONY : quicktest
+.PHONY : quicktest ## Run successful and failing tests only.
 quicktest : succeed fail
 
 .PHONY : internal-tests
@@ -269,13 +262,12 @@ quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
 
-.PHONY : std-lib
+.PHONY : std-lib ## Update the standard library
 std-lib :
 	git submodule update --init std-lib
 
 .PHONY : up-to-date-std-lib
-up-to-date-std-lib :
-	git submodule update --init std-lib
+up-to-date-std-lib : std-lib
 	@(cd std-lib && make setup)
 
 .PHONY : fast-forward-std-lib
@@ -347,7 +339,7 @@ testing-emacs-mode:
 
 clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
-.PHONY : clean
+.PHONY : clean ## Clean all local builds
 clean :
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
@@ -362,15 +354,15 @@ clean :
 FAW_PATH = src/fix-agda-whitespace
 FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
 
-.PHONY : fix-whitespace
+.PHONY : fix-whitespace ## Build and fix the white space issue.
 fix-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN)
 
-.PHONY : check-whitespace
+.PHONY : check-whitespace ## Check the white space issue.
 check-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN) --check
 
-.PHONY : build-fix-agda-whitespace
+.PHONY : build-fix-agda-whitespace ## Build fix-agda-whitespace
 build-fix-agda-whitespace :
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-agda-whitespace
@@ -396,7 +388,7 @@ test-size-solver : install-size-solver
 
 ## agda-bisect standalone program #########################################
 
-.PHONY : install-agda-bisect
+.PHONY : install-agda-bisect ## Install agda-bisect
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
 		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
@@ -444,7 +436,6 @@ module-dependency-graph.pdf : %.pdf : %.dot
 module-dependency-graph.dot :
 	graphmod --no-cluster --prune-edges > $@
 
-
 ###########################################################################
 # HLint
 
@@ -457,6 +448,7 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 ###########################################################################
 # Debug
 
+.PHONY: debug ## Print debug information.
 debug :
 	@echo "AGDA_BIN              = $(AGDA_BIN)"
 	@echo "AGDA_TESTS_BIN        = $(AGDA_TESTS_BIN)"
