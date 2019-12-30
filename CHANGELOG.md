@@ -367,6 +367,25 @@ Emacs mode
   splitting when possible. To manually expand the ellipsis, you may
   ask Agda to case split on the special identifier `.`.
 
+* Agda will now also show variables named `_` in the context if they
+  are instance arguments (see
+  [#4307](https://github.com/agda/agda/issues/4307)). Instance
+  arguments are now also marked as `(instance)` in the context. Example:
+
+  ```agda
+  f : {{_ : A}} → A
+  f = ?
+  ```
+
+  Agda will now display the goal as follows:
+
+  ```
+  Goal: A
+  ————————————————————————————————————————————————————————————
+  _ : A   (instance)
+  ```
+
+
 GHC Backend
 -----------
 
