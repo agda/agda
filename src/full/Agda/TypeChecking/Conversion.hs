@@ -1430,6 +1430,15 @@ equalLevel' a b = do
                ]
         ]
 
+  reportSDoc "tc.conv.level" 80 $
+    sep [ text "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyList_ (map (text . show . unSingleLevel) $ NonEmpty.toList $ as)
+                              , "=="
+                              , prettyList_ (map (text . show . unSingleLevel) $ NonEmpty.toList $ bs)
+                              ]
+               ]
+        ]
+
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
         -- equal levels

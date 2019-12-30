@@ -137,8 +137,8 @@ levelView' a = do
   Def lsuc  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
   Def lmax  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
   let view a = do
-        a <- reduce a
-        case a of
+        ba <- reduceB a
+        case ignoreBlocking ba of
           Level l -> return l
           Def s [Apply arg]
             | s == lsuc  -> levelSuc <$> view (unArg arg)
@@ -146,16 +146,22 @@ levelView' a = do
             | z == lzero -> return $ ClosedLevel 0
           Def m [Apply arg1, Apply arg2]
             | m == lmax  -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
-          _              -> mkAtom a
-  v <- view a
-  return v
+          _              -> return $ mkAtom ba
+  view a
   where
-    mkAtom a = do
-      b <- reduceB a
-      return $ case b of
-        NotBlocked _ (MetaV m as) -> atomicLevel $ MetaLevel m as
-        NotBlocked r _            -> atomicLevel $ NeutralLevel r $ ignoreBlocking b
-        Blocked m _               -> atomicLevel $ BlockedLevel m $ ignoreBlocking b
+    mkAtom ba = atomicLevel $ case ba of
+        NotBlocked _ (MetaV m as) -> MetaLevel m as
+        NotBlocked r _            -> case r of
+          StuckOn{}               -> NeutralLevel r $ ignoreBlocking ba
+          Underapplied{}          -> NeutralLevel r $ ignoreBlocking ba
+          AbsurdMatch{}           -> NeutralLevel r $ ignoreBlocking ba
+          MissingClauses{}        -> UnreducedLevel $ ignoreBlocking ba
+          -- Jesper, 2019-12-30: Currently ReallyNotBlocked is also
+          -- returned for functions that are already declared but not
+          -- yet defined, so we cannot be sure that this case is
+          -- neutral (see #4269).
+          ReallyNotBlocked{}      -> UnreducedLevel $ ignoreBlocking ba
+        Blocked m _               -> BlockedLevel m $ ignoreBlocking ba
 
 -- | Given a level @l@, find the maximum constant @n@ such that @l = n + l'@
 levelPlusView :: Level -> (Integer, Level)
