@@ -598,8 +598,12 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
       traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> prettyTCM v0) $ do
       case (def,rewr) of
-        _ | dontUnfold -> defaultResult -- non-terminating or delayed
-        ([],[])        -> defaultResult -- no definition for head
+        _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
+                          defaultResult -- non-terminating or delayed
+        ([],[])        -> traceSLn "tc.reduce" 90 "reduceNormalE: no clauses or rewrite rules" $ do
+          -- no definition for head
+          blk <- defBlocked <$> getConstInfo f
+          noReduction $ blk $> vfull
         (cls,rewr)     -> do
           ev <- appDefE_ f v0 cls mcc rewr es
           debugReduce ev

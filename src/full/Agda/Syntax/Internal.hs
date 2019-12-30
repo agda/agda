@@ -389,7 +389,7 @@ instance Monoid NotBlocked where
 data Blocked t
   = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable)
   -- deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 -- | Blocking by a meta is dominant.

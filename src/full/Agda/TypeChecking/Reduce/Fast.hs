@@ -133,6 +133,7 @@ compactDef bEnv def rewr = do
             TelV tel _ | size tel == 5 -> pure CErase
                        | otherwise     -> pure COther
                           -- Non-standard equality. Fall back to slow reduce.
+      _ | defBlocked def /= notBlocked_ -> pure COther -- Blocked definition
       Constructor{conSrcCon = c, conArity = n} -> pure CCon{cconSrcCon = c, cconArity = n}
       Function{funCompiled = Just cc, funClauses = _:_, funProjection = proj} ->
         pure CFun{ cfunCompiled   = fastCompiledClauses bEnv cc

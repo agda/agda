@@ -433,6 +433,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defNoCompilation  = defNoCompilation d
                     , defInjective      = False
                     , defCopatternLHS   = isCopatternLHS [cl]
+                    , defBlocked        = defBlocked d
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }

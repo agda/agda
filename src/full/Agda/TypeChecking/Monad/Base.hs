@@ -1693,6 +1693,10 @@ data Definition = Defn
     -- ^ Should the def be treated as injective by the pattern matching unifier?
   , defCopatternLHS   :: Bool
     -- ^ Is this a function defined by copatterns?
+  , defBlocked        :: Blocked_
+    -- ^ What blocking tag to use when we cannot reduce this def?
+    --   Used when checking a function definition is blocked on a meta
+    --   in the type.
   , theDef            :: Defn
   }
     deriving (Data, Show)
@@ -1734,6 +1738,7 @@ defaultDefn info x t def = Defn
   , defNoCompilation  = False
   , defInjective      = False
   , defCopatternLHS   = False
+  , defBlocked        = NotBlocked ReallyNotBlocked ()
   , theDef            = def
   }
 
@@ -4166,8 +4171,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def) =
-    killRange17 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk def) =
+    killRange18 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where
