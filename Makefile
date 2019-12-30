@@ -14,10 +14,10 @@ TOP=.
 include ./mk/paths.mk
 
 include ./mk/cabal.mk
+STACK_CMD=stack
 
 # mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
 include ./mk/pretty.mk
-STACK_CMD=stack
 
 # Run in interactive and parallel mode by default
 
@@ -42,7 +42,7 @@ AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 .PHONY : default
 default: install-bin
 
-## Cabal-based installation ###############################################
+## Installation via cabal (or via stack if `stack.yaml` is present). ######
 
 .PHONY : install
 install: install-bin compile-emacs-mode setup-emacs-mode
@@ -51,40 +51,40 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 prof : install-prof-bin
 
 CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_BUILD = $(STACK_CMD) build Agda --no-haddock
+STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
 # https://github.com/haskell/cabal/issues/1893).
 
-QUICK_BUILD_DIR     = $(BUILD_DIR)-quick
-QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
+QUICK_STACK_BUILD_DIR = .stack-work-quick
 
-QUICK_STACK_BUILD_WORK_DIR = .stack-work-quick
-QUICK_STACK_BUILD = $(STACK_BUILD) \
-                    --ghc-options=-O0 \
-                    --work-dir=$(QUICK_STACK_BUILD_WORK_DIR)
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
+QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR)
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
+SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
+
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
                           $(SLOW_CABAL_INSTALL_OPTS)
+STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
+                          $(SLOW_STACK_INSTALL_OPTS)
 
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options="+RTS -M3G -RTS" $(CABAL_OPTS)
+GHC_OPTS           = "+RTS -M3G -RTS"
+CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
+STACK_INSTALL_BIN_OPTS = --no-library-profiling \
+                         $(STACK_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
-
-STACK_INSTALL_OPTS     = --flag Agda:enable-cluster-counting $(STACK_OPTS)
-STACK_INSTALL_BIN_OPTS = --test \
-                         --no-run-tests \
-                         --no-library-profiling \
-                         $(STACK_INSTALL_OPTS)
 
 # Ensures that the Git hash that is sometimes displayed by --version
 # is correct (#2988).
@@ -94,45 +94,35 @@ ensure-hash-is-correct :
 
 .PHONY : quick-install-bin
 quick-install-bin : ensure-hash-is-correct
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo "===================== Installing using Stack ============================="
+	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+else
+	@echo "===================== Installing using Cabal ============================="
 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-
-.PHONY : quicker-stack-install-bin
-quicker-stack-install-bin: ensure-hash-is-correct
-	$(QUICK_STACK_BUILD) $(STACK_INSTALL_BIN_OPTS)
-
-.PHONY : quicker-stack-copy-artefacts
-quicker-stack-copy-artefacts : quicker-stack-install-bin
-	mkdir -p $(QUICK_BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir --work-dir=$(QUICK_STACK_BUILD_WORK_DIR))/build $(QUICK_BUILD_DIR)
+endif
 
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 .PHONY : quicker-install-bin
 quicker-install-bin : ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	time $(MAKE) quicker-stack-copy-artefacts
+	@echo "===================== Installing using Stack with -O0 ===================="
+	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
 else
+	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 endif
-
-# The Stack version of `Cabal install --enable-test`
-.PHONY : stack-install-bin
-stack-install-bin:
-	$(STACK_BUILD) $(STACK_INSTALL_BIN_OPTS)
-
-# Copy the artefacts built by Stack as if they were build by Cabal.
-.PHONY : stack-copy-artefacts
-stack-copy-artefacts : stack-install-bin
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 
 .PHONY : install-bin
 install-bin : ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo "===================== Installing using Stack ============================="
-	time $(MAKE) stack-copy-artefacts
+	@echo "===================== Installing using Stack with test suites ============"
+	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 else
-	@echo "===================== Installing using Cabal ============================="
+	@echo "===================== Installing using Cabal with test suites ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
@@ -361,6 +351,8 @@ clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$
 clean :
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
+	stack clean --full
+	stack clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
 
 ## Whitespace-related #####################################################
 
@@ -466,19 +458,22 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 # Debug
 
 debug :
-	@echo "AGDA_BIN             = $(AGDA_BIN)"
-	@echo "AGDA_TESTS_BIN       = $(AGDA_TESTS_BIN)"
-	@echo "AGDA_TESTS_OPTIONS   = $(AGDA_TESTS_OPTIONS)"
-	@echo "BUILD_DIR            = $(BUILD_DIR)"
-	@echo "CABAL_BUILD_CMD      = $(CABAL_BUILD_CMD)"
-	@echo "CABAL_CLEAN_CMD      = $(CABAL_CLEAN_CMD)"
-	@echo "CABAL_CMD            = $(CABAL_CMD)"
-	@echo "CABAL_CONFIGURE_CMD  = $(CABAL_CONFIGURE_CMD)"
-	@echo "CABAL_CONFIGURE_OPTS = $(CABAL_CONFIGURE_OPTS)"
-	@echo "CABAL_HADDOCK_CMD    = $(CABAL_HADDOCK_CMD)"
-	@echo "CABAL_INSTALL_CMD    = $(CABAL_INSTALL_CMD)"
-	@echo "CABAL_OPTS           = $(CABAL_OPTS)"
-	@echo "GHC_VERSION          = $(GHC_VERSION)"
-	@echo "PARALLEL_TESTS       = $(PARALLEL_TESTS)"
+	@echo "AGDA_BIN              = $(AGDA_BIN)"
+	@echo "AGDA_TESTS_BIN        = $(AGDA_TESTS_BIN)"
+	@echo "AGDA_TESTS_OPTIONS    = $(AGDA_TESTS_OPTIONS)"
+	@echo "BUILD_DIR             = $(BUILD_DIR)"
+	@echo "CABAL_BUILD_CMD       = $(CABAL_BUILD_CMD)"
+	@echo "CABAL_CLEAN_CMD       = $(CABAL_CLEAN_CMD)"
+	@echo "CABAL_CMD             = $(CABAL_CMD)"
+	@echo "CABAL_CONFIGURE_CMD   = $(CABAL_CONFIGURE_CMD)"
+	@echo "CABAL_CONFIGURE_OPTS  = $(CABAL_CONFIGURE_OPTS)"
+	@echo "CABAL_HADDOCK_CMD     = $(CABAL_HADDOCK_CMD)"
+	@echo "CABAL_INSTALL_CMD     = $(CABAL_INSTALL_CMD)"
+	@echo "CABAL_INSTALL_OPTS    = $(CABAL_INSTALL_OPTS)"
+	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
+	@echo "STACK_CMD             = $(STACK_CMD)"
+	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
+	@echo "GHC_VERSION           = $(GHC_VERSION)"
+	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
 
 # EOF
