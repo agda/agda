@@ -1,5 +1,5 @@
 # Top-level Makefile for Agda 2
-# Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli
+# Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli, Liang-Ting Chen
 
 SHELL=bash
 
@@ -72,14 +72,10 @@ STACK_INSTALL_BIN_OPTS = --no-library-profiling \
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
 
-.PHONY: help ## Display help information. (Default)
-help:
-	@echo Common targets:
-	@sed -n 's/^\.PHONY[[:blank:]]*:[[:space:]]*\([[:alnum:]_-]*[[:blank:]]*##\)/\1/p' Makefile | awk 'BEGIN {FS = "##"}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.DEFAULT_GOAL := help
 
-.PHONY: list ## List all targets.
-list:
-	@sed -n 's/^\([[:alnum:]_-]*\)[[:blank:]]*:.*/\1/p' Makefile
+##############################################################################
+## Build and installation
 
 .PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or via stack if stack.yaml is present).
 install: install-bin compile-emacs-mode setup-emacs-mode
@@ -112,6 +108,7 @@ endif
 
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
+
 .PHONY: quicker-install-bin ## Install Agda only with -O0.
 quicker-install-bin: ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
@@ -151,13 +148,26 @@ setup-emacs-mode : install-bin
 	@echo
 	$(AGDA_MODE) setup
 
-## Making and testing the Haddock documentation ##############################
-.PHONY : haddock
-haddock :
+## Clean ##################################################################
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
+
+.PHONY : clean ## Clean all local builds
+clean :
+	$(call clean_helper,$(BUILD_DIR))
+	$(call clean_helper,$(QUICK_BUILD_DIR))
+	stack clean --full
+	stack clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+##############################################################################
+## Haddock
+
+.PHONY : haddock ## Build and test the Haddock documentation
+haddock : 
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
-## Making the user manual ####################################################
+
+##############################################################################
+## The user manual
 
 .PHONY : user-manual-html ## Make the user manual (HTML).
 user-manual-html :
@@ -173,18 +183,21 @@ user-manual-linkcheck :
 	@$(call decorate, "User manual (linkcheck)", $(MAKE) -C doc/user-manual linkcheck)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
-## Making the source distribution #########################################
+##############################################################################
+## Making the source distribution
 
 .PHONY : tags
 tags :
 	$(MAKE) -C $(FULL_SRC_DIR) tags
 
-.PHONY : TAGS
+.PHONY : TAGS ## Generate TAGS
 TAGS :
 	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
-## Testing ################################################################
+##############################################################################
+## Testing
+
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
        succeed \
@@ -204,61 +217,61 @@ test : check-whitespace \
        user-manual-test \
        test-size-solver
 
-.PHONY : quicktest ## Run successful and failing tests only.
+.PHONY : quicktest ## Run successful and failing tests.
 quicktest : succeed fail
 
-.PHONY : internal-tests
+.PHONY : bugs ## Run tests for bugs
+bugs :
+	@$(call decorate, "Suite of tests for bugs", \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs)
+
+.PHONY : internal-tests ## Run internal tests.
 internal-tests :
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
-.PHONY : succeed
+.PHONY : succeed ## Run successful tests.
 succeed :
 	@$(call decorate, "Suite of successful tests", \
 		$(MAKE) -C test/Common; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
 
-.PHONY : interaction
-interaction :
-	@$(call decorate, "Suite of interaction tests", \
-		$(MAKE) -C test/interaction)
-
-.PHONY : interactive
-interactive :
-	@$(call decorate, "Suite of interactive tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive)
-
-.PHONY : examples
-examples :
-	@$(call decorate, "Suite of examples", \
-		$(MAKE) -C examples)
-
-.PHONY : fail
+.PHONY : fail ## Run failing tests.
 fail :
 	@$(call decorate, "Suite of failing tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail)
 
-.PHONY : bugs
-bugs :
-	@$(call decorate, "Suite of tests for bugs", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Bugs)
+.PHONY : interaction ## Run interaction tests.
+interaction :
+	@$(call decorate, "Suite of interaction tests", \
+		$(MAKE) -C test/interaction)
 
-.PHONY : latex-html-test
+.PHONY : interactive ## Run interactive tests.
+interactive :
+	@$(call decorate, "Suite of interactive tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Interactive)
+
+.PHONY : examples ## Run examples.
+examples :
+	@$(call decorate, "Suite of examples", \
+		$(MAKE) -C examples)
+
+.PHONY : latex-html-test ## Tests the LaTeX and HTML backends.
 latex-html-test :
 	@$(call decorate, "Suite of tests for the LaTeX and HTML backends", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML)
 
-.PHONY : html-test
+.PHONY : html-test ## Tests the HTML backend.
 html-test :
 	@$(call decorate, "Suite of tests for the HTML backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly)
 
-.PHONY : latex-test
+.PHONY : latex-test ## Tests for the LaTeX backend.
 latex-test :
 	@$(call decorate, "Suite of tests for the LaTeX backend", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly)
 
-.PHONY : quicklatex-test
+.PHONY : quicklatex-test ## Tests for the QuickLaTeX backend.
 quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
@@ -276,7 +289,7 @@ fast-forward-std-lib :
 	git submodule update --init --remote std-lib
 	@(cd std-lib && make setup)
 
-.PHONY : library-test
+.PHONY : library-test ## Test the standard library.
 library-test : # up-to-date-std-lib
 	@$(call decorate, "Standard library", \
 		(cd std-lib && runhaskell GenerateEverything.hs && \
@@ -289,81 +302,87 @@ continue-library-test :
 	@(cd std-lib && \
           time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
-.PHONY : lib-succeed
+.PHONY : lib-succeed ## Run successful tests using the standard library.
 lib-succeed :
 	@$(call decorate, "Successful tests using the standard library", \
 	  find test/LibSucceed -type f -name '*.agdai' -delete ; \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed)
 
-.PHONY : lib-interaction
+.PHONY : lib-interaction ## Run interaction tests using the standard library.
 lib-interaction :
 	@$(call decorate, "Interaction tests using the standard library", \
 	  $(MAKE) -C test/$@)
 
-.PHONY : compiler-test
+.PHONY : compiler-test ## Test the compiler.
 compiler-test :
 	@$(call decorate, "Compiler tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib)
 
-.PHONY : stdlib-compiler-test
+.PHONY : stdlib-compiler-test ## Test the compiler using the standard library.
 stdlib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
 
-.PHONY : api-test
+.PHONY : api-test ## Run successful tests using Agda as a Haskell library.
 api-test :
 	@$(call decorate, "Successful tests using Agda as a Haskell library", \
 		$(MAKE) -C test/api clean; $(MAKE) -C test/api)
 
-.PHONY : benchmark
+.PHONY : benchmark ## Run benchmark.
 benchmark :
 	@$(call decorate, "Benchmark suite", \
 		$(MAKE) -C benchmark)
 
-.PHONY : benchmark-without-logs
+.PHONY : benchmark-without-logs ## Run benchmark without logs.
 benchmark-without-logs :
 	@$(call decorate, "Benchmark suite without creating logs", \
 	  $(MAKE) -C benchmark without-creating-logs)
 
-.PHONY : user-manual-test
+.PHONY : user-manual-test ## Test the user manual.
 user-manual-test :
 	@$(call decorate, "User manual (test)", \
 		find doc/user-manual -type f -name '*.agdai' -delete; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual)
 
-.PHONY : testing-emacs-mode
+.PHONY : testing-emacs-mode ## Test the Emacs mode.
 testing-emacs-mode:
 	@$(call decorate, "Testing the Emacs mode", \
 	  $(AGDA_MODE) compile)
 
-## Clean ##################################################################
+##############################################################################
+## Size solver
 
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
+# NB. It is necessary to install the Agda library (i.e run `make install-bin`)
+# before installing the `size-solver` program.
+.PHONY : install-size-solver ## Install the size solver.
+install-size-solver :
+	@$(call decorate, "Installing the size-solver program", \
+		$(MAKE) -C src/size-solver install-bin)
 
-.PHONY : clean ## Clean all local builds
-clean :
-	$(call clean_helper,$(BUILD_DIR))
-	$(call clean_helper,$(QUICK_BUILD_DIR))
-	stack clean --full
-	stack clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+.PHONY : test-size-solver ## Test the size solver.
+test-size-solver : install-size-solver
+	@$(call decorate, "Testing the size-solver program", \
+		$(MAKE) -C src/size-solver test)
+
+##############################################################################
+## Development
 
 ## Whitespace-related #####################################################
-
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
 FAW_PATH = src/fix-agda-whitespace
 FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
 
-.PHONY : fix-whitespace ## Build and fix the white space issue.
+.PHONY : fix-whitespace ## Fix the whitespace issue.
 fix-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN)
 
-.PHONY : check-whitespace
+.PHONY : check-whitespace ## Check the whitespace issue without fixing it.
 check-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN) --check
 
-.PHONY : build-fix-agda-whitespace
+.PHONY : build-fix-agda-whitespace ## Build fix-agda-whitespace.
 build-fix-agda-whitespace :
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-agda-whitespace
@@ -373,30 +392,13 @@ else
 	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
-## size-solver standalone program #########################################
-
-# NB. It is necessary to install the Agda library (i.e run `make install-bin`)
-# before installing the `size-solver` program.
-.PHONY : install-size-solver
-install-size-solver :
-	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver install-bin)
-
-.PHONY : test-size-solver
-test-size-solver : install-size-solver
-	@$(call decorate, "Testing the size-solver program", \
-		$(MAKE) -C src/size-solver test)
-
-## agda-bisect standalone program #########################################
-
+## agda-bisect standalone program ###########################################
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
 		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
 
-###########################################################################
-# HPC
-
+## HPC #######################################################################
 .PHONY: hpc-build 
 hpc-build: ensure-hash-is-correct
 	$(CABAL_CMD) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
@@ -411,7 +413,7 @@ hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
 
-## Lines of Code ##########################################################
+## Lines of Code ############################################################
 
 agdalocfiles=$(shell find . \( \( -name '*.agda' -o -name '*.in' \) ! -name '.*' \) )
 
@@ -422,11 +424,10 @@ agda-loc :
 
 # Source code of Agda
 
-loc :
+loc : 
 	make -C src/full loc
 
-###########################################################################
-# Module dependency graph
+## Module dependency graph ###################################################
 
 .PHONY: mod-dep ## Generate a module dependency graph (PDF).
 mod-dep : module-dependency-graph.pdf
@@ -438,17 +439,34 @@ module-dependency-graph.pdf : %.pdf : %.dot
 module-dependency-graph.dot :
 	graphmod --no-cluster --prune-edges > $@
 
-###########################################################################
-# HLint
+## HLint ####################################################################
 
+.PHONY: hlint ## Run HLint over Agda.
 hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 	hlint --cpp-file=$< \
               --cpp-include=$(FULL_SRC_DIR) \
 	      --report=hlint-report.html \
 	      $(FULL_SRC_DIR)/Agda
 
-###########################################################################
-# Debug
+##############################################################################
+## Auxiliary targets
+
+.PHONY: help ## Display help information. (Default)
+help:
+	@echo "Available targets:"
+	@sed -n \
+		-e 's/^\.PHONY[[:blank:]]*:[[:blank:]]*\([[:graph:]]*[[:blank:]]*##\)/\1/p' \
+		-e 's/^##*#$$//p' \
+		-e "s/^\(#\{2,\}[[:blank:]]*\)\([^#]\{1,\}\)$$/\2/p" \
+		Makefile | \
+		awk 'BEGIN {FS = "##"}; \
+			NF == 0 { print };\
+			NF == 1 { print $$1 };\
+	  	NF == 2 { printf "  \033[36m%-26s\033[0m %s\n", $$1, $$2};'
+
+.PHONY: list ## List all targets.
+list:
+	@sed -n 's/^\([[:alnum:]_-]*\)[[:blank:]]*:.*/\1/p' Makefile
 
 .PHONY: debug ## Print debug information.
 debug :
@@ -469,5 +487,7 @@ debug :
 	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
+	@echo
+	@echo "Run \`make -pq\` to get a detailed report."
 
 # EOF
