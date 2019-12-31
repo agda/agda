@@ -158,11 +158,11 @@ haddock :
 
 ## Making the user manual ####################################################
 
-.PHONY : user-manual-html ## Make the user manual (HTML)
+.PHONY : user-manual-html ## Make the user manual (HTML).
 user-manual-html :
 	@$(call decorate, "User manual (HTML)", $(MAKE) -C doc/user-manual html)
 
-.PHONY : user-manual-pdf ## Make the user manual (PDF)
+.PHONY : user-manual-pdf ## Make the user manual (PDF).
 user-manual-pdf :
 	@$(call decorate, "User manual (PDF)", $(MAKE) -C doc/user-manual latexpdf)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
@@ -262,7 +262,7 @@ quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
 
-.PHONY : std-lib ## Update the standard library
+.PHONY : std-lib ## Update the standard library.
 std-lib :
 	git submodule update --init std-lib
 
@@ -358,11 +358,11 @@ FAW_BIN  = $(FAW_PATH)/dist/build/fix-agda-whitespace/fix-agda-whitespace
 fix-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN)
 
-.PHONY : check-whitespace ## Check the white space issue.
+.PHONY : check-whitespace
 check-whitespace : build-fix-agda-whitespace
 	$(FAW_BIN) --check
 
-.PHONY : build-fix-agda-whitespace ## Build fix-agda-whitespace
+.PHONY : build-fix-agda-whitespace
 build-fix-agda-whitespace :
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-agda-whitespace
@@ -388,7 +388,7 @@ test-size-solver : install-size-solver
 
 ## agda-bisect standalone program #########################################
 
-.PHONY : install-agda-bisect ## Install agda-bisect
+.PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
 		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
@@ -396,7 +396,7 @@ install-agda-bisect :
 ###########################################################################
 # HPC
 
-.PHONY: hpc-build
+.PHONY: hpc-build 
 hpc-build: ensure-hash-is-correct
 	$(CABAL_CMD) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
@@ -405,7 +405,7 @@ hpc-build: ensure-hash-is-correct
 agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
-.PHONY: hpc
+.PHONY: hpc ## Generate a code coverage report.
 hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
@@ -427,6 +427,7 @@ loc :
 ###########################################################################
 # Module dependency graph
 
+.PHONY: mod-dep ## Generate a module dependency graph (PDF).
 mod-dep : module-dependency-graph.pdf
 mod-dot : module-dependency-graph.dot
 
