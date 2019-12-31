@@ -73,15 +73,15 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY: help ## Display help information. (Default)
-help: 
+help:
 	@sed -n 's/^\.PHONY[[:blank:]]*:[[:space:]]*\([[:alnum:]_-]*[[:blank:]]*##\)/\1/p' Makefile | awk 'BEGIN {FS = "##"}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: list ## List all targets.
-list: 
+list:
 	@sed -n 's/^\([[:alnum:]_-]*\)[[:blank:]]*:.*/\1/p' Makefile
 
 .PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or via stack if stack.yaml exists).
-install: install-bin compile-emacs-mode setup-emacs-mode 
+install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
@@ -163,7 +163,7 @@ user-manual-html :
 	@$(call decorate, "User manual (HTML)", $(MAKE) -C doc/user-manual html)
 
 .PHONY : user-manual-pdf ## Make the user manual (PDF)
-user-manual-pdf : 
+user-manual-pdf :
 	@$(call decorate, "User manual (PDF)", $(MAKE) -C doc/user-manual latexpdf)
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
