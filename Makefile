@@ -74,13 +74,14 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 
 .PHONY: help ## Display help information. (Default)
 help:
-	@sed -n 's/^\.PHONY[[:blank:]]*:[[:space:]]*\([[:alnum:]_-]*[[:blank:]]*##\)/\1/p' Makefile | awk 'BEGIN {FS = "##"}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@echo Common targets:
+	@sed -n 's/^\.PHONY[[:blank:]]*:[[:space:]]*\([[:alnum:]_-]*[[:blank:]]*##\)/\1/p' Makefile | awk 'BEGIN {FS = "##"}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: list ## List all targets.
 list:
 	@sed -n 's/^\([[:alnum:]_-]*\)[[:blank:]]*:.*/\1/p' Makefile
 
-.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or via stack if stack.yaml exists).
+.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or via stack if stack.yaml is present).
 install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY: ensure-hash-is-correct
@@ -111,7 +112,7 @@ endif
 
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
-.PHONY: quicker-install-bin ## Install Agda only (-O0).
+.PHONY: quicker-install-bin ## Install Agda only with -O0.
 quicker-install-bin: ensure-hash-is-correct
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "===================== Installing using Stack with -O0 ===================="
@@ -151,7 +152,7 @@ setup-emacs-mode : install-bin
 	$(AGDA_MODE) setup
 
 ## Making and testing the Haddock documentation ##############################
-.PHONY : haddock ## Make and test the Haddock documentation.
+.PHONY : haddock
 haddock :
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
@@ -405,7 +406,7 @@ hpc-build: ensure-hash-is-correct
 agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
-.PHONY: hpc ## Generate a code coverage report.
+.PHONY: hpc ## Generate a code coverage report via cabal.
 hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
