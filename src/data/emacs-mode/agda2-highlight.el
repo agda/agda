@@ -425,6 +425,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for dead code (unreachable clauses, etc.)."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-shadowing-in-telescope-face
+  '((((background light))
+     (:background "dark gray"))
+    (((background dark))
+     (:background "#808080")))
+  "The face used for shadowed repeated variable names in telescopes."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-coverage-problem-face
   '((((background light))
      (:background "wheat"))
@@ -494,6 +502,7 @@ If `agda2-highlight-face-groups' is nil."
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (deadcode               . agda2-highlight-deadcode-face)
+    (shadowingintelescope   . agda2-highlight-shadowing-in-telescope-face)
     (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
@@ -534,6 +543,7 @@ The aspects currently recognised are the following:
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
 `record'                 Record types.
+`shadowingintelescope'   Shadowed repeated variable names in telescopes.
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
