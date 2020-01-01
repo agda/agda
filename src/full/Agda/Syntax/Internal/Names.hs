@@ -111,6 +111,7 @@ instance NamesIn Sort where
     Inf      -> Set.empty
     SizeUniv -> Set.empty
     PiSort a b -> namesIn (a, b)
+    FunSort a b -> namesIn (a, b)
     UnivSort a -> namesIn a
     MetaS _ es -> namesIn es
     DefS d es  -> namesIn (d, es)

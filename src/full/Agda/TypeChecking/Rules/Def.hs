@@ -78,6 +78,9 @@ import Agda.Utils.Impossible
 
 checkFunDef :: Delayed -> A.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
+        -- Reset blocking tag (in case a previous attempt was blocked)
+        modifySignature $ updateDefinition name $ updateDefBlocked $ const $
+          NotBlocked MissingClauses ()
         -- Get the type and relevance of the function
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
@@ -98,6 +101,7 @@ checkFunDef delayed i name cs = do
     `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on meta: " <+> text (show x) ]
+        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked x ()
         addConstraint $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()

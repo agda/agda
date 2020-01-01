@@ -463,6 +463,9 @@ is one of the following:
 
      Ignore all warnings.
 
+The command ``agda --help=warning`` provides information about which
+warnings are turned on by default.
+
 Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
 {noName}`` respectively. The flags available are:
 

@@ -105,8 +105,8 @@ inferPiSort a s2 = do
   return $ piSort a' s2'
 
 -- | As @inferPiSort@, but for a nondependent function type.
-inferFunSort :: Dom Type -> Sort -> TCM Sort
-inferFunSort a s = inferPiSort a $ NoAbs underscore s
+inferFunSort :: Sort -> Sort -> TCM Sort
+inferFunSort s1 s2 = funSort <$> reduce s1 <*> reduce s2
 
 ptsRule :: Dom Type -> Abs Sort -> Sort -> TCM ()
 ptsRule a b c = do
@@ -116,7 +116,7 @@ ptsRule a b c = do
     (equalSort c' c)
 
 -- | Non-dependent version of ptsRule
-ptsRule' :: Dom Type -> Sort -> Sort -> TCM ()
+ptsRule' :: Sort -> Sort -> Sort -> TCM ()
 ptsRule' a b c = do
   c' <- inferFunSort a b
   ifM (optCumulativity <$> pragmaOptions)

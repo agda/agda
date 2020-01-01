@@ -1,7 +1,3 @@
-Failed to solve the following constraints:
-  univSort (piSort Set₁ (λ X → piSort _7 (λ _ → Set))) = univSort _1
-  piSort Set₁ (λ X → piSort _7 (λ _ → Set)) = _1
 Unsolved metas at the following locations:
-  Issue3157.agda:6,11-17
   Issue3157.agda:6,11-12
   Issue3157.agda:9,11-12

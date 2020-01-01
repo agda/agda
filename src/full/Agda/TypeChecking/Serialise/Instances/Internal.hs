@@ -142,9 +142,10 @@ instance EmbPrj I.Sort where
   icod_ SizeUniv    = icodeN 2 SizeUniv
   icod_ Inf         = icodeN 3 Inf
   icod_ (PiSort a b) = icodeN 4 PiSort a b
-  icod_ (UnivSort a) = icodeN 5 UnivSort a
+  icod_ (FunSort a b) = icodeN 5 FunSort a b
+  icod_ (UnivSort a) = icodeN 6 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
-  icod_ (DefS a b)   = icodeN 6 DefS a b
+  icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (DummyS s)   = do
     liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
     __IMPOSSIBLE__
@@ -155,8 +156,9 @@ instance EmbPrj I.Sort where
     valu [2]       = valuN SizeUniv
     valu [3]       = valuN Inf
     valu [4, a, b] = valuN PiSort a b
-    valu [5, a]    = valuN UnivSort a
-    valu [6, a, b] = valuN DefS a b
+    valu [5, a, b] = valuN FunSort a b
+    valu [6, a]    = valuN UnivSort a
+    valu [7, a, b] = valuN DefS a b
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -197,9 +199,30 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p q) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q
+  icod_ (Defn a b c d e f g h i j k l m n o p q r) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q r
 
   value = valueN Defn
+
+instance EmbPrj NotBlocked where
+  icod_ ReallyNotBlocked = icodeN' ReallyNotBlocked
+  icod_ (StuckOn a)      = icodeN 0 StuckOn a
+  icod_ Underapplied     = icodeN 1 Underapplied
+  icod_ AbsurdMatch      = icodeN 2 AbsurdMatch
+  icod_ MissingClauses   = icodeN 3 MissingClauses
+
+  value = vcase valu where
+    valu []     = valuN ReallyNotBlocked
+    valu [0, a] = valuN StuckOn a
+    valu [1]    = valuN Underapplied
+    valu [2]    = valuN AbsurdMatch
+    valu [3]    = valuN MissingClauses
+    valu _      = malformed
+
+instance EmbPrj Blocked_ where
+  icod_ (NotBlocked a b) = icodeN' NotBlocked a b
+  icod_ Blocked{} = __IMPOSSIBLE__
+
+  value = valueN NotBlocked
 
 instance EmbPrj NLPat where
   icod_ (PVar a b)      = icodeN 0 PVar a b

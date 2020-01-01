@@ -40,7 +40,7 @@ import Agda.Interaction.Response
   ( Response( Resp_HighlightingInfo )
   , RemoveTokenBasedHighlighting( KeepHighlighting )
   )
-import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Precise as P
 import Agda.Interaction.Highlighting.Range (rToR, minus)  -- Range is ambiguous
 
 import qualified Agda.TypeChecking.Errors as E
@@ -54,7 +54,7 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
-import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) )
+import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Fixity
@@ -690,7 +690,9 @@ warningHighlighting w = case tcWarning w of
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
     OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
     OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
-    ShadowingInTelescope nrs -> Fold.foldMap (shadowingTelHighlighting . snd) nrs
+    W.ShadowingInTelescope nrs       -> Fold.foldMap
+                                          (shadowingTelHighlighting . snd)
+                                          nrs
     MissingDefinitions{}             -> missingDefinitionHighlighting $ getRange w
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty
@@ -734,9 +736,12 @@ coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
 
 shadowingTelHighlighting :: [Range] -> File
 shadowingTelHighlighting =
-  -- we do not want to highlight the one variable in scope as deadcode
-  -- so we take the @init@ segment of the ranges in question
-  Fold.foldMap deadcodeHighlighting . init
+  -- we do not want to highlight the one variable in scope so we take
+  -- the @init@ segment of the ranges in question
+  Fold.foldMap (\r -> singleton (rToR $ P.continuous r) m) . init
+  where
+  m = parserBased { otherAspects =
+                      Set.singleton P.ShadowingInTelescope }
 
 catchallHighlighting :: Range -> File
 catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m

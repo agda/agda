@@ -548,8 +548,9 @@ instance Occurs Sort where
       PiSort a s2 -> do
         s1' <- flexibly $ occurs $ getSort a
         a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (flexibly . occurs) s2
+        s2' <- mapAbstraction a' (flexibly . underBinder . occurs) s2
         return $ PiSort a' s2'
+      FunSort s1 s2 -> FunSort <$> flexibly (occurs s1) <*> flexibly (occurs s2)
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf      -> return s
@@ -567,6 +568,7 @@ instance Occurs Sort where
     s <- instantiate s
     case s of
       PiSort a s -> metaOccurs m (a,s)
+      FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
       Inf        -> return ()
@@ -777,6 +779,7 @@ instance AnyRigid Sort where
       Inf        -> return False
       SizeUniv   -> return False
       PiSort a s -> return False
+      FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
       MetaS{}    -> return False
       DefS{}     -> return False

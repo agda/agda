@@ -119,6 +119,8 @@ data OtherAspect
   | Deadcode
     -- ^ Used for highlighting unreachable clauses, unreachable RHS
     -- (because of an absurd pattern), etc.
+  | ShadowingInTelescope
+    -- ^ Used for shadowed repeated variable names in telescopes.
   | CoverageProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to

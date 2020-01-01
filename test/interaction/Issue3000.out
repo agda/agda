@@ -10,5 +10,5 @@
 ((last . 1) . (agda2-goals-action '(1)))
 (agda2-give-action 1 "(? → ?)")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?2 : _5 ?3 : Set Sort _5 [ at 1,1-2 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: piSort _5 (λ _ → Set) = Set univSort (piSort _5 (λ _ → Set)) = Set₁ " nil)
+(agda2-info-action "*All Goals*" "?2 : Set ?3 : Set " nil)
 ((last . 1) . (agda2-goals-action '(2 3)))

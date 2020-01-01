@@ -18,5 +18,5 @@ newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Ty
 newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
 newNamedValueMeta':: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
 newTelMeta        :: MonadMetaSolver m => Telescope -> m Args
-newSortMeta       :: TCM Sort
+newSortMeta       :: MonadMetaSolver m => m Sort
 checkMetaInst     :: MetaId -> TCM ()

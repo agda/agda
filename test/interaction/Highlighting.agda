@@ -77,3 +77,9 @@ idPoly0 x = x
 
 idPolyE : {@erased A : Set} → A → A
 idPolyE x = x
+
+-- Issue #3989: Shadowed repeated variables in telescopes should by
+-- default /not/ be highlighted.
+
+Issue-3989 : (A A : Set) → Set
+Issue-3989 _ A = A

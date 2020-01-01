@@ -324,6 +324,9 @@ updateCompiledClauses f _                              = __IMPOSSIBLE__
 updateDefCopatternLHS :: (Bool -> Bool) -> Definition -> Definition
 updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS = f b }
 
+updateDefBlocked :: (Blocked_ -> Blocked_) -> Definition -> Definition
+updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
+
 ---------------------------------------------------------------------------
 -- * Top level module
 ---------------------------------------------------------------------------

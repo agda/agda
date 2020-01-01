@@ -32,6 +32,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
+import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
@@ -154,7 +155,7 @@ newSortMetaBelowInf = do
   return x
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
-newSortMeta :: TCM Sort
+newSortMeta :: MonadMetaSolver m => m Sort
 newSortMeta =
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
@@ -166,7 +167,7 @@ newSortMeta =
        return $ MetaS x []
 
 -- | Create a sort meta that may be instantiated with 'Inf' (Setω).
-newSortMetaCtx :: Args -> TCM Sort
+newSortMetaCtx :: MonadMetaSolver m => Args -> m Sort
 newSortMetaCtx vs = do
     i   <- createMetaInfo
     tel <- getContextTelescope
@@ -188,6 +189,14 @@ newTypeMeta_  = newTypeMeta' CmpEq =<< (workOnTypes $ newSortMeta)
 -- Andreas, 2011-04-27: If a type meta gets solved, than we do not have to check
 -- that it has a sort.  The sort comes from the solution.
 -- newTypeMeta_  = newTypeMeta Inf
+
+newLevelMeta :: MonadMetaSolver m => m Level
+newLevelMeta = do
+  (x, v) <- newValueMeta RunMetaOccursCheck CmpEq =<< levelType
+  return $ case v of
+    Level l    -> l
+    MetaV x vs -> Max 0 [Plus 0 (MetaLevel x vs)]
+    _          -> Max 0 [Plus 0 (UnreducedLevel v)]
 
 -- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.

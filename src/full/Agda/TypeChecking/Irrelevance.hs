@@ -325,6 +325,7 @@ instance UsableRelevance Sort where
     Inf    -> return True
     SizeUniv -> return True
     PiSort a s -> usableRel rel (a,s)
+    FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
     DefS d es  -> usableRel rel $ Def d es

@@ -7,7 +7,7 @@ General
 * Agda now has an official logo: ![The official Agda
   logo](doc/user-manual/agda.svg)
   (https://github.com/agda/agda/blob/master/doc/user-manual/agda.svg). The
-  logo was chosen by the Agda community from a list of candidates. The winning design was submitted by Miëtik Bak. The list of candidates and the outcome of the poll can be consulted [here](https://civs.cs.cornell.edu/cgi-bin/results.pl?id=E_ce6fe5e2a518ac98).
+  logo was chosen by the Agda community from a list of candidates. The winning design was submitted by Miëtek Bak. The list of candidates and the outcome of the poll can be consulted [here](https://civs.cs.cornell.edu/cgi-bin/results.pl?id=E_ce6fe5e2a518ac98).
 
 Installation and infrastructure
 -------------------------------
@@ -209,6 +209,15 @@ Language
 * `codata` definitions have been removed from the concrete syntax
   Previously they got accepted syntactically, but resulted in errors.
 
+* Imports can now be anonymous.
+  (See issue [#3727](https://github.com/agda/agda/issues/3727).)
+  For example, the following will **not** bring `Agda.Builtin.Unit` into scope:
+  ```agda
+  open import Agda.Builtin.Unit as _
+  blah :: ⊤
+  blah = tt
+  ```
+
 ### Modalities
 
 * New Flat Modality
@@ -357,6 +366,25 @@ Emacs mode
 * Agda will now try to preserve the ellipsis (`...`) during case
   splitting when possible. To manually expand the ellipsis, you may
   ask Agda to case split on the special identifier `.`.
+
+* Agda will now also show variables named `_` in the context if they
+  are instance arguments (see
+  [#4307](https://github.com/agda/agda/issues/4307)). Instance
+  arguments are now also marked as `(instance)` in the context. Example:
+
+  ```agda
+  f : {{_ : A}} → A
+  f = ?
+  ```
+
+  Agda will now display the goal as follows:
+
+  ```
+  Goal: A
+  ————————————————————————————————————————————————————————————
+  _ : A   (instance)
+  ```
+
 
 GHC Backend
 -----------

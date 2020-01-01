@@ -108,7 +108,7 @@ isType_ e = traceCall (IsType_ e) $ do
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
       b <- isType_ b
-      s <- inferFunSort a (getSort b)
+      s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
@@ -1149,7 +1149,7 @@ checkExpr' cmp e t =
             a' <- isType_ a
             let adom = defaultArgDom info a'
             b' <- isType_ b
-            s  <- inferFunSort adom (getSort b')
+            s  <- inferFunSort (getSort a') (getSort b')
             let v = Pi adom (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce cmp v (sort s) t

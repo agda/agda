@@ -416,6 +416,8 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
           , [ "erased"       | not $ getQuantity  ai `moreQuantity` getQuantity  mod ]
             -- Print irrelevant if hypothesis is strictly less relevant than goal.
           , [ "irrelevant"   | not $ getRelevance ai `moreRelevant` getRelevance mod ]
+            -- Print instance if variable is considered by instance search
+          , [ "instance"     | isInstance ai ]
           ]
       ty <- prettyATop expr
       maybeVal <- traverse prettyATop letv

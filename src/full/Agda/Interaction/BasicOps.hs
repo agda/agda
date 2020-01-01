@@ -963,7 +963,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
   where
     mkVar :: Dom (Name, Type) -> TCM (Maybe ResponseContextEntry)
     mkVar Dom{ domInfo = ai, unDom = (name, t) } = do
-      if shouldHide name then return Nothing else Just <$> do
+      if shouldHide ai name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
@@ -973,7 +973,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
     mkLet :: (Name, Open (Term, Dom Type)) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
       (tm, !dom) <- getOpen lb
-      if shouldHide name then return Nothing else Just <$> do
+      if shouldHide (domInfo dom) name then return Nothing else Just <$> do
         let n = nameConcrete name
         x  <- abstractToConcrete_ name
         let s = C.isInScope x
@@ -981,8 +981,8 @@ contextOfMeta ii norm = withInteractionId ii $ do
         v  <- reifyUnblocked =<< normalForm norm tm
         return $ ResponseContextEntry n x ty (Just v) s
 
-    shouldHide :: A.Name -> Bool
-    shouldHide n = isNoName n || nameIsRecordName n
+    shouldHide :: ArgInfo -> A.Name -> Bool
+    shouldHide ai n = not (isInstance ai) && (isNoName n || nameIsRecordName n)
 
 -- | Returns the type of the expression in the current environment
 --   We wake up irrelevant variables just in case the user want to
