@@ -1,9 +1,9 @@
 Failed to solve the following constraints:
   Resolve instance argument
     _AF_161
-      : {n = n₂ : Nat} {n = n₃ : Nat} {F = F₁ : Set → Set}
-        {A : Set} {B = B₁ : Set} ⦃ AF = AF₁ : Applicative F₁ ⦄
-        (f₁ : A → F₁ B₁) (x₁ : A) (v₁ : Vec A n₂) →
+      : {n = n₂ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
+        ⦃ AF = AF₁ : Applicative F₁ ⦄ (f₁ : A → F₁ B₁) {n = n₃ : Nat}
+        (x₁ : A) (v₁ : Vec A n₃) →
         Applicative (λ v₂ → _F_168 v₂)
   Candidates
     AF : Applicative F
