@@ -24,6 +24,9 @@ import qualified Data.Set as Set
 import Data.Foldable (all)
 import Data.Traversable hiding (for)
 
+import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -196,16 +199,19 @@ checkNoShadowing :: LocalVars  -- ^ Old local scope
                  -> LocalVars  -- ^ New local scope
                  -> ScopeM ()
 checkNoShadowing old new = do
-  -- LocalVars is currnently an AssocList so the difference between
-  -- two local scope is the left part of the new one.
-  let diff = dropEnd (length old) new
-  -- Filter out the underscores.
-  let newNames = filter (not . isNoName) $ AssocList.keys diff
-  -- Associate each name to its occurrences.
-  let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
-  -- Warn if we have two or more occurrences of the same name.
-  unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-    warning $ NicifierIssue $ ShadowingInTelescope conflicts
+  opts <- pragmaOptions
+  when (ShadowingInTelescope_ `Set.member`
+          (optWarningMode opts ^. warningSet)) $ do
+    -- LocalVars is currnently an AssocList so the difference between
+    -- two local scope is the left part of the new one.
+    let diff = dropEnd (length old) new
+    -- Filter out the underscores.
+    let newNames = filter (not . isNoName) $ AssocList.keys diff
+    -- Associate each name to its occurrences.
+    let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+    -- Warn if we have two or more occurrences of the same name.
+    unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
+      warning $ NicifierIssue $ ShadowingInTelescope conflicts
   where
     pairWithRange :: C.Name -> (C.Name, [Range])
     pairWithRange n = (n, [getRange n])
