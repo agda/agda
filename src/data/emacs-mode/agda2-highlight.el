@@ -505,9 +505,14 @@ If `agda2-highlight-face-groups' is nil."
 
 The aspects currently recognised are the following:
 
+`background'             Non-Agda code contents in literate mode.
 `bound'                  Bound variables.
+`catchallclause'         Clause not holding definitionally.
 `coinductiveconstructor' Coinductive constructors.
+`comment'                Comments.
+`coverageproblem'        Coverage problems.
 `datatype'               Data types.
+`deadcode'               Deadcode (like unreachable clauses or RHS).
 `dotted'                 Dotted patterns.
 `error'                  Errors.
 `field'                  Record fields.
@@ -516,31 +521,26 @@ The aspects currently recognised are the following:
 `incompletepattern'      Incomplete patterns.
 `inductiveconstructor'   Inductive constructors.
 `keyword'                Keywords.
+`macro'                  Macros.
+`markup'                 Delimiters to separate the Agda code blocks
+                           from other contents.
 `module'                 Module names.
 `number'                 Numbers.
 `operator'               Operators.
+`positivityproblem'      Positivity problems.
 `postulate'              Postulates.
 `pragma'                 Text occurring in pragmas that does not have
                            a more specific (syntactic) aspect.
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
-`macro'                  Macros.
 `record'                 Record types.
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
-`positivityproblem'      Positivity problems.
-`deadcode'               Deadcode (like unreachable clauses or RHS)
-`coverageproblem'        Coverage problems.
-`catchallclause'         Clause not holding definitionally.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
-`unsolvedmeta'           Unsolved meta variables.
-`background'             Non-Agda code contents in literate mode.
-`markup'                 Delimiters to separate the Agda code blocks
-                           from other contents
-`comment'                Comments.")
+`unsolvedmeta'           Unsolved meta variables.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables
