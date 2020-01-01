@@ -243,11 +243,18 @@ usageWarning = intercalate "\n"
   , ""
   , untable (fmap (fst &&& snd . snd) warningSets)
   , "Individual warnings can be turned on and off by -W Name and\
-    \ -W noName respectively. The flags available are:"
+    \ -W noName, respectively, where Name comes from the following\
+    \ list (warnings marked with 'd' are turned on by default, and 'b'\
+    \ stands for \"benign warning\"):"
   , ""
   , untable $ forMaybe [minBound..maxBound] $ \ w ->
     let wnd = warningNameDescription w in
-    (warningName2String w, wnd) <$ guard (not $ null wnd)
+    ( warningName2String w
+    , (if w `Set.member` usualWarnings then "d" else " ") ++
+      (if not (w `Set.member` errorWarnings) then "b" else " ") ++
+      " " ++
+      wnd
+    ) <$ guard (not $ null wnd)
   ]
 
   where
