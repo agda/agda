@@ -313,7 +313,11 @@ inferDef mkTerm x =
   traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
-    d  <- instantiateDef =<< getConstInfo x
+    d0 <- getConstInfo x
+    d  <- instantiateDef d0
+    reportSDoc "tc.term.def" 10 $ "inferDef" <+> prettyTCM x
+    reportSDoc "tc.term.def" 30 $ "  absolute type:    " <+> inTopContext (prettyTCM $ defType d0)
+    reportSDoc "tc.term.def" 30 $ "  instantiated type:" <+> prettyTCM (defType d)
     -- Irrelevant defs are only allowed in irrelevant position.
     -- Erased defs are only allowed in erased position (see #3855).
     checkModality x d
@@ -332,6 +336,7 @@ inferDef mkTerm x =
         -- since x is considered living in the top-level, we have to
         -- apply it to the current context
         vs <- freeVarsToApply x
+        reportSDoc "tc.term.def" 30 $ "  free vars:" <+> prettyList_ (map prettyTCM vs)
         let t = defType d
             v = mkTerm vs -- applies x to vs, dropping parameters
 
