@@ -15,7 +15,7 @@ test₁ : ∀{n} → IsSuc n → Set
 test₁ p = aux p
   where
   aux : ∀{n} → IsSuc n → Set
-  aux isSuc = {!n!}  -- C-c C-c
+  aux isSuc = {!n₁!}  -- C-c C-c
   -- Expected: aux (isSuc {n}) = {!!}
 
 -- Context:
