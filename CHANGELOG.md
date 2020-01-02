@@ -210,7 +210,7 @@ Language
   Previously they got accepted syntactically, but resulted in errors.
 
 * Imports can now be anonymous.
-  (See issue [#3727](https://github.com/agda/agda/issues/3727).)
+  (See Issue_[#3727](https://github.com/agda/agda/issues/3727).)
   For example, the following will **not** bring `Agda.Builtin.Unit` into scope:
   ```agda
   open import Agda.Builtin.Unit as _
@@ -297,7 +297,9 @@ Language
           @(tactic solveP x) {y} : P x
   ```
 
-  where `solveP : (x : A) → Term → TC ⊤` is a tactic that tries to prove `P x`.
+  where `solveP : (x : A) → Term → TC ⊤` is a tactic that tries to
+  prove `P x`
+  [Issue [#4124](https://github.com/agda/agda/issues/4124)].
 
 * The legacy reflection framework using `quoteGoal` and `quoteContext` has been
   removed.
@@ -361,7 +363,8 @@ Emacs mode
   This somehow provides more information about how Agda lexes literate files.
 
 * Agda now also displays the values of let-bound variables in the
-  context instead of just their types.
+  context instead of just their types
+  [Issue [#4199](https://github.com/agda/agda/issues/4199)].
 
 * Agda will now try to preserve the ellipsis (`...`) during case
   splitting when possible. To manually expand the ellipsis, you may
