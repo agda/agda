@@ -481,10 +481,10 @@ debug : ## Print debug information.
 	@echo "CABAL_INSTALL_CMD     = $(CABAL_INSTALL_CMD)"
 	@echo "CABAL_INSTALL_OPTS    = $(CABAL_INSTALL_OPTS)"
 	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
-	@echo "STACK_CMD             = $(STACK_CMD)"
-	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
+	@echo "STACK_CMD             = $(STACK_CMD)"
+	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."
 	@echo
