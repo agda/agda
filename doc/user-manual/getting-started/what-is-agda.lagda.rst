@@ -12,9 +12,10 @@ What is Agda?
   :alt: The official Agda logo
 
 Agda is a dependently typed programming language. It is an extension
-of Martin-Löf's type theory and is the latest in the tradition of
-languages developed in the programming logic group at Chalmers.  Other
-languages in this tradition are `Alf
+of `Martin-Löf's type theory
+<https://ncatlab.org/nlab/show/Martin-L%C3%B6f+dependent+type+theory>`_
+and is the latest in the tradition of languages developed in the
+programming logic group at Chalmers. Other languages in this tradition are `Alf
 <http://www.cse.chalmers.se/~bengt/papers/alfengine.pdf>`_, `Alfa
 <http://www.cse.chalmers.se/~hallgren/Alfa/>`_, `Agda 1
 <https://sourceforge.net/projects/agda/>`_, `Cayenne
@@ -33,9 +34,9 @@ Dependent types
 Typing for programmers
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Type theory is concerned both with programming and logic. We see the
-type system as a way to express syntactic correctness. A type correct
-program has a meaning.
+`Type theory <https://ncatlab.org/nlab/show/type+theory>`_ is concerned
+both with programming and logic. We see the type system as a way to
+express syntactic correctness. A type correct program has a meaning.
 `Lisp <https://en.wikipedia.org/wiki/Lisp_%28programming_language%29>`_
 is a totally untyped programming language, and so are its derivatives
 like
@@ -80,10 +81,11 @@ the programmer).
 Dependent types
 ~~~~~~~~~~~~~~~
 
-Dependent types are introduced by having families of types indexed by
-objects in another type. For instance, we can define the type ``Vec
-n`` of vectors of length ``n``. This is a family of types indexed by
-objects in ``Nat`` (a type parameterized by natural numbers).
+`Dependent types <https://ncatlab.org/nlab/show/dependent+type>`_ are
+introduced by having families of types indexed by objects in another type.
+For instance, we can define the type ``Vec n`` of vectors of length ``n``.
+This is a family of types indexed by objects in ``Nat`` (a type
+parameterized by natural numbers).
 
 Having dependent types, we must generalize the type of functions and
 the type of pairs.
