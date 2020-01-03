@@ -47,13 +47,13 @@ travis_fold end "ghc.info"
 # We are using `make CABAL_OPTS...` because we are including the
 # options to `cabal install` set up in the `Makefile`.
 
-travis_fold start "build.dependencies"
+#travis_fold start "build.dependencies"
 
-title "Building dependencies"
+#title "Building dependencies"
 # travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
-travis_retry make CABAL_OPTS='-v0 --only-dependencies' install-bin
+#travis_retry make CABAL_OPTS='-v0 --only-dependencies' install-bin
 
-travis_fold end "build.dependencies"
+#travis_fold end "build.dependencies"
 ##############################################################################
 # Installing Agda
 
