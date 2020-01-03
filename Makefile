@@ -96,7 +96,6 @@ else
 	@echo "===================== Installing using Cabal with test suites ============"
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
-# so always configure -> build -> install.
 	@echo "===================== Installing using Cabal with test suites ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
