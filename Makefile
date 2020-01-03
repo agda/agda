@@ -61,8 +61,12 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 # install/configure below. They are always the last options given to
 # the command.
 GHC_OPTS           = "+RTS -M3G -RTS"
-CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
-STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+CABAL_INSTALL_OPTS = -fenable-cluster-counting \
+                     --ghc-options=$(GHC_OPTS) \
+                     $(CABAL_OPTS)
+STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting \
+                     --ghc-options $(GHC_OPTS) \
+                     $(STACK_OPTS)
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
@@ -171,7 +175,6 @@ haddock :
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
-
 ##############################################################################
 ## The user manual
 
@@ -215,7 +218,6 @@ up-to-date-std-lib : std-lib
 fast-forward-std-lib :
 	git submodule update --init --remote std-lib
 	@(cd std-lib && make setup)
-
 
 ##############################################################################
 ## Testing
@@ -376,7 +378,7 @@ test-size-solver : install-size-solver
 ##############################################################################
 ## Development
 
-## Whitespace-related #####################################################
+## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
@@ -401,7 +403,7 @@ else
 	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
-## agda-bisect standalone program ###########################################
+## agda-bisect standalone program ############################################
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
@@ -422,7 +424,7 @@ hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
 
-## Lines of Code ############################################################
+## Lines of Code #############################################################
 
 agdalocfiles=$(shell find . \( \( -name '*.agda' -o -name '*.in' \) ! -name '.*' \) )
 
@@ -463,7 +465,7 @@ help: ## Display this information.
 		-e "s/^\(#\{2,\}[[:blank:]]*\)\([^#]\{1,\}\)$$/\2/p" \
 		Makefile | \
 		awk 'BEGIN {FS = "##"}; \
-			NF == 0 { print };\
+			NF == 0 { print }; \
 			NF == 1 { print $$1 };\
 	  	NF == 2 { printf "  \033[36m%-26s\033[0m %s\n", $$1, $$2};'
 
