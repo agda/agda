@@ -37,7 +37,9 @@ endif
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
+CABAL_CONFIGURE_HELPER = $(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --disable-documentation
 STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
+
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
@@ -52,10 +54,11 @@ QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
 
-CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
-                          $(SLOW_CABAL_INSTALL_OPTS)
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
+
+CABAL_CONFIGURE         = $(CABAL_CONFIGURE_HELPER) \
+                          $(SLOW_CABAL_INSTALL_OPTS)
 
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
@@ -72,9 +75,6 @@ CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
 STACK_INSTALL_BIN_OPTS = --no-library-profiling \
                          $(STACK_INSTALL_OPTS)
-
-CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
-                       $(CABAL_INSTALL_BIN_OPTS)
 
 ##############################################################################
 ## Build and installation
@@ -98,8 +98,12 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
-	time $(CABAL_CMD) $(CABAL_INSTALL_CMD)
+# `cabal new-install --enable-tests` emits the error message (bug?):
+# cabal: --enable-tests was specified, but tests can't be enabled in a remote package
+# so always configure -> build -> install.
+	$(CABAL_CONFIGURE) $(CABAL_INSTALL_BIN_OPTS)
+	time $(CABAL_CMD) $(CABAL_BUILD_CMD)
+	$(CABAL_CMD) $(CABAL_INSTALL_CMD)
 endif
 
 .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
@@ -127,10 +131,10 @@ endif
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
 install-prof-bin : ensure-hash-is-correct
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(SLOW_CABAL_INSTALL_OPTS) \
-		--enable-library-profiling --enable-profiling \
+	$(CABAL_CONFIGURE) \
+    --enable-library-profiling --enable-profiling \
     --program-suffix=_p \
-		$(CABAL_INSTALL_OPTS)
+    $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) $(CABAL_INSTALL_CMD)
 
 # --program-suffix is not for the executable name in
@@ -141,8 +145,8 @@ install-prof-bin : ensure-hash-is-correct
 
 .PHONY : install-debug ## Install Agda with debug enabled via cabal.
 install-debug : ensure-hash-is-correct
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(SLOW_CABAL_INSTALL_OPTS) \
-		--disable-library-profiling \
+	$(CABAL_CONFIGURE) \
+    --disable-library-profiling \
     -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
     $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) $(CABAL_INSTALL_CMD)
