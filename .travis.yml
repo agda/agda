@@ -104,7 +104,6 @@ jobs:
           - ${TRAVIS_BUILD_DIR}/.stack-work
           - $HOME/.local/bin
       before_install:
-        - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
         # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
         - cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
         - cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori
@@ -125,6 +124,7 @@ jobs:
         - export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
         - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
+        - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
