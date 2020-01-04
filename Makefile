@@ -73,7 +73,7 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_BIN_OPTS)
 
 ##############################################################################
-## Build and installation
+## Installation
 
 .PHONY: default
 default: install-bin
