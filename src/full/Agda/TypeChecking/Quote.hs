@@ -25,13 +25,14 @@ import Agda.Utils.Size
 
 
 data QuotingKit = QuotingKit
-  { quoteTermWithKit   :: Term       -> ReduceM Term
-  , quoteTypeWithKit   :: Type       -> ReduceM Term
-  , quoteClauseWithKit :: Clause     -> ReduceM Term
-  , quoteDomWithKit    :: Dom Type   -> ReduceM Term
-  , quoteDefnWithKit   :: Definition -> ReduceM Term
-  , quoteConstrWithKit :: Constraint -> ReduceM Term
-  , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
+  { quoteTermWithKit    :: Term       -> ReduceM Term
+  , quoteTypeWithKit    :: Type       -> ReduceM Term
+  , quoteClauseWithKit  :: Clause     -> ReduceM Term
+  , quoteDomWithKit     :: Dom Type   -> ReduceM Term
+  , quoteDefnWithKit    :: Definition -> ReduceM Term
+  , quoteConstrWithKit  :: Constraint -> ReduceM Term
+  , quoteClosureWithKit :: forall a. (a -> ReduceM Term) -> [Dom Type] -> a -> ReduceM Term
+  , quoteListWithKit    :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
 quotingKit :: TCM QuotingKit
@@ -80,6 +81,7 @@ quotingKit = do
   Con z _ _       <- primZero
   Con s _ _       <- primSuc
   unsupported     <- primAgdaTermUnsupported
+  closure         <- primAgdaClosureClosure
   asTermsOf       <- primAgdaAsTermsOf
   asTypes         <- primAgdaAsTypes
   asSizes         <- primAgdaAsSizes
@@ -285,7 +287,11 @@ quotingKit = do
         case constr of
           ValueCmp cmp cmpas t1 t2 -> constraintValueCmp !@ quoteComparison cmp @@  quoteCompareAs cmpas @@ quoteTerm t1 @@ quoteTerm t2
           _                        -> pure unsupportedConstraint
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteConstr quoteList
+
+      quoteClosure :: (a -> ReduceM Term) -> [Dom Type] -> a -> ReduceM Term
+      quoteClosure q ctx cl = closure !@ (quoteList (quoteDom quoteType) ctx) @@ q cl
+
+  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteConstr quoteClosure quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString noRange
@@ -328,6 +334,13 @@ quoteConstraint :: Constraint -> TCM Term
 quoteConstraint constr = do
   kit <- quotingKit
   runReduceM (quoteConstrWithKit kit constr)
+
+quoteClosure :: [Dom Type] -> Constraint -> TCM Term
+quoteClosure ctx cl =
+  do
+    kit <- quotingKit
+    runReduceM (quoteClosureWithKit kit (quoteConstrWithKit kit) ctx cl)
+
 
 quoteList :: [Term] -> TCM Term
 quoteList xs = do

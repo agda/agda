@@ -266,6 +266,12 @@ data Constraint : Set where
 {-# BUILTIN AGDACONSTRAINTVALUECMP     valueCmp    #-}
 {-# BUILTIN AGDACONSTRAINTUNSUPPORTED  unsupported #-}
 
+data Closure {a} (A : Set a) : Set a where
+  closure : List (Arg Type) → A → Closure A
+
+{-# BUILTIN AGDACLOSURE           Closure #-}
+{-# BUILTIN AGDACLOSURECLOSURE    closure #-}
+
 -- TC monad --
 
 postulate
@@ -307,7 +313,7 @@ postulate
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
 -- Gets all the constraints that mention the given meta-variables.
-  getConstraintsMentioning : List Meta → TC (List Constraint)
+  getConstraintsMentioning : List Meta → TC (List (Closure Constraint))
 
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the

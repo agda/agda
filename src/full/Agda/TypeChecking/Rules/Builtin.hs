@@ -231,9 +231,11 @@ coreBuiltins =
   , builtinAgdaAsTermsOf                     |-> BuiltinDataCons (ttype --> tcompareas)
   , builtinAgdaAsTypes                       |-> BuiltinDataCons tcompareas
   , builtinAgdaAsSizes                       |-> BuiltinDataCons tcompareas
+  , builtinAgdaClosure                       |-> BuiltinData (tset --> tset) [builtinAgdaClosureClosure]
   , builtinAgdaCompareAs                     |-> BuiltinData tset [builtinAgdaAsTermsOf, builtinAgdaAsTypes, builtinAgdaAsSizes]
   , builtinAgdaConstraintValueCmp            |-> BuiltinDataCons (tcomparison --> tcompareas --> tterm --> tterm --> tconstraint)
   , builtinAgdaConstraint                    |-> BuiltinData tset [builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported ]
+  , builtinAgdaClosureClosure                |-> BuiltinDataCons (hPi "A" tset (tlist (targ ttype) --> tv0 --> tclosure tv0))
   , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
@@ -371,7 +373,7 @@ coreBuiltins =
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
-  , builtinAgdaTCMGetConstraintsMentioning   |-> builtinPostulate (tlist tmeta --> tTCM_ (unEl <$> tlist (tconstraint)))
+  , builtinAgdaTCMGetConstraintsMentioning   |-> builtinPostulate (tlist tmeta --> tTCM_ (unEl <$> tlist (tclosure tconstraint)))
   , builtinAgdaTCMRunSpeculative          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                 tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@>
                                                                           (Lam defaultArgInfo . Abs "_" <$> primBool)) -->
@@ -406,6 +408,7 @@ coreBuiltins =
         targs       = el (list (arg primAgdaTerm))
         tterm       = el primAgdaTerm
         tcomparison = el primAgdaComparison
+        tclosure x  = el (primAgdaClosure <@> fmap unEl x)
         tcompareas  = el primAgdaCompareAs
         tconstraint = el primAgdaConstraint
         terrorpart  = el primAgdaErrorPart
