@@ -524,6 +524,8 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
   let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
   if not pubAbs then m else do
     (a, ms) <- metasCreatedBy m
+    reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
+    wakeupConstraints_   -- solve emptiness and instance constraints
     xs <- freezeMetas' $ (`IntSet.member` ms) . metaId
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
@@ -869,11 +871,11 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     reportSDoc "tc.mod.apply" 15 $ vcat
       [ "applying section" <+> prettyTCM m2
       , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
+      , nest 2 $ "ptel =" <+> unsafeEscapeContext (size ptel) (prettyTCM ptel)
       , nest 2 $ "tel  =" <+> prettyTCM tel
       , nest 2 $ "tel' =" <+> prettyTCM tel'
       , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      , nest 2 $ "eta  =" <+> unsafeEscapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
     ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case

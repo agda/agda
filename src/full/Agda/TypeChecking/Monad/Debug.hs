@@ -205,6 +205,12 @@ reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage k n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
 
+-- | Debug print the result of a computation.
+reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
+reportResult k n debug action = do
+  x <- action
+  x <$ reportSDoc k n (debug x)
+
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
 

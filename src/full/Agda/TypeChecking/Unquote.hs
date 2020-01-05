@@ -103,7 +103,7 @@ liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUn
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
   packUnquoteM $ \ cxt s ->
-    modifyContext (const cxt) $ unpackUnquoteM m cxt s
+    unsafeModifyContext (const cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftTCM tm
@@ -609,8 +609,12 @@ evalTCM v = do
     tcGetConstraintsMentioning :: [MetaId] -> TCM Term
     tcGetConstraintsMentioning ms = do
       let cond = return . mentionsMetas (HashSet.fromList ms)
-      c <- getConstraintsMentioning cond
-      buildList <*> mapM quoteConstraint (map (clValue . theConstraint) c)
+      cs <- map theConstraint <$> getConstraintsMentioning cond
+      buildList <*> mapM (\ cl -> enterClosure cl (\ x ->
+                                                   do
+                                                     as <- map (fmap snd) <$> getContext
+                                                     as <- etaContract =<< process as
+                                                     quoteClosure as x )) cs
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do

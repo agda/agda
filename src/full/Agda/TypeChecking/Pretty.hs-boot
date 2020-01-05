@@ -17,11 +17,15 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars (MonadInteractionPoints)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.Utils.Null (Null)
 import Agda.Utils.Pretty (Doc)
--- import qualified Agda.Utils.Pretty as P
+import qualified Agda.Utils.Pretty as P
 
 text                  :: Monad m => String -> m Doc
 sep, fsep, hsep, vcat :: Monad m => [m Doc] -> m Doc
-($$), (<+>)           :: Applicative m => m Doc -> m Doc -> m Doc
+hang                  :: Applicative m => m Doc -> Int -> m Doc -> m Doc
+($$), (<+>), (<?>)    :: Applicative m => m Doc -> m Doc -> m Doc
+nest                  :: Functor m => Int -> m Doc -> m Doc
+pretty                :: (Monad m, P.Pretty a) => a -> m Doc
+prettyList_           :: (Monad m, Semigroup (m Doc)) => [m Doc] -> m Doc
 
 -- Inlining definitions of MonadReify and MonadAbsToCon to avoid
 -- having to import them
@@ -50,6 +54,8 @@ type MonadPretty m =
 class PrettyTCM a where
   prettyTCM :: MonadPretty m => a -> m Doc
 
+newtype PrettyContext = PrettyContext Context
+
 instance PrettyTCM a => PrettyTCM (Closure a)
 instance PrettyTCM a => PrettyTCM [a]
 
@@ -61,3 +67,4 @@ instance PrettyTCM Type
 instance PrettyTCM Sort
 instance PrettyTCM DisplayTerm
 instance PrettyTCM DBPatVar
+instance PrettyTCM PrettyContext

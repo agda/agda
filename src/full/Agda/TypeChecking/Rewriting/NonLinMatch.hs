@@ -242,6 +242,9 @@ instance Match Type NLPat Term where
           traceSDoc "rewriting.match" 30 (sep
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
+        maybeBlock w = case w of
+          MetaV m es -> matchingBlocked $ Blocked m ()
+          _          -> no ""
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         let allowedVars :: IntSet
@@ -260,7 +263,6 @@ instance Match Type NLPat Term where
             let t' = telePi  tel $ renameP __IMPOSSIBLE__ perm t
                 v' = teleLam tel $ renameP __IMPOSSIBLE__ perm v
             in tellSub r (i-n) t' v'
-      _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
         v <- addContext k $ constructorForm =<< unLevel v
@@ -296,30 +298,30 @@ instance Match Type NLPat Term where
             match r gamma k (ct, Con c ci []) ps' (map Apply vs)
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _  -> no ""
+          v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
         MetaV m es -> matchingBlocked $ Blocked m ()
-        _ -> no ""
+        v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do
           match r gamma k () pa a
           let k' = ExtendTel a (Abs (absName b) k)
           match r gamma k' () (absBody pb) (absBody b)
-        _ -> no ""
+        v -> maybeBlock v
       PSort ps -> case v of
         Sort s -> match r gamma k () ps s
-        _ -> no ""
+        v -> maybeBlock v
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
           let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i
           match r gamma k (ti , var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar i $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
@@ -330,7 +332,7 @@ instance Match Type NLPat Term where
           let flds = map argFromDom $ recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
           match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
-        _ -> no ""
+        v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
 

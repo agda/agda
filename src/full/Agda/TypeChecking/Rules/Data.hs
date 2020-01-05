@@ -149,7 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            escapeContext npars $ do
+            unsafeEscapeContext npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -210,6 +210,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Relevant   -> return ()
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
+        case getQuantity ai of
+          Quantityω{} -> return ()
+          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
         -- compute which constructor arguments are forced (only point constructors)
@@ -237,12 +241,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        escapeContext (size tel) $ do
+        unsafeEscapeContext (size tel) $ do
 
           -- Cannot compose indexed inductive types yet.
           (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
             then return (ConHead c Inductive [], emptyCompKit, Nothing)
-            else inTopContext $ do
+            else unsafeInTopContext $ do
               -- Name for projection of ith field of constructor c is just c-i
               names <- forM [0 .. size fields - 1] $ \ i ->
                 freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i

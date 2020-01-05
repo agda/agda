@@ -400,13 +400,13 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
       case namedArg q of
         ProjP o d -> case A.isProjP p of
           Just (o', AmbQ ds) -> do
+            -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
+            if o /= o' then liftTCM $ mismatchOrigin o o' else do
             -- Andreas, 2016-12-28, issue #2360:
             -- We disambiguate the projection in the with clause
             -- to the projection in the parent clause.
             d  <- liftTCM $ getOriginalProjection d
-            found <- anyM ds ((d ==) <.> (liftTCM . getOriginalProjection))
-            -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
-            if o /= o' then liftTCM $ mismatchOrigin o o' else do
+            found <- anyM ds $ \ d' -> liftTCM $ (Just d ==) . fmap projOrig <$> isProjection d'
             if not found then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t

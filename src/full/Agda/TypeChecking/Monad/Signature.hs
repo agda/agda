@@ -46,6 +46,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
@@ -61,7 +62,6 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Update
 
@@ -70,7 +70,7 @@ import Agda.Utils.Impossible
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
-  reportSLn "tc.signature" 20 $ "adding constant " ++ prettyShow q ++ " to signature"
+  reportSDoc "tc.signature" 20 $ "adding constant " <+> pretty q <+> " to signature"
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
@@ -83,7 +83,7 @@ addConstant q d = do
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
   let d' = abstract tel' $ d { defName = q }
-  reportSDoc "tc.signature" 60 $ return $ "lambda-lifted definition =" <?> pretty d'
+  reportSDoc "tc.signature" 60 $ "lambda-lifted definition =" <?> pretty d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
@@ -158,7 +158,7 @@ getUniqueCompilerPragma backend q = do
     [p] -> return $ Just p
     (_:p1:_) ->
       setCurrentRange p1 $
-            genericDocError $
+            genericDocError =<< do
                   hang (text ("Conflicting " ++ backend ++ " pragmas for") <+> pretty q <+> "at") 2 $
                        vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
@@ -196,12 +196,12 @@ addSection m = do
     if (sec == sec') then do
       -- Andreas, 2015-12-02: test/Succeed/Issue1701II.agda
       -- reports a "redundantly adding existing section".
-      reportSLn "tc.section" 10 $ "warning: redundantly adding existing section " ++ prettyShow m
-      reportSLn "tc.section" 60 $ "with content " ++ prettyShow sec
+      reportSDoc "tc.section" 10 $ "warning: redundantly adding existing section" <+> pretty m
+      reportSDoc "tc.section" 60 $ "with content" <+> pretty sec
     else do
-      reportSLn "impossible" 10 $ "overwriting existing section " ++ prettyShow m
-      reportSLn "impossible" 60 $ "of content   " ++ prettyShow sec'
-      reportSLn "impossible" 60 $ "with content " ++ prettyShow sec
+      reportSDoc "impossible" 10 $ "overwriting existing section" <+> pretty m
+      reportSDoc "impossible" 60 $ "of content  " <+> pretty sec'
+      reportSDoc "impossible" 60 $ "with content" <+> pretty sec
       __IMPOSSIBLE__
   -- Add the new section.
   setModuleCheckpoint m
@@ -267,27 +267,27 @@ addDisplayForms x = do
           case unSpine <$> body of
             Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
-              reportS "tc.display.section" 20
-                [ "adding display form " ++ prettyShow y ++ " --> " ++ prettyShow top
-                , show df
+              reportSDoc "tc.display.section" 20 $ vcat
+                [ "adding display form " <+> pretty y <+> " --> " <+> pretty top
+                , text (show df)
                 ]
               addDisplayForm y df
               add args top y es
-            Just v          -> noDispForm x $ "not a def body, but " ++ show v
+            Just v          -> noDispForm x $ "not a def body, but " <+> pretty v
             Nothing         -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
-              reportS "tc.display.section" 20
-                [ "adding display form " ++ prettyShow y ++ " --> " ++ prettyShow top
-                , show df
+              reportSDoc "tc.display.section" 20 $ vcat
+                [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
+                , text (show df)
                 ]
               addDisplayForm y df
         [] -> noDispForm x "no clauses"
         (_:_:_) -> noDispForm x "many clauses"
 
-    noDispForm x reason = reportSLn "tc.display.section" 30 $
-      "no display form from " ++ prettyShow x ++ " because " ++ reason
+    noDispForm x reason = reportSDoc "tc.display.section" 30 $
+      "no display form from" <+> pretty x <+> "because" <+> reason
 
     isVar VarP{} = True
     isVar _      = False
@@ -311,14 +311,14 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
         ds <- nubOn id . catMaybes <$> mapM (constructorData  . fst) rd
         cs <- nubOn id . concat    <$> mapM (dataConstructors . fst) rd
         new <- concat <$> mapM rename (ds ++ cs)
-        reportSLn "tc.mod.apply.complete" 30 $
-          "also copying: " ++ prettyShow new
+        reportSDoc "tc.mod.apply.complete" 30 $
+          "also copying: " <+> pretty new
         return $ new ++ rd
       where
         rename :: QName -> TCM (Ren QName)
         rename x =
           case lookup x rd of
-            Nothing -> do y <- freshName_ (prettyShow x)
+            Nothing -> do y <- freshName_ (show $ qnameName x)
                           return [(x, qnameFromList [y])]
             Just{}  -> return []
 
@@ -342,7 +342,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     forM_ (map fst rd) $ \ q -> do
       when (q `elem` noCopyList) $ typeError (TriedToCopyConstrainedPrim q)
 
-  reportSLn "tc.mod.apply" 10 $ render $ vcat
+  reportSDoc "tc.mod.apply" 10 $ vcat
     [ "applySection"
     , "new  =" <+> pretty new
     , "ptel =" <+> pretty ptel
@@ -365,7 +365,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
 
     argsToUse x = do
       let m = commonParentModule old x
-      reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ prettyShow m
+      reportSDoc "tc.mod.apply" 80 $ "Common prefix: " <+> pretty m
       size <$> lookupSection m
 
     copyDef :: Args -> (QName, QName) -> TCM ()
@@ -378,18 +378,18 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       hidings <- map getHiding . telToList <$> lookupSection (qnameModule x)
       let ts' = zipWith setHiding hidings ts
       commonTel <- lookupSection (commonParentModule old $ qnameModule x)
-      reportSLn "tc.mod.apply" 80 $ init $ unlines
-        [ "copyDef " ++ prettyShow x ++ " -> " ++ prettyShow y
-        , "ts' = " ++ prettyShow ts' ]
+      reportSDoc "tc.mod.apply" 80 $ vcat
+        [ "copyDef" <+> pretty x <+> "->" <+> pretty y
+        , "ts' = " <+> pretty ts' ]
       copyDef' ts' np def
       where
         copyDef' ts np d = do
-          reportSLn "tc.mod.apply" 60 $ "making new def for " ++ prettyShow y ++ " from " ++ prettyShow x ++ " with " ++ show np ++ " args " ++ show (defAbstract d)
-          reportSLn "tc.mod.apply" 80 $ init $ unlines
-            [ "args = " ++ show ts'
-            , "old type = " ++ prettyShow (defType d) ]
-          reportSLn "tc.mod.apply" 80 $
-            "new type = " ++ prettyShow t
+          reportSDoc "tc.mod.apply" 60 $ "making new def for" <+> pretty y <+> "from" <+> pretty x <+> "with" <+> text (show np) <+> "args" <+> text (show $ defAbstract d)
+          reportSDoc "tc.mod.apply" 80 $ vcat
+            [ "args = " <+> text (show ts')
+            , "old type = " <+> pretty (defType d) ]
+          reportSDoc "tc.mod.apply" 80 $
+            "new type = " <+> pretty t
           addConstant y =<< nd y
           makeProjection y
           -- Issue1238: the copied def should be an 'instance' if the original
@@ -485,7 +485,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         , funExtLam         = extlam
                         , funWith           = with
                         }
-                  reportSDoc "tc.mod.apply" 80 $ return $ ("new def for" <+> pretty x) <?> pretty newDef
+                  reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
             cl = Clause { clauseLHSRange  = getRange $ defClauses d
@@ -541,11 +541,11 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       totalArgs <- argsToUse x
       tel       <- lookupSection x
       let sectionTel =  apply tel $ take totalArgs ts
-      reportSLn "tc.mod.apply" 80 $ "Copying section " ++ prettyShow x ++ " to " ++ prettyShow y
-      reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ List.intercalate "; " (map prettyShow ts)
-      reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ List.intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
-      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ List.intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
+      reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
+      reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
+      reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
+      reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (List.intercalate " " (map (fst . unDom) $ telToList tel))  -- only names
+      reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (List.intercalate " " (map (fst . unDom) $ telToList ptel)) -- only names
       addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
@@ -557,7 +557,7 @@ addDisplayForm x df = do
     {-then-} (modifySignature add)
     {-else-} (stImportsDisplayForms `modifyTCLens` HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
-    typeError . GenericDocError $ "Cannot add recursive display form for" <+> pretty x
+    typeError . GenericDocError =<< do "Cannot add recursive display form for" <+> pretty x
 
 isLocal :: ReadTCState m => QName -> m Bool
 isLocal x = HMap.member x <$> useR (stSignature . sigDefinitions)
@@ -661,7 +661,7 @@ class ( Functor m
       Right d -> return d
       Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
       Left SigAbstract      -> __IMPOSSIBLE_VERBOSE__ $
-        "Abstract, thus, not in scope: " ++ prettyShow q
+        "Abstract, thus, not in scope: " ++ show q
 
   -- | Version that reports exceptions:
   getConstInfo' :: QName -> m (Either SigError Definition)
@@ -715,9 +715,9 @@ defaultGetConstInfo st env q = do
     let defs  = st^.(stSignature . sigDefinitions)
         idefs = st^.(stImports . sigDefinitions)
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ " " ++ showQNameId q
+        []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ show q ++ showQNameId q
         [d] -> mkAbs env d
-        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
+        ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ show q
     where
       mkAbs env d
         | treatAbstractly' q' env =
@@ -766,8 +766,8 @@ getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = do
-  reportSLn "tc.polarity.set" 20 $
-    "Setting polarity of " ++ prettyShow q ++ " to " ++ prettyShow pol ++ "."
+  reportSDoc "tc.polarity.set" 20 $
+    "Setting polarity of" <+> pretty q <+> "to" <+> pretty pol <> "."
   modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Look up the forced arguments of a definition.
@@ -928,20 +928,21 @@ moduleParamsToApply :: (Functor m, Applicative m, HasOptions m,
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
-  reportSLn "tc.sig.param" 90 $ "computing module parameters of " ++ prettyShow m
+  traceSDoc "tc.sig.param" 90 ("computing module parameters of " <+> pretty m) $ do
   n   <- getModuleFreeVars m
+  traceSDoc "tc.sig.param" 60 (nest 2 $ "n    = " <+> text (show n)) $ do
   tel <- take n . telToList <$> lookupSection m
+  traceSDoc "tc.sig.param" 60 (nest 2 $ "tel  = " <+> pretty tel) $ do
   sub <- getModuleParameterSub m
-  verboseS "tc.sig.param" 60 $ do
+  traceSDoc "tc.sig.param" 60 (do
     cxt <- getContext
-    reportS "tc.sig.param" 60 $
-      [ "  n    = " ++ show n
-      , "  cxt  = " ++ show (map (fmap fst) cxt)
-      , "  sub  = " ++ show sub
-      ]
+    nest 2 $ vcat
+      [ "cxt  = " <+> prettyTCM (PrettyContext cxt)
+      , "sub  = " <+> pretty sub
+      ]) $ do
   unless (size tel == n) __IMPOSSIBLE__
   let args = applySubst sub $ zipWith (\ i a -> var i <$ argFromDom a) (downFrom n) tel
-  reportSLn "tc.sig.param" 60 $ "  args = " ++ show args
+  traceSDoc "tc.sig.param" 60 (nest 2 $ "args = " <+> prettyList_ (map pretty args)) $ do
 
   -- Apply the original ArgInfo, as the hiding information in the current
   -- context might be different from the hiding information expected by @m@.
@@ -988,16 +989,16 @@ instantiateDef d = do
   verboseS "tc.sig.inst" 30 $ do
     ctx <- getContext
     m   <- currentModule
-    reportSLn "tc.sig.inst" 30 $
-      "instDef in " ++ prettyShow m ++ ": " ++ prettyShow (defName d) ++ " " ++
-      unwords (map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
+    reportSDoc "tc.sig.inst" 30 $
+      "instDef in" <+> pretty m <> ":" <+> pretty (defName d) <+>
+      text (unwords $ map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
                            ReadTCState m, MonadTCEnv m, MonadDebug m)
                        => RewriteRule -> m RewriteRule
 instantiateRewriteRule rew = do
-  traceSLn "rewriting" 95 ("instantiating rewrite rule " ++ show (rewName rew) ++ " to the local context.") $ do
+  traceSDoc "rewriting" 95 ("instantiating rewrite rule" <+> pretty (rewName rew) <+> "to the local context.") $ do
   vs  <- freeVarsToApply $ rewName rew
   let rew' = rew `apply` vs
   traceSLn "rewriting" 95 ("instantiated rewrite rule: ") $ do

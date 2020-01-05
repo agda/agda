@@ -116,7 +116,7 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = modifyContext (map $ mapRelevance f)
+  = modifyContextInfo (mapRelevance f)
   . applyQuantityToContext zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })

@@ -664,9 +664,7 @@ executable agda
   -- Agda's memory usage, so we want this functionality enabled by
   -- default.
   ghc-options: -threaded -rtsopts
-               -with-rtsopts=-H3.5G
                -with-rtsopts=-M3.5G
-               -with-rtsopts=-A128M
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode

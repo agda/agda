@@ -1069,6 +1069,9 @@ checkSolutionForMeta x m v a = do
     HasType{ jComparison = cmp } -> do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> " : " <+> prettyTCM a <+> ":=" <+> prettyTCM v
+      reportSDoc "tc.meta.check" 50 $ nest 2 $ do
+        ctx <- getContext
+        inTopContext $ "in context: " <+> prettyTCM (PrettyContext ctx)
       traceCall (CheckMetaSolution (getRange m) x a v) $
         checkInternal v cmp a
     IsSort{}  -> void $ do

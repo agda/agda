@@ -197,7 +197,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      escapeContext npars $ do
+      unsafeEscapeContext npars $ do
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -284,7 +284,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- section telescope changes the semantics, see e.g.
       -- test/Succeed/RecordInParModule.
       -- Ulf, 2016-03-02 but it's the right thing to do (#1759)
-      modifyContext (map hideOrKeepInstance) $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
 
         -- Add the record section.
 
@@ -296,14 +296,14 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> escapeContext 1 (prettyTCM ftel)
+          [ "field tel =" <+> unsafeEscapeContext 1 (prettyTCM ftel)
           ]
         addSection m
 
       -- Andreas, 2016-02-09, Issue 1815 (see also issue 1759).
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
-      modifyContext (map hideOrKeepInstance) $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
 
         -- Check the types of the fields and the other record declarations.
         withCurrentModule m $ do
@@ -319,7 +319,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
 
       -- we define composition here so that the projections are already in the signature.
-      escapeContext npars $ do
+      unsafeEscapeContext npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
@@ -341,7 +341,7 @@ addCompositionForRecord
   -> TCM ()
 addCompositionForRecord name con tel fs ftel rect = do
   cxt <- getContextTelescope
-  inTopContext $ do
+  unsafeInTopContext $ do
 
     -- Record has no fields: attach composition data to record constructor
     if null fs then do
@@ -674,7 +674,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        escapeContext (size tel) $ do
+        unsafeEscapeContext (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
               emptyFunction

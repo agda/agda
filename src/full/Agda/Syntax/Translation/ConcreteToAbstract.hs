@@ -1917,10 +1917,13 @@ createBoundNamesForGeneralizables vs =
 
 collectAndBindGeneralizables :: ScopeM a -> ScopeM (Map I.QName I.Name, a)
 collectAndBindGeneralizables m = do
+  fvBefore <- length <$> getLocalVars
   (s, res) <- collectGeneralizables m
+  fvAfter  <- length <$> getLocalVars
   -- We should bind the named generalizable variables as fresh variables
   binds <- createBoundNamesForGeneralizables s
-  bindGeneralizables binds
+  -- Issue #3735: We need to bind the generalizable variables outside any variables bound by `m`.
+  outsideLocalVars (fvAfter - fvBefore) $ bindGeneralizables binds
   return (binds, res)
 
 bindGeneralizables :: Map A.QName A.Name -> ScopeM ()

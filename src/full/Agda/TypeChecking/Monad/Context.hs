@@ -39,38 +39,42 @@ import Agda.Utils.Impossible
 
 -- * Modifying the context
 
--- | Modify a 'Context' in a computation.
-{-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
-modifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
-modifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+-- | Modify a 'Context' in a computation.  Warning: does not update
+--   the checkpoints. Use @updateContext@ instead.
+{-# SPECIALIZE unsafeModifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
+unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
+unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
+
+-- | Modify the 'Dom' part of context entries.
+modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
+modifyContextInfo f = unsafeModifyContext $ map f
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-safeInTopContext :: MonadTCM tcm => tcm a -> tcm a
-safeInTopContext cont = do
-  locals <- liftTCM $ getLocalVars
-  liftTCM $ setLocalVars []
-  a <- modifyContext (const [])
+inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
+inTopContext cont =
+  unsafeModifyContext (const [])
         $ locallyTC eCurrentCheckpoint (const 0)
-        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS) cont
-  liftTCM $ setLocalVars locals
-  return a
+        $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
+        $ locallyTCState stModuleCheckpoints (const Map.empty)
+        $ locallyScope scopeLocals (const [])
+        $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
 --   not safe!
-{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
-inTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
-inTopContext cont =
+{-# SPECIALIZE unsafeInTopContext :: TCM a -> TCM a #-}
+unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
+unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
-    modifyContext (const []) cont
+    unsafeModifyContext (const []) cont
 
 -- | Delete the last @n@ bindings from the context.
 --
 --   Doesn't update checkpoints! Use `updateContext rho (drop n)` instead,
 --   for an appropriate substitution `rho`.
-{-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
-escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-escapeContext n = modifyContext $ drop n
+{-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
+unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
+unsafeEscapeContext n = unsafeModifyContext $ drop n
 
 -- * Manipulating checkpoints --
 
@@ -240,7 +244,7 @@ instance MonadAddContext TCM where
   addLetBinding' x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' x u a ret
 
-  updateContext sub f = modifyContext f . checkpoint sub
+  updateContext sub f = unsafeModifyContext f . checkpoint sub
 
   withFreshName r x m = freshName r x >>= m
 

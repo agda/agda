@@ -42,7 +42,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
   builtinAgdaCmpEq, builtinAgdaCmpLEq, builtinAgdaComparison,
   builtinAgdaAsTermsOf, builtinAgdaAsTypes, builtinAgdaAsSizes,
-  builtinAgdaCompareAs, builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported, builtinAgdaConstraint,
+  builtinAgdaClosure, builtinAgdaClosureClosure, builtinAgdaCompareAs, builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported, builtinAgdaConstraint,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
@@ -196,6 +196,8 @@ builtinAgdaComparison                    = "AGDACOMPARISON"
 builtinAgdaAsTermsOf                     = "AGDAASTERMSOF"
 builtinAgdaAsTypes                       = "AGDAASTYPES"
 builtinAgdaAsSizes                       = "AGDAASSIZES"
+builtinAgdaClosure                       = "AGDACLOSURE"
+builtinAgdaClosureClosure                = "AGDACLOSURECLOSURE"
 builtinAgdaCompareAs                     = "AGDACOMPAREAS"
 builtinAgdaConstraintValueCmp            = "AGDACONSTRAINTVALUECMP"
 builtinAgdaConstraintUnsupported         = "AGDACONSTRAINTUNSUPPORTED"
