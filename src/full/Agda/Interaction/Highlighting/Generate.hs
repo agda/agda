@@ -316,7 +316,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
         parserBased { aspect = Just $ Name (Just Argument) False }
 
     getBinder :: A.Binder -> File
-    getBinder (A.Binder p n) = mconcat $ bound n : map getPattern (maybeToList p)
+    getBinder (A.Binder _ n) = bound n
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _)     = bound x
