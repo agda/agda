@@ -944,20 +944,32 @@ nameToFileA modMap file x include m =
              file
              (concreteQualifier x)
              (concreteBase x)
-             r
+             rangeOfFixityDeclaration
              m
              (if include then Just $ bindingSite x else Nothing)
     `mappend` notationFile
   where
-    -- Andreas, 2016-09-08, for issue #2140:
-    -- Range of name from fixity declaration:
-    fr = theNameRange $ A.nameFixity $ A.qnameName x
-    -- Somehow we import fixity ranges from other files, we should ignore them.
-    -- (I do not understand how we get them as they should not be serialized...)
-    r = if P.rangeFile fr == Strict.Just file then fr else noRange
+  -- TODO: Currently we highlight fixity and syntax declarations by
+  -- producing highlighting something like once per occurrence of the
+  -- related name(s) in the file of the declaration (and we explicitly
+  -- avoid doing this for other files). Perhaps it would be better to
+  -- only produce this highlighting once.
 
-    notationFile = mconcat $ map genPartFile $ theNotation $ A.nameFixity $ A.qnameName x
+  rangeOfFixityDeclaration =
+    if P.rangeFile r == Strict.Just file
+    then r else noRange
+    where
+    r = theNameRange $ A.nameFixity $ A.qnameName x
+
+  notationFile =
+    if P.rangeFile (getRange notation) == Strict.Just file
+    then mconcat $ map genPartFile notation
+    else mempty
+    where
+    notation = theNotation $ A.nameFixity $ A.qnameName x
+
     boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
+
     genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile WildHole{}       = mempty
