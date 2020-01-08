@@ -985,7 +985,7 @@ DomainFreeBindingAbsurd
     | '.' BId  MaybeAsPattern { Left [mkDomainFree_ (setRelevance Irrelevant) $3 $2]  }
     | '..' BId MaybeAsPattern { Left [mkDomainFree_ (setRelevance NonStrict) $3 $2]  }
     | '(' Application ')'     {% exprToPattern (RawApp (getRange $2) $2) >>= \ p ->
-                                 pure $ Left [mkDomainFree_ id (Just p) (Name (getRange $2) InScope [Hole])] }
+                                 pure $ Left [mkDomainFree_ id (Just p) (Name noRange InScope [Hole])] }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               mapLeft (map (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }

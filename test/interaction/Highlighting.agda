@@ -83,3 +83,25 @@ idPolyE x = x
 
 Issue-3989 : (A A : Set) → Set
 Issue-3989 _ A = A
+
+-- Issue #4356.
+
+open import Agda.Builtin.Sigma
+
+Issue-4356₁ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₁ = λ P@(A , B) → P
+
+Issue-4356₂ : Σ Set (λ _ → Set) → Set
+Issue-4356₂ = λ (A , B) → A
+
+Issue-4356₃ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₃ P = let Q@(A , B) = P in Q
+
+Issue-4356₄ : Σ Set (λ _ → Set) → Set
+Issue-4356₄ P = let (A , B) = P in B
+
+Issue-4356₅ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₅ P@(A , B) = P
+
+Issue-4356₆ : Σ Set (λ _ → Set) → Set
+Issue-4356₆ (A , B) = B
