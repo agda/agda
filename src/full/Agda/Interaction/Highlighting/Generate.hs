@@ -180,8 +180,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
     let nameInfo = mconcat $ map (generate modMap file kinds) names
 
-    -- Constructors are only highlighted after type checking, since they
-    -- can be overloaded.
+    -- After the code has been type checked more information may be
+    -- available for overloaded constructors, and
+    -- generateConstructorInfo takes advantage of this information.
+    -- Note, however, that highlighting for overloaded constructors is
+    -- included also in nameInfo.
     constructorInfo <- case hlLevel of
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
@@ -229,7 +232,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     universeBi decl
 
   -- Bound variables, dotted patterns, record fields, module names,
-  -- the "as" and "to" symbols.
+  -- the "as" and "to" symbols and some other things.
   theRest modMap file = mconcat
     [ Fold.foldMap getFieldDecl   $ universeBi decl
     , Fold.foldMap getVarAndField $ universeBi decl
