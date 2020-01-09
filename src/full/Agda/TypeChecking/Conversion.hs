@@ -782,9 +782,12 @@ antiUnify pid a u v = do
     fallback = blockTermOnProblem a u pid
 
 antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
-antiUnifyArgs pid dom u v = ifM (isIrrelevantOrPropM dom)
-  {-then-} (return u)
-  {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
+antiUnifyArgs pid dom u v
+  | getModality u /= getModality v = patternViolation
+  | otherwise = applyModalityToContext u $
+    ifM (isIrrelevantOrPropM dom)
+    {-then-} (return u)
+    {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
 
 antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
 antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
@@ -911,7 +914,7 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
             solved <- isProblemSolved pid
             reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
             arg <- if dependent && not solved
-                   then do
+                   then applyModalityToContext info $ do
                     reportSDoc "tc.conv.elims" 30 $ vcat $
                       [ "Trying antiUnify:"
                       , nest 2 $ "b    =" <+> prettyTCM b
