@@ -1,3 +1,5 @@
+{-# OPTIONS --with-K #-}
+
 -- Andreas 2019-11-06, issue #4172, examples by nad.
 
 -- Single constructor matches for non-indexed types should be ok
@@ -30,3 +32,19 @@ data E : Set where
 
 magic : @0 E → ⊥
 magic (c e) = magic e
+
+-- Two more examples.
+
+open import Agda.Builtin.Equality
+
+subst-erased : {A : Set} {x y : A} (P : A → Set) → @0 x ≡ y → P x → P y
+subst-erased P refl p = p
+
+open import Agda.Builtin.Bool
+
+data D : Bool → Set where
+  true  : D true
+  false : D false
+
+F : @0 D false → Set₁
+F false = Set

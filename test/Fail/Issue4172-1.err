@@ -1,0 +1,4 @@
+Issue4172-1.agda:6,1-22
+Cannot branch on erased argument of datatype x ≡ y because the K
+rule is turned off
+when checking the definition of subst-erased
