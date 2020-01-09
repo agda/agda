@@ -26,7 +26,7 @@ jobs:
       run: |
         cabal new-update
         cabal new-install alex happy
-        cabal new-install --dependencies-only -fenable-cluster-counting --enable-tests --force-reinstalls --disable-library-profiling
+        cabal new-install --dependencies-only -fenable-cluster-counting --force-reinstalls --disable-library-profiling
     # Testing Haddock [Issue 1773]
     - name: Build
       run: |
