@@ -9,6 +9,8 @@ CORE_SRC_DIR   = $(SRC_DIR)/core
 TRANSL_SRC_DIR = $(SRC_DIR)/transl
 COMPAT_SRC_DIR = $(SRC_DIR)/compat
 
+UTILS_SRC_DIR   = $(SRC_DIR)/agda-utils
+
 # Note: To use "dist" as the build directory (the default), modify
 # BUILD_DIR below. At the time of writing GHC's recompilation checker
 # doesn't seem to handle Agda very well: if you compile, switch to

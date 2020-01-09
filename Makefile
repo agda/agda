@@ -191,11 +191,14 @@ user-manual-linkcheck :
 .PHONY : tags ##
 tags :
 	$(MAKE) -C $(FULL_SRC_DIR) tags
+	$(MAKE) -C $(UTILS_SRC_DIR) tags
 
 .PHONY : TAGS ##
 TAGS :
 	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
+	@$(call decorate, "TAGS (agda-utils)", \
+		$(MAKE) -C $(UTILS_SRC_DIR) TAGS)
 
 ##############################################################################
 ## Standard library
