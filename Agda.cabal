@@ -235,6 +235,7 @@ library
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
                 , zlib >= 0.4.0.1 && < 0.7
+                , agda-utils >= 0.1.0.0
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
@@ -331,7 +332,7 @@ library
                     Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Help
-                    Agda.Interaction.Options.IORefs
+--                    Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
                     Agda.Interaction.Options.Warnings
                     Agda.Main
@@ -521,70 +522,70 @@ library
                     Agda.TypeChecking.Unquote
                     Agda.TypeChecking.Warnings
                     Agda.TypeChecking.With
-                    Agda.Utils.AffineHole
-                    Agda.Utils.Applicative
-                    Agda.Utils.AssocList
-                    Agda.Utils.Bag
-                    Agda.Utils.Benchmark
-                    Agda.Utils.BiMap
-                    Agda.Utils.Cluster
-                    Agda.Utils.Empty
-                    Agda.Utils.Environment
-                    Agda.Utils.Except
-                    Agda.Utils.Either
-                    Agda.Utils.Fail
-                    Agda.Utils.Favorites
-                    Agda.Utils.FileName
-                    Agda.Utils.Float
-                    Agda.Utils.Functor
-                    Agda.Utils.Function
+--                    Agda.Utils.AffineHole
+--                    Agda.Utils.Applicative
+--                    Agda.Utils.AssocList
+--                    Agda.Utils.Bag
+--                    Agda.Utils.Benchmark
+--                    Agda.Utils.BiMap
+--                    Agda.Utils.Cluster
+--                    Agda.Utils.Empty
+--                    Agda.Utils.Environment
+--                    Agda.Utils.Except
+--                    Agda.Utils.Either
+--                    Agda.Utils.Fail
+--                    Agda.Utils.Favorites
+--                    Agda.Utils.FileName
+--                    Agda.Utils.Float
+--                    Agda.Utils.Functor
+--                    Agda.Utils.Function
                     Agda.Utils.Geniplate
-                    Agda.Utils.Graph.AdjacencyMap.Unidirectional
-                    Agda.Utils.Graph.TopSort
-                    Agda.Utils.Hash
-                    Agda.Utils.Haskell.Syntax
-                    Agda.Utils.Impossible
-                    Agda.Utils.IndexedList
-                    Agda.Utils.IntSet.Infinite
-                    Agda.Utils.IO
-                    Agda.Utils.IO.Binary
-                    Agda.Utils.IO.Directory
-                    Agda.Utils.IO.TempFile
-                    Agda.Utils.IO.UTF8
-                    Agda.Utils.IORef
-                    Agda.Utils.Lens
-                    Agda.Utils.Lens.Examples
-                    Agda.Utils.List
-                    Agda.Utils.ListT
-                    Agda.Utils.Map
-                    Agda.Utils.Maybe
-                    Agda.Utils.Maybe.Strict
-                    Agda.Utils.Memo
-                    Agda.Utils.Monad
-                    Agda.Utils.Monoid
-                    Agda.Utils.Null
-                    Agda.Utils.Parser.MemoisedCPS
-                    Agda.Utils.PartialOrd
+--                    Agda.Utils.Graph.AdjacencyMap.Unidirectional
+--                    Agda.Utils.Graph.TopSort
+--                    Agda.Utils.Hash
+--                    Agda.Utils.Haskell.Syntax
+--                    Agda.Utils.Impossible
+--                    Agda.Utils.IndexedList
+--                    Agda.Utils.IntSet.Infinite
+--                    Agda.Utils.IO
+--                    Agda.Utils.IO.Binary
+--                    Agda.Utils.IO.Directory
+--                    Agda.Utils.IO.TempFile
+--                    Agda.Utils.IO.UTF8
+--                    Agda.Utils.IORef
+--                    Agda.Utils.Lens
+--                    Agda.Utils.Lens.Examples
+--                    Agda.Utils.List
+--                    Agda.Utils.ListT
+--                    Agda.Utils.Map
+--                    Agda.Utils.Maybe
+--                    Agda.Utils.Maybe.Strict
+--                    Agda.Utils.Memo
+--                    Agda.Utils.Monad
+--                    Agda.Utils.Monoid
+--                    Agda.Utils.Null
+--                    Agda.Utils.Parser.MemoisedCPS
+--                    Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
-                    Agda.Utils.Pointer
-                    Agda.Utils.POMonoid
-                    Agda.Utils.Pretty
-                    Agda.Utils.SemiRing
-                    Agda.Utils.Singleton
-                    Agda.Utils.Size
-                    Agda.Utils.String
-                    Agda.Utils.Suffix
-                    Agda.Utils.Three
-                    Agda.Utils.Time
-                    Agda.Utils.Trie
-                    Agda.Utils.Tuple
-                    Agda.Utils.TypeLevel
-                    Agda.Utils.TypeLits
-                    Agda.Utils.Update
-                    Agda.Utils.VarSet
-                    Agda.Utils.Warshall
-                    Agda.Utils.WithDefault
-                    Agda.Utils.Zipper
+--                    Agda.Utils.Pointer
+--                    Agda.Utils.POMonoid
+--                    Agda.Utils.Pretty
+--                    Agda.Utils.SemiRing
+--                    Agda.Utils.Singleton
+--                    Agda.Utils.Size
+--                    Agda.Utils.String
+--                    Agda.Utils.Suffix
+--                    Agda.Utils.Three
+--                    Agda.Utils.Time
+--                    Agda.Utils.Trie
+--                    Agda.Utils.Tuple
+--                    Agda.Utils.TypeLevel
+--                    Agda.Utils.TypeLits
+--                    Agda.Utils.Update
+--                    Agda.Utils.VarSet
+--                    Agda.Utils.Warshall
+--                    Agda.Utils.WithDefault
+--                    Agda.Utils.Zipper
                     Agda.Version
                     Agda.VersionCommit
 
@@ -677,6 +678,7 @@ executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
   build-depends:  Agda
+                , agda-utils >= 0.1.0.0
                   -- A version range on Agda generates a warning with
                   -- some versions of Cabal and GHC
                   -- (e.g. cabal-install version 1.24.0.2 compiled
@@ -781,6 +783,7 @@ test-suite agda-tests
                     , Utils
 
   build-depends:  Agda
+                , agda-utils >= 0.1.0.0
                 , array >= 0.5.1.1 && < 0.6
                 , base >= 4.9.0.0 && < 4.15
                 , bytestring >= 0.10.8.1 && < 0.11

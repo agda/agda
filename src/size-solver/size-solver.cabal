@@ -35,6 +35,7 @@ executable size-solver
   main-is:        Main.hs
   build-depends:
     Agda == 2.6.1
+    , agda-utils >= 0.1.0.0
     , base >= 4.9.0.0 && < 6
     , containers >= 0.5.7.1 && < 0.7
     , mtl >= 2.2.1 && < 2.3
