@@ -272,6 +272,7 @@ library
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
                     Agda.Compiler.Backend
+                    Agda.Compiler.Builtins
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
                     Agda.Compiler.JS.Compiler
@@ -335,7 +336,7 @@ library
 --                    Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
                     Agda.Interaction.Options.Warnings
-                    Agda.Main
+--                    Agda.Main
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pattern
                     Agda.Syntax.Abstract.PatternSynonyms
@@ -679,6 +680,7 @@ executable agda
   main-is:        Main.hs
   build-depends:  Agda
                 , agda-utils >= 0.1.0.0
+                , mtl >= 2.2.1 && < 2.3
                   -- A version range on Agda generates a warning with
                   -- some versions of Cabal and GHC
                   -- (e.g. cabal-install version 1.24.0.2 compiled
@@ -688,12 +690,15 @@ executable agda
                   -- Nothing is used from the following package,
                   -- except for the prelude.
                 , base >= 4.9.0.0 && < 6
+
   default-language: Haskell2010
   -- If someone installs Agda with the setuid bit set, then the
   -- presence of +RTS may be a security problem (see GHC bug #3910).
   -- However, we sometimes recommend people to use +RTS to control
   -- Agda's memory usage, so we want this functionality enabled by
   -- default.
+  default-extensions: OverloadedStrings
+
   ghc-options: -threaded -rtsopts
                -with-rtsopts=-M3.5G
 

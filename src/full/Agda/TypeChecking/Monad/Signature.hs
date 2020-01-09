@@ -49,9 +49,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
+import {-# SOURCE #-} Agda.Compiler.Builtins
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
-
-import {-# SOURCE #-} Agda.Main
 
 import Agda.Utils.Either
 import Agda.Utils.Except ( ExceptT )

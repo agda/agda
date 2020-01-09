@@ -1,4 +1,4 @@
-module Agda.Main where
+module Agda.Compiler.Builtins where
 
 import {-# SOURCE #-} Agda.Compiler.Backend
 
