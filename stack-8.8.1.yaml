@@ -98,5 +98,6 @@ flags:
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+- 'src/agda-utils'
 - 'src/size-solver'
 - 'src/fix-agda-whitespace'

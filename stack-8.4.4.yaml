@@ -6,4 +6,5 @@ extra-deps:
 
 packages:
 - '.'
+- 'src/agda-utils'
 - 'src/fix-agda-whitespace'
