@@ -164,7 +164,7 @@ clean : ## Clean all local builds
 ## Haddock ###################################################################
 
 .PHONY : haddock ##
-haddock : 
+haddock :
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
 	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
@@ -222,7 +222,8 @@ test : check-whitespace \
        bugs \
        interaction \
        examples \
-       library-test interactive \
+       library-test \
+       interactive \
        latex-html-test \
        api-test \
        internal-tests \
