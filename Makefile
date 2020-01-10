@@ -235,7 +235,7 @@ test : check-whitespace \
        user-manual-test \
        test-size-solver
 
-.PHONY : test ## Run all tests which use the std-lib.
+.PHONY : test-using-std-lib ## Run all tests which use the std-lib.
 test-using-std-lib : library-test \
                      benchmark-without-logs \
                      stdlib-compiler-test \
