@@ -215,7 +215,7 @@ fast-forward-std-lib :
 ##############################################################################
 ## Testing
 
-.PHONY : test ## Run all test suites.
+.PHONY : test ## Run all test suites.
 test : check-whitespace \
        succeed \
        fail \
@@ -234,6 +234,13 @@ test : check-whitespace \
        lib-interaction \
        user-manual-test \
        test-size-solver
+
+.PHONY : test ## Run all tests which use the std-lib.
+test-using-std-lib : library-test \
+                     benchmark-without-logs \
+                     stdlib-compiler-test \
+                     lib-succeed \
+                     lib-interaction
 
 .PHONY : quicktest ## Run successful and failing tests.
 quicktest : succeed fail
