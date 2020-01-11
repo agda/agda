@@ -3,7 +3,7 @@
 
 SHELL=bash
 
-# Profiling verbosity for library-test
+# Profiling verbosity for std-lib-test
 PROFVERB=7
 
 # Various paths and commands
@@ -222,25 +222,25 @@ test : check-whitespace \
        bugs \
        interaction \
        examples \
-       library-test \
+       std-lib-test \
        interactive \
        latex-html-test \
        api-test \
        internal-tests \
        benchmark-without-logs \
        compiler-test \
-       stdlib-compiler-test \
-       lib-succeed \
-       lib-interaction \
+       std-lib-compiler-test \
+       std-lib-succeed \
+       std-lib-interaction \
        user-manual-test \
        test-size-solver
 
-.PHONY : test-using-std-lib ## Run all tests which use the std-lib.
-test-using-std-lib : library-test \
+.PHONY : test-using-std-lib ## Run all tests which use the standard library.
+test-using-std-lib : std-lib-test \
                      benchmark-without-logs \
-                     stdlib-compiler-test \
-                     lib-succeed \
-                     lib-interaction
+                     std-lib-compiler-test \
+                     std-lib-succeed \
+                     std-lib-interaction
 
 .PHONY : quicktest ## Run successful and failing tests.
 quicktest : succeed fail
@@ -301,37 +301,37 @@ quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
 
-.PHONY : library-test ##
-library-test :
-	@$(call decorate, "Standard library", \
+.PHONY : std-library-test ##
+std-lib-test :
+	@$(call decorate, "Standard library test", \
 		(cd std-lib && runhaskell GenerateEverything.hs && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
 
-.PHONY : continue-library-test ##
-continue-library-test :
+.PHONY : continue-std-lib-test ##
+continue-std-lib-test :
 	@(cd std-lib && \
           time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
-.PHONY : lib-succeed ##
-lib-succeed :
+.PHONY : std-lib-succeed ##
+std-lib-succeed :
 	@$(call decorate, "Successful tests using the standard library", \
 	  find test/LibSucceed -type f -name '*.agdai' -delete ; \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LibSucceed)
 
-.PHONY : lib-interaction ##
-lib-interaction :
+.PHONY : std-lib-interaction ##
+std-lib-interaction :
 	@$(call decorate, "Interaction tests using the standard library", \
-	  $(MAKE) -C test/$@)
+	  $(MAKE) -C test/lib-interaction)
 
 .PHONY : compiler-test ##
 compiler-test :
 	@$(call decorate, "Compiler tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib)
 
-.PHONY : stdlib-compiler-test ##
-stdlib-compiler-test :
+.PHONY : std-lib-compiler-test ##
+std-lib-compiler-test :
 	@$(call decorate, "Standard library compiler tests", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include AllStdLib)
 
