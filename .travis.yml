@@ -76,11 +76,13 @@ jobs:
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install: |
         stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
-      script: |
-        stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests
+      script:
+        - stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests
         # shelltestrunner is used by `make test-size-solver`
         # we need to cache it first.
-        stack install shelltestrunner ${ARGS}
+        - stack install shelltestrunner ${ARGS}
+        # Build & install size-solver
+        - stack build ${ARGS} ${FLAGS} size-solver
       before_cache:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
 
@@ -164,11 +166,9 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
         - travis_retry cabal v1-update
         - ${MAKE_CMD} TAGS
-        # Build & install size-solver
-        - stack build ${ARGS} ${FLAGS} size-solver
+        # Test size-solver
         - mkdir -p src/size-solver/dist/build/size-solver &&
           cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
-        # Test size-solver
         - ${MAKE_CMD} -C src/size-solver/ test
         # Build agda-bisect
         - ${MAKE_CMD} install-agda-bisect
