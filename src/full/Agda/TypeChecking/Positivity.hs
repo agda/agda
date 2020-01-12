@@ -452,7 +452,9 @@ instance ComputeOccurrences Term where
     Level l      -> occurrences l
     Lit{}        -> mempty
     Sort{}       -> mempty
-    DontCare _   -> mempty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
+    -- Jesper, 2020-01-12: this information is also used for the
+    -- occurs check, so we need to look under DontCare (see #4371)
+    DontCare v   -> occurrences v
     Dummy{}      -> mempty
 
 instance ComputeOccurrences Level where
