@@ -6,8 +6,8 @@ open import Issue846.OldDivMod
 open import Relation.Nullary
 open import Data.Nat.Properties hiding (≤-antisym)
 open import Data.Nat.Solver
-open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
-open import Data.Fin.Properties using ( toℕ<n; toℕ-fromℕ≤; toℕ-injective )
+open import Data.Fin using ( Fin; toℕ; zero; suc; fromℕ< )
+open import Data.Fin.Properties using ( toℕ<n; toℕ-fromℕ<; toℕ-injective )
 open import Relation.Binary.PropositionalEquality
 open import Function
 open import Data.Product
@@ -106,8 +106,8 @@ mod-pred : ∀ n
 mod-pred n eq with n divMod 7
 mod-pred .(toℕ r + q * 7) eq | result q r refl with toℕ r ≤? 5
 mod-pred .(toℕ r + q * 7) eq | result q r refl | yes p  = toℕ-injective eq4
-  where r' = fromℕ≤ {suc (toℕ r)} {7} (s≤s (s≤s p))
-        r'≡r = toℕ-fromℕ≤ (s≤s (s≤s p))
+  where r' = fromℕ< {suc (toℕ r)} {7} (s≤s (s≤s p))
+        r'≡r = toℕ-fromℕ< (s≤s (s≤s p))
         eq4 = cong pred $ begin
           suc (toℕ r)
             ≡⟨ sym r'≡r ⟩
@@ -144,7 +144,7 @@ mod-pred .(toℕ r + q * 7) eq | result q r refl | no ¬p with eq3
 ∸-mono₁ (suc i) (suc j) (suc k) (s≤s i≤j) = ∸-mono₁ i j k i≤j
 
 ∸-mono₂ : ∀ i j k → j ≤ k → i ∸ j ≥ i ∸ k
-∸-mono₂ i zero k j≤k = n∸m≤n k i
+∸-mono₂ i zero k j≤k = m∸n≤m i k
 ∸-mono₂ i (suc j) zero ()
 ∸-mono₂ zero (suc j) (suc k) j≤k = z≤n
 ∸-mono₂ (suc n) (suc j) (suc k) (s≤s j≤k) = ∸-mono₂ n j k j≤k
@@ -160,10 +160,11 @@ lem-sub-p n (suc (suc p)) eq _ ≤6 eq2 with n divMod 7 | mod-pred n eq
 lem-sub-p .0 (suc (suc p)) _ _ ≤6 () | result zero .zero refl | refl
 lem-sub-p .(7 + (q * 7)) (suc (suc p)) _ _ (s≤s (s≤s (≤4))) eq2 | result (suc q) .zero refl | refl = ⊥-elim $ 1+n≰n 1<1
   where <7 : (6 ∸ p) < 7
-        <7 = s≤s (n∸m≤n p 6)
+        <7 = s≤s (m∸n≤m 6 p)
+
         eq4 = begin
-            toℕ (fromℕ≤ <7) + q * 7
-              ≡⟨ cong (λ y → y + q * 7) (toℕ-fromℕ≤ <7 )⟩
+            toℕ (fromℕ< <7) + q * 7
+              ≡⟨ cong (λ y → y + q * 7) (toℕ-fromℕ< <7 )⟩
             (6 ∸ p) + q * 7
               ≡⟨ +-comm (6 ∸ p) (q * 7) ⟩
             q * 7 + (6 ∸ p)
@@ -171,18 +172,20 @@ lem-sub-p .(7 + (q * 7)) (suc (suc p)) _ _ (s≤s (s≤s (≤4))) eq2 | result (
             (q * 7 + 6) ∸ p
               ≡⟨ cong (λ y → y ∸ p) (+-comm (q * 7) 6)⟩
             (6 + q * 7) ∸ p ∎
+
         eq5 = begin
-            fromℕ≤ <7
-              ≡⟨ sym (mod-lemma q 6 (fromℕ≤ <7)) ⟩
-            (toℕ (fromℕ≤ <7) + q * 7) mod 7
+            fromℕ< <7
+              ≡⟨ sym (mod-lemma q 6 (fromℕ< <7)) ⟩
+            (toℕ (fromℕ< <7) + q * 7) mod 7
               ≡⟨ cong (λ y → y mod 7) eq4 ⟩
             ((6 + q * 7) ∸ p) mod 7
               ≡⟨ eq2 ⟩
             suc zero ∎
+
         1<1 = start
             2                     ≤⟨ ∸-mono₂ 6 p 4 ≤4 ⟩
-            6 ∸ p                 ≡⟨ sym (toℕ-fromℕ≤ <7) ⟩'
-            toℕ (fromℕ≤ <7)       ≡⟨ cong toℕ eq5 ⟩'
+            6 ∸ p                 ≡⟨ sym (toℕ-fromℕ< <7) ⟩'
+            toℕ (fromℕ< <7)      ≡⟨ cong toℕ eq5 ⟩'
             toℕ (suc (zero {7}))  ≡⟨ refl ⟩'
             suc zero □
 
