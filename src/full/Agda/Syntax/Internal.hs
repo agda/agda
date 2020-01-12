@@ -36,7 +36,6 @@ import Agda.Syntax.Abstract.Name
 import Agda.Utils.Empty
 
 import Agda.Utils.Functor
-import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -1375,18 +1374,6 @@ instance KillRange a => KillRange (Abs a) where
 
 instance KillRange a => KillRange (Elim' a) where
   killRange = fmap killRange
-
----------------------------------------------------------------------------
--- * UniverseBi instances.
----------------------------------------------------------------------------
-
-instanceUniverseBiT' [] [t| (([Type], [Clause]), Pattern) |]
-instanceUniverseBiT' [] [t| (Args, Pattern)               |]
-instanceUniverseBiT' [] [t| (Elims, Pattern)              |] -- ?
-instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
-instanceUniverseBiT' [] [t| (Args, Term)                  |]
-instanceUniverseBiT' [] [t| (Elims, Term)                 |] -- ?
-instanceUniverseBiT' [] [t| ([Term], Term)                |]
 
 -----------------------------------------------------------------------------
 -- * Simple pretty printing

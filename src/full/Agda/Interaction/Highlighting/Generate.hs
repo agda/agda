@@ -180,8 +180,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
     let nameInfo = mconcat $ map (generate modMap file kinds) names
 
-    -- Constructors are only highlighted after type checking, since they
-    -- can be overloaded.
+    -- After the code has been type checked more information may be
+    -- available for overloaded constructors, and
+    -- generateConstructorInfo takes advantage of this information.
+    -- Note, however, that highlighting for overloaded constructors is
+    -- included also in nameInfo.
     constructorInfo <- case hlLevel of
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
@@ -229,7 +232,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     universeBi decl
 
   -- Bound variables, dotted patterns, record fields, module names,
-  -- the "as" and "to" symbols.
+  -- the "as" and "to" symbols and some other things.
   theRest modMap file = mconcat
     [ Fold.foldMap getFieldDecl   $ universeBi decl
     , Fold.foldMap getVarAndField $ universeBi decl
@@ -316,7 +319,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
         parserBased { aspect = Just $ Name (Just Argument) False }
 
     getBinder :: A.Binder -> File
-    getBinder (A.Binder p n) = mconcat $ bound n : map getPattern (maybeToList p)
+    getBinder (A.Binder _ n) = bound n
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _)     = bound x
@@ -941,20 +944,32 @@ nameToFileA modMap file x include m =
              file
              (concreteQualifier x)
              (concreteBase x)
-             r
+             rangeOfFixityDeclaration
              m
              (if include then Just $ bindingSite x else Nothing)
     `mappend` notationFile
   where
-    -- Andreas, 2016-09-08, for issue #2140:
-    -- Range of name from fixity declaration:
-    fr = theNameRange $ A.nameFixity $ A.qnameName x
-    -- Somehow we import fixity ranges from other files, we should ignore them.
-    -- (I do not understand how we get them as they should not be serialized...)
-    r = if P.rangeFile fr == Strict.Just file then fr else noRange
+  -- TODO: Currently we highlight fixity and syntax declarations by
+  -- producing highlighting something like once per occurrence of the
+  -- related name(s) in the file of the declaration (and we explicitly
+  -- avoid doing this for other files). Perhaps it would be better to
+  -- only produce this highlighting once.
 
-    notationFile = mconcat $ map genPartFile $ theNotation $ A.nameFixity $ A.qnameName x
+  rangeOfFixityDeclaration =
+    if P.rangeFile r == Strict.Just file
+    then r else noRange
+    where
+    r = theNameRange $ A.nameFixity $ A.qnameName x
+
+  notationFile =
+    if P.rangeFile (getRange notation) == Strict.Just file
+    then mconcat $ map genPartFile notation
+    else mempty
+    where
+    notation = theNotation $ A.nameFixity $ A.qnameName x
+
     boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
+
     genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile WildHole{}       = mempty

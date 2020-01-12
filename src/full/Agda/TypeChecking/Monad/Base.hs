@@ -3210,7 +3210,11 @@ data TerminationError = TerminationError
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
-  | ErasedDatatype      (Closure Type)  -- ^ Data type, but in erased position.
+  | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
+                                        --   If the boolean is 'True',
+                                        --   then the reason for the
+                                        --   error is that the K rule
+                                        --   is turned off.
   | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor

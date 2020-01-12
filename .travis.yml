@@ -26,7 +26,7 @@ branches:
     - /^issue.*/
 
 ##############################################################################
-# The submodule is only needed by stdlib compiler test, so
+# The submodule is only needed by std-lib compiler test, so
 # it is fetched manually in the `install` section.
 #
 git:
@@ -103,29 +103,28 @@ jobs:
           - $HOME/.stack
           - ${TRAVIS_BUILD_DIR}/.stack-work
           - $HOME/.local/bin
-      before_install: |
+      before_install:
         # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
-        cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
-        cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori
+        - cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
+        - cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori
 
-        # Setup ghc & cabal path
-        export PATH=/opt/ghc/$GHC_VER/bin:$PATH
-        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
-        export PATH=$HOME/.cabal/bin:$PATH
-        # Install stack
-        mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
-        travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-        export PATH=$HOME/.local/bin:$PATH
-        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        - # Setup ghc & cabal path
+        - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
+        - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+        - export PATH=$HOME/.cabal/bin:$PATH
+        - # Install stack
+        - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH
+        - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+        - export PATH=$HOME/.local/bin:$PATH
+        - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
 
-        export PARALLEL_TESTS=2
-        export FLAGS="--flag Agda:enable-cluster-counting"
-        export ARGS="--silent --stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
-        export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
-        export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
-
-        echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
+        - export PARALLEL_TESTS=2
+        - export FLAGS="--flag Agda:enable-cluster-counting"
+        - export ARGS="--silent --stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
+        - export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
+        - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
+        - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
+        - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
@@ -143,17 +142,17 @@ jobs:
       git:
         submodules: true
       script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} library-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} lib-succeed
-        - stack ${ARGS} exec -- ${MAKE_CMD} lib-interaction
-        - stack ${ARGS} exec -- ${MAKE_CMD} stdlib-compiler-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
+        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-compiler-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
+        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-interaction
     - <<: *main-job
       name: "Compiler tests, benchmark, and other test suites"
       git:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
 
         - stack ${ARGS} exec -- ${MAKE_CMD} interaction
         - stack ${ARGS} exec -- ${MAKE_CMD} interactive
@@ -202,7 +201,7 @@ jobs:
         # golden files.
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
         - make BUILD_DIR=$BUILD_DIR examples
-        - make BUILD_DIR=$BUILD_DIR library-test
+        - make BUILD_DIR=$BUILD_DIR std-lib-test
         - make BUILD_DIR=$BUILD_DIR api-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
@@ -211,12 +210,12 @@ jobs:
         ##################################################################################
         # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
         # making the whole travis run fail.
-        # Ulf, 2019-08-29: only disable the stdlib compiler test
-        # Liang-Ting, 2019-12-02: the maximum heap size has been increased, and stdlib compiler test is working again on GHC 8.0
+        # Ulf, 2019-08-29: only disable the std-lib compiler test
+        # Liang-Ting, 2019-12-02: the maximum heap size has been increased, and std-lib compiler test is working again on GHC 8.0
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR compiler-test
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR stdlib-compiler-test
-        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR lib-succeed
-        - make BUILD_DIR=$BUILD_DIR lib-interaction
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR std-lib-compiler-test
+        - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR std-lib-succeed
+        - make BUILD_DIR=$BUILD_DIR std-lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
         - make test-size-solver
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode

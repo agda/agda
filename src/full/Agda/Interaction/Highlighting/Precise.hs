@@ -148,7 +148,7 @@ data Aspects = Aspects
     -- the fixity of an operator).
   , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
-    --   known. File positions are counted from 1.
+    --   known.
   , tokenBased :: !TokenBased
     -- ^ Is this entry token-based?
   }
@@ -158,7 +158,8 @@ data DefinitionSite = DefinitionSite
   { defSiteModule :: SC.TopLevelModuleName
       -- ^ The defining module.
   , defSitePos    :: Int
-      -- ^ The file position in that module.
+      -- ^ The file position in that module. File positions are
+      -- counted from 1.
   , defSiteHere   :: Bool
       -- ^ Has this @DefinitionSite@ been created at the defining site of the name?
   , defSiteAnchor :: Maybe String

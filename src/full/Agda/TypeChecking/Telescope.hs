@@ -10,6 +10,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -26,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
@@ -166,6 +168,29 @@ varDependencies tel = allDependencies IntSet.empty
         then soFar
         else IntSet.insert j $ allDependencies soFar $ directDependencies j
 
+-- | Computes the set of variables in a telescope whose type depend on
+--   one of the variables in the given set (including recursive
+--   dependencies). Any dependencies outside of the telescope are
+--   ignored.
+varDependents :: Telescope -> IntSet -> IntSet
+varDependents tel = allDependents
+  where
+    n  = size tel
+    ts = flattenTel tel
+
+    directDependents :: IntSet -> IntSet
+    directDependents is = IntSet.fromList
+      [ j | j <- downFrom n
+          , let tj = indexWithDefault __IMPOSSIBLE__ ts (n-1-j)
+          , getAny $ runFree (Any . (`IntSet.member` is)) IgnoreNot tj
+          ]
+
+    allDependents :: IntSet -> IntSet
+    allDependents is
+     | null new  = empty
+     | otherwise = new `IntSet.union` allDependents new
+      where new = directDependents is
+
 -- | A telescope split in two.
 data SplitTel = SplitTel
   { firstPart  :: Telescope
@@ -254,13 +279,29 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     j     = n-1-k
     u     = patternToTerm p
 
+    -- Jesper, 2019-12-31: Previous implementation that does some
+    -- unneccessary reordering but is otherwise correct (keep!)
+    -- -- is0 is the part of Γ that is needed to type u
+    -- is0   = varDependencies tel $ allFreeVars u
+    -- -- is1 is the rest of Γ (minus the variable we are instantiating)
+    -- is1   = IntSet.delete j $
+    --           IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
+    -- -- we work on de Bruijn indices, so later parts come first
+    -- is    = IntSet.toAscList is1 ++ IntSet.toAscList is0
+
+    -- -- if u depends on var j, we cannot instantiate
+    -- ok    = not $ j `IntSet.member` is0
+
     -- is0 is the part of Γ that is needed to type u
     is0   = varDependencies tel $ allFreeVars u
-    -- is1 is the rest of Γ (minus the variable we are instantiating)
-    is1   = IntSet.delete j $
-              IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
-    -- we work on de Bruijn indices, so later parts come first
-    is    = IntSet.toAscList is1 ++ IntSet.toAscList is0
+    -- is1 is the part of Γ that depends on variable j
+    is1   = varDependents tel $ singleton j
+    -- lasti is the last (rightmost) variable of is0
+    lasti = if null is0 then n else IntSet.findMin is0
+    -- we move each variable in is1 to the right until it comes after
+    -- all variables in is0 (i.e. after lasti)
+    (as,bs) = List.partition (`IntSet.member` is1) [ n-1 , n-2 .. lasti ]
+    is    = reverse $ List.delete j $ bs ++ as ++ downFrom lasti
 
     -- if u depends on var j, we cannot instantiate
     ok    = not $ j `IntSet.member` is0

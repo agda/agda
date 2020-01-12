@@ -1,0 +1,4 @@
+Issue4172-2.agda:10,1-8
+Cannot branch on erased argument of datatype D false because the K
+rule is turned off
+when checking the definition of F

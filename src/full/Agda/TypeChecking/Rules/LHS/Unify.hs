@@ -671,15 +671,14 @@ dataStrategy k s = do
     Def d es | Type{} <- getSort a -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      hpars <- fromMaybeMP $ isHom k pars
-      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $
+      liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         "Found equation at datatype " <+> prettyTCM d
-         <+> " with (homogeneous) parameters " <+> prettyTCM hpars
+         <+> " with parameters " <+> prettyTCM (raise (size (eqTel s) - k) pars)
       case (u, v) of
-        (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
-        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k a d hpars u v
-        (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k a d hpars i v
-        (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k a d hpars j u
+        (Con c _ _   , Con c' _ _  ) | c == c' -> return $ Injectivity k a d pars ixs c
+        (Con c _ _   , Con c' _ _  ) -> return $ Conflict k a d pars u v
+        (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k a d pars i v
+        (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k a d pars j u
         _ -> mzero
     _ -> mzero
   where
@@ -894,11 +893,15 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM withoutKOption
   let n = eqCount s
 
+  -- Split equation telescope into parts before and after current equation
+  let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
+      (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
+
   -- Get constructor telescope and target indices
   cdef  <- liftTCM (getConInfo c)
   let ctype  = defType cdef `piApply` pars
       forced = defForced cdef
-  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+  addContext (varTel s `abstract` eqTel1) $ reportSDoc "tc.lhs.unify" 40 $
     "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
   let cixs = case unEl ctarget of
@@ -909,12 +912,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
   -- Get index telescope of the datatype
   dtype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
-  addContext (varTel s) $ reportSDoc "tc.lhs.unify" 40 $
+  addContext (varTel s `abstract` eqTel1) $ reportSDoc "tc.lhs.unify" 40 $
     "Datatype type: " <+> prettyTCM dtype
-
-  -- Split equation telescope into parts before and after current equation
-  let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
-      (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
 
   -- This is where the magic of higher-dimensional unification happens
   -- We need to generalize the indices `ixs` to the target indices of the
@@ -922,14 +921,14 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- recursively (this doesn't get stuck in a loop because a type should
   -- never be indexed over itself). Note the similarity with the
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
-  let hduTel = eqTel1 `abstract` raise (size eqTel1) ctel
+  let hduTel = eqTel1 `abstract` ctel
       notforced = replicate (size hduTel) NotForced
   res <- liftTCM $ addContext (varTel s) $ unifyIndices
            hduTel
            (allFlexVars notforced hduTel)
-           (raise (size hduTel) dtype)
+           (raise (size ctel) dtype)
            (raise (size ctel) ixs)
-           (raiseFrom (size ctel) (size eqTel1) cixs)
+           cixs
   case res of
     -- Higher-dimensional unification can never end in a conflict,
     -- because `cong c1 ...` and `cong c2 ...` don't even have the
@@ -941,7 +940,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     -- simplify the equation as in the non-indexed case.
     DontKnow _ | not withoutK -> do
       -- using the same variable names as in the case where hdu succeeds.
-      let eqTel1' = eqTel1 `abstract` raise (size eqTel1) ctel
+      let eqTel1' = eqTel1 `abstract` ctel
           rho1    = raiseS (size ctel)
           ceq     = ConP c noConPatternInfo $ teleNamedArgs ctel
           rho3    = consS ceq rho1
