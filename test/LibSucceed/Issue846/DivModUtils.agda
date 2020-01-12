@@ -17,7 +17,6 @@ open import Relation.Nullary.Negation
 open ≡-Reasoning
 open DecTotalOrder ≤-decTotalOrder using () renaming (refl to ≤-refl; antisym to ≤-antisym)
 
-
 i+[j∸m]≡i+j∸m : ∀ i j m → m ≤ j → i + (j ∸ m) ≡ i + j ∸ m
 i+[j∸m]≡i+j∸m i zero zero lt = refl
 i+[j∸m]≡i+j∸m i zero (suc m) ()
@@ -60,7 +59,6 @@ large {d} {r} x r′ pf = irrefl pf (
 -- a raw statement of the uniqueness, in the arrangement of terms that's
 -- easiest to work with computationally
 
-
 addMul-lemma′ : ∀ x x′ d (r r′ : Fin (suc d)) → x * suc d + toℕ r ≡ x′ * suc d + toℕ r′ → r ≡ r′ × x ≡ x′
 addMul-lemma′ zero zero d r r′ hyp = (toℕ-injective hyp) , refl
 addMul-lemma′ zero (suc x′) d r r′ hyp = ⊥-elim (large x′ r′ hyp)
@@ -71,7 +69,6 @@ addMul-lemma′ (suc x) (suc x′) d r r′ hyp
                       with addMul-lemma′ x x′ d r r′ (+-cancelˡ-≡ (suc d) hyp)
 ... | pf₁ , pf₂ = pf₁ , cong suc pf₂
 
-
 -- and now rearranged to the order that Data.Nat.DivMod uses
 
 addMul-lemma : ∀ x x′ d (r r′ : Fin (suc d)) → toℕ r + x * suc d ≡ toℕ r′ + x′ * suc d → r ≡ r′ × x ≡ x′
@@ -79,25 +76,19 @@ addMul-lemma x x′ d r r′ hyp rewrite +-comm (toℕ r) (x * suc d)
                                    | +-comm (toℕ r′) (x′ * suc d)
   = addMul-lemma′ x x′ d r r′ hyp
 
-
 DivMod-lemma : ∀ x d (r : Fin (suc d)) → (res : DivMod (toℕ r + x * suc d) (suc d)) → res ≡ result x r refl
 DivMod-lemma x d r (result q r′ eq) with addMul-lemma x q d r r′ eq
 DivMod-lemma x d r (result .x .r eq) | refl , refl =
   cong (result x r) (≡-irrelevant eq refl) -- holy fuck
 
-
 divMod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) divMod suc d ≡ result x r refl
 divMod-lemma x d r with (toℕ r + x * suc d) divMod suc d
 divMod-lemma x d r | q rewrite DivMod-lemma x d r q = refl
-
-
-
 
 -- End of copied code
 
 mod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) mod suc d ≡ r
 mod-lemma x d r rewrite divMod-lemma x d r = refl
-
 
 mod-suc : ∀ n
   →     n mod 7 ≡     zero
