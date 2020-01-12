@@ -15,8 +15,6 @@ open import Relation.Binary hiding (NonEmpty)
 open import Data.Empty
 open import Relation.Nullary.Negation
 open ≡-Reasoning
-open ≤-Reasoning
-  renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
 open DecTotalOrder ≤-decTotalOrder using () renaming (refl to ≤-refl; antisym to ≤-antisym)
 
 
@@ -25,7 +23,7 @@ i+[j∸m]≡i+j∸m i zero zero lt = refl
 i+[j∸m]≡i+j∸m i zero (suc m) ()
 i+[j∸m]≡i+j∸m i (suc j) zero lt = refl
 i+[j∸m]≡i+j∸m i (suc j) (suc m) (s≤s m≤j) = begin
-  i + (j ∸ m)             ≡⟨ i+[j∸m]≡i+j∸m i j m m≤j ⟩
+  i + (j ∸ m)           ≡⟨ i+[j∸m]≡i+j∸m i j m m≤j ⟩
   suc (i + j) ∸ suc m   ≡⟨ cong (λ y → y ∸ suc m) $ solve 2 (λ i' j' → con 1 :+ (i' :+ j') := i' :+ (con 1 :+ j')) refl i j ⟩
   (i + suc j) ∸ suc m ∎
   where
@@ -51,11 +49,17 @@ large {d} {r} x r′ pf = irrefl pf (
       suc x * suc d + toℕ r′ -- clearer in two steps, and we'd need assoc anyway
     □)
   where
-  open ≤-Reasoning
-  open Relation.Binary.StrictTotalOrder Data.Nat.Properties.<-strictTotalOrder
+    open ≤-Reasoning
+      renaming (begin_ to start_; _∎ to _□)
+    open Relation.Binary.StrictTotalOrder Data.Nat.Properties.<-strictTotalOrder
+
+    infixr 2 step-'
+    step-' = ≤-Reasoning.step-≡
+    syntax step-' x y≡z x≡y = x ≡⟨ x≡y ⟩' y≡z
 
 -- a raw statement of the uniqueness, in the arrangement of terms that's
 -- easiest to work with computationally
+
 
 addMul-lemma′ : ∀ x x′ d (r r′ : Fin (suc d)) → x * suc d + toℕ r ≡ x′ * suc d + toℕ r′ → r ≡ r′ × x ≡ x′
 addMul-lemma′ zero zero d r r′ hyp = (toℕ-injective hyp) , refl
@@ -87,6 +91,8 @@ divMod-lemma x d r with (toℕ r + x * suc d) divMod suc d
 divMod-lemma x d r | q rewrite DivMod-lemma x d r q = refl
 
 
+
+
 -- End of copied code
 
 mod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) mod suc d ≡ r
@@ -98,7 +104,6 @@ mod-suc : ∀ n
   → suc n mod 7 ≡ suc zero
 mod-suc n eq with n divMod 7
 mod-suc .(q * 7) refl | result q .zero refl = mod-lemma q 6 (suc zero)
-
 
 mod-pred : ∀ n
   →  suc n mod 7 ≡ suc zero
@@ -120,11 +125,13 @@ mod-pred .(toℕ r + q * 7) eq | result q r refl | yes p  = toℕ-injective eq4
           toℕ (suc (zero {7}))
             ≡⟨ refl ⟩
           suc zero ∎
+
 mod-pred .(toℕ r + q * 7) eq | result q r refl | no ¬p with eq3
   where eq2 = begin
           6
             ≡⟨ ≤-antisym (≰⇒> ¬p) (pred-mono (toℕ<n r)) ⟩
           toℕ r ∎
+
         eq3 = begin
           zero
             ≡⟨ sym (mod-lemma (suc q) 6 zero) ⟩
@@ -155,6 +162,7 @@ mod-pred .(toℕ r + q * 7) eq | result q r refl | no ¬p with eq3
 lem-sub-p : ∀ n p → (suc n mod 7 ≡ 1') → 1 ≤ p → p ≤ 6 → ((suc n ∸ p) mod 7 ≢ 1')
 lem-sub-p _ 0 _ () _ _
 lem-sub-p n 1 eq1 _ _ eq2 with begin zero ≡⟨ sym (mod-pred n eq1) ⟩ n mod 7 ≡⟨ eq2 ⟩ suc zero ∎
+
 ... | ()
 lem-sub-p n (suc (suc p)) eq _ ≤6 eq2 with n divMod 7 | mod-pred n eq
 lem-sub-p .0 (suc (suc p)) _ _ ≤6 () | result zero .zero refl | refl
@@ -188,6 +196,12 @@ lem-sub-p .(7 + (q * 7)) (suc (suc p)) _ _ (s≤s (s≤s (≤4))) eq2 | result (
             toℕ (fromℕ< <7)      ≡⟨ cong toℕ eq5 ⟩'
             toℕ (suc (zero {7}))  ≡⟨ refl ⟩'
             suc zero □
+            where
+              open ≤-Reasoning
+                renaming (begin_ to start_; _∎ to _□)
 
+              infixr 2 step-'
+              step-' = ≤-Reasoning.step-≡
+              syntax step-' x y≡z x≡y = x ≡⟨ x≡y ⟩' y≡z
 
 -- bla = nonEmpty
