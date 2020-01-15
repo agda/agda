@@ -380,8 +380,8 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
     (ExtendTel dom1{-@(Dom i1 a1)-} tel1, ExtendTel dom2{-@(Dom i2 a2)-} tel2) -> do
-      compareDom cmp dom1 dom2 tel1 tel2 bad bad bad bad $
-        compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
+      compareDom cmp dom1 dom2 tel1 tel2 bad bad bad bad $ \tel1Body tel2Body ->
+        compareTel t1 t2 cmp tel1Body tel2Body
   where
     -- Andreas, 2011-05-10 better report message about types
     bad = typeError $ UnequalTypes cmp t2 t1
@@ -669,8 +669,8 @@ compareAtom cmp t m n =
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC $
-                compareType cmp (absBody b1) (absBody b2)
+              compareDom cmp dom2 dom1 b2 b1 errH errR errQ errC $ \b2Body b1Body ->
+                compareType cmp b1Body b2Body
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
@@ -679,7 +679,7 @@ compareAtom cmp t m n =
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
-compareDom :: (MonadConversion m , Free c)
+compareDom :: (MonadConversion m , Free c, Subst Term b, Subst Term c)
   => Comparison -- ^ @cmp@ The comparison direction
   -> Dom Type   -- ^ @a1@  The smaller domain.
   -> Dom Type   -- ^ @a2@  The other domain.
@@ -689,7 +689,7 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
   -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
-  -> m ()     -- ^ Continuation if comparison is successful.
+  -> (b -> c -> m ())     -- ^ Continuation if comparison is successful.
   -> m ()
 compareDom cmp
   dom1@(Dom{domInfo = i1, unDom = a1})
@@ -704,13 +704,18 @@ compareDom cmp
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
       pid <- newProblem_ $ compareType cmp a1 a2
-      dom <- if dependent
-             then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
-             else return dom1
+      --dom <- if dependent
+      --      then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
+      --      else return dom1
+      b2Body <- if dependent
+                then do
+                   t <- blockTermOnProblem (unDom dom2) (var 0) pid
+                   return$ applySubst (t :# Wk 1 IdS) (absBody b2)
+                else return (absBody b2)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addContext (name, dom) $ cont
+      addContext (name, dom1) $ cont (absBody b1) b2Body
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.

@@ -1,3 +1,20 @@
-Unsolved metas at the following locations:
-  Issue3672b.agda:33,14-16
-  Issue3672b.agda:33,57-58
+Issue3672b.agda:33,51-58
+Variable generalization failed.
+  - Probable cause
+      There were unsolved constraints that obscured the dependencies
+      between the generalized variables.
+  - Suggestion
+      The most reliable solution is to provide enough information to make
+      the dependencies clear, but simply mentioning the variables in the
+      right order should also work.
+  - Further information
+    - Dependency analysis suggested this (likely incorrect) order:
+        xs P.a P x
+    - The dependency I error is
+      Issue3672b.agda:33,51-58
+      Failed to solve the following constraints:
+        _xs.A_124 =< F (_x_127 (_ = x) (x = x₁)) xs
+      when checking that the expression e ∘ f _ has type
+      F x xs → F x (d xs)
+when checking that the expression e ∘ f _ has type
+F x xs → F x (d xs)
