@@ -755,7 +755,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
   | null dir  = (s, (empty, empty))
       -- Since each run of applyImportDirective rebuilds the scope
       -- with cost O(n log n) time, it makes sense to test for the identity.
-  | otherwise = (mergeScope sUse sRen, (nameClashes, moduleClashes))
+  | otherwise = (recomputeInScopeSets $ mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
     -- | Names kept via using/hiding.
     sUse :: Scope
