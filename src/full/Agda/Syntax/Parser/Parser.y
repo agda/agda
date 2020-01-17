@@ -1244,8 +1244,8 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id        { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id vclose { ($4, InstanceDef) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef) }
 
 -- Fixity declarations.
 Infix :: { Declaration }
