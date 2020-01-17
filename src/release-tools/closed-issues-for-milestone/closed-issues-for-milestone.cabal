@@ -10,7 +10,7 @@ maintainer:          <andreas.abel@gu.se>
 -- category:
 build-type:          Simple
 cabal-version:       >= 1.10
-tested-with:         GHC == 8.8.1
+tested-with:         GHC == 8.8.2
 
 executable closed-issues-for-milestone
   main-is:          Main.hs
