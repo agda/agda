@@ -642,11 +642,11 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
       forM cs $ \(PConstr s c) -> do
         c <- normalForm norm c
-        case hasHeadMeta $ clValue c of
-          Just es_m -> do
+        case allApplyElims =<< hasHeadMeta (clValue c) of
+          Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
-            unifyElimsMeta m es_m c $ \ eqs c -> do
+            unifyElimsMeta m as_m c $ \ eqs c -> do
               flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
           _ -> do
             cl <- reify $ PConstr s c

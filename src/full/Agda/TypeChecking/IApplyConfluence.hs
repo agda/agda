@@ -95,7 +95,7 @@ checkIApplyConfluence f cl = case cl of
             addContext clTel $ equalTermOnFace phi trhs lhs body
 
             case body of
-              MetaV m es_m ->
+              MetaV m es_m' | Just es_m <- allApplyElims es_m' ->
                 caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
                 cs' <- do
                   reportSDoc "tc.iapply.ip" 20 $ "clTel =" <+> prettyTCM clTel
@@ -146,7 +146,7 @@ checkIApplyConfluence f cl = case cl of
                     reportSDoc "tc.iapply.ip" 40 $ "cxt1 =" <+> (prettyTCM =<< getContextTelescope)
                     reportSDoc "tc.iapply.ip" 40 $ prettyTCM $ alpha `applySubst` ValueCmpOnFace CmpEq phi trhs lhs (MetaV m idG)
 
-                    unifyElims (teleElims mTel []) (alpha `applySubst` es_m) $ \ sigma eqs -> do
+                    unifyElims (teleArgs mTel) (alpha `applySubst` es_m) $ \ sigma eqs -> do
                     -- mTel.clTel'' ⊢
                     -- mTel ⊢ clTel' ≃ clTel''.[eqs]
                     -- mTel.clTel'' ⊢ sigma : mTel.clTel'
@@ -157,7 +157,7 @@ checkIApplyConfluence f cl = case cl of
                     buildClosure $ IPBoundary
                        { ipbEquations = eqs
                        , ipbValue     = sigma `applySubst` lhs
-                       , ipbMetaApp   = alpha `applySubst` MetaV m es_m
+                       , ipbMetaApp   = alpha `applySubst` MetaV m es_m'
                        , ipbOverapplied = over
                        }
 
@@ -175,18 +175,17 @@ checkIApplyConfluence f cl = case cl of
 
 
 -- | current context is of the form Γ.Δ
-unifyElims :: Elims
+unifyElims :: Args
               -- ^ variables to keep   Γ ⊢ x_n .. x_0 : Γ
-           -> Elims
-              -- ^ variables to solve  Γ.Δ ⊢ es : Γ
+           -> Args
+              -- ^ variables to solve  Γ.Δ ⊢ ts : Γ
            -> (Substitution -> [(Term,Term)] -> TCM a)
               -- Γ.Δ' ⊢ σ : Γ.Δ
               -- Γ.Δ' new current context.
               -- Γ.Δ' ⊢ [(x = u)]
-              -- Γ.Δ', [(x = u)] ⊢ id_g = es[σ] : Γ
+              -- Γ.Δ', [(x = u)] ⊢ id_g = ts[σ] : Γ
            -> TCM a
-unifyElims idg es k | Just vs <- allApplyElims idg
-                    , Just ts <- allApplyElims es = do
+unifyElims vs ts k = do
                       dom <- getContext
                       let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
                           (binds'', eqss') =
@@ -197,7 +196,6 @@ unifyElims idg es k | Just vs <- allApplyElims idg
                           s     = bindS binds
                       updateContext s (codomain s (map fst binds)) $ do
                       k s (s `applySubst` eqs)
-                  | otherwise = __IMPOSSIBLE__
   where
     candidate :: [Term] -> [Term] -> ([(Nat,Term)],[(Term,Term)])
     candidate (i:is) (Var j []:ts) = first ((j,i):) (candidate is ts)
@@ -218,18 +216,20 @@ unifyElims idg es k | Just vs <- allApplyElims idg
 
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
-unifyElimsMeta :: MetaId -> Elims -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
+unifyElimsMeta :: MetaId -> Args -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
 unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
                   mv <- lookupMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
-                  ty <- getMetaType m
+                  ty <- metaType m
                   mTel0 <- getContextTelescope
-                  -- TODO extend telescope to handle extra elims
                   unless (size mTel0 == size es_m) $ reportSDoc "tc.iapply.ip.meta" 20 $ "funny number of elims" <+> text (show (size mTel0, size es_m))
-                  unless (size mTel0 <= size es_m) $ __IMPOSSIBLE__
+                  unless (size mTel0 <= size es_m) $ __IMPOSSIBLE__ -- meta has at least enough arguments to fill its creation context.
+
+                  -- if we have more arguments we extend the telescope accordingly.
                   TelV mTel1 _ <- telViewUpToPath (size es_m) ty
                   addContext (mTel1 `apply` teleArgs mTel0) $ do
                   mTel <- getContextTelescope
+                  -- invariant: size mTel == size es_m
                   (c,cxt) <- enterClosure cl $ \ c -> (c,) <$> getContextTelescope
                   reportSDoc "tc.iapply.ip.meta" 20 $ prettyTCM cxt
 
@@ -239,7 +239,7 @@ unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClos
 
                   reportSDoc "tc.iapply.ip.meta" 20 $ "trying unifyElims"
 
-                  unifyElims (teleElims mTel []) es_m $ \ sigma eqs -> do
+                  unifyElims (teleArgs mTel) es_m $ \ sigma eqs -> do
 
                   reportSDoc "tc.iapply.ip.meta" 20 $ "gotten a substitution"
 

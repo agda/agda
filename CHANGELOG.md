@@ -218,6 +218,31 @@ Language
   blah = tt
   ```
 
+### Type checking
+
+* Type inference for record expressions no longer considers record types from
+  modules that have not been imported (Issue [#4267](https://github.com/agda/agda/issues/4267)).
+
+  For instance,
+  ```agda
+  -- A.agda
+  module A where
+    record R : Set₁ where
+      field f : Set
+  ```
+  ```agda
+  -- B.agda
+  module B where
+    import A
+  ```
+  ```agda
+  -- C.agda
+  module C where
+    import B
+    fails : Set → _
+    fails X = record {f = X}  -- import A required to infer record type R
+  ```
+
 ### Modalities
 
 * New Flat Modality
