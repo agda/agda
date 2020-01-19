@@ -78,8 +78,12 @@ data Equality = Equal
   , _eqRight :: Term
   }
 
-instance Reduce Equality where
-  reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
+-- Jesper, 2020-01-19: The type type lives in the context of the
+-- variables+equations, while the lhs/rhs only depend on the
+-- variables, so there is no way to give a correct Reduce instance.
+-- WRONG:
+-- instance Reduce Equality where
+--   reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
 
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
 eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
@@ -201,12 +205,32 @@ getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
 
+getReducedEquality
+  :: (MonadReduce m, MonadAddContext m)
+  => Int -> UnifyState -> m Equality
+getReducedEquality k s = do
+  let Equal a u v = getEquality k s
+  addContext (varTel s) $ Equal
+    <$> addContext (eqTel s) (reduce a)
+    <*> reduce u
+    <*> reduce v
+
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
 getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
     Equal (snd <$> indexWithDefault __IMPOSSIBLE__ (telToList eqs) k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ lhs k)
           (unArg $ indexWithDefault __IMPOSSIBLE__ rhs k)
+
+getReducedEqualityUnraised
+  :: (MonadReduce m, MonadAddContext m)
+  => Int -> UnifyState -> m Equality
+getReducedEqualityUnraised k s = do
+  let Equal a u v = getEqualityUnraised k s
+  addContext (varTel s) $ Equal
+    <$> addContext (telFromList $ take k $ telToList $ eqTel s) (reduce a)
+    <*> reduce u
+    <*> reduce v
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --getEqInfo :: Int -> UnifyState -> ArgInfo

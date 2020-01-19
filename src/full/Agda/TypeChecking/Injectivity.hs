@@ -196,13 +196,12 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
   -- We don't need to consider absurd clauses
   let computeHead c | hasDefP (namedClausePats c) = return []
       -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
-      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = addContext (clauseTel c) $ do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
-              addContext (clauseTel c) $
-                headSymbol body
+              headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
