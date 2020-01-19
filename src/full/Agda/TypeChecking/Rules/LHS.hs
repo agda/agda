@@ -1335,7 +1335,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
       -- TODO: should we propagate the modality in general?
       -- See also Coverage checking.
-      da' <- do
+      da' <- addContext delta1Gamma $ do
              let updCoh = composeCohesion (getCohesion info)
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a

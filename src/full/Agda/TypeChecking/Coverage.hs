@@ -877,7 +877,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs, boundary) <- do
-    (TelV gamma0 (El _ d), boundary) <- liftTCM $ telViewPathBoundaryP (ctype `piApply` pars)
+    (TelV gamma0 (El _ d), boundary) <- liftTCM $ addContext delta1 $
+      telViewPathBoundaryP (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs, boundary)
@@ -907,7 +908,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
   -- TODO: should we propagate the modality in general?
   -- See also LHS checking.
-  dtype <- do
+  dtype <- addContext delta1 $ do
          let updCoh = composeCohesion (getCohesion info)
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
@@ -1289,7 +1290,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ checkSortOfSplitVar dr (unDom t) delta2 target
+      liftTCM $ inContextOfT $ checkSortOfSplitVar dr (unDom t) delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
