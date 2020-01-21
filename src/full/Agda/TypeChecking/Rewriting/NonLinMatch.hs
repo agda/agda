@@ -208,13 +208,13 @@ instance Match () NLPat Level where
 instance Match Type NLPat Term where
   match r gamma k t p v = do
     vbt <- addContext k $ reduceB (v,t)
-    etaRecord <- addContext k $ isEtaRecordType t
     let n = size k
         b = void vbt
         (v,t) = ignoreBlocking vbt
         prettyPat  = withShowAllArguments $ addContext (gamma `abstract` k) (prettyTCM p)
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
+    etaRecord <- addContext k $ isEtaRecordType t
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat
       , "  with term      " <+> prettyTerm
