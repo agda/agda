@@ -689,7 +689,13 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = Map.fromList
+primitiveFunctions = fmap localTCStateSavingWarnings $ Map.fromList
+  -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
+  --   is bad for caching since it happens when scope checking import declarations (rebinding
+  --   primitives). During type checking, the caching machinery might then load a cached state with
+  --   out-of-date checkpoint ids. Make sure to preserve warnings though, since they include things
+  --   like using unsafe things primitives with `--safe`.
 
   -- Ulf, 2015-10-28: Builtin integers now map to a datatype, and since you
   -- can define these functions (reasonably) efficiently using the primitive
