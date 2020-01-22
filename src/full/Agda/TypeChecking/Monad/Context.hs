@@ -126,15 +126,11 @@ checkpointSubstitution' chkpt = viewTC (eCheckpoints . key chkpt)
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
---   In case the we don't have a checkpoint for @m@ we return the identity
---   substitution.
---   This is ok for instance if we are outside module @m@ (in which case we
---   have to supply all module parameters to any symbol defined within @m@ we
---   want to refer).
-getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m Substitution
+--   Returns @Nothing@ in case the we don't have a checkpoint for @m@.
+getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m (Maybe Substitution)
 getModuleParameterSub m = do
   mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
-  maybe (return IdS) checkpointSubstitution mcp
+  traverse checkpointSubstitution mcp
 
 
 -- * Adding to the context

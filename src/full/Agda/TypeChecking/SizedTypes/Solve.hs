@@ -266,7 +266,7 @@ castConstraintToCurrentContext' cl = do
   let gamma2 = gamma - size gamma1
 
   -- Γ ⊢ σ : Δ₁
-  sigma <- liftTCM $ getModuleParameterSub modN
+  sigma <- liftTCM $ fromMaybe idS <$> getModuleParameterSub modN
 
   -- Debug printing.
   reportSDoc "tc.constr.cast" 40 $ "casting constraint" $$ do
