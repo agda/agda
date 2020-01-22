@@ -653,7 +653,7 @@ evalTCM v = do
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
       c <- unquote c
-      liftU1 inTopContext $ go c (evalTCM m)
+      liftU1 unsafeInTopContext $ go c (evalTCM m)
       where
         go :: [Arg R.Type] -> UnquoteM Term -> UnquoteM Term
         go []       m = m
