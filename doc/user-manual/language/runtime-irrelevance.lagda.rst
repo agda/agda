@@ -106,7 +106,8 @@ Consider the function ``foo`` taking an erased vector argument::
   foo zero    []       = 0
   foo (suc n) (x ∷ xs) = foo n xs
 
-This is okay, since after matching on the length, the matching on the vector does not provide any computational information.
+This is okay, since after matching on the length, the matching on the vector does not provide any computational information, and
+any variables in the pattern (``x`` and ``xs`` in this case) are marked erased in turn.
 On the other hand, if we don't match on the length first, the type checker complains:
 
 .. code-block:: agda
@@ -116,7 +117,14 @@ On the other hand, if we don't match on the length first, the type checker compl
   foo n (x ∷ xs) = foo _ xs
   -- Error: Cannot branch on erased argument of datatype Vec Nat n
 
-The type checker enters compile-time mode when checking types, or when checking arguments or definitions marked as erased.
+The type checker enters compile-time mode when
+
+- checking a type, i.e. when moving to the right of a ``:``,
+- checking erased arguments to a constructor or function, or
+- checking the body of an erased definition
+
+Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
+checking a term against ``Set`` does not trigger compile-time mode.
 
 .. _references:
 
