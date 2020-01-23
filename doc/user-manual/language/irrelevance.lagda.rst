@@ -16,6 +16,10 @@ Irrelevance
 
 Since version 2.2.8 Agda supports irrelevancy annotations. The general rule is that anything prepended by a dot (.) is marked irrelevant, which means that it will only be typechecked but never evaluated.
 
+.. note::
+  This section is about compile-time irrelevance. See :ref:`runtime-irrelevance` for the section on
+  run-time irrelevance.
+
 Motivating example
 ==================
 
