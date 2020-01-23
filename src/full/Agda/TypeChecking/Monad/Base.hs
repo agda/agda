@@ -3344,6 +3344,8 @@ data TypeError
             -- ^ The two function types have different relevance.
         | UnequalQuantity Comparison Term Term
             -- ^ The two function types have different relevance.
+        | UnequalCohesion Comparison Term Term
+            -- ^ The two function types have different cohesion.
         | UnequalHiding Term Term
             -- ^ The two function types have different hiding.
         | UnequalSorts Sort Sort
