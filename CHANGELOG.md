@@ -243,6 +243,11 @@ Language
     fails X = record {f = X}  -- import A required to infer record type R
   ```
 
+* The fix of issue [#3903](https://github.com/agda/agda/issues/3903) changes
+  the algorithm computing the order of case splits, which in some cases may
+  lead to unsolved metavariables in previously working code. See issue
+  [#4353](https://github.com/agda/agda/issues/4353).
+
 ### Modalities
 
 * New Flat Modality
