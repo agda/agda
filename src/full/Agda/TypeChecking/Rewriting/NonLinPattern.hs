@@ -62,7 +62,8 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
-    (IApply x y u : es) -> __IMPOSSIBLE__ -- TODO
+    (IApply x y u : es) -> typeError $ GenericError $
+      "Rewrite rules with cubical are not yet supported"
     (Proj o f : es) -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
       let t' = b `absApp` hd
