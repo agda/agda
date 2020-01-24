@@ -42,11 +42,11 @@ Internally this is translated into a function definition of the following form:
 
 .. code-block:: agda
 
-   .extlam p11 .. p1n = e1
+   extlam p11 .. p1n = e1
    …
-   .extlam pm1 .. pmn = em
+   extlam pm1 .. pmn = em
 
-This means that anonymous pattern matching functions are generative. For instance, ``refl`` will not be accepted as an inhabitant of the type
+where `extlam` is a fresh name. This means that anonymous pattern matching functions are generative. For instance, ``refl`` will not be accepted as an inhabitant of the type
 
 ..
   ::
