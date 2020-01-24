@@ -22,13 +22,23 @@ Lambda Abstraction
 Pattern matching lambda
 -----------------------
 
-Anonymous pattern matching functions can be defined using the syntax:
+Anonymous pattern matching functions can be defined using one of the two
+following syntaxes:
 
 .. code-block:: agda
 
    \ { p11 .. p1n -> e1 ; … ; pm1 .. pmn -> em }
 
-(where, as usual, ``\`` and ``->`` can be replaced by ``λ`` and ``→``). Internally this is translated into a function definition of the following form:
+   \ where
+     p11 .. p1n -> e1
+     …
+     pm1 .. pmn -> em
+
+(where, as usual, ``\`` and ``->`` can be replaced by ``λ`` and ``→``).
+Note that the ``where`` keyword introduces an *indented* block of clauses;
+if there is only one clause then it may be used inline.
+
+Internally this is translated into a function definition of the following form:
 
 .. code-block:: agda
 
@@ -70,8 +80,17 @@ Examples:
           ; _     _     → true
           }
 
+  eq : Bool → Bool → Bool
+  eq = λ where
+    true  true  → true
+    false false → true
+    _ _ → false
+
   fst : {A : Set} {B : A → Set} → Σ A B → A
   fst = λ { (a , b) → a }
 
   snd : {A : Set} {B : A → Set} (p : Σ A B) → B (fst p)
   snd = λ { (a , b) → b }
+
+  swap : {A B : Set} → Σ A (λ _ → B) → Σ B (λ _ → A)
+  swap = λ where (a , b) → (b , a)
