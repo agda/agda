@@ -148,7 +148,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            unsafeEscapeContext npars $ do
+            escapeContext __IMPOSSIBLE__ npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -240,7 +240,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        unsafeEscapeContext (size tel) $ do
+        escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           -- Cannot compose indexed inductive types yet.
           (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)

@@ -197,7 +197,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      unsafeEscapeContext npars $ do
+      escapeContext __IMPOSSIBLE__ npars $ do
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -296,7 +296,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> unsafeEscapeContext 1 (prettyTCM ftel)
+          [ "field tel =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel)
           ]
         addSection m
 
@@ -319,7 +319,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
 
       -- we define composition here so that the projections are already in the signature.
-      unsafeEscapeContext npars $ do
+      escapeContext __IMPOSSIBLE__ npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
@@ -674,7 +674,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        unsafeEscapeContext (size tel) $ do
+        escapeContext __IMPOSSIBLE__ (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
               emptyFunction
