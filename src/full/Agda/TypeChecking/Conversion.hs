@@ -704,23 +704,19 @@ compareDom cmp
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
       pid <- newProblem_ $ compareType cmp a1 a2
-      --dom <- if dependent
-      --      then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
-      --      else return dom1
+        -- Victor, 2020-01-24
+        -- We only need to block the bound variable if b2 is dependent.
+        -- If it's non-dependent then the type of the variable doesn't matter.
       b2Body <- if dependent
                 then do
                    t <- blockTermOnProblem (unDom dom2) (var 0) pid
                    return$ applySubst (t :# Wk 1 IdS) (absBody b2)
                 else return (absBody b2)
-        -- We only need to require a1 == a2 if b2 is dependent
-        -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
       addContext (name, dom1) $ cont (absBody b1) b2Body
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
-        -- Only the domain type in context will be blocked.
-        -- But see issue #1258.
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
