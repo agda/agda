@@ -341,7 +341,7 @@ addCompositionForRecord
   -> TCM ()
 addCompositionForRecord name con tel fs ftel rect = do
   cxt <- getContextTelescope
-  unsafeInTopContext $ do
+  inTopContext $ do
 
     -- Record has no fields: attach composition data to record constructor
     if null fs then do

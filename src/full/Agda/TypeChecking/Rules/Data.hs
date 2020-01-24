@@ -245,7 +245,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           -- Cannot compose indexed inductive types yet.
           (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
             then return (ConHead c Inductive [], emptyCompKit, Nothing)
-            else unsafeInTopContext $ do
+            else inTopContext $ do
               -- Name for projection of ith field of constructor c is just c-i
               names <- forM [0 .. size fields - 1] $ \ i ->
                 freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i

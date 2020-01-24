@@ -303,7 +303,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- also add an absurd clause for the cases not needed.
         (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 sys <- unsafeInTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
+                 sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
