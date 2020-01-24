@@ -146,39 +146,49 @@ not installed automatically.
 OS X
 ----
 
-`Homebrew <https://brew.sh>`_ provides prebuilt packages for OS X.  To install:
+`Homebrew <https://brew.sh>`_ is a free and open-source software package
+management system that provides prebuilt packages for OS X. Once it is
+installed in your system, you are ready to install agda. Open the
+Terminal app and run the following command:
 
 .. code-block:: bash
 
   brew install agda
 
-This should take less than a minute, and install Agda together with
-the Emacs mode and the standard library.
+This process should take less than a minute, and it installs Agda together with
+its Emacs mode and its standard library. For more information about the ``brew``
+command, please refer to the `Homebrew documentation <https://docs.brew.sh/>`_
+and `Homebrew FAQ <https://docs.brew.sh/FAQ>`_.
 
-By default, the standard library is installed in
+By default, the standard library is installed in the folder
 ``/usr/local/lib/agda/``.  To use the standard library, it is
-convenient to add ``/usr/local/lib/agda/standard-library.agda-lib`` to
-``~/.agda/libraries``, and specify ``standard-library`` in
-``~/.agda/defaults``.  Note this is not performed automatically.
+convenient to add the location of the agda-lib file ``/usr/local/lib/agda/standard-library.agda-lib``
+to the ``~/.agda/libraries`` file, and write the line ``standard-library`` in
+the ``~/.agda/defaults`` file. To do this, run the following commands:
 
-It is also possible to install ``--without-stdlib``,
-``--without-ghc``, or from ``--HEAD``.  Note this will require
+.. code-block:: bash
+
+  mkdir -p ~/.agda
+  echo /usr/local/lib/agda/standard-library.agda-lib >>~/.agda/libraries
+  echo standard-library >>~/.agda/defaults
+
+Please note that this configuration is not performed automatically. You can
+learn more about :ref:`using the standard library <use-std-lib>` or
+:ref:`using a library in general <use-lib>`.
+
+It is also possible to install with the command-line option keywords
+``--without-stdlib``, ``--without-ghc``, or from ``--HEAD``.  This requires
 building Agda from source.
 
-For more information, refer to the `Homebrew documentation
-<https://docs.brew.sh/>`_.
+To configure the way of editing agda files, follow the section
+:ref:`Emacs mode <emacs-mode>`.
 
 .. NOTE::
 
    If Emacs cannot find the ``agda-mode`` executable, it might help to
    install the exec-path-from-shell_ package by doing ``M-x
-   package-install RET exec-path-from-shell RET``, and adding
-
-   .. code-block:: elisp
-
-     (exec-path-from-shell-initialize)
-
-   to your ``.emacs`` file.
+   package-install RET exec-path-from-shell RET`` and adding the line
+   ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
 .. _installation-development-version:
 
