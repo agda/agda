@@ -58,6 +58,7 @@ inTopContext cont =
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyTCState stModuleCheckpoints (const Map.empty)
         $ locallyScope scopeLocals (const [])
+        $ locallyTC eLetBindings (const Map.empty)
         $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
