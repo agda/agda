@@ -151,7 +151,7 @@ flag enable-cluster-counting
 
 custom-setup
   setup-depends:  base >= 4.9.0.0 && < 4.15
-                , Cabal >= 1.24.0.0 && < 3.2
+                , Cabal >= 1.24.0.0 && < 3.3
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
