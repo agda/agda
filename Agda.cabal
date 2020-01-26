@@ -149,8 +149,6 @@ flag enable-cluster-counting
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
--- ASR (2018-09-14). Every new setup dependency should also be added
--- as a library dependency. See Issue #3225.
 custom-setup
   setup-depends:  base >= 4.9.0.0 && < 4.15
                 , Cabal >= 1.24.0.0 && < 3.2
