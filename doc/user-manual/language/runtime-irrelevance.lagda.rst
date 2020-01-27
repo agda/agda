@@ -140,10 +140,8 @@ References
 [1] Brady, Edwin, Conor McBride, and James McKinna. "Inductive Families Need Not Store Their Indices."
 International Workshop on Types for Proofs and Programs. Springer, Berlin, Heidelberg, 2003.
 
-[2] McBride, Conor. "I Got Plenty o’Nuttin’." A List of Successes That Can Change the World.
-Springer, Cham, 2016.
-`[pdf] <https://personal.cis.strath.ac.uk/conor.mcbride/PlentyO-CR.pdf>`_
+[2] McBride, Conor. `"I Got Plenty o’Nuttin’." <https://personal.cis.strath.ac.uk/conor.mcbride/PlentyO-CR.pdf>`_
+A List of Successes That Can Change the World. Springer, Cham, 2016.
 
-[3] Atkey, Robert. "The Syntax and Semantics of Quantitative Type Theory". In LICS '18: Oxford,
-United Kingdom. 2018.
-`[pdf] <https://bentnib.org/quantitative-type-theory.html>`_
+[3] Atkey, Robert. `"The Syntax and Semantics of Quantitative Type Theory" <https://bentnib.org/quantitative-type-theory.html>`_.
+In LICS '18: Oxford, United Kingdom. 2018.
