@@ -42,7 +42,7 @@ arguments.
   annotation, using Brady et al's forcing analysis :ref:`[1] <references>`. Marking it erased explictly, however,
   ensures that it is erased without relying on the analysis.
 
-Erasure annotation can also appear in function arguments (both first-order and higher-order). For instance, here is
+Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
 
   foldl : (B : Nat → Set b)
@@ -89,16 +89,22 @@ and can be useful to ensure that code intended only for compile-time evaluation 
   impl n = n
   proof n = refl
 
+Erased record fields become erased arguments to the record constructor and the projection functions
+are treated as erased definitions.
+
 Rules
 =====
 
-The typing rules are based on Conor McBride's "I Got Plenty o’Nuttin’" :ref:`[2] <references>`. In essence the type checker
-keeps track of whether it is running in *run-time mode*, checking something that is needed at run time, or *compile-time mode*,
-checking something that will be erased. In compile-time mode everything to do with erasure can safely be ignored, but in run-time
-mode the following restrictions apply:
+The typing rules are based on Conor McBride's "I Got Plenty o’Nuttin’" :ref:`[2] <references>` and
+Bob Atkey's "The Syntax and Semantics of Quantitative Type Theory" :ref:`[3] <references>`. In
+essence the type checker keeps track of whether it is running in *run-time mode*, checking something
+that is needed at run time, or *compile-time mode*, checking something that will be erased. In
+compile-time mode everything to do with erasure can safely be ignored, but in run-time mode the
+following restrictions apply:
 
-- Cannot use erased variables or defintions
-- Cannot pattern match on erased arguments, unless there is at most one valid case
+- Cannot use erased variables or definitions
+- Cannot pattern match on erased arguments, unless there is at most one valid case. If
+  ``--without-K`` is enabled, the datatype also must not be indexed.
 
 Consider the function ``foo`` taking an erased vector argument::
 
@@ -135,5 +141,9 @@ References
 International Workshop on Types for Proofs and Programs. Springer, Berlin, Heidelberg, 2003.
 
 [2] McBride, Conor. "I Got Plenty o’Nuttin’." A List of Successes That Can Change the World.
-Springer, Cham, 2016. 207-233. `[pdf]
-<https://personal.cis.strath.ac.uk/conor.mcbride/PlentyO-CR.pdf>`_
+Springer, Cham, 2016.
+`[pdf] <https://personal.cis.strath.ac.uk/conor.mcbride/PlentyO-CR.pdf>`_
+
+[3] Atkey, Robert. "The Syntax and Semantics of Quantitative Type Theory". In LICS '18: Oxford,
+United Kingdom. 2018.
+`[pdf] <https://bentnib.org/quantitative-type-theory.html>`_
