@@ -256,6 +256,16 @@ Language
   An idempotent comonadic modality modeled after spatial/crisp type theory.
   See "Flat Modality" in the documentation for more.
 
+* New run-time erasure modality (`@0` / `@erased`).
+  Terms marked as erased cannot influence computations and are erased at run time.
+  See [Run-time
+  Irrelevance](https://agda.readthedocs.io/en/latest/language/runtime-irrelevance.html)
+  in the documentation for more information.
+
+  Note that this feature can cause previously solved metavariables to become
+  unsolved even in code that doesn't use run-time erasure (see issue
+  [#4174](https://github.com/agda/agda/issues/4174)).
+
 ### Universe levels
 
 * New (experimental) option `--cumulativity`

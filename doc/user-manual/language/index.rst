@@ -38,6 +38,7 @@ Language Reference
    record-types
    reflection
    rewriting
+   runtime-irrelevance
    safe-agda
    sized-types
    syntactic-sugar
