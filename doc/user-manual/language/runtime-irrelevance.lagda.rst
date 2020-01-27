@@ -102,9 +102,10 @@ that is needed at run time, or *compile-time mode*, checking something that will
 compile-time mode everything to do with erasure can safely be ignored, but in run-time mode the
 following restrictions apply:
 
-- Cannot use erased variables or definitions
-- Cannot pattern match on erased arguments, unless there is at most one valid case. If
-  ``--without-K`` is enabled, the datatype also must not be indexed.
+- Cannot use erased variables or definitions.
+- Cannot pattern match on erased arguments, unless there is at most
+  one valid case. If ``--without-K`` is enabled and there is one valid
+  case, then the datatype must also not be indexed.
 
 Consider the function ``foo`` taking an erased vector argument::
 
