@@ -24,6 +24,8 @@ Index of pragmas
 
 * :ref:`COMPILE <foreign-function-interface>`
 
+* :ref:`DISPLAY <display-pragma>`
+
 * :ref:`FOREIGN <foreign-function-interface>`
 
 * :ref:`INJECTIVE <injective-pragma>`
