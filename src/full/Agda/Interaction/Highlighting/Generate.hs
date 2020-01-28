@@ -65,7 +65,7 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
-import Agda.Syntax.Position (Range, getRange, noRange)
+import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
 
 import Agda.Utils.FileName
 import Agda.Utils.Function
@@ -233,6 +233,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols and some other things.
+  theRest :: SourceToModule -> AbsolutePath -> File
   theRest modMap file = mconcat
     [ Fold.foldMap getFieldDecl   $ universeBi decl
     , Fold.foldMap getVarAndField $ universeBi decl
@@ -250,6 +251,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     , Fold.foldMap getNamedArgB   $ universeBi decl
     , Fold.foldMap getNamedArgL   $ universeBi decl
     , Fold.foldMap getQuantityAttr$ universeBi decl
+    , Fold.foldMap getPragma      $ universeBi decl
     ]
     where
     bound A.BindName{ unBind = n } =
@@ -339,6 +341,26 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getPatSynArgs :: A.Declaration -> File
     getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.mkBindName . Common.unArg) xs
     getPatSynArgs _                        = mempty
+
+    -- Issue #4361, highlight BUILTINs like NAT, EQUALITY etc. in keyword color.
+    getPragma :: A.Declaration -> File
+    getPragma = \case
+      A.Pragma _ p ->
+        case p of
+          A.BuiltinPragma b _      -> keyword b
+          A.BuiltinNoDefPragma b _ -> keyword b
+          A.CompilePragma b _ _    -> keyword b
+          A.OptionsPragma{}   -> mempty
+          A.RewritePragma{}   -> mempty
+          A.StaticPragma{}    -> mempty
+          A.EtaPragma{}       -> mempty
+          A.InjectivePragma{} -> mempty
+          A.InlinePragma{}    -> mempty
+          A.DisplayPragma{}   -> mempty
+      _ -> mempty
+
+    keyword :: HasRange a => a -> File
+    keyword x = singleton (rToR $ getRange x) $ parserBased { aspect = Just Keyword }
 
     getPattern' :: IsProjP e => A.Pattern' e -> File
     getPattern' (A.VarP x)    = bound x

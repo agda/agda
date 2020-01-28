@@ -1532,10 +1532,10 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) $4 }
+      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (mkRString $3) $4 }
     -- Extra rule to accept keyword REWRITE also as built-in:
     | '{-#' 'BUILTIN' 'REWRITE' PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" $4 }
+      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) (Ranged (getRange $3) "REWRITE") $4 }
 
 RewritePragma :: { Pragma }
 RewritePragma
@@ -1544,12 +1544,12 @@ RewritePragma
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
 
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
-    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (snd $3) $4 (unwords $5) }
+    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (mkRString $3) $4 (unwords $5) }
 
 StaticPragma :: { Pragma }
 StaticPragma
@@ -1922,6 +1922,8 @@ mkQName ss = do
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> LamBinding
 mkDomainFree_ f p n = DomainFree $ f $ defaultNamedArg $ Binder p $ mkBoundName_ n
 
+mkRString :: (Interval, String) -> RString
+mkRString (i, s) = Ranged (getRange i) s
 
 -- | Create a qualified name from a string (used in pragmas).
 --   Range of each name component is range of whole string.

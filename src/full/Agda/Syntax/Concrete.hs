@@ -436,10 +436,10 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma
   = OptionsPragma             Range [String]
-  | BuiltinPragma             Range String QName
+  | BuiltinPragma             Range RString QName
   | RewritePragma             Range [QName]
-  | ForeignPragma             Range String String       -- ^ first string is backend name
-  | CompilePragma             Range String QName String -- ^ first string is backend name
+  | ForeignPragma             Range RString String       -- ^ first string is backend name
+  | CompilePragma             Range RString QName String -- ^ first string is backend name
   | StaticPragma              Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
 
