@@ -350,8 +350,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
           A.BuiltinPragma b _      -> keyword b
           A.BuiltinNoDefPragma b _ -> keyword b
           A.CompilePragma b _ _    -> keyword b
+          A.RewritePragma r _      -> keyword r
           A.OptionsPragma{}   -> mempty
-          A.RewritePragma{}   -> mempty
           A.StaticPragma{}    -> mempty
           A.EtaPragma{}       -> mempty
           A.InjectivePragma{} -> mempty
@@ -472,6 +472,7 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (getRange i)
   tokenToCFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (getRange i)
   tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (getRange i)
+  tokenToCFile (T.TokKeyword T.KwREWRITE _)     = mempty  -- #4361, REWRITE is not always a Keyword
   tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (getRange i)
   tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (getRange i)
   tokenToCFile (T.TokLiteral (L.LitNat    r _)) = aToF Number r
