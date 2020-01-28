@@ -2068,8 +2068,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
-  toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
-  toAbstract (C.CompilePragma _ b x s) = do
+  toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
+  toAbstract (C.CompilePragma _ rb x s) = do
+    let b = rangedThing rb
     me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
     case me of
       Nothing -> [] <$ notInScopeWarning x
@@ -2084,7 +2085,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
           _                   -> __IMPOSSIBLE__
-        return [ A.CompilePragma b y s ]
+        return [ A.CompilePragma rb y s ]
 
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2114,34 +2115,36 @@ instance ToAbstract C.Pragma [A.Pragma] where
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
       return [ A.InlinePragma b y ]
-  toAbstract (C.BuiltinPragma _ b q) | isUntypedBuiltin b = do
-    bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
-    return []
-  toAbstract (C.BuiltinPragma _ b q) = do
-    -- Andreas, 2015-02-14
-    -- Some builtins cannot be given a valid Agda type,
-    -- thus, they do not come with accompanying postulate or definition.
-    if b `elem` builtinsNoDef then do
-      case q of
-        C.QName x -> do
-          -- The name shouldn't exist yet. If it does, we raise a warning
-          -- and drop the existing definition.
-          unlessM ((UnknownName ==) <$> resolveName q) $ do
-            genericWarning $ P.text $
-               "BUILTIN " ++ b ++ " declares an identifier " ++
-               "(no longer expects an already defined identifier)"
-            modifyCurrentScope $ removeNameFromScope PublicNS x
-          -- We then happily bind the name
-          y <- freshAbstractQName' x
-          let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
-          bindName PublicAccess kind x y
-          return [ A.BuiltinNoDefPragma b y ]
-        _ -> genericError $
-          "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-          "but found " ++ prettyShow q
-    else do
-      q <- toAbstract $ ResolveQName q
-      return [ A.BuiltinPragma b q ]
+  toAbstract (C.BuiltinPragma _ rb q)
+    | isUntypedBuiltin b = do
+        bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
+        return []
+    | otherwise = do
+        -- Andreas, 2015-02-14
+        -- Some builtins cannot be given a valid Agda type,
+        -- thus, they do not come with accompanying postulate or definition.
+        if b `elem` builtinsNoDef then do
+          case q of
+            C.QName x -> do
+              -- The name shouldn't exist yet. If it does, we raise a warning
+              -- and drop the existing definition.
+              unlessM ((UnknownName ==) <$> resolveName q) $ do
+                genericWarning $ P.text $
+                   "BUILTIN " ++ b ++ " declares an identifier " ++
+                   "(no longer expects an already defined identifier)"
+                modifyCurrentScope $ removeNameFromScope PublicNS x
+              -- We then happily bind the name
+              y <- freshAbstractQName' x
+              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
+              bindName PublicAccess kind x y
+              return [ A.BuiltinNoDefPragma rb y ]
+            _ -> genericError $
+              "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+              "but found " ++ prettyShow q
+        else do
+          q <- toAbstract $ ResolveQName q
+          return [ A.BuiltinPragma rb q ]
+    where b = rangedThing rb
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing
     case e of

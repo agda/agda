@@ -596,13 +596,13 @@ instance Pretty OpenShortHand where
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts)  = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text b, pretty x ]
+    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text (rangedThing b), pretty x ]
     pretty (RewritePragma _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
     pretty (CompilePragma _ b x e) =
-      hsep [ "COMPILE", text b, pretty x, text e ]
+      hsep [ "COMPILE", text (rangedThing b), pretty x, text e ]
     pretty (ForeignPragma _ b s) =
-      vcat $ text ("FOREIGN " ++ b) : map text (lines s)
+      vcat $ text ("FOREIGN " ++ rangedThing b) : map text (lines s)
     pretty (StaticPragma _ i) =
       hsep $ ["STATIC", pretty i]
     pretty (InjectivePragma _ i) =

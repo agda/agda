@@ -698,8 +698,8 @@ checkPrimitive i x e =
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
-        A.BuiltinPragma x e -> bindBuiltin x e
-        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
+        A.BuiltinPragma x e -> bindBuiltin (rangedThing x) e
+        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef (rangedThing b) x
         A.RewritePragma qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
@@ -707,7 +707,7 @@ checkPragma r p =
           unlessM ((x' `isInModule`) <$> currentModule) $
             typeError $ GenericError $
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
-          addPragma b x s
+          addPragma (rangedThing b) x s
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of
