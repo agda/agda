@@ -687,7 +687,7 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      { HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
@@ -701,7 +701,7 @@ Expr3NoCurly
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr DoubleCloseBrace        { InstanceArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
@@ -2235,12 +2235,20 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named_ Expr
+-- | When given expression is @e1 = e2@, turn it into a named expression.
+--   Call this inside an implicit argument @{e}@ or @{{e}}@, where
+--   an equality must be a named argument (rather than a cubical partial match).
+maybeNamed :: Expr -> Parser (Named_ Expr)
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named nm b
-      where nm = WithOrigin UserWritten $ Ranged (getRange x) $ nameToRawName x
-    _                         -> unnamed e
+    Nothing       -> return $ unnamed e
+    Just (e1, e2) -> do
+      let succeed x = return $ named (WithOrigin UserWritten $ Ranged (getRange e1) x) e2
+      case e1 of
+        Ident (QName x) -> succeed $ nameToRawName x
+        -- We could have the following, but names of arguments cannot be _.
+        -- Underscore{}    -> succeed $ "_"
+        _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
 patternSynArgs = mapM pSynArg
