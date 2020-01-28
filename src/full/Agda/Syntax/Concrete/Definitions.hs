@@ -1286,7 +1286,7 @@ niceDeclarations fixs ds = do
         return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
-      Pragma p@(RewritePragma r _) -> do
+      Pragma p@(RewritePragma r _ _) -> do
         return [ NicePragma r p ]
       _ -> throwError $ WrongContentBlock b $ getRange d
 

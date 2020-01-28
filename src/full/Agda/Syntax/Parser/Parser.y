@@ -1539,7 +1539,7 @@ BuiltinPragma
 RewritePragma :: { Pragma }
 RewritePragma
     : '{-#' 'REWRITE' PragmaQNames '#-}'
-      { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
+      { RewritePragma (getRange ($1,$2,$3,$4)) (getRange $2) $3 }
 
 ForeignPragma :: { Pragma }
 ForeignPragma

@@ -2056,8 +2056,8 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-  toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ xs) = singleton . A.RewritePragma . concat <$> do
+  toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
+  toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
