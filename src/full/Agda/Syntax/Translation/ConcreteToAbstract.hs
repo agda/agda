@@ -1125,6 +1125,15 @@ instance EnsureNoLetStms C.TypedBinding where
     C.TBind _ xs _ -> traverse_ (ensureNoLetStms . namedArg) xs
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
+  ensureNoLetStms = \case
+    -- GA: DO NOT use traverse here: `LamBinding'` only uses its parameter in
+    --     the DomainFull constructor so we would miss out on some potentially
+    --     illegal lets! Cf. #4402
+    C.DomainFree a -> ensureNoLetStms a
+    C.DomainFull a -> ensureNoLetStms a
+
+instance EnsureNoLetStms a => EnsureNoLetStms (Named_ a) where
+instance EnsureNoLetStms a => EnsureNoLetStms (NamedArg a) where
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
 
 
