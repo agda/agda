@@ -995,7 +995,8 @@ checkLHS mf = updateModality checkLHS_ where
                  -> ExceptT TCErr tcm (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
-      unless (domFinite dom) $ softTypeError $ GenericError $ "Not a finite domain: " ++ show dom
+      unless (domFinite dom) $ liftTCM $ softTypeError . GenericDocError =<<
+        hsep [ "Not a finite domain:" , prettyTCM $ unDom dom ]
 
       tInterval <- liftTCM $ elInf primInterval
 
