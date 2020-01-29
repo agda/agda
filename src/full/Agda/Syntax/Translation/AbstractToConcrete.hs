@@ -478,7 +478,7 @@ withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declar
 withAbstractPrivate i m =
     priv (defAccess i)
       . abst (A.defAbstract i)
-      . addInstanceB (A.defInstance i == InstanceDef)
+      . addInstanceB (case A.defInstance i of InstanceDef r -> Just r; NotInstanceDef -> Nothing)
       <$> m
     where
         priv (PrivateAccess UserWritten)
@@ -487,9 +487,9 @@ withAbstractPrivate i m =
         abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
         abst ConcreteDef ds = ds
 
-addInstanceB :: Bool -> [C.Declaration] -> [C.Declaration]
-addInstanceB True  ds = [ C.InstanceB (getRange ds) ds ]
-addInstanceB False ds = ds
+addInstanceB :: Maybe Range -> [C.Declaration] -> [C.Declaration]
+addInstanceB (Just r) ds = [ C.InstanceB r ds ]
+addInstanceB Nothing  ds = ds
 
 -- The To Concrete Class --------------------------------------------------
 
@@ -885,11 +885,11 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
 
-instance ToConcrete LetBinding [C.Declaration] where
-    bindToConcrete (LetBind i info x t e) ret =
+instance ToConcrete A.LetBinding [C.Declaration] where
+    bindToConcrete (A.LetBind i info x t e) ret =
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
-           ret $ addInstanceB (isInstance info) $
+           ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
                , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
                              e C.NoWhere False

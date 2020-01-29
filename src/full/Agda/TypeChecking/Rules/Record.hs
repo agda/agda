@@ -234,13 +234,14 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               }
 
       -- Declare the constructor as eligible for instance search
-      when (Info.defInstance i == InstanceDef) $ setCurrentRange conName $ do
-        -- Andreas, 2020-01-28, issue #4360:
-        -- Use addTypedInstance instead of addNamedInstance
-        -- to detect unusable instances.
-        addTypedInstance conName contype
-        -- addNamedInstance conName name
-
+      case Info.defInstance i of
+        InstanceDef r -> setCurrentRange r $ do
+          -- Andreas, 2020-01-28, issue #4360:
+          -- Use addTypedInstance instead of addNamedInstance
+          -- to detect unusable instances.
+          addTypedInstance conName contype
+          -- addNamedInstance conName name
+        NotInstanceDef -> pure ()
 
       -- Check that the fields fit inside the sort
       _ <- fitsIn uc [] contype s
@@ -695,8 +696,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
           computePolarity [projname]
 
-        when (Info.defInstance info == InstanceDef) $
-          addTypedInstance projname t
+        case Info.defInstance info of
+          -- fields do not have an @instance@ keyword!?
+          InstanceDef _r -> addTypedInstance projname t
+          NotInstanceDef -> pure ()
 
         recurse
 

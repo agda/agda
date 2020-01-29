@@ -187,8 +187,11 @@ checkAlias t ai delayed i name e mc =
 
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
-  when (Info.defInstance i == InstanceDef) $ do
-    addTypedInstance name t
+  case Info.defInstance i of
+    InstanceDef _r -> setCurrentRange name $ addTypedInstance name t
+      -- Put highlighting on the name only;
+      -- @(getRange (r, name))@ does not give good results.
+    NotInstanceDef -> pure ()
 
   reportSDoc "tc.def.alias" 20 $ "checkAlias: leaving"
 

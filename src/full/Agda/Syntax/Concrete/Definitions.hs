@@ -1633,22 +1633,28 @@ niceDeclarations fixs ds = do
         when (o == UserWritten) $ niceWarning $ UselessPrivate r
         return ds -- no change!
 
+    instanceBlock
+      :: Range  -- ^ Range of @instance@ keyword.
+      -> [NiceDeclaration]
+      -> Nice [NiceDeclaration]
     instanceBlock _ [] = return []
     instanceBlock r ds = do
-      let (ds', anyChange) = runChange $ mapM mkInstance ds
+      let (ds', anyChange) = runChange $ mapM (mkInstance r) ds
       if anyChange then return ds' else do
         niceWarning $ UselessInstance r
         return ds -- no change!
 
     -- Make a declaration eligible for instance search.
-    mkInstance :: Updater NiceDeclaration
-    mkInstance = \case
-        Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance i
-        FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance i
-        NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance i
-        NiceMutual r tc cc pc ds        -> NiceMutual r tc cc pc <$> mapM mkInstance ds
+    mkInstance
+      :: Range  -- ^ Range of @instance@ keyword.
+      -> Updater NiceDeclaration
+    mkInstance r0 = \case
+        Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance r0 i
+        FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance r0 i
+        NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance r0 i
+        NiceMutual r tc cc pc ds        -> NiceMutual r tc cc pc <$> mapM (mkInstance r0) ds
         d@NiceFunClause{}              -> return d
-        FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance i
+        FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
         d@PrimitiveFunction{}          -> return d
         d@NiceUnquoteDef{}             -> return d
@@ -1664,10 +1670,12 @@ niceDeclarations fixs ds = do
         d@NicePatternSyn{}             -> return d
         d@NiceGeneralize{}             -> return d
 
-    setInstance :: Updater IsInstance
-    setInstance = \case
-      i@InstanceDef -> return i
-      _             -> dirty $ InstanceDef
+    setInstance
+      :: Range  -- ^ Range of @instance@ keyword.
+      -> Updater IsInstance
+    setInstance r0 = \case
+      i@InstanceDef{} -> return i
+      _               -> dirty $ InstanceDef r0
 
     macroBlock r ds = mapM mkMacro ds
 
@@ -1841,8 +1849,8 @@ notSoNiceDeclarations = \case
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
   where
-    inst InstanceDef    ds = [InstanceB (getRange ds) ds]
-    inst NotInstanceDef ds = ds
+    inst (InstanceDef r) ds = [InstanceB r ds]
+    inst NotInstanceDef  ds = ds
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract

@@ -1391,8 +1391,9 @@ instance ToAbstract LetDef [A.LetBinding] where
               x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
               (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
-              let info' | instanc == InstanceDef = makeInstance info
-                        | otherwise              = info
+              let info' = case instanc of
+                    InstanceDef _  -> makeInstance info
+                    NotInstanceDef -> info
               -- There are sometimes two instances of the
               -- let-bound variable, one declaration and one
               -- definition. The first list element below is
@@ -1543,8 +1544,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      let info = (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r)
-                  { defTactic = tac }
+      let info = (mkDefInfo x f p ConcreteDef r) { defTactic = tac }
       return [A.Generalize s info i y t]
 
   -- Fields

@@ -151,7 +151,7 @@ data DefInfo' t = DefInfo
   deriving (Data, Show, Eq)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo' t
-mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r) Nothing
+mkDefInfo x f a ab r = mkDefInfoInstance x f a ab NotInstanceDef NotMacroDef r
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
 mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t

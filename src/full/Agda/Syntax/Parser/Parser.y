@@ -1245,7 +1245,7 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
 RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1258,7 +1258,7 @@ Fields :: { Declaration }
 Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef
+                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
               in Field (fuseRange $1 $2) $ map toField $2 }
@@ -1294,7 +1294,7 @@ Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (fuseRange $1 $2) $2 }
+Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
 
 
 -- Macro declarations.

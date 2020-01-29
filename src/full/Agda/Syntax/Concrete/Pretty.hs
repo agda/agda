@@ -461,8 +461,8 @@ instance Pretty Declaration where
 
                 where
 
-                  mkInst InstanceDef    d = sep [ "instance", nest 2 d ]
-                  mkInst NotInstanceDef d = d
+                  mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+                  mkInst NotInstanceDef  d = d
 
                   mkOverlap i d | isOverlappable i = "overlap" <+> d
                                 | otherwise        = d

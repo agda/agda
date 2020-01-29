@@ -406,6 +406,9 @@ data Declaration
     --   temporarily, which should be treated different that user-declared
     --   private blocks.  Thus the 'Origin'.
   | InstanceB   Range [Declaration]
+    -- ^ The 'Range' here (exceptionally) only refers to the range of the
+    --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
+    --   is @fuseRange r ds@.
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]

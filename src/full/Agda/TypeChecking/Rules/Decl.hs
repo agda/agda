@@ -652,8 +652,11 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
         }
 
   -- Add the definition to the instance table, if needed
-  when (Info.defInstance i == InstanceDef) $ do
-    addTypedInstance x t
+  case Info.defInstance i of
+    InstanceDef _r -> setCurrentRange x $ addTypedInstance x t
+      -- Put highlighting on name only; including the instance keyword,
+      -- like @(getRange (r,x))@, does not produce good results.
+    NotInstanceDef -> pure ()
 
   traceCall (IsType_ e) $ do -- need Range for error message
     -- Andreas, 2016-06-21, issue #2054
