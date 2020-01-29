@@ -285,8 +285,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           traverse_ (mapM_ makeProjection) $ projNames
 
         -- Add the constructor to the instance table, if needed
-        when (Info.defInstance i == InstanceDef) $ do
-          addNamedInstance c d
+        when (Info.defInstance i == InstanceDef) $ setCurrentRange c $ do
+          -- Andreas, 2020-01-28, issue #4360:
+          -- Use addTypedInstance instead of addNamedInstance
+          -- to detect unusable instances.
+          addTypedInstance c t
+          -- addNamedInstance c d
 
         return isPathCons
 

@@ -234,8 +234,13 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               }
 
       -- Declare the constructor as eligible for instance search
-      when (Info.defInstance i == InstanceDef) $ do
-        addNamedInstance conName name
+      when (Info.defInstance i == InstanceDef) $ setCurrentRange conName $ do
+        -- Andreas, 2020-01-28, issue #4360:
+        -- Use addTypedInstance instead of addNamedInstance
+        -- to detect unusable instances.
+        addTypedInstance conName contype
+        -- addNamedInstance conName name
+
 
       -- Check that the fields fit inside the sort
       _ <- fitsIn uc [] contype s
