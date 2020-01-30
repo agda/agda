@@ -533,7 +533,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#2589](https://github.com/agda/agda/issues/2589): Preserve the ellipsis (dots) when case splitting "with" arguments
   -  [#2610](https://github.com/agda/agda/issues/2610): Avoid rechecking by storing interfaces in separate directories?
   -  [#2902](https://github.com/agda/agda/issues/2902): Case-splitting should not generate patterns containing pattern synonyms
-  -  [#3027](https://github.com/agda/agda/issues/3027): Internal error in the presence of unsatisfiable constraints
   -  [#3073](https://github.com/agda/agda/issues/3073): type-in-type and spurious levels
   -  [#3089](https://github.com/agda/agda/issues/3089): Nicer syntax for implicit @-patterns
   -  [#3095](https://github.com/agda/agda/issues/3095): Would like to make hidden variable visible but it is created ambiguous
