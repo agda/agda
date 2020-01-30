@@ -1,4 +1,0 @@
-Issue3027.agda:35,13-23
-Nat !=< Bool
-when checking that the expression mkD (?b 0) has type
-(n : Nat) → ?X n
