@@ -155,22 +155,25 @@ downFrom n | n <= 0     = []
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
-updateHead f [] = []
+updateHead _ []       = []
 updateHead f (a : as) = f a : as
 
 -- | Update the last element of a list, if it exists.
 --   O(n).
 updateLast :: (a -> a) -> [a] -> [a]
-updateLast f [] = []
-updateLast f [a] = [f a]
-updateLast f (a : as@(_ : _)) = a : updateLast f as
+updateLast _ [] = []
+updateLast f (a : as) = loop a as
+  -- Using a helper function to minimize the pattern matching.
+  where
+  loop a []       = [f a]
+  loop a (b : bs) = a : loop b bs
 
 -- | Update nth element of a list, if it exists.
 --   @O(min index n)@.
 --
 --   Precondition: the index is >= 0.
 updateAt :: Int -> (a -> a) -> [a] -> [a]
-updateAt _ f [] = []
+updateAt _ _ [] = []
 updateAt 0 f (a : as) = f a : as
 updateAt n f (a : as) = a : updateAt (n-1) f as
 
@@ -401,11 +404,13 @@ chop n xs = ys : chop n zs
 --    > intercalate [x] (chopWhen (== x) xs) == xs
 chopWhen :: (a -> Bool) -> [a] -> [[a]]
 chopWhen p [] = []
-chopWhen p xs =
-  case break p xs of
+chopWhen p xs = loop xs
+  where
+  -- Local function to avoid unnecessary pattern matching.
+  loop xs = case break p xs of
     (w, [])     -> [w]
     (w, [_])    -> [w, []]
-    (w, _ : ys) -> w : chopWhen p ys
+    (w, _ : ys) -> w : loop ys  -- here we already know that ys /= []
 
 ---------------------------------------------------------------------------
 -- * List as sets
