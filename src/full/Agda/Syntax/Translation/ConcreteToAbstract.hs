@@ -1281,12 +1281,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
     when isSafe $ do
-      let isUnsafe w = declarationWarningName w `elem`
-            [ PragmaNoTerminationCheck_
-            , PragmaCompiled_
-            , MissingDefinitions_
-            ]
-      let (errs, ws) = List.partition isUnsafe warns
+      let (errs, ws) = List.partition unsafeDeclarationWarning warns
       -- If some of them are, we fail
       unless (null errs) $ do
         warnings $ NicifierIssue <$> ws

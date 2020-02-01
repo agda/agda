@@ -34,7 +34,7 @@ module Agda.Syntax.Concrete.Definitions
     , NiceConstructor, NiceTypeSignature
     , Clause(..)
     , DeclarationException(..)
-    , DeclarationWarning(..)
+    , DeclarationWarning(..), unsafeDeclarationWarning
     , Nice, runNice
     , niceDeclarations
     , notSoNiceDeclarations
@@ -266,6 +266,39 @@ declarationWarningName = \case
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
   UselessPrivate{}                  -> UselessPrivate_
+
+-- | Nicifier warnings turned into errors in @--safe@ mode.
+unsafeDeclarationWarning :: DeclarationWarning -> Bool
+unsafeDeclarationWarning = \case
+  -- Please keep in alphabetical order.
+  EmptyAbstract{}                   -> False
+  EmptyField{}                      -> False
+  EmptyGeneralize{}                 -> False
+  EmptyInstance{}                   -> False
+  EmptyMacro{}                      -> False
+  EmptyMutual{}                     -> False
+  EmptyPrivate{}                    -> False
+  EmptyPostulate{}                  -> False
+  EmptyPrimitive{}                  -> False
+  InvalidCatchallPragma{}           -> False
+  InvalidNoPositivityCheckPragma{}  -> False
+  InvalidNoUniverseCheckPragma{}    -> False
+  InvalidTerminationCheckPragma{}   -> False
+  InvalidCoverageCheckPragma{}      -> False
+  MissingDefinitions{}              -> True  -- not safe
+  NotAllowedInMutual{}              -> False -- really safe?
+  OpenPublicPrivate{}               -> False
+  OpenPublicAbstract{}              -> False
+  PolarityPragmasButNotPostulates{} -> False
+  PragmaNoTerminationCheck{}        -> True  -- not safe
+  PragmaCompiled{}                  -> True  -- not safe
+  ShadowingInTelescope{}            -> False
+  UnknownFixityInMixfixDecl{}       -> False
+  UnknownNamesInFixityDecl{}        -> False
+  UnknownNamesInPolarityPragmas{}   -> False
+  UselessAbstract{}                 -> False
+  UselessInstance{}                 -> False
+  UselessPrivate{}                  -> False
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
