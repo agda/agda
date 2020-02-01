@@ -183,20 +183,24 @@ data DeclarationException
         | BadMacroDef NiceDeclaration
     deriving (Data, Show)
 
--- | Non-fatal errors encountered in the Nicifier
+
+-- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning
+  -- Please keep in alphabetical order.
   = EmptyAbstract Range   -- ^ Empty @abstract@  block.
+  | EmptyField Range      -- ^ Empty @field@     block.
+  | EmptyGeneralize Range -- ^ Empty @variable@  block.
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
   | EmptyMutual Range     -- ^ Empty @mutual@    block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   | EmptyPrivate Range    -- ^ Empty @private@   block.
-  | EmptyGeneralize Range -- ^ Empty @variable@  block.
   | EmptyPrimitive Range  -- ^ Empty @primitive@ block.
-  | EmptyField Range      -- ^ Empty @field@     block.
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
+  | InvalidCoverageCheckPragma Range
+      -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function.
   | InvalidNoPositivityCheckPragma Range
       -- ^ A {-\# NO_POSITIVITY_CHECK \#-} pragma
       --   that does not apply to any data or record type.
@@ -206,57 +210,62 @@ data DeclarationWarning
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
-  | InvalidCoverageCheckPragma Range
-      -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function
   | MissingDefinitions [(Name, Range)]
-  | ShadowingInTelescope [(Name, [Range])]
+      -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
+  | OpenPublicPrivate Range
+      -- ^ @private@ has no effect on @open public@.  (But the user might think so.)
+  | OpenPublicAbstract Range
+      -- ^ @abstract@ has no effect on @open public@.  (But the user might think so.)
   | PolarityPragmasButNotPostulates [Name]
   | PragmaNoTerminationCheck Range
   -- ^ Pragma @{-\# NO_TERMINATION_CHECK \#-}@ has been replaced
   --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | PragmaCompiled Range
   -- ^ @COMPILE@ pragmas are not allowed in safe mode
+  | ShadowingInTelescope [(Name, [Range])]
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
   | UselessAbstract Range
+      -- ^ @abstract@ block with nothing that can (newly) be made abstract.
   | UselessInstance Range
+      -- ^ @instance@ block with nothing that can (newly) become an instance.
   | UselessPrivate Range
-  | OpenPublicPrivate Range
-  | OpenPublicAbstract Range
+      -- ^ @private@ block with nothing that can (newly) be made private.
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
-declarationWarningName dw = case dw of
+declarationWarningName = \case
+  -- Please keep in alphabetical order.
   EmptyAbstract{}                   -> EmptyAbstract_
+  EmptyField{}                      -> EmptyField_
+  EmptyGeneralize{}                 -> EmptyGeneralize_
   EmptyInstance{}                   -> EmptyInstance_
   EmptyMacro{}                      -> EmptyMacro_
   EmptyMutual{}                     -> EmptyMutual_
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
-  EmptyGeneralize{}                 -> EmptyGeneralize_
   EmptyPrimitive{}                  -> EmptyPrimitive_
-  EmptyField{}                      -> EmptyField_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
   MissingDefinitions{}              -> MissingDefinitions_
-  ShadowingInTelescope{}            -> ShadowingInTelescope_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
+  OpenPublicPrivate{}               -> OpenPublicPrivate_
+  OpenPublicAbstract{}              -> OpenPublicAbstract_
   PolarityPragmasButNotPostulates{} -> PolarityPragmasButNotPostulates_
   PragmaNoTerminationCheck{}        -> PragmaNoTerminationCheck_
   PragmaCompiled{}                  -> PragmaCompiled_
+  ShadowingInTelescope{}            -> ShadowingInTelescope_
   UnknownFixityInMixfixDecl{}       -> UnknownFixityInMixfixDecl_
   UnknownNamesInFixityDecl{}        -> UnknownNamesInFixityDecl_
   UnknownNamesInPolarityPragmas{}   -> UnknownNamesInPolarityPragmas_
   UselessAbstract{}                 -> UselessAbstract_
   UselessInstance{}                 -> UselessInstance_
   UselessPrivate{}                  -> UselessPrivate_
-  OpenPublicPrivate{}               -> OpenPublicPrivate_
-  OpenPublicAbstract{}              -> OpenPublicAbstract_
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock
