@@ -280,6 +280,7 @@ instance Pretty Expr where
             DoBlock _ ss -> "do" <+> vcat (map pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
+            DoubleDot _ e  -> ".." <> pretty e
             Absurd _  -> "()"
             Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->

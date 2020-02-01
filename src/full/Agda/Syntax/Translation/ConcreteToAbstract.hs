@@ -691,16 +691,17 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
--- | Parse a possibly dotted @C.Expr@ as @A.Expr@.  @Int@ is number of dots.
-toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Int)
+-- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
+toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
 toAbstractDot prec e = do
     reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
-      C.RawApp _ es -> toAbstractDot prec =<< parseApplication es
-      C.Paren _ e   -> toAbstractDot TopCtx e
-      C.Dot _ e     -> second (+1) <$> toAbstractDot prec e
-      e             -> (,0) <$> toAbstractCtx prec e
+      C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
+      C.Paren _ e     -> toAbstractDot TopCtx e
+      C.Dot _ e       -> (,Irrelevant) <$> toAbstractCtx prec e
+      C.DoubleDot _ e -> (,NonStrict)  <$> toAbstractCtx prec e
+      e               -> (,Relevant)   <$> toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -875,12 +876,10 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
-        Arg info (e1', numDots) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
-        updRel <- case numDots of
-          0 -> pure $ id
-          1 -> pure $ setRelevance Irrelevant
-          2 -> pure $ setRelevance NonStrict
-          n -> genericError $ "Too many dots in function type"
+        Arg info (e1', rel) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
+        let updRel = case rel of
+              Relevant -> id
+              rel      -> setRelevance rel
         A.Fun (ExprRange r) (Arg (updRel info) e1') <$> toAbstractCtx TopCtx e2
 
   -- Dependent function type
@@ -942,6 +941,7 @@ instance ToAbstract C.Expr A.Expr where
       C.ETel _  -> __IMPOSSIBLE__
       C.Equal{} -> genericError "Parse error: unexpected '='"
       C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
+      C.DoubleDot _ _ -> genericError "Parse error: unexpected '..'"
 
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)

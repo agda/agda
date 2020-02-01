@@ -144,6 +144,7 @@ instance ExprLike Expr where
      Absurd{}           -> f $ e0
      As r x e           -> f $ As r x                 $ mapE e
      Dot r e            -> f $ Dot r                  $ mapE e
+     DoubleDot r e      -> f $ DoubleDot r            $ mapE e
      ETel tel           -> f $ ETel                   $ mapE tel
      Tactic r e         -> f $ Tactic r     (mapE e)
      Quote{}            -> f $ e0

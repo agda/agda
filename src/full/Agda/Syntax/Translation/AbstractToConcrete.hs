@@ -769,19 +769,18 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Fun i a b) =
         bracket piBrackets
-        $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
+        $ do a' <- toConcreteCtx ctx a
              b' <- toConcreteTop b
              let dom = setQuantity (getQuantity a') $ defaultArg $ addRel a' $ mkArg a'
              return $ C.Fun (getRange i) dom b'
              -- Andreas, 2018-06-14, issue #2513
              -- TODO: print attributes
         where
-            irr        = getRelevance a `elem` [Irrelevant, NonStrict]
+            ctx = if isRelevant a then FunctionSpaceDomainCtx else DotPatternCtx
             addRel a e = case getRelevance a of
-                           Irrelevant -> addDot a e
-                           NonStrict  -> addDot a (addDot a e)
+                           Irrelevant -> C.Dot (getRange a) e
+                           NonStrict  -> C.DoubleDot (getRange a) e
                            _          -> e
-            addDot a e = C.Dot (getRange a) e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden     -> HiddenArg   (getRange e) (unnamed e)
                                           Instance{} -> InstanceArg (getRange e) (unnamed e)

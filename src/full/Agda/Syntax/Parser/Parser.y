@@ -708,7 +708,7 @@ Expr3NoCurly
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
-    | '..' Expr3                         { Dot (fuseRange $1 $2) (Dot (fuseRange $1 $2) $2) }
+    | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
