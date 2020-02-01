@@ -691,25 +691,16 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
--- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
-toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
+-- | Parse a possibly dotted @C.Expr@ as @A.Expr@.  @Int@ is number of dots.
+toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Int)
 toAbstractDot prec e = do
     reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
-      C.Dot _ e -> do
-        e <- toAbstractCtx prec e
-        return (e, True)
-
-      C.RawApp r es -> do
-        e <- parseApplication es
-        toAbstractDot prec e
-
-      C.Paren _ e -> toAbstractDot TopCtx e
-
-      e -> do
-        e <- toAbstractCtx prec e
-        return (e, False)
+      C.RawApp _ es -> toAbstractDot prec =<< parseApplication es
+      C.Paren _ e   -> toAbstractDot TopCtx e
+      C.Dot _ e     -> second (+1) <$> toAbstractDot prec e
+      e             -> (,0) <$> toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -884,10 +875,13 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
-        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
-        let e1 = Arg ((if dotted then setRelevance Irrelevant else id) info) e0
-        e2 <- toAbstractCtx TopCtx e2
-        return $ A.Fun (ExprRange r) e1 e2
+        Arg info (e1', numDots) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
+        updRel <- case numDots of
+          0 -> pure $ id
+          1 -> pure $ setRelevance Irrelevant
+          2 -> pure $ setRelevance NonStrict
+          n -> genericError $ "Too many dots in function type"
+        A.Fun (ExprRange r) (Arg (updRel info) e1') <$> toAbstractCtx TopCtx e2
 
   -- Dependent function type
       e0@(C.Pi tel e) -> do
