@@ -606,7 +606,6 @@ library
                -Wdodgy-imports
                -Wduplicate-exports
                -Wempty-enumerations
-               -Whi-shadowing
                -Widentities
                -Wincomplete-patterns
                -Winline-rule-shadowing
@@ -639,10 +638,16 @@ library
 
   -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
-    ghc-options: -Wimplicit-kind-vars
-                 -Winaccessible-code
+    ghc-options: -Winaccessible-code
                  -Wstar-binder
                  -Wstar-is-type
+
+  if impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). These warnings were deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- them (Issue #4242).
+    ghc-options: -Whi-shadowing
+                 -Wimplicit-kind-vars
 
   ghc-prof-options: -fprof-auto
 
@@ -861,7 +866,6 @@ test-suite agda-tests
                -Wdodgy-imports
                -Wduplicate-exports
                -Wempty-enumerations
-               -Whi-shadowing
                -Widentities
                -Wincomplete-patterns
                -Winline-rule-shadowing
@@ -893,7 +897,13 @@ test-suite agda-tests
 
   -- NOTE: If adding flags, also add to `.ghci860`
   if impl(ghc >= 8.6)
-    ghc-options: -Wimplicit-kind-vars
-                 -Winaccessible-code
+    ghc-options: -Winaccessible-code
                  -Wstar-binder
                  -Wstar-is-type
+
+  if impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). These warnings were deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- them (Issue #4242).
+    ghc-options: -Whi-shadowing
+                 -Wimplicit-kind-vars
