@@ -642,12 +642,17 @@ library
                  -Wstar-binder
                  -Wstar-is-type
 
-  if impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). These warnings were deprecated in
+  if impl(ghc >= 8.6) && impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
     -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- them (Issue #4242).
+    -- it (Issue #4242).
+    ghc-options: -Wimplicit-kind-vars
+
+  if impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- it (Issue #4242).
     ghc-options: -Whi-shadowing
-                 -Wimplicit-kind-vars
 
   ghc-prof-options: -fprof-auto
 
@@ -901,9 +906,14 @@ test-suite agda-tests
                  -Wstar-binder
                  -Wstar-is-type
 
-  if impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). These warnings were deprecated in
+  if impl(ghc >= 8.6) && impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
     -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- them (Issue #4242).
+    -- it (Issue #4242).
+    ghc-options: -Wimplicit-kind-vars
+
+  if impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- it (Issue #4242).
     ghc-options: -Whi-shadowing
-                 -Wimplicit-kind-vars
