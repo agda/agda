@@ -11,6 +11,6 @@ Ambiguous name B. It could refer to any one of
   M.B bound at
     Issue4154.agda:10,7-8
   M.A bound at
-    Issue4154.agda:10,5-6
+    Issue4154.agda:15,23-24
 (hint: Use C-c C-w (in Emacs) if you want to know why)
 when scope checking B
