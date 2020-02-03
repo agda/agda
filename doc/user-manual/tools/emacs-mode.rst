@@ -312,7 +312,12 @@ corresponding TeX command:
 - **Subscript** and **superscript**: you can input subscript or
   superscript forms by prepending the character with ``\_`` (subscript)
   or ``\^`` (superscript). Note that not all characters have a
-  subscript or superscript counterpart in Unicode.
+  subscript or superscript counterpart in Unicode. Eg. ``g\_1`` will
+  input ``g₁``.
+
+Note: to introduce multiple characters involving greek letters, subscripts
+or superscripts, you need to prepend ``\G``, ``\_`` or ``\^`` respectively
+before each character.
 
 Some characters which were used in this documentation or which are
 commonly used in the standard library (sorted by hexadecimal code):
