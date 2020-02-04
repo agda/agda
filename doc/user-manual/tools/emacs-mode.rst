@@ -311,9 +311,8 @@ corresponding TeX command:
   ``\nin`` will input ``∌``.
 - **Subscript** and **superscript**: you can input subscript or
   superscript forms by prepending the character with ``\_`` (subscript)
-  or ``\^`` (superscript). Note that not all characters have a
-  subscript or superscript counterpart in Unicode. Eg. ``g\_1`` will
-  input ``g₁``.
+  or ``\^`` (superscript). Eg. ``g\_1`` will input ``g₁``. Note that not
+  all characters have a subscript or superscript counterpart in Unicode.
 
 Note: to introduce multiple characters involving greek letters, subscripts
 or superscripts, you need to prepend ``\G``, ``\_`` or ``\^`` respectively
