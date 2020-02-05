@@ -1,0 +1,49 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > Failed to solve the following constraints:
+out >   [ (λ p → inj₁ (fst p) , snd p) , (λ p → inj₂ (fst p) , snd p) ]
+out >   (to (inj₁ x , y))
+out >     = inj₁ x , y
+out >     : _C_184 (to (inj₁ x , y))
+out >   [ (λ p → inj₁ (fst p) , snd p) , (λ p → inj₂ (fst p) , snd p) ]
+out >   (to (inj₂ x , y))
+out >     = inj₂ x , y
+out >     : _C_184 (to (inj₂ x , y))
+out >   _b_194 =< a ⊔ b ⊔ c
+out >   a ⊔ c ⊔ _b_194 = a ⊔ b ⊔ c
+out >   [ (λ p → inj₁ (fst p) , snd p) , (λ p → inj₂ (fst p) , snd p) ]
+out >   (to x)
+out >     = _fst_240 (to x) , _snd_241 (to x)
+out >     : _C_184 (to x)
+out >   _C_184 (to x) = Σ (A ⊎ B) C : Set (a ⊔ c ⊔ _b_194)
+out >   to (_fst_240 (inj₂ x) , _snd_241 (inj₂ x)) = inj₂ x
+out >     : Σ A (C ∘ inj₁) ⊎ Σ B (C ∘ inj₂)
+out >   to (_fst_240 (inj₁ x) , _snd_241 (inj₁ x)) = inj₁ x
+out >     : Σ A (C ∘ inj₁) ⊎ Σ B (C ∘ inj₂)
+out >   _C_184 x =< Σ (A ⊎ B) C
+out >   C (inj₂ x) =< _Q_208 (inj₂ x) : Set c
+out >   C (inj₁ x) =< _Q_192 (inj₁ x) : Set c
+out >   a ⊔ b ⊔ c = a ⊔ c ⊔ _b_194
+out >   Σ (A ⊎ B) C =< _C_184 (to p)
+out >   Σ (_A_211 ⊎ B) _Q_208 =< _C_184 (inj₂ x)
+out >   Σ (A ⊎ _B_196) _Q_192 =< _C_184 (inj₁ x)
+out >   b ⊔ c ⊔ _a_209 = a ⊔ c ⊔ _b_194
+out >   b ⊔ c ⊔ _a_209 = a ⊔ b ⊔ c ⊔ _b_194
+out > Unsolved metas at the following locations:
+out >   Issue4408b.agda:57,10-43
+out >   Issue4408b.agda:57,12-17
+out >   Issue4408b.agda:57,18-22
+out >   Issue4408b.agda:57,12-25
+out >   Issue4408b.agda:57,28-33
+out >   Issue4408b.agda:57,34-38
+out >   Issue4408b.agda:57,28-41
+out >   Issue4408b.agda:59,25-29
+out >   Issue4408b.agda:59,33-34
+out >   Issue4408b.agda:60,26-30
+out >   Issue4408b.agda:61,26-30
+out >   Issue4408b.agda:48,24-28
+out >   Issue4408b.agda:49,33-37
+out >   Issue4408b.agda:49,48-52
+out >   Issue4408b.agda:50,24-31
+out >
