@@ -505,8 +505,8 @@ API
 * `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
   `allWithKey`, `unzip`, and `unzip3`.
 
-Other closed issues
--------------------
+Other issues
+------------
 
 For 2.6.1, the following issues were also closed (see [bug
 tracker](https://github.com/agda/agda/issues)):
@@ -647,3 +647,8 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4297](https://github.com/agda/agda/issues/4297): Missing documentation: NO_UNIVERSE_CHECK pragma
   -  [#4314](https://github.com/agda/agda/issues/4314): Internal error with generalize
   -  [#4323](https://github.com/agda/agda/issues/4323): Internal error (Rewriting.hs:395) with generalize and rewrite rules
+
+The following previously closed issues were reopened:
+
+  -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
+
