@@ -162,20 +162,6 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
       names    = if null names0 then allNames else names0
       i        = mutualInfo mutualBlock
-      -- Andreas, 2014-03-26
-      -- Keeping recursion check after experiments on the standard lib.
-      -- Seems still to save 1s.
-      -- skip = return False
-      -- No need to term-check if the declarations are acyclic!
-      skip = not <$> do
-        -- Andreas, 2016-10-01 issue #2231
-        -- Recursivity checker has to see through abstract definitions!
-        ignoreAbstractMode $ do
-        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
-      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
-      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
-      --   null <$> getMutual x
-      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -192,25 +178,38 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
-    else if (Info.mutualTerminationCheck i == NonTerminating) then do
+  else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
-  -- Trivially terminating (non-recursive)
-    else ifM skip (do
+  else do
+    sccs <- do
+      -- Andreas, 2016-10-01 issue #2231
+      -- Recursivity checker has to see through abstract definitions!
+      ignoreAbstractMode $ do
+        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
+      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      --   null <$> getMutual x
+      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
+
+    -- Trivially terminating (non-recursive)?
+    when (null sccs) $
       reportSLn "term.warn.yes" 10 $ "Trivially terminating: " ++ prettyShow names
-      forM_ allNames $ \ q -> setTerminates q True
-      return mempty)
-   $ {- else -} do
+
+    -- Actual termination checking needed: go through SCCs.
+    concat <$> do
+     forM sccs $ \ allNames -> do
 
      -- Set the mutual names in the termination environment.
+     let namesSCC = filter (allNames `hasElem`) names
      let setNames e = e
            { terMutual    = allNames
-           , terUserNames = names
+           , terUserNames = namesSCC
            }
          runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
-           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow names ++
+           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
