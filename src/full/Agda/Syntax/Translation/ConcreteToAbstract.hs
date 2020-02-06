@@ -691,25 +691,17 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
--- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
-toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
+-- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
+toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
 toAbstractDot prec e = do
     reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
-      C.Dot _ e -> do
-        e <- toAbstractCtx prec e
-        return (e, True)
-
-      C.RawApp r es -> do
-        e <- parseApplication es
-        toAbstractDot prec e
-
-      C.Paren _ e -> toAbstractDot TopCtx e
-
-      e -> do
-        e <- toAbstractCtx prec e
-        return (e, False)
+      C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
+      C.Paren _ e     -> toAbstractDot TopCtx e
+      C.Dot _ e       -> (,Irrelevant) <$> toAbstractCtx prec e
+      C.DoubleDot _ e -> (,NonStrict)  <$> toAbstractCtx prec e
+      e               -> (,Relevant)   <$> toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -884,10 +876,11 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
-        Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
-        let e1 = Arg ((if dotted then setRelevance Irrelevant else id) info) e0
-        e2 <- toAbstractCtx TopCtx e2
-        return $ A.Fun (ExprRange r) e1 e2
+        Arg info (e1', rel) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
+        let updRel = case rel of
+              Relevant -> id
+              rel      -> setRelevance rel
+        A.Fun (ExprRange r) (Arg (updRel info) e1') <$> toAbstractCtx TopCtx e2
 
   -- Dependent function type
       e0@(C.Pi tel e) -> do
@@ -948,6 +941,7 @@ instance ToAbstract C.Expr A.Expr where
       C.ETel _  -> __IMPOSSIBLE__
       C.Equal{} -> genericError "Parse error: unexpected '='"
       C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
+      C.DoubleDot _ _ -> genericError "Parse error: unexpected '..'"
 
   -- Quoting
       C.Quote r -> return $ A.Quote (ExprRange r)
@@ -1125,6 +1119,15 @@ instance EnsureNoLetStms C.TypedBinding where
     C.TBind _ xs _ -> traverse_ (ensureNoLetStms . namedArg) xs
 
 instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
+  ensureNoLetStms = \case
+    -- GA: DO NOT use traverse here: `LamBinding'` only uses its parameter in
+    --     the DomainFull constructor so we would miss out on some potentially
+    --     illegal lets! Cf. #4402
+    C.DomainFree a -> ensureNoLetStms a
+    C.DomainFull a -> ensureNoLetStms a
+
+instance EnsureNoLetStms a => EnsureNoLetStms (Named_ a) where
+instance EnsureNoLetStms a => EnsureNoLetStms (NamedArg a) where
 instance EnsureNoLetStms a => EnsureNoLetStms [a] where
 
 
@@ -1272,12 +1275,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     -- If there are some warnings and the --safe flag is set,
     -- we check that none of the NiceWarnings are fatal
     when isSafe $ do
-      let isUnsafe w = declarationWarningName w `elem`
-            [ PragmaNoTerminationCheck_
-            , PragmaCompiled_
-            , MissingDefinitions_
-            ]
-      let (errs, ws) = List.partition isUnsafe warns
+      let (errs, ws) = List.partition unsafeDeclarationWarning warns
       -- If some of them are, we fail
       unless (null errs) $ do
         warnings $ NicifierIssue <$> ws
@@ -1382,8 +1380,9 @@ instance ToAbstract LetDef [A.LetBinding] where
               x  <- A.unBind <$> toAbstract (NewName LetBound $ mkBoundName x fx)
               (x', e) <- letToAbstract cl
               -- If InstanceDef set info to Instance
-              let info' | instanc == InstanceDef = makeInstance info
-                        | otherwise              = info
+              let info' = case instanc of
+                    InstanceDef _  -> makeInstance info
+                    NotInstanceDef -> info
               -- There are sometimes two instances of the
               -- let-bound variable, one declaration and one
               -- definition. The first list element below is
@@ -1534,8 +1533,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       f <- getConcreteFixity x
       y <- freshAbstractQName f x
       bindName p GeneralizeName x y
-      let info = (mkDefInfoInstance x f p ConcreteDef NotInstanceDef NotMacroDef r)
-                  { defTactic = tac }
+      let info = (mkDefInfo x f p ConcreteDef r) { defTactic = tac }
       return [A.Generalize s info i y t]
 
   -- Fields
@@ -2056,8 +2054,8 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-  toAbstract (C.RewritePragma _ []) = [] <$ warning EmptyRewritePragma
-  toAbstract (C.RewritePragma _ xs) = singleton . A.RewritePragma . concat <$> do
+  toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
+  toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
    forM xs $ \ x -> do
     e <- toAbstract $ OldQName x Nothing
     case e of
@@ -2068,8 +2066,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ prettyShow x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ prettyShow x ++ " instead of on a defined symbol"
       _       -> __IMPOSSIBLE__
-  toAbstract (C.ForeignPragma _ b s) = [] <$ addForeignCode b s
-  toAbstract (C.CompilePragma _ b x s) = do
+  toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
+  toAbstract (C.CompilePragma _ rb x s) = do
+    let b = rangedThing rb
     me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
     case me of
       Nothing -> [] <$ notInScopeWarning x
@@ -2084,7 +2083,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
           _                   -> __IMPOSSIBLE__
-        return [ A.CompilePragma b y s ]
+        return [ A.CompilePragma rb y s ]
 
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
@@ -2114,34 +2113,36 @@ instance ToAbstract C.Pragma [A.Pragma] where
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
       return [ A.InlinePragma b y ]
-  toAbstract (C.BuiltinPragma _ b q) | isUntypedBuiltin b = do
-    bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
-    return []
-  toAbstract (C.BuiltinPragma _ b q) = do
-    -- Andreas, 2015-02-14
-    -- Some builtins cannot be given a valid Agda type,
-    -- thus, they do not come with accompanying postulate or definition.
-    if b `elem` builtinsNoDef then do
-      case q of
-        C.QName x -> do
-          -- The name shouldn't exist yet. If it does, we raise a warning
-          -- and drop the existing definition.
-          unlessM ((UnknownName ==) <$> resolveName q) $ do
-            genericWarning $ P.text $
-               "BUILTIN " ++ b ++ " declares an identifier " ++
-               "(no longer expects an already defined identifier)"
-            modifyCurrentScope $ removeNameFromScope PublicNS x
-          -- We then happily bind the name
-          y <- freshAbstractQName' x
-          let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
-          bindName PublicAccess kind x y
-          return [ A.BuiltinNoDefPragma b y ]
-        _ -> genericError $
-          "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-          "but found " ++ prettyShow q
-    else do
-      q <- toAbstract $ ResolveQName q
-      return [ A.BuiltinPragma b q ]
+  toAbstract (C.BuiltinPragma _ rb q)
+    | isUntypedBuiltin b = do
+        bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
+        return []
+    | otherwise = do
+        -- Andreas, 2015-02-14
+        -- Some builtins cannot be given a valid Agda type,
+        -- thus, they do not come with accompanying postulate or definition.
+        if b `elem` builtinsNoDef then do
+          case q of
+            C.QName x -> do
+              -- The name shouldn't exist yet. If it does, we raise a warning
+              -- and drop the existing definition.
+              unlessM ((UnknownName ==) <$> resolveName q) $ do
+                genericWarning $ P.text $
+                   "BUILTIN " ++ b ++ " declares an identifier " ++
+                   "(no longer expects an already defined identifier)"
+                modifyCurrentScope $ removeNameFromScope PublicNS x
+              -- We then happily bind the name
+              y <- freshAbstractQName' x
+              let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
+              bindName PublicAccess kind x y
+              return [ A.BuiltinNoDefPragma rb y ]
+            _ -> genericError $
+              "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+              "but found " ++ prettyShow q
+        else do
+          q <- toAbstract $ ResolveQName q
+          return [ A.BuiltinPragma rb q ]
+    where b = rangedThing rb
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing
     case e of

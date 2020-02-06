@@ -47,6 +47,11 @@ Each operator is associated to a precedence, which is a floating point number
 (can be negative and fractional!).
 The default precedence for an operator is 20.
 
+.. note::
+   Please note that ``->`` is directly handled in the parser. As a result, the
+   precedence of ``->`` is lower than any precedence you may declare with
+   ``infixl`` and ``infixr``.
+
 If we give ``_and_`` more precedence than ``_⇒_``, then we will get the first result::
 
   infix 30 _and_

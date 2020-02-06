@@ -243,6 +243,11 @@ Language
     fails X = record {f = X}  -- import A required to infer record type R
   ```
 
+* The fix of issue [#3903](https://github.com/agda/agda/issues/3903) changes
+  the algorithm computing the order of case splits, which in some cases may
+  lead to unsolved metavariables in previously working code. See issue
+  [#4353](https://github.com/agda/agda/issues/4353).
+
 ### Modalities
 
 * New Flat Modality
@@ -250,6 +255,16 @@ Language
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
   See "Flat Modality" in the documentation for more.
+
+* New run-time erasure modality (`@0` / `@erased`).
+  Terms marked as erased cannot influence computations and are erased at run time.
+  See [Run-time
+  Irrelevance](https://agda.readthedocs.io/en/latest/language/runtime-irrelevance.html)
+  in the documentation for more information.
+
+  Note that this feature can cause previously solved metavariables to become
+  unsolved even in code that doesn't use run-time erasure (see issue
+  [#4174](https://github.com/agda/agda/issues/4174)).
 
 ### Universe levels
 
@@ -490,8 +505,8 @@ API
 * `Agda.Utils.Map` no longer provides `unionWithM`, `insertWithKeyM`,
   `allWithKey`, `unzip`, and `unzip3`.
 
-Other closed issues
--------------------
+Other issues
+------------
 
 For 2.6.1, the following issues were also closed (see [bug
 tracker](https://github.com/agda/agda/issues)):
@@ -632,3 +647,8 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#4297](https://github.com/agda/agda/issues/4297): Missing documentation: NO_UNIVERSE_CHECK pragma
   -  [#4314](https://github.com/agda/agda/issues/4314): Internal error with generalize
   -  [#4323](https://github.com/agda/agda/issues/4323): Internal error (Rewriting.hs:395) with generalize and rewrite rules
+
+The following previously closed issues were reopened:
+
+  -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
+

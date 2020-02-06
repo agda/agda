@@ -39,7 +39,7 @@ import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
-import Agda.TypeChecking.Irrelevance (workOnTypes)
+import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
@@ -206,15 +206,17 @@ instance Match () NLPat Level where
     match r gamma k t p v
 
 instance Match Type NLPat Term where
-  match r gamma k t p v = do
+  match r0 gamma k t p v = do
     vbt <- addContext k $ reduceB (v,t)
-    etaRecord <- addContext k $ isEtaRecordType t
     let n = size k
         b = void vbt
         (v,t) = ignoreBlocking vbt
         prettyPat  = withShowAllArguments $ addContext (gamma `abstract` k) (prettyTCM p)
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
+    etaRecord <- addContext k $ isEtaRecordType t
+    prop <- addContext k $ isPropM t
+    let r = if prop then Irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat
       , "  with term      " <+> prettyTerm

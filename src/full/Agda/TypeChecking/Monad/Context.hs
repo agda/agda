@@ -25,6 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 
+import Agda.Utils.Empty
 import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -58,6 +59,7 @@ inTopContext cont =
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyTCState stModuleCheckpoints (const Map.empty)
         $ locallyScope scopeLocals (const [])
+        $ locallyTC eLetBindings (const Map.empty)
         $ cont
 
 -- | Change to top (=empty) context, but don't update the checkpoints. Totally
@@ -70,11 +72,16 @@ unsafeInTopContext cont =
 
 -- | Delete the last @n@ bindings from the context.
 --
---   Doesn't update checkpoints! Use `updateContext rho (drop n)` instead,
---   for an appropriate substitution `rho`.
+--   Doesn't update checkpoints! Use `escapeContext` or `updateContext
+--   rho (drop n)` instead, for an appropriate substitution `rho`.
 {-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 unsafeEscapeContext n = unsafeModifyContext $ drop n
+
+-- | Delete the last @n@ bindings from the context. Any occurrences of
+-- these variables are replaced with the given @err@.
+escapeContext :: MonadAddContext m => Empty -> Int -> m a -> m a
+escapeContext err n = updateContext (strengthenS err n) $ drop n
 
 -- * Manipulating checkpoints --
 
@@ -126,15 +133,11 @@ checkpointSubstitution' chkpt = viewTC (eCheckpoints . key chkpt)
 -- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
 --   and @Γm@ is the module parameter telescope of module @m@.
 --
---   In case the we don't have a checkpoint for @m@ we return the identity
---   substitution.
---   This is ok for instance if we are outside module @m@ (in which case we
---   have to supply all module parameters to any symbol defined within @m@ we
---   want to refer).
-getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m Substitution
+--   Returns @Nothing@ in case the we don't have a checkpoint for @m@.
+getModuleParameterSub :: (MonadTCEnv m, ReadTCState m) => ModuleName -> m (Maybe Substitution)
 getModuleParameterSub m = do
   mcp <- (^. stModuleCheckpoints . key m) <$> getTCState
-  maybe (return IdS) checkpointSubstitution mcp
+  traverse checkpointSubstitution mcp
 
 
 -- * Adding to the context

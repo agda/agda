@@ -23,7 +23,7 @@ currentModule :: MonadTCEnv m => m ModuleName
 currentModule = asksTC envCurrentModule
 
 -- | Set the name of the current module.
-withCurrentModule :: ModuleName -> TCM a -> TCM a
+withCurrentModule :: (MonadTCEnv m) => ModuleName -> m a -> m a
 withCurrentModule m =
     localTC $ \ e -> e { envCurrentModule = m }
 

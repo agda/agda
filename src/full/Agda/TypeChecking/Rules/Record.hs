@@ -197,7 +197,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      unsafeEscapeContext npars $ do
+      escapeContext __IMPOSSIBLE__ npars $ do
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -234,8 +234,14 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               }
 
       -- Declare the constructor as eligible for instance search
-      when (Info.defInstance i == InstanceDef) $ do
-        addNamedInstance conName name
+      case Info.defInstance i of
+        InstanceDef r -> setCurrentRange r $ do
+          -- Andreas, 2020-01-28, issue #4360:
+          -- Use addTypedInstance instead of addNamedInstance
+          -- to detect unusable instances.
+          addTypedInstance conName contype
+          -- addNamedInstance conName name
+        NotInstanceDef -> pure ()
 
       -- Check that the fields fit inside the sort
       _ <- fitsIn uc [] contype s
@@ -296,7 +302,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> unsafeEscapeContext 1 (prettyTCM ftel)
+          [ "field tel =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel)
           ]
         addSection m
 
@@ -319,7 +325,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
 
 
       -- we define composition here so that the projections are already in the signature.
-      unsafeEscapeContext npars $ do
+      escapeContext __IMPOSSIBLE__ npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
@@ -341,7 +347,7 @@ addCompositionForRecord
   -> TCM ()
 addCompositionForRecord name con tel fs ftel rect = do
   cxt <- getContextTelescope
-  unsafeInTopContext $ do
+  inTopContext $ do
 
     -- Record has no fields: attach composition data to record constructor
     if null fs then do
@@ -674,7 +680,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        unsafeEscapeContext (size tel) $ do
+        escapeContext __IMPOSSIBLE__ (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
               emptyFunction
@@ -690,8 +696,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               }
           computePolarity [projname]
 
-        when (Info.defInstance info == InstanceDef) $
-          addTypedInstance projname t
+        case Info.defInstance info of
+          -- fields do not have an @instance@ keyword!?
+          InstanceDef _r -> addTypedInstance projname t
+          NotInstanceDef -> pure ()
 
         recurse
 

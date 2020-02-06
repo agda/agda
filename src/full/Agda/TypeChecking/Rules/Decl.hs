@@ -652,8 +652,11 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
         }
 
   -- Add the definition to the instance table, if needed
-  when (Info.defInstance i == InstanceDef) $ do
-    addTypedInstance x t
+  case Info.defInstance i of
+    InstanceDef _r -> setCurrentRange x $ addTypedInstance x t
+      -- Put highlighting on name only; including the instance keyword,
+      -- like @(getRange (r,x))@, does not produce good results.
+    NotInstanceDef -> pure ()
 
   traceCall (IsType_ e) $ do -- need Range for error message
     -- Andreas, 2016-06-21, issue #2054
@@ -698,16 +701,16 @@ checkPrimitive i x e =
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
-        A.BuiltinPragma x e -> bindBuiltin x e
-        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
-        A.RewritePragma qs -> addRewriteRules qs
+        A.BuiltinPragma x e -> bindBuiltin (rangedThing x) e
+        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef (rangedThing b) x
+        A.RewritePragma _ qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.
           x' <- defName <$> getConstInfo x  -- Get the canonical name of x.
           unlessM ((x' `isInModule`) <$> currentModule) $
             typeError $ GenericError $
               "COMPILE pragmas must appear in the same module as their corresponding definitions,"
-          addPragma b x s
+          addPragma (rangedThing b) x s
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of
@@ -875,11 +878,11 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     reportSDoc "tc.mod.apply" 15 $ vcat
       [ "applying section" <+> prettyTCM m2
       , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> unsafeEscapeContext (size ptel) (prettyTCM ptel)
+      , nest 2 $ "ptel =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (prettyTCM ptel)
       , nest 2 $ "tel  =" <+> prettyTCM tel
       , nest 2 $ "tel' =" <+> prettyTCM tel'
       , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> unsafeEscapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
     ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case

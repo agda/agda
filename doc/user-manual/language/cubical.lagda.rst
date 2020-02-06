@@ -720,7 +720,7 @@ exports all of the primitives for this type, including the notation
 The cubical identity type and the path type are equivalent, so all of
 the results for one can be transported to the other one (using
 univalence). Using this we have implemented an interface to HoTT/UF in
-https://github.com/agda/cubical/blob/master/Cubical/Core/HoTT-UF.agda
+https://github.com/agda/cubical/blob/master/Cubical/Foundations/HoTT-UF.agda
 which provides the user with the key primitives of Homotopy Type
 Theory and Univalent Foundations implemented using cubical primitives
 under the hood. This hence gives an axiom free version of HoTT/UF

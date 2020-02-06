@@ -119,7 +119,7 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
 
   reportSDoc "tc.generalize" 40 $ vcat
     [ "generalized"
-    , nest 2 $ "t =" <+> unsafeEscapeContext 1 (prettyTCM t') ]
+    , nest 2 $ "t =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t') ]
 
   return (genTelNames, t', userdata)
 
