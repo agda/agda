@@ -230,6 +230,7 @@ coverageCheck f t cs = do
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
                       , clauseCatchall    = False
+                      , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
                       }
@@ -427,6 +428,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
+                    , clauseRecursive = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis  = clauseEllipsis cl
                     }
@@ -817,6 +819,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
+                    , clauseRecursive   = Nothing     -- TODO: can it be recursive?
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     , clauseEllipsis  = NoEllipsis
                     }
@@ -854,6 +857,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
                   , clauseCatchall  = False
+                  , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis  = NoEllipsis
                   }

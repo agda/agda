@@ -1486,12 +1486,13 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause rl rf tel ps b t catchall unreachable ell) =
+    instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell) =
        Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t
        <*> return catchall
+       <*> return recursive
        <*> return unreachable
        <*> return ell
 

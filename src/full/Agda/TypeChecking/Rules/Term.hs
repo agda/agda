@@ -640,6 +640,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
+                    , clauseRecursive   = Just False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis  = NoEllipsis
                     }

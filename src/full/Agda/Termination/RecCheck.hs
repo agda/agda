@@ -31,6 +31,8 @@ import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List    (hasElem)
 import Agda.Utils.Pretty  (prettyShow)
 
+-- | Given a list of formally mutually recursive functions,
+--   check for actual recursive calls in the bodies of these functions.
 recursive :: [QName] -> TCM Bool
 recursive names = do
   graph <- zip names <$> mapM (Set.toList <.> recDef (names `hasElem`)) names
@@ -70,9 +72,12 @@ anyDefs :: GetDefs a => (QName -> Bool) -> a -> TCM (Set QName)
 anyDefs include a = do
   -- Prepare function to lookup metas outside of TCM
   st <- getMetaStore
-  let lookup (MetaId x) = case mvInstantiation <$> IntMap.lookup x st of
-        Just (InstV _ v) -> Just v    -- TODO: ignoring the lambdas might be bad?
-        _                -> Nothing
+  let lookup (MetaId x) = (mvInstantiation <$> IntMap.lookup x st) >>= \case
+        InstV _ v                      -> Just v    -- TODO: ignoring the lambdas might be bad?
+        Open                           -> Nothing
+        OpenInstance                   -> Nothing
+        BlockedConst{}                 -> Nothing
+        PostponedTypeCheckingProblem{} -> Nothing
       -- we collect only those used definitions that are in @names@
       emb d = if include d then Set.singleton d else Set.empty
   -- get all the Defs that are in names
