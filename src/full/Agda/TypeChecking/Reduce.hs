@@ -44,6 +44,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -419,9 +420,9 @@ instance Reduce Term where
 shouldTryFastReduce :: ReduceM Bool
 shouldTryFastReduce = (optFastReduce <$> pragmaOptions) `and2M` do
   allowed <- asksTC envAllowedReductions
-  let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
-      requiredReductions = allReductions \\ optionalReductions
-  return $ (allowed \\ optionalReductions) == requiredReductions
+  let optionalReductions = SmallSet.fromList [NonTerminatingReductions, UnconfirmedReductions]
+      requiredReductions = allReductions SmallSet.\\ optionalReductions
+  return $ (allowed SmallSet.\\ optionalReductions) == requiredReductions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -458,7 +459,7 @@ slowReduceTerm v = do
                  $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> fmap Sort <$> reduceB' s
-      Level l  -> ifM (elem LevelReductions <$> asksTC envAllowedReductions)
+      Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _   -> done
@@ -543,8 +544,8 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
       dontUnfold =
-        (defNonterminating info && notElem NonTerminatingReductions allowed)
-        || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
+        (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
+        || (defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
         || prp || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
@@ -553,16 +554,16 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
-      if FunctionReductions `elem` allowed
+      if FunctionReductions `SmallSet.member` allowed
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
     _  -> do
-      if (RecursiveReductions `elem` allowed) ||
-         (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
-         (isInlineFun def && InlineReductions `elem` allowed) ||
-         (definitelyNonRecursive_ def && copatterns && CopatternReductions `elem` allowed) ||
-         (definitelyNonRecursive_ def && FunctionReductions `elem` allowed)
+      if (RecursiveReductions `SmallSet.member` allowed) ||
+         (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
+         (isInlineFun def && InlineReductions `SmallSet.member` allowed) ||
+         (definitelyNonRecursive_ def && copatterns && CopatternReductions `SmallSet.member` allowed) ||
+         (definitelyNonRecursive_ def && FunctionReductions `SmallSet.member` allowed)
         then
           reduceNormalE v0 f (map notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr

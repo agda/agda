@@ -72,6 +72,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Update
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -257,7 +258,7 @@ mutualChecks mi d ds mid names = do
   -- Andreas, 2017-03-23: check positivity before termination.
   -- This allows us to reuse the information about SCCs
   -- to skip termination of non-recursive functions.
-  modifyAllowedReductions (List.delete UnconfirmedReductions) $
+  modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
     checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
