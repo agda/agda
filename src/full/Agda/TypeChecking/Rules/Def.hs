@@ -176,6 +176,7 @@ checkAlias t ai delayed i name e mc =
                           , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
+                          , clauseRecursive = Nothing   -- we don't know yet
                           , clauseUnreachable = Just False
                           , clauseEllipsis = NoEllipsis
                           } ]
@@ -316,6 +317,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseBody = Nothing
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
+                       , clauseRecursive = Just False
                        , clauseUnreachable = Just False
                        , clauseEllipsis = NoEllipsis
                        }
@@ -710,6 +712,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
+                 , clauseRecursive   = Nothing -- we don't know yet
                  , clauseUnreachable = Nothing -- we don't know yet
                  , clauseEllipsis  = lhsEllipsis i
                  }

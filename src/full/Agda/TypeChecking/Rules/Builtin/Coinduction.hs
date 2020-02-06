@@ -134,6 +134,7 @@ bindBuiltinFlat x =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
+          , clauseRecursive   = Just False
           , clauseUnreachable = Just False
           , clauseEllipsis  = NoEllipsis
           }

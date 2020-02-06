@@ -662,6 +662,7 @@ frommyClause (ids, pats, mrhs) = do
    , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
+   , I.clauseRecursive   = Nothing -- TODO: Don't know here whether recursive or not !?
    , I.clauseUnreachable = Nothing -- TODO: Don't know here whether reachable or not !?
    , I.clauseEllipsis = Cm.NoEllipsis
    }
