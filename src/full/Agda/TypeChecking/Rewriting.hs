@@ -80,6 +80,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -230,7 +231,7 @@ checkRewriteRule q = do
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
       -- This is necessary to replace copies created by imports by their
       -- original definition.
-      lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
+      lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ normalise lhs
 
       -- Find head symbol f of the lhs, its type and its arguments.
       (f , hd , t , es) <- case lhs of

@@ -48,6 +48,7 @@ import qualified Internal.Utils.Monoid                             as UtilMonoid
 import qualified Internal.Utils.NonEmptyList                       as UtilNonEmpty ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
+import qualified Internal.Utils.SmallSet                           as UtilSSet     ( tests )
 import qualified Internal.Utils.Three                              as UtilThree    ( tests )
 import qualified Internal.Utils.Trie                               as UtilTrie     ( tests )
 import qualified Internal.Utils.Warshall                           as UtilWarsh    ( tests )
@@ -96,6 +97,7 @@ tests = testGroup "Internal"
   , UtilNonEmpty.tests
   , UtilPOrd.tests
   , UtilPerm.tests
+  , UtilSSet.tests
   , UtilThree.tests
   , UtilTrie.tests
   , UtilWarsh.tests

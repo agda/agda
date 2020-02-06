@@ -20,6 +20,7 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
 
+import Data.Array (Ix)
 import Data.Function
 import Data.Int
 import Data.IntMap (IntMap)
@@ -105,8 +106,10 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.WithDefault ( collapseDefault )
+import Agda.Utils.SmallSet (SmallSet)
+import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
+import Agda.Utils.WithDefault ( collapseDefault )
 
 import Agda.Utils.Impossible
 
@@ -2243,13 +2246,16 @@ data AllowedReduction
                              --   by confluence checker)
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
-  deriving (Show, Eq, Ord, Enum, Bounded, Data)
+  deriving (Show, Eq, Ord, Enum, Bounded, Ix, Data)
 
-type AllowedReductions = [AllowedReduction]
+type AllowedReductions = SmallSet AllowedReduction
 
 -- | Not quite all reductions (skip non-terminating reductions)
 allReductions :: AllowedReductions
-allReductions = [minBound..pred maxBound]
+allReductions = SmallSet.delete NonTerminatingReductions reallyAllReductions
+
+reallyAllReductions :: AllowedReductions
+reallyAllReductions = SmallSet.total
 
 
 -- | Primitives
