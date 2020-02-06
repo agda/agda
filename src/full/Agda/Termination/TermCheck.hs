@@ -35,6 +35,7 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -53,7 +54,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -848,6 +849,45 @@ function g es0 = do
              ]
          return $ CallGraph.insert src tgt cm info calls
 
+-- | Try to get rid of a function call targeting the current SCC
+--   using a non-recursive clause.
+--
+--   This can help copattern definitions of dependent records.
+tryReduceNonRecursiveClause
+  :: QName                 -- ^ Function
+  -> Elims                 -- ^ Arguments
+  -> (Term -> TerM Calls)  -- ^ Continue here if we managed to reduce.
+  -> TerM Calls            -- ^ Otherwise, continue here.
+  -> TerM Calls
+tryReduceNonRecursiveClause g es continue fallback = do
+  -- Andreas, 2020-02-06, re: issue #906
+  let v0 = Def g es
+  reportSDoc "term.reduce" 40 $ "Trying to reduce away call: " <+> prettyTCM v0
+
+  -- First, make sure the function is in the current SCC.
+  ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
+  reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
+
+  -- Then, collect its non-recursive clauses.
+  cls <- liftTCM $ getNonRecursiveClauses g
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive clauses"]
+  reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
+
+  -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
+  r <- liftTCM $ runReduceM $ appDefE' v0 cls [] (map notReduced es)
+  case r of
+    NoReduction{}    -> fallback
+    YesReduction _ v -> do
+      reportSDoc "term.reduce" 30 $ vcat
+        [ "Termination checker: Successfully reduced away call:"
+        , nest 2 $ prettyTCM v0
+        ]
+      continue v
+
+getNonRecursiveClauses :: QName -> TCM [Clause]
+getNonRecursiveClauses q = filter nonrec . defClauses <$> getConstInfo q
+  where nonrec = maybe False not . clauseRecursive
+
 -- | Extract recursive calls from a term.
 
 instance ExtractCalls Term where
@@ -878,7 +918,7 @@ instance ExtractCalls Term where
         constructor c ind argsg
 
       -- Function, data, or record type.
-      Def g es -> function g es
+      Def g es -> tryReduceNonRecursiveClause g es extract $ function g es
 
       -- Abstraction. Preserves guardedness.
       Lam h b -> extract b
