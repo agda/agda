@@ -289,6 +289,46 @@ Language
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
 
+* The termination checker will now try to dispose of recursive calls
+  by reducing with the non-recursive function clauses.
+  This eliminates false positives common for definitions by copatterns
+  using dependent types,
+  see Issue [#906](https://github.com/agda/agda/issues/906).
+
+  For example, consider the following example using a dependent
+  coinductive record `Tree`:
+  ```agda
+  data Fin : Nat → Set where
+    fzero : ∀ n → Fin (suc n)
+    fsuc  : ∀ n (i : Fin n) → Fin (suc n)
+
+  toNat : ∀ n → Fin n → Nat
+  toNat .(suc n) (fzero n)  = zero
+  toNat .(suc n) (fsuc n i) = suc (toNat n i)
+
+  record Tree : Set where
+    coinductive
+    field label : Nat
+          child : Fin label → Tree
+  open Tree
+
+  tree : Nat → Tree
+  tree n .label   = n
+  tree n .child i = tree (n + toNat _ i)
+  ```
+  Agda solves the underscore by `tree n .label`, which is a corecursive
+  call in a non-guarded position, violating the guardedness criterion.
+  This lead to a complaint of the termination checker.
+  Now this call is reduced to `n` first using the non-recursive clause
+  `tree n .label = n`, which leaves us only with the guarded call
+  `tree (n + toNat n i)`, and the termination checker is happy.
+
+  Note: Similar false positives arose already for non-recursive dependent
+  records, e.g., when trying to define an inhabitant of the Σ-type by
+  copattern matching on the projects.
+  See Issue_[#2068](https://github.com/agda/agda/issues/2068) for a
+  non-recursive example.
+
 ### Irrelevance and Prop
 
 * Agda will no longer reduce irrelevant definitions and definitions
