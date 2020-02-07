@@ -7,7 +7,7 @@ include $(TOP)/mk/paths.mk
 # include hs-boot files
 find_filter=\( \( \( -name '*.*hs' -o -name '*.hs-boot' \) ! -name '*~' \) ! -name '.*' \)
 ignore_files=./Setup.hs
-src_files=$(filter-out $(ignore_files),$(shell find . $(find_filter) ))
+src_files=$(filter-out $(ignore_files),$(shell find src $(find_filter) ))
 
 
 ## Lines of Code ##########################################################
