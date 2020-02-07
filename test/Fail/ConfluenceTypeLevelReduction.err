@@ -4,3 +4,9 @@ f _u_18 (b _u_18) and f _u_18 (a _u_18)
 because of unsolved constraints:
   b _u_18 = a _u_18 : A _u_18
 when checking confluence of the rewrite rule f-b with f-a
+ConfluenceTypeLevelReduction.agda:31,8-42
+false != true of type Bool
+when checking that the inferred type of an application
+  f unit (a unit) ≡ f unit (b unit)
+matches the expected type
+  true ≡ false

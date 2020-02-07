@@ -687,7 +687,7 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      { HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
@@ -701,13 +701,14 @@ Expr3NoCurly
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr DoubleCloseBrace        { InstanceArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
+    | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
@@ -1244,8 +1245,8 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id        { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id vclose { ($4, InstanceDef) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1258,7 +1259,7 @@ Fields :: { Declaration }
 Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef
+                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
                            _          -> NotInstanceDef
                 toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
               in Field (fuseRange $1 $2) $ map toField $2 }
@@ -1294,7 +1295,7 @@ Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (fuseRange $1 $2) $2 }
+Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
 
 
 -- Macro declarations.
@@ -1531,24 +1532,24 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) $4 }
+      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (mkRString $3) $4 }
     -- Extra rule to accept keyword REWRITE also as built-in:
     | '{-#' 'BUILTIN' 'REWRITE' PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" $4 }
+      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) (Ranged (getRange $3) "REWRITE") $4 }
 
 RewritePragma :: { Pragma }
 RewritePragma
     : '{-#' 'REWRITE' PragmaQNames '#-}'
-      { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
+      { RewritePragma (getRange ($1,$2,$3,$4)) (getRange $2) $3 }
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
 
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
-    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (snd $3) $4 (unwords $5) }
+    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (mkRString $3) $4 (unwords $5) }
 
 StaticPragma :: { Pragma }
 StaticPragma
@@ -1921,6 +1922,8 @@ mkQName ss = do
 mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> LamBinding
 mkDomainFree_ f p n = DomainFree $ f $ defaultNamedArg $ Binder p $ mkBoundName_ n
 
+mkRString :: (Interval, String) -> RString
+mkRString (i, s) = Ranged (getRange i) s
 
 -- | Create a qualified name from a string (used in pragmas).
 --   Range of each name component is range of whole string.
@@ -2235,12 +2238,20 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named_ Expr
+-- | When given expression is @e1 = e2@, turn it into a named expression.
+--   Call this inside an implicit argument @{e}@ or @{{e}}@, where
+--   an equality must be a named argument (rather than a cubical partial match).
+maybeNamed :: Expr -> Parser (Named_ Expr)
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named nm b
-      where nm = WithOrigin UserWritten $ Ranged (getRange x) $ nameToRawName x
-    _                         -> unnamed e
+    Nothing       -> return $ unnamed e
+    Just (e1, e2) -> do
+      let succeed x = return $ named (WithOrigin UserWritten $ Ranged (getRange e1) x) e2
+      case e1 of
+        Ident (QName x) -> succeed $ nameToRawName x
+        -- We could have the following, but names of arguments cannot be _.
+        -- Underscore{}    -> succeed $ "_"
+        _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
 patternSynArgs = mapM pSynArg

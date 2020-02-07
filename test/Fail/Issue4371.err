@@ -1,0 +1,3 @@
+Issue4371.agda:19,1-19
+ok  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  p
+when checking the pragma REWRITE ok

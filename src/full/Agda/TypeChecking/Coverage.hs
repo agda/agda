@@ -76,6 +76,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -1365,7 +1366,10 @@ split' checkEmpty ind allowPartialCover inserttrailing
         hcompsc <- if isHIT && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
-        return $ (dr, catMaybes (mns ++ [hcompsc]))
+        return ( dr
+               , not (null ixs) -- Is "d" indexed?
+               , catMaybes (mns ++ [hcompsc])
+               )
 
       computeLitNeighborhoods = do
         typeOk <- liftTCM $ do
@@ -1389,9 +1393,14 @@ split' checkEmpty ind allowPartialCover inserttrailing
               rho    = liftS x $ consS varp $ raiseS 1
               ps'    = applySubst rho ps
           return (SplitCatchall , SClause delta' ps' rho cps Nothing)
-        return (IsData , ns ++ [ ca ])
 
-  (dr, ns) <- if null pcons' && not (null plits)
+        -- If Agda is changed so that the type of a literal can belong
+        -- to an inductive family (with at least one index), then the
+        -- following code should be changed (the constructor False
+        -- stands for "not indexed").
+        return (IsData, False, ns ++ [ ca ])
+
+  (dr, isIndexed, ns) <- if null pcons' && not (null plits)
         then computeLitNeighborhoods
         else computeNeighborhoods
 
@@ -1411,9 +1420,13 @@ split' checkEmpty ind allowPartialCover inserttrailing
     maybe (return True) (not <.> isPropM) target
 
   mHCompName <- getPrimitiveName' builtinHComp
+  withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
 
   erased <- asksTC hasQuantity0
   reportSLn "tc.cover.split" 60 $ "We are in erased context = " ++ show erased
+  let erasedError causedByWithoutK =
+        throwError . ErasedDatatype causedByWithoutK =<<
+          do liftTCM $ inContextOfT $ buildClosure (unDom t)
   case ns of
     []  -> do
       let absurdp = VarP (PatternInfo PatOAbsurd []) $ SplitPatVar underscore 0 []
@@ -1434,7 +1447,14 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
     (_ : _ : _) | not erased && not (usableQuantity t) ->
-      throwError . ErasedDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
+      erasedError False
+
+    -- If exactly one constructor matches and the K rule is turned
+    -- off, then we only allow erasure for non-indexed data types
+    -- (#4172).
+    [_] | not erased && not (usableQuantity t) &&
+          withoutK && isIndexed ->
+      erasedError True
 
     _ -> do
 
@@ -1462,8 +1482,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
-    inContextOfT      = addContext tel . unsafeEscapeContext (x + 1)
-    inContextOfDelta2 = addContext tel . unsafeEscapeContext x
+    inContextOfT      = addContext tel . escapeContext __IMPOSSIBLE__ (x + 1)
+    inContextOfDelta2 = addContext tel . escapeContext __IMPOSSIBLE__ x
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do

@@ -105,3 +105,11 @@ Issue-4356₅ P@(A , B) = P
 
 Issue-4356₆ : Σ Set (λ _ → Set) → Set
 Issue-4356₆ (A , B) = B
+
+-- Issue #4361: Highlighting builtins.
+
+data Nat : Set where
+  zero : Nat
+  suc  : Nat → Nat
+
+{-# BUILTIN NATURAL Nat -#}  -- NATURAL should be highlighted as keyword.

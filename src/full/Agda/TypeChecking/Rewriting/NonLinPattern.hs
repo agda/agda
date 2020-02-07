@@ -19,7 +19,7 @@ import Agda.Syntax.Internal.Defs
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Lazy
-import Agda.TypeChecking.Irrelevance (workOnTypes)
+import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -62,7 +62,8 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
-    (IApply x y u : es) -> __IMPOSSIBLE__ -- TODO
+    (IApply x y u : es) -> typeError $ GenericError $
+      "Rewrite rules with cubical are not yet supported"
     (Proj o f : es) -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
       let t' = b `absApp` hd
@@ -105,9 +106,11 @@ instance PatternFrom () Level NLPat where
     patternFrom r k t v
 
 instance PatternFrom Type Term NLPat where
-  patternFrom r k t v = do
+  patternFrom r0 k t v = do
     t <- reduce t
     etaRecord <- isEtaRecordType t
+    prop <- isPropM t
+    let r = if prop then Irrelevant else r0
     v <- unLevel =<< reduce v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
@@ -169,7 +172,7 @@ instance PatternFrom Type Term NLPat where
         return $ PPi pa (Abs (absName b) pb)
       (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
-      (_ , DontCare{}) -> done
+      (_ , DontCare{}) -> __IMPOSSIBLE__
       (_ , MetaV{})    -> __IMPOSSIBLE__
       (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s
 

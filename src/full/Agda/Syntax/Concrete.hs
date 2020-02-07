@@ -162,6 +162,7 @@ data Expr
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
+  | DoubleDot Range Expr                       -- ^ ex: @..A@, used for parsing @..A -> B@
   | ETel Telescope                             -- ^ only used for printing telescopes
   | Quote Range                                -- ^ ex: @quote@, should be applied to a name
   | QuoteTerm Range                            -- ^ ex: @quoteTerm@, should be applied to a term
@@ -406,6 +407,9 @@ data Declaration
     --   temporarily, which should be treated different that user-declared
     --   private blocks.  Thus the 'Origin'.
   | InstanceB   Range [Declaration]
+    -- ^ The 'Range' here (exceptionally) only refers to the range of the
+    --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
+    --   is @fuseRange r ds@.
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
@@ -432,10 +436,10 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma
   = OptionsPragma             Range [String]
-  | BuiltinPragma             Range String QName
-  | RewritePragma             Range [QName]
-  | ForeignPragma             Range String String       -- ^ first string is backend name
-  | CompilePragma             Range String QName String -- ^ first string is backend name
+  | BuiltinPragma             Range RString QName
+  | RewritePragma             Range Range [QName]        -- ^ Second Range is for REWRITE keyword.
+  | ForeignPragma             Range RString String       -- ^ first string is backend name
+  | CompilePragma             Range RString QName String -- ^ first string is backend name
   | StaticPragma              Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
 
@@ -667,8 +671,7 @@ instance HasRange e => HasRange (OpApp e) where
     SyntaxBindingLambda r _ _ -> r
 
 instance HasRange Expr where
-  getRange e =
-    case e of
+  getRange = \case
       Ident x            -> getRange x
       Lit x              -> getRange x
       QuestionMark r _   -> r
@@ -692,6 +695,7 @@ instance HasRange Expr where
       DoBlock r _        -> r
       As r _ _           -> r
       Dot r _            -> r
+      DoubleDot r _      -> r
       Absurd r           -> r
       HiddenArg r _      -> r
       InstanceArg r _    -> r
@@ -793,7 +797,7 @@ instance HasRange DoStmt where
 instance HasRange Pragma where
   getRange (OptionsPragma r _)               = r
   getRange (BuiltinPragma r _ _)             = r
-  getRange (RewritePragma r _)               = r
+  getRange (RewritePragma r _ _)             = r
   getRange (CompilePragma r _ _ _)           = r
   getRange (ForeignPragma r _ _)             = r
   getRange (StaticPragma r _)                = r
@@ -936,6 +940,7 @@ instance KillRange Expr where
   killRange (Absurd _)           = Absurd noRange
   killRange (As _ n e)           = killRange2 (As noRange) n e
   killRange (Dot _ e)            = killRange1 (Dot noRange) e
+  killRange (DoubleDot _ e)      = killRange1 (DoubleDot noRange) e
   killRange (ETel t)             = killRange1 ETel t
   killRange (Quote _)            = Quote noRange
   killRange (QuoteTerm _)        = QuoteTerm noRange
@@ -991,7 +996,7 @@ instance KillRange Pattern where
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)               = OptionsPragma noRange s
   killRange (BuiltinPragma _ s e)             = killRange1 (BuiltinPragma noRange s) e
-  killRange (RewritePragma _ qs)              = killRange1 (RewritePragma noRange) qs
+  killRange (RewritePragma _ _ qs)            = killRange1 (RewritePragma noRange noRange) qs
   killRange (StaticPragma _ q)                = killRange1 (StaticPragma noRange) q
   killRange (InjectivePragma _ q)             = killRange1 (InjectivePragma noRange) q
   killRange (InlinePragma _ b q)              = killRange1 (InlinePragma noRange b) q
@@ -1056,6 +1061,7 @@ instance NFData Expr where
   rnf (Absurd _)         = ()
   rnf (As _ a b)         = rnf a `seq` rnf b
   rnf (Dot _ a)          = rnf a
+  rnf (DoubleDot _ a)    = rnf a
   rnf (ETel a)           = rnf a
   rnf (Quote _)          = ()
   rnf (QuoteTerm _)      = ()
@@ -1124,7 +1130,7 @@ instance NFData Declaration where
 instance NFData Pragma where
   rnf (OptionsPragma _ a)               = rnf a
   rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
-  rnf (RewritePragma _ a)               = rnf a
+  rnf (RewritePragma _ _ a)             = rnf a
   rnf (CompilePragma _ a b c)           = rnf a `seq` rnf b `seq` rnf c
   rnf (ForeignPragma _ b s)             = rnf b `seq` rnf s
   rnf (StaticPragma _ a)                = rnf a

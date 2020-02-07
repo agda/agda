@@ -204,14 +204,15 @@ data ModuleApplication
 
 data Pragma
   = OptionsPragma [String]
-  | BuiltinPragma String ResolvedName
+  | BuiltinPragma RString ResolvedName
     -- ^ 'ResolvedName' is not 'UnknownName'.
     --   Name can be ambiguous e.g. for built-in constructors.
-  | BuiltinNoDefPragma String QName
+  | BuiltinNoDefPragma RString QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
-  | RewritePragma [QName]
-  | CompilePragma String QName String
+  | RewritePragma Range [QName]
+    -- ^ Range is range of REWRITE keyword.
+  | CompilePragma RString QName String
   | StaticPragma QName
   | EtaPragma QName
     -- ^ For coinductive records, use pragma instead of regular

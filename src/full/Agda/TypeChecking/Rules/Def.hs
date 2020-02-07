@@ -187,8 +187,11 @@ checkAlias t ai delayed i name e mc =
 
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
-  when (Info.defInstance i == InstanceDef) $ do
-    addTypedInstance name t
+  case Info.defInstance i of
+    InstanceDef _r -> setCurrentRange name $ addTypedInstance name t
+      -- Put highlighting on the name only;
+      -- @(getRange (r, name))@ does not give good results.
+    NotInstanceDef -> pure ()
 
   reportSDoc "tc.def.alias" 20 $ "checkAlias: leaving"
 
@@ -303,7 +306,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- also add an absurd clause for the cases not needed.
         (cs,sys) <- if not isSystem then return (cs, Nothing) else do
                  fullType <- flip abstract t <$> getContextTelescope
-                 sys <- unsafeInTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
+                 sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
                  let c = Clause
                        { clauseFullRange = noRange
@@ -661,14 +664,14 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
           , nest 2 $ vcat
-            [ "delta =" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
+            [ "delta =" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
             , "type  =" <+> prettyTCM t
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 60 $ unsafeEscapeContext (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 60 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
@@ -936,7 +939,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
@@ -956,7 +959,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ unsafeEscapeContext (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
           [ "delta1 =" <+> prettyTCM delta1
           , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
@@ -985,13 +988,13 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith whThing vtys in
-          [ "    with arguments" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-          , "             types" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          [ "    with arguments" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          , "             types" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
           , "with function call" <+> prettyTCM v
           , "           context" <+> (prettyTCM =<< getContextTelescope)
-          , "             delta" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta
-          , "            delta1" <+> do unsafeEscapeContext (size delta) $ prettyTCM delta1
-          , "            delta2" <+> do unsafeEscapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "             delta" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta
+          , "            delta1" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyTCM delta2
           , "              body" <+> prettyTCM v
           ]
 

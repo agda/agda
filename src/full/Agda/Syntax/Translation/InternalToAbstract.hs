@@ -24,6 +24,8 @@ module Agda.Syntax.Translation.InternalToAbstract
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
+
+import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
 
@@ -1103,9 +1105,11 @@ reifyPatterns :: MonadReify m => [NamedArg I.DeBruijnPattern] -> m [NamedArg A.P
 reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
                        traverse (traverse reifyPat)
   where
+    -- #4399 strip also empty names
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
-      | visible a = fmap (unnamed . namedThing) a
+      | visible a || maybe True (liftA2 (||) null isNoName) (bareNameOf a) =
+          fmap (unnamed . namedThing) a
       | otherwise = a
 
     stripHidingFromPostfixProj :: IsProjP p => NamedArg p -> NamedArg p

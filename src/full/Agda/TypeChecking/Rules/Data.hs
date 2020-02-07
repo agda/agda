@@ -148,7 +148,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            unsafeEscapeContext npars $ do
+            escapeContext __IMPOSSIBLE__ npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -240,12 +240,12 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         params <- getContextTelescope
 
         -- add parameters to constructor type and put into signature
-        unsafeEscapeContext (size tel) $ do
+        escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           -- Cannot compose indexed inductive types yet.
           (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
             then return (ConHead c Inductive [], emptyCompKit, Nothing)
-            else unsafeInTopContext $ do
+            else inTopContext $ do
               -- Name for projection of ith field of constructor c is just c-i
               names <- forM [0 .. size fields - 1] $ \ i ->
                 freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
@@ -285,8 +285,16 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           traverse_ (mapM_ makeProjection) $ projNames
 
         -- Add the constructor to the instance table, if needed
-        when (Info.defInstance i == InstanceDef) $ do
-          addNamedInstance c d
+        case Info.defInstance i of
+          InstanceDef _r -> setCurrentRange c $ do
+            -- Including the range of the @instance@ keyword, like
+            -- @(getRange (r,c))@, does not produce good results.
+            -- Andreas, 2020-01-28, issue #4360:
+            -- Use addTypedInstance instead of addNamedInstance
+            -- to detect unusable instances.
+            addTypedInstance c t
+            -- addNamedInstance c d
+          NotInstanceDef -> pure ()
 
         return isPathCons
 

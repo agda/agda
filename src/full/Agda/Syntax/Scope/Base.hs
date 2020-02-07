@@ -755,7 +755,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
   | null dir  = (s, (empty, empty))
       -- Since each run of applyImportDirective rebuilds the scope
       -- with cost O(n log n) time, it makes sense to test for the identity.
-  | otherwise = (mergeScope sUse sRen, (nameClashes, moduleClashes))
+  | otherwise = (recomputeInScopeSets $ mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
     -- | Names kept via using/hiding.
     sUse :: Scope
@@ -814,8 +814,8 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
     -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
     rename rho = mapScope_ (updateFxs .
-                            Map.mapMaybeKeys (AssocList.apply drho))
-                           (Map.mapMaybeKeys (AssocList.apply mrho))
+                            updateThingsInScope (AssocList.apply drho))
+                           (updateThingsInScope (AssocList.apply mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
@@ -835,6 +835,14 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           -- Update fixity of all abstract names targeted by concrete name y.
           upd m (y, fx) = Map.adjust (map $ set lensFixity fx) y m
 
+        updateThingsInScope
+          :: forall a. SetBindingSite a
+          => (C.Name -> Maybe C.Name)
+          -> ThingsInScope a -> ThingsInScope a
+        updateThingsInScope f = Map.fromList . mapMaybe upd . Map.toAscList
+          where
+          upd :: (C.Name, [a]) -> Maybe (C.Name, [a])
+          upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
@@ -1199,6 +1207,38 @@ inverseScopeLookupName' ambCon x = inverseScopeLookup' ambCon (Right x)
 --   Sort by length, shortest first.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
 inverseScopeLookupModule x = inverseScopeLookup (Left x)
+
+------------------------------------------------------------------------
+-- * Update binding site
+------------------------------------------------------------------------
+
+-- | Set the 'nameBindingSite' in an abstract name.
+class SetBindingSite a where
+  setBindingSite :: Range -> a -> a
+
+  default setBindingSite
+    :: (SetBindingSite b, Functor t, t b ~ a)
+    => Range -> a -> a
+  setBindingSite = fmap . setBindingSite
+
+instance SetBindingSite a => SetBindingSite [a]
+
+instance SetBindingSite A.Name where
+  setBindingSite r x = x { nameBindingSite = r }
+
+instance SetBindingSite A.QName where
+  setBindingSite r x = x { qnameName = setBindingSite r $ qnameName x }
+
+-- | Sets the binding site of all names in the path.
+instance SetBindingSite A.ModuleName where
+  setBindingSite r (MName x) = MName $ setBindingSite r x
+
+instance SetBindingSite AbstractName where
+  setBindingSite r x = x { anameName = setBindingSite r $ anameName x }
+
+instance SetBindingSite AbstractModule where
+  setBindingSite r x = x { amodName = setBindingSite r $ amodName x }
+
 
 ------------------------------------------------------------------------
 -- * (Debug) printing

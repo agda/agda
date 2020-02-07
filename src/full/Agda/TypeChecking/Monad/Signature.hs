@@ -926,20 +926,27 @@ moduleParamsToApply :: (Functor m, Applicative m, HasOptions m,
                         MonadTCEnv m, ReadTCState m, MonadDebug m)
                     => ModuleName -> m Args
 moduleParamsToApply m = do
-  -- Get the correct number of free variables (correctly raised) of @m@.
 
   traceSDoc "tc.sig.param" 90 ("computing module parameters of " <+> pretty m) $ do
-  n   <- getModuleFreeVars m
-  traceSDoc "tc.sig.param" 60 (nest 2 $ "n    = " <+> text (show n)) $ do
-  tel <- take n . telToList <$> lookupSection m
-  traceSDoc "tc.sig.param" 60 (nest 2 $ "tel  = " <+> pretty tel) $ do
-  sub <- getModuleParameterSub m
+
+  -- Jesper, 2020-01-22: If the module parameter substitution for the
+  -- module cannot be found, that likely means we are within a call to
+  -- @inTopContext@. In that case we should provide no arguments for
+  -- the module parameters (see #4383).
+  caseMaybeM (getModuleParameterSub m) (return []) $ \sub -> do
+
   traceSDoc "tc.sig.param" 60 (do
     cxt <- getContext
     nest 2 $ vcat
       [ "cxt  = " <+> prettyTCM (PrettyContext cxt)
       , "sub  = " <+> pretty sub
       ]) $ do
+
+  -- Get the correct number of free variables (correctly raised) of @m@.
+  n   <- getModuleFreeVars m
+  traceSDoc "tc.sig.param" 60 (nest 2 $ "n    = " <+> text (show n)) $ do
+  tel <- take n . telToList <$> lookupSection m
+  traceSDoc "tc.sig.param" 60 (nest 2 $ "tel  = " <+> pretty tel) $ do
   unless (size tel == n) __IMPOSSIBLE__
   let args = applySubst sub $ zipWith (\ i a -> var i <$ argFromDom a) (downFrom n) tel
   traceSDoc "tc.sig.param" 60 (nest 2 $ "args = " <+> prettyList_ (map pretty args)) $ do
@@ -969,8 +976,8 @@ moduleParamsToApply m = do
 --   sure generated definitions work properly.
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 inFreshModuleIfFreeParams k = do
-  sub <- getModuleParameterSub =<< currentModule
-  if sub == IdS then k else do
+  msub <- getModuleParameterSub =<< currentModule
+  if msub == Nothing || msub == Just IdS then k else do
     m  <- currentModule
     m' <- qualifyM m . mnameFromList . (:[]) <$>
             freshName_ ("_" :: String)

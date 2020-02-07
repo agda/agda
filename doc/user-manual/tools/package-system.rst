@@ -7,6 +7,8 @@ Library Management
 Agda has a simple package management system to support working with multiple
 libraries in different locations. The central concept is that of a *library*.
 
+.. _use-std-lib:
+
 Example: Using the standard library
 -----------------------------------
 
@@ -113,6 +115,8 @@ error message (assuming you don't have a library called ``fjdsk`` installed).
 
 Note that if you want to install a library so that it is used by default,
 it must also be listed in the ``defaults`` file (details below).
+
+.. _use-lib:
 
 Using a library
 ---------------

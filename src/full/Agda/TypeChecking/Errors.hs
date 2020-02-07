@@ -222,6 +222,7 @@ errorString err = case err of
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
+  UnequalCohesion{}                        -> "UnequalCohesion"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
@@ -569,6 +570,11 @@ instance PrettyTCM TypeError where
     UnequalQuantity cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-erased function type and the other is an erased function type"
+
+    UnequalCohesion cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because one is a non-flat function type and the other is a flat function type"
+      -- FUTURE Cohesion: update message if/when introducing sharp.
 
     UnequalHiding a b -> fsep $
       [prettyTCM a, "!=", prettyTCM b] ++
@@ -1192,8 +1198,12 @@ instance PrettyTCM SplitError where
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 
-    ErasedDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot branch on erased argument of datatype" ++ [prettyTCM t]
+    ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot branch on erased argument of datatype" ++
+      [prettyTCM t] ++
+      if causedByWithoutK
+      then pwords "because the K rule is turned off"
+      else []
 
     CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]

@@ -280,6 +280,7 @@ instance Pretty Expr where
             DoBlock _ ss -> "do" <+> vcat (map pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
+            DoubleDot _ e  -> ".." <> pretty e
             Absurd _  -> "()"
             Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->
@@ -461,8 +462,8 @@ instance Pretty Declaration where
 
                 where
 
-                  mkInst InstanceDef    d = sep [ "instance", nest 2 d ]
-                  mkInst NotInstanceDef d = d
+                  mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+                  mkInst NotInstanceDef  d = d
 
                   mkOverlap i d | isOverlappable i = "overlap" <+> d
                                 | otherwise        = d
@@ -596,13 +597,13 @@ instance Pretty OpenShortHand where
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts)  = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text b, pretty x ]
-    pretty (RewritePragma _ xs)    =
+    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text (rangedThing b), pretty x ]
+    pretty (RewritePragma _ _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
     pretty (CompilePragma _ b x e) =
-      hsep [ "COMPILE", text b, pretty x, text e ]
+      hsep [ "COMPILE", text (rangedThing b), pretty x, text e ]
     pretty (ForeignPragma _ b s) =
-      vcat $ text ("FOREIGN " ++ b) : map text (lines s)
+      vcat $ text ("FOREIGN " ++ rangedThing b) : map text (lines s)
     pretty (StaticPragma _ i) =
       hsep $ ["STATIC", pretty i]
     pretty (InjectivePragma _ i) =

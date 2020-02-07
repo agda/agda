@@ -43,6 +43,9 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+type Nat    = Int
+type Arity  = Nat
+
 ---------------------------------------------------------------------------
 -- * Delayed
 ---------------------------------------------------------------------------
@@ -1880,18 +1883,26 @@ instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
 -- ** instance blocks
 
 -- | Is this definition eligible for instance search?
-data IsInstance = InstanceDef | NotInstanceDef
+data IsInstance
+  = InstanceDef Range  -- ^ Range of the @instance@ keyword.
+  | NotInstanceDef
     deriving (Data, Show, Eq, Ord)
 
 instance KillRange IsInstance where
-  killRange = id
+  killRange = \case
+    InstanceDef _    -> InstanceDef noRange
+    i@NotInstanceDef -> i
 
 instance HasRange IsInstance where
-  getRange _ = noRange
+  getRange = \case
+    InstanceDef r  -> r
+    NotInstanceDef -> noRange
 
 instance NFData IsInstance where
-  rnf InstanceDef    = ()
-  rnf NotInstanceDef = ()
+  rnf (InstanceDef _) = ()
+  rnf NotInstanceDef  = ()
+
+-- ** macro blocks
 
 -- | Is this a macro definition?
 data IsMacro = MacroDef | NotMacroDef
@@ -1899,9 +1910,6 @@ data IsMacro = MacroDef | NotMacroDef
 
 instance KillRange IsMacro where killRange = id
 instance HasRange  IsMacro where getRange _ = noRange
-
-type Nat    = Int
-type Arity  = Nat
 
 ---------------------------------------------------------------------------
 -- * NameId
