@@ -254,7 +254,8 @@ Language
 
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
-  See "Flat Modality" in the documentation for more.
+  See [Flat Modality](https://agda.readthedocs.io/en/latest/language/flat.html)
+  in the documentation for more.
 
 * New run-time erasure modality (`@0` / `@erased`).
   Terms marked as erased cannot influence computations and are erased at run time.
@@ -274,8 +275,9 @@ Language
   rule ``Set i =< Set j`` whenever ``i =< j``. For example, in
   addition to its usual type ``Set``, ``Nat`` also has the type
   ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
-  about this new option can be found in the [user
-  manual](https://agda.readthedocs.io/en/latest/language/cumulativity.html).
+  about this new option can be found in section
+  [Cumulativity](https://agda.readthedocs.io/en/latest/language/cumulativity.html)
+  of the user manual.
 
 ### Termination checking
 
@@ -651,4 +653,3 @@ tracker](https://github.com/agda/agda/issues)):
 The following previously closed issues were reopened:
 
   -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
-
