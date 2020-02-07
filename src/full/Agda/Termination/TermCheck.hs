@@ -882,6 +882,7 @@ tryReduceNonRecursiveClause g es continue fallback = do
         [ "Termination checker: Successfully reduced away call:"
         , nest 2 $ prettyTCM v0
         ]
+      verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
       continue v
 
 getNonRecursiveClauses :: QName -> TCM [Clause]
