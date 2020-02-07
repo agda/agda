@@ -99,3 +99,4 @@ flags:
 packages:
 - '.'
 - 'src/size-solver'
+- 'src/agda-utils'
