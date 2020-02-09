@@ -101,6 +101,7 @@ import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -177,7 +178,7 @@ data PreScopeState = PreScopeState
     -- ^ Pattern synonyms of the current file.  Serialized.
   , stPrePatternSynImports  :: !A.PatternSynDefns
     -- ^ Imported pattern synonyms.  Must not be serialized!
-  , stPreGeneralizedVars    :: !(Maybe (Set QName))
+  , stPreGeneralizedVars    :: !(Strict.Maybe (Set QName))
     -- ^ Collected generalizable variables; used during scope checking of terms
   , stPrePragmaOptions      :: !PragmaOptions
     -- ^ Options applying to the current file. @OPTIONS@
@@ -194,7 +195,7 @@ data PreScopeState = PreScopeState
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
   , stPreLocalUserWarnings    :: !(Map A.QName String)
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
-  , stPreWarningOnImport      :: !(Maybe String)
+  , stPreWarningOnImport      :: !(Strict.Maybe String)
     -- ^ Whether the current module should raise a warning when opened
   , stPreImportedPartialDefs :: !(Set QName)
     -- ^ Imported partial definitions, not to be stored in the @Interface@
@@ -231,7 +232,7 @@ data PostScopeState = PostScopeState
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
-  , stPostCurrentModule       :: !(Maybe ModuleName)
+  , stPostCurrentModule       :: !(Strict.Maybe ModuleName)
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
@@ -293,9 +294,9 @@ data PersistentTCState = PersistentTCSt
     --   Needs to be a strict field to avoid space leaks!
   , stAccumStatistics   :: !Statistics
     -- ^ Should be strict field.
-  , stLoadedFileCache   :: !(Maybe LoadedFileCache)
+  , stPersistLoadedFileCache :: !(Strict.Maybe LoadedFileCache)
     -- ^ Cached typechecking state from the last loaded file.
-    --   Should be Nothing when checking imports.
+    --   Should be @Nothing@ when checking imports.
   , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
   }
@@ -340,7 +341,7 @@ initPersistentState = PersistentTCSt
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
-  , stLoadedFileCache           = Nothing
+  , stPersistLoadedFileCache    = empty
   , stPersistBackends           = []
   }
 
@@ -365,7 +366,7 @@ initPreScopeState = PreScopeState
   , stPreFreshInteractionId   = 0
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
-  , stPreWarningOnImport      = Nothing
+  , stPreWarningOnImport      = empty
   , stPreImportedPartialDefs  = Set.empty
   }
 
@@ -382,7 +383,7 @@ initPostScopeState = PostScopeState
   , stPostSignature            = emptySignature
   , stPostModuleCheckpoints    = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
-  , stPostCurrentModule        = Nothing
+  , stPostCurrentModule        = empty
   , stPostInstanceDefs         = (Map.empty , Set.empty)
   , stPostConcreteNames        = Map.empty
   , stPostUsedNames            = Map.empty
@@ -456,8 +457,8 @@ stPatternSynImports f s =
 
 stGeneralizedVars :: Lens' (Maybe (Set QName)) TCState
 stGeneralizedVars f s =
-  f (stPreGeneralizedVars (stPreScopeState s)) <&>
-  \x -> s {stPreScopeState = (stPreScopeState s) {stPreGeneralizedVars = x}}
+  f (Strict.toLazy $ stPreGeneralizedVars (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreGeneralizedVars = Strict.toStrict x}}
 
 stPragmaOptions :: Lens' PragmaOptions TCState
 stPragmaOptions f s =
@@ -497,8 +498,8 @@ getUserWarnings = do
 
 stWarningOnImport :: Lens' (Maybe String) TCState
 stWarningOnImport f s =
-  f (stPreWarningOnImport (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = x}}
+  f (Strict.toLazy $ stPreWarningOnImport (stPreScopeState s)) <&>
+  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = Strict.toStrict x}}
 
 stImportedPartialDefs :: Lens' (Set QName) TCState
 stImportedPartialDefs f s =
@@ -515,6 +516,11 @@ getPartialDefs = do
   ipd <- useR stImportedPartialDefs
   lpd <- useR stLocalPartialDefs
   return $ ipd `Set.union` lpd
+
+stLoadedFileCache :: Lens' (Maybe LoadedFileCache) TCState
+stLoadedFileCache f s =
+  f (Strict.toLazy $ stPersistLoadedFileCache (stPersistentState s)) <&>
+  \x -> s {stPersistentState = (stPersistentState s) {stPersistLoadedFileCache = Strict.toStrict x}}
 
 stBackends :: Lens' [Backend] TCState
 stBackends f s =
@@ -588,8 +594,8 @@ stImportedDisplayForms f s =
 
 stCurrentModule :: Lens' (Maybe ModuleName) TCState
 stCurrentModule f s =
-  f (stPostCurrentModule (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostCurrentModule = x}}
+  f (Strict.toLazy $ stPostCurrentModule (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostCurrentModule = Strict.toStrict x}}
 
 stImportedInstanceDefs :: Lens' InstanceTable TCState
 stImportedInstanceDefs f s =
@@ -1807,7 +1813,7 @@ data ExtLamInfo = ExtLamInfo
     --   module during type checking though, since if the lambda appears in a
     --   refined context the module picked by the scope checker has very much
     --   the wrong parameters.
-  , extLamSys :: !(Maybe System)
+  , extLamSys :: !(Strict.Maybe System)
   } deriving (Data, Show)
 
 modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo

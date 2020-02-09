@@ -72,6 +72,7 @@ import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -670,7 +671,8 @@ reifyTerm expandAnonDefs0 v0 = do
 
         extLam <- case def of
           Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-          Function{ funExtLam = Just (ExtLamInfo m sys) } -> Just . (,sys) . size <$> lookupSection m
+          Function{ funExtLam = Just (ExtLamInfo m sys) } ->
+            Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
         case extLam of
           Just (pars, sys) | df, notElem x alreadyPrinting ->

@@ -118,11 +118,9 @@ checkDeclCached d = do
    compareDecl x y = x == y
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
-   ignoreChanges m = do
-     cs <- getsTC $ stLoadedFileCache . stPersistentState
+   ignoreChanges m = localCache $ do
      cleanCachedLog
-     _ <- m
-     modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
+     m
    checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
    checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
    checkDeclWrap d            = checkDecl d
