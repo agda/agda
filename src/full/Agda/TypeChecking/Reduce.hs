@@ -1009,6 +1009,41 @@ class Normalise t where
   default normalise' :: (t ~ f a, Traversable f, Normalise a) => t -> ReduceM t
   normalise' = traverse normalise'
 
+-- boring instances:
+
+instance Normalise t => Normalise [t]
+instance Normalise t => Normalise (Map k t)
+instance Normalise t => Normalise (Maybe t)
+instance Normalise t => Normalise (Strict.Maybe t)
+
+-- Arg not included since we do not normalize irrelevant subterms
+-- Elim' not included since it contains Arg
+instance Normalise t => Normalise (Named name t)
+instance Normalise t => Normalise (IPBoundary' t)
+instance Normalise t => Normalise (WithHiding t)
+
+instance (Normalise a, Normalise b) => Normalise (a,b) where
+    normalise' (x,y) = (,) <$> normalise' x <*> normalise' y
+
+instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
+    normalise' (x,y,z) =
+        do  (x,(y,z)) <- normalise' (x,(y,z))
+            return (x,y,z)
+
+instance Normalise Bool where
+  normalise' = return
+
+instance Normalise Char where
+  normalise' = return
+
+instance Normalise Int where
+  normalise' = return
+
+instance Normalise DBPatVar where
+  normalise' = return
+
+-- interesting instances:
+
 instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
@@ -1026,7 +1061,7 @@ instance Normalise Sort where
         DefS d es  -> return s
         DummyS{}   -> return s
 
-instance Normalise Type where
+instance Normalise t => Normalise (Type' t) where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
 
 instance Normalise Term where
@@ -1046,8 +1081,9 @@ slowNormaliseArgs v = case v of
   DontCare _  -> return v
   Dummy{}     -> return v
 
-instance Normalise Elim where
-  normalise' (Apply v) = Apply <$> normalise' v
+-- Note: not the default instance for Elim' since we do something special for Arg.
+instance Normalise t => Normalise (Elim' t) where
+  normalise' (Apply v) = Apply <$> normalise' v  -- invokes Normalise Arg here
   normalise' (Proj o f)= pure $ Proj o f
   normalise' (IApply x y v) = IApply <$> normalise' x <*> normalise' y <*> normalise' v
 
@@ -1071,25 +1107,12 @@ instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
 
 instance Normalise t => Normalise (Arg t) where
-    normalise' a | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
-                | otherwise                       = traverse normalise' a
-
-instance Normalise t => Normalise (Named name t) where
-    normalise' = traverse normalise'
+    normalise' a
+      | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
+      | otherwise      = traverse normalise' a
 
 instance Normalise t => Normalise (Dom t) where
     normalise' = traverse normalise'
-
-instance Normalise t => Normalise [t] where
-    normalise' = traverse normalise'
-
-instance (Normalise a, Normalise b) => Normalise (a,b) where
-    normalise' (x,y) = (,) <$> normalise' x <*> normalise' y
-
-instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
-    normalise' (x,y,z) =
-        do  (x,(y,z)) <- normalise' (x,(y,z))
-            return (x,y,z)
 
 instance Normalise a => Normalise (Closure a) where
     normalise' cl = do
@@ -1131,20 +1154,8 @@ instance Normalise CompareAs where
   normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
 
-instance Normalise Bool where
-  normalise' = return
-
-instance Normalise Int where
-  normalise' = return
-
-instance Normalise Char where
-  normalise' = return
-
 instance Normalise ConPatternInfo where
   normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
-
-instance Normalise DBPatVar where
-  normalise' = return
 
 instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
@@ -1159,11 +1170,6 @@ instance Normalise a => Normalise (Pattern' a) where
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
 
-instance Normalise e => Normalise (Map k e)      where
-instance Normalise a => Normalise (Maybe a)      where
-instance Normalise a => Normalise (Strict.Maybe a) where
-instance Normalise a => Normalise (WithHiding a) where
-
 instance Normalise Candidate where
   normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov
 
@@ -1177,9 +1183,6 @@ instance Normalise EqualityView where
     <*> normalise' t
     <*> normalise' a
     <*> normalise' b
-
-instance Normalise t => Normalise (IPBoundary' t) where
-  normalise' = traverse normalise'
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
