@@ -1188,10 +1188,70 @@ instance Normalise t => Normalise (IPBoundary' t) where
 -- | @instantiateFull'@ 'instantiate's metas everywhere (and recursively)
 --   but does not 'reduce'.
 class InstantiateFull t where
-    instantiateFull' :: t -> ReduceM t
+  instantiateFull' :: t -> ReduceM t
+
+  default instantiateFull' :: (t ~ f a, Traversable f, InstantiateFull a) => t -> ReduceM t
+  instantiateFull' = traverse instantiateFull'
+
+-- Traversables (doesn't include binders like Abs, Tele):
+
+instance InstantiateFull t => InstantiateFull [t]
+instance InstantiateFull t => InstantiateFull (HashMap k t)
+instance InstantiateFull t => InstantiateFull (Map k t)
+instance InstantiateFull t => InstantiateFull (Maybe t)
+instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
+
+instance InstantiateFull t => InstantiateFull (Arg t)
+instance InstantiateFull t => InstantiateFull (Elim' t)
+instance InstantiateFull t => InstantiateFull (Named name t)
+instance InstantiateFull t => InstantiateFull (Open t)
+instance InstantiateFull t => InstantiateFull (WithArity t)
+
+-- Tuples:
+
+instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
+    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
+
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
+    instantiateFull' (x,y,z) =
+        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
+            return (x,y,z)
+
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+    instantiateFull' (x,y,z,w) =
+        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
+            return (x,y,z,w)
+
+-- Base types:
+
+instance InstantiateFull Bool where
+    instantiateFull' = return
+
+instance InstantiateFull Char where
+    instantiateFull' = return
+
+instance InstantiateFull Int where
+    instantiateFull' = return
+
+instance InstantiateFull ModuleName where
+    instantiateFull' = return
 
 instance InstantiateFull Name where
     instantiateFull' = return
+
+instance InstantiateFull QName where
+  instantiateFull' = return
+
+instance InstantiateFull Scope where
+    instantiateFull' = return
+
+instance InstantiateFull ConHead where
+  instantiateFull' = return
+
+instance InstantiateFull DBPatVar where
+    instantiateFull' = return
+
+-- Rest:
 
 instance InstantiateFull Sort where
     instantiateFull' s = do
@@ -1210,7 +1270,7 @@ instance InstantiateFull Sort where
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
 
-instance (InstantiateFull a) => InstantiateFull (Type' a) where
+instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =
       El <$> instantiateFull' s <*> instantiateFull' t
 
@@ -1262,17 +1322,8 @@ instance InstantiateFull Substitution where
       t :# sigma           -> consS <$> instantiateFull' t
                                     <*> instantiateFull' sigma
 
-instance InstantiateFull Bool where
-    instantiateFull' = return
-
-instance InstantiateFull Int where
-    instantiateFull' = return
-
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
-
-instance InstantiateFull DBPatVar where
-    instantiateFull' = return
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
@@ -1287,30 +1338,8 @@ instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
-instance InstantiateFull t => InstantiateFull (Arg t) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull t => InstantiateFull (Named name t) where
-    instantiateFull' = traverse instantiateFull'
-
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
-
-instance InstantiateFull t => InstantiateFull [t] where
-    instantiateFull' = traverse instantiateFull'
-
-instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
-    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
-
-instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
-    instantiateFull' (x,y,z) =
-        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
-            return (x,y,z)
-
-instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
-    instantiateFull' (x,y,z,w) =
-        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
-            return (x,y,z,w)
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
@@ -1349,23 +1378,6 @@ instance InstantiateFull CompareAs where
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
-instance (InstantiateFull a) => InstantiateFull (Elim' a) where
-  instantiateFull' (Apply v) = Apply <$> instantiateFull' v
-  instantiateFull' (Proj o f)= pure $ Proj o f
-  instantiateFull' (IApply x y v) = IApply <$> instantiateFull' x <*> instantiateFull' y <*> instantiateFull' v
-
-instance InstantiateFull e => InstantiateFull (Map k e) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull e => InstantiateFull (HashMap k e) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull ModuleName where
-    instantiateFull' = return
-
-instance InstantiateFull Scope where
-    instantiateFull' = return
-
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
 
@@ -1375,9 +1387,6 @@ instance InstantiateFull Section where
 instance (Subst t a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
   instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
-
-instance InstantiateFull Char where
-    instantiateFull' = return
 
 instance InstantiateFull Definition where
     instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } = do
@@ -1412,9 +1421,6 @@ instance InstantiateFull RewriteRule where
       <*> instantiateFull' ps
       <*> instantiateFull' rhs
       <*> instantiateFull' t
-
-instance InstantiateFull a => InstantiateFull (Open a) where
-  instantiateFull' (OpenThing n a) = OpenThing n <$> instantiateFull' a
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
@@ -1460,9 +1466,6 @@ instance InstantiateFull System where
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
   instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
-
-instance InstantiateFull a => InstantiateFull (WithArity a) where
-  instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
@@ -1511,18 +1514,6 @@ instance InstantiateFull Interface where
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
     instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
-
-instance InstantiateFull QName where
-  instantiateFull' = return
-
-instance InstantiateFull ConHead where
-  instantiateFull' = return
-
-instance InstantiateFull a => InstantiateFull (Maybe a) where
-  instantiateFull' = mapM instantiateFull'
-
-instance InstantiateFull a => InstantiateFull (Strict.Maybe a) where
-  instantiateFull' = mapM instantiateFull'
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate u t ov) =
