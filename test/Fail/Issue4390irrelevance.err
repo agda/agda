@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  _9 (f = f) _ = f _ : A
+Unsolved metas at the following locations:
+  Issue4390irrelevance.agda:8,9-10
+  Issue4390irrelevance.agda:11,11-15
