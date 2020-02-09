@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  _9 (f = f) x = f x : A
+Unsolved metas at the following locations:
+  Issue4390flat.agda:8,9-10
+  Issue4390flat.agda:11,11-15
