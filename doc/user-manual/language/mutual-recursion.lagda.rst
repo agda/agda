@@ -27,7 +27,7 @@ For data types and records the following syntax is used to separate the declarat
   data Vec (A : Set) : Nat → Set  -- Note the absence of ‘where’.
 
   -- Definition.
-  data Vec A where
+  data Vec A where  -- Note the absence of a type signature.
     []   : Vec A zero
     _::_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 
