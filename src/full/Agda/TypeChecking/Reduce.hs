@@ -823,6 +823,34 @@ instance Reduce t => Reduce (IPBoundary' t) where
 class Simplify t where
   simplify' :: t -> ReduceM t
 
+  default simplify' :: (t ~ f a, Traversable f, Simplify a) => t -> ReduceM t
+  simplify' = traverse simplify'
+
+-- boring instances:
+
+instance Simplify t => Simplify [t]
+instance Simplify t => Simplify (Map k t)
+instance Simplify t => Simplify (Maybe t)
+instance Simplify t => Simplify (Strict.Maybe t)
+
+instance Simplify t => Simplify (Arg t)
+instance Simplify t => Simplify (Elim' t)
+instance Simplify t => Simplify (Named name t)
+instance Simplify t => Simplify (IPBoundary' t)
+
+instance (Simplify a, Simplify b) => Simplify (a,b) where
+    simplify' (x,y) = (,) <$> simplify' x <*> simplify' y
+
+instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
+    simplify' (x,y,z) =
+        do  (x,(y,z)) <- simplify' (x,(y,z))
+            return (x,y,z)
+
+instance Simplify Bool where
+  simplify' = return
+
+-- interesting instances:
+
 instance Simplify Term where
   simplify' v = do
     v <- instantiate' v
@@ -851,13 +879,8 @@ simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
 simplifyBlocked' (NotBlocked _ t) = simplify' t  -- Andrea(s), 2014-12-05 OK?
 
-instance Simplify Type where
+instance Simplify t => Simplify (Type' t) where
     simplify' (El s t) = El <$> simplify' s <*> simplify' t
-
-instance Simplify Elim where
-  simplify' (Apply v) = Apply <$> simplify' v
-  simplify' (Proj o f)= pure $ Proj o f
-  simplify' (IApply x y v) = IApply <$> simplify' x <*> simplify' y <*> simplify' v
 
 instance Simplify Sort where
     simplify' s = do
@@ -894,34 +917,8 @@ instance (Subst t a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
 
-instance Simplify t => Simplify (Arg t) where
-    simplify' = traverse simplify'
-
-instance Simplify t => Simplify (Named name t) where
-    simplify' = traverse simplify'
-
 instance Simplify t => Simplify (Dom t) where
     simplify' = traverse simplify'
-
-instance Simplify t => Simplify [t] where
-    simplify' = traverse simplify'
-
-instance Simplify e => Simplify (Map k e) where
-    simplify' = traverse simplify'
-
-instance Simplify a => Simplify (Maybe a) where
-    simplify' = traverse simplify'
-
-instance Simplify a => Simplify (Strict.Maybe a) where
-    simplify' = traverse simplify'
-
-instance (Simplify a, Simplify b) => Simplify (a,b) where
-    simplify' (x,y) = (,) <$> simplify' x <*> simplify' y
-
-instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
-    simplify' (x,y,z) =
-        do  (x,(y,z)) <- simplify' (x,(y,z))
-            return (x,y,z)
 
 instance Simplify a => Simplify (Closure a) where
     simplify' cl = do
@@ -963,9 +960,6 @@ instance Simplify CompareAs where
   simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
 
-instance Simplify Bool where
-  simplify' = return
-
 -- UNUSED
 -- instance Simplify ConPatternInfo where
 --   simplify' (ConPatternInfo mr mt) = ConPatternInfo mr <$> simplify' mt
@@ -995,9 +989,6 @@ instance Simplify EqualityView where
     <*> simplify' t
     <*> simplify' a
     <*> simplify' b
-
-instance Simplify t => Simplify (IPBoundary' t) where
-  simplify' = traverse simplify'
 
 ---------------------------------------------------------------------------
 -- * Normalisation
