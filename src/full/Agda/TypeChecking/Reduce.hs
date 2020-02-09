@@ -41,6 +41,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -172,6 +173,9 @@ instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
     instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
 
 instance Instantiate t => Instantiate (Maybe t) where
+  instantiate' = traverse instantiate'
+
+instance Instantiate t => Instantiate (Strict.Maybe t) where
   instantiate' = traverse instantiate'
 
 instance Instantiate t => Instantiate [t] where
@@ -922,6 +926,9 @@ instance Simplify e => Simplify (Map k e) where
 instance Simplify a => Simplify (Maybe a) where
     simplify' = traverse simplify'
 
+instance Simplify a => Simplify (Strict.Maybe a) where
+    simplify' = traverse simplify'
+
 instance (Simplify a, Simplify b) => Simplify (a,b) where
     simplify' (x,y) = (,) <$> simplify' x <*> simplify' y
 
@@ -1168,6 +1175,7 @@ instance Normalise DisplayForm where
 
 instance Normalise e => Normalise (Map k e)      where
 instance Normalise a => Normalise (Maybe a)      where
+instance Normalise a => Normalise (Strict.Maybe a) where
 instance Normalise a => Normalise (WithHiding a) where
 
 instance Normalise Candidate where
@@ -1525,6 +1533,9 @@ instance InstantiateFull ConHead where
   instantiateFull' = return
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
+  instantiateFull' = mapM instantiateFull'
+
+instance InstantiateFull a => InstantiateFull (Strict.Maybe a) where
   instantiateFull' = mapM instantiateFull'
 
 instance InstantiateFull Candidate where

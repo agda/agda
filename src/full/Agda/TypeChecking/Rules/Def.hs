@@ -305,7 +305,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
-        (cs,sys) <- if not isSystem then return (cs, Nothing) else do
+        (cs,sys) <- if not isSystem then return (cs, empty) else do
                  fullType <- flip abstract t <$> getContextTelescope
                  sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
@@ -321,7 +321,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseUnreachable = Just False
                        , clauseEllipsis = NoEllipsis
                        }
-                 return (cs ++ [c], Just sys)
+                 return (cs ++ [c], pure sys)
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs

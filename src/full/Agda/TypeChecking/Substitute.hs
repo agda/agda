@@ -51,6 +51,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
@@ -534,6 +535,10 @@ instance Apply t => Apply (Blocked t) where
   applyE b es   = fmap (`applyE` es) b
 
 instance Apply t => Apply (Maybe t) where
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
+
+instance Apply t => Apply (Strict.Maybe t) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
 
