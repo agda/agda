@@ -85,7 +85,26 @@ isFullyInstantiatedMeta m = do
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta
 --   is uninstantiated).
 class Instantiate t where
-    instantiate' :: t -> ReduceM t
+  instantiate' :: t -> ReduceM t
+
+  default instantiate' :: (t ~ f a, Traversable f, Instantiate a) => t -> ReduceM t
+  instantiate' = traverse instantiate'
+
+instance Instantiate t => Instantiate [t]
+instance Instantiate t => Instantiate (Map k t)
+instance Instantiate t => Instantiate (Maybe t)
+instance Instantiate t => Instantiate (Strict.Maybe t)
+
+instance Instantiate t => Instantiate (Abs t)
+instance Instantiate t => Instantiate (Arg t)
+instance Instantiate t => Instantiate (Elim' t)
+instance Instantiate t => Instantiate (Tele t)
+
+instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
+    instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
+
+instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
+    instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
 instance Instantiate Term where
   instantiate' t@(MetaV x es) = do
@@ -119,9 +138,14 @@ instance Instantiate Term where
   instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t
 
+instance Instantiate t => Instantiate (Type' t) where
+  instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
+
 instance Instantiate Level where
   instantiate' (Max m as) = levelMax m <$> instantiate' as
 
+-- Note: since @PlusLevel' t@ embeds a @LevelAtom' t@, simply
+-- using @traverse@ for @PlusLevel'@ would not be not correct.
 instance Instantiate PlusLevel where
   instantiate' (Plus n a) = Plus n <$> instantiate' a
 
@@ -146,9 +170,6 @@ instance Instantiate a => Instantiate (Blocked a) where
       BlockedConst{}                 -> return v
       PostponedTypeCheckingProblem{} -> return v
 
-instance Instantiate Type where
-    instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
-
 instance Instantiate Sort where
   instantiate' s = case s of
     MetaS x es -> instantiate' (MetaV x es) >>= \case
@@ -158,45 +179,13 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     _ -> return s
 
-instance Instantiate Elim where
-  instantiate' (Apply v) = Apply <$> instantiate' v
-  instantiate' (Proj o f)= pure $ Proj o f
-  instantiate' (IApply x y v) = IApply <$> instantiate' x <*> instantiate' y <*> instantiate' v
-
-instance Instantiate t => Instantiate (Abs t) where
-  instantiate' = traverse instantiate'
-
-instance Instantiate t => Instantiate (Arg t) where
-    instantiate' = traverse instantiate'
-
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
     instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
-
-instance Instantiate t => Instantiate (Maybe t) where
-  instantiate' = traverse instantiate'
-
-instance Instantiate t => Instantiate (Strict.Maybe t) where
-  instantiate' = traverse instantiate'
-
-instance Instantiate t => Instantiate [t] where
-    instantiate' = traverse instantiate'
-
-instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
-    instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
-
-
-instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
-    instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
         x <- enterClosure cl instantiate'
         return $ cl { clValue = x }
-
-instance Instantiate Telescope where
-  instantiate' EmptyTel = return EmptyTel
-  instantiate' (ExtendTel a tel) = ExtendTel <$> instantiate' a <*> instantiate' tel
---instantiate' tel = return tel
 
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
@@ -225,9 +214,6 @@ instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
   instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
-
-instance Instantiate e => Instantiate (Map k e) where
-    instantiate' = traverse instantiate'
 
 instance Instantiate Candidate where
   instantiate' (Candidate u t ov) = Candidate <$> instantiate' u <*> instantiate' t <*> pure ov
