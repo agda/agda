@@ -18,18 +18,26 @@ Mixfix Operators
 ****************
 
 A type name, function name, or constructor name can comprise one or more name
-parts if we separate them with one or more underscore characters ``_``, and the
+parts if we separate them with underscore characters ``_``, and the
 resulting name can be used as an operator. From left to right, each argument
 goes in the place of each underscore ``_``.
 
 For instance, we can join with underscores the name parts ``if``, ``then``,
 and ``else`` into a single name ``if_then_else_``. The application of the
 function name ``if_then_else_`` to some arguments named ``x``, ``y``, and ``z``
-can still be written either as:
+can still be written as:
 
 * a standard application by using the full name ``if_then_else_ x y z``
 * an operator application by placing the arguments between the name parts
   ``if x then y else z``, leaving a space between arguments and part names
+* other *sections* of the full name, for instance leaving one or two underscores:
+
+  * ``(if_then y else z) x``
+  * ``(if x then_else z) y``
+  * ``if x then y else_ z``
+  * ``if x then_else_ y z``
+  * ``if_then y else_ x z``
+  * ``(if_then_else z) x y``
 
 Examples of type names, function names, and constructor names as mixfix
 operators:
@@ -50,10 +58,10 @@ operators:
   if true then x else y = x
   if false then x else y = y
 
-  -- Example constructor name _::_
+  -- Example constructor name _∷_
   data List (A : Set) : Set where
     nil  : List A
-    _::_ : A -> List A -> List A
+    _∷_ : A → List A → List A
 
 Precedence
 ==========
