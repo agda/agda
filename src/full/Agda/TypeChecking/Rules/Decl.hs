@@ -475,17 +475,23 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
     -- I changed that in Monad.Signature.treatAbstractly', so we can see
     -- our own local definitions.
     case theDef def of
-      d@Function{ funClauses = cs, funTerminates = term } -> do
-        case term of
-          Just True -> do
+      d@Function{ funClauses = cs, funTerminates = term, funProjection = mproj }
+        | term /= Just True -> do
+            -- Not terminating, thus, running the injectivity check could get us into a loop.
+            reportSLn "tc.inj.check" 35 $
+              prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
+        | isProperProjection d -> do
+            reportSLn "tc.inj.check" 40 $
+              prettyShow q ++ " is a projection, thus, not considered for injectivity"
+        | otherwise -> do
+
             inv <- checkInjectivity q cs
             modifySignature $ updateDefinition q $ updateTheDef $ const $
               d { funInv = inv }
-          _ -> reportSLn "tc.inj.check" 20 $
-             prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
+
       _ -> do
         abstr <- asksTC envAbstractMode
-        reportSLn "tc.inj.check" 20 $
+        reportSLn "tc.inj.check" 40 $
           "we are in " ++ show abstr ++ " and " ++
              prettyShow q ++ " is abstract or not a function, thus, not considered for injectivity"
 
