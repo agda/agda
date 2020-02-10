@@ -77,6 +77,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -181,38 +182,42 @@ checkInjectivity f cs0
 
 -- | Precondition: all the given clauses are non-absurd and contain a proper match.
 checkInjectivity' :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
+checkInjectivity' f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ prettyShow f
 
-  let varToArg :: Clause -> TermHead -> MaybeT TCM TermHead
-      varToArg c (VarHead i) = MaybeT $ return $ topLevelArg c i
-      varToArg _ h           = return h
-
-  -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
-        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
-          varToArg c =<< do
-            lift $ fromMaybe UnknownHead <$> do
-              addContext (clauseTel c) $
-                headSymbol body
-        return [Map.singleton h [c]]
-      computeHead _ = return []
-
-  hdMap <- joinHeadMaps . concat <$> mapM computeHead cs
+  hds <- mapM computeHead cs
+  let hdMap = Map.fromListWith (++) $ zip hds $ map singleton cs
 
   case Map.lookup UnknownHead hdMap of
-    Just (_:_:_) -> empty -- More than one unknown head: we can't really do anything in that case.
-    _            -> return ()
+    Just (_:_:_) -> return NotInjective -- More than one unknown head: we can't really do anything in that case.
+    _            -> do
+      reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is potentially injective."
+      reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
+        for (Map.toList hdMap) $ \ (h, uc) ->
+          text (prettyShow h) <+> "-->" <+>
+          case uc of
+            [c] -> prettyTCM $ map namedArg $ namedClausePats c
+            _   -> "(multiple clauses)"
+      return $ Inverse hdMap
+  where
 
-  reportSLn  "tc.inj.check" 20 $ prettyShow f ++ " is potentially injective."
-  reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-    for (Map.toList hdMap) $ \ (h, uc) ->
-      text (prettyShow h) <+> "-->" <+>
-      case uc of
-        [c] -> prettyTCM $ map namedArg $ namedClausePats c
-        _   -> "(multiple clauses)"
-
-  return $ Inverse hdMap
+  -- Precondition: not an absurd clause.
+  computeHead :: Clause -> TCM TermHead
+  computeHead cl = do
+    -- Irrelevant clauses do not give us a head we could distinguish on.
+    -- Andreas, 2020-02-10:
+    -- If we have no type of the body, we need to assume the worst:
+    -- that it is a proposition (given that --prop is enabled).
+    ifM (maybe isPropEnabled isIrrelevantOrPropM $ clauseType cl)
+      {-then-} (return UnknownHead) $
+      {-else-} maybe UnknownHead varToArg <$> do
+          addContext (clauseTel cl) $
+            headSymbol $ fromMaybe __IMPOSSIBLE__ $ clauseBody cl
+    where
+    varToArg :: TermHead -> TermHead
+    varToArg = \case
+      VarHead i -> fromMaybe UnknownHead $ topLevelArg cl i
+      h         -> h
 
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
