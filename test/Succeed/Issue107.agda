@@ -1,4 +1,7 @@
+-- {-# OPTIONS -v tc.inj.check:30 #-}
+
 {-# OPTIONS --allow-unsolved-metas #-}
+
 module Issue107 where
 
 data Bool : Set where
