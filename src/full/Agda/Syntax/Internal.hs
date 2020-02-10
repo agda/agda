@@ -691,21 +691,30 @@ patternOrigin :: Pattern' x -> Maybe PatOrigin
 patternOrigin = fmap patOrigin . patternInfo
 
 -- | Does the pattern perform a match that could fail?
-properlyMatching :: DeBruijnPattern -> Bool
-properlyMatching p
-  | patternOrigin p == Just PatOAbsurd = True
-properlyMatching VarP{} = False
-properlyMatching DotP{} = False
-properlyMatching LitP{} = True
-properlyMatching (ConP _ ci ps) = (not $ conPRecord ci) || -- not a record cons
-  List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
-properlyMatching ProjP{} = True
-properlyMatching IApplyP{} = False
-properlyMatching DefP{}  = True
+properlyMatching :: Pattern' a -> Bool
+properlyMatching = properlyMatching' True True
+
+properlyMatching'
+  :: Bool       -- ^ Should absurd patterns count as proper match?
+  -> Bool       -- ^ Should projection patterns count as proper match?
+  -> Pattern' a -- ^ The pattern.
+  -> Bool
+properlyMatching' absP projP = \case
+  p | absP && patternOrigin p == Just PatOAbsurd -> True
+  ConP _ ci ps    -- record constructors do not count as proper matches themselves
+    | conPRecord ci -> List.any (properlyMatching . namedArg) ps
+    | otherwise     -> True
+  LitP{}    -> True
+  DefP{}    -> True
+  ProjP{}   -> projP
+  VarP{}    -> False
+  DotP{}    -> False
+  IApplyP{} -> False
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP o d) = Just (o, unambiguous d)
-  isProjP _ = Nothing
+  isProjP = \case
+    ProjP o d -> Just (o, unambiguous d)
+    _ -> Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
