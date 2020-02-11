@@ -33,6 +33,8 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 
 import Data.Array.IArray
+import Data.Hashable     ( Hashable )
+import Data.Int          ( Int32 )
 import Data.Word
 import qualified Data.ByteString.Lazy as L
 import qualified Data.HashTable.IO as H
@@ -62,7 +64,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200206 * 10 + 0
+currentInterfaceVersion = 20200210 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -114,7 +116,13 @@ encode a = do
     let x = B.encode currentInterfaceVersion `L.append` cbits
     return x
   where
-    l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
+    l :: (Hashable a, Eq a) => HashTable a Int32 -> IO (Array Int32 a)
+    l h = do
+      ps <- H.toList h
+      let as = List.map fst . List.sortBy (compare `on` snd) $ ps
+      let ub = List.genericLength as - 1
+      return $ listArray (0, ub) as
+    benchSort :: IO a -> TCM a
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
@@ -168,7 +176,7 @@ decode s = do
        then noResult "Garbage at end."
        else do
 
-        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
+        st <- St nL sL bL iL dL
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runExceptT (value r)) st
@@ -190,8 +198,6 @@ decode s = do
       return Nothing
 
   where
-  ar l = listArray (0, List.genericLength l - 1) l
-
   noResult s = return (Nothing, Left $ GenericError s)
 
 encodeInterface :: Interface -> TCM L.ByteString
