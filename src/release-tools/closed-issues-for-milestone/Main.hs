@@ -82,6 +82,7 @@ labelsNotInChangelog =
   , "faq"
   , "fix-agda-whitespace"
   , "haddock"
+  , "no-agda-bug"
   , "not-in-changelog"
   , "regression on master"
   , "repository"
