@@ -78,7 +78,7 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
 .PHONY: default
 default: install-bin
 
-.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or stack if stack.yaml is exists).
+.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or stack if stack.yaml exists).
 install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY: ensure-hash-is-correct
