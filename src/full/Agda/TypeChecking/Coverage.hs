@@ -26,6 +26,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -75,6 +77,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.WithDefault
 
@@ -187,7 +190,7 @@ coverageCheck f t cs = do
   -- some indices in @used@ and @noex@ point outside of @cs@,
   -- since missing hcomp clauses have been added during the course of @cover@.
   -- We simply delete theses indices from @noex@.
-  noex <- return $ List.filter (< length cs) $ Set.toList noex
+  noex <- return $ List.filter (< length cs) $ IntSet.toList noex
 
   reportSDoc "tc.cover.top" 10 $ vcat
     [ "cover computed!"
@@ -255,7 +258,7 @@ coverageCheck f t cs = do
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
   let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) ->
-        let unreachable = i `Set.notMember` used in
+        let unreachable = i `IntSet.notMember` used in
         (boolToMaybe unreachable i, cl { clauseUnreachable = Just unreachable  })
   -- is = indices of unreachable clauses
   let is = catMaybes is0
@@ -304,11 +307,11 @@ isCovered f cs sc = do
 
 data CoverResult = CoverResult
   { coverSplitTree       :: SplitTree
-  , coverUsedClauses     :: Set Nat
+  , coverUsedClauses     :: IntSet -- Set Nat
   , coverMissingClauses  :: [(Telescope, [NamedArg DeBruijnPattern])]
   , coverPatterns        :: [Clause]
   -- ^ The set of patterns used as cover.
-  , coverNoExactClauses  :: Set Nat
+  , coverNoExactClauses  :: IntSet -- Set Nat
   }
 
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
@@ -331,12 +334,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
       exact <- allM (map snd mps) isTrivialPattern
       let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
-                          then Set.empty
-                          else Set.singleton i
+                          then empty
+                          else singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty $ mps
       cl <- applyCl sc cl0 mps
-      return $ CoverResult (SplittingDone (size tel)) (Set.singleton i) [] [cl] noExactClause
+      return $ CoverResult (SplittingDone (size tel)) (singleton i) [] [cl] noExactClause
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -350,10 +353,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- type error before getting to this point.
           -- Ulf, 2019-11-21: Also @tactic clauses.
           cl <- inferMissingClause f sc
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [] [cl] Set.empty
+          return $ CoverResult (SplittingDone (size tel)) empty [] [cl] empty
         else do
           let ps' = fromSplitPatterns ps
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [(tel, ps')] [] Set.empty
+          return $ CoverResult (SplittingDone (size tel)) empty [(tel, ps')] [] empty
 
     -- We need to split!
     -- If all clauses have an unsplit copattern, we try that first.
@@ -464,7 +467,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
          do
           -- TODO Andrea: I guess an empty pattern is not part of the cover?
           let qs = []
-          return $ CoverResult (SplittingDone (size tel)) Set.empty [] qs Set.empty
+          return $ CoverResult (SplittingDone (size tel)) empty [] qs empty
         Right (Covering n scs, x) -> do
           cs <- do
             let fallback = return cs
@@ -494,7 +497,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           -- TODO Andrea: do something with etaRecordSplits and qsss?
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n StrictSplit trees'   -- TODO: Lazy?
-          return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
+          return $ CoverResult tree (IntSet.unions useds) (concat psss) (concat qsss) (IntSet.unions noex)
 
     -- Try to split result
     trySplitRes
@@ -551,7 +554,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               qsss  = map coverPatterns results
               noex  = map coverNoExactClauses results
               tree  = SplitAt n StrictSplit $ zip projs trees   -- TODO: Lazy?
-          return $ CoverResult tree (Set.unions useds) (concat psss) (concat qsss) (Set.unions noex)
+          return $ CoverResult tree (IntSet.unions useds) (concat psss) (concat qsss) (IntSet.unions noex)
 
     gatherEtaSplits :: Int -> SplitClause
                     -> [NamedArg SplitPattern] -> [NamedArg SplitPattern]
