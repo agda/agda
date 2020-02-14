@@ -1364,7 +1364,9 @@ getMetaRelevance :: MetaVariable -> Relevance
 getMetaRelevance = getRelevance . getMetaEnv
 
 getMetaModality :: MetaVariable -> Modality
-getMetaModality = envModality . getMetaEnv
+-- Andrea 23/02/2020: use getModality to enforce invariants of the
+--                    envModality field.
+getMetaModality = getModality . getMetaEnv
 
 -- Lenses
 
@@ -2850,8 +2852,10 @@ eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems =
 eAbstractMode :: Lens' AbstractMode TCEnv
 eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
+-- Andrea 23/02/2020: use get/setModality to enforce invariants of the
+--                    envModality field.
 eModality :: Lens' Modality TCEnv
-eModality f e = f (envModality e) <&> \ x -> e { envModality = x }
+eModality f e = f (getModality e) <&> \ x -> setModality x e
 
 eRelevance :: Lens' Relevance TCEnv
 eRelevance = eModality . lModRelevance
