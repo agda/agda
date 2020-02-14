@@ -155,6 +155,7 @@ library
                     Agda.Utils.SemiRing
                     Agda.Utils.Singleton
                     Agda.Utils.Size
+                    Agda.Utils.SmallSet
                     Agda.Utils.String
                     Agda.Utils.Suffix
                     Agda.Utils.Three
