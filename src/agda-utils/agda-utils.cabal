@@ -148,6 +148,7 @@ library
                     Agda.Utils.Null
                     Agda.Utils.Parser.MemoisedCPS
                     Agda.Utils.PartialOrd
+                    Agda.Utils.Permutation
                     Agda.Utils.Pointer
                     Agda.Utils.POMonoid
                     Agda.Utils.Pretty
@@ -170,6 +171,7 @@ library
 
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
+               -O2
                -- Initially, we disable all the warnings.
                -w
                -Werror
@@ -264,6 +266,7 @@ test-suite agda-utils-tests
                     , Internal.Utils.Maybe.Strict
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
+                    , Internal.Utils.Permutation
                     , Internal.Utils.Three
                     , Internal.Utils.Trie
                     , Internal.Utils.Warshall

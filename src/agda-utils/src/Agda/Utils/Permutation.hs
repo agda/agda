@@ -15,7 +15,6 @@ import Data.Traversable (Traversable)
 
 import Data.Data (Data)
 
-import Agda.Syntax.Position (KillRange(..))
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
@@ -51,9 +50,6 @@ instance Sized Permutation where
 instance Null Permutation where
   empty = Perm 0 []
   null (Perm _ picks) = null picks
-
-instance KillRange Permutation where
-  killRange = id
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
@@ -221,9 +217,6 @@ data Drop a = Drop
   , dropFrom :: a    -- ^ Where to drop from.
   }
   deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
-
-instance KillRange a => KillRange (Drop a) where
-  killRange = fmap killRange
 
 -- | Things that support delayed dropping.
 class DoDrop a where
