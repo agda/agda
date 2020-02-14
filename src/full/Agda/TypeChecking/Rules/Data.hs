@@ -370,8 +370,8 @@ defineCompData d con params names fsT t boundary = do
     -- Δ^I, i : I |- sub Δ : Δ
     sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
-    defineTranspOrHCompD cmd d con params names fsT t boundary
-      = do
+
+    defineTranspOrHCompD cmd d con params names fsT t boundary = do
       let project = (\ t p -> apply (Def p []) [argN t])
       stuff <- defineTranspOrHCompForFields cmd
                  (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
@@ -521,31 +521,22 @@ defineCompData d con params names fsT t boundary = do
 --        (tel',theta) = (abstract gamma' (d0 `applySubst` fsT), (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT))
 
       let
-        clause | null boundary
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = teleNamedArgs gamma
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            , clauseEllipsis = NoEllipsis
-            }
-
-               | otherwise
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            , clauseEllipsis = NoEllipsis
-            }
+        pats | null boundary = teleNamedArgs gamma
+             | otherwise     = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
+        clause = Clause
+          { clauseTel         = gamma
+          , clauseType        = Just . argN $ ty
+          , namedClausePats   = pats
+          , clauseFullRange   = noRange
+          , clauseLHSRange    = noRange
+          , clauseCatchall    = False
+          , clauseBody        = Just $ body
+          , clauseRecursive   = Nothing
+              -- Andreas 2020-02-06 TODO
+              -- Or: Just False;  is it known to be non-recursive?
+          , clauseUnreachable = Just False
+          , clauseEllipsis    = NoEllipsis
+          }
         cs = [clause]
       addClauses theName cs
       (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
@@ -592,6 +583,7 @@ defineProjections dataname con params names fsT t = do
           , clauseLHSRange  = noRange
           , clauseCatchall = False
           , clauseBody = Just $ var i
+          , clauseRecursive   = Just False  -- non-recursive
           , clauseUnreachable = Just False
           , clauseEllipsis = NoEllipsis
           }

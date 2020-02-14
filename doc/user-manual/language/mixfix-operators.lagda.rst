@@ -17,23 +17,51 @@
 Mixfix Operators
 ****************
 
-A name containing one or more name parts and one or more ``_`` can be used as an operator where the arguments go in place of the ``_``. For instance, an application of the name ``if_then_else_`` to arguments ``x``, ``y``, and ``z`` can be written either as a normal application ``if_then_else_ x y z`` or as an operator application ``if x then y else z``.
+A type name, function name, or constructor name can comprise one or more name
+parts if we separate them with underscore characters ``_``, and the
+resulting name can be used as an operator. From left to right, each argument
+goes in the place of each underscore ``_``.
 
-Examples:
+For instance, we can join with underscores the name parts ``if``, ``then``,
+and ``else`` into a single name ``if_then_else_``. The application of the
+function name ``if_then_else_`` to some arguments named ``x``, ``y``, and ``z``
+can still be written as:
+
+* a standard application by using the full name ``if_then_else_ x y z``
+* an operator application by placing the arguments between the name parts
+  ``if x then y else z``, leaving a space between arguments and part names
+* other *sections* of the full name, for instance leaving one or two underscores:
+
+  * ``(if_then y else z) x``
+  * ``(if x then_else z) y``
+  * ``if x then y else_ z``
+  * ``if x then_else_ y z``
+  * ``if_then y else_ x z``
+  * ``(if_then_else z) x y``
+
+Examples of type names, function names, and constructor names as mixfix
+operators:
 ::
 
-  _and_ : Bool → Bool → Bool
-  true and x = x
-  false and _ = false
-
-  if_then_else_ : {A : Set} → Bool → A → A → A
-  if true then x else y = x
-  if false then x else y = y
-
+  -- Example type name _⇒_
   _⇒_   : Bool → Bool → Bool
   true  ⇒ b = b
   false ⇒ _ = true
 
+  -- Example function name _and_
+  _and_ : Bool → Bool → Bool
+  true and x = x
+  false and _ = false
+
+  -- Example function name if_then_else_
+  if_then_else_ : {A : Set} → Bool → A → A → A
+  if true then x else y = x
+  if false then x else y = y
+
+  -- Example constructor name _∷_
+  data List (A : Set) : Set where
+    nil  : List A
+    _∷_ : A → List A → List A
 
 Precedence
 ==========

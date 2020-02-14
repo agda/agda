@@ -568,6 +568,7 @@ library
 --                    Agda.Utils.Parser.MemoisedCPS
 --                    Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
+                    Agda.Utils.SmallSet
 --                    Agda.Utils.Pointer
 --                    Agda.Utils.POMonoid
 --                    Agda.Utils.Pretty
@@ -787,6 +788,7 @@ test-suite agda-tests
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
+                    , Internal.Utils.SmallSet
                     , Internal.Utils.Three
                     , Internal.Utils.Trie
                     , Internal.Utils.Warshall

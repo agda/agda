@@ -35,6 +35,7 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -53,7 +54,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -162,20 +163,6 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
       names    = if null names0 then allNames else names0
       i        = mutualInfo mutualBlock
-      -- Andreas, 2014-03-26
-      -- Keeping recursion check after experiments on the standard lib.
-      -- Seems still to save 1s.
-      -- skip = return False
-      -- No need to term-check if the declarations are acyclic!
-      skip = not <$> do
-        -- Andreas, 2016-10-01 issue #2231
-        -- Recursivity checker has to see through abstract definitions!
-        ignoreAbstractMode $ do
-        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
-      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
-      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
-      --   null <$> getMutual x
-      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -192,25 +179,38 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
-    else if (Info.mutualTerminationCheck i == NonTerminating) then do
+  else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
-  -- Trivially terminating (non-recursive)
-    else ifM skip (do
+  else do
+    sccs <- do
+      -- Andreas, 2016-10-01 issue #2231
+      -- Recursivity checker has to see through abstract definitions!
+      ignoreAbstractMode $ do
+        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
+      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      --   null <$> getMutual x
+      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
+
+    -- Trivially terminating (non-recursive)?
+    when (null sccs) $
       reportSLn "term.warn.yes" 10 $ "Trivially terminating: " ++ prettyShow names
-      forM_ allNames $ \ q -> setTerminates q True
-      return mempty)
-   $ {- else -} do
+
+    -- Actual termination checking needed: go through SCCs.
+    concat <$> do
+     forM sccs $ \ allNames -> do
 
      -- Set the mutual names in the termination environment.
+     let namesSCC = filter (allNames `hasElem`) names
      let setNames e = e
            { terMutual    = allNames
-           , terUserNames = names
+           , terUserNames = namesSCC
            }
          runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
-           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow names ++
+           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
@@ -849,6 +849,46 @@ function g es0 = do
              ]
          return $ CallGraph.insert src tgt cm info calls
 
+-- | Try to get rid of a function call targeting the current SCC
+--   using a non-recursive clause.
+--
+--   This can help copattern definitions of dependent records.
+tryReduceNonRecursiveClause
+  :: QName                 -- ^ Function
+  -> Elims                 -- ^ Arguments
+  -> (Term -> TerM Calls)  -- ^ Continue here if we managed to reduce.
+  -> TerM Calls            -- ^ Otherwise, continue here.
+  -> TerM Calls
+tryReduceNonRecursiveClause g es continue fallback = do
+  -- Andreas, 2020-02-06, re: issue #906
+  let v0 = Def g es
+  reportSDoc "term.reduce" 40 $ "Trying to reduce away call: " <+> prettyTCM v0
+
+  -- First, make sure the function is in the current SCC.
+  ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
+  reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
+
+  -- Then, collect its non-recursive clauses.
+  cls <- liftTCM $ getNonRecursiveClauses g
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive clauses"]
+  reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
+
+  -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
+  r <- liftTCM $ runReduceM $ appDefE' v0 cls [] (map notReduced es)
+  case r of
+    NoReduction{}    -> fallback
+    YesReduction _ v -> do
+      reportSDoc "term.reduce" 30 $ vcat
+        [ "Termination checker: Successfully reduced away call:"
+        , nest 2 $ prettyTCM v0
+        ]
+      verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
+      continue v
+
+getNonRecursiveClauses :: QName -> TCM [Clause]
+getNonRecursiveClauses q = filter nonrec . defClauses <$> getConstInfo q
+  where nonrec = maybe False not . clauseRecursive
+
 -- | Extract recursive calls from a term.
 
 instance ExtractCalls Term where
@@ -879,7 +919,7 @@ instance ExtractCalls Term where
         constructor c ind argsg
 
       -- Function, data, or record type.
-      Def g es -> function g es
+      Def g es -> tryReduceNonRecursiveClause g es extract $ function g es
 
       -- Abstraction. Preserves guardedness.
       Lam h b -> extract b

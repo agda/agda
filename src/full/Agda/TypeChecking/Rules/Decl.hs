@@ -72,6 +72,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Update
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -117,11 +118,9 @@ checkDeclCached d = do
    compareDecl x y = x == y
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
-   ignoreChanges m = do
-     cs <- getsTC $ stLoadedFileCache . stPersistentState
+   ignoreChanges m = localCache $ do
      cleanCachedLog
-     _ <- m
-     modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
+     m
    checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
    checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
    checkDeclWrap d            = checkDecl d
@@ -257,7 +256,7 @@ mutualChecks mi d ds mid names = do
   -- Andreas, 2017-03-23: check positivity before termination.
   -- This allows us to reuse the information about SCCs
   -- to skip termination of non-recursive functions.
-  modifyAllowedReductions (List.delete UnconfirmedReductions) $
+  modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
     checkPositivity_ mi names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
@@ -476,17 +475,23 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
     -- I changed that in Monad.Signature.treatAbstractly', so we can see
     -- our own local definitions.
     case theDef def of
-      d@Function{ funClauses = cs, funTerminates = term } -> do
-        case term of
-          Just True -> do
+      d@Function{ funClauses = cs, funTerminates = term, funProjection = mproj }
+        | term /= Just True -> do
+            -- Not terminating, thus, running the injectivity check could get us into a loop.
+            reportSLn "tc.inj.check" 35 $
+              prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
+        | isProperProjection d -> do
+            reportSLn "tc.inj.check" 40 $
+              prettyShow q ++ " is a projection, thus, not considered for injectivity"
+        | otherwise -> do
+
             inv <- checkInjectivity q cs
             modifySignature $ updateDefinition q $ updateTheDef $ const $
               d { funInv = inv }
-          _ -> reportSLn "tc.inj.check" 20 $
-             prettyShow q ++ " is not verified as terminating, thus, not considered for injectivity"
+
       _ -> do
         abstr <- asksTC envAbstractMode
-        reportSLn "tc.inj.check" 20 $
+        reportSLn "tc.inj.check" 40 $
           "we are in " ++ show abstr ++ " and " ++
              prettyShow q ++ " is abstract or not a function, thus, not considered for injectivity"
 

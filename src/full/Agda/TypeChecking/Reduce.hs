@@ -41,9 +41,11 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -83,7 +85,26 @@ isFullyInstantiatedMeta m = do
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta
 --   is uninstantiated).
 class Instantiate t where
-    instantiate' :: t -> ReduceM t
+  instantiate' :: t -> ReduceM t
+
+  default instantiate' :: (t ~ f a, Traversable f, Instantiate a) => t -> ReduceM t
+  instantiate' = traverse instantiate'
+
+instance Instantiate t => Instantiate [t]
+instance Instantiate t => Instantiate (Map k t)
+instance Instantiate t => Instantiate (Maybe t)
+instance Instantiate t => Instantiate (Strict.Maybe t)
+
+instance Instantiate t => Instantiate (Abs t)
+instance Instantiate t => Instantiate (Arg t)
+instance Instantiate t => Instantiate (Elim' t)
+instance Instantiate t => Instantiate (Tele t)
+
+instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
+    instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
+
+instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
+    instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
 instance Instantiate Term where
   instantiate' t@(MetaV x es) = do
@@ -117,9 +138,14 @@ instance Instantiate Term where
   instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t
 
+instance Instantiate t => Instantiate (Type' t) where
+  instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
+
 instance Instantiate Level where
   instantiate' (Max m as) = levelMax m <$> instantiate' as
 
+-- Note: since @PlusLevel' t@ embeds a @LevelAtom' t@, simply
+-- using @traverse@ for @PlusLevel'@ would not be not correct.
 instance Instantiate PlusLevel where
   instantiate' (Plus n a) = Plus n <$> instantiate' a
 
@@ -144,9 +170,6 @@ instance Instantiate a => Instantiate (Blocked a) where
       BlockedConst{}                 -> return v
       PostponedTypeCheckingProblem{} -> return v
 
-instance Instantiate Type where
-    instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t
-
 instance Instantiate Sort where
   instantiate' s = case s of
     MetaS x es -> instantiate' (MetaV x es) >>= \case
@@ -156,42 +179,13 @@ instance Instantiate Sort where
       _            -> __IMPOSSIBLE__
     _ -> return s
 
-instance Instantiate Elim where
-  instantiate' (Apply v) = Apply <$> instantiate' v
-  instantiate' (Proj o f)= pure $ Proj o f
-  instantiate' (IApply x y v) = IApply <$> instantiate' x <*> instantiate' y <*> instantiate' v
-
-instance Instantiate t => Instantiate (Abs t) where
-  instantiate' = traverse instantiate'
-
-instance Instantiate t => Instantiate (Arg t) where
-    instantiate' = traverse instantiate'
-
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
     instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
-
-instance Instantiate t => Instantiate (Maybe t) where
-  instantiate' = traverse instantiate'
-
-instance Instantiate t => Instantiate [t] where
-    instantiate' = traverse instantiate'
-
-instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
-    instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
-
-
-instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
-    instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
         x <- enterClosure cl instantiate'
         return $ cl { clValue = x }
-
-instance Instantiate Telescope where
-  instantiate' EmptyTel = return EmptyTel
-  instantiate' (ExtendTel a tel) = ExtendTel <$> instantiate' a <*> instantiate' tel
---instantiate' tel = return tel
 
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
@@ -220,9 +214,6 @@ instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
   instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
-
-instance Instantiate e => Instantiate (Map k e) where
-    instantiate' = traverse instantiate'
 
 instance Instantiate Candidate where
   instantiate' (Candidate u t ov) = Candidate <$> instantiate' u <*> instantiate' t <*> pure ov
@@ -419,9 +410,9 @@ instance Reduce Term where
 shouldTryFastReduce :: ReduceM Bool
 shouldTryFastReduce = (optFastReduce <$> pragmaOptions) `and2M` do
   allowed <- asksTC envAllowedReductions
-  let optionalReductions = [NonTerminatingReductions, UnconfirmedReductions]
-      requiredReductions = allReductions \\ optionalReductions
-  return $ (allowed \\ optionalReductions) == requiredReductions
+  let optionalReductions = SmallSet.fromList [NonTerminatingReductions, UnconfirmedReductions]
+      requiredReductions = allReductions SmallSet.\\ optionalReductions
+  return $ (allowed SmallSet.\\ optionalReductions) == requiredReductions
 
 maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
 maybeFastReduceTerm v = do
@@ -458,7 +449,7 @@ slowReduceTerm v = do
                  $ unfoldDefinitionE False reduceB' (Con c ci []) (conName c) es
           traverse reduceNat v
       Sort s   -> fmap Sort <$> reduceB' s
-      Level l  -> ifM (elem LevelReductions <$> asksTC envAllowedReductions)
+      Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
       Pi _ _   -> done
@@ -543,8 +534,8 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
       dontUnfold =
-        (defNonterminating info && notElem NonTerminatingReductions allowed)
-        || (defTerminationUnconfirmed info && notElem UnconfirmedReductions allowed)
+        (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
+        || (defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
         || prp || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
@@ -553,16 +544,16 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
-      if FunctionReductions `elem` allowed
+      if FunctionReductions `SmallSet.member` allowed
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
     _  -> do
-      if (RecursiveReductions `elem` allowed) ||
-         (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
-         (isInlineFun def && InlineReductions `elem` allowed) ||
-         (definitelyNonRecursive_ def && copatterns && CopatternReductions `elem` allowed) ||
-         (definitelyNonRecursive_ def && FunctionReductions `elem` allowed)
+      if (RecursiveReductions `SmallSet.member` allowed) ||
+         (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
+         (isInlineFun def && InlineReductions `SmallSet.member` allowed) ||
+         (definitelyNonRecursive_ def && copatterns && CopatternReductions `SmallSet.member` allowed) ||
+         (definitelyNonRecursive_ def && FunctionReductions `SmallSet.member` allowed)
         then
           reduceNormalE v0 f (map notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr
@@ -832,6 +823,34 @@ instance Reduce t => Reduce (IPBoundary' t) where
 class Simplify t where
   simplify' :: t -> ReduceM t
 
+  default simplify' :: (t ~ f a, Traversable f, Simplify a) => t -> ReduceM t
+  simplify' = traverse simplify'
+
+-- boring instances:
+
+instance Simplify t => Simplify [t]
+instance Simplify t => Simplify (Map k t)
+instance Simplify t => Simplify (Maybe t)
+instance Simplify t => Simplify (Strict.Maybe t)
+
+instance Simplify t => Simplify (Arg t)
+instance Simplify t => Simplify (Elim' t)
+instance Simplify t => Simplify (Named name t)
+instance Simplify t => Simplify (IPBoundary' t)
+
+instance (Simplify a, Simplify b) => Simplify (a,b) where
+    simplify' (x,y) = (,) <$> simplify' x <*> simplify' y
+
+instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
+    simplify' (x,y,z) =
+        do  (x,(y,z)) <- simplify' (x,(y,z))
+            return (x,y,z)
+
+instance Simplify Bool where
+  simplify' = return
+
+-- interesting instances:
+
 instance Simplify Term where
   simplify' v = do
     v <- instantiate' v
@@ -860,13 +879,8 @@ simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
 simplifyBlocked' (NotBlocked _ t) = simplify' t  -- Andrea(s), 2014-12-05 OK?
 
-instance Simplify Type where
+instance Simplify t => Simplify (Type' t) where
     simplify' (El s t) = El <$> simplify' s <*> simplify' t
-
-instance Simplify Elim where
-  simplify' (Apply v) = Apply <$> simplify' v
-  simplify' (Proj o f)= pure $ Proj o f
-  simplify' (IApply x y v) = IApply <$> simplify' x <*> simplify' y <*> simplify' v
 
 instance Simplify Sort where
     simplify' s = do
@@ -903,31 +917,8 @@ instance (Subst t a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
 
-instance Simplify t => Simplify (Arg t) where
-    simplify' = traverse simplify'
-
-instance Simplify t => Simplify (Named name t) where
-    simplify' = traverse simplify'
-
 instance Simplify t => Simplify (Dom t) where
     simplify' = traverse simplify'
-
-instance Simplify t => Simplify [t] where
-    simplify' = traverse simplify'
-
-instance Simplify e => Simplify (Map k e) where
-    simplify' = traverse simplify'
-
-instance Simplify a => Simplify (Maybe a) where
-    simplify' = traverse simplify'
-
-instance (Simplify a, Simplify b) => Simplify (a,b) where
-    simplify' (x,y) = (,) <$> simplify' x <*> simplify' y
-
-instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
-    simplify' (x,y,z) =
-        do  (x,(y,z)) <- simplify' (x,(y,z))
-            return (x,y,z)
 
 instance Simplify a => Simplify (Closure a) where
     simplify' cl = do
@@ -969,9 +960,6 @@ instance Simplify CompareAs where
   simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
 
-instance Simplify Bool where
-  simplify' = return
-
 -- UNUSED
 -- instance Simplify ConPatternInfo where
 --   simplify' (ConPatternInfo mr mt) = ConPatternInfo mr <$> simplify' mt
@@ -1002,9 +990,6 @@ instance Simplify EqualityView where
     <*> simplify' a
     <*> simplify' b
 
-instance Simplify t => Simplify (IPBoundary' t) where
-  simplify' = traverse simplify'
-
 ---------------------------------------------------------------------------
 -- * Normalisation
 ---------------------------------------------------------------------------
@@ -1014,6 +999,41 @@ class Normalise t where
 
   default normalise' :: (t ~ f a, Traversable f, Normalise a) => t -> ReduceM t
   normalise' = traverse normalise'
+
+-- boring instances:
+
+instance Normalise t => Normalise [t]
+instance Normalise t => Normalise (Map k t)
+instance Normalise t => Normalise (Maybe t)
+instance Normalise t => Normalise (Strict.Maybe t)
+
+-- Arg not included since we do not normalize irrelevant subterms
+-- Elim' not included since it contains Arg
+instance Normalise t => Normalise (Named name t)
+instance Normalise t => Normalise (IPBoundary' t)
+instance Normalise t => Normalise (WithHiding t)
+
+instance (Normalise a, Normalise b) => Normalise (a,b) where
+    normalise' (x,y) = (,) <$> normalise' x <*> normalise' y
+
+instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
+    normalise' (x,y,z) =
+        do  (x,(y,z)) <- normalise' (x,(y,z))
+            return (x,y,z)
+
+instance Normalise Bool where
+  normalise' = return
+
+instance Normalise Char where
+  normalise' = return
+
+instance Normalise Int where
+  normalise' = return
+
+instance Normalise DBPatVar where
+  normalise' = return
+
+-- interesting instances:
 
 instance Normalise Sort where
     normalise' s = do
@@ -1032,7 +1052,7 @@ instance Normalise Sort where
         DefS d es  -> return s
         DummyS{}   -> return s
 
-instance Normalise Type where
+instance Normalise t => Normalise (Type' t) where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
 
 instance Normalise Term where
@@ -1052,8 +1072,9 @@ slowNormaliseArgs v = case v of
   DontCare _  -> return v
   Dummy{}     -> return v
 
-instance Normalise Elim where
-  normalise' (Apply v) = Apply <$> normalise' v
+-- Note: not the default instance for Elim' since we do something special for Arg.
+instance Normalise t => Normalise (Elim' t) where
+  normalise' (Apply v) = Apply <$> normalise' v  -- invokes Normalise Arg here
   normalise' (Proj o f)= pure $ Proj o f
   normalise' (IApply x y v) = IApply <$> normalise' x <*> normalise' y <*> normalise' v
 
@@ -1077,25 +1098,12 @@ instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
 
 instance Normalise t => Normalise (Arg t) where
-    normalise' a | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
-                | otherwise                       = traverse normalise' a
-
-instance Normalise t => Normalise (Named name t) where
-    normalise' = traverse normalise'
+    normalise' a
+      | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
+      | otherwise      = traverse normalise' a
 
 instance Normalise t => Normalise (Dom t) where
     normalise' = traverse normalise'
-
-instance Normalise t => Normalise [t] where
-    normalise' = traverse normalise'
-
-instance (Normalise a, Normalise b) => Normalise (a,b) where
-    normalise' (x,y) = (,) <$> normalise' x <*> normalise' y
-
-instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
-    normalise' (x,y,z) =
-        do  (x,(y,z)) <- normalise' (x,(y,z))
-            return (x,y,z)
 
 instance Normalise a => Normalise (Closure a) where
     normalise' cl = do
@@ -1137,20 +1145,8 @@ instance Normalise CompareAs where
   normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
 
-instance Normalise Bool where
-  normalise' = return
-
-instance Normalise Int where
-  normalise' = return
-
-instance Normalise Char where
-  normalise' = return
-
 instance Normalise ConPatternInfo where
   normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
-
-instance Normalise DBPatVar where
-  normalise' = return
 
 instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
@@ -1164,10 +1160,6 @@ instance Normalise a => Normalise (Pattern' a) where
 
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
-
-instance Normalise e => Normalise (Map k e)      where
-instance Normalise a => Normalise (Maybe a)      where
-instance Normalise a => Normalise (WithHiding a) where
 
 instance Normalise Candidate where
   normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov
@@ -1183,9 +1175,6 @@ instance Normalise EqualityView where
     <*> normalise' a
     <*> normalise' b
 
-instance Normalise t => Normalise (IPBoundary' t) where
-  normalise' = traverse normalise'
-
 ---------------------------------------------------------------------------
 -- * Full instantiation
 ---------------------------------------------------------------------------
@@ -1193,10 +1182,70 @@ instance Normalise t => Normalise (IPBoundary' t) where
 -- | @instantiateFull'@ 'instantiate's metas everywhere (and recursively)
 --   but does not 'reduce'.
 class InstantiateFull t where
-    instantiateFull' :: t -> ReduceM t
+  instantiateFull' :: t -> ReduceM t
+
+  default instantiateFull' :: (t ~ f a, Traversable f, InstantiateFull a) => t -> ReduceM t
+  instantiateFull' = traverse instantiateFull'
+
+-- Traversables (doesn't include binders like Abs, Tele):
+
+instance InstantiateFull t => InstantiateFull [t]
+instance InstantiateFull t => InstantiateFull (HashMap k t)
+instance InstantiateFull t => InstantiateFull (Map k t)
+instance InstantiateFull t => InstantiateFull (Maybe t)
+instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
+
+instance InstantiateFull t => InstantiateFull (Arg t)
+instance InstantiateFull t => InstantiateFull (Elim' t)
+instance InstantiateFull t => InstantiateFull (Named name t)
+instance InstantiateFull t => InstantiateFull (Open t)
+instance InstantiateFull t => InstantiateFull (WithArity t)
+
+-- Tuples:
+
+instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
+    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
+
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
+    instantiateFull' (x,y,z) =
+        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
+            return (x,y,z)
+
+instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
+    instantiateFull' (x,y,z,w) =
+        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
+            return (x,y,z,w)
+
+-- Base types:
+
+instance InstantiateFull Bool where
+    instantiateFull' = return
+
+instance InstantiateFull Char where
+    instantiateFull' = return
+
+instance InstantiateFull Int where
+    instantiateFull' = return
+
+instance InstantiateFull ModuleName where
+    instantiateFull' = return
 
 instance InstantiateFull Name where
     instantiateFull' = return
+
+instance InstantiateFull QName where
+  instantiateFull' = return
+
+instance InstantiateFull Scope where
+    instantiateFull' = return
+
+instance InstantiateFull ConHead where
+  instantiateFull' = return
+
+instance InstantiateFull DBPatVar where
+    instantiateFull' = return
+
+-- Rest:
 
 instance InstantiateFull Sort where
     instantiateFull' s = do
@@ -1215,7 +1264,7 @@ instance InstantiateFull Sort where
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
 
-instance (InstantiateFull a) => InstantiateFull (Type' a) where
+instance InstantiateFull t => InstantiateFull (Type' t) where
     instantiateFull' (El s t) =
       El <$> instantiateFull' s <*> instantiateFull' t
 
@@ -1267,17 +1316,8 @@ instance InstantiateFull Substitution where
       t :# sigma           -> consS <$> instantiateFull' t
                                     <*> instantiateFull' sigma
 
-instance InstantiateFull Bool where
-    instantiateFull' = return
-
-instance InstantiateFull Int where
-    instantiateFull' = return
-
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
-
-instance InstantiateFull DBPatVar where
-    instantiateFull' = return
 
 instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (VarP o x)     = VarP o <$> instantiateFull' x
@@ -1292,30 +1332,8 @@ instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
-instance InstantiateFull t => InstantiateFull (Arg t) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull t => InstantiateFull (Named name t) where
-    instantiateFull' = traverse instantiateFull'
-
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
-
-instance InstantiateFull t => InstantiateFull [t] where
-    instantiateFull' = traverse instantiateFull'
-
-instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
-    instantiateFull' (x,y) = (,) <$> instantiateFull' x <*> instantiateFull' y
-
-instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
-    instantiateFull' (x,y,z) =
-        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
-            return (x,y,z)
-
-instance (InstantiateFull a, InstantiateFull b, InstantiateFull c, InstantiateFull d) => InstantiateFull (a,b,c,d) where
-    instantiateFull' (x,y,z,w) =
-        do  (x,(y,z,w)) <- instantiateFull' (x,(y,z,w))
-            return (x,y,z,w)
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
@@ -1354,23 +1372,6 @@ instance InstantiateFull CompareAs where
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
-instance (InstantiateFull a) => InstantiateFull (Elim' a) where
-  instantiateFull' (Apply v) = Apply <$> instantiateFull' v
-  instantiateFull' (Proj o f)= pure $ Proj o f
-  instantiateFull' (IApply x y v) = IApply <$> instantiateFull' x <*> instantiateFull' y <*> instantiateFull' v
-
-instance InstantiateFull e => InstantiateFull (Map k e) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull e => InstantiateFull (HashMap k e) where
-    instantiateFull' = traverse instantiateFull'
-
-instance InstantiateFull ModuleName where
-    instantiateFull' = return
-
-instance InstantiateFull Scope where
-    instantiateFull' = return
-
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
 
@@ -1380,9 +1381,6 @@ instance InstantiateFull Section where
 instance (Subst t a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
   instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
-
-instance InstantiateFull Char where
-    instantiateFull' = return
 
 instance InstantiateFull Definition where
     instantiateFull' def@Defn{ defType = t ,defDisplay = df, theDef = d } = do
@@ -1417,9 +1415,6 @@ instance InstantiateFull RewriteRule where
       <*> instantiateFull' ps
       <*> instantiateFull' rhs
       <*> instantiateFull' t
-
-instance InstantiateFull a => InstantiateFull (Open a) where
-  instantiateFull' (OpenThing n a) = OpenThing n <$> instantiateFull' a
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
@@ -1466,9 +1461,6 @@ instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
   instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
 
-instance InstantiateFull a => InstantiateFull (WithArity a) where
-  instantiateFull' (WithArity n a) = WithArity n <$> instantiateFull' a
-
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
     Branches cop
@@ -1485,12 +1477,13 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause rl rf tel ps b t catchall unreachable ell) =
+    instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell) =
        Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t
        <*> return catchall
+       <*> return recursive
        <*> return unreachable
        <*> return ell
 
@@ -1515,15 +1508,6 @@ instance InstantiateFull Interface where
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
     instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
-
-instance InstantiateFull QName where
-  instantiateFull' = return
-
-instance InstantiateFull ConHead where
-  instantiateFull' = return
-
-instance InstantiateFull a => InstantiateFull (Maybe a) where
-  instantiateFull' = mapM instantiateFull'
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate u t ov) =

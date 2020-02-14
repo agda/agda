@@ -176,6 +176,7 @@ checkAlias t ai delayed i name e mc =
                           , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
+                          , clauseRecursive = Nothing   -- we don't know yet
                           , clauseUnreachable = Just False
                           , clauseEllipsis = NoEllipsis
                           } ]
@@ -304,7 +305,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Systems have their own coverage and "coherence" check, we
         -- also add an absurd clause for the cases not needed.
-        (cs,sys) <- if not isSystem then return (cs, Nothing) else do
+        (cs,sys) <- if not isSystem then return (cs, empty) else do
                  fullType <- flip abstract t <$> getContextTelescope
                  sys <- inTopContext $ checkSystemCoverage name (IntSet.toList isOneIxs) fullType cs
                  tel <- getContextTelescope
@@ -316,10 +317,11 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseBody = Nothing
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
+                       , clauseRecursive = Just False
                        , clauseUnreachable = Just False
                        , clauseEllipsis = NoEllipsis
                        }
-                 return (cs ++ [c], Just sys)
+                 return (cs ++ [c], pure sys)
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull {- =<< mapM rebindClause -} cs
@@ -710,6 +712,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
+                 , clauseRecursive   = Nothing -- we don't know yet
                  , clauseUnreachable = Nothing -- we don't know yet
                  , clauseEllipsis  = lhsEllipsis i
                  }

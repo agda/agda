@@ -254,7 +254,8 @@ Language
 
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
-  See "Flat Modality" in the documentation for more.
+  See [Flat Modality](https://agda.readthedocs.io/en/latest/language/flat.html)
+  in the documentation for more.
 
 * New run-time erasure modality (`@0` / `@erased`).
   Terms marked as erased cannot influence computations and are erased at run time.
@@ -274,8 +275,9 @@ Language
   rule ``Set i =< Set j`` whenever ``i =< j``. For example, in
   addition to its usual type ``Set``, ``Nat`` also has the type
   ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
-  about this new option can be found in the [user
-  manual](https://agda.readthedocs.io/en/latest/language/cumulativity.html).
+  about this new option can be found in section
+  [Cumulativity](https://agda.readthedocs.io/en/latest/language/cumulativity.html)
+  of the user manual.
 
 ### Termination checking
 
@@ -286,6 +288,46 @@ Language
   feature was originally introduced and
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
+
+* The termination checker will now try to dispose of recursive calls
+  by reducing with the non-recursive function clauses.
+  This eliminates false positives common for definitions by copatterns
+  using dependent types,
+  see Issue [#906](https://github.com/agda/agda/issues/906).
+
+  For example, consider the following example using a dependent
+  coinductive record `Tree`:
+  ```agda
+  data Fin : Nat → Set where
+    fzero : ∀ n → Fin (suc n)
+    fsuc  : ∀ n (i : Fin n) → Fin (suc n)
+
+  toNat : ∀ n → Fin n → Nat
+  toNat .(suc n) (fzero n)  = zero
+  toNat .(suc n) (fsuc n i) = suc (toNat n i)
+
+  record Tree : Set where
+    coinductive
+    field label : Nat
+          child : Fin label → Tree
+  open Tree
+
+  tree : Nat → Tree
+  tree n .label   = n
+  tree n .child i = tree (n + toNat _ i)
+  ```
+  Agda solves the underscore by `tree n .label`, which is a corecursive
+  call in a non-guarded position, violating the guardedness criterion.
+  This lead to a complaint of the termination checker.
+  Now this call is reduced to `n` first using the non-recursive clause
+  `tree n .label = n`, which leaves us only with the guarded call
+  `tree (n + toNat n i)`, and the termination checker is happy.
+
+  Note: Similar false positives arose already for non-recursive dependent
+  records, e.g., when trying to define an inhabitant of the Σ-type by
+  copattern matching on the projects.
+  See Issue_[#2068](https://github.com/agda/agda/issues/2068) for a
+  non-recursive example.
 
 ### Irrelevance and Prop
 
@@ -651,4 +693,3 @@ tracker](https://github.com/agda/agda/issues)):
 The following previously closed issues were reopened:
 
   -  [#1556](https://github.com/agda/agda/issues/1556): Agda allows "very dependent" types
-
