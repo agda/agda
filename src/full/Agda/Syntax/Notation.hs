@@ -318,10 +318,10 @@ mergeNotations =
     else map (: []) ns
     where
     -- Fixities of operators whose precedence level is not Unrelated.
-    related = mapMaybe (\f -> case fixityLevel f of
+    related = mapMaybe ((\f -> case fixityLevel f of
                                 Unrelated  -> Nothing
                                 Related {} -> Just f)
-                       (map notaFixity ns)
+                              . notaFixity) ns
 
     -- Precondition: All related operators have the same precedence
     -- level.
