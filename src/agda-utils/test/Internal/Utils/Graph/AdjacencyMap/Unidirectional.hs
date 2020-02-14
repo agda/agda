@@ -8,8 +8,6 @@
 
 module Internal.Utils.Graph.AdjacencyMap.Unidirectional ( tests ) where
 
---import Agda.TypeChecking.Positivity.Occurrence
-
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
@@ -31,7 +29,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Internal.Helpers
---import Internal.TypeChecking.Positivity.Occurrence ()
 
 import Prelude hiding (null)
 
