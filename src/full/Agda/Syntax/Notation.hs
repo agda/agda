@@ -43,67 +43,6 @@ isLambdaHole :: HoleName -> Bool
 isLambdaHole (LambdaHole _ _) = True
 isLambdaHole _ = False
 
--- | Notation as provided by the @syntax@ declaration.
-type Notation = [GenPart]
-
--- | Part of a Notation
-data GenPart
-  = BindHole Range (Ranged Int)
-    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-    --   First range is the rhs range and second is the binder.
-  | NormalHole Range (NamedArg (Ranged Int))
-    -- ^ Argument is where the expression should go.
-  | WildHole (Ranged Int)
-    -- ^ An underscore in binding position.
-  | IdPart RString
-  deriving (Data, Show)
-
-instance Eq GenPart where
-  BindHole _ i   == BindHole _ j   = i == j
-  NormalHole _ x == NormalHole _ y = x == y
-  WildHole i     == WildHole j     = i == j
-  IdPart x       == IdPart y       = x == y
-  _              == _              = False
-
-instance Ord GenPart where
-  BindHole _ i   `compare` BindHole _ j   = i `compare` j
-  NormalHole _ x `compare` NormalHole _ y = x `compare` y
-  WildHole i     `compare` WildHole j     = i `compare` j
-  IdPart x       `compare` IdPart y       = x `compare` y
-  BindHole{}     `compare` _              = LT
-  _              `compare` BindHole{}     = GT
-  NormalHole{}   `compare` _              = LT
-  _              `compare` NormalHole{}   = GT
-  WildHole{}     `compare` _              = LT
-  _              `compare` WildHole{}     = GT
-
-instance HasRange GenPart where
-  getRange p = case p of
-    IdPart x       -> getRange x
-    BindHole r _   -> r
-    WildHole i     -> getRange i
-    NormalHole r _ -> r
-
-instance SetRange GenPart where
-  setRange r p = case p of
-    IdPart x       -> IdPart x
-    BindHole _ i   -> BindHole r i
-    WildHole i     -> WildHole i
-    NormalHole _ i -> NormalHole r i
-
-instance KillRange GenPart where
-  killRange p = case p of
-    IdPart x       -> IdPart $ killRange x
-    BindHole _ i   -> BindHole noRange $ killRange i
-    WildHole i     -> WildHole $ killRange i
-    NormalHole _ x -> NormalHole noRange $ killRange x
-
-instance NFData GenPart where
-  rnf (BindHole _ a)   = rnf a
-  rnf (NormalHole _ a) = rnf a
-  rnf (WildHole a)     = rnf a
-  rnf (IdPart a)       = rnf a
-
 -- | Get a flat list of identifier parts of a notation.
 stringParts :: Notation -> [String]
 stringParts gs = [ rangedThing x | IdPart x <- gs ]
@@ -267,6 +206,3 @@ mkNotation holes ids = do
         [ IdPart{} ] -> False
         [ _hole ]    -> True
         _            -> False
-
-noNotation :: Notation
-noNotation = []

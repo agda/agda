@@ -31,29 +31,6 @@ import Agda.Utils.Impossible
 -- The Fixity data type is now defined in Agda.Syntax.Common.
 -- Andreas, 2019-08-16, issue #1346
 
--- * Notation coupled with 'Fixity'
-
--- | The notation is handled as the fixity in the renamer.
---   Hence, they are grouped together in this type.
-data Fixity' = Fixity'
-    { theFixity   :: !Fixity
-    , theNotation :: Notation
-    , theNameRange :: Range
-      -- ^ Range of the name in the fixity declaration
-      --   (used for correct highlighting, see issue #2140).
-    }
-  deriving (Data, Show)
-
-instance Eq Fixity' where
-  Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
-
-instance Null Fixity' where
-  null (Fixity' f n _) = null f && null n
-  empty = noFixity'
-
-noFixity' :: Fixity'
-noFixity' = Fixity' noFixity noNotation noRange
-
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
   deriving (Functor, Foldable, Traversable, Data, Show)
@@ -75,21 +52,8 @@ data NewNotation = NewNotation
     -- syntax declaration).
   } deriving Show
 
--- Lens focusing on Fixity'
-
-class LensFixity' a where
-  lensFixity' :: Lens' Fixity' a
-
-instance LensFixity' Fixity' where
-  lensFixity' = id
-
 instance LensFixity' (ThingWithFixity a) where
   lensFixity' f (ThingWithFixity a fix') = ThingWithFixity a <$> f fix'
-
--- Lens focusing on Fixity
-
-instance LensFixity Fixity' where
-  lensFixity f fix' = f (theFixity fix') <&> \ fx -> fix' { theFixity = fx }
 
 instance LensFixity NewNotation where
   lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
@@ -350,12 +314,6 @@ piBrackets _  = True
 
 roundFixBrackets :: PrecedenceStack -> Bool
 roundFixBrackets ps = DotPatternCtx == headPrecedence ps
-
-instance NFData Fixity' where
-  rnf (Fixity' _ a _) = rnf a
-
-instance KillRange Fixity' where
-  killRange (Fixity' f n r) = killRange3 Fixity' f n r
 
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f

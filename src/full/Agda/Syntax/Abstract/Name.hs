@@ -22,7 +22,6 @@ import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
