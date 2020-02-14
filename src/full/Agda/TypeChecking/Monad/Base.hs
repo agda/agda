@@ -62,7 +62,7 @@ import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
 import Agda.Syntax.Treeless (Compiled)
-import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
