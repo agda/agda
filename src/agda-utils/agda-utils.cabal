@@ -260,6 +260,7 @@ test-suite agda-utils-tests
                     , Internal.Utils.Either
                     , Internal.Utils.Favorites
                     , Internal.Utils.FileName
+                    , Internal.Utils.Graph.AdjacencyMap.Unidirectional
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
                     , Internal.Utils.ListT
@@ -268,12 +269,13 @@ test-suite agda-utils-tests
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
+                    , Internal.Utils.SmallSet
                     , Internal.Utils.Three
                     , Internal.Utils.Trie
                     , Internal.Utils.Warshall
 
   build-depends:  agda-utils
---                , array >= 0.5.1.1 && < 0.6
+                , array >= 0.5.1.1 && < 0.6
                 , base >= 4.9.0.0 && < 4.15
 --                , bytestring >= 0.10.8.1 && < 0.11
                 , containers >= 0.5.7.1 && < 0.7

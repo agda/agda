@@ -21,7 +21,7 @@ import qualified Internal.Utils.Cluster                            as UtilClust 
 import qualified Internal.Utils.Either                             as UtilEith     ( tests )
 import qualified Internal.Utils.Favorites                          as UtilFav      ( tests )
 import qualified Internal.Utils.FileName                           as UtilFile     ( tests )
---import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
+import qualified Internal.Utils.Graph.AdjacencyMap.Unidirectional  as UtilGraphUni ( tests )
 import qualified Internal.Utils.IntSet                             as UtilIntSet   ( tests )
 import qualified Internal.Utils.List                               as UtilList     ( tests )
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
@@ -29,7 +29,8 @@ import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
 import qualified Internal.Utils.NonEmptyList                       as UtilNonEmpty ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
---import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
+import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
+import qualified Internal.Utils.SmallSet                           as UtilSSet     ( tests )
 import qualified Internal.Utils.Three                              as UtilThree    ( tests )
 import qualified Internal.Utils.Trie                               as UtilTrie     ( tests )
 import qualified Internal.Utils.Warshall                           as UtilWarsh    ( tests )
@@ -47,7 +48,7 @@ tests = testGroup "Utils"
   , UtilEith.tests
   , UtilFav.tests
   , UtilFile.tests
---  , UtilGraphUni.tests
+  , UtilGraphUni.tests
   , UtilIntSet.tests
   , UtilList.tests
   , UtilListT.tests
@@ -55,7 +56,8 @@ tests = testGroup "Utils"
   , UtilMonoid.tests
   , UtilNonEmpty.tests
   , UtilPOrd.tests
---  , UtilPerm.tests
+  , UtilPerm.tests
+  , UtilSSet.tests
   , UtilThree.tests
   , UtilTrie.tests
   , UtilWarsh.tests
