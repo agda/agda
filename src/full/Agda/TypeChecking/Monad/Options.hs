@@ -140,18 +140,6 @@ disableDisplayForms =
 displayFormsEnabled :: MonadTCEnv m => m Bool
 displayFormsEnabled = asksTC envDisplayFormsEnabled
 
--- | Gets the include directories.
---
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
--- 'setCommandLineOptions' must have run).
-
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
-getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
-
 -- | Makes the given directories absolute and stores them as include
 -- directories.
 --
@@ -236,9 +224,6 @@ isPropEnabled = optProp <$> pragmaOptions
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
-
-enableCaching :: HasOptions m => m Bool
-enableCaching = optCaching <$> pragmaOptions
 
 showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions

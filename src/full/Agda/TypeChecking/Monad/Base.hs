@@ -3565,6 +3565,20 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
 
+-- | Gets the include directories.
+--
+-- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
+-- 'setCommandLineOptions' must have run).
+
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs = do
+  incs <- optAbsoluteIncludePaths <$> commandLineOptions
+  case incs of
+    [] -> __IMPOSSIBLE__
+    _  -> return incs
+
+enableCaching :: HasOptions m => m Bool
+enableCaching = optCaching <$> pragmaOptions
 -----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------
