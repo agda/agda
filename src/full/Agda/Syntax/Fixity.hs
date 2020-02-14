@@ -4,26 +4,18 @@
 -}
 module Agda.Syntax.Fixity where
 
-import Prelude hiding (null)
-
 import Control.DeepSeq
 
 import qualified Data.List as List
 import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as Set
 
 import Data.Data (Data)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Notation
 
-import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -35,167 +27,11 @@ import Agda.Utils.Impossible
 data ThingWithFixity x = ThingWithFixity x Fixity'
   deriving (Functor, Foldable, Traversable, Data, Show)
 
--- | All the notation information related to a name.
-data NewNotation = NewNotation
-  { notaName  :: QName
-  , notaNames :: Set A.Name
-    -- ^ The names the syntax and/or fixity belong to.
-    --
-    -- Invariant: The set is non-empty. Every name in the list matches
-    -- 'notaName'.
-  , notaFixity :: Fixity
-    -- ^ Associativity and precedence (fixity) of the names.
-  , notation :: Notation
-    -- ^ Syntax associated with the names.
-  , notaIsOperator :: Bool
-    -- ^ True if the notation comes from an operator (rather than a
-    -- syntax declaration).
-  } deriving Show
-
 instance LensFixity' (ThingWithFixity a) where
   lensFixity' f (ThingWithFixity a fix') = ThingWithFixity a <$> f fix'
 
-instance LensFixity NewNotation where
-  lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
-
 instance LensFixity (ThingWithFixity a) where
   lensFixity = lensFixity' . lensFixity
-
--- | If an operator has no specific notation, then it is computed from
--- its name.
-namesToNotation :: QName -> A.Name -> NewNotation
-namesToNotation q n = NewNotation
-  { notaName       = q
-  , notaNames      = Set.singleton n
-  , notaFixity     = f
-  , notation       = if null syn then syntaxOf (unqualify q) else syn
-  , notaIsOperator = null syn
-  }
-  where Fixity' f syn _ = A.nameFixity n
-
--- | Replace 'noFixity' by 'defaultFixity'.
-useDefaultFixity :: NewNotation -> NewNotation
-useDefaultFixity n
-  | notaFixity n == noFixity = n { notaFixity = defaultFixity }
-  | otherwise                = n
-
--- | Return the 'IdPart's of a notation, the first part qualified,
---   the other parts unqualified.
---   This allows for qualified use of operators, e.g.,
---   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
-notationNames :: NewNotation -> [QName]
-notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id $ rangedThing x] | IdPart x <- parts ]
-  where
-    -- The qualification of @q@.
-    modules     = init (qnameParts q)
-    -- Putting the qualification onto @x@.
-    reQualify x = List.foldr Qual (QName x) modules
-
--- | Create a 'Notation' (without binders) from a concrete 'Name'.
---   Does the obvious thing:
---   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
---   If 'Name' has no 'Hole's, it returns 'noNotation'.
-syntaxOf :: Name -> Notation
-syntaxOf (NoName _ _)    = noNotation
-syntaxOf (Name _ _ [_])  = noNotation
-syntaxOf (Name _ _ xs)   = mkSyn 0 xs
-  where
-    -- Turn a concrete name into a Notation,
-    -- numbering the holes from left to right.
-    -- Result will have no 'BindingHole's.
-    mkSyn :: Int -> [NamePart] -> Notation
-    mkSyn n []          = []
-    mkSyn n (Hole : xs) = NormalHole noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
-    mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
-
--- | Merges 'NewNotation's that have the same precedence level and
--- notation, with two exceptions:
---
--- * Operators and notations coming from syntax declarations are kept
---   separate.
---
--- * If /all/ instances of a given 'NewNotation' have the same
---   precedence level or are \"unrelated\", then they are merged. They
---   get the given precedence level, if any, and otherwise they become
---   unrelated (but related to each other).
---
--- If 'NewNotation's that are merged have distinct associativities,
--- then they get 'NonAssoc' as their associativity.
---
--- Precondition: No 'A.Name' may occur in more than one list element.
--- Every 'NewNotation' must have the same 'notaName'.
---
--- Postcondition: No 'A.Name' occurs in more than one list element.
-mergeNotations :: [NewNotation] -> [NewNotation]
-mergeNotations =
-  map merge .
-  concatMap groupIfLevelsMatch .
-  groupOn (\n -> ( notation n
-                 , notaIsOperator n
-                 ))
-  where
-  groupIfLevelsMatch :: [NewNotation] -> [[NewNotation]]
-  groupIfLevelsMatch []         = __IMPOSSIBLE__
-  groupIfLevelsMatch ns@(n : _) =
-    if allEqual (map fixityLevel related)
-    then [sameAssoc (sameLevel ns)]
-    else map (: []) ns
-    where
-    -- Fixities of operators whose precedence level is not Unrelated.
-    related = mapMaybe (\f -> case fixityLevel f of
-                                Unrelated  -> Nothing
-                                Related {} -> Just f)
-                       (map notaFixity ns)
-
-    -- Precondition: All related operators have the same precedence
-    -- level.
-    --
-    -- Gives all unrelated operators the same level.
-    sameLevel = map (set (_notaFixity . _fixityLevel) level)
-      where
-      level = case related of
-        f : _ -> fixityLevel f
-        []    -> Unrelated
-
-    -- If all related operators have the same associativity, then the
-    -- unrelated operators get the same associativity, and otherwise
-    -- all operators get the associativity NonAssoc.
-    sameAssoc = map (set (_notaFixity . _fixityAssoc) assoc)
-      where
-      assoc = case related of
-        f : _ | allEqual (map fixityAssoc related) -> fixityAssoc f
-        _                                          -> NonAssoc
-
-  merge :: [NewNotation] -> NewNotation
-  merge []         = __IMPOSSIBLE__
-  merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
-
--- * Sections
-
--- | Sections, as well as non-sectioned operators.
-
-data NotationSection = NotationSection
-  { sectNotation  :: NewNotation
-  , sectKind      :: NotationKind
-    -- ^ For non-sectioned operators this should match the notation's
-    -- 'notationKind'.
-  , sectLevel     :: Maybe FixityLevel
-    -- ^ Effective precedence level. 'Nothing' for closed notations.
-  , sectIsSection :: Bool
-    -- ^ 'False' for non-sectioned operators.
-  }
-  deriving Show
-
--- | Converts a notation to a (non-)section.
-
-noSection :: NewNotation -> NotationSection
-noSection n = NotationSection
-  { sectNotation  = n
-  , sectKind      = notationKind (notation n)
-  , sectLevel     = Just (fixityLevel (notaFixity n))
-  , sectIsSection = False
-  }
 
 -- | Do we prefer parens around arguments like @λ x → x@ or not?
 --   See 'lamBrackets'.
@@ -317,8 +153,3 @@ roundFixBrackets ps = DotPatternCtx == headPrecedence ps
 
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
-
--- | Lens for 'Fixity' in 'NewNotation'.
-
-_notaFixity :: Lens' Fixity NewNotation
-_notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
