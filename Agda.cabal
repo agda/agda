@@ -358,6 +358,7 @@ library
                     Agda.Syntax.Concrete
                     Agda.Syntax.DoNotation
                     Agda.Syntax.Fixity
+                    Agda.Syntax.Geniplate
                     Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
@@ -540,7 +541,7 @@ library
 --                    Agda.Utils.Float
 --                    Agda.Utils.Functor
 --                    Agda.Utils.Function
-                    Agda.Utils.Geniplate
+--                    Agda.Utils.Geniplate
 --                    Agda.Utils.Graph.AdjacencyMap.Unidirectional
 --                    Agda.Utils.Graph.TopSort
 --                    Agda.Utils.Hash
@@ -568,13 +569,13 @@ library
 --                    Agda.Utils.Parser.MemoisedCPS
 --                    Agda.Utils.PartialOrd
 --                    Agda.Utils.Permutation
---                    Agda.Utils.SmallSet
 --                    Agda.Utils.Pointer
 --                    Agda.Utils.POMonoid
 --                    Agda.Utils.Pretty
 --                    Agda.Utils.SemiRing
 --                    Agda.Utils.Singleton
 --                    Agda.Utils.Size
+--                    Agda.Utils.SmallSet
 --                    Agda.Utils.String
 --                    Agda.Utils.Suffix
 --                    Agda.Utils.Three

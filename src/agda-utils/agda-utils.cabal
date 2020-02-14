@@ -337,10 +337,10 @@ test-suite agda-utils-tests
                      , TupleSections
                      , TypeSynonymInstances
 
-  -- NOTE: If adding flags, also add to `.ghci800`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
                -threaded
+               -O
                -- Initially, we disable all the warnings.
                -w
                -Werror
