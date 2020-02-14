@@ -781,6 +781,7 @@ test-suite agda-tests
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
+                    , Internal.Utils.SmallSet
                     , Internal.Utils.Three
                     , Internal.Utils.Trie
                     , Internal.Utils.Warshall
