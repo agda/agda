@@ -39,7 +39,6 @@ import Agda.Interaction.Options ( optLocalInterfaces )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Utils.Applicative ( (?$>) )
