@@ -2062,6 +2062,12 @@ data Fixity = Fixity
   }
   deriving (Data, Show)
 
+noFixity :: Fixity
+noFixity = Fixity noRange Unrelated NonAssoc
+
+defaultFixity :: Fixity
+defaultFixity = Fixity noRange (Related 20) NonAssoc
+
 -- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
 
 instance Eq Fixity where
@@ -2074,12 +2080,6 @@ instance Null Fixity where
   null  = null . fixityLevel
   empty = noFixity
 
-noFixity :: Fixity
-noFixity = Fixity noRange Unrelated NonAssoc
-
-defaultFixity :: Fixity
-defaultFixity = Fixity noRange (Related 20) NonAssoc
-
 instance HasRange Fixity where
   getRange = fixityRange
 
@@ -2089,6 +2089,35 @@ instance KillRange Fixity where
 instance NFData Fixity where
   rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
 
+-- * Notation coupled with 'Fixity'
+
+-- | The notation is handled as the fixity in the renamer.
+--   Hence, they are grouped together in this type.
+data Fixity' = Fixity'
+    { theFixity   :: !Fixity
+    , theNotation :: Notation
+    , theNameRange :: Range
+      -- ^ Range of the name in the fixity declaration
+      --   (used for correct highlighting, see issue #2140).
+    }
+  deriving (Data, Show)
+
+noFixity' :: Fixity'
+noFixity' = Fixity' noFixity noNotation noRange
+
+instance Eq Fixity' where
+  Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
+
+instance Null Fixity' where
+  null (Fixity' f n _) = null f && null n
+  empty = noFixity'
+
+instance NFData Fixity' where
+  rnf (Fixity' _ a _) = rnf a
+
+instance KillRange Fixity' where
+  killRange (Fixity' f n r) = killRange3 Fixity' f n r
+
 -- lenses
 
 _fixityAssoc :: Lens' Associativity Fixity
@@ -2097,12 +2126,24 @@ _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 _fixityLevel :: Lens' FixityLevel Fixity
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 
+-- Lens focusing on Fixity
+
 class LensFixity a where
   lensFixity :: Lens' Fixity a
 
 instance LensFixity Fixity where
   lensFixity = id
 
+instance LensFixity Fixity' where
+  lensFixity f fix' = f (theFixity fix') <&> \ fx -> fix' { theFixity = fx }
+
+-- Lens focusing on Fixity'
+
+class LensFixity' a where
+  lensFixity' :: Lens' Fixity' a
+
+instance LensFixity' Fixity' where
+  lensFixity' = id
 ---------------------------------------------------------------------------
 -- * Import directive
 ---------------------------------------------------------------------------
@@ -2386,3 +2427,67 @@ instance KillRange ExpandedEllipsis where
 instance NFData ExpandedEllipsis where
   rnf (ExpandedEllipsis _ a) = rnf a
   rnf NoEllipsis             = ()
+
+-- | Notation as provided by the @syntax@ declaration.
+type Notation = [GenPart]
+
+noNotation :: Notation
+noNotation = []
+
+-- | Part of a Notation
+data GenPart
+  = BindHole Range (Ranged Int)
+    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
+    --   First range is the rhs range and second is the binder.
+  | NormalHole Range (NamedArg (Ranged Int))
+    -- ^ Argument is where the expression should go.
+  | WildHole (Ranged Int)
+    -- ^ An underscore in binding position.
+  | IdPart RString
+  deriving (Data, Show)
+
+instance Eq GenPart where
+  BindHole _ i   == BindHole _ j   = i == j
+  NormalHole _ x == NormalHole _ y = x == y
+  WildHole i     == WildHole j     = i == j
+  IdPart x       == IdPart y       = x == y
+  _              == _              = False
+
+instance Ord GenPart where
+  BindHole _ i   `compare` BindHole _ j   = i `compare` j
+  NormalHole _ x `compare` NormalHole _ y = x `compare` y
+  WildHole i     `compare` WildHole j     = i `compare` j
+  IdPart x       `compare` IdPart y       = x `compare` y
+  BindHole{}     `compare` _              = LT
+  _              `compare` BindHole{}     = GT
+  NormalHole{}   `compare` _              = LT
+  _              `compare` NormalHole{}   = GT
+  WildHole{}     `compare` _              = LT
+  _              `compare` WildHole{}     = GT
+
+instance HasRange GenPart where
+  getRange p = case p of
+    IdPart x       -> getRange x
+    BindHole r _   -> r
+    WildHole i     -> getRange i
+    NormalHole r _ -> r
+
+instance SetRange GenPart where
+  setRange r p = case p of
+    IdPart x       -> IdPart x
+    BindHole _ i   -> BindHole r i
+    WildHole i     -> WildHole i
+    NormalHole _ i -> NormalHole r i
+
+instance KillRange GenPart where
+  killRange p = case p of
+    IdPart x       -> IdPart $ killRange x
+    BindHole _ i   -> BindHole noRange $ killRange i
+    WildHole i     -> WildHole $ killRange i
+    NormalHole _ x -> NormalHole noRange $ killRange x
+
+instance NFData GenPart where
+  rnf (BindHole _ a)   = rnf a
+  rnf (NormalHole _ a) = rnf a
+  rnf (WildHole a)     = rnf a
+  rnf (IdPart a)       = rnf a
