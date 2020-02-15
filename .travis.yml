@@ -75,13 +75,13 @@ jobs:
           echo "*** Stack version ***"   && stack   --version &&
           echo "*** Haddock version ***" && haddock --version &&
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
-      install: |
-        stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
-      script: |
-        stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests
+      install:
+        - stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
+      script:
+        - stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests
         # shelltestrunner is used by `make test-size-solver`
         # we need to cache it first.
-        stack install shelltestrunner ${ARGS}
+        - stack install shelltestrunner ${ARGS}
       before_cache:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
 
