@@ -389,7 +389,9 @@ withExtendedOccEnv' is = local $ \ e -> e { vars = is ++ vars e }
 -- | Running the monad
 getOccurrences
   :: (Show a, PrettyTCM a, ComputeOccurrences a)
-  => [Maybe Item] -> a -> TCM OccurrencesBuilder
+  => [Maybe Item]  -- ^ Extension of the 'OccEnv', usually a local variable context.
+  -> a
+  -> TCM OccurrencesBuilder
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
@@ -524,14 +526,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Datatype{dataPars = np0, dataCons = cs}       -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
-      TelV tel t <- telView $ defType def
+      TelV tel _ <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
-      sizeIndex <- caseMaybe (listToMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
+      sizeIndex <- caseList (drop np0 $ telToList tel) (return 0) $ \ dom _ -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+      let ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
                         ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
