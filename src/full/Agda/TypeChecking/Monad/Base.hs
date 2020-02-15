@@ -79,7 +79,6 @@ import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
 -- comment in ../../Compiler/Backend.hs-boot
 import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 
--- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response

@@ -23,7 +23,6 @@ import qualified Data.HashMap.Strict as HMap
 
 import Agda.Benchmarking
 
--- import {-# SOURCE #-} Agda.Interaction.Response
 import Agda.Interaction.Response
   (InteractionOutputCallback, Response)
 

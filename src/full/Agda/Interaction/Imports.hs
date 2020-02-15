@@ -51,8 +51,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.BasicOps (getGoals)
-import {-# SOURCE #-} Agda.Interaction.EmacsTop (showGoals)
+import Agda.Interaction.BasicOps (getGoals, showGoals)
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise  ( compress )
