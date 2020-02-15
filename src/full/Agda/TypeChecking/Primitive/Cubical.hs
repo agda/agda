@@ -1259,7 +1259,7 @@ primTransHComp cmd ts nelims = do
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
                      bs' = (Map.toAscList $ Map.map boolToI bs)
-                 let weaken = foldr composeS idS $ map (\ j -> liftS j (raiseS 1)) $ map fst bs'
+                 let weaken = foldr ((composeS . (\ j -> liftS j (raiseS 1))) . fst) idS bs'
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
@@ -1295,7 +1295,7 @@ primTransHComp cmd ts nelims = do
           combine l ty d [] = d
           combine l ty d [(psi,u)] = u
           combine l ty d ((psi,u):xs)
-            = pure tPOr <#> l <@> psi <@> (foldr imax iz (map fst xs))
+            = pure tPOr <#> l <@> psi <@> (foldr (imax . fst) iz xs)
                         <#> (ilam "o" $ \ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
           noRed' su = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
@@ -1321,7 +1321,7 @@ primTransHComp cmd ts nelims = do
               let
                 phis :: [Term]
                 phis = for bools $ \ m ->
-                            foldr iMin iO $ map (\(i,b) -> if b then var i else iNeg (var i)) $ Map.toList m
+                            foldr (iMin . (\(i,b) -> if b then var i else iNeg (var i))) iO (Map.toList m)
               runNamesT [] $ do
                 u <- open u
                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
@@ -1640,8 +1640,12 @@ primFaceForall' = do
               ]
          fm (i,b) = if b then var (i-1) else unview (INeg (argN (var $ i-1)))
          ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
-         r = Just $ foldr (\ x r -> unview (IMax (argN x) (argN r))) (unview IZero)
-                                 (map (foldr (\ x r -> unview (IMin (argN (either fm ffr x)) (argN r))) (unview IOne)) us)
+         r = Just $ foldr
+                      ( (\x r -> unview (IMax (argN x) (argN r)))
+                        . (foldr (\x r -> unview (IMin (argN (either fm ffr x)) (argN r))) (unview IOne))
+                      )
+                      (unview IZero)
+                      us
   --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
      return $
        case us' of

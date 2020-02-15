@@ -124,7 +124,7 @@ getPrimitive x =
 
 getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                  => String -> m Term
-getPrimitiveTerm x = (`Def` []) <$> primFunName <$> getPrimitive x
+getPrimitiveTerm x = (`Def` []) . primFunName <$> getPrimitive x
 
 getPrimitiveTerm' :: HasBuiltins m => String -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
@@ -476,9 +476,9 @@ intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
 intervalUnview' = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
   io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
-  imin <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
-  imax <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
-  ineg <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+  imin <- ((`Def` []) . fromMaybe __IMPOSSIBLE__) <$> getPrimitiveName' "primIMin"
+  imax <- ((`Def` []) . fromMaybe __IMPOSSIBLE__) <$> getPrimitiveName' "primIMax"
+  ineg <- ((`Def` []) . fromMaybe __IMPOSSIBLE__) <$> getPrimitiveName' "primINeg"
   return $ \ v -> case v of
              IZero -> iz
              IOne  -> io

@@ -626,7 +626,7 @@ prune
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
   -> m PruneResult
 prune m' vs xs = do
-  caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
+  caseEitherM (runExceptT $ mapM (hasBadRigid xs . unArg) vs)
     (const $ return PrunedNothing) $ \ kills -> do
     reportSDoc "tc.meta.kill" 10 $ vcat
       [ "attempting kills"

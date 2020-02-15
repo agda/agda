@@ -301,7 +301,7 @@ compressedFileInvariant :: CompressedFile -> Bool
 compressedFileInvariant (CompressedFile []) = True
 compressedFileInvariant (CompressedFile f)  =
   all rangeInvariant rs &&
-  all (not . empty) rs &&
+  not (any empty rs) &&
   and (zipWith (<=) (map to $ init rs) (map from $ tail rs))
   where rs = map fst f
 

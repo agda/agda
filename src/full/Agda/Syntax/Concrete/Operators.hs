@@ -348,11 +348,10 @@ buildParsers r flat kind exprNames = do
     let g = Data.Function.fix $ \p -> Parsers
               { pTop    = memoise TopK $
                           Fold.asum $
-                            foldr ($) (pApp p)
-                              (map (\(l, ns) higher ->
-                                       mkP (Right l) parseSections
-                                           (pTop p) ns higher True)
-                                   relatedOperators) :
+                          foldr (($) . (\ (l, ns) higher
+                                        -> mkP (Right l) parseSections (pTop p) ns higher True))
+                                (pApp p)
+                                relatedOperators :
                             map (\(k, n) ->
                                     mkP (Left k) parseSections
                                         (pTop p) [n] (pApp p) False)

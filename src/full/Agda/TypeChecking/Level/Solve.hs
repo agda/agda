@@ -55,8 +55,7 @@ defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
          | otherwise   -> return ()
 
     openLevelMetas :: [MetaId] -> m [MetaId]
-    openLevelMetas xs = return xs
-      >>= filterM (\m -> isNothing <$> isInteractionMeta m)
+    openLevelMetas xs =  filterM (\ m -> isNothing <$> isInteractionMeta m) xs
       >>= filterM (\m -> (== NoGeneralize) <$> isGeneralizableMeta m)
       >>= filterM isLevelMeta
 

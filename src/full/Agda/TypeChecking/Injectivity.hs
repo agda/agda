@@ -223,7 +223,7 @@ checkOverapplication
 checkOverapplication es = updateHeads overapplied
   where
     overapplied :: TermHead -> [Clause] -> m TermHead
-    overapplied h cs | all (not . isOverapplied) cs = return h
+    overapplied h cs | not (any isOverapplied cs) = return h
     overapplied h cs = ifM (isSuperRigid h) (return h) (return UnknownHead)
 
     -- A super-rigid head is one that can't be eliminated. Crucially, this is

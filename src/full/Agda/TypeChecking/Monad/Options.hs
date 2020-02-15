@@ -228,7 +228,7 @@ getInputFile' = mapM (liftIO . absolute) =<< do
   optInputFile <$> commandLineOptions
 
 hasInputFile :: HasOptions m => m Bool
-hasInputFile = isJust <$> optInputFile <$> commandLineOptions
+hasInputFile = isJust . optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions

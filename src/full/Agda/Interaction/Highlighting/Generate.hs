@@ -443,7 +443,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM CompressedFile
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting <$> fst <$> Pa.parseFile Pa.tokensParser file input
+  runPM (tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input)
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
@@ -510,7 +510,7 @@ nameKinds hlLevel decl = do
     _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-  let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
+  let syntax = foldr (($) . declToKind) HMap.empty (universeBi decl)
   let merged = unions [local, imported, syntax]
   return (\n -> HMap.lookup n merged)
   where

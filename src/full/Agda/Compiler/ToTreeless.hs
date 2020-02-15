@@ -275,7 +275,7 @@ commonArity cc =
   where
     arities cxt (Case (Arg _ x) (Branches False cons eta lits def _ _)) =
       concatMap (wArities cxt') (Map.elems cons) ++
-      concatMap (wArities cxt') (map snd $ maybeToList eta) ++
+      concatMap (wArities cxt' . snd) (maybeToList eta) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
       where cxt' = max (x + 1) cxt
