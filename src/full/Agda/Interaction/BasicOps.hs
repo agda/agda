@@ -600,6 +600,12 @@ prettyConstraints cs = do
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = getConstraints' return $ const True
 
+namedMetaOf :: OutputConstraint A.Expr a -> a
+namedMetaOf (OfType i _) = i
+namedMetaOf (JustType i) = i
+namedMetaOf (JustSort i) = i
+namedMetaOf (Assign i _) = i
+namedMetaOf _ = __IMPOSSIBLE__
 
 getConstraintsMentioning :: Rewrite -> MetaId -> TCM [OutputForm C.Expr C.Expr]
 getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMeta m)
@@ -697,6 +703,22 @@ getGoals = do
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
   hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
   return (visibleMetas, hiddenMetas)
+
+-- | Print open metas nicely.
+showGoals :: Goals -> TCM String
+showGoals (ims, hms) = do
+  di <- forM ims $ \ i ->
+    withInteractionId (outputFormId $ OutputForm noRange [] i) $
+      prettyATop i
+  dh <- mapM showA' hms
+  return $ unlines $ map show di ++ dh
+  where
+    showA' :: OutputConstraint A.Expr NamedMeta -> TCM String
+    showA' m = do
+      let i = nmid $ namedMetaOf m
+      r <- getMetaRange i
+      d <- withMetaId i (prettyATop m)
+      return $ show d ++ "  [ at " ++ show r ++ " ]"
 
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
