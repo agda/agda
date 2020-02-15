@@ -276,7 +276,7 @@ addRewriteRulesFor f rews matchables =
 
 setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
 setMatchableSymbols f matchables =
-  foldr (.) id $ map (\g -> updateDefinition g $ setMatchable) matchables
+  foldr ((.) . (\ g -> updateDefinition g $ setMatchable)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 

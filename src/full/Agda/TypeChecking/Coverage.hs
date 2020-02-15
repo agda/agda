@@ -477,7 +477,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
-          results <- mapM (cover f cs) (map snd scs)
+          results <- mapM (cover f cs . snd) scs
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
@@ -782,7 +782,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                                                <#> (ilam "o" $ \ _ -> unEl <$> ty i) <@> u0 <@> u1
           alpha <- do
             vars <- mapM (open . applySubst hcompS . fst) alphab
-            return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+            return $ foldr (imax . (\ v -> v `imax` ineg v)) (pure iz) vars
 
           -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢ b : (i : I) → [α] -> old_t[x = hfill φ u u0 i,δ_fill[i]]
           b <- do
@@ -794,7 +794,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                                                             (ilam "o" $ \ _ -> apply_delta_fill i $ side1 <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
                  recurse [(psi,u)]    i = u i
-                 recurse ((psi,u):xs) i = pOr_ty i psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
+                 recurse ((psi,u):xs) i = pOr_ty i psi ( foldr (imax . fst) (pure iz) xs) (u i) (recurse xs i)
              return $ recurse sides
 
           ((,) <$> ty (pure io) <*>) $ do

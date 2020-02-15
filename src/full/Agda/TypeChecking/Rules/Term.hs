@@ -1544,7 +1544,7 @@ inferExprForWith e = do
 ---------------------------------------------------------------------------
 
 checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
-checkLetBindings = foldr (.) id . map checkLetBinding
+checkLetBindings =  foldr ((.) . checkLetBinding) id
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 

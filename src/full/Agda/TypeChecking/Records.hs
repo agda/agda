@@ -170,7 +170,7 @@ getRecordTypeFields t = do
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
-getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
+getRecordConstructor r = killRange . recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
@@ -650,7 +650,7 @@ etaExpandAtRecordType t u = do
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> TCM Term #-}
 {-# SPECIALIZE etaContractRecord :: QName -> ConHead -> ConInfo -> Args -> ReduceM Term #-}
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
-etaContractRecord r c ci args = if all (not . usableModality) args then fallBack else do
+etaContractRecord r c ci args = if not (any usableModality args) then fallBack else do
   Just Record{ recFields = xs } <- isRecord r
   let check :: Arg Term -> Dom QName -> Maybe (Maybe Term)
       check a ax = do

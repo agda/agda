@@ -693,14 +693,12 @@ toLaTeX cc path source hi
 
   . map (second (
       -- Split tokens at newlines
-      concatMap stringLiteral
+      concatMap (stringLiteral
 
       -- Head the list (the grouped chars contain the same meta info) and
       -- collect the characters into a string.
-    . map (\(mi, cs) ->
-                          Token { text = T.pack cs
-                                , info = fromMaybe mempty mi
-                                })
+    . (\ (mi, cs)
+            -> Token {text = T.pack cs, info = fromMaybe mempty mi}))
       -- Characters which share the same meta info are the same token, so
       -- group them together.
     . groupByFst

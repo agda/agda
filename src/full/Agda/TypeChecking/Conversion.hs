@@ -1381,7 +1381,7 @@ leqLevel a b = do
         -- Is there exactly one @MetaLevel@ in the list of single levels?
         singleMetaView :: [SingleLevel] -> Maybe (LevelAtom, [SingleLevel])
         singleMetaView (SinglePlus (Plus 0 l@(MetaLevel m es)) : ls)
-          | all (not . isMetaLevel) ls = Just (l,ls)
+          | not (any isMetaLevel ls) = Just (l,ls)
         singleMetaView (l : ls)
           | not $ isMetaLevel l = second (l:) <$> singleMetaView ls
         singleMetaView _ = Nothing

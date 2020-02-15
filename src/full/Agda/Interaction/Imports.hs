@@ -149,7 +149,7 @@ mergeInterface i = do
           where
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
-    mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
+    mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
     addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) (iPartialDefs i) warns
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
@@ -579,7 +579,7 @@ getStoredInterface x file isMain msi = do
 
       if optionsChanged then fallback else do
 
-        hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
+        hs <- map iFullHash <$> mapM (getInterface . fst) (iImportedModules i)
 
         -- If any of the imports are newer we need to retype check
         if hs /= map snd (iImportedModules i)
