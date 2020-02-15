@@ -24,6 +24,7 @@ import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
@@ -435,11 +436,11 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
 
 -- | Pretty-prints the type of the meta-variable.
 
-prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
+prettyTypeOfMeta :: Rewrite -> InteractionId -> TCM Doc
 prettyTypeOfMeta norm ii = do
   form <- B.typeOfMeta norm ii
   case form of
-    B.OfType _ e -> prettyATop e
+    OfType _ e -> prettyATop e
     _            -> prettyATop form
 
 -- | Prefix prettified CPUTime with "Time:"

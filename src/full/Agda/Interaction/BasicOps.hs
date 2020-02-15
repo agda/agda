@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
 
+import Agda.Interaction.Base
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
 import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
@@ -312,9 +313,6 @@ evalInMeta ii e =
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
 --
-data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
-    deriving (Show, Read)
-
 normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
 normalForm AsIs         t = return t
 normalForm Instantiated t = return t   -- reify does instantiation
@@ -325,9 +323,6 @@ normalForm Normalised   t = {- etaContract =<< -} normalise t
 -- | Modifier for the interactive computation command,
 --   specifying the mode of computation and result display.
 --
-data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
-  deriving (Show, Read, Eq)
-
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
 computeIgnoreAbstract IgnoreAbstract  = True
@@ -348,41 +343,6 @@ showComputed _ e = prettyATop e
 
 -- | Modifier for interactive commands,
 --   specifying whether safety checks should be ignored.
-data UseForce
-  = WithForce     -- ^ Ignore additional checks, like termination/positivity...
-  | WithoutForce  -- ^ Don't ignore any checks.
-  deriving (Eq, Read, Show)
-
-data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
-  deriving (Functor)
-
-data OutputConstraint a b
-      = OfType b a | CmpInType Comparison a b b
-                   | CmpElim [Polarity] a [b] [b]
-      | JustType b | CmpTypes Comparison b b
-                   | CmpLevels Comparison b b
-                   | CmpTeles Comparison b b
-      | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputConstraint a b) ProblemId
-      | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
-      | IsEmptyType a
-      | SizeLtSat a
-      | FindInstanceOF b a [(a,a)]
-      | PTSInstance b b
-      | PostponedCheckFunDef QName a
-  deriving (Functor)
-
--- | A subset of 'OutputConstraint'.
-
-data OutputConstraint' a b = OfType'
-  { ofName :: b
-  , ofExpr :: a
-  }
-
-data OutputContextEntry name ty val
-  = ContextVar name ty
-  | ContextLet name ty val
-
 outputFormId :: OutputForm a b -> b
 outputFormId (OutputForm _ _ o) = out o
   where

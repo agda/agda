@@ -819,7 +819,7 @@ interpret Cmd_abort = return ()
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.
-solveInstantiatedGoals :: B.Rewrite -> Maybe InteractionId -> CommandM ()
+solveInstantiatedGoals :: Rewrite -> Maybe InteractionId -> CommandM ()
 solveInstantiatedGoals norm mii = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
@@ -1022,7 +1022,7 @@ sortInteractionPoints is =
 --
 --   Should not modify the state.
 
-cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range ->
+cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getResponseContext norm ii
@@ -1033,7 +1033,7 @@ cmd_goal_type_context_and aux norm ii _ _ = do
 -- | Shows all the top-level names in the given module, along with
 -- their types.
 
-showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
+showModuleContents :: Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = do
   (modules, tel, types) <- lift $ B.moduleContents norm rng s
   display_info $ Info_ModuleContents modules tel types
@@ -1041,7 +1041,7 @@ showModuleContents norm rng s = do
 -- | Shows all the top-level names in scope which mention all the given
 -- identifiers in their type.
 
-searchAbout :: B.Rewrite -> Range -> String -> CommandM ()
+searchAbout :: Rewrite -> Range -> String -> CommandM ()
 searchAbout norm rg names = do
   let trimmedNames = trim names
   unless (null trimmedNames) $ do
