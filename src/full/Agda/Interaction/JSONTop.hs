@@ -10,9 +10,9 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
-import Agda.Interaction.Base (CommandState(..))
+import Agda.Interaction.Base
+  (CommandState(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import qualified Agda.Interaction.BasicOps as B
-import Agda.Interaction.BasicOps (ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
