@@ -982,21 +982,21 @@ nameToFileA modMap file x include m =
     if P.rangeFile r == Strict.Just file
     then r else noRange
     where
-    r = theNameRange $ A.nameFixity $ A.qnameName x
+    r = Common.theNameRange $ A.nameFixity $ A.qnameName x
 
   notationFile =
     if P.rangeFile (getRange notation) == Strict.Just file
     then mconcat $ map genPartFile notation
     else mempty
     where
-    notation = theNotation $ A.nameFixity $ A.qnameName x
+    notation = Common.theNotation $ A.nameFixity $ A.qnameName x
 
     boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
 
-    genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile WildHole{}       = mempty
-    genPartFile (IdPart x)       = singleton (rToR $ getRange x) (m False)
+    genPartFile (Common.BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile (Common.NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile Common.WildHole{}       = mempty
+    genPartFile (Common.IdPart x)       = singleton (rToR $ getRange x) (m False)
 
 concreteBase :: I.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName

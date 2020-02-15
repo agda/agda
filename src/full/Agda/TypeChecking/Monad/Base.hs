@@ -62,7 +62,7 @@ import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
 import Agda.Syntax.Treeless (Compiled)
-import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
@@ -3565,6 +3565,20 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
 
+-- | Gets the include directories.
+--
+-- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
+-- 'setCommandLineOptions' must have run).
+
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs = do
+  incs <- optAbsoluteIncludePaths <$> commandLineOptions
+  case incs of
+    [] -> __IMPOSSIBLE__
+    _  -> return incs
+
+enableCaching :: HasOptions m => m Bool
+enableCaching = optCaching <$> pragmaOptions
 -----------------------------------------------------------------------------
 -- * The reduce monad
 -----------------------------------------------------------------------------
