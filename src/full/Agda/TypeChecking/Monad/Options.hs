@@ -11,7 +11,7 @@ import Data.Maybe
 import System.Directory
 import System.FilePath
 
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
