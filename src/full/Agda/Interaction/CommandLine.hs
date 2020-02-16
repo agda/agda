@@ -6,6 +6,7 @@ import Control.Monad.Reader
 import qualified Data.List as List
 import Data.Maybe
 
+import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
 import Agda.Interaction.Monad
 

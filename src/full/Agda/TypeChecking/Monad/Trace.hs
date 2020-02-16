@@ -5,12 +5,19 @@ import Prelude hiding (null)
 
 import Control.Monad.Reader
 
-import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate
-  (highlightAsTypeChecked)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Position as P
+
+import Agda.Interaction.Response
+import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Range (rToR, minus)
+
 import Agda.TypeChecking.Monad.Base
+  hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Function
 
@@ -180,3 +187,58 @@ setCurrentRange :: (MonadTCM tcm, ReadTCState tcm, MonadDebug tcm, HasRange x)
                 => x -> tcm a -> tcm a
 setCurrentRange x = applyUnless (null r) $ traceCall $ SetRange r
   where r = getRange x
+
+-- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
+--   result. Additionally, some code may be highlighted:
+--
+-- * If @r@ is non-empty and not a sub-range of @rPre@ (after
+--   'P.continuousPerLine' has been applied to both): @r@ is
+--   highlighted as being type-checked while @m@ is running (this
+--   highlighting is removed if @m@ completes /successfully/).
+--
+-- * Otherwise: Highlighting is removed for @rPre - r@ before @m@
+--   runs, and if @m@ completes successfully, then @rPre - r@ is
+--   highlighted as being type-checked.
+
+highlightAsTypeChecked
+  :: (MonadTCM tcm, ReadTCState tcm)
+  => Range   -- ^ @rPre@
+  -> Range   -- ^ @r@
+  -> tcm a
+  -> tcm a
+highlightAsTypeChecked rPre r m
+  | r /= noRange && delta == rPre' = wrap r'    highlight clear
+  | otherwise                      = wrap delta clear     highlight
+  where
+  rPre'     = rToR (P.continuousPerLine rPre)
+  r'        = rToR (P.continuousPerLine r)
+  delta     = rPre' `minus` r'
+  clear     = mempty
+  highlight = parserBased { otherAspects = Set.singleton TypeChecks }
+
+  wrap rs x y = do
+    p rs x
+    v <- m
+    p rs y
+    return v
+    where
+    p rs x = printHighlightingInfo KeepHighlighting (singletonC rs x)
+
+-- | Lispify and print the given highlighting information.
+
+printHighlightingInfo ::
+  (MonadTCM tcm, ReadTCState tcm) =>
+  RemoveTokenBasedHighlighting ->
+  HighlightingInfo ->
+  tcm ()
+printHighlightingInfo remove info = do
+  modToSrc <- useTC stModuleToSource
+  method   <- viewTC eHighlightingMethod
+  liftTCM $ reportS "highlighting" 50
+    [ "Printing highlighting info:"
+    , show info
+    , "  modToSrc = " ++ show modToSrc
+    ]
+  unless (null $ ranges info) $ do
+    liftTCM $ appInteractionOutputCallback $
+        Resp_HighlightingInfo info remove method modToSrc

@@ -24,6 +24,7 @@ import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Interaction.AgdaTop
+import Agda.Interaction.Base
 import Agda.Interaction.BasicOps as B
 import Agda.Interaction.Response as R
 import Agda.Interaction.EmacsCommand hiding (putResponse)
@@ -432,38 +433,15 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
       | null docs = empty
       | otherwise = (" " <+>) $ parens $ fsep $ punctuate comma docs
 
-namedMetaOf :: B.OutputConstraint A.Expr a -> a
-namedMetaOf (B.OfType i _) = i
-namedMetaOf (B.JustType i) = i
-namedMetaOf (B.JustSort i) = i
-namedMetaOf (B.Assign i _) = i
-namedMetaOf _ = __IMPOSSIBLE__
-
--- | Print open metas nicely.
-showGoals :: Goals -> TCM String
-showGoals (ims, hms) = do
-  di <- forM ims $ \ i ->
-    B.withInteractionId (B.outputFormId $ B.OutputForm noRange [] i) $
-      prettyATop i
-  dh <- mapM showA' hms
-  return $ unlines $ map show di ++ dh
-  where
-    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
-    showA' m = do
-      let i = nmid $ namedMetaOf m
-      r <- getMetaRange i
-      d <- B.withMetaId i (prettyATop m)
-      return $ show d ++ "  [ at " ++ show r ++ " ]"
 
 -- | Pretty-prints the type of the meta-variable.
 
-prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
+prettyTypeOfMeta :: Rewrite -> InteractionId -> TCM Doc
 prettyTypeOfMeta norm ii = do
   form <- B.typeOfMeta norm ii
   case form of
-    B.OfType _ e -> prettyATop e
+    OfType _ e -> prettyATop e
     _            -> prettyATop form
-
 
 -- | Prefix prettified CPUTime with "Time:"
 prettyTimed :: CPUTime -> Doc
