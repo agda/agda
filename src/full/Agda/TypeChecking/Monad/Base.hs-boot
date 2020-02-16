@@ -40,3 +40,4 @@ type BackendName = String
 
 data Comparison
 newtype ProblemId = ProblemId Nat
+data Polarity

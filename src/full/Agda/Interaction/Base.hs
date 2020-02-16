@@ -21,7 +21,6 @@ import           Agda.Syntax.Common           (InteractionId (..))
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
 
---import {-# SOURCE #-} Agda.Interaction.BasicOps    (UseForce)
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
