@@ -73,8 +73,6 @@ extra-source-files: CHANGELOG.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
                     stack-8.8.2.yaml
-                    -- ASR (2020-01-16). I'll keep the below file for a while.
-                    stack-8.8.1.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
                     stack-8.2.2.yaml
