@@ -453,12 +453,18 @@ nameKinds hlLevel decl = do
   local    <- case hlLevel of
     Full{} -> useTC $ stSignature . sigDefinitions
     _      -> return HMap.empty
+  impPatSyns <- useTC stPatternSynImports
+  locPatSyns <- case hlLevel of
+    Full{} -> useTC stPatternSyns
+    _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
   let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
   return $ \ n -> unionsMaybeWith merge
     [ defnToKind . theDef <$> HMap.lookup n local
+    , con <$ Map.lookup n locPatSyns
     , defnToKind . theDef <$> HMap.lookup n imported
+    , con <$ Map.lookup n impPatSyns
     , HMap.lookup n syntax
     ]
   where
@@ -503,7 +509,7 @@ nameKinds hlLevel decl = do
   declToKind (A.Pragma {})          = id
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
-  declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
+  declToKind (A.PatternSynDef q _ _) = insert q con
   declToKind (A.Generalize _ _ _ q _) = insert q Generalizable
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
@@ -511,14 +517,13 @@ nameKinds hlLevel decl = do
   declToKind (A.DataSig _ q _ _)      = insert q Datatype
   declToKind (A.DataDef _ q _ _ cs)   = \m ->
                                       insert q Datatype $
-                                      foldr (\d -> insert (A.axiomName d)
-                                                          (Constructor Common.Inductive))
+                                      foldr (\d -> insert (A.axiomName d) con)
                                             m cs
   declToKind (A.RecSig _ q _ _)       = insert q Record
-  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record .
-                                      case c of
-                                        Nothing -> id
-                                        Just q  -> insert q (Constructor Common.Inductive)
+  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record . maybe id (`insert` con) c
+
+  con :: NameKind
+  con = Constructor Common.Inductive
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declaration.
