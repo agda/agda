@@ -112,4 +112,13 @@ data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
 
-{-# BUILTIN NATURAL Nat -#}  -- NATURAL should be highlighted as keyword.
+{-# BUILTIN NATURAL Nat #-}  -- NATURAL should be highlighted as keyword.
+
+module Issue3432 where
+
+  pattern con′ x y = con x y
+  pattern d′       = d
+
+open Issue3432 using (con′; d′)
+  -- These pattern synonyms should be highlighted
+  -- in inductive constructor color.
