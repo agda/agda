@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Rules.Data where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -31,13 +33,13 @@ import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(StrictPos))
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -45,6 +47,7 @@ import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -239,33 +242,33 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- of the datatype in an empty context (c.f. getContextSize above).
         params <- getContextTelescope
 
+        -- Cannot compose indexed inductive types yet.
+        (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+          then return (ConHead c Inductive [], emptyCompKit, Nothing)
+          else do
+            -- Name for projection of ith field of constructor c is just c-i
+            names <- forM [0 .. size fields - 1] $ \ i ->
+              freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
+
+            -- nofIxs == 0 means the data type can be reconstructed
+            -- by appling the QName d to the parameters.
+            let dataT = El s $ Def d $ map Apply $ teleArgs params
+
+            reportSDoc "tc.data.con.comp" 5 $ inTopContext $ vcat $
+              [ "params =" <+> pretty params
+              , "dataT  =" <+> pretty dataT
+              , "fields =" <+> pretty fields
+              , "names  =" <+> pretty names
+              ]
+
+            let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+
+            defineProjections d con params names fields dataT
+            comp <- inTopContext $ defineCompData d con params names fields dataT boundary
+            return (con, comp, Just names)
+
         -- add parameters to constructor type and put into signature
         escapeContext __IMPOSSIBLE__ (size tel) $ do
-
-          -- Cannot compose indexed inductive types yet.
-          (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-            then return (ConHead c Inductive [], emptyCompKit, Nothing)
-            else inTopContext $ do
-              -- Name for projection of ith field of constructor c is just c-i
-              names <- forM [0 .. size fields - 1] $ \ i ->
-                freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
-
-              -- nofIxs == 0 means the data type can be reconstructed
-              -- by appling the QName d to the parameters.
-              dataT <- El s <$> (pure $ Def d $ map Apply $ teleArgs params)
-
-              reportSDoc "tc.data.con.comp" 5 $ vcat $
-                [ "params =" <+> pretty params
-                , "dataT  =" <+> pretty dataT
-                , "fields =" <+> pretty fields
-                , "names  =" <+> pretty names
-                ]
-
-              let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
-
-              defineProjections d con params names fields dataT
-              comp <- defineCompData d con params names fields dataT boundary
-              return (con, comp, Just names)
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
@@ -280,9 +283,6 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conForced = forcedArgs
               , conErased = Nothing  -- computed during compilation to treeless
               }
-
-          -- Check generated projections for projection-likeness
-          traverse_ (mapM_ makeProjection) $ projNames
 
         -- Add the constructor to the instance table, if needed
         case Info.defInstance i of
@@ -370,8 +370,8 @@ defineCompData d con params names fsT t boundary = do
     -- Δ^I, i : I |- sub Δ : Δ
     sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
-    defineTranspOrHCompD cmd d con params names fsT t boundary
-      = do
+
+    defineTranspOrHCompD cmd d con params names fsT t boundary = do
       let project = (\ t p -> apply (Def p []) [argN t])
       stuff <- defineTranspOrHCompForFields cmd
                  (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
@@ -521,31 +521,22 @@ defineCompData d con params names fsT t boundary = do
 --        (tel',theta) = (abstract gamma' (d0 `applySubst` fsT), (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT))
 
       let
-        clause | null boundary
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = teleNamedArgs gamma
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            , clauseEllipsis = NoEllipsis
-            }
-
-               | otherwise
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            , clauseEllipsis = NoEllipsis
-            }
+        pats | null boundary = teleNamedArgs gamma
+             | otherwise     = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
+        clause = Clause
+          { clauseTel         = gamma
+          , clauseType        = Just . argN $ ty
+          , namedClausePats   = pats
+          , clauseFullRange   = noRange
+          , clauseLHSRange    = noRange
+          , clauseCatchall    = False
+          , clauseBody        = Just $ body
+          , clauseRecursive   = Nothing
+              -- Andreas 2020-02-06 TODO
+              -- Or: Just False;  is it known to be non-recursive?
+          , clauseUnreachable = Just False
+          , clauseEllipsis    = NoEllipsis
+          }
         cs = [clause]
       addClauses theName cs
       (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
@@ -560,6 +551,10 @@ defineCompData d con params names fsT t boundary = do
       if all isJust xs then m else return Nothing
 
 -- Andrea: TODO handle Irrelevant fields somehow.
+-- | Define projections for non-indexed data types (families don't work yet).
+--   Of course, these projections are partial functions in general.
+--
+--   Precondition: we are in the context Γ of the data type parameters.
 defineProjections :: QName      -- datatype name
                   -> ConHead
                   -> Telescope  -- Γ parameters
@@ -567,50 +562,64 @@ defineProjections :: QName      -- datatype name
                   -> Telescope  -- Γ ⊢ Φ field types
                   -> Type       -- Γ ⊢ T target type
                   -> TCM ()
-defineProjections dataname con params names fsT t = do
+defineProjections dataName con params names fsT t = do
   let
     -- Γ , (d : T) ⊢ Φ[n ↦ proj n d]
     fieldTypes = ([ Def f [] `apply` [argN $ var 0] | f <- reverse names ] ++# raiseS 1) `applySubst`
                     flattenTel fsT  -- Γ , Φ ⊢ Φ
     -- ⊢ Γ , (d : T)
-    projTel = abstract params (ExtendTel (defaultDom t) (Abs "d" EmptyTel))
+    projTel    = abstract params (ExtendTel (defaultDom t) (Abs "d" EmptyTel))
+    np         = size params
+
   forM_ (zip3 (downFrom (size fieldTypes)) names fieldTypes) $ \ (i,projName,ty) -> do
     let
       projType = abstract projTel <$> ty
-
-    inTopContext $ do
-      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
-
-    let
-      cpi  = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
-      conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
-      clause = Clause
-          { clauseTel = abstract params fsT
-          , clauseType = Just . argN $ ([Con con ConOSystem (map Apply $ teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
-          , namedClausePats = raise (size fsT) (teleNamedArgs params) ++ [Named Nothing <$> conp]
-          , clauseFullRange = noRange
-          , clauseLHSRange  = noRange
-          , clauseCatchall = False
-          , clauseBody = Just $ var i
+      cpi    = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
+      conp   = defaultNamedArg $ ConP con cpi $ teleNamedArgs fsT
+      sigma  = Con con ConOSystem (map Apply $ teleArgs fsT) `consS` raiseS (size fsT)
+      clause = empty
+          { clauseTel         = abstract params fsT
+          , namedClausePats   = [ conp ]
+          , clauseBody        = Just $ var i
+          , clauseType        = Just $ argN $ applySubst sigma $ unDom ty
+          , clauseRecursive   = Just False  -- non-recursive
           , clauseUnreachable = Just False
-          , clauseEllipsis = NoEllipsis
           }
 
+    reportSDoc "tc.data.proj" 20 $ inTopContext $ sep
+      [ "proj" <+> prettyTCM (i,ty)
+      , nest 2 $ sep [ prettyTCM projName, ":", prettyTCM projType ]
+      ]
+
+    -- Andreas, 2020-02-14, issue #4437
+    -- Define data projections as projection-like from the start.
     noMutualBlock $ do
-      let cs = [clause]
-      (mst, _, cc) <- inTopContext $ compileClauses Nothing cs
+      let cs = [ clause ]
+      (mst, _, cc) <- compileClauses Nothing cs
       let fun = emptyFunction
-                { funClauses = cs
+                { funClauses    = cs
+                , funCompiled   = Just cc
+                , funSplitTree  = mst
+                , funProjection = Just $ Projection
+                    { projProper   = Nothing
+                    , projOrig     = projName
+                    , projFromType = Arg (getArgInfo ty) dataName
+                    , projIndex    = np + 1
+                    , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
+                    }
+                , funMutual     = Just []
                 , funTerminates = Just True
-                , funCompiled = Just cc
-                , funSplitTree = mst
-                , funMutual = Just []
                 }
-      addConstant projName $
+      inTopContext $ addConstant projName $
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
-          { defNoCompilation = True }
-      inTopContext $ do
-        reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
+          { defNoCompilation  = True
+          , defArgOccurrences = [StrictPos]
+          }
+
+      reportSDoc "tc.data.proj.fun" 60 $ inTopContext $ vcat
+        [ "proj" <+> prettyTCM i
+        , nest 2 $ pretty fun
+        ]
 
 
 freshAbstractQName'_ :: String -> TCM QName

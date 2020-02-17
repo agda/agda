@@ -640,6 +640,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
                     , clauseCatchall  = False
+                    , clauseRecursive   = Just False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis  = NoEllipsis
                     }
@@ -690,7 +691,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
        addConstant qname =<< do
          useTerPragma $
            (defaultDefn info qname t emptyFunction) { defMutual = j }
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod Nothing) Nothing di qname cs
+       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod empty) Nothing di qname cs
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
          checkIApplyConfluence_ qname

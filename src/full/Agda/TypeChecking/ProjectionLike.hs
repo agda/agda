@@ -271,16 +271,20 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
               , nest 2 $ "clauses =" <?> vcat (map pretty cls) ]
             Just (d, n) -> do
               -- Yes, we are projection-like!
-              reportSDoc "tc.proj.like" 10 $ sep
+              reportSDoc "tc.proj.like" 10 $ vcat
                 [ prettyTCM x <+> " : " <+> prettyTCM t
-                , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
+                , nest 2 $ sep
+                  [ "is projection like in argument",  prettyTCM n, "for type", prettyTCM (unArg d) ]
                 ]
               __CRASH_WHEN__ "tc.proj.like.crash" 1000
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
                   st   = dropArgs n st0
-              reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
+              reportSLn "tc.proj.like" 60 $ unlines
+                [ "  rewrote clauses to"
+                , "    " ++ show cc
+                ]
 
               -- Andreas, 2013-10-20 build parameter dropping function
               let pIndex = n + 1

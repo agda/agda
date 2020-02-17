@@ -19,9 +19,8 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps
-  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
-import Agda.Interaction.Base (CommandState)
+import Agda.Interaction.Base
+  (CommandState, OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..), Arg)

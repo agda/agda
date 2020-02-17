@@ -51,6 +51,7 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
@@ -368,7 +369,7 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause rl rf tel ps b t catchall unreachable ell) args
+    apply cls@(Clause rl rf tel ps b t catchall recursive unreachable ell) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
       Clause rl rf
@@ -377,6 +378,7 @@ instance Apply Clause where
              (applySubst rho b)
              (applySubst rho t)
              catchall
+             recursive
              unreachable
              ell
       where
@@ -536,6 +538,10 @@ instance Apply t => Apply (Maybe t) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
 
+instance Apply t => Apply (Strict.Maybe t) where
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
+
 instance Apply v => Apply (Map k v) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
@@ -690,12 +696,13 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause rl rf tel' ps b t catchall unreachable ell) =
+  abstract tel (Clause rl rf tel' ps b t catchall recursive unreachable ell) =
     Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
            t -- nothing to do for t, since it lives under the telescope
            catchall
+           recursive
            unreachable
            ell
       where m = size tel + size tel'

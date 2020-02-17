@@ -28,6 +28,7 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteScope, abstractToConcrete_, runAbsToCon, toConcrete)
+import Agda.Interaction.Base
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
@@ -376,12 +377,12 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
             case cls' of
              Left{} -> stopWithMsg "No solution found"
              Right cls' -> do
-              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall reachable ell) -> do
+              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall recursive reachable ell) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
-                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable ell
+                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall recursive reachable ell
               moduleTel <- lookupSection (AN.qnameModule def)
               pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks

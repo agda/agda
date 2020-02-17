@@ -13,6 +13,8 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
 import Agda.Utils.Function
+import Agda.Utils.SmallSet
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -109,7 +111,7 @@ putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: MonadTCEnv m => m a -> m a
-onlyReduceProjections = putAllowedReductions [ProjectionReductions]
+onlyReduceProjections = putAllowedReductions $ SmallSet.singleton ProjectionReductions
 
 -- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: MonadTCEnv m => m a -> m a
@@ -117,17 +119,19 @@ allowAllReductions = putAllowedReductions allReductions
 
 -- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
-allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
+allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 
 -- | Allow all reductions when reducing types
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
-onlyReduceTypes = putAllowedReductions [TypeLevelReductions]
+onlyReduceTypes = putAllowedReductions $ SmallSet.singleton TypeLevelReductions
 
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a
 typeLevelReductions = modifyAllowedReductions $ \reds -> if
-  | TypeLevelReductions `elem` reds ->
-      applyWhen (NonTerminatingReductions `elem` reds) (NonTerminatingReductions:) allReductions
+  | TypeLevelReductions `SmallSet.member` reds ->
+      if NonTerminatingReductions `SmallSet.member` reds
+       then reallyAllReductions
+       else allReductions
   | otherwise -> reds
 
 -- * Concerning 'envInsideDotPattern'

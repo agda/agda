@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Records where
 
-import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad

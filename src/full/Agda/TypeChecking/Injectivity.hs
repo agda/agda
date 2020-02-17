@@ -1,3 +1,42 @@
+{- |
+
+"Injectivity", or more precisely, "constructor headedness", is a
+property of functions defined by pattern matching that helps us solve
+constraints involving blocked applications of such functions.
+"Blocked" shall mean here that pattern matching is blocked on a meta
+variable, and constructor headedness lets us learn more about that
+meta variable.
+
+Consider the simple example:
+@
+  isZero : Nat -> Bool
+  isZero zero    = true
+  isZero (suc n) = false
+@
+This function is constructor-headed, meaning that all rhss are headed
+by a distinct constructor.  Thus, on a constraint like
+@
+  isZero ?X = false : Bool
+@
+involving an application of @isZero@ that is blocked on meta variable @?X@,
+we can exploit injectivity and learn that @?X = suc ?Y@ for a new
+meta-variable @?Y@.
+
+Which functions qualify for injectivity?
+
+1. The function needs to have at least one non-absurd clause that has
+a proper match, meaning that the function can actually be blocked on a
+meta.  Proper matches are these patterns:
+
+  - data constructor (@ConP@, but not record constructor)
+  - literal (@LitP@)
+  - HIT-patterns (@DefP@)
+
+Projection patterns (@ProjP@) are excluded because metas cannot occupy their place!
+
+2. All the clauses that satisfy (1.) need to be headed by a distinct constructor.
+
+-}
 
 module Agda.TypeChecking.Injectivity where
 
@@ -125,20 +164,24 @@ updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
   where f' (h, c) = (`Map.singleton` c) <$> f h c
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs
-  | pointless cs = do
-      reportSLn "tc.inj.check.pointless" 20 $
+checkInjectivity f cs0
+  | null $ filter properlyMatchingClause cs = do
+      reportSLn "tc.inj.check.pointless" 35 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
+  | otherwise = checkInjectivity' f cs
   where
-    -- Is it pointless to use injectivity for this function?
-    pointless []      = True
-    pointless (_:_:_) = False
-    pointless [cl] = not $ any (properlyMatching . namedArg) $ namedClausePats cl
-        -- Andreas, 2014-06-12
-        -- If we only have record patterns, it is also pointless.
-        -- We need at least one proper match.
-checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
+    -- We can filter out absurd clauses.
+    cs = filter (isJust . clauseBody) cs0
+    -- We cannot filter out clauses that have no proper match, because
+    -- these could be catch-all clauses.
+    -- However, we need at least one proper match to get injectivity started.
+    properlyMatchingClause =
+      any (properlyMatching' False False . namedArg) . namedClausePats
+
+-- | Precondition: all the given clauses are non-absurd and contain a proper match.
+checkInjectivity' :: QName -> [Clause] -> TCM FunctionInverse
+checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ prettyShow f
 
   let varToArg :: Clause -> TermHead -> MaybeT TCM TermHead

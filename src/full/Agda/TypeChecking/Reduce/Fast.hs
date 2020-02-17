@@ -80,6 +80,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Zipper
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -413,8 +414,8 @@ fastReduce' norm v = do
     rewr <- if rwr then instantiateRewriteRules =<< getRewriteRulesFor f
                    else return []
     compactDef bEnv info rewr
-  let flags = ReductionFlags{ allowNonTerminating = NonTerminatingReductions `elem` allowedReductions
-                            , allowUnconfirmed    = UnconfirmedReductions `elem` allowedReductions
+  let flags = ReductionFlags{ allowNonTerminating = NonTerminatingReductions `SmallSet.member` allowedReductions
+                            , allowUnconfirmed    = UnconfirmedReductions `SmallSet.member` allowedReductions
                             , hasRewriting        = rwr }
   ReduceM $ \ redEnv -> reduceTm redEnv bEnv (memoQName constInfo) norm flags v
 

@@ -116,11 +116,8 @@ localNames flat = do
     opOrNot n      = Left (notaName n) :
                      if null (notation n) then [] else [Right n]
 
--- | Data structure filled in by @buildParsers@.
---   The top-level parser @pTop@ is of primary interest,
---   but @pArgs@ is used to convert module application
---   from concrete to abstract syntax.
-data Parsers e = Parsers
+-- | A data structure used internally by 'buildParsers'.
+data InternalParsers e = InternalParsers
   { pTop    :: Parser e e
   , pApp    :: Parser e e
   , pArgs   :: Parser e [NamedArg e]
@@ -128,10 +125,28 @@ data Parsers e = Parsers
   , pAtom   :: Parser e e
   }
 
-data ExprKind = IsPattern | IsExpr
+-- | Expression kinds: Expressions or patterns.
+data ExprKind = IsExpr | IsPattern
   deriving (Eq, Show)
 
--- | Builds a parser for operator applications from all the operators
+-- | The data returned by 'buildParsers'.
+
+data Parsers e = Parsers
+  { parser :: [e] -> [e]
+    -- ^ A parser for expressions or patterns (depending on the
+    -- 'ExprKind' argument given to 'buildParsers').
+  , argsParser :: [e] -> [[NamedArg e]]
+    -- ^ A parser for sequences of arguments.
+  , operators :: [NotationSection]
+    -- ^ All operators/notations/sections that were used to generate
+    -- the grammar.
+  , flattenedScope :: FlatScope
+    -- ^ A flattened scope that only contains those names that are
+    -- unqualified or qualified by qualifiers that occur in the list
+    -- of names given to 'buildParser'.
+  }
+
+-- | Builds parsers for operator applications from all the operators
 -- and function symbols in scope.
 --
 -- When parsing a pattern we do not use bound names. The effect is
@@ -145,22 +160,23 @@ data ExprKind = IsPattern | IsExpr
 -- (@_+_@ is replaced by @_@, @+@ and @_@), and if we were to support
 -- sections in patterns, then we would have to accept certain such
 -- sequences of tokens as single pattern variables.
---
--- The list of names must include every name part in the
--- expression/pattern to be parsed (excluding name parts inside things
--- like parenthesised subexpressions that are treated as atoms). The
--- list is used to optimise the parser. For instance, a given notation
--- is only included in the generated grammar if all of the notation's
--- name parts are present in the list of names.
---
--- The returned list contains all operators/notations/sections that
--- were used to generate the grammar.
 
-buildParsers ::
-  forall e. IsExpr e =>
-  Range -> FlatScope -> ExprKind -> [QName] ->
-  ScopeM (ParseSections, [NotationSection], Parsers e)
-buildParsers r flat kind exprNames = do
+buildParsers
+  :: forall e. IsExpr e
+  => ExprKind
+     -- ^ Should expressions or patterns be parsed?
+  -> [QName]
+     -- ^ This list must include every name part in the
+     -- expression/pattern to be parsed (excluding name parts inside
+     -- things like parenthesised subexpressions that are treated as
+     -- atoms). The list is used to optimise the parser. For
+     -- instance, a given notation is only included in the generated
+     -- grammar if all of the notation's name parts are present in
+     -- the list of names.
+  -> ScopeM (Parsers e)
+buildParsers kind exprNames = do
+    flat         <- flattenScope (qualifierModules exprNames) <$>
+                      getScope
     (names, ops) <- localNames flat
 
     let -- All names.
@@ -345,7 +361,7 @@ buildParsers r flat kind exprNames = do
       , "relatedOperators   = " ++ show relatedOperators
       ]
 
-    let g = Data.Function.fix $ \p -> Parsers
+    let g = Data.Function.fix $ \p -> InternalParsers
               { pTop    = memoise TopK $
                           Fold.asum $
                             foldr ($) (pApp p)
@@ -387,7 +403,12 @@ buildParsers r flat kind exprNames = do
     reportSDoc "scope.grammar" 10 $ return $
       "Operator grammar:" $$ nest 2 (grammar (pTop g))
 
-    return (parseSections, everything, g)
+    return $ Parsers
+      { parser         = parse (parseSections, pTop  g)
+      , argsParser     = parse (parseSections, pArgs g)
+      , operators      = everything
+      , flattenedScope = flat
+      }
     where
         level :: NewNotation -> FixityLevel
         level = fixityLevel . notaFixity
@@ -503,12 +524,11 @@ buildParsers r flat kind exprNames = do
 ---------------------------------------------------------------------------
 
 -- | Returns the list of possible parses.
-parsePat ::
-  (ParseSections, Parser Pattern Pattern) -> Pattern -> [Pattern]
+parsePat :: ([Pattern] -> [Pattern]) -> Pattern -> [Pattern]
 parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
+    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs ps)
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
@@ -586,30 +606,27 @@ parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
 parseLHS' lhsOrPatSyn top p = do
 
     -- Build parser.
-    let names = patternQNames p
-        ms    = qualifierModules names
-    flat <- flattenScope ms <$> getScope
-    (parseSections, ops, parsers) <-
-      buildParsers (getRange p) flat IsPattern names
-    let patP = (parseSections, pTop parsers)
+    patP <- buildParsers IsPattern (patternQNames p)
 
     -- Run parser, forcing result.
-    let ps   = let result = parsePat patP p
+    let ps   = let result = parsePat (parser patP) p
                in  foldr seq () result `seq` result
 
     -- Classify parse results.
-    let cons = getNames (someKindsOfNames [ConName, PatternSynName]) flat
-    let flds = getNames (someKindsOfNames [FldName]) flat
+    let cons = getNames (someKindsOfNames [ConName, PatternSynName])
+                        (flattenedScope patP)
+    let flds = getNames (someKindsOfNames [FldName])
+                        (flattenedScope patP)
     let conf = PatternCheckConfig top cons flds
     case mapMaybe (validPattern conf) ps of
         -- Unique result.
         [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
-                        return (lhs, ops)
+                        return (lhs, operators patP)
         -- No result.
-        []        -> typeError $ OperatorInformation ops
+        []        -> typeError $ OperatorInformation (operators patP)
                                $ NoParseForLHS lhsOrPatSyn p
         -- Ambiguous result.
-        rs        -> typeError $ OperatorInformation ops
+        rs        -> typeError $ OperatorInformation (operators patP)
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
@@ -728,21 +745,18 @@ parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es  = billToParser IsExpr $ do
     -- Build the parser
-    let names = [ q | Ident q <- es ]
-        ms    = qualifierModules names
-    flat <- flattenScope ms <$> getScope
-    (parseSections, ops, p) <- buildParsers (getRange es) flat IsExpr names
+    p <- buildParsers IsExpr [ q | Ident q <- es ]
 
     -- Parse
-    let result = parse (parseSections, pTop p) es
+    let result = parser p es
     case foldr seq () result `seq` result of
         [e] -> do
           reportSDoc "scope.operators" 50 $ return $
             "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorInformation ops
+        []  -> typeError $ OperatorInformation (operators p)
                          $ NoParseForApplication es
-        es' -> typeError $ OperatorInformation ops
+        es' -> typeError $ OperatorInformation (operators p)
                          $ AmbiguousParseForApplication es
                          $ map fullParen es'
 
@@ -756,21 +770,17 @@ parseRawModuleApplication es = billToParser IsExpr $ do
     m <- parseModuleIdentifier e
 
     -- Build the arguments parser
-    let names = [ q | Ident q <- es_args ]
-        ms    = qualifierModules names
-    flat <- flattenScope ms <$> getScope
-    (parseSections, ops, p) <-
-      buildParsers (getRange es_args) flat IsExpr names
+    p <- buildParsers IsExpr [ q | Ident q <- es_args ]
 
     -- Parse
     -- TODO: not sure about forcing
-    case {-force $-} parse (parseSections, pArgs p) es_args of
+    case {-force $-} argsParser p es_args of
         [as] -> return (m, as)
-        []   -> typeError $ OperatorInformation ops
+        []   -> typeError $ OperatorInformation (operators p)
                           $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
-          typeError $ OperatorInformation ops
+          typeError $ OperatorInformation (operators p)
                     $ AmbiguousParseForApplication es
                     $ map f ass
 

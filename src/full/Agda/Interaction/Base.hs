@@ -13,15 +13,14 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (HighlightingLevel,
-                                                    HighlightingMethod, TCM)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+  (HighlightingLevel, HighlightingMethod, TCM, ProblemId, Comparison, Polarity)
 
+import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (InteractionId (..))
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps    (UseForce)
-import {-# SOURCE #-} qualified Agda.Interaction.BasicOps    as B
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
@@ -136,17 +135,17 @@ data Interaction' range
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
   | Cmd_show_module_contents_toplevel
-                        B.Rewrite
+                        Rewrite
                         String
 
     -- | Shows all the top-level names in scope which mention all the given
     -- identifiers in their type.
-  | Cmd_search_about_toplevel B.Rewrite String
+  | Cmd_search_about_toplevel Rewrite String
 
     -- | Solve (all goals / the goal at point) whose values are determined by
     -- the constraints.
-  | Cmd_solveAll B.Rewrite
-  | Cmd_solveOne B.Rewrite InteractionId range String
+  | Cmd_solveAll Rewrite
+  | Cmd_solveOne Rewrite InteractionId range String
 
     -- | Solve (all goals / the goal at point) by using Auto.
   | Cmd_autoOne            InteractionId range String
@@ -154,13 +153,13 @@ data Interaction' range
 
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
-  | Cmd_infer_toplevel  B.Rewrite  -- Normalise the type?
+  | Cmd_infer_toplevel  Rewrite  -- Normalise the type?
                         String
 
 
     -- | Parse and type check the given expression (as if it were defined
     -- at the top-level of the current module) and normalise it.
-  | Cmd_compute_toplevel B.ComputeMode
+  | Cmd_compute_toplevel ComputeMode
                          String
 
     ------------------------------------------------------------------------
@@ -225,40 +224,40 @@ data Interaction' range
 
   | Cmd_refine_or_intro Bool InteractionId range String
 
-  | Cmd_context         B.Rewrite InteractionId range String
+  | Cmd_context         Rewrite InteractionId range String
 
-  | Cmd_helper_function B.Rewrite InteractionId range String
+  | Cmd_helper_function Rewrite InteractionId range String
 
-  | Cmd_infer           B.Rewrite InteractionId range String
+  | Cmd_infer           Rewrite InteractionId range String
 
-  | Cmd_goal_type       B.Rewrite InteractionId range String
+  | Cmd_goal_type       Rewrite InteractionId range String
 
   -- | Grabs the current goal's type and checks the expression in the hole
   -- against it. Returns the elaborated term.
   | Cmd_elaborate_give
-                        B.Rewrite InteractionId range String
+                        Rewrite InteractionId range String
 
     -- | Displays the current goal and context.
-  | Cmd_goal_type_context B.Rewrite InteractionId range String
+  | Cmd_goal_type_context Rewrite InteractionId range String
 
     -- | Displays the current goal and context /and/ infers the type of an
     -- expression.
   | Cmd_goal_type_context_infer
-                        B.Rewrite InteractionId range String
+                        Rewrite InteractionId range String
 
   -- | Grabs the current goal's type and checks the expression in the hole
   -- against it.
   | Cmd_goal_type_context_check
-                        B.Rewrite InteractionId range String
+                        Rewrite InteractionId range String
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the scope of the given goal.
   | Cmd_show_module_contents
-                        B.Rewrite InteractionId range String
+                        Rewrite InteractionId range String
 
   | Cmd_make_case       InteractionId range String
 
-  | Cmd_compute         B.ComputeMode
+  | Cmd_compute         ComputeMode
                         InteractionId range String
 
   | Cmd_why_in_scope    InteractionId range String
@@ -386,3 +385,44 @@ instance Read CompilerBackend where
               "QuickLaTeX" -> QuickLaTeX
               _            -> OtherBackend t
     return (b, s)
+
+data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
+    deriving (Show, Read)
+
+data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
+  deriving (Show, Read, Eq)
+
+data UseForce
+  = WithForce     -- ^ Ignore additional checks, like termination/positivity...
+  | WithoutForce  -- ^ Don't ignore any checks.
+  deriving (Eq, Read, Show)
+
+data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
+  deriving (Functor)
+
+data OutputConstraint a b
+      = OfType b a | CmpInType Comparison a b b
+                   | CmpElim [Polarity] a [b] [b]
+      | JustType b | CmpTypes Comparison b b
+                   | CmpLevels Comparison b b
+                   | CmpTeles Comparison b b
+      | JustSort b | CmpSorts Comparison b b
+      | Guard (OutputConstraint a b) ProblemId
+      | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
+      | IsEmptyType a
+      | SizeLtSat a
+      | FindInstanceOF b a [(a,a)]
+      | PTSInstance b b
+      | PostponedCheckFunDef QName a
+  deriving (Functor)
+
+-- | A subset of 'OutputConstraint'.
+
+data OutputConstraint' a b = OfType'
+  { ofName :: b
+  , ofExpr :: a
+  }
+
+data OutputContextEntry name ty val
+  = ContextVar name ty
+  | ContextLet name ty val

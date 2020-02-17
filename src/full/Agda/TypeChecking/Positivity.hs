@@ -389,7 +389,9 @@ withExtendedOccEnv' is = local $ \ e -> e { vars = is ++ vars e }
 -- | Running the monad
 getOccurrences
   :: (Show a, PrettyTCM a, ComputeOccurrences a)
-  => [Maybe Item] -> a -> TCM OccurrencesBuilder
+  => [Maybe Item]  -- ^ Extension of the 'OccEnv', usually a local variable context.
+  -> a
+  -> TCM OccurrencesBuilder
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
@@ -524,26 +526,54 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Datatype{dataPars = np0, dataCons = cs}       -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
-      TelV tel t <- telView $ defType def
+      TelV tel _ <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
-      sizeIndex <- caseMaybe (listToMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
+      sizeIndex <- caseList (drop np0 $ telToList tel) (return 0) $ \ dom _ -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+      let ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
                         ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
-            a <- defType <$> getConstInfo c
-            TelV tel t <- telView'Path =<< normalise a -- normalization needed e.g. for test/succeed/Bush.agda
-            let indices = case unEl t of
-                            Def _ vs -> drop np vs
-                            _        -> __IMPOSSIBLE__
-            let tel'    = telFromList $ drop np $ telToList tel
-                vars    = map (Just . AnArg) . downFrom
-            (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
-              <> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
+            -- Andreas, 2020-02-15, issue #4447:
+            -- Allow UnconfimedReductions here to make sure we get the constructor type
+            -- in same way as it was obtained when the data types was checked.
+            TelV tel t <- putAllowedReductions allReductions $
+              telViewPath . defType =<< getConstInfo c
+            -- Do not collect occurrences in the data parameters.
+            -- Normalization needed e.g. for test/succeed/Bush.agda.
+            -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
+            tel' <- normalise $ telFromList $ drop np $ telToList tel
+            let vars = map (Just . AnArg) . downFrom
+            -- Occurrences in the types of the constructor arguments.
+            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel') $ do
+              -- Occurrences in the indices of the data type the constructor targets.
+              -- Andreas, 2020-02-15, issue #4447:
+              -- WAS: @t@ is not necessarily a data type, but it could be something
+              -- that reduces to a data type once UnconfirmedReductions are confirmed
+              -- as safe by the termination checker.
+              -- In any case, if @t@ is not showing itself as the data type, we need to
+              -- do something conservative.  We will just collect *all* occurrences
+              -- and flip their sign (variance) using 'LeftOfArrow'.
+              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vars $ size tel) t
+              case unEl t of
+                Def q' vs
+                  | q == q' -> do
+                      let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
+                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices
+                  | otherwise -> __IMPOSSIBLE__  -- fallback -- this ought to be impossible now (but wasn't, see #4447)
+                Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
+                MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
+                Var{}      -> __IMPOSSIBLE__  -- not a constructor target
+                Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
+                Lam{}      -> __IMPOSSIBLE__  -- not a type
+                Lit{}      -> __IMPOSSIBLE__  -- not a type
+                Con{}      -> __IMPOSSIBLE__  -- not a type
+                Level{}    -> __IMPOSSIBLE__  -- not a type
+                DontCare{} -> __IMPOSSIBLE__  -- not a type
+                Dummy{}    -> __IMPOSSIBLE__
       mconcat $ pure ioccs : map conOcc cs
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c

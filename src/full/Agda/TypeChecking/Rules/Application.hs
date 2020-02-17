@@ -891,7 +891,7 @@ disambiguateConstructor cs0 t = do
       -- Lets look at the target type at this point
       let getCon :: TCM (Maybe ConHead)
           getCon = do
-            TelV tel t1 <- telView t
+            TelV tel t1 <- telViewPath t
             addContext tel $ do
              reportSDoc "tc.check.term.con" 40 $ nest 2 $
                "target type: " <+> prettyTCM t1
