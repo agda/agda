@@ -24,12 +24,21 @@ boolToMaybe b x = if b then Just x else Nothing
 -- * Collection operations.
 
 -- UNUSED Liang-Ting Chen 05-07-2019
----- | @unionWith@ for collections of size <= 1.
---unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
---unionMaybeWith f Nothing mb      = mb
---unionMaybeWith f ma      Nothing = ma
---unionMaybeWith f (Just a) (Just b) = Just $ f a b
---
+-- Andreas, 2020-02-17:
+-- Yeah, but a useful function to have in the library nevertheless.
+
+-- | @unionWith@ for collections of size <= 1.
+unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
+unionMaybeWith f Nothing mb      = mb
+unionMaybeWith f ma      Nothing = ma
+unionMaybeWith f (Just a) (Just b) = Just $ f a b
+
+-- | @unionsWith@ for collections of size <= 1.
+unionsMaybeWith :: (a -> a -> a) -> [Maybe a] -> Maybe a
+unionsMaybeWith f ms = case catMaybes ms of
+  [] -> Nothing
+  as -> Just $ foldl1 f as
+
 -- | Unzipping a list of length <= 1.
 
 unzipMaybe :: Maybe (a,b) -> (Maybe a, Maybe b)
