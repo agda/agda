@@ -8,7 +8,7 @@ You need recent versions of the following programs to compile Agda:
 
 * GHC:           https://www.haskell.org/ghc/
 
-  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5 and 8.8.1.
+  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5 and 8.8.2.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
