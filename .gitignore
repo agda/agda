@@ -57,3 +57,6 @@ stack.yaml.lock
 /test/Compiler/simple/VecReverseErased
 /test/Compiler/simple/VecReverseHand
 trash.txt
+/benchmark/Create/import-*
+/benchmark/Create/import0-*
+/benchmark/Create/hs-import-*
