@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.1]
+        ghc-ver: [8.8.2]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
