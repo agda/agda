@@ -1068,7 +1068,7 @@ introTactic pmLambda ii = do
         let okHiding0 h = imp || h == NotHidden
             -- if none of the vars were displayed, we would get a parse error
             -- thus, we switch to displaying all
-            allHidden   = null (filter okHiding0 hs)
+            allHidden   = not (any okHiding0 hs)
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
                 (if allHidden then withShowAllArguments else id) $

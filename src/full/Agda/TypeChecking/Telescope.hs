@@ -54,9 +54,7 @@ reorderTel tel = topoSort comesBefore tel'
     (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unDom a) -- a tiny bit unsafe
 
 reorderTel_ :: [Dom Type] -> Permutation
-reorderTel_ tel = case reorderTel tel of
-  Nothing -> __IMPOSSIBLE__
-  Just p  -> p
+reorderTel_ tel = Data.Maybe.fromMaybe __IMPOSSIBLE__ (reorderTel tel)
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
@@ -310,7 +308,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     rho   = reverseP perm  -- works on de Bruijn levels
 
     p1    = renameP __IMPOSSIBLE__ perm p -- Γ' ⊢ p1 : A'
-    us    = map (\i -> fromMaybe p1 (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
+    us    = map (\i -> maybe p1 deBruijnVar (List.elemIndex i is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0
@@ -459,9 +457,9 @@ teleElims tel boundary = recurse (teleArgs tel)
   where
     recurse = fmap updateArg
     matchVar x =
-      snd <$> flip find boundary (\case
+      snd <$> find (\case
         (Var i [],_) -> i == x
-        _            -> __IMPOSSIBLE__)
+        _            -> __IMPOSSIBLE__) boundary
     updateArg a@(Arg info p) =
       case deBruijnView p of
         Just i | Just (t,u) <- matchVar i -> IApply t u p
@@ -534,9 +532,9 @@ telePatterns' f tel boundary = recurse $ f tel
   where
     recurse = (fmap . fmap . fmap) updateVar
     matchVar x =
-      snd <$> flip find boundary (\case
+      snd <$> find (\case
         (Var i [],_) -> i == x
-        _            -> __IMPOSSIBLE__)
+        _            -> __IMPOSSIBLE__) boundary
     updateVar x =
       case deBruijnView x of
         Just i | Just (t,u) <- matchVar i -> IApplyP defaultPatternInfo t u x
@@ -545,7 +543,7 @@ telePatterns' f tel boundary = recurse $ f tel
 -- | Decomposing a function type.
 
 mustBePi :: MonadReduce m => Type -> m (Dom Type, Abs Type)
-mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ \ a b -> return (a,b)
+mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ curry return
 
 -- | If the given type is a @Pi@, pass its parts to the first continuation.
 --   If not (or blocked), pass the reduced type to the second continuation.

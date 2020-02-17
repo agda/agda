@@ -217,7 +217,7 @@ noFunctionsIntoSize t tBlame = do
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
 isTypeEqualTo e0 t = scopedExpr e0 >>= \case
   A.ScopedExpr{} -> __IMPOSSIBLE__
-  A.Underscore i | A.metaNumber i == Nothing -> return t
+  A.Underscore i | isNothing (A.metaNumber i) -> return t
   e -> workOnTypes $ do
     t' <- isType e (getSort t)
     t' <$ leqType t t'
@@ -1634,7 +1634,7 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   reportSDoc "tc.term.let.apply" 20 $ vcat
     [ "context =" <+> (prettyTCM =<< getContextTelescope)
     , "module  =" <+> (prettyTCM =<< currentModule)
-    , "fv      =" <+> (text $ show fv)
+    , "fv      =" <+> text (show fv)
     ]
   checkSectionApplication i x modapp copyInfo
   withAnonymousModule x new ret

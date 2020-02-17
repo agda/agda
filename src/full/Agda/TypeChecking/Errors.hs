@@ -346,8 +346,7 @@ instance PrettyTCM TypeError where
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
-      ++ if null xs then [] else
-         [parens $ fsep $ text "possible arguments:" : map pretty xs]
+      ++ [parens $ fsep $ text "possible arguments:" : map pretty xs | not (null xs)]
       where
       xs = filter (not . isNoName) xs0
 
@@ -416,7 +415,7 @@ instance PrettyTCM TypeError where
 
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
-      ++ [(parens $ prettyTCM (qnameToConcrete d)) <> colon]
+      ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
       ++ map pretty cs
 
     DoesNotConstructAnElementOf c t -> fsep $
@@ -612,7 +611,7 @@ instance PrettyTCM TypeError where
           pwords " bound in a module telescope (or patterns of a parent clause)"
 
     UnexpectedWithPatterns ps -> fsep $
-      pwords "Unexpected with patterns" ++ (punctuate " |" $ map prettyA ps)
+      pwords "Unexpected with patterns" ++ punctuate " |" (map prettyA ps)
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++
@@ -1185,7 +1184,7 @@ class PrettyUnequal a where
 instance PrettyUnequal Term where
   prettyUnequal t1 ncmp t2 = do
     (d1, d2, d) <- prettyInEqual t1 t2
-    fsep $ return d1 : ncmp : return d2 : return d : []
+    fsep [ return d1, ncmp, return d2, return d ]
 
 instance PrettyUnequal Type where
   prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)

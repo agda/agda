@@ -213,7 +213,7 @@ findProjectRoot root = fmap fst <$> findProjectConfig root
 findAgdaLibFiles
   :: FilePath       -- ^ Project root.
   -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
-findAgdaLibFiles root = fromMaybe [] . fmap snd <$> findProjectConfig root
+findAgdaLibFiles root = maybe [] snd <$> findProjectConfig root
 
 -- | Get dependencies and include paths for given project root:
 --
@@ -430,7 +430,7 @@ formatLibPositionInfo :: LibPositionInfo -> String -> Doc
 formatLibPositionInfo (LibPositionInfo libFile lineNum file) err = text $
   let loc | Just lf <- libFile = lf ++ ":" ++ show lineNum ++ ": "
           | otherwise = ""
-  in if List.isPrefixOf "Failed to read" err
+  in if "Failed to read" `List.isPrefixOf` err
      then loc
      else file ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
 

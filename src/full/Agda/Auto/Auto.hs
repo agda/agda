@@ -234,7 +234,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                       (mi,) <$> abstractToConcrete_ e
                   let ss = dropWhile (== ' ') . dropWhile (/= ' ') . prettyShow
                       disp [(_, cexpr)] = ss cexpr
-                      disp cexprs = concat $ map (\ (mi, cexpr) -> ss cexpr ++ " ") cexprs
+                      disp cexprs = concatMap (\ (mi, cexpr) -> ss cexpr ++ " ") cexprs
                   ticks <- liftIO $ readIORef ticks
                   stopWithMsg $ unlines $
                     ("Listing disproof(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1)) :
@@ -295,7 +295,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                       ++ " := " ++ prettyShow cexpr ++ " "
               ticks <- liftIO $ readIORef ticks
               stopWithMsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
-                        "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
+                        "\n" ++ unlines (zipWith (\ x y -> show y ++ "  " ++ disp x) cexprss [pick..])
            else {- not listmode -}
             case res of
              Nothing -> do
@@ -350,7 +350,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                                          ) exprs
                       let msgs = catMaybes $ msg : map snd giveress
                           msg' = unlines msgs <$ guard (not $ null msgs)
-                      return $ AutoResult (Solutions $ catMaybes $ map fst giveress) msg'
+                      return $ AutoResult (Solutions $ mapMaybe fst giveress) msg'
 
      MCaseSplit -> do
       case thisdefinfo of
@@ -358,7 +358,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
         case Map.elems tccons of
          [(m, mytype, mylocalVars, _)] | null eqcons -> do
           (ids, pats) <- constructPats cmap mi clause
-          let ctx = map (\((hid, id), t) -> HI hid (id, t)) (zip ids mylocalVars)
+          let ctx = zipWith (curry (\((hid, id), t) -> HI hid (id, t))) ids mylocalVars
           ticks <- liftIO $ newIORef 0
           let [rectyp'] = mymrectyp
           defdfv <- getdfv mi def
@@ -404,7 +404,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
        normalise targettype
       let tctx = length $ envContext $ clEnv minfo
 
-      hits <- if elem "-a" hints then do
+      hits <- if "-a" `elem` hints then do
         st <- liftTCM $ join $ pureTCM $ \st _ -> return st
         let defs = st^.stSignature.sigDefinitions
             idefs = st^.stImports.sigDefinitions
@@ -449,7 +449,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
             else
              let showhits = take 10 $ drop pick' sorthits
              in stopWithMsg $ "Listing candidate(s) " ++ show pick' ++ "-" ++ show (pick' + length showhits - 1) ++ " (found " ++ show (length sorthits) ++ " in total)\n" ++
-                           unlines (map (\(i, (cn, _)) -> show i ++ "  " ++ cn) (zip [pick'..pick' + length showhits - 1] showhits))
+                           unlines (zipWith (curry (\(i, (cn, _)) -> show i ++ "  " ++ cn)) [pick'..pick' + length showhits - 1] showhits)
        else
         if pick >= length sorthits then
          stopWithMsg $ insuffcands $ length sorthits
@@ -490,7 +490,7 @@ getEqCombinators ii rng = do
 -- | Templates for error messages
 
 genericNotEnough :: String -> Int -> String
-genericNotEnough str n = List.intercalate " " $ case n of
+genericNotEnough str n = List.unwords $ case n of
   0 -> [ "No"    , str, "found"]
   1 -> [ "Only 1", str, "found" ]
   _ -> [ "Only", show n, str ++ "s", "found" ]

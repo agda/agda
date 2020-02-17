@@ -262,8 +262,8 @@ withSignature sig m = do
 -- ** Modifiers for rewrite rules
 addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
 addRewriteRulesFor f rews matchables =
-    (over sigRewriteRules $ HMap.insertWith mappend f rews)
-  . (updateDefinition f $ updateTheDef setNotInjective . setCopatternLHS)
+    over sigRewriteRules (HMap.insertWith mappend f rews)
+  . updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
   . (setMatchableSymbols f matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }

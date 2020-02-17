@@ -523,7 +523,7 @@ checkSystemCoverage f [n] t cs = do
         alphas :: [[(Int,Bool)]] -- the face maps corresponding to each clause
         alphas = map (collectDirs (downFrom n)) pats
         phis :: [Term] -- the φ terms for each clause (i.e. the alphas as terms)
-        phis = map andI $ map (map dir) alphas
+        phis =  map (andI . map dir) alphas
         psi = orI $ phis
         pcs = zip phis cs
         boolToI True = i1
@@ -602,7 +602,7 @@ checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
-      when (not $ null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
+      unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
       checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
@@ -1119,7 +1119,7 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
             [ fsep (pwords $ "Named where-modules are not allowed when module parameters have been refined by pattern matching. " ++
                              "See https://github.com/agda/agda/issues/2897.")
             , text $ "In this case the module parameter" ++
-                     (if length args > 0 then "s have" else " has") ++
+                     (if not (null args) then "s have" else " has") ++
                      " been refined to"
             , nest 2 $ vcat (zipWith pr names args) ]
       where

@@ -174,9 +174,7 @@ decode s = do
         (r, st) <- runStateT (runExceptT (value r)) st
         return (Just $ modFile st, r)
 
-  case mf of
-    Nothing -> return ()
-    Just mf -> stModuleToSource `setTCLens` mf
+  forM_ mf (setTCLens stModuleToSource)
 
   case r of
     Right x   -> return (Just x)

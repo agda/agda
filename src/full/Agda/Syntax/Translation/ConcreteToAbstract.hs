@@ -193,8 +193,7 @@ recordConstructorType decls =
         C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
           let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
-          tel <- toAbstract $ C.TBind r [bv] (unArg a)
-          return tel
+          toAbstract $ C.TBind r [bv] (unArg a)
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
@@ -694,7 +693,7 @@ inferParenPreference _         = PreferParenless
 -- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
 toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
 toAbstractDot prec e = do
-    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ render (pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
       C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
@@ -1363,7 +1362,7 @@ newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
   toAbstract (LetDefs ds) =
-    concat <$> (niceDecls DoWarn ds $ toAbstract . map LetDef)
+    concat <$> niceDecls DoWarn ds (toAbstract . map LetDef)
 
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =

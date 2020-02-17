@@ -62,7 +62,7 @@ class (PrecomputeFreeVars a, Subst Term a) => ForceNotFree a where
 -- Return the set of variables for which there is still hope that they
 -- may not occur.
 varsToForceNotFree :: (MonadFreeRed m) => m IntSet
-varsToForceNotFree = IntMap.keysSet . (IntMap.filter (== NotFree)) <$> get
+varsToForceNotFree = gets (IntMap.keysSet . (IntMap.filter (== NotFree)))
 
 -- Reduce the argument if there are offending free variables. Doesn't call the
 -- continuation when no reduction is required.
@@ -72,8 +72,7 @@ reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
       notfree = IntSet.null $ IntSet.intersection xs fvs
-  if | notfree   -> return a
-     | otherwise -> k . precomputeFreeVars_ =<< reduce a
+  if notfree then return a else k . precomputeFreeVars_ =<< reduce a
 
 -- Careful not to define forceNotFree' = forceNotFreeR since that would loop.
 forceNotFreeR :: (Reduce a, ForceNotFree a, MonadFreeRed m)

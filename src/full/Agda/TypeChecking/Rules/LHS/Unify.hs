@@ -402,7 +402,7 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
       mapMaybe $ \(FlexibleVar ai fc k p x) ->
-        FlexibleVar ai fc k p <$> List.findIndex (x==) (permPicks perm)
+        FlexibleVar ai fc k p <$> List.elemIndex x (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -1264,7 +1264,8 @@ patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go defaultModality v') forced)
   where
-    noForced v = IntSet.null . IntSet.intersection (precomputedFreeVars v) . IntMap.keysSet <$> get
+    noForced v = gets $ IntSet.null .  IntSet.intersection (precomputedFreeVars v) .
+                        IntMap.keysSet
 
     bind md i = do
       Just md' <- gets $ IntMap.lookup i

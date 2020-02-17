@@ -141,7 +141,7 @@ getName' x = mplus <$> getBuiltinName' x <*> getPrimitiveName' x
 -- the error message.
 getTerm :: (HasBuiltins m) => String -> String -> m Term
 getTerm use name = flip fromMaybeM (getTerm' name) $
-  return $! (throwImpossible $ ImpMissingDefinitions [name] use)
+  return $! throwImpossible (ImpMissingDefinitions [name] use)
 
 
 -- | Rewrite a literal to constructor form if possible.

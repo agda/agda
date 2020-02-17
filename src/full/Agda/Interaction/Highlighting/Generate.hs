@@ -464,7 +464,7 @@ tokenHighlighting = merge . map tokenToCFile
   aToF a r = singletonC (rToR r) (mempty { aspect = Just a })
 
   -- Merges /sorted, non-overlapping/ compressed files.
-  merge = CompressedFile . concat . map ranges
+  merge = CompressedFile . concatMap ranges
 
   tokenToCFile :: T.Token -> CompressedFile
   tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (getRange i)
@@ -850,7 +850,7 @@ generate modMap file kinds (A.AmbQ qs) =
     -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
     -- than doing no highlighting if there's an ambiguity between an
     -- inductive and coinductive constructor.
-    kind = case [ k | Just k <- ks ] of
+    kind = case catMaybes ks of
              k : _ -> Just k
              []    -> Nothing
     -- kind = case (allEqual ks, ks) of

@@ -8,6 +8,7 @@ module Agda.TypeChecking.Monad.SizedTypes where
 import qualified Data.Foldable as Fold
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Maybe (fromMaybe)
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
@@ -155,9 +156,7 @@ sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
   Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
-  return $ case iterate (sizeSuc_ suc) v !!! n of
-             Nothing -> __IMPOSSIBLE__
-             Just t  -> t
+  return $ Data.Maybe.fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]

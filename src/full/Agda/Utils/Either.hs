@@ -112,7 +112,7 @@ groupByEither :: forall a b. [Either a b] -> [Either [a] [b]]
 groupByEither = listCase [] (go . init) where
 
   go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
-  go acc         []              = adjust acc : []
+  go acc         []              = [adjust acc]
   -- match: next value can be tacked onto the accumulator
   go (Left  acc) (Left  a : abs) = go (Left  $ a : acc) abs
   go (Right acc) (Right b : abs) = go (Right $ b : acc) abs

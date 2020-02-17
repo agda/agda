@@ -113,7 +113,7 @@ abstractTerm a u@Con{} b v = do
   let abstr b v = do
         m <- getContextSize
         let (a', u') = raise (m - n) (a, u)
-        case isPrefixOf u' v of
+        case u' `isPrefixOf` v of
           Nothing -> return v
           Just es -> do -- Check that the types match.
             s <- getTC

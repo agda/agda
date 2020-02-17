@@ -156,7 +156,7 @@ checkApplication cmp hd args e t =
           mkArg t a | unEl t == tName =
             (fmap . fmap)
               (A.App (A.defaultAppInfo (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
-          mkArg t a | otherwise = a
+          mkArg t a  = a
 
           makeArgs :: [Dom (String, Type)] -> [NamedArg A.Expr] -> ([NamedArg A.Expr], [NamedArg A.Expr])
           makeArgs [] args = ([], args)
@@ -834,7 +834,7 @@ checkConstructorApplication cmp org t c args = do
     --
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
-      let (hargs, rest) = span (not . visible) args
+      let (hargs, rest) = break visible args
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
       in  any notUnderscore $ map (unScope . namedArg) hargs
@@ -1240,7 +1240,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg phi) <@> (pure $ unArg a `apply` [iz])
+      ty <- elInf $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1261,7 +1261,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg phi) <@> (pure $ unArg a)
+      ty <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1370,7 +1370,7 @@ check_glue c rs vs _ = do
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
-            elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+            elInf $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
@@ -1392,7 +1392,7 @@ check_glueU c rs vs _ = do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             [la, phi, bT, bA, t] <- mapM (open . unArg) [la, phi, bT, bA, t]
-            let f o = cl primTrans <#> (lam "i" $ const la) <@> (lam "i" $ \ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
+            let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [la, phi, bT] <- mapM (open . unArg) [la, phi, bT]

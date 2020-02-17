@@ -114,7 +114,7 @@ localNames flat = do
     localOp (x, y) = namesToNotation (QName x) y
     split ops      = partitionEithers $ concatMap opOrNot ops
     opOrNot n      = Left (notaName n) :
-                     if null (notation n) then [] else [Right n]
+                     [Right n | not (null (notation n))]
 
 -- | Data structure filled in by @buildParsers@.
 --   The top-level parser @pTop@ is of primary interest,
@@ -260,7 +260,7 @@ buildParsers r flat kind exprNames = do
         cons       = getDefinedNames
                        (someKindsOfNames [ConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
-                       filter (flip Set.member namesInExpr) $
+                       filter (`Set.member` namesInExpr) $
                        map (notaName . head) cons
         conParts   = Set.fromList $
                        concatMap notationNames $
@@ -268,7 +268,7 @@ buildParsers r flat kind exprNames = do
                        concat cons
 
         allNames   = Set.fromList $
-                       filter (flip Set.member namesInExpr) names
+                       filter (`Set.member` namesInExpr) names
         allParts   = Set.union conParts
                        (Set.fromList $
                         concatMap notationNames $
@@ -323,7 +323,7 @@ buildParsers r flat kind exprNames = do
         -- level comes first.
         relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
-          map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
+          map (\((l, ns) : rest) -> (l, ns ++ concatMap snd rest)) .
           List.groupBy ((==) `on` fst) .
           List.sortBy (compare `on` fst) .
           mapMaybe (\n -> case level n of
@@ -353,16 +353,15 @@ buildParsers r flat kind exprNames = do
                                        mkP (Right l) parseSections
                                            (pTop p) ns higher True)
                                    relatedOperators) :
-                            map (\(k, n) ->
+                            zipWith (\ k n ->
                                     mkP (Left k) parseSections
-                                        (pTop p) [n] (pApp p) False)
-                                (zip [0..] unrelatedOperators)
+                                        (pTop p) [n] (pApp p) False) [0..] unrelatedOperators
               , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
               , pArgs   = argsP (pNonfix p)
               , pNonfix = memoise NonfixK $
                           Fold.asum $
                             pAtom p :
-                            flip map nonWithSections (\sect ->
+                            map (\sect ->
                               let n = sectNotation sect
 
                                   inner :: forall k. NK k ->
@@ -380,7 +379,7 @@ buildParsers r flat kind exprNames = do
                                   flip ($) <$> placeholder Beginning
                                            <*> inner Post
                                 NonfixNotation -> inner Non
-                                NoNotation     -> __IMPOSSIBLE__)
+                                NoNotation     -> __IMPOSSIBLE__) nonWithSections
               , pAtom   = atomP isAtom
               }
 

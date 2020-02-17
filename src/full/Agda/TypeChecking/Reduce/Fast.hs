@@ -1003,7 +1003,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         plus 0 cl = cl
         plus n cl =
           trueValue (Con (fromMaybe __IMPOSSIBLE__ suc) ConOSystem []) emptyEnv $
-                     Apply (defaultArg arg) : []
+                     [Apply (defaultArg arg)]
           where arg = pureThunk (plus (n - 1) cl)
 
     -- Case: PrimOpK

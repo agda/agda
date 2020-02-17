@@ -286,7 +286,7 @@ getParseInterval = do
   return $ posToInterval (parseSrcFile s) (parseLastPos s) (parsePos s)
 
 getLexState :: Parser [LexState]
-getLexState = parseLexState <$> get
+getLexState = gets parseLexState
 
 -- UNUSED Liang-Ting Chen 2019-07-16
 --setLexState :: [LexState] -> Parser ()

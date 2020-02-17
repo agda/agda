@@ -863,7 +863,7 @@ instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
-  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
 
 instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
   runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
@@ -3888,22 +3888,22 @@ pureTCM f = TCM $ \ r e -> do
 -- faster for one example.
 
 returnTCMT :: MonadIO m => a -> TCMT m a
-returnTCMT = \x -> TCM $ \_ _ -> return x
+returnTCMT x = TCM $ \_ _ -> return x
 {-# INLINE returnTCMT #-}
 
 bindTCMT :: MonadIO m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
-bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
+bindTCMT (TCM m) k = TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
 {-# INLINE bindTCMT #-}
 
 thenTCMT :: MonadIO m => TCMT m a -> TCMT m b -> TCMT m b
-thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
+thenTCMT (TCM m1) (TCM m2) = TCM $ \r e -> m1 r e >> m2 r e
 {-# INLINE thenTCMT #-}
 
 instance MonadIO m => Functor (TCMT m) where
   fmap = fmapTCMT
 
 fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
-fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
+fmapTCMT f (TCM m) = TCM $ \r e -> liftM f (m r e)
 {-# INLINE fmapTCMT #-}
 
 instance MonadIO m => Applicative (TCMT m) where
@@ -3911,7 +3911,7 @@ instance MonadIO m => Applicative (TCMT m) where
   (<*>) = apTCMT
 
 apTCMT :: MonadIO m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
-apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
+apTCMT (TCM mf) (TCM m) = TCM $ \r e -> ap (mf r e) (m r e)
 {-# INLINE apTCMT #-}
 
 instance MonadTrans TCMT where
@@ -4169,7 +4169,7 @@ generalizedFieldName = ".generalizedField-"
 -- | Check whether we have a generalized variable field
 getGeneralizedFieldName :: A.QName -> Maybe String
 getGeneralizedFieldName q
-  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
+  | generalizedFieldName `List.isPrefixOf` strName = Just (drop (length generalizedFieldName) strName)
   | otherwise                                    = Nothing
   where strName = prettyShow $ nameConcrete $ qnameName q
 
@@ -4301,3 +4301,4 @@ instance KillRange DisplayTerm where
 
 instance KillRange a => KillRange (Closure a) where
   killRange = id
+

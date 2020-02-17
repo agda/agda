@@ -78,7 +78,7 @@ checkStrictlyPositive mi qset = do
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
-    [ "positivity graph for" <+> (fsep $ map prettyTCM qs)
+    [ "positivity graph for" <+> fsep (map prettyTCM qs)
     , nest 2 $ prettyTCM g
     ]
   reportSLn "tc.pos.graph" 5 $
@@ -612,7 +612,7 @@ buildOccurrenceGraph qs =
       reportSDoc "tc.pos.occs" 40 $
         (("Occurrences in" <+> prettyTCM q) <> ":")
           $+$
-        (nest 2 $ vcat $
+        nest 2 (vcat $
            map (\(i, n) ->
                    (text (show i) <> ":") <+> text (show n) <+>
                    "occurrences") $
@@ -626,7 +626,7 @@ buildOccurrenceGraph qs =
       reportSDoc "tc.pos.occs.edges" 60 $
         "Edges:"
           $+$
-        (nest 2 $ vcat $
+        nest 2 (vcat $
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>

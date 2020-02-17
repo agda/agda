@@ -2,6 +2,7 @@
 module Agda.Auto.Convert where
 
 import Control.Monad.State
+import qualified Data.Bifunctor as Bifunctor
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
@@ -171,7 +172,7 @@ tomy imi icns typs = do
         Just sol -> do
          m <- getMeta mi
          sol' <- convert sol
-         modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
+         modify $ \s -> s {sEqs = Bifunctor.first (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol'))) (sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
            localVars = map (snd . I.unDom) . envContext . clEnv $ minfo
@@ -185,7 +186,7 @@ tomy imi icns typs = do
        typ' <- convert targettype
        ctx' <- mapM convert localVars
        modify (\s -> s {sCurMeta = Nothing})
-       modify (\s -> s {sMetas = (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
+       modify (\s -> s {sMetas = Bifunctor.first (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi) (sMetas s)})
        r projfcns
       Nothing -> do
        nxt <- popMapS sEqs (\x y -> y {sEqs = x})
@@ -194,7 +195,7 @@ tomy imi icns typs = do
          let (ineq, e, i) = eqs !! eqi
          e' <- convert e
          i' <- convert i
-         modify (\s -> s {sEqs = (Map.adjust (\_ -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
+         modify (\s -> s {sEqs = Bifunctor.first (Map.adjust (\_ -> Just (ineq, e', i')) eqi) (sEqs s)})
          r projfcns
         Nothing ->
          return projfcns
@@ -388,9 +389,7 @@ instance Conversion TOM I.Term (MExp O) where
             case mcurmeta of
               Nothing -> return ()
               Just curmeta ->
-                modify $ \ s -> s { sMetas = ( Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s)
-                                           , snd $ sMetas s
-                                           ) }
+                modify $ \ s -> s { sMetas = Bifunctor.first (Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta) (sMetas s) }
             m <- getMeta mid
             return $ Meta m
           _ -> convert t
@@ -426,8 +425,7 @@ fmExp m (I.DontCare _) = False
 fmExp _ I.Dummy{} = False
 
 fmExps :: I.MetaId -> I.Args -> Bool
-fmExps m [] = False
-fmExps m (a : as) = fmExp m (Cm.unArg a) || fmExps m as
+fmExps m as = foldr ((||) . fmExp m . Cm.unArg) False as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m (I.Plus _ l) = case l of

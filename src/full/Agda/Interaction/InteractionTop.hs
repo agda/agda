@@ -417,7 +417,7 @@ initialiseCommandQueue next = do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
-            n' <- return (succ n)
+            let n' = (succ n)
             atomically $ writeTChan commands (n', c)
             case c of
               Done -> return ()
@@ -572,26 +572,24 @@ interpret (Cmd_load_highlighting_info source) = do
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
       absSource <- liftIO $ SourceFile <$> absolute source
-      case ex of
-        False -> return Nothing
-        True  -> (do
-          si <- Imp.sourceInfo absSource
-          let m = Imp.siModuleName si
-          checkModuleName m absSource Nothing
-          mmi <- getVisitedModule m
-          case mmi of
-            Nothing -> return Nothing
-            Just mi ->
-              if hashText (Imp.siSource si) ==
-                 iSourceHash (miInterface mi)
-               then do
-                modFile <- useTC stModuleToSource
-                method  <- viewTC eHighlightingMethod
-                return $ Just (iHighlighting $ miInterface mi, method, modFile)
-               else
-                return Nothing)
-            `catchError`
-          \_ -> return Nothing
+      if ex then (do
+        si <- Imp.sourceInfo absSource
+        let m = Imp.siModuleName si
+        checkModuleName m absSource Nothing
+        mmi <- getVisitedModule m
+        case mmi of
+          Nothing -> return Nothing
+          Just mi ->
+            if hashText (Imp.siSource si) ==
+               iSourceHash (miInterface mi)
+             then do
+              modFile <- useTC stModuleToSource
+              method  <- viewTC eHighlightingMethod
+              return $ Just (iHighlighting $ miInterface mi, method, modFile)
+             else
+              return Nothing)
+          `catchError`
+        \_ -> return Nothing else return Nothing
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
@@ -1081,13 +1079,11 @@ status = do
     Nothing     -> return False
     Just (f, t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
-      case t == t' of
-        False -> return False
-        True  -> do
-          mm <- lookupModuleFromSource f
-          case mm of
-            Nothing -> return False -- work-around for Issue1007
-            Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+      if t == t' then (do
+        mm <- lookupModuleFromSource f
+        case mm of
+          Nothing -> return False -- work-around for Issue1007
+          Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m) else return False
 
   return $ Status { sShowImplicitArguments = showImpl
                   , sChecked               = checked

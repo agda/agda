@@ -360,7 +360,7 @@ toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
       zs <- Set.toList <$> asks takenVarNames
       allM zs $ \z -> if x == z then return True else do
         czs <- hasConcreteNames z
-        return $ all (/= y) czs
+        return $ notElem y czs
 
 
 -- | Choose a new unshadowed name for the given abstract name
@@ -399,13 +399,13 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
   y <- toConcreteName x
-  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope under concrete name " ++ C.nameToRawName y
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ C.nameToRawName (nameConcrete x) ++ " to the scope under concrete name " ++ C.nameToRawName y
   local (addBinding y x) $ ret y
 
 -- | Like 'bindName', but do not care whether name is already taken.
 bindName' :: A.Name -> AbsToCon a -> AbsToCon a
 bindName' x ret = do
-  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope with forced name"
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ C.nameToRawName (nameConcrete x) ++ " to the scope with forced name"
   pickConcreteName x y
   applyUnless (isNoName y) (local $ addBinding y x) ret
   where y = nameConcrete x
@@ -1442,7 +1442,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
         sectionArgs :: [A.Name] -> [NamedArg (AppInfo, A.Expr)] -> Maybe [NamedArg (MaybeSection (AppInfo, A.Expr))]
         sectionArgs xs = go xs
           where
-            noXs = getAll . foldExpr (\ case A.Var x -> All (notElem x xs)
+            noXs = getAll . foldExpr (\ case A.Var x -> All (x `notElem` xs)
                                              _       -> All True) . snd . namedArg
             go [] [] = return []
             go (y : ys) (arg : args)
@@ -1623,7 +1623,7 @@ recoverPatternSyn applySyn match e fallback = do
                 -- are already sorted from shortest to longest!
                 , C.QName{} <- Fold.toList $ listToMaybe $ inverseScopeLookupName q scope
                 ]
-        cmp (_, _, x) (_, _, y) = flip compare x y
+        cmp (_, _, x) (_, _, y) = compare y x
     reportSLn "toConcrete.patsyn" 50 $ render $ hsep $
       [ "Found pattern synonym candidates:"
       , prettyList_ $ map (\ (q,_,_) -> q) cands
@@ -1647,3 +1647,5 @@ instance ToConcrete InteractionId C.Expr where
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ prettyShow i)
+
+

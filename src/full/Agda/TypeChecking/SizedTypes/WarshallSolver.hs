@@ -348,7 +348,7 @@ instance (Ord r, Ord f, Negative a) => Negative (Graphs r f a) where
 implies :: (Ord r, Ord f, Pretty r, Pretty f, Pretty a, Top a, Ord a, Negative a)
   => Graph r f a -> Graph r f a -> Bool
 -- iterate 'test' over all edges in g
-implies h g = and $ map test $ graphToList g
+implies h g = all test (graphToList g)
   -- NB: doing the @test k l@ before the recursive @b@ gives
   -- opportunity to short-cut the conjunction @&&@.
   where
@@ -361,9 +361,9 @@ implies h g = and $ map test $ graphToList g
       | isTop l                          = True
       | otherwise = case lookupEdge h src dest of
         Nothing -> False
-        Just l' -> if l' <= l then True else
-          trace ("edge " ++ prettyShow (l <$ k) ++ " not implied by " ++ prettyShow (l' <$ k)) $
-            False
+        Just l' -> (l' <= l) ||
+                   ( trace ("edge " ++ prettyShow (l <$ k) ++ " not implied by " ++
+                                       prettyShow (l' <$ k)) $ False)
 -- implies h g = Map.foldlWithKey (\ b k l -> test k l && b) True g
 --   -- NB: doing the @test k l@ before the recursive @b@ gives
 --   -- opportunity to short-cut the conjunction @&&@.

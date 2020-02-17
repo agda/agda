@@ -219,9 +219,7 @@ reorder' :: Set [MemberId] -> [Export] -> [Export]
 reorder' defs [] = []
 reorder' defs (e : es) =
   let us = uses e `difference` defs in
-  case null us of
-    True -> e : (reorder' (insert (expName e) defs) es)
-    False -> reorder' defs (insertAfter us e es)
+  if null us then e : (reorder' (insert (expName e) defs) es) else reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
 isTopLevelValue (Export _ e) = case e of
@@ -238,7 +236,7 @@ isEmptyObject (Export _ e) = case e of
 insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
 insertAfter us e []                 = [e]
 insertAfter us e (f:fs) | null us   = e : f : fs
-insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e fs
+insertAfter us e (f:fs)  = f : insertAfter (delete (expName f) us) e fs
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -322,7 +320,7 @@ definition' kit q d t ls = do
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
     Constructor{conData = p, conPars = nc} | otherwise -> do
-      np <- return (arity t - nc)
+      let np = (arity t - nc)
       d <- getConstInfo p
       case theDef d of
         Record { recFields = flds } ->

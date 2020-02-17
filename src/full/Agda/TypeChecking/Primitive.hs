@@ -549,7 +549,7 @@ primForce = do
       varT s a  = varEl s (varM a)
       varS s    = pure $ sort $ varSort s
   genPrimForce (nPi "x" (varT 3 1) $
-                (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) -->
+                nPi "y" (varT 4 2) (varEl 4 $ varM 2 <@> varM 0) -->
                 varEl 3 (varM 1 <@> varM 0)) $
     \ f u -> apply f [u]
 

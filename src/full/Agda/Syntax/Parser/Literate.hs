@@ -148,7 +148,7 @@ literateExtsShortList = [".lagda"]
 
 break1 :: (a -> Bool) -> [a] -> ([a],[a])
 break1 _ []           =  ([], [])
-break1 p (x:xs) | p x = (x:[],xs)
+break1 p (x:xs) | p x = ([x],xs)
 break1 p (x:xs)       = let (ys,zs) = break1 p xs in (x:ys,zs)
 
 -- | Returns a tuple consisting of the first line of the input, and the rest
@@ -288,12 +288,8 @@ literateRsT pos s = mkLayers pos$ rst s
   indented _   [] = []
   indented ind s  =
     let (line, rest) = getLine s in
-    if all isSpace line then
-      (Code, line) : indented ind rest
-    else if ind `isPrefixOf` line then
-      (Code, line) : indented ind rest
-    else
-      maybe_code s
+    if all isSpace line || (ind `isPrefixOf` line) then
+      (Code, line) : indented ind rest else maybe_code s
 
   -- Beginning of a code block.
   r_code = rex "(.*)(::)([[:space:]]*)"

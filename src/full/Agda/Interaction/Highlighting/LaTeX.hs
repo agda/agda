@@ -609,12 +609,10 @@ generateLaTeX i = do
 
   options <- TCM.commandLineOptions
 
-  dir <- case O.optGHCiInteraction options of
-    False -> return $ O.optLaTeXDir options
-    True  -> do
-      sourceFile <- Find.srcFilePath <$> Find.findFile mod
-      return $ filePath (projectRoot sourceFile mod)
-                 </> O.optLaTeXDir options
+  dir <- if O.optGHCiInteraction options then (do
+           sourceFile <- Find.srcFilePath <$> Find.findFile mod
+           return $ filePath (projectRoot sourceFile mod)
+                      </> O.optLaTeXDir options) else return $ O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
   (code, _, _) <- liftIO $ readProcessWithExitCode
@@ -666,7 +664,7 @@ toLaTeX cc path source hi
 
   = processTokens cc
 
-  . map (\(role, tokens) -> (role,) $
+  . map ((\(role, tokens) -> (role,) $
       -- This bit fixes issue 954
       (if L.isCode role then
         -- Remove trailing whitespace from the
@@ -676,22 +674,18 @@ toLaTeX cc path source hi
         whenMoreThanOne
           (withLast $
             withTokenText $ \suf ->
-              fromMaybe suf $
-                fmap (T.dropWhileEnd isSpaceNotNewline) $
-                  T.stripSuffix "\n" suf)
+              maybe suf (T.dropWhileEnd isSpaceNotNewline) (T.stripSuffix "\n" suf))
         .
-        (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+        withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
         .
-        (withFirst $
+        withFirst (
           withTokenText $ \pre ->
               fromMaybe pre $
                   T.stripPrefix "\n" $
                     T.dropWhile isSpaceNotNewline pre)
       else
         -- do nothing
-        id) tokens)
-
-  . map (second (
+        id) tokens) . (second (
       -- Split tokens at newlines
       concatMap stringLiteral
 
@@ -704,19 +698,10 @@ toLaTeX cc path source hi
       -- Characters which share the same meta info are the same token, so
       -- group them together.
     . groupByFst
-    ))
-
-  -- Characters in different layers belong to different tokens
-  . groupByFst
+    ))) . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
-  . map (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))
-
-  -- Add position in file to each character.
-  . zip [1..]
-
-  -- Map each character to its role
-  . atomizeLayers . literateTeX (startPos (Just path))
+  . zipWith (curry (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))) [1..] . atomizeLayers . literateTeX (startPos (Just path))
 
   $ L.unpack source
   where
@@ -753,3 +738,5 @@ processTokens cc ts = do
       | Just i <- columnKind c,
         not (Set.member i (usedColumns s)) = agdaSpace
       | otherwise                          = nl <+> ptOpen c
+
+

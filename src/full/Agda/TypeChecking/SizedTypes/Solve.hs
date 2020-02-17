@@ -163,10 +163,10 @@ solveSizeConstraints flag =  do
   constrainedMetas <- Set.unions <$> do
     forM  (ccs) $ \ (cs :: NonEmpty CC) -> do
 
-      reportSDoc "tc.size.solve" 60 $ vcat $ concat
-        [ [ "size constraint cluster:" ]
-        , map (text . show) $ NonEmpty.toList cs
-        ]
+      reportSDoc "tc.size.solve" 60 $ vcat
+        ( [ "size constraint cluster:" ]
+        ++ map (text . show) (NonEmpty.toList cs)
+        )
 
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
@@ -467,7 +467,7 @@ solveCluster flag ccs = do
 
   -- Convert size metas to flexible vars.
   let metas :: [SizeMeta]
-      metas = concat $ map (foldMap (:[])) csC
+      metas = concatMap (foldMap (:[])) csC
       csF   :: [Size.Constraint' NamedRigid Int]
       csF   = map (fmap (metaId . sizeMetaId)) csC
 
@@ -740,7 +740,7 @@ instance PrettyTCM HypSizeConstraint where
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
       applyUnless (null hs)
-       (((hcat $ punctuate ", " $ map prettyTCM hs) <+> "|-") <+>)
+       ((hcat (punctuate ", " $ map prettyTCM hs) <+> "|-") <+>)
        (prettyTCM c)
 
 -- | Turn a constraint over de Bruijn indices into a size constraint.

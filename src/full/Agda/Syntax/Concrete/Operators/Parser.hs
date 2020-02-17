@@ -135,7 +135,7 @@ data ParseSections = ParseSections | DoNotParseSections
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
 parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
+parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
   where
   splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
   splitExpr e = case exprView e of

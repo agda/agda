@@ -240,9 +240,7 @@ mmmcase x fm f = case x of
  NotM x -> f x
  Meta m -> do
   bind <- readIORef $ mbind m
-  case bind of
-   Just x -> f x
-   Nothing -> fm
+  maybe fm f bind
 
 mmpcase :: Refinable a blk => BlkInfo blk -> MM a blk -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
 mmpcase blkinfo x f = case x of
@@ -283,8 +281,8 @@ mmbpcase x fm f = do
 
 waitok :: OKHandle blk -> MetaEnv (MB b blk) -> MetaEnv (MB b blk)
 waitok okh f =
- mmcase okh $ \b -> case b of -- principle constraint is never present for okhandle so it will not be refined
-  OKVal -> f
+ mmcase okh $ -- principle constraint is never present for okhandle so it will not be refined
+  \ OKVal -> f
 
 mbret :: a -> MetaEnv (MB a blk)
 mbret x = return $ NotB x
@@ -413,10 +411,8 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
          ) mcomptr
         obs <- ureadIORef (mobs m)
         res <- recalcs obs
-        case res of
-         True -> -- failed
-          return $ Left False
-         False -> lift $ search depthleft -- succeeded
+        if res then -- failed
+         return $ Left False else lift $ search depthleft -- succeeded
 
     doit = do
      res <- search depth
@@ -448,13 +444,10 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
 
  runUndo $ do
   res <- reccalc p (Just mainroot)
-  case res of
-   True -> -- failed immediately
-    return False
-   False -> do
-    Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
-    dr <- lift $ readIORef depthreached
-    return dr
+  if res then -- failed immediately
+   return False else (do
+   Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
+   lift $ readIORef depthreached)
 
 extractblkinfos :: Metavar a blk -> IO [blk]
 extractblkinfos m = do
@@ -469,8 +462,7 @@ extractblkinfos m = do
   f ((QPDoubleBlocked{}, _) : cs) = f cs
 
 recalcs :: [(QPB a blk, Maybe (CTree blk))] -> Undo Bool
-recalcs [] = return False
-recalcs (c : cs) = seqc (recalc c) (recalcs cs)
+recalcs cs = foldr (seqc . recalc) (return False) cs
 
 seqc :: Undo Bool -> Undo Bool -> Undo Bool
 seqc x y = do
@@ -498,14 +490,12 @@ reccalc cont node = do
   Nothing -> return True
   Just pendhandles ->
    foldM (\res1 h ->
-    case res1 of
-     True -> return res1
-     False -> do
+    if res1 then return res1 else (do
 
 
-      uwriteIORef (mbind h) $ Just OKVal
-      obs <- ureadIORef (mobs h)
-      recalcs obs
+     uwriteIORef (mbind h) $ Just OKVal
+     obs <- ureadIORef (mobs h)
+     recalcs obs)
    ) False pendhandles
 
 calc :: forall blk . MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo (Maybe [OKMeta blk])
@@ -610,7 +600,11 @@ calc cont node = do
     ConnectHandle (NotM _) _ -> __IMPOSSIBLE__
 
 choosePrioMeta :: Bool -> PrioMeta blk -> PrioMeta blk -> PrioMeta blk
-choosePrioMeta flip pm1@(PrioMeta p1 _) pm2@(PrioMeta p2 _) = if p1 > p2 then pm1 else if p2 > p1 then pm2 else if flip then pm2 else pm1
+choosePrioMeta flip pm1@(PrioMeta p1 _) pm2@(PrioMeta p2 _)
+  | p1 > p2 = pm1
+  | p2 > p1 = pm2
+  | flip = pm2
+  | otherwise = pm1
 choosePrioMeta _ pm@(PrioMeta _ _) (NoPrio _) = pm
 choosePrioMeta _ (NoPrio _) pm@(PrioMeta _ _) = pm
 choosePrioMeta _ (NoPrio d1) (NoPrio d2) = NoPrio (d1 && d2)

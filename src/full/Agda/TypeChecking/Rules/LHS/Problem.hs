@@ -341,7 +341,7 @@ getUserVariableNames tel names = runWriter $
         tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
 
     partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
-    partitionIsParam = (map fst *** map fst) . (partition $ (== PVParam) . snd)
+    partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
 
 
 instance Subst Term (Problem a) where

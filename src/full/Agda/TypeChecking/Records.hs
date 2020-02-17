@@ -669,7 +669,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
       case zipWithM check args xs of
-        Just as -> case [ a | Just a <- as ] of
+        Just as -> case catMaybes as of
           (a:as) ->
             if all (a ==) as
               then return a

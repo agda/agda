@@ -330,7 +330,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
                 dataCons = cs } -> do
         computeErasedConstructorArgs q
-        cds <- mapM (flip condecl Inductive) cs
+        cds <- mapM (`condecl` Inductive) cs
         return $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> return []
       GeneralizableVar{} -> return []
@@ -555,17 +555,15 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
       erased  <- lift $ getErasedConArgs c
       let missing = drop (length ts) erased
           notErased = not
-      case all notErased missing of
+      if all notErased missing then (do
         -- If the constructor is fully applied or all missing arguments are retained,
         -- we can drop the erased arguments here, doing a complete job of dropping erased arguments.
-        True  -> do
-          f <- lift $ HS.Con <$> conhqn c
-          hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
+        f <- lift $ HS.Con <$> conhqn c
+        hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]) else (do
         -- Otherwise, we translate the eta-expanded constructor application.
-        False -> do
-          let n = length missing
-          unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
-          term $ etaExpand (length missing) tm0
+        let n = length missing
+        unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
+        term $ etaExpand (length missing) tm0)
 
     -- Other kind of application: fall back to apps.
     (t, ts) -> noApplication t >>= \ t' -> coe t' `apps` ts
@@ -622,7 +620,7 @@ alt sc a = do
           if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
              | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
              | otherwise      -> lift $ conhqn c
-        mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
+        mkAlt (HS.PApp hConNm $ [HS.PVar x | (x, False) <- zip xs erased])
     T.TAGuard g b -> do
       g <- term g
       b <- term b

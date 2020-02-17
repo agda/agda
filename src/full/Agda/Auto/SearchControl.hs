@@ -230,9 +230,9 @@ instance Refinable (Exp o) (RefInfo o) where
 
      adjustCost i = if inftypeunknown then costInferredTypeUnkown else i
      varcost v | v < n - deffreevars = adjustCost $
-       if elem v (mapMaybe getVar usedvars)
+       if v `elem` (mapMaybe getVar usedvars)
        then costAppVarUsed else costAppVar
-     varcost v | otherwise = adjustCost costAppHint
+     varcost v  = adjustCost costAppHint
      varapps  = map (\ v -> Move (varcost v) $ app n meta Nothing (Var v)) [0..n - 1]
      hintapps = map (\(c, hm) -> Move (cost c hm) (app n meta Nothing (Const c))) hints
        where
@@ -240,10 +240,10 @@ instance Refinable (Exp o) (RefInfo o) where
          cost c hm = adjustCost $ case (iotastep , hm) of
            (Just _  , _       ) -> costIotaStep
            (Nothing , HMNormal) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppHintUsed else costAppHint
            (Nothing , HMRecCall) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppRecCallUsed else costAppRecCall
      generics = varapps ++ hintapps
     in case rawValue tt of

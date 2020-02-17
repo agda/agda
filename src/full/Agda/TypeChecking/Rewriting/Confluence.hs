@@ -174,8 +174,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a hd (es1' ++ es2r) rhs1 rhs2
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++ es2r))
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
@@ -258,8 +257,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1) rhs1 rhs2
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1))
 
     headView :: Term -> Maybe (QName, Elims -> Term, Elims)
     headView (Def f es) = Just (f , Def f , es)
@@ -630,7 +628,7 @@ instance MetasToVars Term where
     Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
-    MetaV x es -> ($ x) <$> ask >>= \case
+    MetaV x es -> asks ($ x) >>= \case
       Just i   -> Var i    <$> metasToVars es
       Nothing  -> MetaV x  <$> metasToVars es
     DontCare u -> DontCare <$> metasToVars u

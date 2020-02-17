@@ -30,13 +30,13 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 -- import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Conversion (equalTermOnFace)
+import Agda.TypeChecking.Conversion (equalTermOnFace, forallFaceMaps)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Conversion
+--import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad

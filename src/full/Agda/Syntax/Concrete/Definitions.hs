@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), second)
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -942,7 +942,7 @@ niceDeclarations fixs ds = do
             --            (id :: (([TerminationCheck], [PositivityCheck]) -> ([TerminationCheck], [PositivityCheck])))
             --            *** (d :)
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
-            cons d = fmap (id *** (d :) *** id)
+            cons d = fmap (second (first (d :)))
 
     notMeasure TerminationMeasure{} = False
     notMeasure _ = True

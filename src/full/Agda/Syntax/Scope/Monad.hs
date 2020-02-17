@@ -569,9 +569,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           -- would break the invariant that all functions in a module share the
           -- module telescope. Instead we copy M1.M2.X to M.M2.X for a fresh
           -- module M2 that gets the right telescope.
-          m <- case x `isInModule` old of
-                 True  -> return new'
-                 False -> renMod' False (qnameModule x)
+          m <- if x `isInModule` old then return new' else renMod' False (qnameModule x)
                           -- Don't copy recursively here, we only know that the
                           -- current name x should be copied.
           -- Generate a fresh name for the target.
@@ -872,7 +870,7 @@ openModule kind mam cm dir = do
   verboseS "scope.locals" 10 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
-        shadowed = List.intersect locals newdefs
+        shadowed = locals `List.intersect` newdefs
     reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
   -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
   modifyLocalVars $ AssocList.mapWithKey $ \ c x ->

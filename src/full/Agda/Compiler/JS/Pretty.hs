@@ -18,7 +18,7 @@ import Agda.Compiler.JS.Syntax hiding (exports)
 -- assumes Haskell-like indentation.
 
 br :: Int -> String
-br i = "\n" ++ take (2*i) (repeat ' ')
+br i = "\n" ++ replicate (2*i) ' '
 
 unescape :: Char -> String
 unescape '"'      = "\\\""
@@ -30,7 +30,7 @@ unescape '\x2029' = "\\u2029"
 unescape c        = [c]
 
 unescapes :: String -> String
-unescapes s = concat (map unescape s)
+unescapes s = concatMap unescape s
 
 -- pretty n i e pretty-prints e, under n levels of de Bruijn binding,
 -- with i levels of indentation.

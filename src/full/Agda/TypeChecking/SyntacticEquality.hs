@@ -80,7 +80,7 @@ class SynEq a where
 
 instance SynEq Bool where
   synEq x y | x == y = return (x, y)
-  synEq x y | otherwise = inequal (x, y)
+  synEq x y  = inequal (x, y)
 
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where

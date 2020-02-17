@@ -1077,10 +1077,12 @@ type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e =
-  Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n) $
-  lambdaLiftExpr ns e
+lambdaLiftExpr ns e
+  = foldr
+      (\ n
+         -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
+      e
+      ns
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a

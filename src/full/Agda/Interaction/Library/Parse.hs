@@ -161,8 +161,8 @@ checkFields fields fs = do
       -- Plural s for error message.
       s xs      = if length xs > 1 then "s" else ""
       list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
-  when (not $ null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
-  when (not $ null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
+  unless (null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
+  unless (null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
 
 -- | Find 'Field' with given 'fName', throw error if unknown.
 findField :: String -> [Field] -> P (Maybe Field)
@@ -179,7 +179,7 @@ findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
 -- @
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
-  groupLines =<< concat <$> mapM (uncurry parseLine) (zip [1..] $ map stripComments $ lines s)
+  groupLines =<< concat <$> zipWithM parseLine [1..] (map stripComments $ lines s)
 
 type LineNumber = Int
 

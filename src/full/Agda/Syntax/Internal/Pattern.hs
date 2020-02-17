@@ -130,7 +130,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
-    picks = forM (downFrom n) $ \ i -> List.findIndex (Just i ==) ixs
+    picks = forM (downFrom n) $ \ i -> List.elemIndex (Just i) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP _ x)    = [Just $ dbPatVarIndex x]

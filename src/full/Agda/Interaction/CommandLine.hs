@@ -63,7 +63,7 @@ interaction prompt cmds eval = loop
                                     do  liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
                                         loop
                                 Left xs ->
-                                    do  liftIO $ putStrLn $ "More than one command match: " ++ concat (List.intersperse ", " xs)
+                                    do  liftIO $ putStrLn $ "More than one command match: " ++ List.intercalate ", " xs
                                         loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
@@ -86,9 +86,7 @@ interactionLoop doTypeCheck =
             -- behaviour of agda -I may be surprising. If agda -I ever
             -- becomes properly supported again, then this behaviour
             -- should perhaps be fixed.
-            setScope $ case mi of
-              Just i  -> iInsideScope i
-              Nothing -> emptyScopeInfo
+            setScope $ maybe emptyScopeInfo iInsideScope mi
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s
@@ -183,9 +181,7 @@ metaParseExpr ii s =
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
         --liftIO $ putStrLn $ show scope
-        let pos = case rStart r of
-                    Nothing  -> __IMPOSSIBLE__
-                    Just pos -> pos
+        let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
         concreteToAbstract scope e
 
@@ -234,13 +230,12 @@ evalTerm s =
     do  e <- parseExpr s
         v <- evalInCurrent e
         e <- prettyTCM v
-        liftIO $ putStrLn $ show e
+        liftIO $ print e
         return Continue
     where
         evalInCurrent e = do
           (v,t) <- inferExpr e
-          v'    <- normalise v
-          return v'
+          normalise v
 
 
 typeOf :: [String] -> TCM ()
