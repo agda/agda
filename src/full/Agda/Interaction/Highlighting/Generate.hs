@@ -449,17 +449,19 @@ nameKinds :: Level
           -> A.Declaration
           -> TCM NameKinds
 nameKinds hlLevel decl = do
-  imported <- fix <$> useTC stImports
+  imported <- useTC $ stImports . sigDefinitions
   local    <- case hlLevel of
-    Full{} -> fix <$> useTC stSignature
+    Full{} -> useTC $ stSignature . sigDefinitions
     _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
   let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
-  let merged = unions [local, imported, syntax]
-  return (\n -> HMap.lookup n merged)
+  return $ \ n -> unionsMaybeWith merge
+    [ defnToKind . theDef <$> HMap.lookup n local
+    , defnToKind . theDef <$> HMap.lookup n imported
+    , HMap.lookup n syntax
+    ]
   where
-  fix = HMap.map (defnToKind . theDef) . (^. sigDefinitions)
 
   -- | The 'M.Axiom' constructor is used to represent various things
   -- which are not really axioms, so when maps are merged 'Postulate's
@@ -470,7 +472,6 @@ nameKinds hlLevel decl = do
   merge _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
   merge k         _ = k
 
-  unions = foldr (HMap.unionWith merge) HMap.empty
   insert = HMap.insertWith merge
 
   defnToKind :: Defn -> NameKind
