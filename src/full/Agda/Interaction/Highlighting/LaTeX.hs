@@ -739,4 +739,3 @@ processTokens cc ts = do
         not (Set.member i (usedColumns s)) = agdaSpace
       | otherwise                          = nl <+> ptOpen c
 
-

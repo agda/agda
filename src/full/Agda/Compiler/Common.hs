@@ -176,4 +176,3 @@ topLevelModuleName m = do
     -- (a module _ ), see e.g. #1866
     []       -> curMName
 
-
