@@ -1347,7 +1347,7 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
        C.StaticPragma{}     -> Nothing
        C.InlinePragma{}     -> Nothing
        C.ImpossiblePragma{} -> Nothing
-       C.EtaPragma{}        -> Nothing
+       C.EtaPragma{}        -> Just SafeFlagEta
        C.WarningOnUsage{}   -> Nothing
        C.WarningOnImport{}  -> Nothing
        C.DisplayPragma{}    -> Nothing

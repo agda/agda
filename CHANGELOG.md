@@ -77,6 +77,9 @@ Pragmas and options
 * New pragma option `--keep-pattern-variables` to prevent case
   splitting from replacing variables with dot patterns.
 
+* Pragma `{-# ETA <record name> #-}` is no longer considered `--safe`.
+  See [Issue [#4450](https://github.com/agda/agda/issues/4450)].
+
 Language
 --------
 
