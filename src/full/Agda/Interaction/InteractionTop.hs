@@ -338,7 +338,11 @@ maybeAbort m = do
         Left ((x, commandState'), tcState') -> do
           putTC tcState'
           put commandState'
-          return (Command (Just x))
+          case c of
+            IOTCM _ _ _ Cmd_exit -> do
+              putResponse Resp_DoneExiting
+              return Done
+            _ -> return (Command (Just x))
         Right a -> do
           liftIO $ popAbortedCommands q a
           putTC $ initState
@@ -480,6 +484,7 @@ updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
 updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
+updateInteractionPointsAfter Cmd_exit{}                          = False
 
 -- | Interpret an interaction
 
@@ -816,6 +821,7 @@ interpret (Cmd_compute cmode ii rng s) = do
 interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
+interpret Cmd_exit  = return ()
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.

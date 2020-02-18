@@ -65,6 +65,7 @@ lispifyResponse (Resp_ClearHighlighting tokenBased) =
                    [ Q (lispifyTokenBased tokenBased) ]
          ]
 lispifyResponse Resp_DoneAborting = return [ L [ A "agda2-abort-done" ] ]
+lispifyResponse Resp_DoneExiting  = return [ L [ A "agda2-exit-done"  ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
 lispifyResponse (Resp_RunningInfo n s)
   | n <= 1    = return [ displayRunningInfo s ]
