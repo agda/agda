@@ -473,6 +473,9 @@ Emacs mode
   _ : A   (instance)
   ```
 
+* It is now possible to ask Agda to terminate itself after any
+  previously invoked commands have completed, by giving a prefix
+  argument to `agda2-term`.
 
 GHC Backend
 -----------
