@@ -358,7 +358,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
         case Map.elems tccons of
          [(m, mytype, mylocalVars, _)] | null eqcons -> do
           (ids, pats) <- constructPats cmap mi clause
-          let ctx = zipWith (curry (\((hid, id), t) -> HI hid (id, t))) ids mylocalVars
+          let ctx = zipWith (\(hid, id) t -> HI hid (id, t)) ids mylocalVars
           ticks <- liftIO $ newIORef 0
           let [rectyp'] = mymrectyp
           defdfv <- getdfv mi def
@@ -449,7 +449,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
             else
              let showhits = take 10 $ drop pick' sorthits
              in stopWithMsg $ "Listing candidate(s) " ++ show pick' ++ "-" ++ show (pick' + length showhits - 1) ++ " (found " ++ show (length sorthits) ++ " in total)\n" ++
-                           unlines (zipWith (curry (\(i, (cn, _)) -> show i ++ "  " ++ cn)) [pick'..pick' + length showhits - 1] showhits)
+                           unlines (zipWith (\ i (cn, _) -> show i ++ "  " ++ cn) [pick' .. pick' + length showhits - 1] showhits)
        else
         if pick >= length sorthits then
          stopWithMsg $ insuffcands $ length sorthits

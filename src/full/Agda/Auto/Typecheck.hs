@@ -616,7 +616,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        _ -> return False
 
     boringClos :: [CAction o] -> EE Bool
-    boringClos cl = liftM (and) $ mapM f cl
+    boringClos cl = liftM and $ mapM f cl
      where f (Sub e) = boringExp e
            f Skip = return True
            f (Weak _) = return True

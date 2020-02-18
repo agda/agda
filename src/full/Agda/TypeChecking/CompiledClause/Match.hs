@@ -159,7 +159,7 @@ match' ((c, es, patch) : stack) = do
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
             -- Now do the matching on the @n@ths argument:
-            id $
+            id $ -- TODO:: What does this accomplish?
              case eb of
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do

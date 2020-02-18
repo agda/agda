@@ -473,10 +473,14 @@ isLitP (DotP _ u) = reduce u >>= \case
   _     -> return $ Nothing
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-  if c == zero then return $ Just $ LitNat (getRange c) 0 else return Nothing
+  if c == zero
+    then return $ Just $ LitNat (getRange c) 0
+    else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
   Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
-  if c == suc then fmap inc <$> isLitP (namedArg a) else return Nothing
+  if c == suc
+    then fmap inc <$> isLitP (namedArg a)
+    else return Nothing
   where
     inc :: Literal -> Literal
     inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
