@@ -394,7 +394,7 @@ type Boundary' a = [(Term,a)]
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
 -- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
-telViewUpToPathBoundary' :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary' :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary' 0 t = return $ (TelV EmptyTel t,[])
 telViewUpToPathBoundary' n t = do
   vt <- pathViewAsPi' $ t
@@ -428,7 +428,7 @@ fullBoundary tel bs =
 --  Output: ΔΓ ⊢ b
 --          ΔΓ ⊢ i : I
 --          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
-telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary i a = do
    (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
    return $ (telv, fullBoundary tel bs)
@@ -440,10 +440,10 @@ telViewUpToPathBoundary i a = do
 --          Δ.Γ ⊢ i : I
 --          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
 -- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
-telViewUpToPathBoundaryP :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundaryP = telViewUpToPathBoundary'
 
-telViewPathBoundaryP :: Type -> TCM (TelView,Boundary)
+telViewPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Type -> m (TelView,Boundary)
 telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
 
 
