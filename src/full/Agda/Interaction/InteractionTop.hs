@@ -417,7 +417,7 @@ initialiseCommandQueue next = do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
-            let n' = (succ n)
+            let n' = succ n
             atomically $ writeTChan commands (n', c)
             case c of
               Done -> return ()
@@ -570,26 +570,30 @@ interpret (Cmd_load_highlighting_info source) = do
     setCommandLineOpts =<< lift commandLineOptions
 
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
-      ex <- liftIO $ doesFileExist source
+      ex        <- liftIO $ doesFileExist source
       absSource <- liftIO $ SourceFile <$> absolute source
-      if ex then (do
-        si <- Imp.sourceInfo absSource
-        let m = Imp.siModuleName si
-        checkModuleName m absSource Nothing
-        mmi <- getVisitedModule m
-        case mmi of
-          Nothing -> return Nothing
-          Just mi ->
-            if hashText (Imp.siSource si) ==
-               iSourceHash (miInterface mi)
-             then do
-              modFile <- useTC stModuleToSource
-              method  <- viewTC eHighlightingMethod
-              return $ Just (iHighlighting $ miInterface mi, method, modFile)
-             else
-              return Nothing)
-          `catchError`
-        \_ -> return Nothing else return Nothing
+      if ex
+        then
+          (do
+              si <- Imp.sourceInfo absSource
+              let m = Imp.siModuleName si
+              checkModuleName m absSource Nothing
+              mmi <- getVisitedModule m
+              case mmi of
+                Nothing -> return Nothing
+                Just mi ->
+                  if hashText (Imp.siSource si) == iSourceHash (miInterface mi)
+                    then do
+                      modFile <- useTC stModuleToSource
+                      method  <- viewTC eHighlightingMethod
+                      return
+                        $ Just (iHighlighting $ miInterface mi, method, modFile)
+                    else
+                      return Nothing
+            )
+            `catchError` \_ -> return Nothing
+        else
+          return Nothing
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
@@ -1069,9 +1073,8 @@ setCommandLineOpts opts = do
 
 status :: CommandM Status
 status = do
-  cf <- gets theCurrentFile
+  cf       <- gets theCurrentFile
   showImpl <- lift showImplicitArguments
-
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
@@ -1079,11 +1082,14 @@ status = do
     Nothing     -> return False
     Just (f, t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
-      if t == t' then (do
-        mm <- lookupModuleFromSource f
-        case mm of
-          Nothing -> return False -- work-around for Issue1007
-          Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m) else return False
+      if t == t'
+        then do
+          mm <- lookupModuleFromSource f
+          case mm of
+            Nothing -> return False -- work-around for Issue1007
+            Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+        else
+          return False
 
   return $ Status { sShowImplicitArguments = showImpl
                   , sChecked               = checked

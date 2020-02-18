@@ -162,10 +162,15 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               pconstrapp = CSPatConApp con (map (\((hid, v), _, _) -> HI hid (CSPatVar v)) newvars)
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
-              ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx) ++
-                     reverse (zipWith (curry (\(((hid, _), id, t), i) ->
-                       HI hid (Id (case id of {NoId -> newvarprefix{- ++ show i-}; Id id -> id}), t)
-                      )) newvars [0..]) ++
+              ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx)
+                     ++
+                     reverse (zipWith ((\ ((hid, _), id, t) i -> HI hid (Id (case id of
+                                                                                NoId -> newvarprefix
+                                                                                Id id -> id), 
+                                                                                t)))
+                                       newvars
+                                       [0 .. ])
+                     ++
                      map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (scrut + 1) ctx)
               tt' = thesub tt
               pats' = map (replacep scrut (length newvars) pconstrapp constrapp) pats
@@ -182,11 +187,9 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
                  cost
-                   | null mblkvar =
-                  if scrut < length ctx - nscrutavoid && nothid
-                  then costCaseSplitLow + costAddVarDepth
-                       * Cost (depthofvar scrut pats)
-                  else costCaseSplitVeryHigh
+                   | null mblkvar && scrut < length ctx - nscrutavoid && nothid =
+                           costCaseSplitLow + costAddVarDepth * Cost (depthofvar scrut pats)
+                   | null mblkvar =  costCaseSplitVeryHigh
                    | scrut `elem` mblkvar = costCaseSplitLow
                    | scrut < length ctx - nscrutavoid && nothid = costCaseSplitHigh
                    | otherwise = costCaseSplitVeryHigh

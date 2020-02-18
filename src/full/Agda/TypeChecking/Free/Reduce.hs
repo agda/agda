@@ -66,13 +66,15 @@ varsToForceNotFree = gets (IntMap.keysSet . (IntMap.filter (== NotFree)))
 
 -- Reduce the argument if there are offending free variables. Doesn't call the
 -- continuation when no reduction is required.
-reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
-                 => (a -> m a) -> a -> m a
+reduceIfFreeVars
+  :: (Reduce a, ForceNotFree a, MonadFreeRed m) => (a -> m a) -> a -> m a
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
       notfree = IntSet.null $ IntSet.intersection xs fvs
-  if notfree then return a else k . precomputeFreeVars_ =<< reduce a
+  if notfree
+    then return a
+    else k . precomputeFreeVars_ =<< reduce a
 
 -- Careful not to define forceNotFree' = forceNotFreeR since that would loop.
 forceNotFreeR :: (Reduce a, ForceNotFree a, MonadFreeRed m)

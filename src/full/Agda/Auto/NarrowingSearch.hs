@@ -412,7 +412,9 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
         obs <- ureadIORef (mobs m)
         res <- recalcs obs
         if res then -- failed
-         return $ Left False else lift $ search depthleft -- succeeded
+         return $ Left False
+        else
+         lift $ search depthleft -- succeeded
 
     doit = do
      res <- search depth
@@ -444,10 +446,13 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
 
  runUndo $ do
   res <- reccalc p (Just mainroot)
-  if res then -- failed immediately
-   return False else (do
-   Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
-   lift $ readIORef depthreached)
+  if res
+  then -- failed immediately
+   return False
+  else
+   do
+     Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
+     lift $ readIORef depthreached
 
 extractblkinfos :: Metavar a blk -> IO [blk]
 extractblkinfos m = do
@@ -485,18 +490,19 @@ recalc (con, node) =
 
 reccalc :: MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo Bool
 reccalc cont node = do
- res <- calc cont node
- case res of
-  Nothing -> return True
-  Just pendhandles ->
-   foldM (\res1 h ->
-    if res1 then return res1 else (do
-
-
-     uwriteIORef (mbind h) $ Just OKVal
-     obs <- ureadIORef (mobs h)
-     recalcs obs)
-   ) False pendhandles
+  res <- calc cont node
+  case res of
+    Nothing          -> return True
+    Just pendhandles -> foldM
+      (\res1 h -> if res1
+        then return res1
+        else do
+          uwriteIORef (mbind h) $ Just OKVal
+          obs <- ureadIORef (mobs h)
+          recalcs obs
+      )
+      False
+      pendhandles
 
 calc :: forall blk . MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo (Maybe [OKMeta blk])
 calc cont node = do

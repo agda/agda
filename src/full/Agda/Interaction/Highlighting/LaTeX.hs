@@ -609,10 +609,13 @@ generateLaTeX i = do
 
   options <- TCM.commandLineOptions
 
-  dir <- if O.optGHCiInteraction options then (do
-           sourceFile <- Find.srcFilePath <$> Find.findFile mod
-           return $ filePath (projectRoot sourceFile mod)
-                      </> O.optLaTeXDir options) else return $ O.optLaTeXDir options
+  dir <- if O.optGHCiInteraction options
+           then do
+             sourceFile <- Find.srcFilePath <$> Find.findFile mod
+             return $ filePath (projectRoot sourceFile mod)
+                        </> O.optLaTeXDir options
+           else
+             return $ O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
 
   (code, _, _) <- liftIO $ readProcessWithExitCode
@@ -701,7 +704,8 @@ toLaTeX cc path source hi
     ))) . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
-  . zipWith (curry (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))) [1..] . atomizeLayers . literateTeX (startPos (Just path))
+  . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char)))
+            [1..] . atomizeLayers . literateTeX (startPos (Just path))
 
   $ L.unpack source
   where
