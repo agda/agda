@@ -675,6 +675,120 @@ helper function needs to be written out explicitly, but fortunately
 the :ref:`emacs-mode` has a command (``C-c C-h``) to generate it using
 the same algorithm that generates the type of a with-function.
 
+Termination checking
+~~~~~~~~~~~~~~~~~~~~
+
+..
+  ::
+
+  module Termination where
+
+    postulate
+      some-stuff : Nat
+
+    module _ where
+
+The termination checker runs on the translated auxiliary functions, which
+means that some code that looks like it should pass termination checking
+does not. Specifically this happens in call chains like ``c₁ (c₂ x) ⟶ c₁ x``
+where the recursive call is under a with-abstraction. The reason is that
+the auxiliary function only gets passed ``x``, so the call chain is actually
+``c₁ (c₂ x) ⟶ x ⟶ c₁ x``, and the termination checker cannot see that this
+is terminating. For example::
+
+      data D : Set where
+        [_] : Nat → D
+
+..
+  ::
+
+    module M₁ where
+
+      {-# TERMINATING #-}
+
+::
+
+      fails : D → Nat
+      fails [ zero  ] = zero
+      fails [ suc n ] with some-stuff
+      ... | _ = fails [ n ]
+
+The easiest way to work around this problem is to perform a with-abstraction
+on the recursive call up front::
+
+      fixed : D → Nat
+      fixed [ zero  ] = zero
+      fixed [ suc n ] with fixed [ n ] | some-stuff
+      ... | rec | _ = rec
+
+..
+  ::
+
+    module M₂ where
+
+      {-# TERMINATING #-}
+
+If the function takes more arguments you might need to abstract over a
+partial application to just the structually recursive argument. For instance,
+
+::
+
+      fails : Nat → D → Nat
+      fails _ [ zero  ] = zero
+      fails _ [ suc n ] with some-stuff
+      ... | m = fails m [ n ]
+
+      fixed : Nat → D → Nat
+      fixed _ [ zero  ] = zero
+      fixed _ [ suc n ] with (λ m → fixed m [ n ]) | some-stuff
+      ... | rec | m = rec m
+
+..
+  ::
+
+    postulate
+
+A possible complication is that later with-abstractions might change the
+type of the abstracted recursive call::
+
+        T      : D → Set
+        suc-T  : ∀ {n} → T [ n ] → T [ suc n ]
+        zero-T : T [ zero ]
+
+..
+  ::
+
+    module M₃ where
+
+      {-# TERMINATING #-}
+
+::
+
+      fails : (d : D) → T d
+      fails [ zero  ] = zero-T
+      fails [ suc n ] with some-stuff
+      ... | _ with [ n ]
+      ...   | z = suc-T (fails [ n ])
+
+Trying to abstract over the recursive call as before does not work in this case.
+
+.. code-block:: agda
+
+      still-fails : (d : D) → T d
+      still-fails [ zero ] = zero-T
+      still-fails [ suc n ] with still-fails [ n ] | some-stuff
+      ... | rec | _ with [ n ]
+      ...   | z = suc-T rec -- Type error because rec : T z
+
+To solve the problem you can add ``rec`` to the with-abstraction messing up
+its type. This will prevent it from having its type changed::
+
+      fixed : (d : D) → T d
+      fixed [ zero ] = zero-T
+      fixed [ suc n ] with fixed [ n ] | some-stuff
+      ... | rec | _ with rec | [ n ]
+      ...   | _ | z = suc-T rec
+
 Performance considerations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
