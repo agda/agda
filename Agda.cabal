@@ -253,6 +253,9 @@ library
   if impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
+  if impl(ghc >= 8.6)
+    build-depends: ghc-compact == 0.1.*
+
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
   -- build with Alex 3.2.0 and segfaults with 3.2.2.

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 -- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
 -- -O2 does not have any noticable effect on runtime
@@ -44,6 +45,10 @@ import qualified Data.List as List
 import Data.Function
 
 import qualified Codec.Compression.GZip as G
+
+#if __GLASGOW_HASKELL__ >= 806
+import GHC.Compact as C
+#endif
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -179,8 +184,16 @@ decode s = do
     Just mf -> stModuleToSource `setTCLens` mf
 
   case r of
-    Right x   -> return (Just x)
-    Left  err -> do
+    Right x ->
+#if __GLASGOW_HASKELL__ < 806
+      return (Just x)
+#else
+      -- "Compact" the interfaces (without breaking sharing) to reduce
+      -- the amount of memory that is traversed by the garbage
+      -- collector.
+      liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+#endif
+    Left err -> do
       reportSLn "import.iface" 5 $ "Error when decoding interface file"
       -- Andreas, 2014-06-11 deactivated debug printing
       -- in order to get rid of dependency of Serialize on TCM.Pretty
