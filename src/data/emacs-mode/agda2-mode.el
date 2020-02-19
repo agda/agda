@@ -466,14 +466,16 @@ agda2-include-dirs is not bound." :warning))
     ;; Start the Agda process.
     (let ((agda2-bufname "*agda2*"))
 
-      (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
-        (setq agda2-process
-              (apply 'start-process "Agda2" agda2-bufname
-                     agda2-program-name all-program-args)))
+      (setq agda2-process
+            (make-process
+             :name "Agda2"
+             :buffer agda2-bufname
+             :command (cons agda2-program-name all-program-args)
+             :connection-type 'pipe ; Pipes are faster than PTYs.
+             :coding 'utf-8
+             :noquery nil
+             :filter 'agda2-output-filter))
 
-      (set-process-coding-system agda2-process 'utf-8 'utf-8)
-      (set-process-query-on-exit-flag agda2-process nil)
-      (set-process-filter agda2-process 'agda2-output-filter)
       (setq agda2-in-progress nil
             agda2-file-buffer (current-buffer))
 
