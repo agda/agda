@@ -729,7 +729,7 @@ on the recursive call up front::
       {-# TERMINATING #-}
 
 If the function takes more arguments you might need to abstract over a
-partial application to just the structually recursive argument. For instance,
+partial application to just the structurally recursive argument. For instance,
 
 ::
 
