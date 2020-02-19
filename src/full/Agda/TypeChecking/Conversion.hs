@@ -1338,19 +1338,18 @@ leqLevel a b = do
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`
                      ((== YesGeneralize) <$> isGeneralizableMeta x)
-            if abort
-              then postpone
-              else do
-                x' <- case mvJudgement mv of
-                  IsSort{} -> __IMPOSSIBLE__
-                  HasType _ cmp t -> do
-                    TelV tel t' <- telView t
-                    newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
-                reportSDoc "tc.conv.level" 20 $ fsep
-                  [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
-                  , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
-                  ]
-                equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
+            if | abort -> postpone
+               | otherwise -> do
+                  x' <- case mvJudgement mv of
+                    IsSort{} -> __IMPOSSIBLE__
+                    HasType _ cmp t -> do
+                      TelV tel t' <- telView t
+                      newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
+                  reportSDoc "tc.conv.level" 20 $ fsep
+                    [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
+                    , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
+                    ]
+                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
 
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
@@ -1480,9 +1479,9 @@ equalLevel' a b = do
           | any (isThisMeta x) as -> postpone
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
           -- there is only a potential choice when k == l
-          | k == l -> if y < x
-                      then meta x as' $ atomicLevel $ MetaLevel y bs'
-                      else meta y bs' $ atomicLevel $ MetaLevel x as'
+          | k == l -> if
+              | y < x     -> meta x as' $ atomicLevel $ MetaLevel y bs'
+              | otherwise -> meta y bs' $ atomicLevel $ MetaLevel x as'
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , _)
           | Just b' <- subLevel k b -> meta x as' b'
         (_ , SinglePlus (Plus l (MetaLevel y bs')) :| [])
@@ -1653,7 +1652,8 @@ equalSort s1 s2 = do
             if equal
               then return ()
               else postpone
-          else postpone
+          else
+            postpone
 
       set0 = mkType 0
       prop0 = mkProp 0
@@ -1692,7 +1692,8 @@ equalSort s1 s2 = do
           -- --omega-in-omega is enabled.
           Inf -> do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-            if infInInf then equalSort Inf s2 else no
+            if | infInInf  -> equalSort Inf s2
+               | otherwise -> no
           -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
           SizeUniv{} -> no
@@ -1755,17 +1756,17 @@ equalSort s1 s2 = do
             -- more constraints (in particular when @l == 0@).
             leqLevel l2 l
             -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
-            if {- sizedTypesEnabled || -} propEnabled
-              then
-                 case funSort' s1 (Type l2) of
+            if | {- sizedTypesEnabled || -} propEnabled -> case funSort' s1 (Type l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Just s  -> equalSort (Type l) s
                    -- Otherwise: postpone
                    Nothing -> synEq (Type l) (FunSort s1 $ Type l2)
-              else do
-                l1 <- forceType s1
-                equalLevel l (levelLub l1 l2)
+               -- If both Prop and sized types are disabled, only the
+               -- case @s1 == Set l1@ remains.
+               | otherwise -> do
+                   l1 <- forceType s1
+                   equalLevel l (levelLub l1 l2)
           -- If @Prop l == funSort s1 s2@, then @s2@ must be of the
           -- form @Prop l2@, and @s1@ can be one of @Set l1@, Prop
           -- l1@, or @SizeUniv@.
@@ -1975,8 +1976,9 @@ leqInterval r q =
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
 leqConj (rs,rst) (qs,qst) = do
-  if toSet qs `Set.isSubsetOf` toSet rs
-    then do
+  case toSet qs `Set.isSubsetOf` toSet rs of
+    False -> return False
+    True  -> do
       interval <- elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
 
       -- we don't want to generate new constraints here because
@@ -1988,8 +1990,6 @@ leqConj (rs,rst) (qs,qst) = do
       let listSubset ts us = and <$> forM ts (\ t ->
                               or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
       listSubset qst rst
-    else
-      return False
   where
     toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
 

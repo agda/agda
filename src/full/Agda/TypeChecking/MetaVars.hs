@@ -394,10 +394,9 @@ blockTermOnProblem t v pid =
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext (prettyTCM $ abstract tel v)
       , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
-    if inst
-      then
-        instantiate (MetaV x es)
-      else do
+    case inst of
+      True  -> instantiate (MetaV x es)
+      False -> do
         -- We don't return the blocked term instead create a fresh metavariable
         -- that we compare against the blocked term once it's unblocked. This way
         -- blocked terms can be instantiated before they are unblocked, thus making

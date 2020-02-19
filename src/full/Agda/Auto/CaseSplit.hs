@@ -164,12 +164,10 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               Id newvarprefix = fst $ (drophid ctx) !! scrut
               ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx)
                      ++
-                     reverse (zipWith ((\ ((hid, _), id, t) i -> HI hid (Id (case id of
-                                                                                NoId -> newvarprefix
-                                                                                Id id -> id),
-                                                                                t)))
-                                       newvars
-                                       [0 .. ])
+                     reverse (zipWith (\((hid, _), id, t) i ->
+                                          HI hid (Id (case id of {NoId -> newvarprefix{- ++ show i-}; Id id -> id}), t))
+                                      newvars
+                                      [0 .. ])
                      ++
                      map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (scrut + 1) ctx)
               tt' = thesub tt

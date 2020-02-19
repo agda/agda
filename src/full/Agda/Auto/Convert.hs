@@ -425,7 +425,7 @@ fmExp m (I.DontCare _) = False
 fmExp _ I.Dummy{} = False
 
 fmExps :: I.MetaId -> I.Args -> Bool
-fmExps m as = foldr ((||) . fmExp m . Cm.unArg) False as
+fmExps m as = any (fmExp m . Cm.unArg) as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m (I.Plus _ l) = case l of

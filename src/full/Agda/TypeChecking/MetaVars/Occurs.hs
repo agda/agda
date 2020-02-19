@@ -944,17 +944,16 @@ reallyNotFreeIn xs a                  = do
       rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
       nonrigid = IntSet.difference anywhere rigid
       hasNo    = IntSet.null . IntSet.intersection xs
-  if hasNo nonrigid
-    then
-      -- No non-rigid occurrences. We can't do anything about the rigid
-      -- occurrences so drop those and leave `a` untouched.
-      return (IntSet.difference xs rigid, a)
-    else do
-      -- If there are non-rigid occurrences we need to reduce a to see if
-      -- we can get rid of them (#3177).
-      (fvs, a) <- forceNotFree (IntSet.difference xs rigid) a
-      let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
-      return (xs, a)
+  if | hasNo nonrigid ->
+        -- No non-rigid occurrences. We can't do anything about the rigid
+        -- occurrences so drop those and leave `a` untouched.
+        return (IntSet.difference xs rigid, a)
+     | otherwise -> do
+        -- If there are non-rigid occurrences we need to reduce a to see if
+        -- we can get rid of them (#3177).
+        (fvs , a) <- forceNotFree (IntSet.difference xs rigid) a
+        let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
+        return (xs , a)
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
