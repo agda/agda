@@ -292,6 +292,77 @@ Language
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
 
+  The easiest way to fix termination problems caused by `with` is to abstract
+  over the offending recursive call before any other `with`s. For example
+
+  ```agda
+  data D : Set where
+    [_] : Nat → D
+
+  fails : D → Nat
+  fails [ zero  ] = zero
+  fails [ suc n ] with some-stuff
+  ... | _ = fails [ n ]
+  ```
+
+  This fails termination because the relation between `[ suc n ]` and `[ n ]`
+  is lost since the generated with-function only gets passed `n`. To fix it we
+  can abstract over the recursive call:
+
+  ```agda
+  fixed : D → Nat
+  fixed [ zero  ] = zero
+  fixed [ suc n ] with fixed [ n ] | some-stuff
+  ... | rec | _ = rec
+  ```
+
+  If the function takes more arguments you might need to abstract over a
+  partial application to just the structually recursive argument. For instance,
+
+  ```agda
+  fails : Nat → D → Nat
+  fails _ [ zero  ] = zero
+  fails _ [ suc n ] with some-stuff
+  ... | m = fails m [ n ]
+
+  fixed : Nat → D → Nat
+  fixed _ [ zero  ] = zero
+  fixed _ [ suc n ] with (λ m → fixed m [ n ]) | some-stuff
+  ... | rec | m = rec m
+  ```
+
+  A possible complication is that later `with`-abstractions might change the
+  type of the abstracted recursive call:
+
+  ```agda
+  T      : D → Set
+  suc-T  : ∀ {n} → T [ n ] → T [ suc n ]
+  zero-T : T [ zero ]
+
+  fails : (d : D) → T d
+  fails [ zero  ] = zero-T
+  fails [ suc n ] with some-stuff
+  ... | _ with [ n ]
+  ...   | z = suc-T (fails [ n ])
+
+  still-fails : (d : D) → T d
+  still-fails [ zero ] = zero-T
+  still-fails [ suc n ] with still-fails [ n ] | some-stuff
+  ... | rec | _ with [ n ]
+  ...   | z = suc-T rec -- Type error because rec : T z
+  ```
+
+  To solve this problem you can add `rec` to the with-abstraction messing up
+  its type. This will prevent it from having its type changed:
+
+  ```agda
+  fixed : (d : D) → T d
+  fixed [ zero ] = zero-T
+  fixed [ suc n ] with fixed [ n ] | some-stuff
+  ... | rec | _ with rec | [ n ]
+  ...   | _ | z = suc-T rec
+  ```
+
 * The termination checker will now try to dispose of recursive calls
   by reducing with the non-recursive function clauses.
   This eliminates false positives common for definitions by copatterns
