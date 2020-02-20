@@ -3,6 +3,7 @@
 import System.Directory
 
 import RunAgda
+import Agda.Version
 
 top     = "Issue983"
 topFile = top ++ ".agda"
@@ -40,6 +41,9 @@ main = runAgda ["--no-libraries"] $ \(AgdaCommands { .. }) -> do
   echoUntilPrompt
 
   -- Clean up.
-  mapM_ removeFile [libFile, libFile ++ "i", badFile]
+  --
+  -- Clean up can fail if there are various versions of the Agda
+  -- library available for GHC.
+  mapM_ removeFile [libFile, concat [ "_build/", version, "/agda/", libFile, "i" ], badFile]
 
   return ()

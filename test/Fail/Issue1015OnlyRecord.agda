@@ -21,3 +21,6 @@ elim : R ∞ → ⊥
 elim (delay f) = elim (f ∞)
 
 -- Gives termination error, as expected.
+-- UPDATE: Does not give termination error, as expected.
+-- R is an inductive non-eta record so its constructor is structurally
+-- size increasing.

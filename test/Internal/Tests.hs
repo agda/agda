@@ -32,6 +32,7 @@ import qualified Internal.TypeChecking.Positivity.Occurrence       as Occurrence
 import qualified Internal.TypeChecking.Rules.LHS.Problem           as LHSProblem   ( tests )
 import qualified Internal.TypeChecking.SizedTypes                  as SizedTypes   ( tests )
 import qualified Internal.TypeChecking.Substitute                  as Substitute   ( tests )
+import qualified Internal.Utils.AssocList                          as UtilAList    ( tests )
 import qualified Internal.Utils.Bag                                as UtilBag      ( tests )
 import qualified Internal.Utils.BiMap                              as UtilBiMap    ( tests )
 import qualified Internal.Utils.Cluster                            as UtilClust    ( tests )
@@ -44,9 +45,10 @@ import qualified Internal.Utils.List                               as UtilList  
 import qualified Internal.Utils.ListT                              as UtilListT    ( tests )
 import qualified Internal.Utils.Maybe.Strict                       as UtilMaybeS   ( tests )
 import qualified Internal.Utils.Monoid                             as UtilMonoid   ( tests )
-import qualified Internal.Utils.NonemptyList                       as UtilNeList   ( tests )
+import qualified Internal.Utils.NonEmptyList                       as UtilNonEmpty ( tests )
 import qualified Internal.Utils.PartialOrd                         as UtilPOrd     ( tests )
 import qualified Internal.Utils.Permutation                        as UtilPerm     ( tests )
+import qualified Internal.Utils.SmallSet                           as UtilSSet     ( tests )
 import qualified Internal.Utils.Three                              as UtilThree    ( tests )
 import qualified Internal.Utils.Trie                               as UtilTrie     ( tests )
 import qualified Internal.Utils.Warshall                           as UtilWarsh    ( tests )
@@ -79,6 +81,7 @@ tests = testGroup "Internal"
   , LHSProblem.tests
   , SizedTypes.tests
   , Substitute.tests
+  , UtilAList.tests
   , UtilBag.tests
   , UtilBiMap.tests
   , UtilClust.tests
@@ -91,9 +94,10 @@ tests = testGroup "Internal"
   , UtilListT.tests
   , UtilMaybeS.tests
   , UtilMonoid.tests
-  , UtilNeList.tests
+  , UtilNonEmpty.tests
   , UtilPOrd.tests
   , UtilPerm.tests
+  , UtilSSet.tests
   , UtilThree.tests
   , UtilTrie.tests
   , UtilWarsh.tests

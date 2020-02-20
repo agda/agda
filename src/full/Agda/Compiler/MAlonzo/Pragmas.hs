@@ -5,17 +5,14 @@ import Data.Maybe
 import Data.Char
 import qualified Data.List as List
 import Data.Traversable (traverse)
-import Data.Map (Map)
 import qualified Data.Map as Map
+import Text.ParserCombinators.ReadP
 
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
-import Agda.Utils.Lens
-import Agda.Utils.Parser.ReadP
 import Agda.Utils.Pretty hiding (char)
 import Agda.Utils.String ( ltrim )
 import Agda.Utils.Three
@@ -62,12 +59,12 @@ instance Pretty HaskellPragma where
 --  HsExport NAME     "as NAME"
 parsePragma :: CompilerPragma -> Either String HaskellPragma
 parsePragma (CompilerPragma r s) =
-  case parse pragmaP s of
+  case [ p | (p, "") <- readP_to_S pragmaP s ] of
     []  -> Left $ "Failed to parse GHC pragma '" ++ s ++ "'"
     [p] -> Right p
     ps  -> Left $ "Ambiguous parse of pragma '" ++ s ++ "':\n" ++ unlines (map show ps)  -- shouldn't happen
   where
-    pragmaP :: ReadP Char HaskellPragma
+    pragmaP :: ReadP HaskellPragma
     pragmaP = choice [ exportP, typeP, dataP, defnP ]
 
     whitespace = many1 (satisfy isSpace)

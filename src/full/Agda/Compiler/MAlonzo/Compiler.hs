@@ -2,19 +2,12 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
-import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
-import Data.Generics.Geniplate
-import Data.Foldable hiding (any, all, foldr, sequence_)
-import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable hiding (for)
-import Data.Monoid hiding ((<>))
 
 import Numeric.IEEE
 
@@ -36,33 +29,26 @@ import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Backend
 
-import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Abstract.Name as A
-import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.TypeChecking.CompiledClause
-
-import Agda.Utils.FileName
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
@@ -71,11 +57,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, Pretty)
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Singleton
-import Agda.Utils.Size
 import Agda.Utils.String
-import Agda.Utils.Tuple
 
 import Paths_Agda
 
@@ -339,17 +321,17 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
-              [ tvaldecl q (dataInduction d) (np + ni) [] (Just __IMPOSSIBLE__)
+              [ tvaldecl q Inductive (np + ni) [] (Just __IMPOSSIBLE__)
               , [ compiledTypeSynonym q ty np ]
               , cds
               , ccscov
               ]
         return result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-                dataCons = cs, dataInduction = ind } -> do
+                dataCons = cs } -> do
         computeErasedConstructorArgs q
-        cds <- mapM (flip condecl ind) cs
-        return $ tvaldecl q ind (np + ni) cds cl
+        cds <- mapM (flip condecl Inductive) cs
+        return $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> return []
       GeneralizableVar{} -> return []
       Record{ recPars = np, recClause = cl, recConHead = con,
@@ -541,76 +523,86 @@ mkIf t = return t
 --   Erased arguments are extracted as @()@.
 --   Types are extracted as @()@.
 term :: T.TTerm -> CC HS.Exp
-term tm0 = mkIf tm0 >>= \ tm0 -> case tm0 of
-  T.TVar i -> do
-    x <- lookupIndex i <$> view ccContext
-    return $ hsVarUQ x
-  T.TApp (T.TPrim T.PIf) [c, x, y] -> HS.If <$> term c
-                                            <*> term x
-                                            <*> term y
-  T.TApp t ts | Just (coe, f) <- coerceView t -> do
-    used <- lift $ getCompiledArgUse f
-    isCompiled <- lift $ isJust <$> getHaskellPragma f  -- #2248: no unused argument pruning for COMPILE'd functions
-    let given   = length ts
-        needed  = length used
-        missing = drop given used
-    if not isCompiled && any not used
-      then if any not missing then term (etaExpand (needed - given) tm0) else do
-        f <- lift $ coe . HS.Var <$> xhqn "du" f  -- used stripped function
-        f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
-      else do
-        t' <- term (T.TDef f)
-        coe t' `apps` ts
-    where coerceView (T.TCoerce (T.TDef f)) = Just (hsCoerce, f)
-          coerceView (T.TDef f)             = Just (id, f)
-          coerceView _                      = Nothing
-  T.TApp (T.TCon c) ts -> do  -- Note that constructors are never coerced
-    (ar, _) <- lift $ conArityAndPars c
-    erased  <- lift $ getErasedConArgs c
-    let missing = drop (length ts) erased
-        notErased = not
-    case all notErased missing of
-      False -> term $ etaExpand (length missing) tm0
-      True  -> do
-        f <- lift $ HS.Con <$> conhqn c
-        f `apps` [ t | (t, False) <- zip ts erased ]
-  T.TApp t ts -> do
-    t' <- term t
-    t' `apps` ts
-  T.TLam at -> do
-    (nm:_) <- view ccNameSupply
-    intros 1 $ \ [x] ->
-      hsLambda [HS.PVar x] <$> term at
+term tm0 = mkIf tm0 >>= \ tm0 -> do
+  let ((hasCoerce, t), ts) = coerceAppView tm0
+  -- let (t0, ts)       = tAppView tm0
+  -- let (hasCoerce, t) = coerceView t0
+  let coe            = applyWhen hasCoerce hsCoerce
+  case (t, ts) of
+    (T.TPrim T.PIf, [c, x, y]) -> coe <$> do HS.If <$> term c <*> term x <*> term y
+
+    (T.TDef f, ts) -> do
+      used <- lift $ getCompiledArgUse f
+      -- #2248: no unused argument pruning for COMPILE'd functions
+      isCompiled <- lift $ isJust <$> getHaskellPragma f
+      let given   = length ts
+          needed  = length used
+          missing = drop given used
+          notUsed = not
+      if not isCompiled && any not used
+        then if any notUsed missing then term (etaExpand (needed - given) tm0) else do
+          f <- lift $ HS.Var <$> xhqn "du" f  -- use stripped function
+          -- Andreas, 2019-11-07, issue #4169.
+          -- Insert coercion unconditionally as erasure of arguments
+          -- that are matched upon might remove the unfolding of codomain types.
+          -- (Hard to explain, see test/Compiler/simple/Issue4169.)
+          hsCoerce f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
+        else do
+          f <- lift $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
+          coe f `apps` ts
+
+    (T.TCon c, ts) -> do
+      erased  <- lift $ getErasedConArgs c
+      let missing = drop (length ts) erased
+          notErased = not
+      case all notErased missing of
+        -- If the constructor is fully applied or all missing arguments are retained,
+        -- we can drop the erased arguments here, doing a complete job of dropping erased arguments.
+        True  -> do
+          f <- lift $ HS.Con <$> conhqn c
+          hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
+        -- Otherwise, we translate the eta-expanded constructor application.
+        False -> do
+          let n = length missing
+          unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
+          term $ etaExpand (length missing) tm0
+
+    -- Other kind of application: fall back to apps.
+    (t, ts) -> noApplication t >>= \ t' -> coe t' `apps` ts
+  where
+  apps = foldM (\ h a -> HS.App h <$> term a)
+  etaExpand n t = mkTLam n $ raise n t `T.mkTApp` map T.TVar (downFrom n)
+
+-- | Translate a non-application, non-coercion, non-constructor, non-definition term.
+noApplication :: T.TTerm -> CC HS.Exp
+noApplication = \case
+  T.TApp{}    -> __IMPOSSIBLE__
+  T.TCoerce{} -> __IMPOSSIBLE__
+  T.TCon{}    -> __IMPOSSIBLE__
+  T.TDef{}    -> __IMPOSSIBLE__
+
+  T.TVar i    -> hsVarUQ . lookupIndex i <$> view ccContext
+  T.TLam t    -> intros 1 $ \ [x] -> hsLambda [HS.PVar x] <$> term t
+
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
-      t2' <- term t2
-      return $ hsLet x t1' t2'
+      hsLet x t1' <$> term t2
 
   T.TCase sc ct def alts -> do
-    sc' <- term (T.TVar sc)
+    sc'   <- term $ T.TVar sc
     alts' <- traverse (alt sc) alts
-    def' <- term def
+    def'  <- term def
     let defAlt = HS.Alt HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
-
     return $ HS.Case (hsCoerce sc') (alts' ++ [defAlt])
 
-  T.TLit l -> return $ literal l
-  T.TDef q -> do
-    HS.Var <$> (lift $ xhqn "d" q)
-  T.TCon q   -> term (T.TApp (T.TCon q) [])
-  T.TPrim p  -> return $ compilePrim p
-  T.TUnit    -> return HS.unit_con
-  T.TSort    -> return HS.unit_con
-  T.TCoerce e -> hsCoerce <$> term e
-  T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
-  T.TError e -> return $ case e of
-    T.TUnreachable ->  rtmUnreachableError
-  where apps =  foldM (\ h a -> HS.App h <$> term a)
-        etaExpand n t =
-          foldr (const T.TLam)
-                (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
-                (replicate n ())
+  T.TLit l    -> return $ literal l
+  T.TPrim p   -> return $ compilePrim p
+  T.TUnit     -> return $ HS.unit_con
+  T.TSort     -> return $ HS.unit_con
+  T.TErased   -> return $ hsVarUQ $ HS.Ident mazErasedName
+  T.TError e  -> return $ case e of
+    T.TUnreachable -> rtmUnreachableError
 
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce t = HS.App mazCoerce t
@@ -709,7 +701,9 @@ litqname x =
   , HS.Lit $ HS.String $ prettyShow x
   , rteCon "Fixity" `apps`
     [ litAssoc (fixityAssoc fx)
-    , litPrec  (fixityLevel fx) ] ]
+    , litPrec  (fixityLevel fx)
+    ]
+  ]
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
@@ -721,7 +715,7 @@ litqname x =
     litAssoc RightAssoc = rteCon "RightAssoc"
 
     litPrec Unrelated   = rteCon "Unrelated"
-    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedInt l
+    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedDouble l
 
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =
@@ -732,12 +726,6 @@ litqnamepat x =
   where
     NameId n m = nameId $ qnameName x
 
-erasedArity :: QName -> TCM Nat
-erasedArity q = do
-  (ar, _) <- conArityAndPars q
-  erased  <- length . filter id <$> getErasedConArgs q
-  return (ar - erased)
-
 condecl :: QName -> Induction -> TCM HS.ConDecl
 condecl q _ind = do
   def <- getConstInfo q
@@ -746,7 +734,7 @@ condecl q _ind = do
   let argTypes   = [ (Just HS.Lazy, t)
                      -- Currently all constructors are lazy.
                    | (t, False) <- zip (drop np argTypes0)
-                                       (erased ++ repeat False)
+                                       (fromMaybe [] erased ++ repeat False)
                    ]
   return $ HS.ConDecl (unqhname "C" q) argTypes
 
@@ -868,7 +856,8 @@ callGHC opts modIsMain mods = do
         , "-fno-warn-overlapping-patterns"
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
-      compiler = "ghc"
+
+  compiler <- fromMaybeM (pure "ghc") (optWithCompiler <$> commandLineOptions)
 
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information

@@ -16,3 +16,4 @@ Tools
    generating-html
    generating-latex
    package-system
+   search-about

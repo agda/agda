@@ -1,17 +1,11 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
-import Control.Monad.State (gets)
 import Data.Char
-import qualified Data.List as List
-import Data.Map as Map
-import Data.Set as Set
-import Data.Function
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Compiler.Common
-import Agda.Compiler.MAlonzo.Pragmas
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -19,10 +13,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Utils.Lens
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
 
@@ -105,6 +96,9 @@ hsInt n = HS.Lit (HS.Int n)
 
 hsTypedInt :: Integral a => a -> HS.Exp
 hsTypedInt n = HS.ExpTypeSig (HS.Lit (HS.Int $ fromIntegral n)) (HS.TyCon (hsName "Integer"))
+
+hsTypedDouble :: Real a => a -> HS.Exp
+hsTypedDouble n = HS.ExpTypeSig (HS.Lit (HS.Frac $ toRational n)) (HS.TyCon (hsName "Double"))
 
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =

@@ -19,12 +19,15 @@ module Agda.Syntax.Translation.InternalToAbstract
   , NamedClause(..)
   , reifyPatterns
   , reifyUnblocked
+  , blankNotInScope
+  , reifyDisplayFormP
   ) where
 
 import Prelude hiding (mapM_, mapM, null)
+
+import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
-import Control.Monad.Reader hiding (mapM_, mapM)
 
 import Data.Foldable (Foldable, foldMap)
 import qualified Data.List as List
@@ -34,22 +37,22 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse, mapM)
-import qualified Data.Traversable as Trav
+import Data.Traversable (traverse, mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract as A hiding (Binder)
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
-import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
+import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -62,16 +65,14 @@ import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.DropArgs
 
-import Agda.Interaction.Options ( optPostfixProjections )
+import Agda.Interaction.Options
 
 import Agda.Utils.Either
-import Agda.Utils.Except ( MonadError(catchError) )
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -90,10 +91,10 @@ reifyUnblocked t = locallyTCState stInstantiateBlocking (const True) $ reify t
 
 
 -- Composition of reified applications ------------------------------------
-
--- | Drops hidden arguments unless --show-implicit.
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e = nelims e . map I.Apply
+--UNUSED Liang-Ting 2019-07-16
+---- | Drops hidden arguments unless --show-implicit.
+--napps :: Expr -> [NamedArg Expr] -> TCM Expr
+--napps e = nelims e . map I.Apply
 
 -- | Drops hidden arguments unless --show-implicit.
 apps :: MonadReify m => Expr -> [Arg Expr] -> m Expr
@@ -163,6 +164,9 @@ class Reify i a | i -> a where
     --   This function serves to reify hidden/irrelevant things.
     reifyWhen :: MonadReify m => Bool -> i -> m a
     reifyWhen _ = reify
+
+instance Reify Bool Bool where
+    reify = return
 
 instance Reify Name Name where
     reify = return
@@ -459,7 +463,7 @@ reifyTerm expandAnonDefs0 v0 = do
           r  <- getConstructorData x
           xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
           vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
+          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           def <- getConstInfo x
           let Constructor{conPars = np} = theDef def
@@ -504,7 +508,7 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName x) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
@@ -524,7 +528,7 @@ reifyTerm expandAnonDefs0 v0 = do
         mkPi b (Arg info a') = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ BindName x] a'] b
+          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ mkBinder_ x] a'] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -540,7 +544,7 @@ reifyTerm expandAnonDefs0 v0 = do
           mv <- lookupMeta x
           (msub1,meta_tel,msub2) <- do
             local_chkpt <- viewTC eCurrentCheckpoint
-            (chkpt, tel, msub2) <- enterClosure (getMetaInfo mv) $ \ _ ->
+            (chkpt, tel, msub2) <- enterClosure mv $ \ _ ->
                                (,,) <$> viewTC eCurrentCheckpoint
                                     <*> getContextTelescope
                                     <*> viewTC (eCheckpoints . key local_chkpt)
@@ -558,7 +562,7 @@ reifyTerm expandAnonDefs0 v0 = do
               p = mvPermutation mv
               applyPerm p vs = permute (takeP (size vs) p) vs
 
-              names = map unranged $ p `applyPerm` teleNames meta_tel
+              names = map (WithOrigin Inserted . unranged) $ p `applyPerm` teleNames meta_tel
               named_es' = addNames names es'
 
               dropIdentitySubs sub_local2G sub_tel2G =
@@ -581,7 +585,10 @@ reifyTerm expandAnonDefs0 v0 = do
 
           nelims x' simpl_named_es'
 
-    I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
+    I.DontCare v -> do
+      showIrr <- optShowIrrelevant <$> pragmaOptions
+      if | showIrr   -> reifyTerm expandAnonDefs v
+         | otherwise -> return underscore
     I.Dummy s [] -> return $ A.Lit $ LitString noRange s
     I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
                             h <- reify h
@@ -603,14 +610,14 @@ reifyTerm expandAnonDefs0 v0 = do
       r <- reduceDefCopy x es
       case r of
         YesReduction _ v -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "reduction on defined ident. in anonymous module"
             , "x = " ++ prettyShow x
             , "v = " ++ show v
             ]
           reify v
         NoReduction () -> do
-          reportSLn "reify.anon" 60 $ unlines
+          reportS "reify.anon" 60
             [ "no reduction on defined ident. in anonymous module"
             , "x  = " ++ prettyShow x
             , "es = " ++ show es
@@ -644,7 +651,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
                             lam (i, s) = do
                               x <- freshName_ s
-                              return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBindName x)
+                              return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBinder_ x)
                         foldr ($) absLam <$> mapM lam vars
                       | otherwise -> elims absLam =<< reify (drop n es)
 
@@ -664,7 +671,8 @@ reifyTerm expandAnonDefs0 v0 = do
 
         extLam <- case def of
           Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-          Function{ funExtLam = Just (ExtLamInfo m sys) } -> Just . (,sys) . size <$> lookupSection m
+          Function{ funExtLam = Just (ExtLamInfo m sys) } ->
+            Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
         case extLam of
           Just (pars, sys) | df, notElem x alreadyPrinting ->
@@ -688,13 +696,15 @@ reifyTerm expandAnonDefs0 v0 = do
 
               TelV tel _ <- telViewUpTo np (defType defn)
               let (as, rest) = splitAt (np - 1) $ telToList tel
-                  dom = fromMaybe __IMPOSSIBLE__ $ headMaybe rest
+                  dom = headWithDefault __IMPOSSIBLE__ rest
 
               -- These are the dropped projection arguments
               scope <- getScope
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-              let pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
-                    Arg ai $ Named (Just $ unranged x) underscore
+              let pad :: [NamedArg Expr]
+                  pad = for as $ \ (Dom{domInfo = ai, unDom = (x, _)}) ->
+                    Arg ai $ Named (Just $ WithOrigin Inserted $ unranged x) underscore
+                      -- TODO #3353 Origin from Dom?
 
               -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
@@ -718,13 +728,13 @@ reifyTerm expandAnonDefs0 v0 = do
               let (padVisNamed, padRest) = filterAndRest visible pad'
 
               -- Remove the names from the visible arguments.
-              let padVis  = map (fmap (unnamed . namedThing)) padVisNamed
+              let padVis  = map (fmap $ unnamed . namedThing) padVisNamed
 
               -- Keep only the rest with the same visibility of @dom@...
               let padTail = filter (sameHiding dom) padRest
 
               -- ... and even the same name.
-              let padSame = filter ((Just (fst (unDom dom)) ==) . fmap rangedThing . nameOf . unArg) padTail
+              let padSame = filter ((Just (fst $ unDom dom) ==) . bareNameOf) padTail
 
               return $ if null padTail || not showImp
                 then (padVis           , map (fmap unnamed) es')
@@ -733,7 +743,7 @@ reifyTerm expandAnonDefs0 v0 = do
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
-           reportSLn "reify.def" 70 $ unlines
+           reportS "reify.def" 70
              [ "  pad = " ++ show pad
              , "  nes = " ++ show nes
              ]
@@ -786,7 +796,7 @@ reifyTerm expandAnonDefs0 v0 = do
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
 nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
-  I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
+  I.Apply (Arg info (Named (Just $ WithOrigin Inserted $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
@@ -817,7 +827,7 @@ data NamedClause = NamedClause QName Bool I.Clause
 
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
-newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
+newtype MonoidMap k v = MonoidMap { _unMonoidMap :: Map.Map k v }
 
 instance (Ord k, Monoid v) => Semigroup (MonoidMap k v) where
   MonoidMap m1 <> MonoidMap m2 = MonoidMap (Map.unionWith mappend m1 m2)
@@ -826,19 +836,26 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap Map.empty
   mappend = (<>)
 
+-- | Removes argument names.  Preserves names present in the source.
+removeNameUnlessUserWritten :: (LensNamed n a, LensOrigin n) => a -> a
+removeNameUnlessUserWritten a
+  | (getOrigin <$> getNameOf a) == Just UserWritten = a
+  | otherwise = setNameOf Nothing a
+
+
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
 --   Doesn't strip any arguments that were written explicitly by the user.
 stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
 stripImplicits params ps = do
   -- if --show-implicit we don't need the names
-  ifM showImplicitArguments (return $ map (unnamed . namedThing <$>) ps) $ do
-    reportSLn "reify.implicit" 30 $ unlines
+  ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
+    reportS "reify.implicit" 30
       [ "stripping implicits"
       , "  ps   = " ++ show ps
       ]
     let ps' = blankDots $ strip ps
-    reportSLn "reify.implicit" 30 $ unlines
+    reportS "reify.implicit" 30
       [ "  ps'  = " ++ show ps'
       ]
     return ps'
@@ -863,17 +880,18 @@ stripImplicits params ps = do
               a'     = setNamedArg a $ A.WildP $ Info.PatRange $ getRange a
               goWild = stripName fixedPos a' : stripArgs True as
 
-          stripName True  = fmap (unnamed . namedThing)
+          stripName True  = fmap removeNameUnlessUserWritten
           stripName False = id
 
           -- TODO: vars appearing in EqualPs shouldn't be stripped.
           canStrip a = and
             [ notVisible a
             , getOrigin a `notElem` [ UserWritten , CaseSplit ]
+            , (getOrigin <$> getNameOf a) /= Just UserWritten
             , varOrDot (namedArg a)
             ]
 
-          isUnnamedHidden x = notVisible x && isNothing (nameOf (unArg x)) && isNothing (isProjP x)
+          isUnnamedHidden x = notVisible x && isNothing (getNameOf x) && isNothing (isProjP x)
 
           stripArg a = fmap (fmap stripPat) a
 
@@ -895,9 +913,17 @@ stripImplicits params ps = do
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
-          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConOSystem
-                                 = all varOrDot $ map namedArg ps
+          varOrDot (A.ConP cpi _ ps) | conPatOrigin cpi == ConOSystem
+                                 = conPatLazy cpi == ConPatLazy || all (varOrDot . namedArg) ps
           varOrDot _             = False
+
+-- | @blankNotInScope e@ replaces variables in expression @e@ with @_@
+-- if they are currently not in scope.
+blankNotInScope :: (MonadTCEnv m, BlankVars a) => a -> m a
+blankNotInScope e = do
+  names <- Set.fromList . filter ((== C.InScope) . C.isInScope) <$> getContextNames
+  return $ blank names e
+
 
 -- | @blank bound e@ replaces all variables in expression @e@ that are not in @bound@ by
 --   an underscore @_@. It is used for printing dot patterns: we don't want to
@@ -986,8 +1012,6 @@ instance BlankVars A.Expr where
     A.Rec i es             -> A.Rec i $ blank bound es
     A.RecUpdate i e es     -> uncurry (A.RecUpdate i) $ blank bound (e, es)
     A.ETel _               -> __IMPOSSIBLE__
-    A.QuoteGoal {}         -> __IMPOSSIBLE__
-    A.QuoteContext {}      -> __IMPOSSIBLE__
     A.Quote {}             -> __IMPOSSIBLE__
     A.QuoteTerm {}         -> __IMPOSSIBLE__
     A.Unquote {}           -> __IMPOSSIBLE__
@@ -1046,6 +1070,9 @@ instance Binder A.Pattern where
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty
 
+instance Binder a => Binder (A.Binder' a) where
+  varsBoundIn (A.Binder p n) = varsBoundIn (p, n)
+
 instance Binder A.LamBinding where
   varsBoundIn (A.DomainFree _ x) = varsBoundIn x
   varsBoundIn (A.DomainFull b)   = varsBoundIn b
@@ -1068,6 +1095,7 @@ instance Binder a => Binder (FieldAssignment' a) where
 instance Binder a => Binder (Arg a)              where
 instance Binder a => Binder (Named x a)          where
 instance Binder a => Binder [a]                  where
+instance Binder a => Binder (Maybe a)            where
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
@@ -1079,9 +1107,11 @@ reifyPatterns :: MonadReify m => [NamedArg I.DeBruijnPattern] -> m [NamedArg A.P
 reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
                        traverse (traverse reifyPat)
   where
+    -- #4399 strip also empty names
     stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
-      | visible a = fmap (unnamed . namedThing) a
+      | visible a || maybe True (liftA2 (||) null isNoName) (bareNameOf a) =
+          fmap (unnamed . namedThing) a
       | otherwise = a
 
     stripHidingFromPostfixProj :: IsProjP p => NamedArg p -> NamedArg p
@@ -1092,53 +1122,69 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyPat :: MonadReify m => I.DeBruijnPattern -> m A.Pattern
     reifyPat p = do
      reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
+     keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
-      I.VarP PatODot x -> reifyDotP $ var $ dbPatVarIndex x
-      I.VarP PatOWild _ -> return $ A.WildP patNoRange
-      I.VarP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
-      I.VarP _ x -> reifyVarP x
-      I.DotP PatOWild _ -> return $ A.WildP patNoRange
-      I.DotP PatOAbsurd _ -> return $ A.AbsurdP patNoRange
-      -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
-      I.DotP (PatOVar x) v@(I.Var i []) -> do
-        x' <- nameOfBV i
-        if nameConcrete x == nameConcrete x' then
-          return $ A.VarP $ mkBindName x'
-        else
-          reifyDotP v
-      I.DotP o v -> reifyDotP v
-      I.LitP l  -> return $ A.LitP l
-      I.ProjP o d     -> return $ A.ProjP patNoRange o $ unambiguous d
-      I.ConP c cpi ps -> case conPRecord cpi of
-        Just PatOWild   -> return $ A.WildP patNoRange
-        Just PatOAbsurd -> return $ A.AbsurdP patNoRange
-        _               -> reifyConP c cpi ps
-      I.DefP o f ps  -> case o of
+      -- Possibly expanded literal pattern (see #4215)
+      p | Just (PatternInfo PatOLit asB) <- patternInfo p -> do
+        reduce (I.patternToTerm p) >>= \case
+          I.Lit l -> addAsBindings asB $ return $ A.LitP l
+          _       -> __IMPOSSIBLE__
+      I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
+        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
         PatOWild   -> return $ A.WildP patNoRange
         PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _          -> reifyVarP x
+      I.DotP i v -> addAsBindings (patAsNames i) $ case patOrigin i of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        -- If Agda turned a user variable @x@ into @.x@, print it back as @x@.
+        o@(PatOVar x) | I.Var i [] <- v -> do
+          x' <- nameOfBV i
+          if nameConcrete x == nameConcrete x' then
+            return $ A.VarP $ mkBindName x'
+          else
+            reifyDotP o v
+        o -> reifyDotP o v
+      I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP l
+      I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
+      I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
+        case patOrigin (conPInfo cpi) of
+          PatOWild   -> return $ A.WildP patNoRange
+          PatOAbsurd -> return $ A.AbsurdP patNoRange
+          PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
+          _               -> reifyConP c cpi ps
+      I.ConP c cpi ps -> addAsBindings (patAsNames $ conPInfo cpi) $ reifyConP c cpi ps
+      I.DefP i f ps  -> addAsBindings (patAsNames i) $ case patOrigin i of
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        PatOVar x | keepVars -> return $ A.VarP $ mkBindName x
         _ -> A.DefP patNoRange (unambiguous f) <$> reifyPatterns ps
-      I.IApplyP PatODot _ _ x -> reifyDotP $ var $ dbPatVarIndex x
-      I.IApplyP PatOWild _ _ x -> return $ A.WildP patNoRange
-      I.IApplyP PatOAbsurd _ _ x -> return $ A.AbsurdP patNoRange
-      I.IApplyP _ _ _ x -> reifyVarP x
+      I.IApplyP i _ _ x -> addAsBindings (patAsNames i) $ case patOrigin i of
+        o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
+        PatOWild   -> return $ A.WildP patNoRange
+        PatOAbsurd -> return $ A.AbsurdP patNoRange
+        _          -> reifyVarP x
 
     reifyVarP :: MonadReify m => DBPatVar -> m A.Pattern
     reifyVarP x = do
       n <- nameOfBV $ dbPatVarIndex x
-      case dbPatVarName x of
-        "_"  -> return $ A.VarP $ mkBindName n
-        -- Andreas, 2017-09-03: TODO for #2580
-        -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
-        -- case splitter still produces them.
-        y    -> if prettyShow (nameConcrete n) == "()" then return $ A.VarP (mkBindName n) else
-          -- Andreas, 2017-09-03, issue #2729
-          -- Restore original pattern name.  AbstractToConcrete picks unique names.
-          return $ A.VarP $ mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
+      let y = dbPatVarName x
+      if | y == "_" -> return $ A.VarP $ mkBindName n
+           -- Andreas, 2017-09-03: TODO for #2580
+           -- Patterns @VarP "()"@ should have been replaced by @AbsurdP@, but the
+           -- case splitter still produces them.
+         | prettyShow (nameConcrete n) == "()" -> return $ A.VarP (mkBindName n)
+           -- Andreas, 2017-09-03, issue #2729
+           -- Restore original pattern name.  AbstractToConcrete picks unique names.
+         | otherwise -> return $ A.VarP $
+             mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
 
-    reifyDotP :: MonadReify m => Term -> m A.Pattern
-    reifyDotP v = do
-      t <- reify v
-      return $ A.DotP patNoRange t
+    reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
+    reifyDotP o v = do
+      keepVars <- optKeepPatternVariables <$> pragmaOptions
+      if | PatOVar x <- o
+         , keepVars       -> return $ A.VarP $ mkBindName x
+         | otherwise      -> A.DotP patNoRange <$> reify v
 
     reifyConP :: MonadReify m
               => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]
@@ -1146,8 +1192,13 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyConP c cpi ps = do
       tryRecPFromConP =<< do A.ConP ci (unambiguous (conName c)) <$> reifyPatterns ps
       where
-        ci = ConPatInfo origin patNoRange ConPatEager
+        ci = ConPatInfo origin patNoRange lazy
+        lazy | conPLazy cpi = ConPatLazy
+             | otherwise    = ConPatEager
         origin = fromConPatternInfo cpi
+
+    addAsBindings :: Functor m => [A.Name] -> m A.Pattern -> m A.Pattern
+    addAsBindings xs p = foldr (fmap . AsP patNoRange . mkBindName) p xs
 
 
 -- | If the record constructor is generated or the user wrote a record pattern,
@@ -1162,12 +1213,12 @@ tryRecPFromConP p = do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && patOrigin ci /= ConORec then fallback else do
+          if recNamedCon def && conPatOrigin ci /= ConORec then fallback else do
             fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
             unless (length fs == length ps) __IMPOSSIBLE__
             return $ A.RecP patNoRange $ zipWith mkFA fs ps
         where
-          mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
+          mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
 instance Reify (QNamed I.Clause) A.Clause where
@@ -1179,8 +1230,9 @@ instance Reify NamedClause A.Clause where
       ++ "\n  f      = " ++ prettyShow f
       ++ "\n  toDrop = " ++ show toDrop
       ++ "\n  cl     = " ++ show cl
+    let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
-    lhs <- uncurry (SpineLHS empty) <$> reifyDisplayFormP f ps []
+    lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
     -- (e.g. for extended lambdas). We still get here with toDrop = True and
     -- pattern lambdas when doing make-case, so take care to drop the right
@@ -1207,8 +1259,16 @@ instance Reify NamedClause A.Clause where
 
 instance Reify (QNamed System) [A.Clause] where
   reify (QNamed f (System tel sys)) = addContext tel $ do
-    reportSLn "reify.system" 40 $ unlines $ show tel : map show sys
+    reportS "reify.system" 40 $ show tel : map show sys
+    view <- intervalView'
     unview <- intervalUnview'
+    sys <- flip filterM sys $ \ (phi,t) -> do
+      allM phi $ \ (u,b) -> do
+        u <- reduce u
+        return $ case (view u, b) of
+          (IZero, True) -> False
+          (IOne, False) -> False
+          _ -> True
     forM sys $ \ (alpha,u) -> do
       rhs <- RHS <$> reify u <*> pure Nothing
       ep <- fmap (A.EqualP patNoRange) . forM alpha $ \ (phi,b) -> do
@@ -1220,7 +1280,7 @@ instance Reify (QNamed System) [A.Clause] where
       ps <- reifyPatterns $ teleNamedArgs tel
       ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
       let
-        lhs = SpineLHS (LHSRange noRange) f ps
+        lhs = SpineLHS empty f ps
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
@@ -1233,13 +1293,11 @@ instance Reify Sort Expr where
     reify s = do
       s <- instantiateFull s
       case s of
-        I.Type (I.Max [])                -> return $ A.Set noExprInfo 0
-        I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set noExprInfo n
+        I.Type (I.ClosedLevel n) -> return $ A.Set noExprInfo n
         I.Type a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Set noExprInfo 0) (defaultNamedArg a)
-        I.Prop (I.Max [])                -> return $ A.Prop noExprInfo 0
-        I.Prop (I.Max [I.ClosedLevel n]) -> return $ A.Prop noExprInfo n
+        I.Prop (I.ClosedLevel n) -> return $ A.Prop noExprInfo n
         I.Prop a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
@@ -1254,6 +1312,11 @@ instance Reify Sort Expr where
           (e1,e2) <- reify (getSort a, I.Lam defaultArgInfo $ fmap Sort s)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
+        I.FunSort s1 s2 -> do
+          funs <- freshName_ ("funSort" :: String) -- TODO: hack
+          (e1,e2) <- reify (s1 , s2)
+          let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
+          return $ A.Var funs `app` e1 `app` e2
         I.UnivSort s -> do
           univs <- freshName_ ("univSort" :: String) -- TODO: hack
           e <- reify s
@@ -1279,7 +1342,7 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
     -- replaced by "z".
     s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
 
-    x <- freshName_ s
+    x <- C.setNotInScope <$> freshName_ s
     e <- addContext x -- type doesn't matter
          $ reify v
     return (x,e)
@@ -1292,7 +1355,7 @@ instance Reify I.Telescope A.Telescope where
     let r    = getRange e
         name = domName arg
     tac <- traverse reify $ domTactic arg
-    return $ TBind r tac [Arg info $ Named name $ BindName x] e : bs
+    return $ TBind r tac [Arg info $ Named name $ A.mkBinder_ x] e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

@@ -15,10 +15,7 @@ module Agda.Interaction.Highlighting.Range
   , minus
   ) where
 
-import Control.Applicative ((<$>))
-
 import qualified Agda.Syntax.Position as P
-import Agda.Utils.List
 
 -- | Character ranges. The first character in the file has position 1.
 -- Note that the 'to' position is considered to be outside of the

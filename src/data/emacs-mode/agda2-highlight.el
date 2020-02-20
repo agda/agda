@@ -425,6 +425,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for dead code (unreachable clauses, etc.)."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-shadowing-in-telescope-face
+  '((((background light))
+     (:background "dark gray"))
+    (((background dark))
+     (:background "#808080")))
+  "The face used for shadowed repeated variable names in telescopes."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-coverage-problem-face
   '((((background light))
      (:background "wheat"))
@@ -449,6 +457,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for confluence problems."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-missing-definition-face
+  '((((background light))
+     (:background "orange"))
+    (((background dark))
+     (:background "#804040")))
+  "The face used for type declarations with missing definitions."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-typechecks-face
   '((((background light))
      (:background "light blue" :foreground "black"))
@@ -460,8 +476,8 @@ If `agda2-highlight-face-groups' is nil."
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (comment                . font-lock-comment-face)
-    (background             . font-lock-comment-face)
-    (markup                 . font-lock-comment-face)
+    (background             . default)
+    (markup                 . font-lock-comment-delimiter-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
@@ -486,19 +502,26 @@ If `agda2-highlight-face-groups' is nil."
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (deadcode               . agda2-highlight-deadcode-face)
+    (shadowingintelescope   . agda2-highlight-shadowing-in-telescope-face)
     (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (catchallclause         . agda2-highlight-catchall-clause-face)
     (confluenceproblem      . agda2-highlight-confluence-problem-face)
+    (missingdefinition      . agda2-highlight-missing-definition-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
 
+`background'             Non-Agda code contents in literate mode.
 `bound'                  Bound variables.
+`catchallclause'         Clause not holding definitionally.
 `coinductiveconstructor' Coinductive constructors.
+`comment'                Comments.
+`coverageproblem'        Coverage problems.
 `datatype'               Data types.
+`deadcode'               Deadcode (like unreachable clauses or RHS).
 `dotted'                 Dotted patterns.
 `error'                  Errors.
 `field'                  Record fields.
@@ -507,31 +530,27 @@ The aspects currently recognised are the following:
 `incompletepattern'      Incomplete patterns.
 `inductiveconstructor'   Inductive constructors.
 `keyword'                Keywords.
+`macro'                  Macros.
+`markup'                 Delimiters to separate the Agda code blocks
+                           from other contents.
 `module'                 Module names.
 `number'                 Numbers.
 `operator'               Operators.
+`positivityproblem'      Positivity problems.
 `postulate'              Postulates.
 `pragma'                 Text occurring in pragmas that does not have
                            a more specific (syntactic) aspect.
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
-`macro'                  Macros.
 `record'                 Record types.
+`shadowingintelescope'   Shadowed repeated variable names in telescopes.
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
-`positivityproblem'      Positivity problems.
-`deadcode'               Deadcode (like unreachable clauses or RHS)
-`coverageproblem'        Coverage problems.
-`catchallclause'         Clause not holding definitionally.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
-`unsolvedmeta'           Unsolved meta variables.
-`background'             Non-Agda code contents in literate mode.
-`markup'                 Delimiters to separate the Agda code blocks
-                           from other contents
-`comment'                Comments.")
+`unsolvedmeta'           Unsolved meta variables.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables

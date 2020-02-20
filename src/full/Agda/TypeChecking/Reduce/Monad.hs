@@ -5,40 +5,29 @@ module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
   , getConstInfo
-  , isInstantiatedMeta
-  , lookupMeta
   , askR, applyWhenVerboseS
   ) where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
-import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
 
-import Debug.Trace
 import System.IO.Unsafe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
-import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
+  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
 import Agda.TypeChecking.Substitute
-import Agda.Interaction.Options
 
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty () --instance only
 
 import Agda.Utils.Impossible
 
@@ -52,9 +41,12 @@ constructorForm v = do
   ms <- getBuiltin' builtinSuc
   return $ fromMaybe v $ constructorForm' mz ms v
 
-enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
-enterClosure (Closure sig env scope cps x) f = localR (mapRedEnvSt inEnv inState) (f x)
-  where
+enterClosure :: LensClosure a c => c -> (a -> ReduceM b) -> ReduceM b
+enterClosure c | Closure _sig env scope cps x <- c ^. lensClosure = \case
+  -- The \case is a hack to correctly associate the where block to the rhs
+  -- rather than to the expression in the pattern guard.
+  f -> localR (mapRedEnvSt inEnv inState) (f x)
+    where
     inEnv   e = env
     inState s =
       -- TODO: use the signature here? would that fix parts of issue 118?
@@ -71,6 +63,8 @@ instance MonadAddContext ReduceM where
 
   addCtx = defaultAddCtx
 
+  addLetBinding' = defaultAddLetBinding'
+
   updateContext rho f ret = withFreshR $ \ chkpt ->
     localTC (\e -> e { envContext = f $ envContext e
                      , envCurrentCheckpoint = chkpt
@@ -79,25 +73,12 @@ instance MonadAddContext ReduceM where
                      }) ret
         -- let-bindings keep track of own their context
 
-lookupMeta' :: MetaId -> ReduceM (Maybe MetaVariable)
-lookupMeta' (MetaId i) = IntMap.lookup i <$> useR stMetaStore
-
-lookupMeta :: MetaId -> ReduceM MetaVariable
-lookupMeta = fromMaybe __IMPOSSIBLE__ <.> lookupMeta'
-
-isInstantiatedMeta :: MetaId -> ReduceM Bool
-isInstantiatedMeta i = do
-  mv <- lookupMeta i
-  return $ case mvInstantiation mv of
-    InstV{} -> True
-    _       -> False
-
 instance MonadDebug ReduceM where
 
-  traceDebugMessage n s cont = do
+  traceDebugMessage k n s cont = do
     ReduceEnv env st <- askR
     unsafePerformIO $ do
-      _ <- runTCM env st $ displayDebugMessage n s
+      _ <- runTCM env st $ displayDebugMessage k n s
       return $ cont
 
   formatDebugMessage k n d = do
@@ -107,7 +88,7 @@ instance MonadDebug ReduceM where
       return $ return s
 
   verboseBracket k n s = applyWhenVerboseS k n $
-    bracket_ (openVerboseBracket n s) (const $ closeVerboseBracket n)
+    bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor getTCState

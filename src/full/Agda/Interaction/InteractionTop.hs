@@ -40,7 +40,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -572,7 +571,7 @@ interpret (Cmd_load_highlighting_info source) = do
 
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
-      absSource <- liftIO $ absolute source
+      absSource <- liftIO $ SourceFile <$> absolute source
       case ex of
         False -> return Nothing
         True  -> (do
@@ -682,7 +681,7 @@ interpret (Cmd_autoOne ii rng hint) = do
     case autoMessage res of
      Nothing  -> return ()
      Just msg -> display_info $ Info_Auto msg
-    putResponse $ Resp_MakeCase R.Function cs
+    putResponse $ Resp_MakeCase ii R.Function cs
    Refinement s -> give_gen WithoutForce ii rng s Refine
   maybe (return ()) (display_info . Info_Time) time
 
@@ -704,7 +703,7 @@ interpret Cmd_autoAll = do
     modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< liftLocalState (getRespContext norm ii)
+  display_info . Info_Context ii =<< liftLocalState (getResponseContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
@@ -786,7 +785,7 @@ interpret (Cmd_make_case ii rng s) = do
         [ "cs   = " TCP.<+> TCP.text (show cs)
         ]
       ]
-    putResponse $ Resp_MakeCase (makeCaseVariant casectxt) pcs'
+    putResponse $ Resp_MakeCase ii (makeCaseVariant casectxt) pcs'
   where
     decorate = renderStyle (style { mode = OneLineMode })
 
@@ -820,7 +819,7 @@ interpret Cmd_abort = return ()
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.
-solveInstantiatedGoals :: B.Rewrite -> Maybe InteractionId -> CommandM ()
+solveInstantiatedGoals :: Rewrite -> Maybe InteractionId -> CommandM ()
 solveInstantiatedGoals norm mii = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
@@ -850,8 +849,8 @@ cmd_load' :: FilePath -> [String]
           -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
           -> CommandM ()
 cmd_load' file argv unsolvedOK mode cmd = do
-    f <- liftIO $ absolute file
-    ex <- liftIO $ doesFileExist $ filePath f
+    f <- liftIO $ SourceFile <$> absolute file
+    ex <- liftIO $ doesFileExist $ filePath (srcFilePath f)
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
 
@@ -874,7 +873,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot f (Imp.siModuleName si)
+            root     = projectRoot (srcFilePath f) (Imp.siModuleName si)
         lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
@@ -900,7 +899,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     when (t == t') $ do
       is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
-                         , theCurrentFile       = Just (f, t)
+                         , theCurrentFile       = Just (srcFilePath f, t)
                          }
 
     cmd ok
@@ -961,7 +960,7 @@ give_gen force ii rng s0 giveRefine = do
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
     ce        <- lift $ abstractToConcreteScope scope ae
-    lift $ reportSLn "interaction.give" 30 $ unlines
+    lift $ reportS "interaction.give" 30
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
@@ -1023,18 +1022,18 @@ sortInteractionPoints is =
 --
 --   Should not modify the state.
 
-cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range ->
+cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
-  ctx <- lift $ getRespContext norm ii
-  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning
-  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx constr)
-
+  ctx <- lift $ getResponseContext norm ii
+  constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
+  boundary <- lift $ B.getIPBoundary norm ii
+  display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
 
-showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
+showModuleContents :: Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = do
   (modules, tel, types) <- lift $ B.moduleContents norm rng s
   display_info $ Info_ModuleContents modules tel types
@@ -1042,7 +1041,7 @@ showModuleContents norm rng s = do
 -- | Shows all the top-level names in scope which mention all the given
 -- identifiers in their type.
 
-searchAbout :: B.Rewrite -> Range -> String -> CommandM ()
+searchAbout :: Rewrite -> Range -> String -> CommandM ()
 searchAbout norm rg names = do
   let trimmedNames = trim names
   unless (null trimmedNames) $ do

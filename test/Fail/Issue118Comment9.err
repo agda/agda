@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [70, 72, 73] F (♭ x) = _20 (x = x) : I
-  [54, 55, 57, 58] G x = _14 (x = x) : I
+  F (♭ x) = _20 (x = x) : I
+  G x = _14 (x = x) : I
 Unsolved metas at the following locations:
   Issue118Comment9.agda:16,11-12
   Issue118Comment9.agda:19,11-12

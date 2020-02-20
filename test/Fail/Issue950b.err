@@ -1,3 +1,4 @@
-Issue950b.agda:19,1-8
+Issue950b.agda:19,1-4
 Cannot eliminate type  ?0  with projection  x
-when checking that the clause x f = ? has type ?0
+when checking the clause left hand side
+x f

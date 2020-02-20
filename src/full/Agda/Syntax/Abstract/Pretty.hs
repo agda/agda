@@ -1,10 +1,8 @@
 
 module Agda.Syntax.Abstract.Pretty where
 
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty
 
 showA :: (Show c, ToConcrete a c, MonadAbsToCon m) => a -> m String

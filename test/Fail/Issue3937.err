@@ -1,0 +1,5 @@
+Issue3937.agda:3,9-12
+Could not parse the left-hand side ...
+Operators used in the grammar:
+  None
+when scope checking let ... = ? in ?

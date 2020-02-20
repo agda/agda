@@ -19,26 +19,19 @@ import qualified Data.List as List
 import Data.Maybe ( catMaybes )
 import Data.Semigroup ( Semigroup, (<>) )
 
-import Control.Monad ( guard, forM, unless )
+import Control.Monad ( forM, unless )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
 import Control.Monad.Trans ( lift )
 
 import Agda.TypeChecking.Monad.Base
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Context ()
-import Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars ()
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature ()
-import {-# SOURCE #-} Agda.TypeChecking.Errors
-import {-# SOURCE #-} Agda.TypeChecking.Pretty
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
-import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ()
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
@@ -63,7 +56,9 @@ instance Monad m => Semigroup (StateT s m P.Doc) where
 instance MonadWarning m => MonadWarning (StateT s m) where
   addWarning = lift . addWarning
 
-instance {-# OVERLAPPABLE #-} Semigroup (TCM P.Doc) where
+-- This instance is more specific than a generic instance
+-- @Semigroup a => Semigroup (TCM a)@
+instance {-# OVERLAPPING #-} Semigroup (TCM P.Doc) where
   d1 <> d2 = (<>) <$> d1 <*> d2
 
 instance MonadWarning TCM where
@@ -96,13 +91,14 @@ warning_ w = do
   p <- sayWhen r' c $ prettyTCM w
   return $ TCWarning r w p b
 
--- | @applyWarningMode@ filters out the warnings the user has not requested
--- Users are not allowed to ignore non-fatal errors.
-
-applyWarningMode :: WarningMode -> Warning -> Maybe Warning
-applyWarningMode wm w = case classifyWarning w of
-  ErrorWarnings -> Just w
-  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | @applyWarningMode@ filters out the warnings the user has not requested
+---- Users are not allowed to ignore non-fatal errors.
+--
+--applyWarningMode :: WarningMode -> Warning -> Maybe Warning
+--applyWarningMode wm w = case classifyWarning w of
+--  ErrorWarnings -> Just w
+--  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
 {-# SPECIALIZE warnings :: [Warning] -> TCM () #-}
 warnings :: MonadWarning m => [Warning] -> m ()
@@ -127,7 +123,7 @@ warning :: MonadWarning m => Warning -> m ()
 warning = warnings . pure
 
 isUnsolvedWarning :: Warning -> Bool
-isUnsolvedWarning w = warningName w `elem` unsolvedWarnings
+isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings
 
 isMetaWarning :: Warning -> Bool
 isMetaWarning w = case w of
@@ -157,7 +153,7 @@ data WhichWarnings =
 
 classifyWarning :: Warning -> WhichWarnings
 classifyWarning w =
-  if warningName w `elem` errorWarnings
+  if warningName w `Set.member` errorWarnings
   then ErrorWarnings
   else AllWarnings
 

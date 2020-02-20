@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.DropArgs where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -75,5 +75,5 @@ instance DropArgs CompiledClauses where
 
 instance DropArgs SplitTree where
   dropArgs n (SplittingDone m) = SplittingDone (m - n)
-  dropArgs n (SplitAt i ts)    = SplitAt (subtract n <$> i) $ map (second $ dropArgs n) ts
+  dropArgs n (SplitAt i lz ts) = SplitAt (subtract n <$> i) lz $ map (second $ dropArgs n) ts
 

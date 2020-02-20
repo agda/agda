@@ -2,15 +2,13 @@
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
 
-import Control.Monad.Reader
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce.Monad ()
+import Agda.TypeChecking.Reduce.Monad () --instance only
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
@@ -113,8 +111,12 @@ etaLam i x b = do
   where
     isVar0 _ (Var 0 [])               = True
     -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
-    isVar0 True Level{}               = True
-    isVar0 tyty (Level (Max [Plus 0 l])) = case l of
+    -- Jesper, 2019-10-15 issue #3073
+    -- Contracting level arguments is not sound unless the domain type
+    -- is in fact @Level@, e.g. @\(A : Set) → F lzero@ should not be
+    -- eta-contracted to @F@.
+    -- isVar0 True Level{}               = True
+    isVar0 tyty (Level (Max 0 [Plus 0 l])) = case l of
       NeutralLevel _ v -> isVar0 tyty v
       UnreducedLevel v -> isVar0 tyty v
       BlockedLevel{}   -> False

@@ -2,8 +2,8 @@
 module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
-import Control.Monad.State
-import Control.Monad.Reader
+
+
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -13,14 +13,11 @@ import qualified Data.Set as Set
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Except
 
-import Agda.Utils.Impossible
 
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)
@@ -57,6 +54,16 @@ dropConstraints crit = do
   let filt = List.filter $ not . crit
   modifySleepingConstraints filt
   modifyAwakeConstraints    filt
+
+-- | Takes out all constraints matching given filter.
+--   Danger!  The taken constraints need to be solved or put back at some point.
+takeConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m Constraints
+takeConstraints f = do
+  (takeAwake , keepAwake ) <- List.partition f <$> useTC stAwakeConstraints
+  (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
+  modifyAwakeConstraints    $ const keepAwake
+  modifySleepingConstraints $ const keepAsleep
+  return $ takeAwake ++ takeAsleep
 
 putConstraintsToSleep :: MonadConstraint m => (ProblemConstraint -> Bool) -> m ()
 putConstraintsToSleep sleepy = do
@@ -172,22 +179,23 @@ addConstraintTo bucket c = do
   where
     build | isBlocking c = buildConstraint c
           | otherwise    = buildProblemConstraint_ c
-    isBlocking SortCmp{}     = False
-    isBlocking LevelCmp{}    = False
-    isBlocking ValueCmp{}    = True
-    isBlocking ValueCmpOnFace{} = True
-    isBlocking ElimCmp{}     = True
-    isBlocking TypeCmp{}     = True
-    isBlocking TelCmp{}      = True
-    isBlocking (Guarded c _) = isBlocking c
-    isBlocking UnBlock{}     = True
-    isBlocking FindInstance{} = False
-    isBlocking IsEmpty{}     = True
-    isBlocking CheckSizeLtSat{} = True
-    isBlocking CheckFunDef{} = True
-    isBlocking HasBiggerSort{} = False
-    isBlocking HasPTSRule{}  = False
-    isBlocking UnquoteTactic{} = True
+    isBlocking = \case
+      SortCmp{}        -> False
+      LevelCmp{}       -> False
+      ValueCmp{}       -> True
+      ValueCmpOnFace{} -> True
+      ElimCmp{}        -> True
+      TelCmp{}         -> True
+      Guarded c _      -> isBlocking c
+      UnBlock{}        -> True
+      FindInstance{}   -> False
+      IsEmpty{}        -> True
+      CheckSizeLtSat{} -> True
+      CheckFunDef{}    -> True
+      HasBiggerSort{}  -> False
+      HasPTSRule{}     -> False
+      UnquoteTactic{}  -> True
+      CheckMetaInst{}  -> True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

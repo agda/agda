@@ -24,7 +24,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except
-import Agda.Utils.Lens
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -55,6 +54,10 @@ instance HasBuiltins m => HasBuiltins (StateT s m) where
 
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
   getBuiltinThing b = lift $ getBuiltinThing b
+
+-- If Agda is changed so that the type of a literal can belong to an
+-- inductive family (with at least one index), then the implementation
+-- of split' in Agda.TypeChecking.Coverage should be changed.
 
 litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
@@ -169,8 +172,10 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primSub, primSubIn, primSubOut,
     primTrans, primHComp,
     primId, primConId, primIdElim,
-    primEquiv, primEquivFun, primEquivProof, primPathToEquiv,
+    primEquiv, primEquivFun, primEquivProof,
+    primTranspProof,
     primGlue, prim_glue, prim_unglue,
+    prim_glueU, prim_unglueU,
     primFaceForall,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -212,7 +217,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
-    primAgdaTCMSolveConstraints, primAgdaTCMSolveConstraintsMentioning,
     primAgdaTCMRunSpeculative
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
@@ -252,7 +256,9 @@ primHComp                             = getPrimitiveTerm builtinHComp
 primEquiv                             = getBuiltin builtinEquiv
 primEquivFun                          = getBuiltin builtinEquivFun
 primEquivProof                        = getBuiltin builtinEquivProof
-primPathToEquiv                       = getBuiltin builtinPathToEquiv
+primTranspProof                       = getBuiltin builtinTranspProof
+prim_glueU                            = getPrimitiveTerm builtin_glueU
+prim_unglueU                          = getPrimitiveTerm builtin_unglueU
 primGlue                              = getPrimitiveTerm builtinGlue
 prim_glue                             = getPrimitiveTerm builtin_glue
 prim_unglue                           = getPrimitiveTerm builtin_unglue
@@ -389,8 +395,6 @@ primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
-primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
-primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 
 -- | The coinductive primitives.
@@ -613,6 +617,7 @@ constrainedPrims =
   , builtinHComp
   , builtinTrans
   , builtin_glue
+  , builtin_glueU
   ]
 
 getNameOfConstrained :: HasBuiltins m => String -> m (Maybe QName)

@@ -1,3 +1,3 @@
 PrimSeq.agda:16,11-15
-primForce b not !=< not b of type Bool
+primForce b not != not b of type Bool
 when checking that the expression refl has type force b not ≡ not b

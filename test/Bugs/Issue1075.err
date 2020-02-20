@@ -1,0 +1,32 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > Issue1075.agda:276,1-437,54
+out > Termination checking failed for the following functions:
+out >   cut⁺, cut⁻, rsubst+, lsubst
+out > Problematic calls:
+out >   cut⁺ pfΓ pf (z ∷ LA) (id⁺ v ∷ Values) N | pfΓ v
+out >   rsubst+ Γ' pfΓ pf [] LA- LT [] (focL pf₁ x Sp)
+out >   | fromctxGen Γ' (map Pers LA-) x
+out >   cut⁺ (conssusp pfΓ) pf LA (wken-all-rfoc Values) N
+out >     (at Issue1075.agda:331,40-44)
+out >   rsubst+ [] pfΓ pf LA (A ∷ []) (N ∷ []) Values N'
+out >     (at Issue1075.agda:333,3-10)
+out >   cut⁺ pfΓ pf (A ∷ []) (V₁ ∷ []) N
+out >     (at Issue1075.agda:338,96-100)
+out >   lsubst pfΓ pf N₁ N₂
+out >     (at Issue1075.agda:353,60-66)
+out >   cut⁻ pfΓ pf (x₁ ∷ LA) refl
+out >   (cut⁺ pfΓ unit (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
+out >     (at Issue1075.agda:356,3-7)
+out >   cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl
+out >   (?0 (Γ' = Γ') (LA- = LA-) (x = x) (x₁ = x₁) (pfΓ = pfΓ) (pf = pf)
+out >    (LT = LT) (pf₁ = pf₁) (Sp = Sp))
+out >   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])
+out >     (at Issue1075.agda:375,3-7)
+out >   cut⁺ pfΓ (proj₂ pf) (A ∷ []) (V ∷ []) N
+out >     (at Issue1075.agda:424,32-36)
+out > Unsolved interaction metas at the following locations:
+out >   Issue1075.agda:375,37-55
+out >   Issue1075.agda:419,39-43
+out >

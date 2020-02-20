@@ -1,30 +1,31 @@
 Failed to solve the following constraints:
   Resolve instance argument
-    _AF_153
-      : {n = n₂ : Nat} {n = n₃ : Nat} {F = F₁ : Set → Set}
-        {A : Set} {B = B₁ : Set} ⦃ AF = AF₁ : Applicative F₁ ⦄
-        (f₁ : A → F₁ B₁) (x₁ : A) (v₁ : Vec A n₂) →
-        Applicative (λ v₂ → _F_160 v₂)
+    _AF_161
+      : {n = n₂ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
+        ⦃ AF = AF₁ : Applicative F₁ ⦄ (f₁ : A → F₁ B₁) {n = n₃ : Nat}
+        (x₁ : A) (v₁ : Vec A n₃) →
+        Applicative (λ v₂ → _F_168 v₂)
   Candidates
     AF : Applicative F
     applicativeComp :
       {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
       ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {a} → F₁) o G)
+      Applicative (F₁ o G)
   Resolve instance argument
-    _AF_165
-      : {n = n₁ : Nat} {F : Set → Set} {A B : Set}
-        ⦃ AF : Applicative F ⦄ →
-        Applicative (λ v → _F_166 v)
+    _AF_173
+      : {n = n₁ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
+        ⦃ AF = AF₁ : Applicative F₁ ⦄ →
+        Applicative (λ v → _F_174 v)
   Candidates
-    AF₁ : Applicative F₁
+    AF : Applicative F
     applicativeComp :
-      {F G : Set → Set} ⦃ _ : Applicative F ⦄ ⦃ _ : Applicative G ⦄ →
-      Applicative ((λ {a} → F) o G)
-  [242, 243] F₁ B₁ =< _F_166 _B_164 : Set
-  [242] _F_166 (Vec _B_164 n) =< F₁ (Vec B₁ n) : Set
-  [222] F B =< _F_160 _B_152 : Set
-  [227] _F_160 (Vec _B_152 n₁) =< F (Vec B n₁) : Set
+      {F = F₁ : Set → Set} {G : Set → Set} ⦃ _ : Applicative F₁ ⦄
+      ⦃ _ : Applicative G ⦄ →
+      Applicative (F₁ o G)
+  F B =< _F_174 _B_172
+  _F_174 (Vec _B_172 n) =< F (Vec B n)
+  F B =< _F_168 _B_160
+  _F_168 (Vec _B_160 n₁) =< F (Vec B n₁)
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85

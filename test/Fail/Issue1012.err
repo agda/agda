@@ -1,5 +1,5 @@
 Issue1012.agda:16,7-28
-Nat !=< A of type Set
+Nat !=< A
 when checking that the inferred type of an application
   Nat
 matches the expected type

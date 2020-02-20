@@ -29,7 +29,7 @@ Rendering documentation locally
 
     - LaTeX
 
-    - dvipng
+    - PyDvi
 
   To see the list of available targets, execute ``make help``
   in ``doc/user-manual``. E.g., call ``make html`` to build the
@@ -288,4 +288,3 @@ isolate the definitions from the rest of the file.
 
 
 .. _`reStructuredText format`: http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html
-

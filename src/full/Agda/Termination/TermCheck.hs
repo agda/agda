@@ -19,9 +19,7 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding (empty)
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Foldable (toList)
 import qualified Data.List as List
@@ -37,7 +35,7 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Translation.InternalToAbstract ( reifyPatterns )
+import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -51,14 +49,12 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -76,7 +72,6 @@ import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
-import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.VarSet as VarSet
@@ -168,20 +163,6 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
       names    = if null names0 then allNames else names0
       i        = mutualInfo mutualBlock
-      -- Andreas, 2014-03-26
-      -- Keeping recursion check after experiments on the standard lib.
-      -- Seems still to save 1s.
-      -- skip = return False
-      -- No need to term-check if the declarations are acyclic!
-      skip = not <$> do
-        -- Andreas, 2016-10-01 issue #2231
-        -- Recursivity checker has to see through abstract definitions!
-        ignoreAbstractMode $ do
-        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
-      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
-      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
-      --   null <$> getMutual x
-      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -193,30 +174,43 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   reportSLn "term.mutual" 10 $ "Termination checking " ++ prettyShow allNames
 
   -- NO_TERMINATION_CHECK
-  if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
+  if (Info.mutualTerminationCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 10 $ "Skipping termination check for " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
   -- NON_TERMINATING
-    else if (Info.mutualTermCheck i == NonTerminating) then do
+  else if (Info.mutualTerminationCheck i == NonTerminating) then do
       reportSLn "term.warn.yes" 10 $ "Considering as non-terminating: " ++ prettyShow names
       forM_ allNames $ \ q -> setTerminates q False
       return mempty
-  -- Trivially terminating (non-recursive)
-    else ifM skip (do
+  else do
+    sccs <- do
+      -- Andreas, 2016-10-01 issue #2231
+      -- Recursivity checker has to see through abstract definitions!
+      ignoreAbstractMode $ do
+        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
+      -- -- Andreas, 2017-03-24, use positivity info to skip non-recursive functions
+      -- skip = ignoreAbstractMode $ allM allNames $ \ x -> do
+      --   null <$> getMutual x
+      -- PROBLEMS with test/Succeed/AbstractCoinduction.agda
+
+    -- Trivially terminating (non-recursive)?
+    when (null sccs) $
       reportSLn "term.warn.yes" 10 $ "Trivially terminating: " ++ prettyShow names
-      forM_ allNames $ \ q -> setTerminates q True
-      return mempty)
-   $ {- else -} do
+
+    -- Actual termination checking needed: go through SCCs.
+    concat <$> do
+     forM sccs $ \ allNames -> do
 
      -- Set the mutual names in the termination environment.
+     let namesSCC = filter (allNames `hasElem`) names
      let setNames e = e
            { terMutual    = allNames
-           , terUserNames = names
+           , terUserNames = namesSCC
            }
          runTerm cont = runTerDefault $ do
            cutoff <- terGetCutOff
-           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow names ++
+           reportSLn "term.top" 10 $ "Termination checking " ++ prettyShow namesSCC ++
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
@@ -296,7 +290,7 @@ reportCalls no calls = do
   -- We work in TCM exclusively.
   liftTCM $ do
 
-    reportS "term.lex" 20 $ unlines
+    reportS "term.lex" 20
       [ "Calls (" ++ no ++ "dot patterns): " ++ prettyShow calls
       ]
 
@@ -353,8 +347,9 @@ termFunction name = do
   let index = fromMaybe __IMPOSSIBLE__ $ List.elemIndex name allNames
 
   -- Retrieve the target type of the function to check.
-
-  target <- liftTCM $ do typeEndsInDef =<< typeOfConst name
+  -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
+  -- checking is running in the empty context, but with the current module unchanged.
+  target <- liftTCM $ do typeEndsInDef . defType =<< getConstInfo name
   reportTarget target
   terSetTarget target $ do
 
@@ -493,7 +488,7 @@ termType = return mempty
 
   -- create n variable patterns
   mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP PatOSystem $ DBPatVar (prettyShow x) i
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -578,7 +573,7 @@ instance TermToPattern Term DeBruijnPattern where
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-    Lit l       -> return $ LitP l
+    Lit l       -> return $ litP l
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
     t           -> return $ dotP t
 
@@ -683,6 +678,7 @@ instance ExtractCalls Sort where
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
       PiSort a s -> extract (a, s)
+      FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
       MetaS x es -> return empty
       DefS d es  -> return empty
@@ -853,6 +849,46 @@ function g es0 = do
              ]
          return $ CallGraph.insert src tgt cm info calls
 
+-- | Try to get rid of a function call targeting the current SCC
+--   using a non-recursive clause.
+--
+--   This can help copattern definitions of dependent records.
+tryReduceNonRecursiveClause
+  :: QName                 -- ^ Function
+  -> Elims                 -- ^ Arguments
+  -> (Term -> TerM Calls)  -- ^ Continue here if we managed to reduce.
+  -> TerM Calls            -- ^ Otherwise, continue here.
+  -> TerM Calls
+tryReduceNonRecursiveClause g es continue fallback = do
+  -- Andreas, 2020-02-06, re: issue #906
+  let v0 = Def g es
+  reportSDoc "term.reduce" 40 $ "Trying to reduce away call: " <+> prettyTCM v0
+
+  -- First, make sure the function is in the current SCC.
+  ifM (notElem g <$> terGetMutual) fallback {-else-} $ do
+  reportSLn "term.reduce" 40 $ "This call is in the current SCC!"
+
+  -- Then, collect its non-recursive clauses.
+  cls <- liftTCM $ getNonRecursiveClauses g
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive clauses"]
+  reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
+
+  -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
+  r <- liftTCM $ runReduceM $ appDefE' v0 cls [] (map notReduced es)
+  case r of
+    NoReduction{}    -> fallback
+    YesReduction _ v -> do
+      reportSDoc "term.reduce" 30 $ vcat
+        [ "Termination checker: Successfully reduced away call:"
+        , nest 2 $ prettyTCM v0
+        ]
+      verboseS "term.reduce" 5 $ tick "termination-checker-reduced-nonrecursive-call"
+      continue v
+
+getNonRecursiveClauses :: QName -> TCM [Clause]
+getNonRecursiveClauses q = filter nonrec . defClauses <$> getConstInfo q
+  where nonrec = maybe False not . clauseRecursive
+
 -- | Extract recursive calls from a term.
 
 instance ExtractCalls Term where
@@ -883,7 +919,7 @@ instance ExtractCalls Term where
         constructor c ind argsg
 
       -- Function, data, or record type.
-      Def g es -> function g es
+      Def g es -> tryReduceNonRecursiveClause g es extract $ function g es
 
       -- Abstraction. Preserves guardedness.
       Lam h b -> extract b
@@ -926,11 +962,11 @@ instance ExtractCalls Term where
 
 -- | Extract recursive calls from level expressions.
 
-deriving instance ExtractCalls Level
+instance ExtractCalls Level where
+  extract (Max n as) = extract as
 
 instance ExtractCalls PlusLevel where
-  extract (ClosedLevel n) = return $ mempty
-  extract (Plus n l)      = extract l
+  extract (Plus n l) = extract l
 
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es
@@ -1002,11 +1038,11 @@ compareArgs es = do
 --   off, if inductive.
 --
 --   UNUSED
-annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
-annotatePatsWithUseSizeLt = loop where
-  loop [] = return []
-  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
-  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
+--annotatePatsWithUseSizeLt :: [DeBruijnPattern] -> TerM [(Bool,DeBruijnPattern)]
+--annotatePatsWithUseSizeLt = loop where
+--  loop [] = return []
+--  loop (p@(ProjP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+--  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
 
 
 -- | @compareElim e dbpat@
@@ -1063,7 +1099,7 @@ compareProj d d'
           def <- theDef <$> getConstInfo r
           case def of
             Record{ recFields = fs } -> do
-              fs <- return $ map unArg fs
+              fs <- return $ map unDom fs
               case (List.find (d==) fs, List.find (d'==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller
@@ -1095,20 +1131,21 @@ composeGuardedness _ _ = __IMPOSSIBLE__
 -- | Stripping off a record constructor is not counted as decrease, in
 --   contrast to a data constructor.
 --   A record constructor increases/decreases by 0, a data constructor by 1.
-offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
-offsetFromConstructor c = maybe 1 (const 0) <$> do
-  liftTCM $ isRecordConstructor c
+offsetFromConstructor :: HasConstInfo tcm => QName -> tcm Int
+offsetFromConstructor c =
+  ifM (isEtaOrCoinductiveRecordConstructor c) (return 0) (return 1)
 
--- | Compute the proper subpatterns of a 'DeBruijnPattern'.
-subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
-subPatterns = foldPattern $ \case
-  ConP _ _ ps -> map namedArg ps
-  DefP _ _ ps -> map namedArg ps -- TODO check semantics
-  VarP _ _    -> mempty
-  LitP _      -> mempty
-  DotP _ _    -> mempty
-  ProjP _ _   -> mempty
-  IApplyP{}   -> mempty
+--UNUSED Liang-Ting 2019-07-16
+---- | Compute the proper subpatterns of a 'DeBruijnPattern'.
+--subPatterns :: DeBruijnPattern -> [DeBruijnPattern]
+--subPatterns = foldPattern $ \case
+--  ConP _ _ ps -> map namedArg ps
+--  DefP _ _ ps -> map namedArg ps -- TODO check semantics
+--  VarP _ _    -> mempty
+--  LitP _      -> mempty
+--  DotP _ _    -> mempty
+--  ProjP _ _   -> mempty
+--  IApplyP{}   -> mempty
 
 
 compareTerm :: Term -> Masked DeBruijnPattern -> TerM Order
@@ -1219,7 +1256,7 @@ compareTerm' v mp@(Masked m p) = do
 
     _ | m -> return Order.unknown
 
-    (Lit l, LitP l')
+    (Lit l, LitP _ l')
       | l == l'     -> return Order.le
       | otherwise   -> return Order.unknown
 
@@ -1259,7 +1296,7 @@ subTerm t p = if equal t p then Order.le else properSubTerm t p
           : (length ts == length ps)
           : zipWith (\ t p -> equal (unArg t) (namedArg p)) ts ps
     equal (Var i []) (VarP _ x) = i == dbPatVarIndex x
-    equal (Lit l)    (LitP l') = l == l'
+    equal (Lit l)    (LitP _ l') = l == l'
     -- Terms.
     -- Checking for identity here is very fragile.
     -- However, we cannot do much more, as we are not allowed to normalize t.

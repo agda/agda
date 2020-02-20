@@ -1,0 +1,4 @@
+Issue3945.agda:8,8-25
+Incorrect cohesion annotation in lambda
+when checking that the expression λ @♭ a → flat a has type
+A → Flat A

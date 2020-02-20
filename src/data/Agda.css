@@ -24,13 +24,15 @@
 .Agda .Record                 { color: #0000CD }
 
 /* OtherAspects. */
-.Agda .DottedPattern      {}
-.Agda .UnsolvedMeta       { color: black; background: yellow         }
-.Agda .UnsolvedConstraint { color: black; background: yellow         }
-.Agda .TerminationProblem { color: black; background: #FFA07A        }
-.Agda .IncompletePattern  { color: black; background: #F5DEB3        }
-.Agda .Error              { color: red;   text-decoration: underline }
-.Agda .TypeChecks         { color: black; background: #ADD8E6        }
+.Agda .DottedPattern        {}
+.Agda .UnsolvedMeta         { color: black; background: yellow         }
+.Agda .UnsolvedConstraint   { color: black; background: yellow         }
+.Agda .TerminationProblem   { color: black; background: #FFA07A        }
+.Agda .IncompletePattern    { color: black; background: #F5DEB3        }
+.Agda .Error                { color: red;   text-decoration: underline }
+.Agda .TypeChecks           { color: black; background: #ADD8E6        }
+.Agda .Deadcode             { color: black; background: #808080        }
+.Agda .ShadowingInTelescope { color: black; background: #808080        }
 
 /* Standard attributes. */
 .Agda a { text-decoration: none }

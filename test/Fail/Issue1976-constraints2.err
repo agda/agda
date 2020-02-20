@@ -1,4 +1,4 @@
 Failed to solve the following constraints:
-  [6] _0 = B : Set
+  _0 = B : Set
 Unsolved metas at the following locations:
   Issue1976-constraints2.agda:16,10-11

@@ -14,7 +14,7 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Identity ( Identity )
 import Control.Monad.State
-import Control.Monad.Writer
+
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -25,15 +25,9 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 
-import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
 import Agda.Utils.Impossible
-
----------------------------------------------------------------------------
-
-instance Fail.MonadFail Identity where
-  fail = error
 
 ---------------------------------------------------------------------------
 
@@ -150,9 +144,17 @@ forMM_ = flip mapMM_
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
+-- | A version of @'mapMaybeM'@ with a computation for the input list.
+mapMaybeMM :: Monad m => (a -> m (Maybe b)) -> m [a] -> m [b]
+mapMaybeMM f m = mapMaybeM f =<< m
+
 -- | The @for@ version of 'mapMaybeM'.
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
+
+-- | The @for@ version of 'mapMaybeMM'.
+forMaybeMM :: Monad m => m [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeMM = flip mapMaybeMM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
 dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
@@ -201,6 +203,11 @@ first `finally` after = do
 
 tryMaybe :: (MonadError e m, Functor m) => m a -> m (Maybe a)
 tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
+
+-- | Run a command, catch the exception and return it.
+
+tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
+tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
 -- State monad ------------------------------------------------------------
 

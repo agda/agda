@@ -13,5 +13,5 @@ withDisplayForm
   qs[rho]= [$ x, .proj₁]
   dt     = f x .proj₁ | w1
 Issue1963DisplayWithPostfixCopattern.agda:30,8-12
-f 0 .proj₁ | p 0 !=< zero of type Nat
+f 0 .proj₁ | p 0 != zero of type Nat
 when checking that the expression refl has type f 0 ≡ (0 , 1)

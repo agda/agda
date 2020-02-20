@@ -3,7 +3,6 @@ module Agda.TypeChecking.Telescope where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.Foldable (forM_, find)
@@ -11,11 +10,11 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad
@@ -28,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
@@ -70,6 +70,15 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
+-- | Rename the variables in the telescope to the given names
+--   Precondition: @size xs == size tel@.
+renameTel :: [Maybe ArgName] -> Telescope -> Telescope
+renameTel []           EmptyTel           = EmptyTel
+renameTel (Nothing:xs) (ExtendTel a tel') = ExtendTel a $ renameTel xs <$> tel'
+renameTel (Just x :xs) (ExtendTel a tel') = ExtendTel a $ renameTel xs <$> (tel' { absName = x })
+renameTel []           (ExtendTel _ _   ) = __IMPOSSIBLE__
+renameTel (_      :_ ) EmptyTel           = __IMPOSSIBLE__
+
 -- | Get the suggested names from a telescope
 teleNames :: Telescope -> [ArgName]
 teleNames = map (fst . unDom) . telToList
@@ -78,22 +87,21 @@ teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: (DeBruijn a) => Tele (Dom t) -> [Arg a]
-teleArgs tel =
-  [ Arg info (deBruijnVar i)
-  | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]
+teleArgs = map argFromDom . teleDoms
+
+teleDoms :: (DeBruijn a) => Tele (Dom t) -> [Dom a]
+teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
   where l = telToList tel
 
-withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
-xs `withNamedArgsFromTel` tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) x)
-  | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
-  where l = telToList tel
+-- UNUSED
+-- withNamedArgsFromTel :: [a] -> Telescope -> [NamedArg a]
+-- xs `withNamedArgsFromTel` tel =
+--   [ Arg info (Named (Just $ Ranged empty $ argNameToString name) x)
+--   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
+--   where l = telToList tel
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
-teleNamedArgs tel =
-  [ fmap (deBruijnVar i <$) $ namedArgFromDom dom
-  | (i, dom) <- zip (downFrom $ size l) l ]
-  where l = telToList tel
+teleNamedArgs = map namedArgFromDom . teleDoms
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
 --   from the first telescope and the variable names from the second telescope.
@@ -101,7 +109,7 @@ teleNamedArgs tel =
 --   Precondition: the two telescopes have the same length.
 tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
 tele2NamedArgs tel0 tel =
-  [ Arg info (Named (Just $ Ranged noRange $ argNameToString argName) (debruijnNamedVar varName i))
+  [ Arg info (Named (Just $ WithOrigin Inserted $ unranged $ argNameToString argName) (debruijnNamedVar varName i))
   | (i, Dom{domInfo = info, unDom = (argName,_)}, Dom{unDom = (varName,_)}) <- zip3 (downFrom $ size l) l0 l ]
   where
   l  = telToList tel
@@ -159,6 +167,29 @@ varDependencies tel = allDependencies IntSet.empty
         if j >= n || j `IntSet.member` soFar
         then soFar
         else IntSet.insert j $ allDependencies soFar $ directDependencies j
+
+-- | Computes the set of variables in a telescope whose type depend on
+--   one of the variables in the given set (including recursive
+--   dependencies). Any dependencies outside of the telescope are
+--   ignored.
+varDependents :: Telescope -> IntSet -> IntSet
+varDependents tel = allDependents
+  where
+    n  = size tel
+    ts = flattenTel tel
+
+    directDependents :: IntSet -> IntSet
+    directDependents is = IntSet.fromList
+      [ j | j <- downFrom n
+          , let tj = indexWithDefault __IMPOSSIBLE__ ts (n-1-j)
+          , getAny $ runFree (Any . (`IntSet.member` is)) IgnoreNot tj
+          ]
+
+    allDependents :: IntSet -> IntSet
+    allDependents is
+     | null new  = empty
+     | otherwise = new `IntSet.union` allDependents new
+      where new = directDependents is
 
 -- | A telescope split in two.
 data SplitTel = SplitTel
@@ -229,42 +260,48 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     m     = size is
     (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
 
-instantiateTelescopeN
-  :: Telescope    -- ^ ⊢ Γ
-  -> [(Int,Term)] -- ^ Γ ⊢ var k_i : A_i ascending order, Γ ⊢ u_i : A_i
-  -> Maybe (Telescope,    -- ⊢ Γ'
-            Substitution) -- Γ' ⊢ σ : Γ
-instantiateTelescopeN tel []         = return (tel, IdS)
-instantiateTelescopeN tel ((k,t):xs) = do
-  (tel', sigma, _) <- instantiateTelescope tel k t
-  (tel'', sigma')  <- instantiateTelescopeN tel' (map (subtract 1 -*- applyPatSubst sigma) xs)
-  return (tel'', applyPatSubst sigma sigma')
-
 -- | Try to instantiate one variable in the telescope (given by its de Bruijn
 --   level) with the given value, returning the new telescope and a
 --   substitution to the old one. Returns Nothing if the given value depends
 --   (directly or indirectly) on the variable.
 instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
-  -> Int       -- ^ Γ ⊢ var k : A
-  -> Term      -- ^ Γ ⊢ u : A
+  -> Int       -- ^ Γ ⊢ var k : A   de Bruijn _level_
+  -> DeBruijnPattern -- ^ Γ ⊢ u : A
   -> Maybe (Telescope,           -- ⊢ Γ'
             PatternSubstitution, -- Γ' ⊢ σ : Γ
             Permutation)         -- Γ  ⊢ flipP ρ : Γ'
-instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
+instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
   where
     names = teleNames tel
     ts0   = flattenTel tel
     n     = size tel
     j     = n-1-k
+    u     = patternToTerm p
+
+    -- Jesper, 2019-12-31: Previous implementation that does some
+    -- unneccessary reordering but is otherwise correct (keep!)
+    -- -- is0 is the part of Γ that is needed to type u
+    -- is0   = varDependencies tel $ allFreeVars u
+    -- -- is1 is the rest of Γ (minus the variable we are instantiating)
+    -- is1   = IntSet.delete j $
+    --           IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
+    -- -- we work on de Bruijn indices, so later parts come first
+    -- is    = IntSet.toAscList is1 ++ IntSet.toAscList is0
+
+    -- -- if u depends on var j, we cannot instantiate
+    -- ok    = not $ j `IntSet.member` is0
 
     -- is0 is the part of Γ that is needed to type u
     is0   = varDependencies tel $ allFreeVars u
-    -- is1 is the rest of Γ (minus the variable we are instantiating)
-    is1   = IntSet.delete j $
-              IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
-    -- we work on de Bruijn indices, so later parts come first
-    is    = IntSet.toAscList is1 ++ IntSet.toAscList is0
+    -- is1 is the part of Γ that depends on variable j
+    is1   = varDependents tel $ singleton j
+    -- lasti is the last (rightmost) variable of is0
+    lasti = if null is0 then n else IntSet.findMin is0
+    -- we move each variable in is1 to the right until it comes after
+    -- all variables in is0 (i.e. after lasti)
+    (as,bs) = List.partition (`IntSet.member` is1) [ n-1 , n-2 .. lasti ]
+    is    = reverse $ List.delete j $ bs ++ as ++ downFrom lasti
 
     -- if u depends on var j, we cannot instantiate
     ok    = not $ j `IntSet.member` is0
@@ -272,8 +309,8 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    u1    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u1 : A'
-    us    = map (\i -> fromMaybe (dotP u1) (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
+    p1    = renameP __IMPOSSIBLE__ perm p -- Γ' ⊢ p1 : A'
+    us    = map (\i -> fromMaybe p1 (deBruijnVar <$> List.findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
     ts1   = permute rho $ applyPatSubst sigma ts0
@@ -294,7 +331,8 @@ expandTelescopeVar gamma k delta c = (tel', rho)
                     splitExactlyAt k $ telToList gamma
 
     cpi         = noConPatternInfo
-      { conPRecord = Just PatOSystem
+      { conPInfo   = defaultPatternInfo
+      , conPRecord = True
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
@@ -356,7 +394,7 @@ type Boundary' a = [(Term,a)]
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
 -- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
-telViewUpToPathBoundary' :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary' :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary' 0 t = return $ (TelV EmptyTel t,[])
 telViewUpToPathBoundary' n t = do
   vt <- pathViewAsPi' $ t
@@ -390,7 +428,7 @@ fullBoundary tel bs =
 --  Output: ΔΓ ⊢ b
 --          ΔΓ ⊢ i : I
 --          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
-telViewUpToPathBoundary :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundary :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary i a = do
    (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
    return $ (telv, fullBoundary tel bs)
@@ -402,10 +440,10 @@ telViewUpToPathBoundary i a = do
 --          Δ.Γ ⊢ i : I
 --          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
 -- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
-telViewUpToPathBoundaryP :: Int -> Type -> TCM (TelView,Boundary)
+telViewUpToPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundaryP = telViewUpToPathBoundary'
 
-telViewPathBoundaryP :: Type -> TCM (TelView,Boundary)
+telViewPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Type -> m (TelView,Boundary)
 telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
 
 
@@ -486,11 +524,10 @@ isPath
   => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
-telePatterns :: (DeBruijn a, DeBruijn (Pattern' a)) =>
-                 Telescope -> Boundary -> [NamedArg (Pattern' a)]
+telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs
 
-telePatterns' :: (DeBruijn a, DeBruijn (Pattern' a)) =>
+telePatterns' :: DeBruijn a =>
                 (forall a. (DeBruijn a) => Telescope -> [NamedArg a]) -> Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns' f tel [] = f tel
 telePatterns' f tel boundary = recurse $ f tel
@@ -500,11 +537,10 @@ telePatterns' f tel boundary = recurse $ f tel
       snd <$> flip find boundary (\case
         (Var i [],_) -> i == x
         _            -> __IMPOSSIBLE__)
-    o = PatOSystem
     updateVar x =
       case deBruijnView x of
-        Just i | Just (t,u) <- matchVar i -> IApplyP o t u x
-        _                           -> VarP o x
+        Just i | Just (t,u) <- matchVar i -> IApplyP defaultPatternInfo t u x
+        _                                 -> VarP defaultPatternInfo x
 
 -- | Decomposing a function type.
 

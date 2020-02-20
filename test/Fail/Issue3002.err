@@ -1,4 +1,4 @@
 Issue3002.agda:19,9-13
-(λ ()) x !=< f x of type ⊥
+(λ ()) x != f x of type ⊥
 when checking that the expression refl has type
 (suc zero ≤? zero) ≡ f

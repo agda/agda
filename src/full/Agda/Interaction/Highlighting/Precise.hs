@@ -1,4 +1,4 @@
-
+{-# LANGUAGE CPP                        #-}
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
@@ -37,14 +37,15 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
 
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -118,12 +119,16 @@ data OtherAspect
   | Deadcode
     -- ^ Used for highlighting unreachable clauses, unreachable RHS
     -- (because of an absurd pattern), etc.
+  | ShadowingInTelescope
+    -- ^ Used for shadowed repeated variable names in telescopes.
   | CoverageProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
     -- ^ Code which is being type-checked.
+  | MissingDefinition
+    -- ^ Function declaration without matching definition
   -- NB: We put CatchallClause last so that it is overwritten by other,
   -- more important, aspects in the emacs mode.
   | CatchallClause
@@ -143,7 +148,7 @@ data Aspects = Aspects
     -- the fixity of an operator).
   , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
-    --   known. File positions are counted from 1.
+    --   known.
   , tokenBased :: !TokenBased
     -- ^ Is this entry token-based?
   }
@@ -153,7 +158,8 @@ data DefinitionSite = DefinitionSite
   { defSiteModule :: SC.TopLevelModuleName
       -- ^ The defining module.
   , defSitePos    :: Int
-      -- ^ The file position in that module.
+      -- ^ The file position in that module. File positions are
+      -- counted from 1.
   , defSiteHere   :: Bool
       -- ^ Has this @DefinitionSite@ been created at the defining site of the name?
   , defSiteAnchor :: Maybe String

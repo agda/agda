@@ -12,25 +12,24 @@ module Agda.Interaction.Response
   , WarningsAndNonFatalErrors
   , Info_Error(..)
   , GoalTypeAux(..)
-  , RespContextEntry
+  , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
   , InteractionOutputCallback
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps
-  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
-import Agda.Interaction.Base (CommandState)
+import Agda.Interaction.Base
+  (CommandState, OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common   (InteractionId(..))
+import Agda.Syntax.Common   (InteractionId(..), Arg)
 import Agda.Syntax.Concrete (Expr, Name)
 import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
@@ -38,6 +37,7 @@ import Agda.Utils.Time
 import Control.Monad.Trans
 import Data.Int
 import System.IO
+import Agda.Utils.Pretty (Doc)
 
 -- | Responses for any interactive interface
 --
@@ -54,7 +54,8 @@ data Response
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
-    | Resp_MakeCase MakeCaseVariant [String]
+    | Resp_MakeCase InteractionId MakeCaseVariant [String]
+      -- ^ Response is list of printed clauses.
     | Resp_SolveAll [(InteractionId, Expr)]
       -- ^ Solution for one or more meta-variables.
     | Resp_DisplayInfo DisplayInfo
@@ -101,20 +102,20 @@ data DisplayInfo
     | Info_WhyInScope String FilePath (Maybe LocalVar) [AbstractName] [AbstractModule]
     | Info_NormalForm CommandState ComputeMode (Maybe CPUTime) A.Expr
     | Info_InferredType CommandState (Maybe CPUTime) A.Expr
-    | Info_Context [RespContextEntry]
+    | Info_Context InteractionId [ResponseContextEntry]
     | Info_Version
     | Info_GoalSpecific InteractionId GoalDisplayInfo
 
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [RespContextEntry] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPBoundary' Expr] [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 
 -- | Goals & Warnings
-type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
-             , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
+type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas (goals)
+             , [OutputConstraint A.Expr NamedMeta]     -- hidden (unsolved) metas
              )
 
 -- | Errors that goes into Info_Error
@@ -134,9 +135,15 @@ data GoalTypeAux
     | GoalAndHave A.Expr
     | GoalAndElaboration I.Term
 
--- | Entry of Context
+-- | Entry in context.
 
-type RespContextEntry = (Name, Name, A.Expr, NameInScope)
+data ResponseContextEntry = ResponseContextEntry
+  { respOrigName :: Name        -- ^ The original concrete name.
+  , respReifName :: Name        -- ^ The name reified from abstract syntax.
+  , respType     :: Arg A.Expr  -- ^ The type.
+  , respLetValue :: Maybe A.Expr -- ^ The value (if it is a let-bound variable)
+  , respInScope  :: NameInScope -- ^ Whether the 'respReifName' is in scope.
+  }
 
 
 -- | Status information.

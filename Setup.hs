@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+
+import Data.Maybe
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
@@ -15,7 +18,7 @@ import System.Process
 import System.Exit
 import System.IO.Error (isDoesNotExistError)
 
-import Control.Monad (when, forM_)
+import Control.Monad (when, forM_, unless)
 import Control.Exception (catch, throwIO)
 
 main :: IO ()
@@ -46,8 +49,17 @@ toIFile file = replaceExtension file ".agdai"
 
 buildHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
 buildHook' pd lbi hooks flags = do
+
+  -- for debugging, this is examples how you can inspect the flags...
+  -- print $ flagAssignment lbi
+  -- print $ fromPathTemplate $ progSuffix lbi
+
   -- build first
   buildHook simpleUserHooks pd lbi hooks flags
+
+  -- Andreas, 2019-10-21, issue #4151:
+  -- skip the generation of interface files with program suffix "-quicker"
+  unless (fromPathTemplate (progSuffix lbi) == "-quicker") $ do
 
   -- then...
   let bdir = buildDir lbi
@@ -70,7 +82,10 @@ buildHook' pd lbi hooks flags = do
     removeFile fullpathi `catch` handleExists
 
     putStrLn $ "... " ++ fullpath
-    ok <- rawSystem' ddir agda [ "--no-libraries", "-Werror", fullpath, "-v0" ]
+    ok <- rawSystem' ddir agda [ "--no-libraries", "--local-interfaces"
+                               , "-Werror"
+                               , fullpath, "-v0"
+                               ]
     case ok of
       ExitSuccess   -> return ()
       ExitFailure _ -> die $ "Error: Failed to typecheck " ++ fullpath ++ "!"

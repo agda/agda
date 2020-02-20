@@ -5,7 +5,7 @@ import Control.Monad.State
 import System.IO.Unsafe
 import Data.IORef
 import qualified Data.Map as Map
-import qualified Agda.Utils.HashMap as HMap
+import qualified Data.HashMap.Strict as HMap
 import Data.Hashable
 
 import Agda.Utils.Lens

@@ -4,16 +4,13 @@ module Agda.Compiler.Treeless.Unused
   , stripUnusedArguments
   ) where
 
-import Control.Arrow (first)
 import qualified Data.Set as Set
-import Data.Maybe
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Compiler.Treeless.Subst
-import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Pretty () --instance only
 
 import Agda.Utils.Pretty (prettyShow)
 

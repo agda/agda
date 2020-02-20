@@ -11,66 +11,44 @@ module Agda.TypeChecking.Primitive
        , module Agda.TypeChecking.Primitive
        ) where
 
-import Control.Monad
-import Control.Monad.Reader (asks)
-import Control.Monad.Trans (lift)
-
 import Data.Char
-import Data.Either (partitionEithers)
-import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Maybe
-import Data.Monoid
-import Data.Traversable (traverse)
 import Data.Word
 
-import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
-import Agda.TypeChecking.Pretty ()  -- instances only
+
+import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
-import Agda.TypeChecking.Names
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Float
-import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (pretty, prettyShow)
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.String ( Str(Str), unStr )
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Debug.Trace
-
-
 
 -- Haskell type to Agda type
 
@@ -150,7 +128,7 @@ class ToTerm a where
 
 instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
 instance ToTerm Word64  where toTerm = return $ Lit . LitWord64 noRange
-instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
+instance ToTerm Lvl     where toTerm = return $ Level . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
@@ -225,9 +203,9 @@ instance ToTerm Associativity where
         LeftAssoc  -> lassoc
         RightAssoc -> rassoc
 
-instance ToTerm PrecedenceLevel where
+instance ToTerm FixityLevel where
   toTerm = do
-    (iToTm :: Integer -> Term) <- toTerm
+    (iToTm :: PrecedenceLevel -> Term) <- toTerm
     related   <- primPrecRelated
     unrelated <- primPrecUnrelated
     return $ \ p ->
@@ -300,8 +278,8 @@ instance FromTerm Word64 where
 
 instance FromTerm Lvl where
   fromTerm = fromReducedTerm $ \l -> case l of
-    Level (Max [ClosedLevel n]) -> Just $ Lvl n
-    _                           -> Nothing
+    Level (ClosedLevel n) -> Just $ Lvl n
+    _                     -> Nothing
 
 instance FromTerm Double where
   fromTerm = fromLiteral $ \l -> case l of
@@ -392,7 +370,7 @@ mkPrimInjective :: Type -> Type -> QName -> TCM PrimitiveImpl
 mkPrimInjective a b qn = do
   -- Define the type
   eqName <- primEqualityName
-  let lvl0     = Max []
+  let lvl0     = ClosedLevel 0
   let eq a t u = El (Type lvl0) <$> pure (Def eqName []) <#> pure (Level lvl0)
                                 <#> pure (unEl a) <@> t <@> u
   let f    = pure (Def qn [])
@@ -407,7 +385,7 @@ mkPrimInjective a b qn = do
   -- If the user want the primitive to reduce whenever the two values are equal (no
   -- matter whether the equality is refl), they can combine it with @eraseEquality@.
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    let t  = fromMaybe __IMPOSSIBLE__ $ headMaybe ts
+    let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
     eq' <- normalise' eq
     case eq' of
@@ -524,7 +502,7 @@ getReflArgInfo :: ConHead -> TCM (Maybe ArgInfo)
 getReflArgInfo rf = do
   def <- getConInfo rf
   TelV reflTel _ <- telView $ defType def
-  return $ fmap getArgInfo $ headMaybe $ drop (conPars $ theDef def) $ telToList reflTel
+  return $ fmap getArgInfo $ listToMaybe $ drop (conPars $ theDef def) $ telToList reflTel
 
 
 -- | Used for both @primForce@ and @primForceLemma@.
@@ -592,7 +570,7 @@ primForceLemma = do
 mkPrimLevelZero :: TCM PrimitiveImpl
 mkPrimLevelZero = do
   t <- primType (undefined :: Lvl)
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ Max []
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ ClosedLevel 0
 
 mkPrimLevelSuc :: TCM PrimitiveImpl
 mkPrimLevelSuc = do
@@ -605,9 +583,9 @@ mkPrimLevelMax :: TCM PrimitiveImpl
 mkPrimLevelMax = do
   t <- primType (max :: Op Lvl)
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> do
-    Max as <- levelView' $ unArg a
-    Max bs <- levelView' $ unArg b
-    redReturn $ Level $ levelMax $ as ++ bs
+    a' <- levelView' $ unArg a
+    b' <- levelView' $ unArg b
+    redReturn $ Level $ levelLub a' b'
 
 mkPrimSetOmega :: TCM PrimitiveImpl
 mkPrimSetOmega = do
@@ -711,7 +689,13 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = Map.fromList
+primitiveFunctions = fmap localTCStateSavingWarnings $ Map.fromList
+  -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
+  --   is bad for caching since it happens when scope checking import declarations (rebinding
+  --   primitives). During type checking, the caching machinery might then load a cached state with
+  --   out-of-date checkpoint ids. Make sure to preserve warnings though, since they include things
+  --   like using unsafe things primitives with `--safe`.
 
   -- Ulf, 2015-10-28: Builtin integers now map to a datatype, and since you
   -- can define these functions (reasonably) efficiently using the primitive
@@ -850,7 +834,8 @@ primitiveFunctions = Map.fromList
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
   , builtinConId          |-> primConId'
+  , builtin_glueU         |-> prim_glueU'
+  , builtin_unglueU       |-> prim_unglueU'
   ]
   where
     (|->) = (,)
-

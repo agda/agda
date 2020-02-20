@@ -2,40 +2,27 @@
 module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (mapM)
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Writer
-import Control.Monad.State  hiding (mapM)
 
 import Data.Maybe
-import Data.Traversable
 
 import System.Directory
 import System.FilePath
 
-import Agda.Syntax.Internal
-import Agda.Syntax.Common
-import Agda.Syntax.Concrete
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Errors
+import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
-import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Response
 import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Pretty
 import Agda.Utils.Except
-import Agda.Utils.Either
 
 import Agda.Utils.Impossible
 
@@ -109,7 +96,10 @@ setLibraryPaths root o =
   setLibraryIncludes =<< addDefaultLibraries root o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
-setLibraryIncludes o = do
+setLibraryIncludes o
+  | or [ not $ optUseLibs o
+       , optShowVersion o ] = pure o
+  | otherwise = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries (optOverrideLibrariesFile o)
     paths     <- libToTCM $ libraryIncludePaths (optOverrideLibrariesFile o) installed libs
@@ -149,18 +139,6 @@ disableDisplayForms =
 -- | Check if display forms are enabled.
 displayFormsEnabled :: MonadTCEnv m => m Bool
 displayFormsEnabled = asksTC envDisplayFormsEnabled
-
--- | Gets the include directories.
---
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
--- 'setCommandLineOptions' must have run).
-
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
-getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
 
 -- | Makes the given directories absolute and stores them as include
 -- directories.
@@ -246,9 +224,6 @@ isPropEnabled = optProp <$> pragmaOptions
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
-
-enableCaching :: HasOptions m => m Bool
-enableCaching = optCaching <$> pragmaOptions
 
 showImplicitArguments :: HasOptions m => m Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions

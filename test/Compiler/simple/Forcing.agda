@@ -2,30 +2,25 @@ module Forcing where
 
 open import Common.IO
 open import Common.Unit
-open import Lib.Vec renaming (_∷_ to _::_)
-open import Common.Nat renaming (zero to Z; suc to S)
+open import Lib.Vec
+open import Common.Nat
 
-len : {A : Set}{n : Nat} -> Vec A n -> Nat
-len {A} .{Z}   []              = Z
-len {A} .{S n} (_::_ {n} x xs) = S n
+len : {A : Set}{n : Nat} → Vec A n → Nat
+len {A} .{zero}  []             = zero
+len {A} .{suc n} (_∷_ {n} x xs) = suc n
 
-
-len2 : {A : Set}{n : Nat} -> Vec A n -> Nat
+len2 : {A : Set}{n : Nat} → Vec A n → Nat
 len2 [] = 0
-len2 (_::_ {n} x xs) = S (len2 {n = n} xs)
+len2 (_∷_ {n} x xs) = suc (len2 {n = n} xs)
 
+len3 : {A : Set}{n : Nat} → Vec A n → Nat
+len3 {n = zero}  []              = zero
+len3 {n = suc n} (_∷_ .{n} x xs) = suc n
 
-len3 : {A : Set}{n : Nat} -> Vec A n -> Nat
-len3 {n = Z}   []               = Z
-len3 {n = S n} (_::_ .{n} x xs) = S n
-
-
-len4 : {A : Set}{n : Nat} -> Vec A n -> Nat
-len4 []               = Z
-len4 (_::_ {Z} x xs) = S Z
-len4 (_::_ {S n} x xs) = S (S n)
-
-
+len4 : {A : Set}{n : Nat} → Vec A n → Nat
+len4 []                 = zero
+len4 (_∷_ {zero}  x xs) = suc zero
+len4 (_∷_ {suc n} x xs) = suc (suc n)
 
 main : IO Unit
 main =
@@ -46,7 +41,7 @@ main =
     printNat (len4 l3) ,,
 
     return unit
-  where l1 = "a" :: ("b" :: ("c" :: []))
-        l2 = 1   :: (2   :: (3   :: (4 :: (5 :: []))))
-        l3 : Vec Nat Z
+  where l1 = "a" ∷ ("b" ∷ ("c" ∷ []))
+        l2 = 1 ∷ (2 ∷ (3 ∷ (4 ∷ (5 ∷ []))))
+        l3 : Vec Nat zero
         l3 = []

@@ -1,3 +1,3 @@
 Issue402.agda:13,12-16
-x !=< y of type Unit
+x != y of type Unit
 when checking that the expression refl has type x == y

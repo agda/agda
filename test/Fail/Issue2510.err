@@ -1,4 +1,5 @@
 Issue2510.agda:7,6-7
 Cannot eliminate type Set with variable pattern x (did you supply
 too many arguments?)
-when checking that the clause test x = x has type Set
+when checking the clause left hand side
+test x

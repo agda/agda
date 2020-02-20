@@ -1,4 +1,4 @@
 Issue2307.agda:20,9-13
-g (c a) !=< h (record { f = a }) of type R
+g (c a) != h (record { f = a }) of type R
 when checking that the expression refl has type
 g (c a) ≡ h (record { f = a })

@@ -5,7 +5,7 @@
 \ProvidesPackage{agda}
 
 \RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox,
-                calc, environ, xparse}
+                calc, environ, xparse, xkeyval}
 
 % https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -528,34 +528,74 @@
 % \AgdaEmptySkip and \baselineskip). Used internally.
 \newlength{\AgdaEmptyExtraSkip}
 
+% Counter used for code numbers.
+\newcounter{AgdaCodeNumber}
+% Formats a code number.
+\newcommand{\AgdaFormatCodeNumber}[1]{(#1)}
+
+% A boolean used to handle the option number.
+\newboolean{Agda@Number}
+\setboolean{Agda@Number}{false}
+
+% A boolean used to handle the option inline*. (For some reason the
+% approach used for hide and inline does not work for inline*.)
+\newboolean{Agda@InlineStar}
+\setboolean{Agda@InlineStar}{false}
+
+% Keys used by the code environment.
+\define@boolkey[Agda]{code}{hide}[true]{}
+\define@boolkey[Agda]{code}{inline}[true]{}
+\define@boolkey[Agda]{code}{inline*}[true]{%
+  \setboolean{Agda@InlineStar}{true}}
+\define@key[Agda]{code}{number}[]{%
+  \ifthenelse{\boolean{Agda@Number}}{}{%
+    \setboolean{Agda@Number}{true}%
+    % Increase the counter if this has not already been done.
+    \refstepcounter{AgdaCodeNumber}}%
+  % If the label is non-empty, set it. Note that it is possible to
+  % give several labels for a single code listing.
+  \ifthenelse{\equal{#1}{}}{}{\label{#1}}}
+
 % The code environment.
 %
-% Code can be hidden by writing \begin{code}[hide].
+% Options:
 %
-% Inline code can be emitted by writing \begin{code}[inline]. In this
-% case most of the discussion above does not apply, alignment is not
-% respected, and so on. It is recommended to only use this option for
-% a single line of code, and to not use two consecutive spaces in this
-% piece of code.
+% * hide: The code is hidden. Other options are ignored.
 %
-% Note that this environment ignores spaces after its end. If a space
-% (\AgdaSpace{}) should be inserted after the inline code, use inline*
-% instead of inline.
+% * number: Give the code an equation number.
+%
+% * number=l: Give the code an equation number and the label l. It is
+%   possible to use this option several times with different labels.
+%
+% * inline/inline*: The code is inlined. In this case most of the
+%   discussion above does not apply, alignment is not respected, and so
+%   on. It is recommended to only use this option for a single line of
+%   code, and to not use two consecutive spaces in this piece of code.
+%
+%   Note that this environment ignores spaces after its end. If a space
+%   (\AgdaSpace{}) should be inserted after the inline code, use
+%   inline*, otherwise use inline.
+%
+%   When this option is used number is ignored.
 %
 % The implementation is based on plainhscode in lhs2TeX's
 % polycode.fmt, written by Andres Löh.
 \NewEnviron{code}[1][]{%
-  % Conditionally hide the code.
-  \ifthenelse{\equal{#1}{hide}}{}{%
-  \ifthenelse{\equal{#1}{inline}}{%
+  % Process the options. Complain about unknown options.
+  \setkeys[Agda]{code}[number]{#1}%
+  \ifAgda@code@hide%
+    % Hide the code.
+  \else%
+  \ifAgda@code@inline%
     % Inline code.
     %
     % Make the polytable primitives emitted by the LaTeX backend
     % do nothing.
     \DeclareDocumentCommand{\>}{O{}O{}}{}%
     \DeclareDocumentCommand{\<}{O{}}{}%
-    \AgdaCodeStyle\BODY}{%
-  \ifthenelse{\equal{#1}{inline*}}{%
+    \AgdaCodeStyle\BODY%
+  \else%
+  \ifthenelse{\boolean{Agda@InlineStar}}{%
     % Inline code with space at the end.
     %
     \DeclareDocumentCommand{\>}{O{}O{}}{}%
@@ -571,6 +611,20 @@
                   \value{Agda@SuppressStart} = \value{Agda@Current}\)}{%
       \Agda@NewlineWithVerticalSpace{\abovedisplayskip}}{%
       \Agda@NewlineWithVerticalSpace{0pt}}%
+    %
+    % Check if numbers have been requested. If they have, then a side
+    % effect of this call is that Agda@Number is set to true, the code
+    % number counter is increased, and the label (if any) is set.
+    \setkeys[Agda]{code}[hide,inline,inline*]{#1}%
+    \ifthenelse{\boolean{Agda@Number}}{%
+      % Equation numbers have been requested. Use a minipage, so that
+      % there is room for the code number to the right, and the code
+      % number becomes centered vertically.
+      \begin{minipage}{%
+          \linewidth-%
+          \widthof{%
+            \AgdaSpace{}%
+            \AgdaFormatCodeNumber{\theAgdaCodeNumber}}}}{}%
     %
     % Indent the entire code block.
     \advance\leftskip\mathindent%
@@ -595,6 +649,12 @@
       \BODY%
     \end{pboxed}%
     %
+    \ifthenelse{\boolean{Agda@Number}}{%
+      % Equation numbers have been requested.
+      \end{minipage}%
+      % Insert the code number to the right.
+      \hfill \AgdaFormatCodeNumber{\theAgdaCodeNumber}}{}%
+    %
     % Does the label Agda@DoNotSuppressAfter@<current code block
     % number> exist?
     \ifcsdef{r@Agda@DoNotSuppressSpaceAfter@\theAgda@Current}{%
@@ -610,7 +670,12 @@
       \Agda@NewlineWithVerticalSpace{0pt}}%
     %
     % Step the code block counter, but only for non-hidden code.
-    \stepcounter{Agda@Current}}}}}
+    \stepcounter{Agda@Current}}%
+  \fi%
+  \fi%
+  % Reset Agda@Number and Agda@InlineStar.
+  \setboolean{Agda@Number}{false}%
+  \setboolean{Agda@InlineStar}{false}}
 
 % Space inserted after tokens.
 \newcommand{\AgdaSpace}{ }

@@ -76,7 +76,7 @@ However, due to significant packaging bugs [such as this](https://bugs.archlinux
 Debian / Ubuntu
 ---------------
 
-Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karmic onwards. To install:
+Prebuilt packages are available for Debian and Ubuntu from Karmic onwards. To install:
 
 .. code-block:: bash
 
@@ -84,7 +84,7 @@ Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karm
 
 This should install Agda and the Emacs mode.
 
-The standard library is available in Debian testing/unstable and Ubuntu from Lucid onwards. To install:
+The standard library is available in Debian and Ubuntu from Lucid onwards. To install:
 
 .. code-block:: bash
 
@@ -146,39 +146,49 @@ not installed automatically.
 OS X
 ----
 
-`Homebrew <https://brew.sh>`_ provides prebuilt packages for OS X.  To install:
+`Homebrew <https://brew.sh>`_ is a free and open-source software package
+management system that provides prebuilt packages for OS X. Once it is
+installed in your system, you are ready to install agda. Open the
+Terminal app and run the following command:
 
 .. code-block:: bash
 
   brew install agda
 
-This should take less than a minute, and install Agda together with
-the Emacs mode and the standard library.
+This process should take less than a minute, and it installs Agda together with
+its Emacs mode and its standard library. For more information about the ``brew``
+command, please refer to the `Homebrew documentation <https://docs.brew.sh/>`_
+and `Homebrew FAQ <https://docs.brew.sh/FAQ>`_.
 
-By default, the standard library is installed in
+By default, the standard library is installed in the folder
 ``/usr/local/lib/agda/``.  To use the standard library, it is
-convenient to add ``/usr/local/lib/agda/standard-library.agda-lib`` to
-``~/.agda/libraries``, and specify ``standard-library`` in
-``~/.agda/defaults``.  Note this is not performed automatically.
+convenient to add the location of the agda-lib file ``/usr/local/lib/agda/standard-library.agda-lib``
+to the ``~/.agda/libraries`` file, and write the line ``standard-library`` in
+the ``~/.agda/defaults`` file. To do this, run the following commands:
 
-It is also possible to install ``--without-stdlib``,
-``--without-ghc``, or from ``--HEAD``.  Note this will require
+.. code-block:: bash
+
+  mkdir -p ~/.agda
+  echo /usr/local/lib/agda/standard-library.agda-lib >>~/.agda/libraries
+  echo standard-library >>~/.agda/defaults
+
+Please note that this configuration is not performed automatically. You can
+learn more about :ref:`using the standard library <use-std-lib>` or
+:ref:`using a library in general <use-lib>`.
+
+It is also possible to install with the command-line option keywords
+``--without-stdlib``, ``--without-ghc``, or from ``--HEAD``.  This requires
 building Agda from source.
 
-For more information, refer to the `Homebrew documentation
-<https://docs.brew.sh/>`_.
+To configure the way of editing agda files, follow the section
+:ref:`Emacs mode <emacs-mode>`.
 
 .. NOTE::
 
    If Emacs cannot find the ``agda-mode`` executable, it might help to
    install the exec-path-from-shell_ package by doing ``M-x
-   package-install RET exec-path-from-shell RET``, and adding
-
-   .. code-block:: elisp
-
-     (exec-path-from-shell-initialize)
-
-   to your ``.emacs`` file.
+   package-install RET exec-path-from-shell RET`` and adding the line
+   ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
 .. _installation-development-version:
 
@@ -186,7 +196,7 @@ Installation of the Development Version
 =======================================
 
 After getting the development version following the instructions in
-the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 
 * Install the :ref:`prerequisites <prerequisites>`
 
@@ -217,17 +227,20 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-:samp:`cpphs`
-   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: off.
+.. option:: cpphs
 
-:samp:`debug`
-   Enable debugging features that may slow Agda down. Default: off.
+     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
+     of cpp. Default: off.
 
-:samp:`flag enable-cluster-counting`
-   Enable the ``--count-clusters`` flag (see
-   :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
-   is ``False``, then the ``--count-clusters`` flag triggers an error
-   message. Default: off.
+.. option:: debug
+
+     Enable debugging features that may slow Agda down. Default: off.
+
+.. option:: enable-cluster-counting
+
+     Enable the :option:`--count-clusters` flag. Note that if
+     ``enable-cluster-counting`` is ``False``, then the
+     :option:`--count-clusters` flag triggers an error
+     message. Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell

@@ -1,6 +1,6 @@
 module Agda.TypeChecking.Primitive.Base where
 
-import Data.Map (Map)
+import Control.Monad.Fail (MonadFail)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -36,14 +36,15 @@ garr :: Monad m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
   a' <- a
   b' <- b
-  return $ El (funSort (defaultDom a') (getSort b')) $
+  return $ El (funSort (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadAddContext m, MonadDebug m)
     => ArgInfo -> String -> m Type -> m Type -> m Type
 gpi info name a b = do
   a <- a
-  let dom = defaultNamedArgDom info name a
+  let dom :: Dom Type
+      dom = defaultNamedArgDom info name a
   b <- addContext (name, dom) b
   let y = stringToArgName name
   return $ El (piSort dom (Abs y (getSort b)))
@@ -54,7 +55,7 @@ hPi, nPi :: (MonadAddContext m, MonadDebug m)
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi' :: (MonadAddContext m, MonadDebug m)
+hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
            => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
@@ -204,7 +205,7 @@ getSigmaKit = do
           return . Just $ SigmaKit
             { sigmaName = sigma
             , sigmaCon  = con
-            , sigmaFst  = unArg fst
-            , sigmaSnd  = unArg snd
+            , sigmaFst  = unDom fst
+            , sigmaSnd  = unDom snd
             }
         _ -> __IMPOSSIBLE__

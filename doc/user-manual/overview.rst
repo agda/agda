@@ -12,11 +12,15 @@ Overview
 
 This is the manual for the Agda programming language, its type checking,
 compilation and editing system and related resources/tools.
+The latest PDF version of this manual can be downloaded from `GitHub Actions
+<https://github.com/agda/agda/actions?query=workflow%3A%22User+Manual%22+is%3Asuccess>`_
+page (instruction on `how to find them
+<https://github.com/actions/upload-artifact#where-does-the-upload-go>_`).
 
 You can find a lot of useful resources on `Agda Wiki
-<http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HomePage>`_
+<https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HomePage>`_
 site, like `tutorials, introductions, publications and books
-<http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation>`_.
+<https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation>`_.
 If you're new to Agda, you should make use of the resources on Agda Wiki
 and chapter :ref:`getting-started` instead of chapter :ref:`language-index`.
 

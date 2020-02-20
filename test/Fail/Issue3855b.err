@@ -1,0 +1,5 @@
+Issue3855b.agda:13,29-35
+Cannot instantiate the metavariable _8 to solution A
+since it contains the variable A
+which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution
+when checking that the expression refl _ has type A ≡ A

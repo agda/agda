@@ -14,7 +14,6 @@ import Agda.Syntax.Parser.LookAhead
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
-import Agda.Utils.Char   ( decDigit, hexDigit, octDigit )
 import Agda.Utils.Tuple  ( (-*-) )
 
 {--------------------------------------------------------------------------
@@ -123,10 +122,10 @@ lexEscape =
                             then return (chr (ord c - ord '@'))
                             else lookAheadError "invalid control character"
 
-            'x'     -> readNum isHexDigit 16 hexDigit
-            'o'     -> readNum isOctDigit  8 octDigit
+            'x'     -> readNum isHexDigit 16 digitToInt
+            'o'     -> readNum isOctDigit  8 digitToInt
             x | isDigit x
-                    -> readNumAcc isDigit 10 decDigit (decDigit x)
+                    -> readNumAcc isDigit 10 digitToInt (digitToInt x)
 
             c ->
                 -- Try to match the input (starting with c) against the

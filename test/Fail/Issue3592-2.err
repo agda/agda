@@ -3,5 +3,5 @@ P is not strictly positive, because it occurs
 in the first argument of F
 in the first argument of P
 (in the type of the constructor c
- in the definition of P), which occurs
-                        in the definition of P.
+ in the definition of P), which is
+an index of P.

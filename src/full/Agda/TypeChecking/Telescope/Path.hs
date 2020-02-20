@@ -3,17 +3,11 @@ module Agda.TypeChecking.Telescope.Path where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Control.Monad (unless, guard)
-
-import Data.Foldable (forM_, find)
 import qualified Data.List as List
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
@@ -23,7 +17,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Size
 
@@ -49,7 +42,7 @@ telePiPath reAbs tel t bs = do
       s <- reduce $ getSort <$> b
       case s of
         NoAbs _ (Type l) -> return l
-        Abs n (Type l) | NoOccurrence <- occurrence 0 s -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
+        Abs n (Type l) | not (freeIn 0 s) -> return $ noabsApp __IMPOSSIBLE__ (Abs n l)
         _ -> typeError . GenericError . show =<<
              (text "The type is non-fibrant or its sort depends on an interval variable" <+> prettyTCM (unAbs b))
              -- TODO better Type Error

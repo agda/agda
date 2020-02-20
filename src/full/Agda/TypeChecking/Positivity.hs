@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns         #-}
+{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
@@ -9,12 +10,11 @@ import Prelude hiding ( null )
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader
-import Control.Monad.State (get)
 
 import Data.Either
 import qualified Data.Foldable as Fold
 import Data.Function
-import Data.Graph (SCC(..), flattenSCC)
+import Data.Graph (SCC(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
@@ -31,8 +31,7 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Position (fuseRange, Range, HasRange(..), noRange)
+import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
@@ -52,7 +51,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.Permutation as Perm
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.SemiRing
@@ -156,7 +154,7 @@ checkStrictlyPositive mi qset = do
         -- ASR (23 December 2015). We don't raise a strictly positive
         -- error if the NO_POSITIVITY_CHECK pragma was set on in the
         -- mutual block. See Issue 1614.
-        when (Info.mutualPositivityCheck mi) $
+        when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
           whenM positivityCheckEnabled $
             case loop of
             Just o | o <= JustPos ->
@@ -189,7 +187,7 @@ checkStrictlyPositive mi qset = do
       -- ASR (01 January 2016). We don't raise this error if the
       -- NO_POSITIVITY_CHECK pragma was set on in the record. See
       -- Issue 1760.
-      when (Info.mutualPositivityCheck mi) $
+      when (Info.mutualPositivityCheck mi == YesPositivityCheck) $
         whenM positivityCheckEnabled $ do
         -- Check whether the recursive record has been declared as
         -- 'Inductive' or 'Coinductive'.  Otherwise, error.
@@ -300,11 +298,15 @@ data OccurrencesBuilder'
   | OccursAs' Where OccurrencesBuilder'
   | OccursHere' Item
 
-emptyOB :: OccurrencesBuilder
-emptyOB = Concat []
+-- | The semigroup laws only hold up to flattening of 'Concat'.
+instance Semigroup OccurrencesBuilder where
+  occs1 <> occs2 = Concat [occs1, occs2]
 
-(>+<) :: OccurrencesBuilder -> OccurrencesBuilder -> OccurrencesBuilder
-occs1 >+< occs2 = Concat [occs1, occs2]
+-- | The monoid laws only hold up to flattening of 'Concat'.
+instance Monoid OccurrencesBuilder where
+  mempty  = Concat []
+  mappend = (<>)
+  mconcat = Concat
 
 -- | Removes 'OnlyVarsUpTo' entries.
 preprocess :: OccurrencesBuilder -> OccurrencesBuilder'
@@ -346,8 +348,10 @@ flatten =
   flip flatten' [] .
   preprocess
   where
-  flatten' :: OccurrencesBuilder'
-           -> [(Item, Integer)] -> [(Item, Integer)]
+  flatten'
+    :: OccurrencesBuilder'
+    -> [(Item, Integer)]
+    -> [(Item, Integer)]
   flatten' (Concat' obs)    = foldr (\occs f -> flatten' occs . f) id obs
   flatten' (OccursAs' _ ob) = flatten' ob
   flatten' (OccursHere' i)  = ((i, 1) :)
@@ -368,6 +372,14 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = Reader OccEnv
 
+instance Semigroup a => Semigroup (OccM a) where
+  ma <> mb = liftA2 (<>) ma mb
+
+instance (Semigroup a, Monoid a) => Monoid (OccM a) where
+  mempty  = return mempty
+  mappend = (<>)
+  mconcat = mconcat <.> sequence
+
 withExtendedOccEnv :: Maybe Item -> OccM a -> OccM a
 withExtendedOccEnv i = withExtendedOccEnv' [i]
 
@@ -377,7 +389,9 @@ withExtendedOccEnv' is = local $ \ e -> e { vars = is ++ vars e }
 -- | Running the monad
 getOccurrences
   :: (Show a, PrettyTCM a, ComputeOccurrences a)
-  => [Maybe Item] -> a -> TCM OccurrencesBuilder
+  => [Maybe Item]  -- ^ Extension of the 'OccEnv', usually a local variable context.
+  -> a
+  -> TCM OccurrencesBuilder
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
@@ -387,12 +401,16 @@ getOccurrences vars a = do
 class ComputeOccurrences a where
   occurrences :: a -> OccM OccurrencesBuilder
 
+  default occurrences :: (Foldable t, ComputeOccurrences b, t b ~ a) => a -> OccM OccurrencesBuilder
+  occurrences = foldMap occurrences
+
 instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
-    (Concat (mapMaybe matching (zip [0..] ps)) >+<) <$>
-      withExtendedOccEnv' items (occurrences $ clauseBody cl)
+    (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
+      withExtendedOccEnv' items $
+        occurrences $ clauseBody cl
     where
       matching (i, p)
         | properlyMatching (namedThing $ unArg p) =
@@ -413,14 +431,12 @@ instance ComputeOccurrences Clause where
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
-    Var i args -> do
-      vars <- asks vars
-      occs <- occurrences args
-      let mi      = indexWithDefault unbound vars i
-          unbound = flip trace __IMPOSSIBLE__ $
-                 "impossible: occurrence of de Bruijn index " ++ show i ++
-                 " in vars " ++ show vars ++ " is unbound"
-      return $ maybe emptyOB OccursHere mi >+< OccursAs VarArg occs
+    Var i args -> (occI <$> asks vars) <> (OccursAs VarArg <$> occurrences args)
+      where
+      occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
+      unbound = flip trace __IMPOSSIBLE__ $
+              "impossible: occurrence of de Bruijn index " ++ show i ++
+              " in vars " ++ show vars ++ " is unbound"
 
     Def d args   -> do
       inf <- asks inf
@@ -429,43 +445,39 @@ instance ComputeOccurrences Term where
             -- the first is a level argument (n==0, counting from 0!)
             if n == 1 then OccursAs UnderInf else OccursAs (DefArg d n)
       occs <- mapM occurrences args
-      return $ OccursHere (ADef d) >+< Concat (zipWith occsAs [0..] occs)
+      return . Concat $ OccursHere (ADef d) : zipWith occsAs [0..] occs
+
     Con _ _ args -> occurrences args
     MetaV _ args -> OccursAs MetaArg <$> occurrences args
-    Pi a b       -> do
-      oa <- occurrences a
-      ob <- occurrences b
-      return $ OccursAs LeftOfArrow oa >+< ob
+    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> occurrences b
     Lam _ b      -> occurrences b
     Level l      -> occurrences l
-    Lit{}        -> return emptyOB
-    Sort{}       -> return emptyOB
-    DontCare _   -> return emptyOB -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
-    Dummy{}      -> return emptyOB
+    Lit{}        -> mempty
+    Sort{}       -> mempty
+    -- Jesper, 2020-01-12: this information is also used for the
+    -- occurs check, so we need to look under DontCare (see #4371)
+    DontCare v   -> occurrences v
+    Dummy{}      -> mempty
 
 instance ComputeOccurrences Level where
-  occurrences (Max as) = occurrences as
+  occurrences (Max _ as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences ClosedLevel{} = return emptyOB
-  occurrences (Plus _ l)    = occurrences l
+  occurrences (Plus _ l) = occurrences l
 
 instance ComputeOccurrences LevelAtom where
-  occurrences l = case l of
-    MetaLevel x es   -> occurrences $ MetaV x es
+  occurrences = occurrences . unLevelAtom
+      -- MetaLevel x es -> occurrences $ MetaV x es
       -- Andreas, 2016-07-25, issue 2108
-      -- NOT: OccursAs MetaArg <$> occurrences vs
+      -- NOT: OccursAs MetaArg <$> occurrences es
       -- since we need to unSpine!
       -- (Otherwise, we run into __IMPOSSIBLE__ at Proj elims)
-    BlockedLevel _ v -> occurrences v
-    NeutralLevel _ v -> occurrences v
-    UnreducedLevel v -> occurrences v
 
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
-  occurrences EmptyTel        = return emptyOB
+  occurrences EmptyTel        = mempty
   occurrences (ExtendTel a b) = occurrences (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
@@ -473,27 +485,17 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (NoAbs _ b) = occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
-  occurrences Proj{}    = __IMPOSSIBLE__
-  occurrences (Apply a) = occurrences a
+  occurrences Proj{}         = __IMPOSSIBLE__  -- unSpine
+  occurrences (Apply a)      = occurrences a
   occurrences (IApply x y a) = occurrences (x,(y,a)) -- TODO Andrea: conservative
-instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
-  occurrences = occurrences . unArg
 
-instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
-  occurrences = occurrences . unDom
-
-instance ComputeOccurrences a => ComputeOccurrences [a] where
-  occurrences vs = Concat <$> mapM occurrences vs
-
+instance ComputeOccurrences a => ComputeOccurrences (Arg a)   where
+instance ComputeOccurrences a => ComputeOccurrences (Dom a)   where
+instance ComputeOccurrences a => ComputeOccurrences [a]       where
 instance ComputeOccurrences a => ComputeOccurrences (Maybe a) where
-  occurrences (Just v) = occurrences v
-  occurrences Nothing  = return emptyOB
 
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
-  occurrences (x, y) = do
-    ox <- occurrences x
-    oy <- occurrences y
-    return $ ox >+< oy
+  occurrences (x, y) = occurrences x <> occurrences y
 
 -- | Computes the number of occurrences of different 'Item's in the
 -- given definition.
@@ -514,39 +516,66 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
       <+> prettyTCM cur
   OccursAs (InDefOf q) <$> case theDef def of
+
     Function{funClauses = cs} -> do
       cs <- mapM etaExpandClause =<< instantiateFull cs
       Concat . zipWith (OccursAs . InClause) [0..] <$>
         mapM (getOccurrences []) cs
+
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np0, dataCons = cs}       -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
-      TelV tel t <- telView $ defType def
+      TelV tel _ <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
-      sizeIndex <- caseMaybe (headMaybe $ drop np0 $ telToList tel) (return 0) $ \ dom -> do
+      sizeIndex <- caseList (drop np0 $ telToList tel) (return 0) $ \ dom _ -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size tel - 1] -- argument positions corresponding to indices
-          -- Andreas, 2019-02-03, issue #3541:
-          -- Treat indices like parameters.
-          -- Was before (#802):
-          -- ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
-          --               ++ map (OccursAs Matched . OccursHere . AnArg) xs
-          ioccs = Concat $ map (OccursHere . AnArg) [np0 .. size tel - 1]
+      let ioccs = Concat $ map (OccursHere . AnArg) [np0 .. np - 1]
+                        ++ map (OccursAs IsIndex . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
-            a <- defType <$> getConstInfo c
-            TelV tel t <- telView'Path =<< normalise a -- normalization needed e.g. for test/succeed/Bush.agda
-            let indices = case unEl t of
-                            Def _ vs -> drop np vs
-                            _        -> __IMPOSSIBLE__
-            let tel'    = telFromList $ drop np $ telToList tel
-                vars np = map (Just . AnArg) $ downFrom np
-            (>+<) <$> (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
-                  <*> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
-      (>+<) ioccs <$> (Concat <$> mapM conOcc cs)
+            -- Andreas, 2020-02-15, issue #4447:
+            -- Allow UnconfimedReductions here to make sure we get the constructor type
+            -- in same way as it was obtained when the data types was checked.
+            TelV tel t <- putAllowedReductions allReductions $
+              telViewPath . defType =<< getConstInfo c
+            -- Do not collect occurrences in the data parameters.
+            -- Normalization needed e.g. for test/succeed/Bush.agda.
+            -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
+            tel' <- normalise $ telFromList $ drop np $ telToList tel
+            let vars = map (Just . AnArg) . downFrom
+            -- Occurrences in the types of the constructor arguments.
+            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel') $ do
+              -- Occurrences in the indices of the data type the constructor targets.
+              -- Andreas, 2020-02-15, issue #4447:
+              -- WAS: @t@ is not necessarily a data type, but it could be something
+              -- that reduces to a data type once UnconfirmedReductions are confirmed
+              -- as safe by the termination checker.
+              -- In any case, if @t@ is not showing itself as the data type, we need to
+              -- do something conservative.  We will just collect *all* occurrences
+              -- and flip their sign (variance) using 'LeftOfArrow'.
+              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vars $ size tel) t
+              case unEl t of
+                Def q' vs
+                  | q == q' -> do
+                      let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
+                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices
+                  | otherwise -> __IMPOSSIBLE__  -- fallback -- this ought to be impossible now (but wasn't, see #4447)
+                Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
+                MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
+                Var{}      -> __IMPOSSIBLE__  -- not a constructor target
+                Sort{}     -> __IMPOSSIBLE__  -- not a constructor target
+                Lam{}      -> __IMPOSSIBLE__  -- not a type
+                Lit{}      -> __IMPOSSIBLE__  -- not a type
+                Con{}      -> __IMPOSSIBLE__  -- not a type
+                Level{}    -> __IMPOSSIBLE__  -- not a type
+                DontCare{} -> __IMPOSSIBLE__  -- not a type
+                Dummy{}    -> __IMPOSSIBLE__
+      mconcat $ pure ioccs : map conOcc cs
+
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ drop np $ telToList tel
@@ -554,11 +583,11 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
-    Constructor{}      -> return emptyOB
-    Axiom{}            -> return emptyOB
-    DataOrRecSig{}     -> return emptyOB
-    Primitive{}        -> return emptyOB
-    GeneralizableVar{} -> return emptyOB
+    Constructor{}      -> mempty
+    Axiom{}            -> mempty
+    DataOrRecSig{}     -> mempty
+    Primitive{}        -> mempty
+    GeneralizableVar{} -> mempty
     AbstractDefn{}     -> __IMPOSSIBLE__
 
 -- Building the occurrence graph ------------------------------------------
@@ -575,7 +604,7 @@ data Edge a = Edge !Occurrence a
 
 mergeEdges :: Edge a -> Edge a -> Edge a
 mergeEdges _                    e@(Edge Mixed _)     = e -- dominant
-mergeEdges e@(Edge Mixed _) _                        = e
+mergeEdges e@(Edge Mixed _)     _                    = e
 mergeEdges (Edge Unused _)      e                    = e -- neutral
 mergeEdges e                    (Edge Unused _)      = e
 mergeEdges (Edge JustNeg _)     e@(Edge JustNeg _)   = e

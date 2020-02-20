@@ -82,5 +82,5 @@ Refolding
 ---------
 
 For each pattern ``pattern lhs = rhs``, Agda declares a ``DISPLAY``
-pragma refolding ``rhs`` to ``lhs`` (see :ref:`display_pragma` for
+pragma refolding ``rhs`` to ``lhs`` (see :ref:`display-pragma` for
 more details).

@@ -31,7 +31,7 @@ data Associativity : Set where
   non-assoc   : Associativity
 
 data Precedence : Set where
-  related   : Int → Precedence
+  related   : Float → Precedence
   unrelated : Precedence
 
 data Fixity : Set where
@@ -104,7 +104,7 @@ data Relevance : Set where
 data ArgInfo : Set where
   arg-info : (v : Visibility) (r : Relevance) → ArgInfo
 
-data Arg (A : Set) : Set where
+data Arg {a} (A : Set a) : Set a where
   arg : (i : ArgInfo) (x : A) → Arg A
 
 {-# BUILTIN ARGINFO    ArgInfo  #-}
@@ -114,7 +114,7 @@ data Arg (A : Set) : Set where
 
 -- Name abstraction --
 
-data Abs (A : Set) : Set where
+data Abs {a} (A : Set a) : Set a where
   abs : (s : String) (x : A) → Abs A
 
 {-# BUILTIN ABS    Abs #-}
@@ -278,13 +278,6 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
-  -- Tries to solve all constraints.
-  solveConstraints : TC ⊤
-
-  -- Wakes up all constraints mentioning the given meta-variables, and
-  -- then tries to solve all awake constraints.
-  solveConstraintsMentioning : List Meta → TC ⊤
-
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
@@ -317,6 +310,4 @@ postulate
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
-{-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}

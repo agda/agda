@@ -6,8 +6,6 @@
 
 module Agda.TypeChecking.ReconstructParameters where
 
-import Data.Traversable
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
@@ -15,7 +13,6 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
@@ -46,7 +43,7 @@ reconstructParameters a v = do
   reportSDoc "tc.with.reconstruct" 30 $
     sep [ "reconstructing parameters in"
         , nest 2 $ sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ] ]
-  v <- checkInternal' (defaultAction{ postAction = reconstruct }) v a
+  v <- checkInternal' (defaultAction{ postAction = reconstruct }) v CmpLeq a
   reportSDoc "tc.with.reconstruct" 30 $
     nest 2 $ "-->" <+> prettyTCM v
   return v

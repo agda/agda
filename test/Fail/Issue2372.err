@@ -1,4 +1,4 @@
-Issue2372.agda:13,3-8
+Issue2372.agda:13,3-4
 Terms marked as eligible for instance search should end with a
 name, so 'instance' is ignored here.
 when checking the definition of i

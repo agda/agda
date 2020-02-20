@@ -383,6 +383,89 @@ with-abstraction.
 
 ..
   ::
+  module with-invert {a} {A : Set a} where
+    open import Agda.Builtin.Nat
+    open import Agda.Builtin.Sigma
+    open import Agda.Builtin.Equality
+    open import Agda.Builtin.Unit
+
+.. _with-invert:
+
+Irrefutable With
+~~~~~~~~~~~~~~~~
+
+When a pattern is irrefutable, we can use a pattern-matching ``with``
+instead of a traditional ``with`` block. This gives us a lightweight
+syntax to make a lot of observations before using a "proper" ``with``
+block. For a basic example of such an irrefutable pattern, see this
+unfolding lemma for ``pred`` ::
+
+    pred : Nat → Nat
+    pred zero    = zero
+    pred (suc n) = n
+
+    NotNull : Nat → Set
+    NotNull zero    = ⊥ -- false
+    NotNull (suc n) = ⊤ -- trivially true
+
+    pred-correct : ∀ n (pr : NotNull n) → suc (pred n) ≡ n
+    pred-correct n pr with suc p ← n = refl
+
+In the above code snippet we do not need to entertain the idea that ``n``
+could be equal to ``zero``: Agda detects that the proof ``pr`` allows us
+to dismiss such a case entirely.
+
+The patterns used in such an inversion clause can be arbitrary. We can
+for instance have deep patterns, e.g. projecting out the second element
+of a vector whose length is neither 0 nor 1:
+
+::
+
+    infixr 5 _∷_
+    data Vec {a} (A : Set a) : Nat → Set a where
+      []  : Vec A zero
+      _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
+
+    second : ∀ {n} {pr : NotNull (pred n)} → Vec A n → A
+    second vs with (_ ∷ v ∷ _) ← vs = v
+
+Remember example of :ref:`simultaneous
+abstraction <simultaneous-abstraction>` from above. A simultaneous
+rewrite / pattern-matching ``with`` is to be understood as being nested.
+That is to say that the type refinements introduced by the first
+case analysis may be necessary to type the following ones.
+
+In the following example, in ``focusAt`` we are only able to perform
+the ``splitAt`` we are interested in because we have massaged the type
+of the vector argument using ``suc-+`` first.
+
+::
+
+    suc-+ : ∀ m n → suc m + n ≡ m + suc n
+    suc-+ zero    n                   = refl
+    suc-+ (suc m) n rewrite suc-+ m n = refl
+
+    infixr 1 _×_
+    _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set ?
+    A × B = Σ A (λ _ → B)
+
+    splitAt : ∀ m {n} → Vec A (m + n) → Vec A m × Vec A n
+    splitAt zero    xs       = ([] , xs)
+    splitAt (suc m) (x ∷ xs) with (ys , zs) ← splitAt m xs = (x ∷ ys , zs)
+
+    -- focusAt m (x₀ ∷ ⋯ ∷ xₘ₋₁ ∷ xₘ ∷ xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ)
+    -- returns ((x₀ ∷ ⋯ ∷ xₘ₋₁) , xₘ , (xₘ₊₁ ∷ ⋯ ∷ xₘ₊ₙ))
+    focusAt : ∀ m {n} → Vec A (suc (m + n)) → Vec A m × A × Vec A n
+    focusAt m {n} vs rewrite suc-+ m n
+                     with (before , focus ∷ after) ← splitAt m vs
+                     = (before , focus , after)
+
+You can alternate arbitrarily many ``rewrite`` and pattern-matching
+``with`` clauses and still perform a ``with`` abstraction afterwards
+if necessary.
+
+..
+  ::
   module with-rewrite where
     open import Agda.Builtin.Nat using (_+_)
 
@@ -586,12 +669,11 @@ Helper functions
 ++++++++++++++++
 
 Internally with-abstractions are translated to auxiliary functions
-(see :ref:`technical-details` below) and you can
-always\ [#with-inlining]_ write these functions manually. The downside
-is that the type signature for the helper function needs to be written
-out explicitly, but fortunately the :ref:`emacs-mode` has a command
-(``C-c C-h``) to generate it using the same algorithm that generates
-the type of a with-function.
+(see :ref:`technical-details` below) and you can always write these
+functions manually. The downside is that the type signature for the
+helper function needs to be written out explicitly, but fortunately
+the :ref:`emacs-mode` has a command (``C-c C-h``) to generate it using
+the same algorithm that generates the type of a with-function.
 
 Performance considerations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -800,11 +882,6 @@ immediate problem (``fst p != w``) and the full type of the with-function. To
 get a more informative error, pointing to the location in the type where the
 error is, you can copy and paste the with-function type from the error message
 and try to type check it separately.
-
-
-.. [#with-inlining] The termination checker has :ref:`special treatment for
-                    with-functions <termination-checking-with>`, so replacing a `with` by the
-                    equivalent helper function might fail termination.
 
 .. [McBride2004] C. McBride and J. McKinna. **The view from the left**. Journal of Functional Programming, 2004.
                  http://strictlypositive.org/vfl.pdf.

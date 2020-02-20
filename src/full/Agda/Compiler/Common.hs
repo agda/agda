@@ -1,39 +1,32 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.Common where
 
 import Data.List as List
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HMap
 import Data.Char
 import Data.Function
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
-import Data.Monoid hiding ((<>))
+#endif
 
 import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
-import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
 
 import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -133,15 +126,6 @@ repl subs = go where
   go []    = []
 
 
--- | Copy pasted from MAlonzo....
---   Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  n   <- typeArity (defType def)
-  let Constructor{ conPars = np } = theDef def
-  return (n - np, np)
-
 -- | Sets up the compilation environment.
 inCompilerEnv :: Interface -> TCM a -> TCM a
 inCompilerEnv mainI cont = do
@@ -161,7 +145,7 @@ inCompilerEnv mainI cont = do
       Nothing  -> do
         -- The default output directory is the project root.
         let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- findFile tm
+        f <- srcFilePath <$> findFile tm
         return $ filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
@@ -174,8 +158,7 @@ inCompilerEnv mainI cont = do
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
-    ignoreAbstractMode $ do
-      cont
+    ignoreAbstractMode cont
   -- keep generated warnings
   let newWarnings = stPostTCWarnings $  stPostScopeState $ s
   stTCWarnings `setTCLens` newWarnings

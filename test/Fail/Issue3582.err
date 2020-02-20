@@ -1,0 +1,3 @@
+Issue3582.agda:8,7-8
+Prop₁ != Prop
+when checking that the expression P has type Prop

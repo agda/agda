@@ -1,0 +1,3 @@
+Issue3807.agda:15,45-48
+y != x of type A
+when checking that the expression f y has type P (c x)

@@ -7,7 +7,6 @@ module Agda.Auto.Auto
 
 import Prelude hiding (null)
 
-import Data.Functor
 import Control.Monad.State
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -15,6 +14,7 @@ import Data.IORef
 import qualified System.Timeout
 import Data.Maybe
 import qualified Data.Traversable as Trav
+import qualified Data.HashMap.Strict as HMap
 
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad hiding (withCurrentModule)
@@ -28,16 +28,15 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteScope, abstractToConcrete_, runAbsToCon, toConcrete)
+import Agda.Interaction.Base
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Base as Scope
 import Agda.Syntax.Scope.Monad (withCurrentModule)
-import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as TCM
 import Agda.TypeChecking.EtaContract (etaContract)
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Auto.Options
 import Agda.Auto.Convert
@@ -110,7 +109,7 @@ auto
   -> Range
   -> String
   -> tcm AutoResult
-auto ii rng argstr = liftTCM $ do
+auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
 
   -- Parse hints and other configuration.
   let autoOptions = parseArgs argstr
@@ -321,7 +320,8 @@ auto ii rng argstr = liftTCM $ do
                   loop [] = return $ AutoResult (Solutions []) (Just "")
                   loop (term : terms') = do
                     -- On exception, try next solution
-                    flip catchError (const $ loop terms') $ do
+                    flip catchError (\ e -> do reportSDoc "auto" 40 $ "Solution failed:" TCM.<?> TCM.prettyTCM e
+                                               loop terms') $ do
                       exprs <- getsols term
                       reportSDoc "auto" 20 $ "Trying solution " TCM.<+> TCM.prettyTCM exprs
                       giveress <- forM exprs $ \ (mi, expr0) -> do
@@ -377,12 +377,12 @@ auto ii rng argstr = liftTCM $ do
             case cls' of
              Left{} -> stopWithMsg "No solution found"
              Right cls' -> do
-              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall reachable) -> do
+              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall recursive reachable ell) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
-                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable
+                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall recursive reachable ell
               moduleTel <- lookupSection (AN.qnameModule def)
               pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks

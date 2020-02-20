@@ -7,6 +7,8 @@ Library Management
 Agda has a simple package management system to support working with multiple
 libraries in different locations. The central concept is that of a *library*.
 
+.. _use-std-lib:
+
 Example: Using the standard library
 -----------------------------------
 
@@ -83,7 +85,7 @@ paths are relative to the location of the library-file.
 Each of the three fields is optional.
 Naturally, unnamed libraries cannot be depended upon.
 But dropping the ``name`` is possible if the library file only serves to list
-include pathes and/or dependencies of the current project.
+include paths and/or dependencies of the current project.
 
 
 Installing libraries
@@ -113,6 +115,8 @@ error message (assuming you don't have a library called ``fjdsk`` installed).
 
 Note that if you want to install a library so that it is used by default,
 it must also be listed in the ``defaults`` file (details below).
+
+.. _use-lib:
 
 Using a library
 ---------------

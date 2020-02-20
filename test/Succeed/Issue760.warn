@@ -1,0 +1,12 @@
+Issue760.agda:11,10-16
+public does not have any effect in an abstract block.
+Issue760.agda:26,10-16
+public does not have any effect in a private block.
+
+———— All done; warnings encountered ————————————————————————
+
+Issue760.agda:11,10-16
+public does not have any effect in an abstract block.
+
+Issue760.agda:26,10-16
+public does not have any effect in a private block.

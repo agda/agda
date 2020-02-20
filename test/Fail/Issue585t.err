@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [22, 24] _x_13 = inn (out _x_13) : B
+  _x_13 = inn (out _x_13) : B
 Unsolved metas at the following locations:
   Issue585t.agda:24,9-10
   Issue585t.agda:24,7-10

@@ -62,6 +62,8 @@ import Control.Monad
 import qualified Data.Map as Map
 import Data.Monoid (Any(..), getAny)
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -159,7 +161,6 @@ elimView
   => Bool -> Term -> m Term
 elimView loneProjToLambda v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
-  reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     "elimView (projections reduced) of " <+> prettyTCM v
@@ -204,7 +205,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --      is inferable (neutral).  Thus:
 --
 --      a. @f@ cannot have absurd clauses (which are stuck even if the principal
---         argument is a constructor)
+--         argument is a constructor).
 --
 --      b. @f@ cannot be abstract as it does not reduce outside abstract blocks
 --         (always stuck).
@@ -213,7 +214,13 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --
 --      d. @f@ cannot match deeply.
 --
---      e. @f@s body may not mention the paramters.
+--      e. @f@s body may not mention the parameters.
+--
+--      f. A rhs of @f@ cannot be a record expression, since this will be
+--         translated to copatterns by recordExpressionsToCopatterns.
+--         Thus, an application of @f@ waiting for a projection
+--         can be stuck even when the principal argument is a constructor.
+--
 --
 -- For internal reasons:
 --
@@ -226,7 +233,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 -- Examples for these reasons: see test/Succeed/NotProjectionLike.agda
 
 makeProjection :: QName -> TCM ()
-makeProjection x = -- if True then return () else do
+makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
  inTopContext $ do
   reportSLn "tc.proj.like" 70 $ "Considering " ++ prettyShow x ++ " for projection likeness"
   defn <- getConstInfo x
@@ -239,6 +246,8 @@ makeProjection x = -- if True then return () else do
     Function{funClauses = cls}
       | any (isNothing . clauseBody) cls ->
         reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
+      | any (maybe __IMPOSSIBLE__ isRecordExpression . clauseBody) cls ->
+        reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have record rhss"
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
     -- the dropped arguments.
@@ -246,7 +255,7 @@ makeProjection x = -- if True then return () else do
     -- outside the abstract block.
     def@Function{funProjection = Nothing, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
-                 funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
+                 funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
@@ -262,16 +271,20 @@ makeProjection x = -- if True then return () else do
               , nest 2 $ "clauses =" <?> vcat (map pretty cls) ]
             Just (d, n) -> do
               -- Yes, we are projection-like!
-              reportSDoc "tc.proj.like" 10 $ sep
+              reportSDoc "tc.proj.like" 10 $ vcat
                 [ prettyTCM x <+> " : " <+> prettyTCM t
-                , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
+                , nest 2 $ sep
+                  [ "is projection like in argument",  prettyTCM n, "for type", prettyTCM (unArg d) ]
                 ]
               __CRASH_WHEN__ "tc.proj.like.crash" 1000
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
                   st   = dropArgs n st0
-              reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
+              reportSLn "tc.proj.like" 60 $ unlines
+                [ "  rewrote clauses to"
+                , "    " ++ show cc
+                ]
 
               -- Andreas, 2013-10-20 build parameter dropping function
               let pIndex = n + 1
@@ -315,6 +328,14 @@ makeProjection x = -- if True then return () else do
     Primitive{}    -> reportSLn "tc.proj.like" 30 $ "  not a function, but Primitive"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
+    -- | If the user wrote a record expression as rhs,
+    --   the recordExpressionsToCopatterns translation will turn this into copatterns,
+    --   violating the conditions of projection-likeness.
+    --   Andreas, 2019-07-11, issue #3843.
+    isRecordExpression :: Term -> Bool
+    isRecordExpression = \case
+      Con _ ConORec _ -> True
+      _ -> False
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
     validProj :: (Arg QName, Int) -> TCM Bool

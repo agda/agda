@@ -11,10 +11,6 @@ import System.Environment
 import System.Exit
 import System.Console.GetOpt
 
-import Agda.Syntax.Position (Range)
-import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
-
 import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
@@ -22,6 +18,7 @@ import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
+import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -33,13 +30,11 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.JS.Compiler (jsBackend)
 
 import Agda.Compiler.Backend
 
-import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.String
 
@@ -134,7 +129,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
                      then Imp.ScopeCheck
                      else Imp.TypeCheck
 
-          file    <- getInputFile
+          file    <- SourceFile <$> getInputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
 
           -- An interface is only generated if the mode is

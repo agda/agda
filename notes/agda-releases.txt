@@ -1,17 +1,15 @@
+Tested with `cabal-install 3.0.0.0`.
+
 When releasing the following procedure can be followed:
 
-* Verify that the Travis builds have no errors.
+* Verify that the Travis builds and GitHub actions have no errors.
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
 
 * Use the branch used for releasing the release candidate.
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.md.
-
-  Copy the contents of the release notes to the top of the CHANGELOG
-  file.
+* Finish the release notes in the CHANGELOG.
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
@@ -61,10 +59,10 @@ When releasing the following procedure can be followed:
 
 * Run the test-suite:
 
-    make install
+    make compile-emacs-mode
     make test
 
-  Note that "make install" invokes "agda-mode compile", which should
+  Note that "compile-emacs-mode" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
@@ -73,20 +71,25 @@ When releasing the following procedure can be followed:
 
 * Remove the Cabal test-suite from Agda.cabal.
 
+* Added to the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
+
 * Update the user manual:
 
     make user-manual-pdf
 
 * Build source distributions:
 
-    cabal configure
+    cabal v1-configure
     cabal check
-    cabal sdist
+    cabal v1-sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal haddock --for-hackage
+    cabal v1-haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -95,9 +98,9 @@ When releasing the following procedure can be followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
+    cabal install --program-suffix=-$MAJORVERSION
+    agda-$MAJOY_VERSION --version
+    agda-mode-$MAJOR_VERSION compile
 
 * Tag the relase (do not forget to record the changes above first):
 
@@ -111,6 +114,11 @@ When releasing the following procedure can be followed:
     cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
     cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
 
+* Remove from the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
+
 * Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
@@ -121,7 +129,7 @@ When releasing the following procedure can be followed:
 
 * Add a new header to CHANGELOG.
 
-* Add a new entry in
+* Move the CHANGELOG for $MAJORVERSION to a new entry in
   doc/release-notes/<version-written-with-dashes>.md.
 
 * Close in the bug tracker the milestone $MAJORVERSION.

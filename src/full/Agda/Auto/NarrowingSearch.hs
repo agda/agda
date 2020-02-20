@@ -5,7 +5,6 @@ module Agda.Auto.NarrowingSearch where
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
-import Control.Applicative hiding (Const(..), getConst)
 
 import Agda.Utils.Impossible
 import Agda.Utils.Empty
@@ -210,7 +209,7 @@ data MM a blk = NotM a
               | Meta (Metavar a blk)
 
 rm :: Empty -> MM a b -> a
-rm e (NotM x) = x
+rm _ (NotM x) = x
 rm e Meta{}   = absurd e
 
 type MetaEnv = IO
@@ -279,7 +278,7 @@ mmbpcase x fm f = do
  x' <- x
  case x' of
   NotB x -> f x
-  Blocked m x -> fm (Meta m)
+  Blocked m _ -> fm (Meta m)
   Failed msg -> return $ NotPB $ Error msg
 
 waitok :: OKHandle blk -> MetaEnv (MB b blk) -> MetaEnv (MB b blk)
@@ -453,7 +452,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
    True -> -- failed immediately
     return False
    False -> do
-    Left solfound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
+    Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
     dr <- lift $ readIORef depthreached
     return dr
 
@@ -549,7 +548,7 @@ calc cont node = do
 
             uwriteIORef (ctpriometa node) (PrioMeta prio m)
             propagatePrio node
-           QPDoubleBlocked flag _ ->
+           QPDoubleBlocked _flag _ ->
             return []
          Nothing -> return []
        ) oldobs
@@ -580,7 +579,7 @@ calc cont node = do
      uwriteIORef (ctsub jnode) $ Just sc
      ndep <- case coms of
       Nothing -> return 1 -- no metas pointing to it so will never decrement to 0
-      Just coms -> return 1 -- dito
+      Just _coms  -> return 1 -- dito
      lift $ NoUndo.writeIORef (sccomcount sc) ndep -- OK since sc was just created
      resp1 <- donewp (Just $ scsub1 sc) p1
      case resp1 of
@@ -647,7 +646,7 @@ choose c prio p1 p2 =
   RightDisjunct -> p2
 
 instance Refinable Choice blk where
- refinements _ x _ = return $ Move 0 . return <$> [LeftDisjunct, RightDisjunct]
+ refinements _ _ _ = return $ Move 0 . return <$> [LeftDisjunct, RightDisjunct]
 
 
 instance Refinable OKVal blk where

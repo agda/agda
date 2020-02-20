@@ -4,9 +4,10 @@ import Control.Monad
 import System.Directory
 
 import RunAgda
+import Agda.Version
 
 file          = "Issue720.agda"
-interfaceFile = file ++ "i"
+interfaceFile = concat [ "_build/", version, "/agda/", file, "i" ]
 
 main :: IO ()
 main = runAgda ["--no-libraries"] $ \(AgdaCommands { .. }) -> do

@@ -1,0 +1,3 @@
+Issue4323.agda:28,27-28
+(m + n) != n of type Nat
+when checking that the expression q has type Q (m + n)

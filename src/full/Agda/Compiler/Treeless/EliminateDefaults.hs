@@ -4,22 +4,13 @@ module Agda.Compiler.Treeless.EliminateDefaults where
 
 import Control.Monad
 import qualified Data.List as List
-import Data.Maybe
 
-import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
-import qualified Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Substitute
 
-import Agda.Compiler.Treeless.Subst
-
-import Agda.Utils.Impossible
-
+import Agda.Compiler.Treeless.Subst () --instance only
 
 eliminateCaseDefaults :: TTerm -> TCM TTerm
 eliminateCaseDefaults = tr

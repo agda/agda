@@ -1,21 +1,29 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-} -- for: LensNamed name (Arg a)
+{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
 module Agda.Syntax.Common where
 
-import Control.DeepSeq
+import Prelude hiding (null)
 
+import Control.DeepSeq
+import Control.Arrow ((&&&))
+
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup hiding (Arg)
+#endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
+import Data.Function
 import Data.Hashable (Hashable(..))
 import qualified Data.Strict.Maybe as Strict
-import Data.Semigroup hiding (Arg)
-import Data.Traversable
 import Data.Data (Data)
 import Data.Word
 import Data.IntSet (IntSet)
@@ -27,11 +35,16 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
+
+type Nat    = Int
+type Arity  = Nat
 
 ---------------------------------------------------------------------------
 -- * Delayed
@@ -267,23 +280,27 @@ data Modality = Modality
       -- ^ Cardinality / runtime erasure.
       --   See Conor McBride, I got plenty o' nutting, Wadlerfest 2016.
       --   See Bob Atkey, Syntax and Semantics of Quantitative Type Theory, LiCS 2018.
+  , modCohesion :: Cohesion
+      -- ^ Cohesion/what was in Agda-flat.
+      --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
+      --   Currently only the comonad is implemented.
   } deriving (Data, Eq, Ord, Show, Generic)
 
 defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
 -- | Pointwise composition.
 instance Semigroup Modality where
-  Modality r q <> Modality r' q' = Modality (r <> r') (q <> q')
+  Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
 
 -- | Pointwise unit.
 instance Monoid Modality where
-  mempty = Modality mempty mempty
+  mempty = Modality mempty mempty mempty
   mappend = (<>)
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
-  comparable (Modality r q) (Modality r' q') = comparable (r, q) (r', q')
+  comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
 
 instance POSemigroup Modality where
 instance POMonoid Modality where
@@ -301,6 +318,7 @@ usableModality :: LensModality a => a -> Bool
 usableModality a = usableRelevance m && usableQuantity m
   where m = getModality a
 
+-- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
 composeModality = (<>)
 
@@ -316,15 +334,31 @@ applyModality m = mapModality (m `composeModality`)
 --   iff
 --   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
 inverseComposeModality :: Modality -> Modality -> Modality
-inverseComposeModality (Modality r q) (Modality r' q') =
+inverseComposeModality (Modality r q c) (Modality r' q' c') =
   Modality (r `inverseComposeRelevance` r')
            (q `inverseComposeQuantity`  q')
+           (c `inverseComposeCohesion`  c')
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
 inverseApplyModality :: LensModality a => Modality -> a -> a
 inverseApplyModality m = mapModality (m `inverseComposeModality`)
 
+-- | 'Modality' forms a pointwise additive monoid.
+addModality :: Modality -> Modality -> Modality
+addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
+
+zeroModality :: Modality
+zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
+
+-- | Absorptive element under addition.
+topModality :: Modality
+topModality = Modality topRelevance topQuantity topCohesion
+
+-- | Equality ignoring origin.
+
+sameModality :: Modality -> Modality -> Bool
+sameModality (Modality r q c) (Modality r' q' c') = sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
 
 -- boilerplate instances
 
@@ -340,6 +374,9 @@ lModRelevance f m = f (modRelevance m) <&> \ r -> m { modRelevance = r }
 
 lModQuantity :: Lens' Quantity Modality
 lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
+
+lModCohesion :: Lens' Cohesion Modality
+lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
 
 class LensModality a where
 
@@ -371,6 +408,11 @@ instance LensQuantity Modality where
   setQuantity h m = m { modQuantity = h }
   mapQuantity f m = m { modQuantity = f (modQuantity m) }
 
+instance LensCohesion Modality where
+  getCohesion = modCohesion
+  setCohesion h m = m { modCohesion = h }
+  mapCohesion f m = m { modCohesion = f (modCohesion m) }
+
 -- default accessors for Relevance
 
 getRelevanceMod :: LensModality a => LensGet Relevance a
@@ -393,9 +435,171 @@ setQuantityMod = mapModality . setQuantity
 mapQuantityMod :: LensModality a => LensMap Quantity a
 mapQuantityMod = mapModality . mapQuantity
 
+-- default accessors for Cohesion
+
+getCohesionMod :: LensModality a => LensGet Cohesion a
+getCohesionMod = getCohesion . getModality
+
+setCohesionMod :: LensModality a => LensSet Cohesion a
+setCohesionMod = mapModality . setCohesion
+
+mapCohesionMod :: LensModality a => LensMap Cohesion a
+mapCohesionMod = mapModality . mapCohesion
+
 ---------------------------------------------------------------------------
 -- * Quantities
 ---------------------------------------------------------------------------
+
+-- ** Quantity origin.
+
+-- | Origin of 'Quantity0'.
+data Q0Origin
+  = Q0Inferred       -- ^ User wrote nothing.
+  | Q0       Range   -- ^ User wrote "@0".
+  | Q0Erased Range   -- ^ User wrote "@erased".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- | Origin of 'Quantity1'.
+data Q1Origin
+  = Q1Inferred       -- ^ User wrote nothing.
+  | Q1       Range   -- ^ User wrote "@1".
+  | Q1Linear Range   -- ^ User wrote "@linear".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- | Origin of 'Quantityω'.
+data QωOrigin
+  = QωInferred       -- ^ User wrote nothing.
+  | Qω       Range   -- ^ User wrote "@ω".
+  | QωPlenty Range   -- ^ User wrote "@plenty".
+  deriving (Data, Show, Generic, Eq, Ord)
+
+-- *** Instances for 'Q0Origin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup Q0Origin where
+  (<>) = curry $ \case
+    (Q0Inferred, o) -> o
+    (o, Q0Inferred) -> o
+    (o, Q0       r) -> Q0 $ fuseRange o r
+    (o, Q0Erased r) -> Q0 $ fuseRange o r
+
+instance Monoid Q0Origin where
+  mempty = Q0Inferred
+  mappend = (<>)
+
+instance Null Q0Origin where
+  empty = mempty
+
+instance HasRange Q0Origin where
+  getRange = \case
+    Q0Inferred -> noRange
+    Q0       r -> r
+    Q0Erased r -> r
+
+instance SetRange Q0Origin where
+  setRange r = \case
+    Q0Inferred -> Q0Inferred
+    Q0       _ -> Q0       r
+    Q0Erased _ -> Q0Erased r
+
+instance KillRange Q0Origin where
+  killRange = \case
+    Q0Inferred -> Q0Inferred
+    Q0       _ -> Q0       noRange
+    Q0Erased _ -> Q0Erased noRange
+
+instance NFData Q0Origin where
+  rnf = \case
+    Q0Inferred -> ()
+    Q0       _ -> ()
+    Q0Erased _ -> ()
+
+-- *** Instances for 'Q1Origin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup Q1Origin where
+  (<>) = curry $ \case
+    (Q1Inferred, o) -> o
+    (o, Q1Inferred) -> o
+    (o, Q1       r) -> Q1 $ fuseRange o r
+    (o, Q1Linear r) -> Q1 $ fuseRange o r
+
+instance Monoid Q1Origin where
+  mempty = Q1Inferred
+  mappend = (<>)
+
+instance Null Q1Origin where
+  empty = mempty
+
+instance HasRange Q1Origin where
+  getRange = \case
+    Q1Inferred -> noRange
+    Q1       r -> r
+    Q1Linear r -> r
+
+instance SetRange Q1Origin where
+  setRange r = \case
+    Q1Inferred -> Q1Inferred
+    Q1       _ -> Q1       r
+    Q1Linear _ -> Q1Linear r
+
+instance KillRange Q1Origin where
+  killRange = \case
+    Q1Inferred -> Q1Inferred
+    Q1       _ -> Q1       noRange
+    Q1Linear _ -> Q1Linear noRange
+
+instance NFData Q1Origin where
+  rnf = \case
+    Q1Inferred -> ()
+    Q1       _ -> ()
+    Q1Linear _ -> ()
+
+-- *** Instances for 'QωOrigin'.
+
+-- | Right-biased composition, because the left quantity
+--   acts as context, and the right one as occurrence.
+instance Semigroup QωOrigin where
+  (<>) = curry $ \case
+    (QωInferred, o) -> o
+    (o, QωInferred) -> o
+    (o, Qω       r) -> Qω $ fuseRange o r
+    (o, QωPlenty r) -> Qω $ fuseRange o r
+
+instance Monoid QωOrigin where
+  mempty = QωInferred
+  mappend = (<>)
+
+instance Null QωOrigin where
+  empty = mempty
+
+instance HasRange QωOrigin where
+  getRange = \case
+    QωInferred -> noRange
+    Qω       r -> r
+    QωPlenty r -> r
+
+instance SetRange QωOrigin where
+  setRange r = \case
+    QωInferred -> QωInferred
+    Qω       _ -> Qω       r
+    QωPlenty _ -> QωPlenty r
+
+instance KillRange QωOrigin where
+  killRange = \case
+    QωInferred -> QωInferred
+    Qω       _ -> Qω       noRange
+    QωPlenty _ -> QωPlenty noRange
+
+instance NFData QωOrigin where
+  rnf = \case
+    QωInferred -> ()
+    Qω       _ -> ()
+    QωPlenty _ -> ()
+
+-- ** Quantity.
 
 -- | Quantity for linearity.
 --
@@ -404,42 +608,52 @@ mapQuantityMod = mapModality . mapQuantity
 --   corresponding variable is used exactly @n@ times.
 --
 data Quantity
-  = Quantity0  -- ^ Zero uses @{0}@, erased at runtime.
-  | Quantity1  -- ^ Linear use @{1}@ (could be updated destructively).
+  = Quantity0 Q0Origin -- ^ Zero uses @{0}@, erased at runtime.
+  | Quantity1 Q1Origin -- ^ Linear use @{1}@ (could be updated destructively).
     -- Mostly TODO (needs postponable constraints between quantities to compute uses).
-  | Quantityω  -- ^ Unrestricted use @ℕ@.
-  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+  | Quantityω QωOrigin -- ^ Unrestricted use @ℕ@.
+  deriving (Data, Show, Generic, Eq, Ord)
     -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
 defaultQuantity :: Quantity
-defaultQuantity = Quantityω
+defaultQuantity = topQuantity
+
+-- | Equality ignoring origin.
+
+sameQuantity :: Quantity -> Quantity -> Bool
+sameQuantity = curry $ \case
+  (Quantity0{}, Quantity0{}) -> True
+  (Quantity1{}, Quantity1{}) -> True
+  (Quantityω{}, Quantityω{}) -> True
+  _ -> False
 
 -- | Composition of quantities (multiplication).
 --
 -- 'Quantity0' is dominant.
 -- 'Quantity1' is neutral.
 --
+-- Right-biased for origin.
+--
 instance Semigroup Quantity where
-  Quantity1 <> q = q
-  q <> Quantity1 = q
-  Quantity0 <> _ = Quantity0
-  _ <> Quantity0 = Quantity0
-  Quantityω <> _ = Quantityω
-  -- _ <> Quantityω = Quantityω  -- redundant
+  Quantity1{} <> q = q           -- right-bias!
+  q <> Quantity1{} = q
+  _ <> Quantity0 o = Quantity0 o -- right-bias!
+  Quantity0 o <> _ = Quantity0 o
+  _omega <> qomega = qomega      -- right-bias!
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
 instance Monoid Quantity where
-  mempty  = Quantity1
+  mempty  = Quantity1 mempty
   mappend = (<>)
 
 -- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
   comparable = curry $ \case
-    (q, q') | q == q' -> POEQ
+    (q, q') | sameQuantity q q' -> POEQ
     -- ω is least
-    (Quantityω, _)    -> POLT
-    (_, Quantityω)    -> POGT
+    (Quantityω{}, _)  -> POLT
+    (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
 
@@ -449,16 +663,30 @@ instance POMonoid Quantity where
 instance LeftClosedPOMonoid Quantity where
   inverseCompose = inverseComposeQuantity
 
+-- | 'Quantity' forms an additive monoid with zero Quantity0.
+addQuantity :: Quantity -> Quantity -> Quantity
+addQuantity = curry $ \case
+  -- ω is absorptive
+  (q@Quantityω{}, _) -> q
+  (_, q@Quantityω{}) -> q
+  -- 0 is neutral
+  (Quantity0{}, q) -> q
+  (q, Quantity0{}) -> q
+  -- 1 + 1 = ω
+  (Quantity1 _, Quantity1 _) -> topQuantity
+
+zeroQuantity :: Quantity
+zeroQuantity = Quantity0 mempty
+
+-- | Absorptive element is ω.
+topQuantity :: Quantity
+topQuantity = Quantityω mempty
+
 -- | @m `moreUsableQuantity` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
 
 moreQuantity :: Quantity -> Quantity -> Bool
 moreQuantity m m' = related m POLE m'
-
--- | A thing of quantity 0 is unusable, all others are usable.
-
-usableQuantity :: LensQuantity a => a -> Bool
-usableQuantity a = getQuantity a /= Quantity0
 
 composeQuantity :: Quantity -> Quantity -> Quantity
 composeQuantity = (<>)
@@ -466,6 +694,7 @@ composeQuantity = (<>)
 -- | Compose with quantity flag from the left.
 --   This function is e.g. used to update the quantity information
 --   on pattern variables @a@ after a match against something of quantity @q@.
+
 applyQuantity :: LensQuantity a => Quantity -> a -> a
 applyQuantity q = mapQuantity (q `composeQuantity`)
 
@@ -474,19 +703,53 @@ applyQuantity q = mapQuantity (q `composeQuantity`)
 --   @x \`moreQuantity\` (r \`composeQuantity\` y)@
 --   iff
 --   @(r \`inverseComposeQuantity\` x) \`moreQuantity\` y@ (Galois connection).
+
 inverseComposeQuantity :: Quantity -> Quantity -> Quantity
-inverseComposeQuantity q x =
-  case (q, x) of
-    (Quantity1 , x)          -> x          -- going to linear arg: nothing changes
-    (Quantity0 , x)          -> Quantityω  -- going to erased arg: every thing usable
-    (Quantityω , Quantityω)  -> Quantityω
-    (Quantityω , _)          -> Quantity0  -- linear resources are unusable as arguments to unrestricted functions
+inverseComposeQuantity = curry $ \case
+    (Quantity1{} , x)              -> x             -- going to linear arg: nothing changes
+    (Quantity0{} , x)              -> topQuantity   -- going to erased arg: every thing usable
+    (Quantityω{} , x@Quantityω{})  -> x
+    (Quantityω{} , _)              -> zeroQuantity  -- linear resources are unusable as arguments to unrestricted functions
 
 -- | Left division by a 'Quantity'.
 --   Used e.g. to modify context when going into a @q@ argument.
+
 inverseApplyQuantity :: LensQuantity a => Quantity -> a -> a
 inverseApplyQuantity q = mapQuantity (q `inverseComposeQuantity`)
 
+-- | Check for 'Quantity0'.
+
+hasQuantity0 :: LensQuantity a => a -> Bool
+hasQuantity0 a
+  | Quantity0{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Check for 'Quantity1'.
+
+hasQuantity1 :: LensQuantity a => a -> Bool
+hasQuantity1 a
+  | Quantity1{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Check for 'Quantityω'.
+
+hasQuantityω :: LensQuantity a => a -> Bool
+hasQuantityω a
+  | Quantityω{} <- getQuantity a = True
+  | otherwise = False
+
+-- | Did the user supply a quantity annotation?
+
+noUserQuantity :: LensQuantity a => a -> Bool
+noUserQuantity a = case getQuantity a of
+  Quantity0 o -> null o
+  Quantity1 o -> null o
+  Quantityω o -> null o
+
+-- | A thing of quantity 0 is unusable, all others are usable.
+
+usableQuantity :: LensQuantity a => a -> Bool
+usableQuantity = not . hasQuantity0
 
 -- boilerplate instances
 
@@ -510,13 +773,28 @@ instance LensQuantity Quantity where
   setQuantity = const
   mapQuantity = id
 
+instance HasRange Quantity where
+  getRange = \case
+    Quantity0 o -> getRange o
+    Quantity1 o -> getRange o
+    Quantityω o -> getRange o
+
+instance SetRange Quantity where
+  setRange r = \case
+    Quantity0 o -> Quantity0 $ setRange r o
+    Quantity1 o -> Quantity1 $ setRange r o
+    Quantityω o -> Quantityω $ setRange r o
+
 instance KillRange Quantity where
-  killRange = id
+  killRange = \case
+    Quantity0 o -> Quantity0 $ killRange o
+    Quantity1 o -> Quantity1 $ killRange o
+    Quantityω o -> Quantityω $ killRange o
 
 instance NFData Quantity where
-  rnf Quantity0 = ()
-  rnf Quantity1 = ()
-  rnf Quantityω = ()
+  rnf (Quantity0 o) = rnf o
+  rnf (Quantity1 o) = rnf o
+  rnf (Quantityω o) = rnf o
 
 ---------------------------------------------------------------------------
 -- * Relevance
@@ -537,6 +815,12 @@ allRelevances = [minBound..maxBound]
 
 defaultRelevance :: Relevance
 defaultRelevance = Relevant
+
+instance HasRange Relevance where
+  getRange _ = noRange
+
+instance SetRange Relevance where
+  setRange _ = id
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
@@ -584,6 +868,10 @@ isNonStrict a = getRelevance a == NonStrict
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant = (<=)
 
+-- | Equality ignoring origin.
+sameRelevance :: Relevance -> Relevance -> Bool
+sameRelevance = (==)
+
 -- | More relevant is smaller.
 instance Ord Relevance where
   compare = curry $ \case
@@ -610,6 +898,7 @@ usableRelevance a = case getRelevance a of
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
+--   Composition coincides with 'max'.
 composeRelevance :: Relevance -> Relevance -> Relevance
 composeRelevance r r' =
   case (r, r') of
@@ -659,6 +948,19 @@ instance POMonoid Relevance where
 instance LeftClosedPOMonoid Relevance where
   inverseCompose = inverseComposeRelevance
 
+-- | Combine inferred 'Relevance'.
+--   The unit is 'Irrelevant'.
+addRelevance :: Relevance -> Relevance -> Relevance
+addRelevance = min
+
+-- | 'Relevance' forms a monoid under addition, and even a semiring.
+zeroRelevance :: Relevance
+zeroRelevance = Irrelevant
+
+-- | Absorptive element under addition.
+topRelevance :: Relevance
+topRelevance = Relevant
+
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance
 irrToNonStrict Irrelevant = NonStrict
@@ -672,6 +974,160 @@ nonStrictToRel rel       = rel
 nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
+
+---------------------------------------------------------------------------
+-- * Cohesion
+---------------------------------------------------------------------------
+
+-- | Cohesion modalities
+--   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
+--   types are now given an additional topological layer which the modalities interact with.
+data Cohesion
+  = Flat        -- ^ same points, discrete topology, idempotent comonad, box-like.
+  | Continuous  -- ^ identity modality.
+  -- | Sharp    -- ^ same points, codiscrete topology, idempotent monad, diamond-like.
+  | Squash      -- ^ single point space, artificially added for Flat left-composition.
+    deriving (Data, Show, Eq, Enum, Bounded, Generic)
+
+allCohesions :: [Cohesion]
+allCohesions = [minBound..maxBound]
+
+defaultCohesion :: Cohesion
+defaultCohesion = Continuous
+
+instance HasRange Cohesion where
+  getRange _ = noRange
+
+instance SetRange Cohesion where
+  setRange _ = id
+
+instance KillRange Cohesion where
+  killRange rel = rel -- no range to kill
+
+instance NFData Cohesion where
+  rnf Flat       = ()
+  rnf Continuous = ()
+  rnf Squash     = ()
+
+-- | A lens to access the 'Cohesion' attribute in data structures.
+--   Minimal implementation: @getCohesion@ and @mapCohesion@ or @LensModality@.
+class LensCohesion a where
+
+  getCohesion :: a -> Cohesion
+
+  setCohesion :: Cohesion -> a -> a
+  setCohesion h = mapCohesion (const h)
+
+  mapCohesion :: (Cohesion -> Cohesion) -> a -> a
+
+  default getCohesion :: LensModality a => a -> Cohesion
+  getCohesion = modCohesion . getModality
+
+  default mapCohesion :: LensModality a => (Cohesion -> Cohesion) -> a -> a
+  mapCohesion f = mapModality $ \ ai -> ai { modCohesion = f $ modCohesion ai }
+
+instance LensCohesion Cohesion where
+  getCohesion = id
+  setCohesion = const
+  mapCohesion = id
+
+-- | Information ordering.
+-- @Flat  \`moreCohesion\`
+--  Continuous \`moreCohesion\`
+--  Sharp \`moreCohesion\`
+--  Squash@
+moreCohesion :: Cohesion -> Cohesion -> Bool
+moreCohesion = (<=)
+
+-- | Equality ignoring origin.
+sameCohesion :: Cohesion -> Cohesion -> Bool
+sameCohesion = (==)
+
+-- | Order is given by implication: flatter is smaller.
+instance Ord Cohesion where
+  compare = curry $ \case
+    (r, r') | r == r' -> EQ
+    -- top
+    (_, Squash) -> LT
+    (Squash, _) -> GT
+    -- bottom
+    (Flat, _) -> LT
+    (_, Flat) -> GT
+    -- redundant case
+    (Continuous,Continuous) -> EQ
+
+-- | Flatter is smaller.
+instance PartialOrd Cohesion where
+  comparable = comparableOrd
+
+-- | @usableCohesion rel == False@ iff we cannot use a variable of @rel@.
+usableCohesion :: LensCohesion a => a -> Bool
+usableCohesion a = getCohesion a `moreCohesion` Continuous
+
+-- | 'Cohesion' composition.
+--   'Squash' is dominant, 'Continuous' is neutral.
+composeCohesion :: Cohesion -> Cohesion -> Cohesion
+composeCohesion r r' =
+  case (r, r') of
+    (Squash, _) -> Squash
+    (_, Squash) -> Squash
+    (Flat, _)  -> Flat
+    (_, Flat)  -> Flat
+    (Continuous, Continuous) -> Continuous
+
+-- | Compose with cohesion flag from the left.
+--   This function is e.g. used to update the cohesion information
+--   on pattern variables @a@ after a match against something of cohesion @rel@.
+applyCohesion :: LensCohesion a => Cohesion -> a -> a
+applyCohesion rel = mapCohesion (rel `composeCohesion`)
+
+-- | @inverseComposeCohesion r x@ returns the least @y@
+--   such that forall @x@, @y@ we have
+--   @x \`moreCohesion\` (r \`composeCohesion\` y)@
+--   iff
+--   @(r \`inverseComposeCohesion\` x) \`moreCohesion\` y@ (Galois connection).
+--   The above law fails for @r = Squash@.
+inverseComposeCohesion :: Cohesion -> Cohesion -> Cohesion
+inverseComposeCohesion r x =
+  case (r, x) of
+    (Continuous  , x) -> x          -- going to continous arg.: nothing changes
+                                    -- because Continuous is comp.-neutral
+    (Squash, x)       -> Squash     -- artificial case, should not be needed.
+    (Flat , Flat)     -> Flat       -- otherwise: Flat things remain Flat
+    (Flat , _)        -> Squash     -- but everything else becomes unusable.
+
+-- | Left division by a 'Cohesion'.
+--   Used e.g. to modify context when going into a @rel@ argument.
+inverseApplyCohesion :: LensCohesion a => Cohesion -> a -> a
+inverseApplyCohesion rel = mapCohesion (rel `inverseComposeCohesion`)
+
+-- | 'Cohesion' forms a semigroup under composition.
+instance Semigroup Cohesion where
+  (<>) = composeCohesion
+
+-- | 'Continous' is the unit.
+instance Monoid Cohesion where
+  mempty  = Continuous
+  mappend = (<>)
+
+instance POSemigroup Cohesion where
+instance POMonoid Cohesion where
+
+instance LeftClosedPOMonoid Cohesion where
+  inverseCompose = inverseComposeCohesion
+
+-- | Combine inferred 'Cohesion'.
+--   The unit is 'Squash'.
+addCohesion :: Cohesion -> Cohesion -> Cohesion
+addCohesion = min
+
+-- | 'Cohesion' forms a monoid under addition, and even a semiring.
+zeroCohesion :: Cohesion
+zeroCohesion = Squash
+
+-- | Absorptive element under addition.
+topCohesion :: Cohesion
+topCohesion = Flat
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
@@ -705,6 +1161,9 @@ data WithOrigin a = WithOrigin
 
 instance Decoration WithOrigin where
   traverseF f (WithOrigin h a) = WithOrigin h <$> f a
+
+instance Pretty a => Pretty (WithOrigin a) where
+  prettyPrec p = prettyPrec p . woThing
 
 instance HasRange a => HasRange (WithOrigin a) where
   getRange = getRange . dget
@@ -869,6 +1328,11 @@ instance LensQuantity ArgInfo where
   setQuantity = setQuantityMod
   mapQuantity = mapQuantityMod
 
+instance LensCohesion ArgInfo where
+  getCohesion = getCohesionMod
+  setCohesion = setCohesionMod
+  mapCohesion = mapCohesionMod
+
 defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo
   { argInfoHiding        = NotHidden
@@ -923,6 +1387,10 @@ setFreeVariablesArgInfo = mapArgInfo . setFreeVariables
 mapFreeVariablesArgInfo :: LensArgInfo a => LensMap FreeVariables a
 mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 
+-- inserted hidden arguments
+
+isInsertedHidden :: (LensHiding a, LensOrigin a) => a -> Bool
+isInsertedHidden a = getHiding a == Hidden && getOrigin a == Inserted
 
 ---------------------------------------------------------------------------
 -- * Arguments
@@ -931,7 +1399,7 @@ mapFreeVariablesArgInfo = mapArgInfo . mapFreeVariables
 data Arg e  = Arg
   { argInfo :: ArgInfo
   , unArg :: e
-  } deriving (Data, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Data, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -945,16 +1413,20 @@ instance SetRange a => SetRange (Arg a) where
 instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
--- | Ignores 'Quantity', 'Relevance', 'Origin', and 'FreeVariables'.
---   Ignores content of argument if 'Irrelevant'.
+-- Andreas, 2019-07-05, issue #3889
+-- A dedicated equality for with-abstraction now exists,
+-- thus, we can use intensional equality for Arg.
 --
-instance Eq a => Eq (Arg a) where
-  Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
-    h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
-    -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
-    -- This is a hack, we should not use '(==)' in with-abstraction
-    -- and more generally not use it on Syntax.
-    -- Andrea: except for caching.
+-- -- | Ignores 'Quantity', 'Relevance', 'Origin', and 'FreeVariables'.
+-- --   Ignores content of argument if 'Irrelevant'.
+-- --
+-- instance Eq a => Eq (Arg a) where
+--   Arg (ArgInfo h1 m1 _ _) x1 == Arg (ArgInfo h2 m2 _ _) x2 =
+--     h1 == h2 && (isIrrelevant m1 || isIrrelevant m2 || x1 == x2)
+--     -- Andreas, 2017-10-04, issue #2775, ignore irrelevant arguments during with-abstraction.
+--     -- This is a hack, we should not use '(==)' in with-abstraction
+--     -- and more generally not use it on Syntax.
+--     -- Andrea: except for caching.
 
 -- instance Show a => Show (Arg a) where
 --     show (Arg (ArgInfo h (Modality r q) o fv) a) = showFVs fv $ showQ q $ showR r $ showO o $ showH h $ show a
@@ -1049,6 +1521,11 @@ instance LensQuantity (Arg e) where
   setQuantity = setQuantityMod
   mapQuantity = mapQuantityMod
 
+instance LensCohesion (Arg e) where
+  getCohesion = getCohesionMod
+  setCohesion = setCohesionMod
+  mapCohesion = mapCohesionMod
+
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
 
@@ -1095,7 +1572,14 @@ data Named name a =
     deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
 
 -- | Standard naming.
-type Named_ = Named RString
+type Named_ = Named NamedName
+
+-- | Standard argument names.
+type NamedName = WithOrigin (Ranged ArgName)
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+sameName :: NamedName -> NamedName -> Bool
+sameName = (==) `on` (rangedThing . woThing)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
@@ -1103,9 +1587,21 @@ unnamed = Named Nothing
 named :: name -> a -> Named name a
 named = Named . Just
 
+userNamed :: Ranged ArgName -> a -> Named_ a
+userNamed = Named . Just . WithOrigin UserWritten
+
 -- | Accessor/editor for the 'nameOf' component.
 class LensNamed name a | a -> name where
   lensNamed :: Lens' (Maybe name) a
+
+  -- Lenses lift through decorations:
+  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  lensNamed = traverseF . lensNamed
+
+instance LensNamed name a => LensNamed name (Arg a) where
+
+instance LensNamed name (Maybe name) where
+  lensNamed = id
 
 instance LensNamed name (Named name a) where
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
@@ -1119,11 +1615,44 @@ setNameOf = set lensNamed
 mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
 mapNameOf = over lensNamed
 
--- Lenses lift through decorations:
--- instance (Decoration f, LensNamed name a) => LensNamed name (f a) where
+bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf a = rangedThing . woThing <$> getNameOf a
 
-instance LensNamed name a => LensNamed name (Arg a) where
-  lensNamed = traverseF . lensNamed
+bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
+
+-- | Equality of argument names of things modulo 'Range' and 'Origin'.
+namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame a b = case (getNameOf a, getNameOf b) of
+  (Nothing, Nothing) -> True
+  (Just x , Just y ) -> sameName x y
+  _ -> False
+
+-- | Does an argument @arg@ fit the shape @dom@ of the next expected argument?
+--
+--   The hiding has to match, and if the argument has a name, it should match
+--   the name of the domain.
+--
+--   'Nothing' should be '__IMPOSSIBLE__', so use as
+--   @@
+--     fromMaybe __IMPOSSIBLE__ $ fittingNamedArg arg dom
+--   @@
+--
+fittingNamedArg
+  :: ( LensNamed NamedName arg, LensHiding arg
+     , LensNamed NamedName dom, LensHiding dom )
+  => arg -> dom -> Maybe Bool
+fittingNamedArg arg dom
+    | not $ sameHiding arg dom = no
+    | visible arg              = yes
+    | otherwise =
+        caseMaybe (bareNameOf arg) yes        $ \ x ->
+        caseMaybe (bareNameOf dom) impossible $ \ y ->
+        return $ x == y
+  where
+    yes = return True
+    no  = return False
+    impossible = Nothing
 
 -- Standard instances for 'Named':
 
@@ -1169,9 +1698,26 @@ unnamedArg info = Arg info . unnamed
 updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
 updateNamedArg = fmap . fmap
 
+updateNamedArgA :: Applicative f => (a -> f b) -> NamedArg a -> f (NamedArg b)
+updateNamedArgA = traverse . traverse
+
 -- | @setNamedArg a b = updateNamedArg (const b) a@
 setNamedArg :: NamedArg a -> b -> NamedArg b
 setNamedArg a b = (b <$) <$> a
+
+-- ** ArgName
+
+-- | Names in binders and arguments.
+type ArgName = String
+
+argNameToString :: ArgName -> String
+argNameToString = id
+
+stringToArgName :: String -> ArgName
+stringToArgName = id
+
+appendArgNames :: ArgName -> ArgName -> ArgName
+appendArgNames = (++)
 
 ---------------------------------------------------------------------------
 -- * Range decoration.
@@ -1272,21 +1818,20 @@ data DataOrRecord = IsData | IsRecord
 data IsInfix = InfixDef | PrefixDef
     deriving (Data, Show, Eq, Ord)
 
+-- ** private blocks, public imports
+
 -- | Access modifier.
 data Access
   = PrivateAccess Origin
       -- ^ Store the 'Origin' of the private block that lead to this qualifier.
       --   This is needed for more faithful printing of declarations.
   | PublicAccess
-  | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
-                             --   Used for qualified constructors.
     deriving (Data, Show, Eq, Ord)
 
 instance Pretty Access where
   pretty = text . \case
     PrivateAccess _ -> "private"
     PublicAccess    -> "public"
-    OnlyQualified   -> "only-qualified"
 
 instance NFData Access where
   rnf _ = ()
@@ -1297,26 +1842,67 @@ instance HasRange Access where
 instance KillRange Access where
   killRange = id
 
--- | Abstract or concrete
+-- ** abstract blocks
+
+-- | Abstract or concrete.
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Data, Show, Eq, Ord)
+
+-- | Semigroup computes if any of several is an 'AbstractDef'.
+instance Semigroup IsAbstract where
+  AbstractDef <> _ = AbstractDef
+  ConcreteDef <> a = a
+
+-- | Default is 'ConcreteDef'.
+instance Monoid IsAbstract where
+  mempty  = ConcreteDef
+  mappend = (<>)
 
 instance KillRange IsAbstract where
   killRange = id
 
+class LensIsAbstract a where
+  lensIsAbstract :: Lens' IsAbstract a
+
+instance LensIsAbstract IsAbstract where
+  lensIsAbstract = id
+
+-- | Is any element of a collection an 'AbstractDef'.
+class AnyIsAbstract a where
+  anyIsAbstract :: a -> IsAbstract
+
+  default anyIsAbstract :: (Foldable t, AnyIsAbstract b, t b ~ a) => a -> IsAbstract
+  anyIsAbstract = Fold.foldMap anyIsAbstract
+
+instance AnyIsAbstract IsAbstract where
+  anyIsAbstract = id
+
+instance AnyIsAbstract a => AnyIsAbstract [a] where
+instance AnyIsAbstract a => AnyIsAbstract (Maybe a) where
+
+-- ** instance blocks
+
 -- | Is this definition eligible for instance search?
-data IsInstance = InstanceDef | NotInstanceDef
+data IsInstance
+  = InstanceDef Range  -- ^ Range of the @instance@ keyword.
+  | NotInstanceDef
     deriving (Data, Show, Eq, Ord)
 
 instance KillRange IsInstance where
-  killRange = id
+  killRange = \case
+    InstanceDef _    -> InstanceDef noRange
+    i@NotInstanceDef -> i
 
 instance HasRange IsInstance where
-  getRange _ = noRange
+  getRange = \case
+    InstanceDef r  -> r
+    NotInstanceDef -> noRange
 
 instance NFData IsInstance where
-  rnf InstanceDef    = ()
-  rnf NotInstanceDef = ()
+  rnf (InstanceDef _) = ()
+  rnf NotInstanceDef  = ()
+
+-- ** macro blocks
 
 -- | Is this a macro definition?
 data IsMacro = MacroDef | NotMacroDef
@@ -1324,9 +1910,6 @@ data IsMacro = MacroDef | NotMacroDef
 
 instance KillRange IsMacro where killRange = id
 instance HasRange  IsMacro where getRange _ = noRange
-
-type Nat    = Int
-type Arity  = Nat
 
 ---------------------------------------------------------------------------
 -- * NameId
@@ -1444,9 +2027,126 @@ instance Pretty InteractionId where
 
 instance KillRange InteractionId where killRange = id
 
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * Fixity
+---------------------------------------------------------------------------
+
+-- | Precedence levels for operators.
+
+type PrecedenceLevel = Double
+
+data FixityLevel
+  = Unrelated
+    -- ^ No fixity declared.
+  | Related !PrecedenceLevel
+    -- ^ Fixity level declared as the number.
+  deriving (Eq, Ord, Show, Data)
+
+instance Null FixityLevel where
+  null Unrelated = True
+  null Related{} = False
+  empty = Unrelated
+
+-- | Associativity.
+
+data Associativity = NonAssoc | LeftAssoc | RightAssoc
+   deriving (Eq, Ord, Show, Data)
+
+-- | Fixity of operators.
+
+data Fixity = Fixity
+  { fixityRange :: Range
+    -- ^ Range of the whole fixity declaration.
+  , fixityLevel :: !FixityLevel
+  , fixityAssoc :: !Associativity
+  }
+  deriving (Data, Show)
+
+noFixity :: Fixity
+noFixity = Fixity noRange Unrelated NonAssoc
+
+defaultFixity :: Fixity
+defaultFixity = Fixity noRange (Related 20) NonAssoc
+
+-- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
+
+instance Eq Fixity where
+  f1 == f2 = compare f1 f2 == EQ
+
+instance Ord Fixity where
+  compare = compare `on` (fixityLevel &&& fixityAssoc)
+
+instance Null Fixity where
+  null  = null . fixityLevel
+  empty = noFixity
+
+instance HasRange Fixity where
+  getRange = fixityRange
+
+instance KillRange Fixity where
+  killRange f = f { fixityRange = noRange }
+
+instance NFData Fixity where
+  rnf (Fixity _ _ _) = ()     -- Ranges are not forced, the other fields are strict.
+
+-- * Notation coupled with 'Fixity'
+
+-- | The notation is handled as the fixity in the renamer.
+--   Hence, they are grouped together in this type.
+data Fixity' = Fixity'
+    { theFixity   :: !Fixity
+    , theNotation :: Notation
+    , theNameRange :: Range
+      -- ^ Range of the name in the fixity declaration
+      --   (used for correct highlighting, see issue #2140).
+    }
+  deriving (Data, Show)
+
+noFixity' :: Fixity'
+noFixity' = Fixity' noFixity noNotation noRange
+
+instance Eq Fixity' where
+  Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
+
+instance Null Fixity' where
+  null (Fixity' f n _) = null f && null n
+  empty = noFixity'
+
+instance NFData Fixity' where
+  rnf (Fixity' _ a _) = rnf a
+
+instance KillRange Fixity' where
+  killRange (Fixity' f n r) = killRange3 Fixity' f n r
+
+-- lenses
+
+_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
+
+_fixityLevel :: Lens' FixityLevel Fixity
+_fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
+
+-- Lens focusing on Fixity
+
+class LensFixity a where
+  lensFixity :: Lens' Fixity a
+
+instance LensFixity Fixity where
+  lensFixity = id
+
+instance LensFixity Fixity' where
+  lensFixity f fix' = f (theFixity fix') <&> \ fx -> fix' { theFixity = fx }
+
+-- Lens focusing on Fixity'
+
+class LensFixity' a where
+  lensFixity' :: Lens' Fixity' a
+
+instance LensFixity' Fixity' where
+  lensFixity' = id
+---------------------------------------------------------------------------
 -- * Import directive
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
@@ -1455,11 +2155,30 @@ data ImportDirective' n m = ImportDirective
   , using          :: Using' n m
   , hiding         :: [ImportedName' n m]
   , impRenaming    :: [Renaming' n m]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
 
-data Using' n m = UseEverything | Using [ImportedName' n m]
+-- | @null@ for import directives holds when everything is imported unchanged
+--   (no names are hidden or renamed).
+instance Null (ImportDirective' n m) where
+  null = \case
+    ImportDirective _ UseEverything [] [] _ -> True
+    _ -> False
+  empty = defaultImportDir
+
+-- | Default is directive is @private@ (use everything, but do not export).
+defaultImportDir :: ImportDirective' n m
+defaultImportDir = ImportDirective noRange UseEverything [] [] Nothing
+
+-- | @isDefaultImportDir@ implies @null@, but not the other way round.
+isDefaultImportDir :: ImportDirective' n m -> Bool
+isDefaultImportDir dir = null dir && null (publicOpen dir)
+
+-- | The @using@ clause of import directive.
+data Using' n m
+  = UseEverything              -- ^ No @using@ clause given.
+  | Using [ImportedName' n m]  -- ^ @using@ the specified names.
   deriving (Data, Eq)
 
 instance Semigroup (Using' n m) where
@@ -1471,13 +2190,15 @@ instance Monoid (Using' n m) where
   mempty  = UseEverything
   mappend = (<>)
 
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' n m
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
+instance Null (Using' n m) where
+  null UseEverything = True
+  null Using{}       = False
+  empty = mempty
 
-isDefaultImportDir :: ImportDirective' n m -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
-isDefaultImportDir _                                             = False
+mapUsing :: ([ImportedName' n1 m1] -> [ImportedName' n2 m2]) -> Using' n1 m1 -> Using' n2 m2
+mapUsing f = \case
+  UseEverything -> UseEverything
+  Using xs      -> Using $ f xs
 
 -- | An imported name can be a module or a defined name.
 data ImportedName' n m
@@ -1503,6 +2224,8 @@ data Renaming' n m = Renaming
     -- ^ Rename from this name.
   , renTo      :: ImportedName' n m
     -- ^ To this one.  Must be same kind as 'renFrom'.
+  , renFixity  :: Maybe Fixity
+    -- ^ New fixity of 'renTo' (optional).
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
@@ -1535,7 +2258,7 @@ instance (KillRange a, KillRange b) => KillRange (Using' a b) where
   killRange UseEverything = UseEverything
 
 instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
+  killRange (Renaming i n mf _to) = killRange3 (\ i n mf -> Renaming i n mf noRange) i n mf
 
 instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRange1 ImportedModule n
@@ -1555,7 +2278,7 @@ instance (NFData a, NFData b) => NFData (Using' a b) where
 -- | Ranges are not forced.
 
 instance (NFData a, NFData b) => NFData (Renaming' a b) where
-  rnf (Renaming a b _) = rnf a `seq` rnf b
+  rnf (Renaming a b c _) = rnf a `seq` rnf b `seq` rnf c
 
 instance (NFData a, NFData b) => NFData (ImportedName' a b) where
   rnf (ImportedModule a) = rnf a
@@ -1595,7 +2318,21 @@ instance NFData a => NFData (TerminationCheck a) where
 -----------------------------------------------------------------------------
 
 -- | Positivity check? (Default = True).
-type PositivityCheck = Bool
+data PositivityCheck = YesPositivityCheck | NoPositivityCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange PositivityCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup PositivityCheck where
+  NoPositivityCheck <> _ = NoPositivityCheck
+  _ <> NoPositivityCheck = NoPositivityCheck
+  _ <> _ = YesPositivityCheck
+
+instance Monoid PositivityCheck where
+  mempty  = YesPositivityCheck
+  mappend = (<>)
 
 -----------------------------------------------------------------------------
 -- * Universe checking
@@ -1607,3 +2344,150 @@ data UniverseCheck = YesUniverseCheck | NoUniverseCheck
 
 instance KillRange UniverseCheck where
   killRange = id
+
+-----------------------------------------------------------------------------
+-- * Universe checking
+-----------------------------------------------------------------------------
+
+-- | Coverage check? (Default is yes).
+data CoverageCheck = YesCoverageCheck | NoCoverageCheck
+  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+
+instance KillRange CoverageCheck where
+  killRange = id
+
+-- Semigroup and Monoid via conjunction
+instance Semigroup CoverageCheck where
+  NoCoverageCheck <> _ = NoCoverageCheck
+  _ <> NoCoverageCheck = NoCoverageCheck
+  _ <> _ = YesCoverageCheck
+
+instance Monoid CoverageCheck where
+  mempty  = YesCoverageCheck
+  mappend = (<>)
+
+-----------------------------------------------------------------------------
+-- * Rewrite Directives on the LHS
+-----------------------------------------------------------------------------
+
+-- | @RewriteEqn' qn p e@ represents the @rewrite@ and irrefutable @with@
+--   clauses of the LHS.
+--   @qn@ stands for the QName of the auxiliary function generated to implement the feature
+--   @p@ is the type of patterns
+--   @e@ is the type of expressions
+
+data RewriteEqn' qn p e
+  = Rewrite [(qn, e)]  -- ^ @rewrite e@
+  | Invert qn [(p, e)] -- ^ @with p <- e@
+  deriving (Data, Eq, Show, Functor, Foldable, Traversable)
+
+instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
+  rnf = \case
+    Rewrite es    -> rnf es
+    Invert qn pes -> rnf (qn, pes)
+
+instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
+  pretty = \case
+    Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
+    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+
+instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
+  getRange = \case
+    Rewrite es    -> getRange es
+    Invert qn pes -> getRange (qn, pes)
+
+instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p e) where
+  killRange = \case
+    Rewrite es    -> killRange1 Rewrite es
+    Invert qn pes -> killRange2 Invert qn pes
+
+-----------------------------------------------------------------------------
+-- * Information on expanded ellipsis (@...@)
+-----------------------------------------------------------------------------
+
+-- ^ When the ellipsis in a clause are expanded, we remember that we
+--   did so. We also store the number of with-arguments that are
+--   included in the expanded ellipsis.
+data ExpandedEllipsis
+  = ExpandedEllipsis
+  { ellipsisRange :: Range
+  , ellipsisWithArgs :: Int
+  }
+  | NoEllipsis
+  deriving (Data, Show, Eq)
+
+instance Null ExpandedEllipsis where
+  null  = (== NoEllipsis)
+  empty = NoEllipsis
+
+instance KillRange ExpandedEllipsis where
+  killRange (ExpandedEllipsis _ k) = ExpandedEllipsis noRange k
+  killRange NoEllipsis             = NoEllipsis
+
+instance NFData ExpandedEllipsis where
+  rnf (ExpandedEllipsis _ a) = rnf a
+  rnf NoEllipsis             = ()
+
+-- | Notation as provided by the @syntax@ declaration.
+type Notation = [GenPart]
+
+noNotation :: Notation
+noNotation = []
+
+-- | Part of a Notation
+data GenPart
+  = BindHole Range (Ranged Int)
+    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
+    --   First range is the rhs range and second is the binder.
+  | NormalHole Range (NamedArg (Ranged Int))
+    -- ^ Argument is where the expression should go.
+  | WildHole (Ranged Int)
+    -- ^ An underscore in binding position.
+  | IdPart RString
+  deriving (Data, Show)
+
+instance Eq GenPart where
+  BindHole _ i   == BindHole _ j   = i == j
+  NormalHole _ x == NormalHole _ y = x == y
+  WildHole i     == WildHole j     = i == j
+  IdPart x       == IdPart y       = x == y
+  _              == _              = False
+
+instance Ord GenPart where
+  BindHole _ i   `compare` BindHole _ j   = i `compare` j
+  NormalHole _ x `compare` NormalHole _ y = x `compare` y
+  WildHole i     `compare` WildHole j     = i `compare` j
+  IdPart x       `compare` IdPart y       = x `compare` y
+  BindHole{}     `compare` _              = LT
+  _              `compare` BindHole{}     = GT
+  NormalHole{}   `compare` _              = LT
+  _              `compare` NormalHole{}   = GT
+  WildHole{}     `compare` _              = LT
+  _              `compare` WildHole{}     = GT
+
+instance HasRange GenPart where
+  getRange p = case p of
+    IdPart x       -> getRange x
+    BindHole r _   -> r
+    WildHole i     -> getRange i
+    NormalHole r _ -> r
+
+instance SetRange GenPart where
+  setRange r p = case p of
+    IdPart x       -> IdPart x
+    BindHole _ i   -> BindHole r i
+    WildHole i     -> WildHole i
+    NormalHole _ i -> NormalHole r i
+
+instance KillRange GenPart where
+  killRange p = case p of
+    IdPart x       -> IdPart $ killRange x
+    BindHole _ i   -> BindHole noRange $ killRange i
+    WildHole i     -> WildHole $ killRange i
+    NormalHole _ x -> NormalHole noRange $ killRange x
+
+instance NFData GenPart where
+  rnf (BindHole _ a)   = rnf a
+  rnf (NormalHole _ a) = rnf a
+  rnf (WildHole a)     = rnf a
+  rnf (IdPart a)       = rnf a

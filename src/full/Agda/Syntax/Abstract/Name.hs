@@ -9,26 +9,25 @@ module Agda.Syntax.Abstract.Name
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.List
+import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.Maybe
+import Data.Traversable (Traversable)
 import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
+import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -37,13 +36,15 @@ import Agda.Utils.Impossible
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId          :: !NameId
-                 , nameConcrete    :: C.Name
-                 , nameBindingSite :: Range
-                 , nameFixity      :: Fixity'
-                 , nameIsRecordName :: Bool
-                 }
-    deriving Data
+data Name = Name
+  { nameId           :: !NameId
+  , nameConcrete     :: C.Name
+  , nameBindingSite  :: Range
+  , nameFixity       :: Fixity'
+  , nameIsRecordName :: Bool
+      -- ^ Is this the name of the invisible record variable `self`?
+      --   Should not be printed or displayed in the context, see issue #3584.
+  } deriving Data
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
@@ -78,24 +79,24 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: NonemptyList QName }
+newtype AmbiguousQName = AmbQ { unAmbQ :: NonEmpty QName }
   deriving (Eq, Ord, Data)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
-unambiguous x = AmbQ (x :! [])
+unambiguous x = AmbQ (x :| [])
 
 -- | Get the first of the ambiguous names.
 headAmbQ :: AmbiguousQName -> QName
-headAmbQ (AmbQ xs) = headNe xs
+headAmbQ (AmbQ xs) = NonEmpty.head xs
 
 -- | Is a name ambiguous.
 isAmbiguous :: AmbiguousQName -> Bool
-isAmbiguous (AmbQ (_ :! xs)) = not (null xs)
+isAmbiguous (AmbQ (_ :| xs)) = not (null xs)
 
 -- | Get the name if unambiguous.
 getUnambiguous :: AmbiguousQName -> Maybe QName
-getUnambiguous (AmbQ (x :! [])) = Just x
+getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
 
 -- | Check whether we are a projection pattern.
@@ -228,13 +229,23 @@ qualify_ = qualify noModuleName
 -- | Is the name an operator?
 
 isOperator :: QName -> Bool
-isOperator q = C.isOperator (nameConcrete (qnameName q))
+isOperator = C.isOperator . nameConcrete . qnameName
 
-isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
-  where
-    xs = mnameToList x
-    ys = mnameToList y
+-- | Is the first module a weak parent of the second?
+isLeParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLeParentModuleOf = isPrefixOf `on` mnameToList
+
+-- | Is the first module a proper parent of the second?
+isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLtParentModuleOf x y = isJust $ (stripPrefixBy (==) `on` mnameToList) x y
+
+-- | Is the first module a weak child of the second?
+isLeChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLeChildModuleOf = flip isLeParentModuleOf
+
+-- | Is the first module a proper child of the second?
+isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
 isInModule q m = mnameToList m `isPrefixOf` qnameToList q
@@ -292,6 +303,33 @@ instance NumHoles AmbiguousQName where
   numHoles = numHoles . headAmbQ
 
 ------------------------------------------------------------------------
+-- * name lenses
+------------------------------------------------------------------------
+
+lensQNameName :: Lens' Name QName
+lensQNameName f (QName m n) = QName m <$> f n
+
+------------------------------------------------------------------------
+-- * LensFixity' instances
+------------------------------------------------------------------------
+
+instance LensFixity' Name where
+  lensFixity' f n = f (nameFixity n) <&> \ fix' -> n { nameFixity = fix' }
+
+instance LensFixity' QName where
+  lensFixity' = lensQNameName . lensFixity'
+
+------------------------------------------------------------------------
+-- * LensFixity instances
+------------------------------------------------------------------------
+
+instance LensFixity Name where
+  lensFixity = lensFixity' . lensFixity
+
+instance LensFixity QName where
+  lensFixity = lensFixity' . lensFixity
+
+------------------------------------------------------------------------
 -- * LensInScope instances
 ------------------------------------------------------------------------
 
@@ -334,6 +372,12 @@ instance Show ModuleName where
 instance Show QName where
   show = prettyShow
 
+nameToArgName :: Name -> ArgName
+nameToArgName = stringToArgName . prettyShow
+
+namedArgName :: NamedArg Name -> ArgName
+namedArgName x = fromMaybe (nameToArgName $ namedArg x) $ bareNameOf x
+
 ------------------------------------------------------------------------
 -- * Pretty instances
 ------------------------------------------------------------------------
@@ -348,7 +392,7 @@ instance Pretty QName where
   pretty = hcat . punctuate "." . map pretty . qnameToList
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (toList qs)
+  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (NonEmpty.toList qs)
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b
@@ -372,7 +416,7 @@ instance HasRange QName where
 -- | The range of an @AmbiguousQName@ is the range of any of its
 --   disambiguations (they are the same concrete name).
 instance HasRange AmbiguousQName where
-  getRange (AmbQ (c :! _)) = getRange c
+  getRange (AmbQ (c :| _)) = getRange c
 
 -- ** SetRange
 

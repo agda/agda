@@ -23,35 +23,25 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 
 import Prelude hiding (null, sequence)
 
-import Control.Arrow (first, second)
 import Control.Monad.State
 
-import Debug.Trace
-import System.IO.Unsafe
-
 import Data.Maybe
-import Data.Monoid
-import Data.Traversable (Traversable,traverse)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import qualified Data.Set as Set
-import Data.Set (Set)
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Free.Reduce
-import Agda.TypeChecking.Irrelevance (workOnTypes)
+import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..), getBuiltin', builtinLevel, primLevelSuc, primLevelMax)
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -68,7 +58,6 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -181,16 +170,34 @@ instance Match t a b => Match t (Dom a) (Dom b) where
   match r gamma k t p v = match r gamma k t (unDom p) (unDom v)
 
 instance Match () NLPType Type where
-  match r gamma k _ (NLPType lp p) (El s a) = workOnTypes $ do
-    match r gamma k () lp s
+  match r gamma k _ (NLPType sp p) (El s a) = workOnTypes $ do
+    match r gamma k () sp s
     match r gamma k (sort s) p a
 
--- We mine sort annotations for solutions to pattern variables of type
--- Level, but a wrong sort can never block reduction.
-instance Match () NLPat Sort where
-  match r gamma k _ p s = case s of
-    Type l -> match Irrelevant gamma k () p l
-    _      -> return ()
+instance Match () NLPSort Sort where
+  match r gamma k _ p s = do
+    bs <- reduceB s
+    let b = void bs
+        s = ignoreBlocking bs
+        yes = return ()
+        no  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
+    traceSDoc "rewriting.match" 30 (sep
+      [ "matching pattern " <+> addContext (gamma `abstract` k) (prettyTCM p)
+      , "  with sort      " <+> addContext k (prettyTCM s) ]) $ do
+    case (p , s) of
+      (PType lp  , Type l  ) -> match r gamma k () lp l
+      (PProp lp  , Prop l  ) -> match r gamma k () lp l
+      (PInf      , Inf     ) -> yes
+      (PSizeUniv , SizeUniv) -> yes
+
+      -- blocked cases
+      (_ , UnivSort{}) -> matchingBlocked b
+      (_ , PiSort{}  ) -> matchingBlocked b
+      (_ , FunSort{} ) -> matchingBlocked b
+      (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
+
+      -- all other cases do not match
+      (_ , _) -> no
 
 instance Match () NLPat Level where
   match r gamma k _ p l = do
@@ -199,15 +206,17 @@ instance Match () NLPat Level where
     match r gamma k t p v
 
 instance Match Type NLPat Term where
-  match r gamma k t p v = do
+  match r0 gamma k t p v = do
     vbt <- addContext k $ reduceB (v,t)
-    etaRecord <- addContext k $ isEtaRecordType t
     let n = size k
         b = void vbt
         (v,t) = ignoreBlocking vbt
         prettyPat  = withShowAllArguments $ addContext (gamma `abstract` k) (prettyTCM p)
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
+    etaRecord <- addContext k $ isEtaRecordType t
+    prop <- addContext k $ isPropM t
+    let r = if prop then Irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat
       , "  with term      " <+> prettyTerm
@@ -236,6 +245,9 @@ instance Match Type NLPat Term where
           traceSDoc "rewriting.match" 30 (sep
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
+        maybeBlock w = case w of
+          MetaV m es -> matchingBlocked $ Blocked m ()
+          _          -> no ""
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
         let allowedVars :: IntSet
@@ -250,8 +262,10 @@ instance Match Type NLPat Term where
         case ok of
           Left b         -> block b
           Right Nothing  -> no ""
-          Right (Just v) -> tellSub r (i-n) t $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
-      _ | MetaV m es <- v -> matchingBlocked $ Blocked m ()
+          Right (Just v) ->
+            let t' = telePi  tel $ renameP __IMPOSSIBLE__ perm t
+                v' = teleLam tel $ renameP __IMPOSSIBLE__ perm v
+            in tellSub r (i-n) t' v'
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do
         v <- addContext k $ constructorForm =<< unLevel v
@@ -277,7 +291,7 @@ instance Match Type NLPat Term where
             def <- addContext k $ theDef <$> getConstInfo d
             (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
             ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-            let flds = recFields def
+            let flds = map argFromDom $ recFields def
                 mkField fld = PDef f (ps ++ [Proj ProjSystem fld])
                 -- Issue #3335: when matching against the record constructor,
                 -- don't add projections but take record field directly.
@@ -287,26 +301,30 @@ instance Match Type NLPat Term where
             match r gamma k (ct, Con c ci []) ps' (map Apply vs)
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _  -> no ""
+          v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
-        _ -> no ""
+        MetaV m es -> matchingBlocked $ Blocked m ()
+        v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do
           match r gamma k () pa a
           let k' = ExtendTel a (Abs (absName b) k)
           match r gamma k' () (absBody pb) (absBody b)
-        _ -> no ""
+        v -> maybeBlock v
+      PSort ps -> case v of
+        Sort s -> match r gamma k () ps s
+        v -> maybeBlock v
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
           let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i
           match r gamma k (ti , var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
-              pbody = PBoundVar i $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
+              pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
               body  = raise 1 v `apply` [ Arg ai $ var 0 ]
               k'    = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) pbody body
@@ -314,10 +332,10 @@ instance Match Type NLPat Term where
           def <- addContext k $ theDef <$> getConstInfo d
           (tel, c, ci, vs) <- addContext k $ etaExpandRecord_ d pars def v
           ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-          let flds = recFields def
+          let flds = map argFromDom $ recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
           match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
-        _ -> no ""
+        v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
 

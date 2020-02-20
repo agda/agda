@@ -48,8 +48,6 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Interaction.Options as O
-import Agda.Compiler.CallCompiler
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
 
 import Agda.Utils.Impossible
@@ -319,10 +317,8 @@ output item = do
 -- Polytable, http://www.ctan.org/pkg/polytable, is used for code
 -- alignment, similar to lhs2TeX's approach.
 
-nl, beginCode, endCode :: Text
-nl        = "%\n"
-beginCode = "\\begin{code}"
-endCode   = "\\end{code}"
+nl :: Text
+nl = "%\n"
 
 -- | A command that is used when two tokens are put next to each other
 -- in the same column.
@@ -616,7 +612,7 @@ generateLaTeX i = do
   dir <- case O.optGHCiInteraction options of
     False -> return $ O.optLaTeXDir options
     True  -> do
-      sourceFile <- Find.findFile mod
+      sourceFile <- Find.srcFilePath <$> Find.findFile mod
       return $ filePath (projectRoot sourceFile mod)
                  </> O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
@@ -625,7 +621,7 @@ generateLaTeX i = do
                     "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ] ""
 
   when (code /= ExitSuccess) $ do
-    TCM.reportSLn "compile.latex" 1 $ unlines
+    TCM.reportS "compile.latex" 1
       [ defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile
       , "into " ++ dir ++ "."
@@ -636,7 +632,7 @@ generateLaTeX i = do
       liftIO $ copyFile styFile (dir </> defaultStyFile)
 
   let outPath = modToFile mod
-  inAbsPath <- liftM filePath (Find.findFile mod)
+  inAbsPath <- liftM filePath (Find.srcFilePath <$> Find.findFile mod)
 
   liftIO $ do
     latex <- E.encodeUtf8 `fmap`

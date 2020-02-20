@@ -16,3 +16,6 @@ f y with c y
 
 -- Expected:
 -- f y | c z | c q = ?
+
+-- Jesper, 2019-11-21, now:
+-- ... | c q = ?

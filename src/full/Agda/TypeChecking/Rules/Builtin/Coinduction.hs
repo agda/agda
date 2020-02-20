@@ -5,9 +5,6 @@
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -25,8 +22,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
-
-import Agda.Utils.Permutation
 
 -- | The type of @∞@.
 
@@ -98,9 +93,10 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conComp   = (emptyCompKit, Nothing)
+                    , conComp   = emptyCompKit
+                    , conProj   = Nothing
                     , conForced = []
-                    , conErased = []
+                    , conErased = Nothing
                     }
                 }
     return sharpE
@@ -138,7 +134,9 @@ bindBuiltinFlat x =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
+          , clauseRecursive   = Just False
           , clauseUnreachable = Just False
+          , clauseEllipsis  = NoEllipsis
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
@@ -165,7 +163,7 @@ bindBuiltinFlat x =
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }
     modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultArg flat] }
+      def { recConHead = sharpCon, recFields = [defaultDom flat] }
     return flatE
 
 -- The coinductive primitives.

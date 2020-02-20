@@ -5,7 +5,9 @@
 module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
+import Control.Arrow ( first )
 import Control.Monad.Identity
+import Control.Monad.Writer
 
 import Data.Foldable    (Foldable, foldMap)
 import Data.Traversable (Traversable, traverse)
@@ -13,9 +15,11 @@ import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
+import Agda.Syntax.Position
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.Maybe
 
@@ -42,13 +46,13 @@ instance HasEllipsis Pattern where
   hasEllipsis p =
     case hasEllipsis' p of
       ZeroHoles _ -> False
-      OneHole   _ -> True
+      OneHole _ _ -> True
       ManyHoles   -> True
 
 -- | Does the lhs contain an ellipsis?
 instance HasEllipsis LHS where
-  hasEllipsis (LHS p _ _) = hasEllipsis p
-
+  hasEllipsis (LHS p _ _ _) = hasEllipsis p
+  -- clauses that are already expanded don't have an ellipsis
 
 -- | Check for with-pattern @| p@.
 
@@ -344,5 +348,36 @@ numberOfWithPatterns = getSum . foldCPattern (Sum . f)
 hasEllipsis' :: CPatternLike p => p -> AffineHole Pattern p
 hasEllipsis' = traverseCPatternA $ \ p mp ->
   case p of
-    EllipsisP _ -> OneHole id
+    EllipsisP{} -> OneHole id p
     _           -> mp
+
+reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
+reintroduceEllipsis NoEllipsis p = p
+reintroduceEllipsis (ExpandedEllipsis r k) p =
+  let core  = EllipsisP r
+      wargs = snd $ splitEllipsis k $ patternAppView p
+  in foldl AppP core wargs
+
+splitEllipsis :: (IsWithP p) => Int -> [p] -> ([p],[p])
+splitEllipsis k [] = ([] , [])
+splitEllipsis k (p:ps)
+  | isJust (isWithP p) = if
+      | k == 0    -> ([] , p:ps)
+      | otherwise -> first (p:) $ splitEllipsis (k-1) ps
+  | otherwise = first (p:) $ splitEllipsis k ps
+
+---------------------------------------------------------------------------
+-- * Helpers for pattern and lhs parsing
+---------------------------------------------------------------------------
+
+-- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
+--   (in most cases a constructor).
+--
+--  Pattern needs to be parsed already (operators resolved).
+patternAppView :: Pattern -> [NamedArg Pattern]
+patternAppView p = case p of
+    AppP p arg      -> patternAppView p ++ [arg]
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
+    ParenP _ p      -> patternAppView p
+    RawAppP _ _     -> __IMPOSSIBLE__
+    _               -> [ defaultNamedArg p ]

@@ -10,6 +10,7 @@ import qualified Internal.Tests as INTERNAL
 import qualified LaTeXAndHTML.Tests as LATEXHTML
 import qualified LibSucceed.Tests as LIBSUCCEED
 import qualified UserManual.Tests as USERMANUAL
+import qualified Bugs.Tests as BUGS
 
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
@@ -45,6 +46,7 @@ tests = do
              , FAIL.tests
              , return INTERACTIVE.tests
              , SUCCEED.tests
+             , BUGS.tests
              , LIBSUCCEED.tests
              , USERMANUAL.tests
              , return INTERNAL.tests

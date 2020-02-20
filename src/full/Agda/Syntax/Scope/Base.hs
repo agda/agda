@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
@@ -7,14 +8,14 @@ module Agda.Syntax.Scope.Base where
 
 import Prelude hiding ( null )
 
-import Control.Arrow (first, second, (***))
-import Control.Applicative hiding (empty)
-import Control.DeepSeq
+import Control.Arrow (first, second)
 import Control.Monad
 
 import Data.Either (partitionEithers)
 import Data.Function
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -39,7 +40,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.NonemptyList
+import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -65,17 +66,16 @@ data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.
   | ImportedNS       -- ^ Things from open public, exported by this module.
-  | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
-                     --   but not exported when opening the module.
-                     --   Used for qualified constructors.
   deriving (Data, Eq, Bounded, Enum, Show)
+
+allNameSpaces :: [NameSpaceId]
+allNameSpaces = [minBound..maxBound]
 
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess    = PublicNS
 localNameSpace PrivateAccess{} = PrivateNS
-localNameSpace OnlyQualified   = OnlyQualifiedNS
 
 nameSpaceAccess :: NameSpaceId -> Access
 nameSpaceAccess PrivateNS = PrivateAccess Inserted
@@ -106,14 +106,14 @@ data ScopeInfo = ScopeInfo
       , _scopeInverseName   :: NameMap
       , _scopeInverseModule :: ModuleMap
       , _scopeInScope       :: InScopeSet
-      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names to fixities
-      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names to polarities
+      , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
+      , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       }
   deriving (Data, Show)
 
-type NameMap   = Map A.QName      (NonemptyList C.QName)
+type NameMap   = Map A.QName      (NonEmpty C.QName)
 type ModuleMap = Map A.ModuleName [C.QName]
--- type ModuleMap = Map A.ModuleName (NonemptyList C.QName)
+-- type ModuleMap = Map A.ModuleName (NonEmpty C.QName)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
@@ -124,7 +124,7 @@ type LocalVars = AssocList C.Name LocalVar
 
 -- | For each bound variable, we want to know whether it was bound by a
 --   λ, Π, module telescope, pattern, or @let@.
-data Binder
+data BindingSource
   = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
@@ -134,11 +134,11 @@ data Binder
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
 data LocalVar = LocalVar
-  { localVar        :: A.Name
+  { localVar           :: A.Name
     -- ^ Unique ID of local variable.
-  , localBinder     :: Binder
+  , localBindingSource :: BindingSource
     -- ^ Kind of binder used to introduce the variable (@λ@, @let@, ...).
-  , localShadowedBy :: [AbstractName]
+  , localShadowedBy    :: [AbstractName]
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
@@ -163,7 +163,8 @@ shadowLocal ys (LocalVar x b zs) = LocalVar x b (ys ++ zs)
 -- | Treat patternBound variable as a module parameter
 patternToModuleBound :: LocalVar -> LocalVar
 patternToModuleBound x
- | localBinder x == PatternBound = x { localBinder = LambdaBound }
+ | localBindingSource x == PatternBound =
+   x { localBindingSource = LambdaBound }
  | otherwise                     = x
 
 -- | Project name of unshadowed local variable.
@@ -226,6 +227,24 @@ scopePolarities f s =
   f (_scopePolarities s) <&>
   \x -> s { _scopePolarities = x }
 
+scopeFixitiesAndPolarities :: Lens' (C.Fixities, C.Polarities) ScopeInfo
+scopeFixitiesAndPolarities f s =
+  f' (_scopeFixities s) (_scopePolarities s) <&>
+  \ (fixs, pols) -> s { _scopeFixities = fixs, _scopePolarities = pols }
+  where
+  -- Andreas, 2019-08-18: strict matching avoids space leak, see #1829.
+  f' !fixs !pols = f (fixs, pols)
+  -- Andrea comments on https://github.com/agda/agda/issues/1829#issuecomment-522312084
+  -- on a naive version without the bang patterns:
+  --
+  -- useScope (because of useR) forces the result of projecting the
+  -- lens, this usually prevents retaining the whole structure when we
+  -- only need a field.  However your combined lens adds an extra layer
+  -- of laziness with the pairs, so the actual projections remain
+  -- unforced.
+  --
+  -- I guess scopeFixitiesAndPolarities could add some strictness when building the pair?
+
 -- | Lens for 'scopeVarsToBind'.
 updateVarsToBind :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
 updateVarsToBind = over scopeVarsToBind
@@ -239,9 +258,6 @@ updateScopeLocals = over scopeLocals
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
 setScopeLocals = set scopeLocals
-
-mapScopeInfo :: (Scope -> Scope) -> ScopeInfo -> ScopeInfo
-mapScopeInfo = over scopeModules . fmap
 
 ------------------------------------------------------------------------
 -- * Name spaces
@@ -258,6 +274,8 @@ data NameSpace = NameSpace
       , nsModules :: ModulesInScope
         -- ^ Maps concrete module names to a list of abstract module names.
       , nsInScope :: InScopeSet
+        -- ^ All abstract names targeted by a concrete name in scope.
+        --   Computed by 'recomputeInScopeSets'.
       }
   deriving (Data, Eq, Show)
 
@@ -274,7 +292,7 @@ data InScopeTag a where
   ModuleTag :: InScopeTag AbstractModule
 
 -- | Type class for some dependent-types trickery.
-class Eq a => InScope a where
+class Ord a => InScope a where
   inScopeTag :: InScopeTag a
 
 instance InScope AbstractName where
@@ -291,6 +309,10 @@ inNameSpace = case inScopeTag :: InScopeTag a of
   NameTag   -> nsNames
   ModuleTag -> nsModules
 
+-- | Non-dependent tag for name or module.
+data NameOrModule = NameNotModule | ModuleNotName
+  deriving (Data, Eq, Ord, Show, Enum, Bounded)
+
 ------------------------------------------------------------------------
 -- * Decorated names
 --
@@ -300,20 +322,50 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 
 -- | For the sake of parsing left-hand sides, we distinguish
 --   constructor and record field names from defined names.
-data KindOfName
-  = ConName        -- ^ Constructor name.
-  | FldName        -- ^ Record field name.
-  | DefName        -- ^ Ordinary defined name.
-  | PatternSynName -- ^ Name of a pattern synonym.
-  | GeneralizeName -- ^ Name to be generalized
-  | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
-  | MacroName      -- ^ Name of a macro
-  | QuotableName   -- ^ A name that can only be quoted.
-  deriving (Eq, Show, Data, Enum, Bounded)
 
--- | A list containing all name kinds.
-allKindsOfNames :: [KindOfName]
-allKindsOfNames = [minBound..maxBound]
+-- Note: order does matter in this enumeration, see 'isDefName'.
+data KindOfName
+  = ConName                  -- ^ Constructor name.
+  | FldName                  -- ^ Record field name.
+  | PatternSynName           -- ^ Name of a pattern synonym.
+  | GeneralizeName           -- ^ Name to be generalized
+  | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
+  | MacroName                -- ^ Name of a macro
+  | QuotableName             -- ^ A name that can only be quoted.
+  -- Previous category @DefName@:
+  -- (Refined in a flat manner as Enum and Bounded are not hereditary.)
+  | DataName                 -- ^ Name of a @data@.
+  | RecName                  -- ^ Name of a @record@.
+  | FunName                  -- ^ Name of a defined function.
+  | AxiomName                -- ^ Name of a @postulate@.
+  | PrimName                 -- ^ Name of a @primitive@.
+  | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
+  -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
+  deriving (Eq, Ord, Show, Data, Enum, Bounded)
+
+isDefName :: KindOfName -> Bool
+isDefName = (>= DataName)
+
+-- | A set of 'KindOfName', for the sake of 'elemKindsOfNames'.
+data KindsOfNames
+  = AllKindsOfNames
+  | SomeKindsOfNames   (Set KindOfName)  -- ^ Only these kinds.
+  | ExceptKindsOfNames (Set KindOfName)  -- ^ All but these Kinds.
+
+elemKindsOfNames :: KindOfName -> KindsOfNames -> Bool
+elemKindsOfNames k = \case
+  AllKindsOfNames       -> True
+  SomeKindsOfNames   ks -> k `Set.member` ks
+  ExceptKindsOfNames ks -> k `Set.notMember` ks
+
+allKindsOfNames :: KindsOfNames
+allKindsOfNames = AllKindsOfNames
+
+someKindsOfNames :: [KindOfName] -> KindsOfNames
+someKindsOfNames = SomeKindsOfNames . Set.fromList
+
+exceptKindsOfNames :: [KindOfName] -> KindsOfNames
+exceptKindsOfNames = ExceptKindsOfNames . Set.fromList
 
 -- | Where does a name come from?
 --
@@ -361,6 +413,9 @@ instance Eq AbstractName where
 instance Ord AbstractName where
   compare = compare `on` anameName
 
+instance LensFixity AbstractName where
+  lensFixity = lensAnameName . lensFixity
+
 -- | Van Laarhoven lens on 'anameName'.
 lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
@@ -379,21 +434,21 @@ lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 data ResolvedName
   = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.
     VarName
-    { resolvedVar      :: A.Name
-    , resolvedBinder   :: Binder    -- ^ What kind of binder?
+    { resolvedVar           :: A.Name
+    , resolvedBindingSource :: BindingSource    -- ^ What kind of binder?
     }
 
   | -- | Function, data/record type, postulate.
     DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
-    FieldName (NonemptyList AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
+    FieldName (NonEmpty AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
 
   | -- | Data or record constructor name.
-    ConstructorName (NonemptyList AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
+    ConstructorName (NonEmpty AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
-    PatternSynResName (NonemptyList AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
+    PatternSynResName (NonEmpty AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
   | -- | Unbound name.
     UnknownName
@@ -412,6 +467,9 @@ instance Pretty ResolvedName where
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
 mergeNames = Map.unionWith List.union
+
+mergeNamesMany :: Eq a => [ThingsInScope a] -> ThingsInScope a
+mergeNamesMany = Map.unionsWith List.union
 
 ------------------------------------------------------------------------
 -- * Operations on name spaces
@@ -463,7 +521,9 @@ emptyScope :: Scope
 emptyScope = Scope
   { scopeName           = noModuleName
   , scopeParents        = []
-  , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
+  , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- allNameSpaces ]
+      -- Note (Andreas, 2019-08-19):  Cannot have [] here because
+      -- zipScope assumes all NameSpaces to be present and in the same order.
   , scopeImports        = Map.empty
   , scopeDatatypeModule = Nothing
   }
@@ -500,13 +560,12 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 mapScope_ fd fm fs = mapScope (const fd) (const fm) (const fs)
 
 -- | Same as 'mapScope' but applies the function only on the given name space.
-mapScope' :: NameSpaceId -> (NamesInScope   -> NamesInScope  ) ->
-                            (ModulesInScope -> ModulesInScope) ->
-                            (InScopeSet    -> InScopeSet     ) ->
-                            Scope -> Scope
-mapScope' i fd fm fs = mapScope (\ j -> if i == j then fd else id)
-                                (\ j -> if i == j then fm else id)
-                                (\ j -> if i == j then fs else id)
+mapScopeNS :: NameSpaceId
+           -> (NamesInScope   -> NamesInScope  )
+           -> (ModulesInScope -> ModulesInScope)
+           -> (InScopeSet    -> InScopeSet     )
+           -> Scope -> Scope
+mapScopeNS nsid fd fm fs = modifyNameSpace nsid $ mapNameSpace fd fm fs
 
 -- | Map monadic functions over the names and modules in a scope.
 mapScopeM :: Applicative m =>
@@ -560,8 +619,9 @@ zipScope_ fd fm fs = zipScope (const fd) (const fm) (const fs)
 recomputeInScopeSets :: Scope -> Scope
 recomputeInScopeSets = updateScopeNameSpaces (map $ second recomputeInScope)
   where
-    recomputeInScope ns = ns { nsInScope = Set.unions $ map (Set.fromList . map anameName)
-                                         $ Map.elems $ nsNames ns }
+    recomputeInScope ns = ns { nsInScope = allANames $ nsNames ns }
+    allANames :: NamesInScope -> InScopeSet
+    allANames = Set.fromList . map anameName . concat . Map.elems
 
 -- | Filter a scope keeping only concrete names matching the predicates.
 --   The first predicate is applied to the names and the second to the modules.
@@ -572,23 +632,27 @@ filterScope pd pm = recomputeInScopeSets .  mapScope_ (Map.filterKeys pd) (Map.f
 
 -- | Return all names in a scope.
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
-allNamesInScope = namesInScope [minBound..maxBound]
+allNamesInScope = mergeNamesMany . map (inNameSpace . snd) . scopeNameSpaces
 
 allNamesInScope' :: InScope a => Scope -> ThingsInScope (a, Access)
 allNamesInScope' s =
-  foldr1 mergeNames [ map (, nameSpaceAccess ns) <$> namesInScope [ns] s
-                    | ns <- [minBound..maxBound] ]
+  mergeNamesMany [ map (, nameSpaceAccess nsId) <$> inNameSpace ns
+                 | (nsId, ns) <- scopeNameSpaces s ]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
-exportedNamesInScope = namesInScope [PublicNS, ImportedNS, OnlyQualifiedNS]
+exportedNamesInScope = namesInScope [PublicNS, ImportedNS]
 
 namesInScope :: InScope a => [NameSpaceId] -> Scope -> ThingsInScope a
 namesInScope ids s =
-  foldr1 mergeNames [ inNameSpace (scopeNameSpace nsid s) | nsid <- ids ]
+  mergeNamesMany [ inNameSpace (scopeNameSpace nsid s) | nsid <- ids ]
 
 allThingsInScope :: Scope -> NameSpace
-allThingsInScope = thingsInScope [minBound..maxBound]
+allThingsInScope s =
+  NameSpace { nsNames   = allNamesInScope s
+            , nsModules = allNamesInScope s
+            , nsInScope = Set.unions $ map (nsInScope . snd) $ scopeNameSpaces s
+            }
 
 thingsInScope :: [NameSpaceId] -> Scope -> NameSpace
 thingsInScope fs s =
@@ -617,7 +681,7 @@ setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const 
     zero  = emptyNameSpace
     one   = allThingsInScope s
     imp   = thingsInScope [ImportedNS] s
-    noimp = thingsInScope [PublicNS, PrivateNS, OnlyQualifiedNS] s
+    noimp = thingsInScope [PublicNS, PrivateNS] s
 
     ns b = case (a, b) of
       (PublicNS, PublicNS)   -> noimp
@@ -633,82 +697,152 @@ setNameSpace nsid ns = modifyNameSpace nsid $ const ns
 modifyNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> Scope -> Scope
 modifyNameSpace nsid f = updateScopeNameSpaces $ AssocList.updateAt nsid f
 
--- | Add names to a scope.
-addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
-addNamesToScope acc x ys s = mergeScope s s1
-  where
-    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
-    ns = emptyNameSpace { nsNames   = Map.singleton x ys
-                        , nsInScope = Set.fromList (map anameName ys) }
-
 -- | Add a name to a scope.
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
-addNameToScope acc x y s = addNamesToScope acc x [y] s
+addNameToScope nsid x y =
+  mapScopeNS nsid
+    (Map.insertWith (flip List.union) x [y])  -- bind name x ↦ y
+    id                                        -- no change to modules
+    (Set.insert $ anameName y)                -- y is in scope now
 
 -- | Remove a name from a scope. Caution: does not update the nsInScope set.
 --   This is only used by rebindName and in that case we add the name right
 --   back (but with a different kind).
 removeNameFromScope :: NameSpaceId -> C.Name -> Scope -> Scope
-removeNameFromScope ns x s = mapScope remove (const id) (const id) s
-  where
-    remove ns' | ns' /= ns = id
-               | otherwise = Map.delete x
+removeNameFromScope nsid x = mapScopeNS nsid (Map.delete x) id id
 
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
-addModuleToScope acc x m s = mergeScope s s1
-  where
-    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
-    ns = emptyNameSpace { nsModules = Map.singleton x [m] }
+addModuleToScope nsid x m = mapScopeNS nsid id addM id
+  where addM = Map.insertWith (flip List.union) x [m]
 
--- When we get here we cannot have both using and hiding
-type UsingOrHiding = Either C.Using [C.ImportedName]
+-- | When we get here we cannot have both @using@ and @hiding@.
+data UsingOrHiding
+  = UsingOnly  [C.ImportedName]
+  | HidingOnly [C.ImportedName]
 
 usingOrHiding :: C.ImportDirective -> UsingOrHiding
 usingOrHiding i =
   case (using i, hiding i) of
-    (UseEverything, xs) -> Right xs
-    (u, [])             -> Left u
+    (UseEverything, ys) -> HidingOnly ys
+    (Using xs     , []) -> UsingOnly  xs
     _                   -> __IMPOSSIBLE__
 
--- | Apply an 'ImportDirective' to a scope.
+-- | Apply an 'ImportDirective' to a scope:
+--
+--   1. rename keys (C.Name) according to @renaming@;
+--
+--   2. for untouched keys, either of
+--
+--      a) remove keys according to @hiding@, or
+--      b) filter keys according to @using@.
+--
+--   Both steps could be done in one pass, by first preparing key-filtering
+--   functions @C.Name -> Maybe C.Name@ for defined names and module names.
+--   However, the penalty of doing it in two passes should not be too high.
+--   (Doubling the run time.)
 applyImportDirective :: C.ImportDirective -> Scope -> Scope
-applyImportDirective dir s = mergeScope usedOrHidden renamed
+applyImportDirective dir = fst . applyImportDirective_ dir
+
+-- | Version of 'applyImportDirective' that also returns sets of name
+--   and module name clashes introduced by @renaming@ to identifiers
+--   that are already imported by @using@ or lack of @hiding@.
+applyImportDirective_
+  :: C.ImportDirective
+  -> Scope
+  -> (Scope, (Set C.Name, Set C.Name)) -- ^ Merged scope, clashing names, clashing module names.
+applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
+  | null dir  = (s, (empty, empty))
+      -- Since each run of applyImportDirective rebuilds the scope
+      -- with cost O(n log n) time, it makes sense to test for the identity.
+  | otherwise = (recomputeInScopeSets $ mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
-    usedOrHidden = useOrHide (hideLHS (impRenaming dir) $ usingOrHiding dir) s
-    renamed      = rename (impRenaming dir) $ useOrHide useRenamedThings s
+    -- | Names kept via using/hiding.
+    sUse :: Scope
+    sUse = useOrHide (usingOrHiding dir) s
 
-    useRenamedThings = Left $ Using $ map renFrom $ impRenaming dir
+    -- | Things kept (under a different name) via renaming.
+    sRen :: Scope
+    sRen = rename impRenaming s
 
-    hideLHS :: [C.Renaming] -> UsingOrHiding -> UsingOrHiding
-    hideLHS _   i@(Left _) = i
-    hideLHS ren (Right xs) = Right $ xs ++ map renFrom ren
+    -- | Which names are considered to be defined by a module?
+    --   The ones actually defined there publicly ('publicNS')
+    --   and the ones imported publicly ('ImportedNS')?
+    exportedNSs = [PublicNS, ImportedNS]
 
-    useOrHide :: UsingOrHiding -> Scope -> Scope
-    useOrHide (Right xs)        s = filterNames notElem notElem xs s
-    useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
-    useOrHide _                 _ = __IMPOSSIBLE__
-
-    filterNames :: (C.Name -> [C.Name] -> Bool) ->
-                   (C.Name -> [C.Name] -> Bool) ->
-                   [C.ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
+    -- | Name clashes introduced by the @renaming@ clause.
+    nameClashes :: Set C.Name
+    nameClashes = Map.keysSet rNames `Set.intersection` Map.keysSet uNames
+      -- NB: `intersection` returns a subset of the first argument.
+      -- To get the correct error location, i.e., in the @renaming@ clause
+      -- rather than at the definition location, we neet to return
+      -- names from the @renaming@ clause.  (Issue #4154.)
       where
-        ds = [ x | ImportedName   x <- xs ]
-        ms = [ m | ImportedModule m <- xs ]
+      uNames, rNames :: NamesInScope
+      uNames = namesInScope exportedNSs sUse
+      rNames = namesInScope exportedNSs sRen
 
-    -- Renaming
+    -- | Module name clashes introduced by the @renaming@ clause.
+
+    -- Note: need to cut and paste because of 'InScope' dependent types trickery.
+    moduleClashes :: Set C.Name
+    moduleClashes = Map.keysSet uModules `Set.intersection` Map.keysSet rModules
+      where
+      uModules, rModules :: ModulesInScope
+      uModules = namesInScope exportedNSs sUse
+      rModules = namesInScope exportedNSs sRen
+
+
+    -- Restrict scope by directive.
+    useOrHide :: UsingOrHiding -> Scope -> Scope
+    useOrHide (UsingOnly  xs) = filterNames Set.member xs
+       -- Filter scope, keeping only xs.
+    useOrHide (HidingOnly xs) = filterNames Set.notMember $ map renFrom impRenaming ++ xs
+       -- Filter out xs and the to be renamed names from scope.
+
+    -- Filter scope by (`rel` xs).
+    -- O(n * log (length xs)).
+    filterNames :: (C.Name -> Set C.Name -> Bool) -> [C.ImportedName] ->
+                   Scope -> Scope
+    filterNames rel xs = filterScope (`rel` Set.fromList ds) (`rel` Set.fromList ms)
+      where
+        (ds, ms) = partitionEithers $ for xs $ \case
+          ImportedName   x -> Left x
+          ImportedModule m -> Right m
+
+    -- Apply a renaming to a scope.
+    -- O(n * (log n + log (length rho))).
     rename :: [C.Renaming] -> Scope -> Scope
-    rename rho = mapScope_ (Map.mapKeys $ ren drho)
-                           (Map.mapKeys $ ren mrho)
+    rename rho = mapScope_ (updateFxs .
+                            updateThingsInScope (AssocList.apply drho))
+                           (updateThingsInScope (AssocList.apply mrho))
                            id
       where
         (drho, mrho) = partitionEithers $ for rho $ \case
-          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
-          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          Renaming (ImportedName   x) (ImportedName   y) _fx _ -> Left  (x, y)
+          Renaming (ImportedModule x) (ImportedModule y) _fx _ -> Right (x, y)
           _ -> __IMPOSSIBLE__
 
-        ren r x = fromMaybe x $ lookup x r
+        fixities :: AssocList C.Name Fixity
+        fixities = (`mapMaybe` rho) $ \case
+          Renaming _ (ImportedName y) (Just fx)  _ -> Just (y, fx)
+          _ -> Nothing
+
+        -- Update fixities of abstract names targeted by renamed imported identifies.
+        updateFxs :: NamesInScope -> NamesInScope
+        updateFxs m = foldl upd m fixities
+          where
+          -- Update fixity of all abstract names targeted by concrete name y.
+          upd m (y, fx) = Map.adjust (map $ set lensFixity fx) y m
+
+        updateThingsInScope
+          :: forall a. SetBindingSite a
+          => (C.Name -> Maybe C.Name)
+          -> ThingsInScope a -> ThingsInScope a
+        updateThingsInScope f = Map.fromList . mapMaybe upd . Map.toAscList
+          where
+          upd :: (C.Name, [a]) -> Maybe (C.Name, [a])
+          upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
@@ -731,16 +865,14 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
 
 -- | Remove private things from the given module from a scope.
 restrictLocalPrivate :: ModuleName -> Scope -> Scope
-restrictLocalPrivate m = mapScope' PrivateNS (Map.mapMaybe rName) (Map.mapMaybe rMod)
-                                             (Set.filter (not . (`isInModule` m)))
+restrictLocalPrivate m =
+  mapScopeNS PrivateNS
+    (Map.mapMaybe rName)
+    (Map.mapMaybe rMod)
+    (Set.filter (not . (`isInModule` m)))
   where
-    check p x = x <$ guard (p x)
-    rName as = check (not . null) $ filter (not . (`isInModule`    m) . anameName) as
-    rMod  as = check (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
-
--- | Remove names that can only be used qualified (when opening a scope)
-removeOnlyQualified :: Scope -> Scope
-removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
+    rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
+    rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
 
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope
@@ -876,7 +1008,7 @@ scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
 scopeLookup' q scope =
-  List.nubBy ((==) `on` fst) $
+  nubOn fst $
     findName q root ++ maybeToList topImports ++ imports
   where
 
@@ -977,8 +1109,8 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     Left  m -> best $ filter unambiguousModule $ findModule m
     Right q -> best $ filter unambiguousName   $ findName q
   where
-    findName   x = maybe [] toList $ Map.lookup x (scope ^. scopeInverseName)
-    findModule x = fromMaybe []    $ Map.lookup x (scope ^. scopeInverseModule)
+    findName   x = maybe [] NonEmpty.toList $ Map.lookup x (scope ^. scopeInverseName)
+    findModule x = fromMaybe [] $ Map.lookup x (scope ^. scopeInverseModule)
 
     len :: C.QName -> Int
     len (C.QName _)  = 1
@@ -1055,7 +1187,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      if elem m current
+      if m `elem` current
         then return (q, singleton (C.QName x))
         else do
           y <- findModule m
@@ -1077,6 +1209,38 @@ inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
 inverseScopeLookupModule x = inverseScopeLookup (Left x)
 
 ------------------------------------------------------------------------
+-- * Update binding site
+------------------------------------------------------------------------
+
+-- | Set the 'nameBindingSite' in an abstract name.
+class SetBindingSite a where
+  setBindingSite :: Range -> a -> a
+
+  default setBindingSite
+    :: (SetBindingSite b, Functor t, t b ~ a)
+    => Range -> a -> a
+  setBindingSite = fmap . setBindingSite
+
+instance SetBindingSite a => SetBindingSite [a]
+
+instance SetBindingSite A.Name where
+  setBindingSite r x = x { nameBindingSite = r }
+
+instance SetBindingSite A.QName where
+  setBindingSite r x = x { qnameName = setBindingSite r $ qnameName x }
+
+-- | Sets the binding site of all names in the path.
+instance SetBindingSite A.ModuleName where
+  setBindingSite r (MName x) = MName $ setBindingSite r x
+
+instance SetBindingSite AbstractName where
+  setBindingSite r x = x { anameName = setBindingSite r $ anameName x }
+
+instance SetBindingSite AbstractModule where
+  setBindingSite r x = x { amodName = setBindingSite r $ amodName x }
+
+
+------------------------------------------------------------------------
 -- * (Debug) printing
 ------------------------------------------------------------------------
 
@@ -1091,7 +1255,6 @@ instance Pretty NameSpaceId where
     PublicNS        -> "public"
     PrivateNS       -> "private"
     ImportedNS      -> "imported"
-    OnlyQualifiedNS -> "only-qualified"
 
 instance Pretty NameSpace where
   pretty = vcat . prettyNameSpace
@@ -1108,8 +1271,8 @@ instance Pretty Scope where
   pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     vcat $
       [ "scope" <+> pretty name ] ++ ind (
-        concat [ blockOfLines (pretty nsid) $ prettyNameSpace $ scopeNameSpace nsid scope
-               | nsid <- [minBound..maxBound] ]
+        concat [ blockOfLines (pretty nsid) $ prettyNameSpace ns
+               | (nsid, ns) <- scopeNameSpaces scope ]
       ++ blockOfLines "imports"
            (case Map.keys imps of [] -> []; ks -> [ prettyList ks ])
       )

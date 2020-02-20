@@ -6,8 +6,6 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 
 import Control.Monad.Reader
 
-import Data.Traversable as Trav hiding (mapM)
-
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -16,15 +14,15 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A hiding (Apply)
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
-import Agda.Syntax.Internal (Dom(..))
+import Agda.Syntax.Internal (Dom,Dom'(..))
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
 import Agda.Utils.Except
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Functor
 import Agda.Utils.Size
 
@@ -93,7 +91,7 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
   toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ mkTBind noRange [unnamedArg i $ mkBindName name] dom
+    return $ mkTBind noRange [unnamedArg i $ mkBinder_ name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -130,7 +128,7 @@ instance ToAbstract Term Expr where
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
-      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBindName name) e
+      return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName
       m    <- getCurrentModule
@@ -190,11 +188,11 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
   toAbstract (QNamed name (R.Clause pats rhs)) = do
     (names, pats) <- toAbstractPats pats
     rhs           <- local (names++) $ toAbstract rhs
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
     (_, pats) <- toAbstractPats pats
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where

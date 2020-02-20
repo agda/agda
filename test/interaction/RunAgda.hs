@@ -1,7 +1,8 @@
 -- | Functions that can be used to communicate with an Agda process.
 
 module RunAgda
-  ( runAgda
+  ( getAgda
+  , runAgda
   , runAgda'
   , AgdaCommands(..)
   , command
@@ -112,6 +113,15 @@ data AgdaCommands = AgdaCommands
     -- given arguments.
   }
 
+-- | Takes the name of the Agda executable from the first argument
+-- on the command line.
+getAgda :: IO FilePath
+getAgda = do
+  args <- getArgs
+  case args of
+    agda : _ -> return agda
+    []       -> error "getAgda: No command-line arguments."
+
 -- | Starts Agda, invokes the continuation, and finally shuts down Agda.
 --
 -- The name of the Agda executable is assumed to be the first argument
@@ -122,10 +132,8 @@ runAgda
   -> (AgdaCommands -> IO a)  -- ^ Continuation.
   -> IO a
 runAgda extraArgs cont = do
-  args <- getArgs
-  case args of
-    agda : _ -> runAgda' agda extraArgs cont
-    []       -> error "runAgda: No command-line arguments."
+  agda <- getAgda
+  runAgda' agda extraArgs cont
 
 -- | Starts Agda, invokes the continuation, and finally shuts down Agda.
 

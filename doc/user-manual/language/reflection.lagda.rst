@@ -2,8 +2,20 @@
   ::
   module language.reflection where
 
-  open import language.built-ins
   open import Agda.Builtin.Sigma
+  open import Agda.Builtin.Unit
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.List
+  open import Agda.Builtin.Float
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Char
+  open import Agda.Builtin.String
+  open import Agda.Builtin.Word
+  open import Agda.Builtin.Equality
+
+  data ⊥ : Set where
+
+  pattern [_] x = x ∷ []
 
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
@@ -16,7 +28,7 @@
     non-assoc   : Associativity
 
   data Precedence : Set where
-    related   : Int → Precedence
+    related   : Float → Precedence
     unrelated : Precedence
 
   data Fixity : Set where
@@ -66,8 +78,9 @@ The fixity of a name can also be retrived.
   primitive
     primQNameFixity    : Name → Fixity
 
-To define a decidable propositional equality with the option ``--safe``,
-one can use the conversion to a pair of built-in 64-bit machine words
+To define a decidable propositional equality with the option
+:option:`--safe`, one can use the conversion to a pair of built-in
+64-bit machine words
 
 ::
 
@@ -117,7 +130,8 @@ of ``primMetaToNat``
   primitive
     primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
 
-which can be used to define a decidable propositional equality with the option ``--safe``.
+which can be used to define a decidable propositional equality with
+the option :option:`--safe`.
 
 Literals
 ~~~~~~~~
@@ -441,13 +455,6 @@ following primitive operations::
     -- "blocking" constraints.
     noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
-    -- Tries to solve all constraints.
-    solveConstraints : TC ⊤
-
-    -- Wakes up all constraints mentioning the given meta-variables,
-    -- and then tries to solve all awake constraints.
-    solveConstraintsMentioning : List Meta → TC ⊤
-
     -- Run the given TC action and return the first component. Resets to
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
@@ -477,8 +484,6 @@ following primitive operations::
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
-  {-# BUILTIN AGDATCMSOLVECONSTRAINTS           solveConstraints           #-}
-  {-# BUILTIN AGDATCMSOLVECONSTRAINTSMENTIONING solveConstraintsMentioning #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 
 Metaprogramming
@@ -546,7 +551,8 @@ Silly example:
 
     macro
         plus-to-times : Term → Term → TC ⊤
-        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole =
+          unify hole (def (quote _*_) (a ∷ b ∷ []))
         plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
@@ -586,6 +592,56 @@ This lets you apply the magic tactic as a normal function:
     thm = by-magic
 
 .. _unquoting-declarations:
+
+Tactic Arguments
+~~~~~~~~~~~~~~~~
+
+You can declare tactics to be used to solve a particular implicit argument
+using a ``@(tactic t)`` annotation. The provided tactic should be a term
+``t : Term → TC ⊤``. For instance,
+
+::
+
+  defaultTo : {A : Set} (x : A) → Term → TC ⊤
+  defaultTo x hole = bindTC (quoteTC x) (unify hole)
+
+  f : {@(tactic defaultTo true) x : Bool} → Bool
+  f {x} = x
+
+  test-f : f ≡ true
+  test-f = refl
+
+At calls to `f`, `defaultTo true` is called on the
+metavariable inserted for `x` if it is not given explicitly.
+The tactic can depend on previous arguments to the function.
+For instance,
+
+::
+
+  g : (x : Nat) {@(tactic defaultTo x) y : Nat} → Nat
+  g x {y} = x + y
+
+  test-g : g 4 ≡ 8
+  test-g = refl
+
+Record fields can also be annotated with a tactic, allowing them to be
+omitted in constructor applications, record constructions and co-pattern
+matches::
+
+  record Bools : Set where
+    constructor mkBools
+    field fst : Bool
+          @(tactic defaultTo fst) {snd} : Bool
+  open Bools
+
+  tt₀ tt₁ tt₂ tt₃ : Bools
+  tt₀ = mkBools true {true}
+  tt₁ = mkBools true
+  tt₂ = record{ fst = true }
+  tt₃ .fst = true
+
+  test-tt : tt₁ ∷ tt₂ ∷ tt₃ ∷ [] ≡ tt₀ ∷ tt₀ ∷ tt₀ ∷ []
+  test-tt = refl
 
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~

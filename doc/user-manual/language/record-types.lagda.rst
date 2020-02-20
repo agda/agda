@@ -25,6 +25,9 @@ Records are types for grouping values together. They generalise the
 dependent product type by providing named fields and (optional)
 further components.
 
+Example: the Pair type constructor
+----------------------------------
+
 Record types can be declared using the ``record`` keyword
 
 ..
@@ -38,8 +41,8 @@ Record types can be declared using the ``record`` keyword
        fst : A
        snd : B
 
-This defines a new type ``Pair : Set → Set → Set`` and two projection
-functions
+This defines a new type constructor ``Pair : Set → Set → Set`` and two
+projection functions
 
 .. code-block:: agda
 
@@ -53,13 +56,32 @@ Elements of record types can be defined using a record expression
    p23 : Pair Nat Nat
    p23 = record { fst = 2; snd = 3 }
 
-or using :ref:`copatterns <copatterns>`
+or using :ref:`copatterns <copatterns>`. Copatterns may be used
+prefix
 
 ::
 
    p34 : Pair Nat Nat
    Pair.fst p34 = 3
    Pair.snd p34 = 4
+
+suffix (in which case they are written prefixed with a dot)
+
+::
+
+   p56 : Pair Nat Nat
+   p56 .Pair.fst = 5
+   p56 .Pair.snd = 6
+
+or using an :ref:`anonymous copattern-matching lambda <pattern-lambda>`
+(you may only use the suffix form of copatterns in this case)
+
+::
+
+   p78 : Pair Nat Nat
+   p78 = λ where
+     .Pair.fst → 7
+     .Pair.snd → 8
 
 If you use the ``constructor`` keyword, you can also use the named
 constructor to define elements of the record type:
@@ -75,7 +97,6 @@ constructor to define elements of the record type:
   p45 : Pair Nat Nat
   p45 = 4 , 5
 
-
 In this sense, record types behave much like single constructor
 datatypes (but see :ref:`eta-expansion` below).
 
@@ -84,7 +105,7 @@ datatypes (but see :ref:`eta-expansion` below).
 Declaring, constructing and decomposing records
 -----------------------------------------------
 
-Declarating record types
+Declaring record types
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The general form of a record declaration is as follows:
@@ -229,7 +250,10 @@ Then we can update (some of) the record value’s fields in the following way:
 
 Here ``new`` normalises to ``record { a = 0; b = 2; c = 5 }``. Any
 expression yielding a value of type ``MyRecord`` can be used instead of
-``old``. Using that :ref:`records can be built from module names <record-building-from-modules>`, together with the fact that :ref:`all records define a module <record-modules>`, this can also be written as
+``old``. Using that :ref:`records can be built from module names
+<record-building-from-modules>`, together with the fact that
+:ref:`all records define a module <record-modules>`, this can also be
+written as
 
 ::
 

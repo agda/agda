@@ -18,7 +18,8 @@
 --   @
 --
 module Agda.Interaction.Library
-  ( getDefaultLibraries
+  ( findProjectRoot
+  , getDefaultLibraries
   , getInstalledLibraries
   , libraryIncludePaths
   , LibName
@@ -31,16 +32,14 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
-import Control.Arrow ( (***) )
-import Control.Exception
 import Control.Monad.Writer
 import Data.Char
 import Data.Data ( Data )
 import Data.Either
 import Data.Bifunctor ( first )
+import Data.Foldable ( foldMap )
 import Data.Function
 import qualified Data.List as List
-import Data.Maybe
 import System.Directory
 import System.FilePath
 import System.Environment
@@ -50,13 +49,13 @@ import Agda.Interaction.Library.Parse
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
-import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
+import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.String ( trim, ltrim )
+import Agda.Utils.String ( trim )
 
 import Agda.Version
 
@@ -138,8 +137,9 @@ type LibM = ExceptT Doc (WriterT [LibWarning] IO)
 warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
 warnings = tell . map Right
 
-warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
-warning = warnings . pure
+-- UNUSED Liang-Ting Chen 2019-07-16
+--warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
+--warning = warnings . pure
 
 raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
 raiseErrors' = tell . map (Left . (LibError Nothing))
@@ -188,20 +188,32 @@ defaultsFile = "defaults"
 -- * Get the libraries for the current project
 ------------------------------------------------------------------------
 
--- | Get pathes of @.agda-lib@ files in given project root.
+-- | Find project root by looking for @.agda-lib@ files.
 --
 --   If there are none, look in the parent directories until one is found.
---
-findAgdaLibFiles
-  :: FilePath       -- ^ Project root.
-  -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
-findAgdaLibFiles root = do
+
+findProjectConfig
+  :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
+  -> IO (Maybe (FilePath, [FilePath])) -- ^ Actual root and @.agda-lib@ files for this project
+findProjectConfig root = do
   libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
   case libs of
     []    -> do
       up <- canonicalizePath $ root </> ".."
-      if up == root then return [] else findAgdaLibFiles up
-    files -> return files
+      if up == root then return Nothing else findProjectConfig up
+    files -> return (Just (root, files))
+
+-- | Get project root
+
+findProjectRoot :: FilePath -> IO (Maybe FilePath)
+findProjectRoot root = fmap fst <$> findProjectConfig root
+
+-- | Get pathes of @.agda-lib@ files in given project root.
+
+findAgdaLibFiles
+  :: FilePath       -- ^ Project root.
+  -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
+findAgdaLibFiles root = fromMaybe [] . fmap snd <$> findProjectConfig root
 
 -- | Get dependencies and include paths for given project root:
 --
@@ -219,7 +231,9 @@ getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
     then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
   where
-    libsAndPaths ls = (concatMap libDepends ls, List.nub (concatMap libIncludes ls))
+    libsAndPaths ls = ( concatMap _libDepends ls
+                      , nubOn id (concatMap _libIncludes ls)
+                      )
 
 -- | Return list of libraries to be used by default.
 --
@@ -262,14 +276,14 @@ getLibrariesFile Nothing = do
 --   Returns none if there is no @libraries@ file.
 --
 getInstalledLibraries
-  :: Maybe FilePath  -- ^ Override the default @libraries@ file?
+  :: Maybe FilePath     -- ^ Override the default @libraries@ file?
   -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     file <- lift $ getLibrariesFile overrideLibFile
     if not (lfExists file) then return [] else do
       ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-      parseLibFiles (Just file) $ List.nubBy ((==) `on` snd) files
+      parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
@@ -291,7 +305,7 @@ parseLibFiles mlibFile files = do
   unless (null errs)  $
     raiseErrors $ map (\(mc,s) -> LibError mc $ OtherError s) errs
 
-  return $ List.nubBy ((==) `on` libFile) $ als
+  return $ nubOn _libFile als
 
 -- | Remove trailing white space and line comments.
 --
@@ -316,23 +330,27 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
-    incs = List.nub . concatMap libIncludes
-    dot = [ "." | not $ null dots ]
+    incs       = nubOn id . concatMap _libIncludes
+    dot        = [ "." | not $ null dots ]
 
     -- | Due to library dependencies, the work list may grow temporarily.
     find
       :: LibrariesFile  -- ^ Only for error reporting.
-      -> [LibName]  -- ^ Already resolved libraries.
-      -> [LibName]  -- ^ Work list: libraries left to be resolved.
+      -> [LibName]      -- ^ Already resolved libraries.
+      -> [LibName]      -- ^ Work list: libraries left to be resolved.
       -> Writer [Either LibError LibWarning] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)
-      | elem x visited = find file visited xs
-      | otherwise =
-          case findLib x libs of
-            [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)
-            []  -> raiseErrors' [LibNotFound file x] >> find file (x : visited) xs
-            ls  -> raiseErrors' [AmbiguousLib x ls]  >> find file (x : visited) xs
+      | x `elem` visited = find file visited xs
+      | otherwise = do
+          -- May or may not find the library
+          ml <- case findLib x libs of
+            [l] -> pure (Just l)
+            []  -> Nothing <$ raiseErrors' [LibNotFound file x]
+            ls  -> Nothing <$ raiseErrors' [AmbiguousLib x ls]
+          -- If it is found, add its dependencies to work list
+          let xs' = foldMap _libDepends ml ++ xs
+          mcons ml <$> find file (x : visited) xs'
 
 -- | @findLib x libs@ retrieves the matches for @x@ from list @libs@.
 --
@@ -345,7 +363,7 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
 --   Examples, see 'findLib''.
 --
 findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
-findLib = findLib' libName
+findLib = findLib' _libName
 
 -- | Generalized version of 'findLib' for testing.
 --
@@ -365,7 +383,8 @@ findLib' libName x libs =
   where
     -- @LibName@s that match @x@, sorted descendingly.
     -- The unversioned LibName, if any, will come first.
-    ls = List.sortBy (flip compare `on` versionMeasure) [ l | l <- libs, x `hasMatch` libName l ]
+    ls = List.sortBy (flip compare `on` versionMeasure)
+                     [ l | l <- libs, x `hasMatch` libName l ]
 
     -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
     versionMeasure l = (rx, null vs, vs)
@@ -434,13 +453,14 @@ formatLibError installed (LibError mc e) = prefix <+> body where
       ] ++
       map (nest 2)
          (if null installed then ["(none)"]
-          else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ]
+          else [ sep [ text $ _libName l, nest 2 $ parens $ text $ _libFile l ]
                | l <- installed ])
 
     AmbiguousLib lib tgts -> vcat $
       [ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
             , "Could refer to any one of" ]
-      ] ++ [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+      ] ++ [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l)
+           | l <- tgts ]
 
     OtherError err -> text err
 

@@ -9,6 +9,7 @@ import Test.Tasty
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Filter
+import Data.Bits (finiteBitSize)
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
@@ -62,23 +63,30 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -- See issue 1528
-    RFInclude "Compiler/.*/simple/Sharing"
-  , RFInclude "Compiler/JS/simple/VecReverseIrr"
-  , RFInclude "Compiler/JS/simple/Issue2821"    -- GHC backend specific
-  , RFInclude "Compiler/JS/simple/Issue2914"    -- GHC backend specific
-  , RFInclude "Compiler/JS/simple/Issue3732"    -- GHC backend specific
+  [ -----------------------------------------------------------------------------
+    -- These test are disabled on all backends.
+    -- See issue 1528
+    disable "Compiler/.*/simple/Sharing"
     -- Fix to 2524 is too unsafe
-  , RFInclude "Compiler/.*/simple/Issue2524"
-    -- Segfaulting 2640 behaves differently on travis
-  , RFInclude "Compiler/.*/simple/Erasure-Issue2640"
-    -- Andreas, 2018-10-23, dunno why, but VecReverseErased is broken on travis
-  , RFInclude "Compiler/.*/simple/VecReverseErased"
-    -- The following test cases are GHC backend specific.
-  , RFInclude "Compiler/JS/simple/Issue2879-.*"
-  , RFInclude "Compiler/JS/simple/Issue2909-.*"
-  , RFInclude "Compiler/JS/simple/Issue2918"
+  , disable "Compiler/.*/simple/Issue2524"
+    -- Issue #2640 (forcing translation for runtime erasure) is still open
+  , disable "Compiler/.*/simple/Erasure-Issue2640"
+    -----------------------------------------------------------------------------
+    -- The following test case fails (at least at the time of writing)
+    -- for the JS backend.
+  , disable "Compiler/JS/simple/Issue4169-2"
+    -----------------------------------------------------------------------------
+    -- The following test cases are GHC backend specific and thus disabled on JS.
+  , disable "Compiler/JS/simple/Issue2821"
+  , disable "Compiler/JS/simple/Issue2879-.*"
+  , disable "Compiler/JS/simple/Issue2909-.*"
+  , disable "Compiler/JS/simple/Issue2914"
+  , disable "Compiler/JS/simple/Issue2918"
+  , disable "Compiler/JS/simple/Issue3732"
+  , disable "Compiler/JS/simple/VecReverseIrr"
+  , disable "Compiler/JS/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
   ]
+  where disable = RFInclude
 
 tests :: IO TestTree
 tests = do
@@ -115,20 +123,25 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  inps <- return [testDir </> "AllStdLib.agda"]
+  let inps    = [testDir </> "AllStdLib.agda"]
     -- put all tests in AllStdLib to avoid compiling the standard library
     -- multiple times
 
   let extraArgs :: [String]
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]
 
-  let rtsOptions :: [String]
--- See Issue #3792.
-#if __GLASGOW_HASKELL__ < 802
-      rtsOptions = [ "+RTS", "-H2G", "-M3G", "-RTS" ]
-#else
-      rtsOptions = [ "+RTS", "-H2G", "-M2.5G", "-RTS" ]
-#endif
+  let -- Note that -M4G can trigger the following error on 32-bit
+      -- systems: "error in RTS option -M4G: size outside allowed
+      -- range (4096 - 4294967295)".
+      maxHeapSize =
+        if finiteBitSize (undefined :: Int) == 32 then
+          "-M2G"
+        else
+          "-M4G"
+
+      rtsOptions :: [String]
+      -- See Issue #3792.
+      rtsOptions = [ "+RTS", "-H2G", maxHeapSize, "-RTS" ]
 
   tests' <- forM inps $ \inp -> do
     opts <- readOptions inp
@@ -154,7 +167,7 @@ specialTests MAlonzo = do
                     ]
                     T.empty
             -- ignore stderr, as there may be some GHC warnings in it
-            return $ ExecutedProg (ret, out <> sout, err)
+            return $ ExecutedProg (ProgramResult ret (out <> sout) err)
 specialTests JS = return Nothing
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
@@ -178,12 +191,12 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
             JS -> do
               setEnv "NODE_PATH" compDir
               (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
-              return $ ExecutedProg (ret, out <> out', err <> err')
+              return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
             _ -> do
               (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
-              return $ ExecutedProg (ret, out <> out', err <> err')
+              return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
         else
-          return $ CompileSucceeded (ExitSuccess, out, err)
+          return $ CompileSucceeded (ProgramResult ExitSuccess out err)
         )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
@@ -220,7 +233,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           absDir <- canonicalizePath dir
           removePaths [absDir, compDir] <$> case ret of
             ExitSuccess -> cont compDir out err
-            ExitFailure _ -> return $ CompileFailed res
+            ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
         argsForComp :: Compiler -> IO [String]
@@ -232,7 +245,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           CompileSucceeded r -> CompileSucceeded (removePaths' r)
           ExecutedProg     r -> ExecutedProg     (removePaths' r)
           where
-          removePaths' (c, out, err) = (c, rm out, rm err)
+          removePaths' (ProgramResult c out err) = ProgramResult c (rm out) (rm err)
 
           rm = foldr (.) id $
                map (\p -> T.concat . T.splitOn (T.pack p)) ps
@@ -257,6 +270,6 @@ getExecForComp JS compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dro
 getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
-printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
-printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" `T.append` printProcResult r
-printExecResult (ExecutedProg r)  = "EXECUTED_PROGRAM\n\n" `T.append` printProcResult r
+printExecResult (CompileFailed r)    = "COMPILE_FAILED\n\n"    <> printProgramResult r
+printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" <> printProgramResult r
+printExecResult (ExecutedProg r)     = "EXECUTED_PROGRAM\n\n"  <> printProgramResult r

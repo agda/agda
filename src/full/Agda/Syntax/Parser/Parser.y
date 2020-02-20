@@ -24,8 +24,10 @@ module Agda.Syntax.Parser.Parser (
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
+import Control.Applicative ( (<|>) )
 import Control.Monad
 
+import Data.Bifunctor (first)
 import Data.Char
 import Data.List
 import Data.Maybe
@@ -41,7 +43,6 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Concrete.Pattern
-import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -55,8 +56,6 @@ import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.Singleton
-import Agda.Utils.Tuple
 import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Impossible
@@ -129,8 +128,6 @@ import Agda.Utils.Impossible
     'Prop'                    { TokKeyword KwProp $$ }
     'public'                  { TokKeyword KwPublic $$ }
     'quote'                   { TokKeyword KwQuote $$ }
-    'quoteContext'            { TokKeyword KwQuoteContext $$ }
-    'quoteGoal'               { TokKeyword KwQuoteGoal $$ }
     'quoteTerm'               { TokKeyword KwQuoteTerm $$ }
     'record'                  { TokKeyword KwRecord $$ }
     'renaming'                { TokKeyword KwRenaming $$ }
@@ -162,6 +159,7 @@ import Agda.Utils.Impossible
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
     'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
+    'NON_COVERING'            { TokKeyword KwNON_COVERING $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $$ }
@@ -259,8 +257,6 @@ Token
     | 'Prop'                    { TokKeyword KwProp $1 }
     | 'public'                  { TokKeyword KwPublic $1 }
     | 'quote'                   { TokKeyword KwQuote $1 }
-    | 'quoteContext'            { TokKeyword KwQuoteContext $1 }
-    | 'quoteGoal'               { TokKeyword KwQuoteGoal $1 }
     | 'quoteTerm'               { TokKeyword KwQuoteTerm $1 }
     | 'record'                  { TokKeyword KwRecord $1 }
     | 'renaming'                { TokKeyword KwRenaming $1 }
@@ -292,6 +288,7 @@ Token
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
+    | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -387,11 +384,12 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
     Helper rules
  --------------------------------------------------------------------------}
 
--- An integer. Used in fixity declarations.
-Int :: { Integer }
-Int : literal   {% case $1 of {
-                     LitNat _ i -> return i;
-                     _          -> parseError $ "Expected integer"
+-- A float. Used in fixity declarations.
+Float :: { Ranged Double }
+Float : literal {% case $1 of
+                   { LitNat   r i -> return $ Ranged r $ fromInteger i
+                   ; LitFloat r i -> return $ Ranged r i
+                   ; _            -> parseError $ "Expected floating point number"
                    }
                 }
 
@@ -461,8 +459,8 @@ ArgIds
 
 -- Modalities preceeding identifiers
 
-ModalArgIds :: { [Arg Name] }
-ModalArgIds : Attributes ArgIds  {% mapM (applyAttrs $1) $2 }
+ModalArgIds :: { ([Attr], [Arg Name]) }
+ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
 
@@ -532,49 +530,33 @@ CommaBIds
 -- at point (x y  it is not clear whether x y is an application or
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
-CommaBIds :: { [NamedArg BoundName] }
+CommaBIds :: { [NamedArg Binder] }
 CommaBIds : CommaBIdAndAbsurds {%
     case $1 of
       Left ns -> return ns
       Right _ -> parseError $ "expected sequence of bound identifiers, not absurd pattern"
     }
 
-CommaBIdAndAbsurds :: { Either [NamedArg BoundName] [Expr] }
+CommaBIdAndAbsurds :: { Either [NamedArg Binder] [Expr] }
 CommaBIdAndAbsurds
   : Application {% boundNamesOrAbsurd $1 }
-  | QId '=' QId {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Left $3) }
-  | '_' '=' QId {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Left $3) }
-  | QId '=' '_' {% fmap (Left . (:[])) $ mkNamedArg (Just $1) (Right $ getRange $3) }
-  | '_' '=' '_' {% fmap (Left . (:[])) $ mkNamedArg Nothing   (Right $ getRange $3) }
+  | QId '=' QId {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Left $3) }
+  | '_' '=' QId {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Left $3) }
+  | QId '=' '_' {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Right $ getRange $3) }
+  | '_' '=' '_' {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Right $ getRange $3) }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
 -- E.g. x {y z} _ {v}
 -- To be used in typed bindings, like (x {y z} _ {v} : Nat).
-BIdsWithHiding :: { [NamedArg BoundName] }
+BIdsWithHiding :: { [NamedArg Binder] }
 BIdsWithHiding : Application {%
-    let -- interpret an expression as name
-        getName :: Expr -> Maybe Name
-        getName (Ident (QName x)) = Just x
-        getName (Underscore r _)  = Just (Name r InScope [Hole])
-        getName _                 = Nothing
-
-        getNames :: Expr -> Maybe [Name]
-        getNames (RawApp _ es) = mapM getName es
-        getNames e             = singleton `fmap` getName e
-
-        -- interpret an expression as name or list of hidden names
-        getName1 :: Expr -> Maybe [Arg Name]
-        getName1 (Ident (QName x)) = Just [defaultArg x]
-        getName1 (Underscore r _)  = Just [defaultArg $ Name r InScope [Hole]]
-        getName1 (HiddenArg _ (Named Nothing e))
-                                   = map (setHiding Hidden . defaultArg) `fmap` getNames e
-        getName1 _                 = Nothing
-
-    in
-    case mapM getName1 $1 of
-        Just good -> return $ (map . fmap) (unnamed . mkBoundName_) $ concat good
-        Nothing   -> parseError $ "expected sequence of possibly hidden bound identifiers"
+  -- interpret an expression as a name and maybe a pattern
+  case mapM exprAsNameOrHiddenNames $1 of
+    Nothing   -> parseError "Expected sequence of possibly hidden bound identifiers"
+    Just good -> forM (concat good) $ updateNamedArgA $ \ (n, me) -> do
+                   p <- traverse exprToPattern me
+                   pure $ Binder p (mkBoundName_ n)
     }
 
 
@@ -633,9 +615,9 @@ Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
-                                              (defaultArg $ RawApp (getRange $1) $1)
+                                              (defaultArg $ rawAppUnlessSingleton (getRange $1) $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ RawApp (getRange ($1,$2)) $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
@@ -668,9 +650,7 @@ Expr2
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
-    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
-    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) [] }
-    | 'tactic' Application3 '|' WithExprs { Tactic (getRange ($1, $2, $3, $4)) (RawApp (getRange $2) $2) $4 }
+    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -707,7 +687,7 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      { HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
@@ -718,17 +698,17 @@ Expr3NoCurly
     | 'Set'                             { Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
-    | 'quoteContext'                    { QuoteContext (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr DoubleCloseBrace        { InstanceArg (getRange ($1,$2,$3)) (maybeNamed $2) }
+    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
+    | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
     | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
     | '...'                             { Ellipsis (getRange $1) }
@@ -994,29 +974,34 @@ DomainFreeBinding
                              Right _ -> parseError "expected sequence of bound identifiers, not absurd pattern"
                           }
 
+MaybeAsPattern :: { Maybe Pattern }
+MaybeAsPattern
+  : '@' Expr3   {% fmap Just (exprToPattern $2) }
+  | {- empty -} { Nothing }
+
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
 DomainFreeBindingAbsurd
-    : BId               { Left [DomainFree $ defaultNamedArg $ mkBoundName_ $1]  }
-    | '.' BId           { Left [DomainFree $ setRelevance Irrelevant $ defaultNamedArg $ mkBoundName_ $2]  }
-    | '..' BId          { Left [DomainFree $ setRelevance NonStrict $ defaultNamedArg $ mkBoundName_ $2]  }
-    | '(' CommaBIdAndAbsurds ')'
-         { mapLeft (map DomainFree) $2 }
+    : BId      MaybeAsPattern { Left [mkDomainFree_ id $2 $1]  }
+    | '.' BId  MaybeAsPattern { Left [mkDomainFree_ (setRelevance Irrelevant) $3 $2]  }
+    | '..' BId MaybeAsPattern { Left [mkDomainFree_ (setRelevance NonStrict) $3 $2]  }
+    | '(' Application ')'     {% exprToPattern (RawApp (getRange $2) $2) >>= \ p ->
+                                 pure $ Left [mkDomainFree_ id (Just p) (Name noRange InScope [Hole])] }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               mapLeft (map (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { mapLeft (map (DomainFree . setHiding Hidden)) $2 }
+         { mapLeft (map (DomainFree . hide)) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree . setHiding Hidden . setTacticAttr $2 . setArgInfo ai)) $3 }
+              mapLeft (map (DomainFree . hide . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance) $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs $2 defaultArgInfo <&> \ ai ->
               Left $ map (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance Irrelevant) $3 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree . hide . setRelevance Irrelevant) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree . setHiding Hidden . setRelevance NonStrict) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree . hide . setRelevance NonStrict) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance NonStrict) $3 }
 
 
@@ -1051,7 +1036,7 @@ ImportDirectives
   | {- empty -}                       { [] }
 
 ImportDirective1 :: { ImportDirective }
-  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
@@ -1079,7 +1064,14 @@ Renamings
 
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
+    : ImportName_ 'to' RenamingTarget { Renaming $1 (setImportedName $1 (snd $3)) (fst $3) (getRange $2) }
+
+RenamingTarget :: { (Maybe Fixity, Name) }
+RenamingTarget
+    : Id                 { (Nothing, $1) }
+    | 'infix'  Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) NonAssoc)  , $3) }
+    | 'infixl' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) LeftAssoc) , $3) }
+    | 'infixr' Float Id  { (Just (Fixity (getRange ($1,$2)) (Related $ rangedThing $2) RightAssoc), $3) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
@@ -1110,26 +1102,29 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 RewriteEquations WithExpressions
-        {% exprToLHS $1 >>= \p -> return (p $2 $3) }
+LHS : Expr1 WithRewriteExpressions
+        {% exprToLHS $1      >>= \p ->
+           buildWithBlock $2 >>= \ (rs, es) ->
+           return (p rs $ map observeHiding es)
+        }
 
-WithExpressions :: { [Expr] }
-WithExpressions
+WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithRewriteExpressions
   : {- empty -} { [] }
-  | 'with' Expr
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+  | 'with' Expr1 WithRewriteExpressions
+    {% fmap (++ $3) (buildWithStmt $2)  }
+  | 'rewrite' Expr1 WithRewriteExpressions
+    { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
 
-RewriteEquations :: { [Expr] }
-RewriteEquations
-  : {- empty -} { [] }
-  | 'rewrite' Expr1
-      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
-
--- Parsing either an expression @e@ or a @rewrite e1 | ... | en@.
+-- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
-  : Expr             { HoleContentExpr    $1 }
-  | RewriteEquations { HoleContentRewrite $1 }
+  : Expr                   {  HoleContentExpr    $1 }
+  | WithRewriteExpressions
+    {% fmap HoleContentRewrite $ forM $1 $ \case
+         Left r  -> pure r
+         Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
+      }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -1149,7 +1144,7 @@ ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
 -- Top-level definitions.
 Declaration :: { [Declaration] }
 Declaration
-    : Fields        {  $1  }
+    : Fields        { [$1] }
     | FunClause     {  $1  }  -- includes type signatures
     | Data          { [$1] }
     | DataSig       { [$1] }  -- lone data type signature in mutual block
@@ -1181,24 +1176,26 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo x $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
 ArgTypeSigs
-  : ModalArgIds ':' Expr { map (fmap (\ x -> typeSig defaultArgInfo x $3)) $1 }
+  : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
+                           map (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
-      let setOverlap x =
+      let (attrs, xs) = $2
+          setOverlap x =
             case getHiding x of
               Instance _ -> return $ makeInstance' YesOverlap x
               _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo x $4)) $2 }
+      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
   | 'instance' ArgTypeSignatures {
     let
-      setInstance (TypeSig info x t) = TypeSig (makeInstance info) x t
+      setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
       setInstance _ = __IMPOSSIBLE__ in
     map (fmap setInstance) $2 }
 
@@ -1217,20 +1214,16 @@ RHS : '=' Expr      { JustRHS (RHS $2) }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 $5 $7 }
-     | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 $5 $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) $2 $3 $5 $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 $5 }
-     | 'codata' Id TypedUntypedBindings 'where'
-            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 $5 }
+            Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) $2 $3 $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
 DataSig : 'data' Id TypedUntypedBindings ':' Expr
-  { DataSig (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 $5 }
+  { DataSig (getRange ($1,$2,$3,$4,$5)) $2 $3 $5 }
 
 -- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
 -- following 'record' is to remove the (harmless) shift/reduce conflict
@@ -1252,37 +1245,37 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id        { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id vclose { ($4, InstanceDef) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) NonAssoc)   $3 }
-      | 'infixl' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) LeftAssoc)  $3 }
-      | 'infixr' Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) RightAssoc) $3 }
+Infix : 'infix'  Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) NonAssoc)   $3 }
+      | 'infixl' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) LeftAssoc)  $3 }
+      | 'infixr' Float SpaceBIds  { Infix (Fixity (getRange ($1,$2,$3)) (Related $ rangedThing $2) RightAssoc) $3 }
 
 -- Field declarations.
-Fields :: { [Declaration] }
-Fields : 'field' ArgTypeSignatures
+Fields :: { Declaration }
+Fields : 'field' ArgTypeSignaturesOrEmpty
             { let
                 inst i = case getHiding i of
-                           Instance _ -> InstanceDef
+                           Instance _ -> InstanceDef noRange  -- no @instance@ keyword here
                            _          -> NotInstanceDef
-                toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
-              in map toField $2 }
+                toField (Arg info (TypeSig info' tac x t)) = FieldSig (inst info') tac x (Arg info t)
+              in Field (fuseRange $1 $2) $ map toField $2 }
   -- | 'field' ModalArgTypeSignatures
   --           { let
   --               inst i = case getHiding i of
   --                          Instance _ -> InstanceDef
   --                          _          -> NotInstanceDef
-  --               toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
-  --             in map toField $2 }
+  --               toField (Arg info (TypeSig info' x t)) = FieldSig (inst info') x (Arg info t)
+  --             in Field (fuseRange $1 $2) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
 Generalize :: { [Declaration] }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
-                toGeneralize (Arg info (TypeSig _ x t)) = TypeSig info x t
+                toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
               in [ Generalize (fuseRange $1 $2) (map toGeneralize $2) ] }
 
 -- Mutually recursive declarations.
@@ -1302,7 +1295,7 @@ Private : 'private' Declarations0        { Private (fuseRange $1 $2) UserWritten
 
 -- Instance declarations.
 Instance :: { Declaration }
-Instance : 'instance' Declarations0  { InstanceB (fuseRange $1 $2) $2 }
+Instance : 'instance' Declarations0  { InstanceB (getRange $1) $2 }
 
 
 -- Macro declarations.
@@ -1360,8 +1353,8 @@ HoleName
   : SimpleTopHole { defaultNamedArg $1 }
   | '{'  SimpleHole '}'  { hide         $ defaultNamedArg $2 }
   | '{{' SimpleHole '}}' { makeInstance $ defaultNamedArg $2 }
-  | '{'  SimpleId '=' SimpleHole '}'  { hide         $ defaultArg $ named $2 $4 }
-  | '{{' SimpleId '=' SimpleHole '}}' { makeInstance $ defaultArg $ named $2 $4 }
+  | '{'  SimpleId '=' SimpleHole '}'  { hide         $ defaultArg $ userNamed $2 $4 }
+  | '{{' SimpleId '=' SimpleHole '}}' { makeInstance $ defaultArg $ userNamed $2 $4 }
 
 SimpleTopHole :: { HoleName }
 SimpleTopHole
@@ -1518,6 +1511,7 @@ DeclarationPragma
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
+  | NonCoveringPragma        { $1 }
   | WarningOnUsagePragma     { $1 }
   | WarningOnImportPragma    { $1 }
   | MeasurePragma            { $1 }
@@ -1538,24 +1532,24 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) $4 }
+      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (mkRString $3) $4 }
     -- Extra rule to accept keyword REWRITE also as built-in:
     | '{-#' 'BUILTIN' 'REWRITE' PragmaQName '#-}'
-      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" $4 }
+      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) (Ranged (getRange $3) "REWRITE") $4 }
 
 RewritePragma :: { Pragma }
 RewritePragma
     : '{-#' 'REWRITE' PragmaQNames '#-}'
-      { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
+      { RewritePragma (getRange ($1,$2,$3,$4)) (getRange $2) $3 }
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (snd $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
 
 CompilePragma :: { Pragma }
 CompilePragma
   : '{-#' 'COMPILE' string PragmaQName PragmaStrings '#-}'
-    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (snd $3) $4 (unwords $5) }
+    { CompilePragma (getRange ($1,$2,fst $3,$4,$6)) (mkRString $3) $4 (unwords $5) }
 
 StaticPragma :: { Pragma }
 StaticPragma
@@ -1603,6 +1597,11 @@ TerminatingPragma
   : '{-#' 'TERMINATING' '#-}'
     { TerminationCheckPragma (getRange ($1,$2,$3)) Terminating }
 
+NonCoveringPragma :: { Pragma }
+NonCoveringPragma
+  : '{-#' 'NON_COVERING' '#-}'
+    { NoCoverageCheckPragma (getRange ($1,$2,$3)) }
+
 MeasurePragma :: { Pragma }
 MeasurePragma
   : '{-#' 'MEASURE' PragmaName '#-}'
@@ -1614,9 +1613,10 @@ CatchallPragma
   : '{-#' 'CATCHALL' '#-}'
     { CatchallPragma (getRange ($1,$2,$3)) }
 
-
 ImpossiblePragma :: { Pragma }
-  : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (getRange ($1,$2,$3)) }
+ImpossiblePragma
+  : '{-#' 'IMPOSSIBLE' '#-}'
+    { ImpossiblePragma (getRange ($1,$2,$3)) }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
@@ -1917,6 +1917,14 @@ mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
 
+-- | Create a DomainFree binding from a name
+
+mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> LamBinding
+mkDomainFree_ f p n = DomainFree $ f $ defaultNamedArg $ Binder p $ mkBoundName_ n
+
+mkRString :: (Interval, String) -> RString
+mkRString (i, s) = Ranged (getRange i) s
+
 -- | Create a qualified name from a string (used in pragmas).
 --   Range of each name component is range of whole string.
 --   TODO: precise ranges!
@@ -1929,8 +1937,8 @@ pragmaQName (r, s) = do
 mkNamedArg :: Maybe QName -> Either QName Range -> Parser (NamedArg BoundName)
 mkNamedArg x y = do
   lbl <- case x of
-           Nothing        -> return $ Just $ unranged "_"
-           Just (QName x) -> return $ Just $ Ranged (getRange x) (prettyShow x)
+           Nothing        -> return $ Just $ WithOrigin UserWritten $ unranged "_"
+           Just (QName x) -> return $ Just $ WithOrigin UserWritten $ Ranged (getRange x) $ prettyShow x
            _              -> parseError "expected unqualified variable name"
   var <- case y of
            Left (QName y) -> return $ mkBoundName y noFixity'
@@ -1979,53 +1987,131 @@ isName s (_,s')
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
 
+-- | Builds a 'RawApp' from 'Range' and 'Expr' list, unless the list
+-- is a single expression.  In the latter case, just the 'Expr' is
+-- returned.
+rawAppUnlessSingleton :: Range -> [Expr] -> Expr
+rawAppUnlessSingleton r = \case
+  []  -> __IMPOSSIBLE__
+  [e] -> e
+  es  -> RawApp r es
+
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding
 addType (DomainFull b) = b
 addType (DomainFree x) = TBind r [x] $ Underscore r Nothing
   where r = getRange x
 
-boundNamesOrAbsurd :: [Expr] -> Parser (Either [NamedArg BoundName] [Expr])
+-- | Interpret an expression as a list of names and (not parsed yet) as-patterns
+
+exprAsTele :: Expr -> [Expr]
+exprAsTele (RawApp _ es) = es
+exprAsTele e             = [e]
+
+exprAsNamesAndPatterns :: Expr -> Maybe [(Name, Maybe Expr)]
+exprAsNamesAndPatterns = mapM exprAsNameAndPattern . exprAsTele
+
+exprAsNameAndPattern :: Expr -> Maybe (Name, Maybe Expr)
+exprAsNameAndPattern (Ident (QName x)) = Just (x, Nothing)
+exprAsNameAndPattern (Underscore r _)  = Just (Name r InScope [Hole], Nothing)
+exprAsNameAndPattern (As _ n e)        = Just (n, Just e)
+exprAsNameAndPattern (Paren r e)       = Just (Name r InScope [Hole], Just e)
+exprAsNameAndPattern _                 = Nothing
+
+-- interpret an expression as name or list of hidden / instance names
+exprAsNameOrHiddenNames :: Expr -> Maybe [NamedArg (Name, Maybe Expr)]
+exprAsNameOrHiddenNames t = case t of
+  HiddenArg _ (Named Nothing e) -> do
+    nps <- exprAsNamesAndPatterns e
+    pure $ map (hide . defaultNamedArg) nps
+  InstanceArg _ (Named Nothing e) -> do
+    nps <- exprAsNamesAndPatterns e
+    pure $ map (makeInstance . defaultNamedArg) nps
+  e -> (pure . defaultNamedArg) `fmap` exprAsNameAndPattern e
+
+boundNamesOrAbsurd :: [Expr] -> Parser (Either [NamedArg Binder] [Expr])
 boundNamesOrAbsurd es
   | any isAbsurd es = return $ Right es
   | otherwise       =
-    case mapM getBName es of
-        Just good -> return $ Left $ map defaultNamedArg good
+    case mapM exprAsNameAndPattern es of
         Nothing   -> parseError $ "expected sequence of bound identifiers"
-  where
-    getName :: Expr -> Maybe Name
-    getName (Ident (QName x)) = Just x
-    getName (Underscore r _)  = Just $ Name r NotInScope [Hole]
-    getName _                 = Nothing
+        Just good -> fmap Left $ forM good $ \ (n, me) -> do
+                       p <- traverse exprToPattern me
+                       return (defaultNamedArg (Binder p (mkBoundName_ n)))
 
-    getBName :: Expr -> Maybe BoundName
-    getBName e = fmap mkBoundName_ $ getName e
+  where
 
     isAbsurd :: Expr -> Bool
     isAbsurd (Absurd _)                  = True
     isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
     isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
-    isAbsurd (Paren _ expr)              = isAbsurd expr
-    isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
+    isAbsurd (Paren _ e)                 = isAbsurd e
+    isAbsurd (As _ _ e)                  = isAbsurd e
+    isAbsurd (RawApp _ es)               = any isAbsurd es
     isAbsurd _                           = False
 
--- | Build a do-statement
-buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (RawApp r [e]) cs = buildDoStmt e cs
-buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt (RawApp r es) cs
+-- | Match a pattern-matching "assignment" statement @p <- e@
+exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
+exprToAssignment (RawApp r es)
   | (es1, arr : es2) <- break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> DoBind (getRange arr)
-              <$> exprToPattern (RawApp (getRange es1) es1)
-              <*> pure (RawApp (getRange es2) es2)
-              <*> pure cs
+      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) es1)
+                           <*> pure (getRange arr)
+                           <*> pure (RawApp (getRange es2) es2))
   where
-    isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = elem arr ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
-buildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
-buildDoStmt e [] = return $ DoThen e
+exprToAssignment _ = pure Nothing
+
+-- | Build a with-block
+buildWithBlock :: [Either RewriteEqn [Expr]] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock rees = case groupByEither rees of
+  (Left rs : rest) -> (rs,) <$> finalWith rest
+  rest             -> ([],) <$> finalWith rest
+
+  where
+
+    finalWith :: [Either [RewriteEqn] [[Expr]]] -> Parser [Expr]
+    finalWith []             = pure $ []
+    finalWith [Right ees]    = pure $ concat ees
+    finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
+      "Cannot use rewrite / pattern-matching with after a with-abstraction."
+
+-- | Build a with-statement
+buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
+buildWithStmt e = do
+  es <- mapM buildSingleWithStmt $ fromWithApp e
+  let ees = groupByEither es
+  pure $ map (mapLeft (Invert ())) ees
+
+buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt e = do
+  mpatexpr <- exprToAssignment e
+  pure $ case mpatexpr of
+    Just (pat, _, expr) -> Left (pat, expr)
+    Nothing             -> Right e
+
+fromWithApp :: Expr -> [Expr]
+fromWithApp = \case
+  WithApp _ e es -> e : es
+  e              -> [e]
+
+-- | Build a do-statement
+defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern matching do-statements can have where clauses."
+defaultBuildDoStmt e []      = pure $ DoThen e
+
+buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
+buildDoStmt (RawApp r [e])     cs = buildDoStmt e cs
+buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
+buildDoStmt e@(RawApp r es)    cs = do
+  mpatexpr <- exprToAssignment e
+  case mpatexpr of
+    Just (pat, r, expr) -> pure $ DoBind r pat expr cs
+    Nothing -> defaultBuildDoStmt e cs
+buildDoStmt e cs = defaultBuildDoStmt e cs
+
 
 mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
 mergeImportDirectives is = do
@@ -2040,7 +2126,7 @@ mergeImportDirectives is = do
         , using          = mappend (using i1) (using i2)
         , hiding         = hiding i1 ++ hiding i2
         , impRenaming    = impRenaming i1 ++ impRenaming i2
-        , publicOpen     = publicOpen i1 || publicOpen i2 }
+        , publicOpen     = publicOpen i1 <|> publicOpen i2 }
 
 -- | Check that an import directive doesn't contain repeated names
 verifyImportDirective :: ImportDirective -> Parser ImportDirective
@@ -2122,40 +2208,15 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([Expr] -> [Expr] -> LHS)
-exprToLHS e = LHS <$> exprToPattern e
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
+exprToLHS e = (\e rwr wth -> LHS e rwr wth NoEllipsis) <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
-exprToPattern e = do
-    let failure = parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
-    case e of
-        Ident x                 -> return $ IdentP x
-        App _ e1 e2             -> AppP <$> exprToPattern e1
-                                        <*> T.mapM (T.mapM exprToPattern) e2
-        Paren r e               -> ParenP r
-                                        <$> exprToPattern e
-        Underscore r _          -> return $ WildP r
-        Absurd r                -> return $ AbsurdP r
-        As r x e                -> AsP r x <$> exprToPattern e
-        Dot r (HiddenArg _ e)   -> return $ HiddenP r $ fmap (DotP r) e
-        Dot r e                 -> return $ DotP r e
-        Lit l                   -> return $ LitP l
-        HiddenArg r e           -> HiddenP r <$> T.mapM exprToPattern e
-        InstanceArg r e         -> InstanceP r <$> T.mapM exprToPattern e
-        RawApp r es             -> RawAppP r <$> mapM exprToPattern es
-        Quote r                 -> return $ QuoteP r
-        Rec r es | Just fs <- mapM maybeLeft es -> do
-          RecP r <$> T.mapM (T.mapM exprToPattern) fs
-        Equal r e1 e2           -> return $ EqualP r [(e1, e2)]
-        Ellipsis r              -> return $ EllipsisP r
-        -- WithApp has already lost the range information of the bars '|'
-        WithApp r e es          -> do
-          p  <- exprToPattern e
-          ps <- forM es $ \ e -> defaultNamedArg . WithP (getRange e) <$> exprToPattern e  -- TODO #2822: Range!
-          return $ foldl AppP p ps
-        _ -> failure
+exprToPattern e = case C.isPattern e of
+  Nothing -> parseErrorRange e $ "Not a valid pattern: " ++ prettyShow e
+  Just p  -> pure p
 
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
 opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"
@@ -2177,21 +2238,31 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named_ Expr
+-- | When given expression is @e1 = e2@, turn it into a named expression.
+--   Call this inside an implicit argument @{e}@ or @{{e}}@, where
+--   an equality must be a named argument (rather than a cubical partial match).
+maybeNamed :: Expr -> Parser (Named_ Expr)
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named (Ranged (getRange x) (nameToRawName x)) b
-    _                         -> unnamed e
+    Nothing       -> return $ unnamed e
+    Just (e1, e2) -> do
+      let succeed x = return $ named (WithOrigin UserWritten $ Ranged (getRange e1) x) e2
+      case e1 of
+        Ident (QName x) -> succeed $ nameToRawName x
+        -- We could have the following, but names of arguments cannot be _.
+        -- Underscore{}    -> succeed $ "_"
+        _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
 patternSynArgs = mapM pSynArg
   where
-    pSynArg Left{}                   = parseError "Absurd patterns are not allowed in pattern synonyms"
-    pSynArg (Right DomainFull{})     = parseError "Unexpected type signature in pattern synonym argument"
+    pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
+    pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
     pSynArg (Right (DomainFree x))
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden] = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | getRelevance x /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise                                 = return $ fmap (boundName . namedThing) x
+      | let h = getHiding x, h `notElem` [Hidden, NotHidden]
+         = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
+      | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
+      | otherwise          = return $ fmap (boundName . binderName . namedThing) x
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
@@ -2221,24 +2292,24 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
       return [FunClause lhs rhs wh False]
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
-        LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
-        LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
-        LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
-        LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] []  -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p _ _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
+        LHS _ _ (_:_) _ -> parseError "Illegal: with in type signature"
+        LHS _ (_:_) _ _ -> parseError "Illegal: rewrite in type signature"
+        LHS p _ _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
+        LHS p [] [] _  -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
-          return $ typeSig info x e
+          return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s [FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca] | null (parseInp s) ->
+    ParseOk s [FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
-typeSig :: ArgInfo -> Name -> Expr -> Declaration
-typeSig i n e = TypeSig i n (Generalized e)
+typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
+typeSig i tac n e = TypeSig i tac n (Generalized e)
 
 -- * Attributes
 
@@ -2283,12 +2354,19 @@ applyAttrs rattrs arg = do
   checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
   foldM (flip applyAttr) arg attrs
 
--- | Set the tactic attribute if present.
-setTacticAttr :: [Attr] -> NamedArg BoundName -> NamedArg BoundName
-setTacticAttr as = (fmap . fmap) $ \ b ->
+-- | Set the tactic attribute of a binder
+setTacticAttr :: [Attr] -> NamedArg Binder -> NamedArg Binder
+setTacticAttr as = updateNamedArg $ fmap $ \ b ->
+  case getTacticAttr as of
+    Just t  -> b { bnameTactic = Just t }
+    Nothing -> b
+
+-- | Get the tactic attribute if present.
+getTacticAttr :: [Attr] -> TacticAttribute
+getTacticAttr as =
   case tacticAttributes [ a | Attr _ _ a <- as ] of
-    [TacticAttribute e] -> b{ bnameTactic = Just e }
-    []                  -> b
+    [TacticAttribute e] -> Just e
+    []                  -> Nothing
     _                   -> __IMPOSSIBLE__
 
 -- | Report a parse error if two attributes in the list are of the same kind,

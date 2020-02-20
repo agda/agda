@@ -18,4 +18,7 @@ Current rewriting:
 
 Desired rewriting:
   bug .l k (itt l) | itt .k = ?
+
+Jesper, 2019-11-21, new rewriting:
+  ... | itt .k = ?
 -}

@@ -22,6 +22,9 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import System.Directory ( createDirectoryIfMissing )
+import System.FilePath ( takeDirectory )
+
 import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
@@ -45,13 +48,12 @@ import qualified Codec.Compression.GZip as G
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances ()
+import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Hash
 import Agda.Utils.IORef
-import Agda.Utils.Lens
 
 import Agda.Utils.Except
 
@@ -60,7 +62,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20190617 * 10 + 0
+currentInterfaceVersion = 20200206 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -202,7 +204,10 @@ encodeInterface i = L.append hashes <$> encode i
 -- positions are replaced with module names.
 
 encodeFile :: FilePath -> Interface -> TCM ()
-encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
+encodeFile f i = do
+  bs <- encodeInterface i
+  liftIO $ createDirectoryIfMissing True (takeDirectory f)
+  liftIO $ L.writeFile f bs
 
 -- | Decodes something. The result depends on the include path.
 --

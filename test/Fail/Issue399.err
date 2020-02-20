@@ -1,25 +1,18 @@
 Failed to solve the following constraints:
-  [42, 43] _9 (m = Maybe) (mzero = (λ {a} → mymaybemzero))
-             =< Maybe a₁
-             : _7 (m = Maybe) (mzero = mymaybemzero)
-  [42, 44] _12 (m = Maybe) (mzero = (λ {a} → mymaybemzero))
-             =< Maybe a₁
-             : _10 (m = Maybe) (mzero = mymaybemzero)
-  _10 (m = Maybe) (mzero = mymaybemzero) = Set
-  piSort (_10 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
   _7 (m = Maybe) (mzero = mymaybemzero) = Set
-  piSort (_7 (m = Maybe) (mzero = mymaybemzero)) (λ _ → Set) = Set
-  [37, 38] _4 (m = Maybe) =< Maybe a : _2 (m = Maybe)
+  _10 (m = Maybe) (mzero = mymaybemzero) = Set
+  _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
+  _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
   _2 (m = Maybe) = Set
-  piSort (_2 (m = Maybe)) (λ _ → Set) = Set
-  [34] Set _a_30 → Set _a_30 =< _1 : Set (Agda.Primitive.lsuc _a_30)
+  _4 (m = Maybe) =< Maybe a
   Set (Agda.Primitive.lsuc _a_30) = _0
+  Set _a_30 → Set _a_30 =< _1
   piSort Set₁
   (λ a →
-     piSort (_7 (m = m) (mzero = mzero))
-     (λ _ → piSort (_10 (m = m) (mzero = mzero)) (λ _ → Set)))
+     funSort (_7 (m = m) (mzero = mzero))
+     (funSort (_10 (m = m) (mzero = mzero)) Set))
     =< Set₁
-  piSort Set₁ (λ a → piSort (_2 (m = m)) (λ _ → Set)) =< Set₁
+  piSort Set₁ (λ a → funSort (_2 (m = m)) Set) =< Set₁
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33

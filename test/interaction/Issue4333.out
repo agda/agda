@@ -1,0 +1,10 @@
+Checking Issue4333.M (Issue4333/M.agda).
+Checking Issue4333.N0 (Issue4333/N0.agda).
+Checking Issue4333.N1 (Issue4333/N1.agda).
+Checking Issue4333.N (Issue4333/N.agda).
+Issue4333/N.agda:6,1-25
+Confluence check failed: Issue4333.M.a reduces to both
+Issue4333.M.a₁' and Issue4333.M.a₀' which are not equal because
+Issue4333.M.a₁' != Issue4333.M.a₀' of type Issue4333.M.A
+when checking confluence of the rewrite rule Issue4333.M.p₁ with
+Issue4333.M.p₀

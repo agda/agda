@@ -1,5 +1,5 @@
 Issue2001.agda:20,10-15
 Cannot eliminate type P x with constructor pattern {nat n} (did you
 supply too many arguments?)
-when checking that the clause .extendedlambda0 {nat n} = g has type
-P x
+when checking the clause left hand side
+.extendedlambda0 {nat n}

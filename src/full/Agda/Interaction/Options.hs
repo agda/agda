@@ -1,11 +1,12 @@
 {-# LANGUAGE CPP       #-}
+{-# LANGUAGE DataKinds #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
-    , Verbosity
+    , Verbosity, VerboseKey, VerboseLevel
     , HtmlHighlight(..)
     , WarningMode(..)
     , checkOpts
@@ -32,15 +33,13 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( (>=>), when )
+import Control.Monad            ( when )
 import Control.Monad.Trans
 
 import Data.IORef
-import Data.Either
 import Data.Function
 import Data.Maybe
-import Data.List                ( isSuffixOf , intercalate )
-import Data.Set                 ( Set )
+import Data.List                ( intercalate )
 import qualified Data.Set as Set
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
@@ -68,7 +67,6 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM, readM )
-import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -77,11 +75,11 @@ import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
 
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
-
 -- OptDescr is a Functor --------------------------------------------------
 
-type Verbosity = Trie String Int
+type VerboseKey   = String
+type VerboseLevel = Int
+type Verbosity    = Trie VerboseKey VerboseLevel
 
 data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
   deriving (Show, Eq)
@@ -120,11 +118,13 @@ data CommandLineOptions = Options
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
   , optIgnoreAllInterfaces :: Bool
-  , optForcing          :: Bool
+  , optLocalInterfaces     :: Bool
   , optPragmaOptions    :: PragmaOptions
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
+  , optWithCompiler     :: Maybe FilePath
+    -- ^ Use the compiler at PATH instead of ghc / js / etc.
   }
   deriving Show
 
@@ -137,6 +137,7 @@ data PragmaOptions = PragmaOptions
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optAllowUnsolved             :: Bool
+  , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: CutOff
@@ -144,6 +145,7 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
+  , optCumulativity              :: Bool
   , optSizedTypes                :: WithDefault 'True
   , optGuardedness               :: WithDefault 'True
   , optInjectiveTypeConstructors :: Bool
@@ -155,17 +157,23 @@ data PragmaOptions = PragmaOptions
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
   , optEta                       :: Bool
+  , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
+  , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
+  , optKeepPatternVariables      :: Bool
+      -- ^ Should case splitting replace variables with dot patterns
+      --   (False) or keep them as variables (True).
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
   , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
+  , optCompareSorts              :: Bool  -- ^ Should conversion checker compare sorts of types?
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -180,6 +188,8 @@ data PragmaOptions = PragmaOptions
     -- ^ Use the Agda abstract machine (fastReduce)?
   , optConfluenceCheck           :: Bool
     -- ^ Check confluence of rewrite rules?
+  , optFlatSplit                 :: Bool
+     -- ^ Can we split on a (x :{flat} A) argument?
   }
   deriving (Show, Eq)
 
@@ -228,9 +238,10 @@ defaultOptions = Options
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
   , optIgnoreAllInterfaces = False
-  , optForcing          = True
+  , optLocalInterfaces     = False
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
+  , optWithCompiler      = Nothing
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -243,12 +254,14 @@ defaultPragmaOptions = PragmaOptions
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
+  , optAllowIncompleteMatch      = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
   , optTerminationDepth          = defaultCutOff
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
+  , optCumulativity              = False
   , optSizedTypes                = Default
   , optGuardedness               = Default
   , optInjectiveTypeConstructors = False
@@ -258,15 +271,19 @@ defaultPragmaOptions = PragmaOptions
   , optPatternMatching           = True
   , optExactSplit                = False
   , optEta                       = True
+  , optForcing                   = True
+  , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
   , optPostfixProjections        = False
+  , optKeepPatternVariables      = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optDoubleCheck               = False
   , optSyntacticEquality         = True
+  , optCompareSorts              = True
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -275,6 +292,7 @@ defaultPragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
   , optConfluenceCheck           = False
+  , optFlatSplit                 = True
   }
 
 -- | The default termination depth.
@@ -364,6 +382,7 @@ checkOpts opts
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+  [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
@@ -377,6 +396,7 @@ unsafePragmaOptions opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   [ "--cubical and --with-K"                     | optCubical opts
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--cumulativity"                             | optCumulativity opts              ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -388,10 +408,12 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
+  , (B . optCumulativity, "--cumulativity")
   , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
@@ -408,6 +430,7 @@ restartOptions =
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
   , (B . not . optSyntacticEquality, "--no-syntactic-equality")
+  , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
   , (I . optInstanceSearchDepth, "--instance-search-depth")
@@ -439,6 +462,7 @@ coinfectiveOptions =
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (not . collapseDefault . optGuardedness, "--no-guardedness")
+  , (not . optCumulativity, "--no-cumulativity")
   ]
 
 inputFlag :: FilePath -> Flag CommandLineOptions
@@ -466,11 +490,20 @@ safeFlag o = do
              , optSizedTypes  = setDefault False sizedTypes
              }
 
+flatSplitFlag :: Flag PragmaOptions
+flatSplitFlag o = return $ o { optFlatSplit = True }
+
+noFlatSplitFlag :: Flag PragmaOptions
+noFlatSplitFlag o = return $ o { optFlatSplit = False }
+
 doubleCheckFlag :: Flag PragmaOptions
 doubleCheckFlag o = return $ o { optDoubleCheck = True }
 
 noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
+
+noSortComparisonFlag :: Flag PragmaOptions
+noSortComparisonFlag o = return $ o { optCompareSorts = False }
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ _ = throwError $
@@ -500,11 +533,21 @@ ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
 ignoreAllInterfacesFlag :: Flag CommandLineOptions
 ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
+localInterfacesFlag :: Flag CommandLineOptions
+localInterfacesFlag o = return $ o { optLocalInterfaces = True }
+
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
   let upd = over warningSet (Set.\\ unsolvedWarnings)
   return $ o { optAllowUnsolved = True
              , optWarningMode   = upd (optWarningMode o)
+             }
+
+allowIncompleteMatchFlag :: Flag PragmaOptions
+allowIncompleteMatchFlag o = do
+  let upd = over warningSet (Set.\\ incompleteMatchWarnings)
+  return $ o { optAllowIncompleteMatch = True
+             , optWarningMode          = upd (optWarningMode o)
              }
 
 showImplicitFlag :: Flag PragmaOptions
@@ -579,8 +622,15 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
-etaFlag :: Flag PragmaOptions
-etaFlag o = return $ o { optEta = True }
+cumulativityFlag :: Flag PragmaOptions
+cumulativityFlag o = return $ o { optCumulativity = True }
+
+noCumulativityFlag :: Flag PragmaOptions
+noCumulativityFlag o = return $ o { optCumulativity = False }
+
+--UNUSED Liang-Ting Chen 2019-07-16
+--etaFlag :: Flag PragmaOptions
+--etaFlag o = return $ o { optEta = True }
 
 noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
@@ -610,8 +660,11 @@ universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
 noUniversePolymorphismFlag :: Flag PragmaOptions
 noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
 
-noForcingFlag :: Flag CommandLineOptions
+noForcingFlag :: Flag PragmaOptions
 noForcingFlag o = return $ o { optForcing = False }
+
+noProjectionLikeFlag :: Flag PragmaOptions
+noProjectionLikeFlag o = return $ o { optProjectionLike = False }
 
 withKFlag :: Flag PragmaOptions
 withKFlag o = return $ o { optWithoutK = Value False }
@@ -654,6 +707,9 @@ cubicalFlag o = do
 
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
+
+keepPatternVariablesFlag :: Flag PragmaOptions
+keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
@@ -712,7 +768,9 @@ libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
 overrideLibrariesFileFlag s o = do
   ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s
+                         , optUseLibs = True
+                         })
     {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
@@ -750,6 +808,12 @@ confluenceCheckFlag o = return $ o { optConfluenceCheck = True }
 
 noConfluenceCheckFlag :: Flag PragmaOptions
 noConfluenceCheckFlag o = return $ o { optConfluenceCheck = False }
+
+withCompilerFlag :: FilePath -> Flag CommandLineOptions
+withCompilerFlag fp o = case optWithCompiler o of
+ Nothing -> pure o { optWithCompiler = Just fp }
+ Just{}  -> throwError "only one compiler path allowed"
+
 
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s =
@@ -795,6 +859,8 @@ standardOptions =
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
+    , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
+                    "put interface files next to the Agda files they correspond to"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
@@ -805,10 +871,10 @@ standardOptions =
                     "don't use any library files"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
-    , Option []     ["no-forcing"] (NoArg noForcingFlag)
-                    "disable the forcing optimisation"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
+    , Option []     ["with-compiler"] (ReqArg withCompilerFlag "PATH")
+                    "use the compiler available at PATH"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''
@@ -840,6 +906,8 @@ pragmaOptions =
                     "set verbosity level to N"
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
+    , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)
+                    "succeed and create interface file regardless of incomplete pattern matches"
     , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
                     "do not warn about not strictly positive data types"
     , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)
@@ -850,6 +918,10 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
+    , Option []     ["cumulativity"] (NoArg cumulativityFlag)
+                    "enable subtyping of universes (e.g. Set =< Set₁)"
+    , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
+                    "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
@@ -858,6 +930,10 @@ pragmaOptions =
                     "enable sized types (default, inconsistent with --guardedness)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
+    , Option []     ["flat-split"] (NoArg flatSplitFlag)
+                    "allow split on (x :{flat} A) arguments (default)"
+    , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
+                    "disable split on (x :{flat} A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
@@ -890,6 +966,10 @@ pragmaOptions =
                     "do not require all clauses in a definition to hold as definitional equalities (default)"
     , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "default records to no-eta-equality"
+    , Option []     ["no-forcing"] (NoArg noForcingFlag)
+                    "disable the forcing analysis for data constructors (optimisation)"
+    , Option []     ["no-projection-like"] (NoArg noProjectionLikeFlag)
+                    "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)
@@ -900,6 +980,8 @@ pragmaOptions =
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
+    , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
+                    "don't replace variables with dot patterns during case splitting"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
@@ -914,6 +996,8 @@ pragmaOptions =
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
+    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
+                    "disable the comparison of sorts when checking conversion of types"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)

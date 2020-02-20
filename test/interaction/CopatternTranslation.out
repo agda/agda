@@ -9,6 +9,6 @@
 (agda2-status-action "Checked")
 (agda2-info-action "*Normal Form*" "λ x → dup x" nil)
 (agda2-status-action "Checked")
-(agda2-info-action "*Normal Form*" "λ {_} x → x , x" nil)
+(agda2-info-action "*Normal Form*" "λ x → x , x" nil)
 (agda2-status-action "Checked")
 (agda2-info-action "*Normal Form*" "λ x → x , x" nil)

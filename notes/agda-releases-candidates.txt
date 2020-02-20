@@ -1,13 +1,11 @@
+Tested with `cabal-install 3.0.0.0`.
+
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds have no errors.
+* Verify that the Travis builds and GitHub actions have no errors.
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.txt.
-
-  Copy the contents of the release notes to the top of the CHANGELOG
-  file.
+* Finish the release notes in the CHANGELOG.
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
@@ -48,8 +46,6 @@ followed:
 
     git checkout -b release-$MAJORVERSION
 
-* Added the branch release-$MAJORVERSION to Travis.
-
 * The version of the RC is $VERSION + current date
 
     RC_VERSION=<current-released-version-current-date-eg-2.4.0.2.20150913>
@@ -76,20 +72,25 @@ followed:
 
 * Remove the Cabal test-suite from Agda.cabal.
 
+* Added to the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
+
 * Update the user manual:
 
     make user-manual-pdf
 
 * Build source distributions:
 
-    cabal configure
+    cabal v1-configure
     cabal check
-    cabal sdist
+    cabal v1-sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal haddock --for-hackage
+    cabal v1-haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -98,9 +99,9 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$RC_VERSION.tar.gz
     cd Agda-$RC_VERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
+    cabal install --program-suffix=-$RC_VERSION
+    agda-$RC_VERSION --version
+    agda-mode-$RC_VERSION compile
 
 * Tag the release candidate (do not forget to record the changes above
   first):
@@ -108,11 +109,16 @@ followed:
     cd $BASE
     git tag -a v$RC_VERSION -m "Agda $MAJORVERSION release candidate"
 
-* Upload to Hackage the RC (tested with cabal-install >= 2.0.0.0):
+* Upload to Hackage the RC:
 
     cd $BASE
     cabal upload dist/Agda-$RC_VERSION.tar.gz
     cabal upload -d dist/Agda-$RC_VERSION-docs.tar.gz
+
+* Remove from the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
 
 * Restore the Cabal test-suite in Agda.cabal.
 

@@ -11,10 +11,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Monad
-
-import Agda.Utils.Impossible
-
 -- | Eta-expand a term if its type is a function type or an eta-record type.
 etaExpandOnce
   :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
@@ -34,7 +30,7 @@ etaExpandOnce a v = reduce a >>= \case
 -- | Eta-expand functions and expressions of eta-record
 -- type wherever possible.
 deepEtaExpand :: Term -> Type -> TCM Term
-deepEtaExpand = checkInternal' etaExpandAction
+deepEtaExpand v a = checkInternal' etaExpandAction v CmpLeq a
 
 etaExpandAction
   :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)

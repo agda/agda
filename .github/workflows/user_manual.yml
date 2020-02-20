@@ -1,0 +1,47 @@
+name: User Manual
+
+on:
+  push:
+    paths:
+    - 'doc/user-manual/**'
+    - '.github/workflows/user_manual.yml'
+  pull_request:
+    paths:
+    - 'doc/user-manual/**'
+    - '.github/workflows/user_manual.yml'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip install -r doc/user-manual/requirements.txt
+    - name: Install texlive and LaTeX packages
+      run: |
+        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz
+        tar xzf /tmp/texlive.tar.gz -C ~
+        tlmgr update --self
+        tlmgr install latex anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace
+    - name: Build User Manual in HTML
+      run: |
+        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        make user-manual-html
+    - name: Build User Manual in PDF
+      run: |
+        export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
+        make user-manual-pdf
+    - uses: actions/upload-artifact@master
+      with:
+        name: user-manual-pdf
+        path: doc/user-manual.pdf

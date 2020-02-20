@@ -1,10 +1,9 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
-import Control.Monad.State
-import Data.Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 
 import Agda.Compiler.Common
@@ -22,11 +21,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Lens
-import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
-import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible

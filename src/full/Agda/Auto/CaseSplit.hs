@@ -4,7 +4,7 @@ module Agda.Auto.CaseSplit where
 
 import Data.IORef
 import Data.Tuple (swap)
-import Data.List (findIndex, union)
+import Data.List (findIndex)
 import Data.Monoid ((<>), Sum(..))
 import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
@@ -100,8 +100,6 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
   rc depth nscrutavoid ctx tt pats = do
 
     mblkvar <- getblks tt
-
-
     fork
      mblkvar
    where
@@ -190,7 +188,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
                               * Cost (depthofvar scrut pats)
                          else costCaseSplitVeryHigh
                         else
-                         if elem scrut mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
+                         if scrut `elem` mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
 
                  nothid = let HI hid _ = ctx !! scrut
                           in hid == NotHidden
@@ -331,9 +329,9 @@ instance Unify o (Exp o) where
                                                            >> unify' b1 b2
    (Sort _, Sort _) -> return () -- a bit sloppy
    (App _ _ (Var v) (NotM ALNil), _)
-     | elem v (freevars e2) -> St.lift Nothing -- Occurs check
+     | v `Set.member` (freeVars e2) -> St.lift Nothing -- Occurs check
    (_, App _ _ (Var v) (NotM ALNil))
-     | elem v (freevars e1) -> St.lift Nothing -- Occurs check
+     | v `Set.member` (freeVars e1) -> St.lift Nothing -- Occurs check
    (App _ _ (Var v) (NotM ALNil), _) -> unifyVar v e2
    (_, App _ _ (Var v) (NotM ALNil)) -> unifyVar v e1
    _ -> St.lift Nothing
@@ -580,7 +578,7 @@ localTerminationSidecond (is, size, vars) reccallc b =
 
      okcall i size vars as = mmpcase (False, prioNo, Nothing) as $ \as -> case as of
       ALNil -> mpret OK
-      ALCons _ a as | elem i is ->
+      ALCons _ a as | i `elem` is ->
        mbpcase prioNo Nothing (he size vars a) $ \x -> case x of
         Nothing -> mpret $ Error "localTerminationSidecond: reccall not ok"
         Just (size', vars') -> okcall (i + 1) size' vars' as

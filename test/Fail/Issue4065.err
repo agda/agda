@@ -1,0 +1,3 @@
+Issue4065.agda:13,3-39
+Unsolved constraints
+when checking the module application module T F = R (r (λ ℓ → F ℓ))

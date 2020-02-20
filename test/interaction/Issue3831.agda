@@ -16,18 +16,17 @@ postulate
   whatever : ∀ {a} {A : Set a} → A
 
 macro
-  test : Nat → Term → TC _
-  test n _ =
+  test1 : Nat → Term → TC _
+  test1 n _ =
+    extendContext (vArg (quoteTerm Nat)) do
+      var₀ i ← quoteTC n where _ → whatever
+      m ← unquoteTC {A = Nat} (var₀ 0)
+      var₀ j ← quoteTC m where _ → whatever
       extendContext (vArg (quoteTerm Nat)) do
-        var₀ i ← quoteTC n where _ → whatever
-        m ← unquoteTC {A = Nat} (var₀ 0)
-        var₀ j ← quoteTC m where _ → whatever
-        extendContext (vArg (quoteTerm Nat)) do
-          var₀ k ← quoteTC n where _ → whatever
-          var₀ l ← quoteTC m where _ → whatever
-          typeError (strErr (show i ++ show k ++ show j ++ show l) ∷ [])
+        var₀ k ← quoteTC n where _ → whatever
+        var₀ l ← quoteTC m where _ → whatever
+        typeError (strErr (show i ++ show k ++ show j ++ show l) ∷ [])
 
-macro
   test2 : Term → TC _
   test2 hole = do
     st ← quoteTC Set
@@ -38,3 +37,14 @@ macro
         return tt
     u ← quoteTC t
     unify hole u
+
+  test3 : Nat → Term → TC _
+  test3 n _ = do
+    m      ← extendContext (vArg (quoteTerm Nat)) (return n)
+    var₀ i ← quoteTC m where _ → whatever
+    typeError (strErr (show i) ∷ [])
+
+  localvar : Term → TC _
+  localvar _ = do
+    m ← extendContext (vArg (quoteTerm Nat)) (unquoteTC {A = Nat} (var₀ 0))
+    typeError (strErr (show m) ∷ [])

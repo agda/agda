@@ -8,7 +8,7 @@ You need recent versions of the following programs to compile Agda:
 
 * GHC:           https://www.haskell.org/ghc/
 
-  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4 and 8.6.5.
+  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5 and 8.8.2.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -35,15 +35,15 @@ as root to get the correct files installed.
 
 Optionally one can also install the `ICU
 <http://site.icu-project.org>`_ library, which is used to implement
-the ``--count-clusters`` flag. Under Debian or Ubuntu it may suffice
+the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
 to install *libicu-dev*. Once the ICU library is installed one can
-hopefully enable the ``--count-clusters`` flag by giving the
-``-fenable-cluster-counting`` flag to *cabal install*.
+hopefully enable the :option:`--count-clusters` flag by giving the
+:option:`enable-cluster-counting` flag to *cabal install*.
 
 .. _emacs-under-windows:
 
 Installing Emacs under Windows
 ==============================
 
-A precompiled version of Emacs 24.3, with the necessary mathematical
-fonts, is available at http://homepage.cs.uiowa.edu/~astump/agda/ .
+A precompiled version of Emacs 26.1, with the necessary mathematical
+fonts, is available at http://www.cs.uiowa.edu/~astump/agda.

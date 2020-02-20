@@ -62,18 +62,18 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
     -- * Transitive closure
   , gaussJordanFloydWarshallMcNaughtonYamada
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
+  , transitiveClosure
   , complete, completeIter
   )
   where
 
 import Prelude hiding ( lookup, null, unzip )
 
-import Control.Applicative hiding (empty)
-import Control.Monad
+
+
 
 import qualified Data.Array.IArray as Array
-import qualified Data.Edison.Seq.BankersQueue as BQ
-import qualified Data.Edison.Seq.SimpleQueue as SQ
+import qualified Data.Sequence as Seq
 import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
@@ -82,21 +82,19 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
-import qualified Data.Maybe as Maybe
+import Data.Foldable (toList)
+
 import Data.Maybe (maybeToList, fromMaybe)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Tree as Tree
 
 import Agda.Utils.Function
-import Agda.Utils.Functor
-import Agda.Utils.List (headMaybe)
+
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.Pretty
 import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
-import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -140,7 +138,7 @@ invariant g =
   Set.isSubsetOf (targetNodes g) (nodes g)
 
 instance (Ord n, Pretty n, Pretty e) => Pretty (Graph n e) where
-  pretty g = vcat (concat $ map pretty' (Set.toAscList (nodes g)))
+  pretty g = vcat (concatMap pretty' (Set.toAscList (nodes g)))
     where
     pretty' n = case edgesFrom g [n] of
       [] -> [pretty n]
@@ -549,7 +547,7 @@ dagInvariant g =
     &&
   all isAcyclic (Graph.scc (dagGraph g))
   where
-  isAcyclic (Tree.Node r []) = not (r `elem` (dagGraph g Array.! r))
+  isAcyclic (Tree.Node r []) = r `notElem` (dagGraph g Array.! r)
   isAcyclic _                = False
 
 -- | The opposite DAG.
@@ -565,13 +563,9 @@ reachable g scc = case scc of
   Graph.CyclicSCC (n : _) -> reachable' n
   Graph.CyclicSCC []      -> __IMPOSSIBLE__
   where
-  lookup' g k = case IntMap.lookup k g of
-    Nothing -> __IMPOSSIBLE__
-    Just x  -> x
+  lookup' g k = fromMaybe __IMPOSSIBLE__ (IntMap.lookup k g)
 
-  lookup'' g k = case Map.lookup k g of
-    Nothing -> __IMPOSSIBLE__
-    Just x  -> x
+  lookup'' g k = fromMaybe __IMPOSSIBLE__ (Map.lookup k g)
 
   reachable' n =
     concatMap (Graph.flattenSCC . lookup' (dagComponentMap g)) $
@@ -603,9 +597,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
     IntSet.toList $ IntSet.fromList
       [ j
       | e <- edgesFrom g ns
-      , let j = case Map.lookup (target e) firstNodeMap of
-                  Nothing -> __IMPOSSIBLE__
-                  Just j  -> j
+      , let j = fromMaybe __IMPOSSIBLE__ (Map.lookup (target e) firstNodeMap)
       , j /= i
       ]
 
@@ -616,9 +608,7 @@ sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
       ]
 
   convertInt :: Int -> Graph.Vertex
-  convertInt i = case toVertex i of
-    Nothing -> __IMPOSSIBLE__
-    Just i  -> i
+  convertInt i = fromMaybe __IMPOSSIBLE__ (toVertex i)
 
   componentMap :: IntMap (Graph.SCC n)
   componentMap = IntMap.fromList (map (mapFst convertInt) components)
@@ -668,19 +658,19 @@ reachableFromSet g ns = Map.keysSet (reachableFromInternal g ns)
 reachableFromInternal ::
   Ord n => Graph n e -> Set n -> Map n (Int, [Edge n e])
 reachableFromInternal g ns =
-  bfs (SQ.fromList (map (, BQ.empty) (Set.toList ns))) Map.empty
+  bfs (Seq.fromList (map (, Seq.empty) (toList ns))) Map.empty
   where
-  bfs !q !map = case SQ.lview q of
-    Nothing          -> map
-    Just ((u, p), q) ->
+  bfs !q !map = case Seq.viewl q of
+    Seq.EmptyL -> map
+    (u, p) Seq.:< q ->
       if u `Map.member` map
       then bfs q map
-      else bfs (foldr SQ.rcons q
-                      [ (v, BQ.rcons (Edge u v e) p)
+      else bfs (foldr (flip (Seq.|>)) q
+                      [ (v, p Seq.|> Edge u v e)
                       | (v, e) <- neighbours u g
                       ])
-               (let n = BQ.size p in
-                n `seq` Map.insert u (n, BQ.toList p) map)
+               (let n = Seq.length p in
+                n `seq` Map.insert u (n, toList p) map)
 
 -- | @walkSatisfying every some g from to@ determines if there is a
 -- walk from @from@ to @to@ in @g@, in which every edge satisfies the
@@ -872,6 +862,11 @@ gaussJordanFloydWarshallMcNaughtonYamada g =
       where
       starTimes = otimes (ostar (lookup' k k))
 
-      lookup' s t = case lookup s t g of
-        Nothing -> ozero
-        Just e  -> e
+      lookup' s t = fromMaybe ozero (lookup s t g)
+
+-- | The transitive closure. Using 'gaussJordanFloydWarshallMcNaughtonYamada'.
+--   NOTE: DO NOT USE () AS EDGE LABEL SINCE THIS MEANS EVERY EDGE IS CONSIDERED A ZERO EDGE AND NO
+--         NEW EDGES WILL BE ADDED! Use 'Maybe ()' instead.
+transitiveClosure :: (Ord n, Eq e, StarSemiRing e) => Graph n e -> Graph n e
+transitiveClosure = fst . gaussJordanFloydWarshallMcNaughtonYamada
+

@@ -8,45 +8,9 @@ open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; 
                                              itIsOne to 1=1)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to ouc)
+import Agda.Builtin.Cubical.HCompU as HCompU
 
-module Helpers where
-    -- Homogeneous filling
-    hfill : ∀ {ℓ} {A : Set ℓ} {φ : I}
-              (u : ∀ i → Partial φ A)
-              (u0 : A [ φ ↦ u i0 ]) (i : I) → A
-    hfill {φ = φ} u u0 i =
-      hcomp (λ j → \ { (φ = i1) → u (i ∧ j) 1=1
-                     ; (i = i0) → ouc u0 })
-            (ouc u0)
-
-    -- Heterogeneous filling defined using comp
-    fill : ∀ {ℓ : I → Level} (A : ∀ i → Set (ℓ i)) {φ : I}
-             (u : ∀ i → Partial φ (A i))
-             (u0 : A i0 [ φ ↦ u i0 ]) →
-             ∀ i →  A i
-    fill A {φ = φ} u u0 i =
-      comp (λ j → A (i ∧ j))
-           (λ j → \ { (φ = i1) → u (i ∧ j) 1=1
-                    ; (i = i0) → ouc u0 })
-           (ouc {φ = φ} u0)
-
-    module _ {ℓ} {A : Set ℓ} where
-      refl : {x : A} → x ≡ x
-      refl {x = x} = λ _ → x
-
-      sym : {x y : A} → x ≡ y → y ≡ x
-      sym p = λ i → p (~ i)
-
-      cong : ∀ {ℓ'} {B : A → Set ℓ'} {x y : A}
-             (f : (a : A) → B a) (p : x ≡ y)
-           → PathP (λ i → B (p i)) (f x) (f y)
-      cong f p = λ i → f (p i)
-
-    isContr : ∀ {ℓ} → Set ℓ → Set ℓ
-    isContr A = Σ A \ x → (∀ y → x ≡ y)
-
-    fiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ ⊔ ℓ')
-    fiber {A = A} f y = Σ A \ x → f x ≡ y
+module Helpers = HCompU.Helpers
 
 open Helpers
 
@@ -155,5 +119,3 @@ module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
   pathToEquiv : A ≃ B
   pathToEquiv .fst = f
   pathToEquiv .snd = pathToisEquiv
-
-{-# BUILTIN PATHTOEQUIV pathToEquiv #-}

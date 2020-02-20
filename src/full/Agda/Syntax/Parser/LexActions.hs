@@ -13,12 +13,13 @@ module Agda.Syntax.Parser.LexActions
     , begin_, end_
     , lexError
       -- ** Specialized actions
-    , keyword, symbol, identifier, literal
+    , keyword, symbol, identifier, literal, literal', integer
       -- * Lex predicates
     , followedBy, eof, inState
     ) where
 
 import Data.Char
+import Data.Maybe
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -27,7 +28,6 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
@@ -73,7 +73,7 @@ lexToken =
             AlexToken inp' len action   -> fmap postToken $ action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
-              , case headMaybe $ lexInput i of
+              , case listToMaybe $ lexInput i of
                   Just '\t'                -> " (you may want to replace tabs with spaces)"
                   Just c | not (isPrint c) -> " (unprintable character)"
                   _ -> ""
@@ -186,7 +186,7 @@ end _ _ _ =
 keyword :: Keyword -> LexAction Token
 keyword k = layout $ withInterval_ (TokKeyword k)
     where
-        layout | elem k layoutKeywords  = withLayout
+        layout | k `elem` layoutKeywords  = withLayout
                | otherwise              = id
 
 
@@ -195,10 +195,25 @@ symbol :: Symbol -> LexAction Token
 symbol s = withInterval_ (TokSymbol s)
 
 
+-- | Parse a number.
+
+number :: String -> Integer
+number str = read $ case str of
+  '0' : 'x' : num -> str
+  _               -> concat $ wordsBy ('_' ==) str
+
+integer :: String -> Integer
+integer = \case
+  '-' : str -> - (number str)
+  str       -> number str
+
 -- | Parse a literal.
-literal :: Read a => (Range -> a -> Literal) -> LexAction Token
-literal lit =
+literal' :: (String -> a) -> (Range -> a -> Literal) -> LexAction Token
+literal' read lit =
   withInterval' read (TokLiteral . uncurry lit . mapFst getRange)
+
+literal :: Read a => (Range -> a -> Literal) -> LexAction Token
+literal = literal' read
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@
