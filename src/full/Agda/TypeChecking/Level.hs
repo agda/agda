@@ -177,9 +177,14 @@ levelLowerBound (Max m as) = maximum $ m : [n | Plus n _ <- as]
 
 -- | Given a constant @n@ and a level @l@, find the level @l'@ such
 --   that @l = n + l'@ (or Nothing if there is no such level).
+--   Operates on levels in canonical form.
 subLevel :: Integer -> Level -> Maybe Level
-subLevel n x@(Max _ ls) = Max <$> sub (levelLowerBound x) <*> traverse subPlus ls
+subLevel n (Max m ls) = Max <$> m' <*> traverse subPlus ls
   where
+    m' :: Maybe Integer
+    m' | m == 0, not (null ls) = Just 0
+       | otherwise             = sub m
+
     -- General purpose function.
     nonNeg :: Integer -> Maybe Integer
     nonNeg j | j >= 0 = Just j
