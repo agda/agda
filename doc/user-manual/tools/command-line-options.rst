@@ -53,9 +53,8 @@ General options
 
      .. versionadded:: 2.6.1
 
-     Use "compact regions" to perhaps make garbage collection faster,
-     at the cost of some extra processing to create the compact
-     regions.
+     Use "compact regions". This tends to result in reduced memory
+     consumption, and sometimes makes Agda faster.
 
      This is an experimental feature. Perhaps the feature will be
      removed in a future version of Agda, and perhaps it will be

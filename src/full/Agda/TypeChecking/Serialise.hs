@@ -72,10 +72,20 @@ import Agda.Utils.Monad
 currentInterfaceVersion :: Word64
 currentInterfaceVersion = 20200206 * 10 + 0
 
+-- | The result of 'encode' and 'encodeInterface'.
+
+data Encoded = Encoded
+  { uncompressed :: L.ByteString
+    -- ^ The uncompressed bytestring, without hashes and the interface
+    -- version.
+  , compressed :: L.ByteString
+    -- ^ The compressed bytestring.
+  }
+
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encode :: EmbPrj a => a -> TCM L.ByteString
+encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
@@ -120,7 +130,7 @@ encode a = do
     cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
       return $!! G.compressWith compressParams bits1
     let x = B.encode currentInterfaceVersion `L.append` cbits
-    return x
+    return (Encoded { uncompressed = bits1, compressed = x })
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
@@ -147,40 +157,32 @@ encode a = do
 --   where
 --   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
--- | Decodes something. The result depends on the include path.
+-- | Decodes an uncompressed bytestring (without extra hashes or magic
+-- numbers). The result depends on the include path.
 --
--- Returns 'Nothing' if the input does not start with the right magic
--- number or some other decoding error is encountered.
+-- Returns 'Nothing' if a decoding error is encountered.
 
 decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
   mf   <- useTC stModuleToSource
   incs <- getIncludeDirs
 
-  -- Note that B.runGetState and G.decompress can raise errors if the
-  -- input is malformed. The decoder is (intended to be) strict enough
-  -- to ensure that all such errors can be caught by the handler here.
+  -- Note that runGetState can raise errors if the input is malformed.
+  -- The decoder is (intended to be) strict enough to ensure that all
+  -- such errors can be caught by the handler here.
 
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
-    (ver, s, _) <- return $ runGetState B.get s 0
-    if ver /= currentInterfaceVersion
-     then noResult "Wrong interface version."
+    ((r, nL, sL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
+    if s /= L.empty
+     then noResult "Garbage at end."
      else do
 
-      ((r, nL, sL, bL, iL, dL), s, _) <-
-        return $ runGetState B.get (G.decompress s) 0
-      if s /= L.empty
-         -- G.decompress seems to throw away garbage at the end, so
-         -- the then branch is possibly dead code.
-       then noResult "Garbage at end."
-       else do
-
-        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
-                <$> liftIO H.new
-                <*> return mf <*> return incs
-        (r, st) <- runStateT (runExceptT (value r)) st
-        return (Just $ modFile st, r)
+      st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
+              <$> liftIO H.new
+              <*> return mf <*> return incs
+      (r, st) <- runStateT (runExceptT (value r)) st
+      return (Just $ modFile st, r)
 
   case mf of
     Nothing -> return ()
@@ -211,28 +213,56 @@ decode s = do
 
   noResult s = return (Nothing, Left $ GenericError s)
 
-encodeInterface :: Interface -> TCM L.ByteString
-encodeInterface i = L.append hashes <$> encode i
+encodeInterface :: Interface -> TCM Encoded
+encodeInterface i = do
+  r <- encode i
+  return (r { compressed = L.append hashes (compressed r) })
   where
     hashes :: L.ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
 
--- | Encodes something. To ensure relocatability file paths in
+-- | Encodes an interface. To ensure relocatability file paths in
 -- positions are replaced with module names.
+--
+-- An uncompressed bytestring corresponding to the encoded interface
+-- is returned.
 
-encodeFile :: FilePath -> Interface -> TCM ()
+encodeFile :: FilePath -> Interface -> TCM L.ByteString
 encodeFile f i = do
-  bs <- encodeInterface i
+  r <- encodeInterface i
   liftIO $ createDirectoryIfMissing True (takeDirectory f)
-  liftIO $ L.writeFile f bs
+  liftIO $ L.writeFile f (compressed r)
+  return (uncompressed r)
 
--- | Decodes something. The result depends on the include path.
+-- | Decodes an interface. The result depends on the include path.
 --
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
 decodeInterface :: L.ByteString -> TCM (Maybe Interface)
-decodeInterface s = decode $ L.drop 16 s
+decodeInterface s = do
+
+  -- Note that runGetState and G.decompress can raise errors if the
+  -- input is malformed. The decoder is (intended to be) strict enough
+  -- to ensure that all such errors can be caught by the handler here
+  -- or the one in decode.
+
+  s <- liftIO $
+       E.handle (\(E.ErrorCall s) -> return (Left s)) $
+       E.evaluate $
+       let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
+       if ver /= currentInterfaceVersion
+        then Left "Wrong interface version."
+        else Right (G.decompress s')
+             -- Note that G.decompress seems to throw away garbage at
+             -- the end.
+
+  case s of
+    Right s  -> decode s
+    Left err -> do
+      reportSLn "import.iface" 5 $
+        "Error when decoding interface file: " ++ err
+      return Nothing
 
 decodeHashes :: L.ByteString -> Maybe (Hash, Hash)
 decodeHashes s

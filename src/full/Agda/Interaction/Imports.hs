@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -762,8 +763,10 @@ readInterface' file = do
       _ -> throwError e
 
 -- | Writes the given interface to the given file.
+--
+-- The written interface is decoded and returned.
 
-writeInterface :: AbsolutePath -> Interface -> TCM ()
+writeInterface :: AbsolutePath -> Interface -> TCM Interface
 writeInterface file i = let fp = filePath file in do
     reportSLn "import.iface.write" 5  $
       "Writing interface file " ++ fp ++ "."
@@ -778,9 +781,19 @@ writeInterface file i = let fp = filePath file in do
     -- i <- return $
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
-    encodeFile fp i
+    reportSLn "import.iface.write" 50 $
+      "Writing interface file with hash" ++ show (iFullHash i) ++ "."
+    i' <- encodeFile fp i
     reportSLn "import.iface.write" 5 "Wrote interface file."
-    reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i)
+    i <-
+#if __GLASGOW_HASKELL__ >= 802
+      ifM (optCompactRegions <$> commandLineOptions)
+        (Bench.billTo [Bench.Deserialization] (decode i'))
+#endif
+        (return (Just i))
+    case i of
+      Just i  -> return i
+      Nothing -> __IMPOSSIBLE__
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
@@ -980,17 +993,17 @@ createInterface file mname isMain msi =
     mallWarnings <- getMaybeWarnings' isMain ErrorWarnings
 
     reportSLn "import.iface.create" 7 "Considering writing to interface file."
-    case (mallWarnings, isMain) of
+    i <- case (mallWarnings, isMain) of
       (SomeWarnings allWarnings, _) -> do
         -- Andreas, 2018-11-15, re issue #3393
         -- The following is not sufficient to fix #3393
         -- since the replacement of metas by postulates did not happen.
         -- -- | not (allowUnsolved && all (isUnsolvedWarning . tcWarning) allWarnings) -> do
         reportSLn "import.iface.create" 7 "We have warnings, skipping writing interface file."
-        return ()
+        return i
       (_, MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
-        return ()
+        return i
       _ -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
