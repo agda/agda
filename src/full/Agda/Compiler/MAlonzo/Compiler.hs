@@ -40,7 +40,7 @@ import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty

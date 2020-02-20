@@ -30,7 +30,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)

@@ -35,7 +35,7 @@ import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (builtinInf, getBuiltin', CoinductionKit(..), coinductionKit)
+--import Agda.TypeChecking.Monad.Builtin (builtinInf, getBuiltin', CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records

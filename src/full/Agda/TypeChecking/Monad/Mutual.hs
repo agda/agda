@@ -5,7 +5,7 @@ import Prelude hiding (null)
 
 
 
-import Data.Functor ((<$>))
+--import Data.Functor ((<$>))
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map

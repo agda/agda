@@ -12,7 +12,7 @@ module Agda.TypeChecking.Rules.Builtin
 import Control.Monad
 import Data.List (find, sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
+--import qualified Data.List.NonEmpty as NonEmpty
 import Data.Function (on)
 
 import qualified Agda.Syntax.Abstract as A
@@ -22,8 +22,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
+--import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
@@ -369,6 +369,7 @@ coreBuiltins =
   where
         (|->) = BuiltinInfo
 
+        -- TODO:: Defnied but not used: vn and tvn
         v0,v1,v2,v3 :: TCM Term
         v0 = varM 0
         v1 = varM 1

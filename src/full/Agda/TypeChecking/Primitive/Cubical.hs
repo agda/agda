@@ -22,7 +22,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
@@ -422,7 +422,7 @@ mkGComp s = do
   iz      <- getTermLocal builtinIZero
   let ineg j = pure tINeg <@> j
       imax i j = pure tIMax <@> i <@> j
-      imin i j = pure tIMin <@> i <@> j
+      imin i j = pure tIMin <@> i <@> j -- TODO:: Defined but not used
   let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                       <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
                                       <@> r
@@ -889,11 +889,11 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
                                                                            (tf i o)))
                  a0
 
-          sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
+          sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y -- TODO:: Defined but not used
           w i o = lam "x" $
                   transp (la <@> i)
                          (\ j -> bT <@> i <@> ineg j <..> o)
-          fiber la lb bA bB f b =
+          fiber la lb bA bB f b = -- TODO:: Defined but not used
             (pure (Def (sigmaName kit) []) <#> la
                                            <#> lb
                                            <@> bA
@@ -1194,7 +1194,7 @@ primTransHComp cmd ts nelims = do
           tPath <- getTermLocal "primIdPath"
           tPathType <- getTermLocal builtinPath
           runNamesT [] $ do
-            let irrInfo = setRelevance Irrelevant defaultArgInfo
+            let irrInfo = setRelevance Irrelevant defaultArgInfo -- TODO:: Defined but not used
             let io = pure $ unview IOne
                 iz = pure $ unview IZero
                 conId = pure $ Def conid []
@@ -1286,7 +1286,7 @@ primTransHComp cmd ts nelims = do
       unview <- intervalUnview'
       let f = unArg . ignoreBlocking
           phi = f sphi
-          u = f su
+          u = f su -- TODO:: Defined but not used
           a0 = f sa0
           isLit t@(Lit lt) = Just t
           isLit _ = Nothing
@@ -1378,7 +1378,7 @@ primTransHComp cmd ts nelims = do
                    <@> (pure transp <#> l <@> bC <@> phi <@> u0)
         _ -> noRed
     compData _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
-    compPO = __IMPOSSIBLE__
+    compPO = __IMPOSSIBLE__ -- TODO:: Defined but not used
 
 primComp :: TCM PrimitiveImpl
 primComp = do
@@ -1408,7 +1408,7 @@ primComp = do
             (redReturn =<<) . runNamesT [] $ do
               comp <- do
                 let
-                  ineg j = (pure tINeg <@> j) :: TCMT IO Term
+                  ineg j = (pure tINeg <@> j) :: TCMT IO Term -- TODO:: Defined but not used
                   imax i j = pure tIMax <@> i <@> j
                 let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
                                                     <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
@@ -1633,7 +1633,7 @@ primFaceForall' = do
      us'    <- decomposeInterval t
      fr     <- getTerm builtinFaceForall builtinFaceForall
      let
-         v = view t
+         v = view t -- TODO:: Defined but not used
          us = [ map Left (Map.toList bsm) ++ map Right ts
               | (bsm,ts) <- us'
               , 0 `Map.notMember` bsm

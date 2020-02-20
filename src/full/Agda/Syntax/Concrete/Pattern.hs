@@ -9,13 +9,13 @@ import Control.Arrow ( first )
 import Control.Monad.Identity
 import Control.Monad.Writer
 
-import Data.Foldable    (Foldable, foldMap)
-import Data.Traversable (Traversable, traverse)
+--import Data.Foldable    (Foldable, foldMap)
+--import Data.Traversable (Traversable, traverse)
 import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Position
+--import Agda.Syntax.Position
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Functor

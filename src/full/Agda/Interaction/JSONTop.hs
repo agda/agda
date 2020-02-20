@@ -2,7 +2,7 @@ module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where
 import Control.Monad.State
-import Control.Monad
+--import Control.Monad
 
 import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
@@ -17,22 +17,23 @@ import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
-import qualified Agda.Syntax.Abstract as A
+--import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
 import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
-import Agda.Syntax.Position (noRange, Range, rangeIntervals, Interval'(..), Position'(..))
+import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, ProblemId(..), TCM)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+--import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
-import Agda.Utils.Pretty (Pretty(..), render)
+import Agda.Utils.Pretty (Pretty(..))
 import Agda.Utils.Time (CPUTime(..))
 
 --------------------------------------------------------------------------------

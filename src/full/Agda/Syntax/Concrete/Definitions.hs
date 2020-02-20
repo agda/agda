@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), second)
+import Control.Arrow ((***), second)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -54,7 +54,7 @@ import Data.Map (Map)
 import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
-import Data.Traversable (Traversable, traverse)
+--import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
 import Data.Data (Data)
@@ -72,13 +72,13 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
-import Agda.Utils.Except ( MonadError(throwError) )
+--import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf)
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as Pretty
+--import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Three
@@ -944,6 +944,7 @@ niceDeclarations fixs ds = do
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
             cons d = fmap (id *** (d :) *** id)
 
+    -- TODO:: Defined but not used
     notMeasure TerminationMeasure{} = False
     notMeasure _ = True
 

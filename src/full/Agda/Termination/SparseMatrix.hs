@@ -53,9 +53,9 @@ import qualified Data.List as List
 import Data.Maybe
 
 
-import Data.Foldable (Foldable)
+--import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
-import Data.Traversable (Traversable)
+--import Data.Traversable (Traversable)
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 

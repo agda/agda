@@ -7,6 +7,7 @@ import Prelude hiding (null)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
 import qualified Data.IntMap as IntMap

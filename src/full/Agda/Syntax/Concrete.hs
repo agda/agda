@@ -58,8 +58,8 @@ module Agda.Syntax.Concrete
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable, forM, mapM)
+--import Data.Foldable (Foldable)
+import Data.Traversable (forM)
 import Data.List hiding (null)
 import Data.Set (Set)
 

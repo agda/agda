@@ -22,7 +22,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.Trans
-import qualified Data.List as List
+--import qualified Data.List as List
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath

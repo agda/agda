@@ -19,7 +19,7 @@ import Data.Semigroup hiding (Arg)
 #endif
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable (Foldable)
+--import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Hashable (Hashable(..))

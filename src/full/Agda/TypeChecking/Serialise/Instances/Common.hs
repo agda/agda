@@ -38,7 +38,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Info
+--import Agda.Syntax.Info
 import Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation

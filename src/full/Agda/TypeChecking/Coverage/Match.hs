@@ -28,14 +28,14 @@ import qualified Data.List as List
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Semigroup ( Semigroup, (<>))
 
-import Agda.Syntax.Abstract (IsProjP(..))
+--import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

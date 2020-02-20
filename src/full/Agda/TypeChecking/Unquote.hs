@@ -7,9 +7,9 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
-import qualified Data.HashSet as HashSet
+--import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
-import Data.Traversable (traverse)
+--import Data.Traversable (traverse)
 import Data.Word
 
 import Agda.Syntax.Common
@@ -23,9 +23,9 @@ import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.MetaVars.Mention
+--import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -683,7 +683,7 @@ evalTCM v = do
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
       setDirty
-      let r = getRelevance i
+      let r = getRelevance i -- TODO:: Defined but not used
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
@@ -705,7 +705,7 @@ evalTCM v = do
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
       setDirty
-      let r = getRelevance i
+      let r = getRelevance i -- TODO:: Defined but not used
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]

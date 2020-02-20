@@ -35,7 +35,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
-import Agda.TypeChecking.Rules.Term (isModuleFreeVar)
+--import Agda.TypeChecking.Rules.Term (isModuleFreeVar)
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
@@ -219,7 +219,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
-  let meta = fromMaybe __IMPOSSIBLE__ mm
+  let meta = fromMaybe __IMPOSSIBLE__ mm -- TODO:: Defined but not used
   (f, clauseNo, clTy, clWithSub, absCl@A.Clause{ clauseRHS = rhs }, clClos) <- case ipCl of
     IPClause f i t sub cl clo _ -> return (f, i, t, sub, cl, clo)
     IPNoClause                -> typeError $ GenericError $

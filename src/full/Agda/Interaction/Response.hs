@@ -38,7 +38,7 @@ import Agda.Utils.Time
 import Control.Monad.Trans
 import Data.Int
 import System.IO
-import Agda.Utils.Pretty (Doc)
+--import Agda.Utils.Pretty (Doc)
 
 -- | Responses for any interactive interface
 --

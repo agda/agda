@@ -41,7 +41,7 @@ binAppView t = case t of
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
-    app f [] = noApp
+    app f [] = noApp -- TODO:: Defined but not used
     app f xs = App (f $ init xs) (last xs)
     appE f [] = noApp
     appE f xs

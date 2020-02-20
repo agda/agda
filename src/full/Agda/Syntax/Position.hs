@@ -69,18 +69,18 @@ import Prelude hiding ( null )
 
 import Control.Monad.Writer (runWriter, tell)
 
-import Data.Foldable (Foldable)
+--import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
+--import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable)
+--import Data.Traversable (Traversable)
 import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq

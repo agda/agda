@@ -20,7 +20,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
-import Agda.Utils.Function
+--import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Null
 

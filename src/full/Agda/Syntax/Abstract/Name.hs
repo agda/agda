@@ -10,14 +10,14 @@ module Agda.Syntax.Abstract.Name
 import Control.DeepSeq
 
 import Data.Data (Data)
-import Data.Foldable (Foldable)
+--import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
 import Data.List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import Data.Traversable (Traversable)
+--import Data.Traversable (Traversable)
 import Data.Void
 
 import Agda.Syntax.Position

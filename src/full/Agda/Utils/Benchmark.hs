@@ -12,7 +12,7 @@ import qualified Control.Exception as E (evaluate)
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Foldable (foldMap)
+--import Data.Foldable (foldMap)
 
 import Data.Function
 import qualified Data.List as List

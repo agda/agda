@@ -64,31 +64,31 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
-import Control.Arrow (first)
-import Control.Monad
-import Control.Monad.Trans.Maybe
-import Control.Monad.Writer (WriterT(..), tell, lift)
-import Data.Foldable as Fold hiding (any)
-import Data.Maybe
-import Data.List ((\\))
-import Data.Function (on)
+--import Control.Arrow (first)
+--import Control.Monad
+--import Control.Monad.Trans.Maybe
+--import Control.Monad.Writer (WriterT(..), tell, lift)
+--import Data.Foldable as Fold hiding (any)
+--import Data.Maybe
+--import Data.List ((\\))
+--import Data.Function (on)
 import Data.Monoid
 
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
+--import Agda.Syntax.Position
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
+--import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Records
+--import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Pretty hiding ((<>))
+--import Agda.TypeChecking.Pretty hiding ((<>))
 
-import Agda.Utils.Functor
+--import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size

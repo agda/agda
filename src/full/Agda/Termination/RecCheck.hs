@@ -23,7 +23,7 @@ import Control.Monad (forM, forM_)
 import Data.Graph
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Map (Map)
+--import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
@@ -34,7 +34,7 @@ import Agda.Syntax.Internal.Defs
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Functor ((<.>))
+--import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List    (hasElem)
 import Agda.Utils.Pretty  (prettyShow)
 

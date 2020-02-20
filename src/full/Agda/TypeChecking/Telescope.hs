@@ -5,7 +5,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 
-import Data.Foldable (forM_, find)
+import Data.Foldable (find)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List

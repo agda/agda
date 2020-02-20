@@ -130,12 +130,12 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
-import Data.IntSet (IntSet)
+--import Data.IntSet (IntSet)
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable,traverse)
+--import Data.Foldable (Foldable)
+--import Data.Traversable (Traversable,traverse)
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -145,7 +145,7 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
+--import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
@@ -625,8 +625,8 @@ isHom n x = do
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
 findFlexible i flex =
-  let flex'      = map flexVar flex
-      flexible i = i `elem` flex'
+  let flex'      = map flexVar flex -- TODO:: Defined but not used
+      flexible i = i `elem` flex'   -- TODO:: Defined but not used
   in List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
@@ -891,7 +891,7 @@ unifyStep s step@Solution{} = solutionStep RetryNormalised s step
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
   withoutK <- liftTCM withoutKOption
-  let n = eqCount s
+  let n = eqCount s -- TODO:: Defined but not used
 
   -- Split equation telescope into parts before and after current equation
   let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
@@ -900,7 +900,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- Get constructor telescope and target indices
   cdef  <- liftTCM (getConInfo c)
   let ctype  = defType cdef `piApply` pars
-      forced = defForced cdef
+      forced = defForced cdef -- TODO:: Defined but not used
   addContext (varTel s `abstract` eqTel1) $ reportSDoc "tc.lhs.unify" 40 $
     "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
@@ -1036,7 +1036,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   where
     i = flexVar fi
     m = varCount s
-    n = eqCount s
+    n = eqCount s -- TODO:: Defined but not used
 
     projFlexKind :: Int -> FlexibleVarKind
     projFlexKind j = case flexKind fi of
@@ -1102,8 +1102,8 @@ unifyStep s (SkipIrrelevantEquation k) = do
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n   = eqCount s
-      m   = size dtel
+  let n   = eqCount s -- TODO:: Defined but not used
+      m   = size dtel -- TODO:: Defined but not used
       deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...

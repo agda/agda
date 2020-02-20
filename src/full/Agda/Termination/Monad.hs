@@ -16,8 +16,8 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Reader
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
+--import Data.Foldable (Foldable)
+--import Data.Traversable (Traversable)
 import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
 import qualified Data.Set as Set
@@ -37,7 +37,7 @@ import Agda.Termination.RecCheck (anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

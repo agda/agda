@@ -2,7 +2,7 @@
 
 module Agda.Utils.Zipper where
 
-import Data.Traversable (Traversable)
+--import Data.Traversable (Traversable)
 
 class Zipper z where
   type Carrier z

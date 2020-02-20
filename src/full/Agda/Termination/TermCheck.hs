@@ -25,9 +25,9 @@ import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse)
+--import Data.Traversable (Traversable, traverse)
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
+import Agda.Syntax.Abstract (AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -51,7 +51,7 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
@@ -127,9 +127,9 @@ termDecl' d = case d of
   where
     termDecls ds = concat <$> mapM termDecl' ds
 
-    unscopeDefs = concatMap unscopeDef
+    unscopeDefs = concatMap unscopeDef -- TODO:: Defined but not used
 
-    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
+    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds -- TODO:: Defined but not used
     unscopeDef d = [d]
 
     -- The mutual names mentioned in the abstract syntax
@@ -487,8 +487,8 @@ termType = return mempty
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames -- TODO:: Defined but not used
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i -- TODO:: Defined but not used
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.

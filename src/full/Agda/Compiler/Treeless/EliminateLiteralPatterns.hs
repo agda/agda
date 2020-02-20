@@ -3,12 +3,12 @@ module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
 import Data.Maybe
 
-import Agda.Syntax.Abstract.Name (QName)
+--import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Impossible
@@ -62,6 +62,7 @@ transform kit = tr
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 
+    -- TODO:: Defined but not used
     isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs
     isCaseOn _ _ = False
 

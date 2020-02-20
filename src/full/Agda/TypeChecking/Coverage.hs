@@ -24,7 +24,7 @@ import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
+--import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -37,9 +37,9 @@ import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical (trFillTel)
+--import Agda.TypeChecking.Primitive.Cubical (trFillTel)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+--import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
@@ -656,7 +656,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
       (working_tel,_deltaEx) = splitTelescopeAt (size gamma + 3 + size delta) tel
 
       -- Γ,φ,u,u0,(x:H)(δ : Δ) ⊢ rhoS : Γ(x:H)(δ : Δ)
-      rhoS = liftS (size hdelta) $ raiseS 3
+      rhoS = liftS (size hdelta) $ raiseS 3 -- TODO:: Defined but not used
       vs = iApplyVars (scPats old_sc)
 
   -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
@@ -694,7 +694,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
           let
             ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
-            imin i j = pure tIMin <@> i <@> j
+            imin i j = pure tIMin <@> i <@> j -- TODO:: Defined but not used
             trFillTel' a b c d = do
               m <- trFillTel <$> a <*> b <*> c <*> d
               x <- lift $ runExceptT m
@@ -1494,7 +1494,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
     inContextOfT      = addContext tel . escapeContext __IMPOSSIBLE__ (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext __IMPOSSIBLE__ x
+    inContextOfDelta2 = addContext tel . escapeContext __IMPOSSIBLE__ x -- TODO:: Defined but not used
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do
