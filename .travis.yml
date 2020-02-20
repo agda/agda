@@ -143,6 +143,7 @@ jobs:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} cubical-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
@@ -202,6 +203,7 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
         - make BUILD_DIR=$BUILD_DIR examples
         - make BUILD_DIR=$BUILD_DIR std-lib-test
+        - make BUILD_DIR=$BUILD_DIR cubical-test
         - make BUILD_DIR=$BUILD_DIR api-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
