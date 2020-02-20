@@ -46,9 +46,11 @@ import Data.Function
 
 import qualified Codec.Compression.GZip as G
 
-#if __GLASGOW_HASKELL__ >= 806
+#if __GLASGOW_HASKELL__ >= 802
 import GHC.Compact as C
 #endif
+
+import Agda.Interaction.Options
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -61,6 +63,7 @@ import Agda.Utils.Hash
 import Agda.Utils.IORef
 
 import Agda.Utils.Except
+import Agda.Utils.Monad
 
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
@@ -184,15 +187,15 @@ decode s = do
     Just mf -> stModuleToSource `setTCLens` mf
 
   case r of
-    Right x ->
-#if __GLASGOW_HASKELL__ < 806
-      return (Just x)
-#else
-      -- "Compact" the interfaces (without breaking sharing) to reduce
-      -- the amount of memory that is traversed by the garbage
-      -- collector.
-      liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+    Right x -> do
+#if __GLASGOW_HASKELL__ >= 802
+      ifM (optCompactRegions <$> commandLineOptions)
+        -- "Compact" the interfaces (without breaking sharing) to
+        -- reduce the amount of memory that is traversed by the
+        -- garbage collector.
+        (liftIO (Just . C.getCompact <$> C.compactWithSharing x))
 #endif
+        (return (Just x))
     Left err -> do
       reportSLn "import.iface" 5 $ "Error when decoding interface file"
       -- Andreas, 2014-06-11 deactivated debug printing
