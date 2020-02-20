@@ -80,9 +80,9 @@ Pragmas and options
 * Pragma `{-# ETA <record name> #-}` is no longer considered `--safe`.
   See [Issue [#4450](https://github.com/agda/agda/issues/4450)].
 
-* The new option `--compact-regions` tells Agda to use "compact
-  regions" to perhaps make garbage collection faster, at the cost of
-  some extra processing to create the compact regions
+* The new option `--compact-regions` tells Agda to make use of
+  "compact regions". This tends to result in reduced memory
+  consumption, and sometimes makes Agda faster
   [Issue [#4457](https://github.com/agda/agda/issues/4457)].
 
   This is an experimental feature. Perhaps the feature will be removed
