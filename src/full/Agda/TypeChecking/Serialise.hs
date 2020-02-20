@@ -193,7 +193,8 @@ decode s = do
         -- "Compact" the interfaces (without breaking sharing) to
         -- reduce the amount of memory that is traversed by the
         -- garbage collector.
-        (liftIO (Just . C.getCompact <$> C.compactWithSharing x))
+        (Bench.billTo [Bench.Deserialization, Bench.Compaction] $
+           liftIO (Just . C.getCompact <$> C.compactWithSharing x))
 #endif
         (return (Just x))
     Left err -> do
