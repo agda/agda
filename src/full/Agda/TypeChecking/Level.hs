@@ -179,9 +179,9 @@ levelLowerBound (Max m as) = maximum $ m : [n | Plus n _ <- as]
 --   that @l = n + l'@ (or Nothing if there is no such level).
 subLevel :: Integer -> Level -> Maybe Level
 subLevel n (Max m ls)
-  | m == 0    = Max 0 <$> traverse sub ls
-  | m >= n    = Max (m - n) <$> traverse sub ls
-  | otherwise = Nothing
+  | m == 0 && not (null ls) = Max 0 <$> traverse sub ls
+  | m >= n                  = Max (m - n) <$> traverse sub ls
+  | otherwise               = Nothing
   where
     sub :: PlusLevel -> Maybe PlusLevel
     sub (Plus j l) | j >= n    = Just $ Plus (j - n) l
