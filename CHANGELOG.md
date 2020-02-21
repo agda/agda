@@ -32,6 +32,14 @@ Installation and infrastructure
   [GHC User's Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/runtime_control.html#setting-rts-options)
   for more information.
 
+* If Agda is compiled using GHC 8.4 or later, then one can expect to
+  see substantially lower memory consumption
+  [Issues [#4457](https://github.com/agda/agda/issues/4457)
+  and [#4316](https://github.com/agda/agda/issues/4316)].
+
+  This is due to the use of ["compact
+  regions"](https://hackage.haskell.org/package/ghc-compact-0.1.0.0/docs/GHC-Compact.html).
+
 * The `CHANGELOG.md` was split. Changes to previous versions of Agda
   are in the directory `doc/release-notes`.
 
@@ -79,18 +87,6 @@ Pragmas and options
 
 * Pragma `{-# ETA <record name> #-}` is no longer considered `--safe`.
   See [Issue [#4450](https://github.com/agda/agda/issues/4450)].
-
-* The new option `--compact-regions` tells Agda to make use of
-  "compact regions". This tends to result in reduced memory
-  consumption, and sometimes makes Agda faster
-  [Issue [#4457](https://github.com/agda/agda/issues/4457)].
-
-  This is an experimental feature. Perhaps the feature will be removed
-  in a future version of Agda, and perhaps it will be activated
-  unconditionally and the option removed.
-
-  Nothing happens if Agda was compiled using a version of GHC prior to
-  8.2.
 
 Language
 --------

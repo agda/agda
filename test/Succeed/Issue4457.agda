@@ -1,3 +1,0 @@
--- A test case for the --compact-regions flag. Nothing is imported, so
--- no compaction actually takes place, it is just the flag that is
--- tested.

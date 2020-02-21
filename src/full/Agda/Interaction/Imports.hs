@@ -786,11 +786,11 @@ writeInterface file i = let fp = filePath file in do
     i' <- encodeFile fp i
     reportSLn "import.iface.write" 5 "Wrote interface file."
     i <-
-#if __GLASGOW_HASKELL__ >= 802
-      ifM (optCompactRegions <$> commandLineOptions)
-        (Bench.billTo [Bench.Deserialization] (decode i'))
+#if __GLASGOW_HASKELL__ >= 804
+      Bench.billTo [Bench.Deserialization] (decode i')
+#else
+      return (Just i)
 #endif
-        (return (Just i))
     case i of
       Just i  -> return i
       Nothing -> __IMPOSSIBLE__
@@ -1118,8 +1118,6 @@ buildInterface
 buildInterface source fileType topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
-    scope'  <- getScope
-    let scope = set scopeCurrent m scope' -- TODO:: Defined but not used
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
