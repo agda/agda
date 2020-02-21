@@ -1131,31 +1131,38 @@ If this function is invoked with a prefix argument, then Agda is
 asked nicely to terminate itself after any previously invoked
 commands have completed."
   (interactive "P")
-  ;; Set up things so that if the Agda process terminates, then its
-  ;; buffer is killed.
-  (when (and agda2-process
-             (process-status agda2-process))
-    (set-process-sentinel agda2-process 'agda2-kill-process-buffer))
-  ;; Kill the process buffer if the Agda process has already been
-  ;; killed.
-  (agda2-kill-process-buffer)
-  ;; Try to kill the Agda process.
   (if nicely
-      (agda2-send-command nil
-                          "IOTCM"
-                          (agda2-string-quote (buffer-file-name))
-                          "None"
-                          "Indirect"
-                          "Cmd_exit")
-    (interrupt-process agda2-process)))
+      (progn
+        ;; Set up things so that if the Agda process terminates, then
+        ;; its buffer is killed.
+        (when (and agda2-process
+                   (process-status agda2-process))
+          (set-process-sentinel agda2-process 'agda2-kill-process-buffer))
+        ;; Kill the process buffer if the Agda process has already
+        ;; been killed.
+        (agda2-kill-process-buffer)
+        ;; Try to kill the Agda process.
+        (agda2-send-command nil
+                            "IOTCM"
+                            (agda2-string-quote (buffer-file-name))
+                            "None"
+                            "Indirect"
+                            "Cmd_exit"))
+    ;; Try to kill the Agda process and the process buffer.
+    (when (and agda2-process
+               (process-status agda2-process))
+      (interrupt-process agda2-process))
+    (when (buffer-live-p agda2-process-buffer)
+      (kill-buffer agda2-process-buffer))))
 
 (defun agda2-kill-process-buffer (&optional process event)
   "Kills the Agda process buffer, if any.
 But only if the Agda process does not exist or has terminated.
 
 This function can be used as a process sentinel."
-  (when (and (member (process-status agda2-process)
-                     '(exit signal failed nil))
+  (when (and (or (null agda2-process)
+                 (member (process-status agda2-process)
+                         '(exit signal failed nil)))
              (buffer-live-p agda2-process-buffer))
     (kill-buffer agda2-process-buffer)))
 
