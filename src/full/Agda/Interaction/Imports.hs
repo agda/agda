@@ -786,11 +786,11 @@ writeInterface file i = let fp = filePath file in do
     i' <- encodeFile fp i
     reportSLn "import.iface.write" 5 "Wrote interface file."
     i <-
-#if __GLASGOW_HASKELL__ >= 802
-      ifM (optCompactRegions <$> commandLineOptions)
-        (Bench.billTo [Bench.Deserialization] (decode i'))
+#if __GLASGOW_HASKELL__ >= 804
+      Bench.billTo [Bench.Deserialization] (decode i')
+#else
+      return (Just i)
 #endif
-        (return (Just i))
     case i of
       Just i  -> return i
       Nothing -> __IMPOSSIBLE__

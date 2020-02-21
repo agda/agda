@@ -49,20 +49,6 @@ General options
      Only scope-check the top-level module, do not type-check it (see
      :ref:`quickLaTeX`).
 
-.. option:: --compact-regions
-
-     .. versionadded:: 2.6.1
-
-     Use "compact regions". This tends to result in reduced memory
-     consumption, and sometimes makes Agda faster.
-
-     This is an experimental feature. Perhaps the feature will be
-     removed in a future version of Agda, and perhaps it will be
-     activated unconditionally and the option removed.
-
-     Nothing happens if Agda was compiled using a version of GHC prior
-     to 8.2.
-
 .. option:: --version, -V
 
      Show version number.

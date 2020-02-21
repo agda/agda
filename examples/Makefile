@@ -6,7 +6,6 @@ include $(TOP)/mk/paths.mk
 # Keep the `default` prerequisites in alphabetic order please!
 default : ac \
           aim4-bag \
-          compact-regions \
           divmod \
           effects \
           hello \
@@ -173,12 +172,6 @@ relocatable-interfaces : relocatable/originals/*.agda
 				# ...and skips one of the modules (A).
 	@[ `grep "^ *Loading" relocatable/copies/output | wc -l` = 1 ]
 	@rm -rf relocatable/copies
-
-.PHONY : compact-regions
-compact-regions : relocatable/originals/*.agda
-	@$(echo) "Testing that --compact-regions works."
-	@$(agda) --ignore-interfaces --compact-regions -irelocatable/originals --no-libraries relocatable/originals/C.agda
-	@$(agda) --compact-regions -irelocatable/originals --no-libraries relocatable/originals/C.agda
 
 .PHONY : uptodate
 uptodate : uptodate/*.agda

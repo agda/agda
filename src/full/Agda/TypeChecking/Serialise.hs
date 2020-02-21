@@ -46,7 +46,7 @@ import Data.Function
 
 import qualified Codec.Compression.GZip as G
 
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 import GHC.Compact as C
 #endif
 
@@ -190,15 +190,15 @@ decode s = do
 
   case r of
     Right x -> do
-#if __GLASGOW_HASKELL__ >= 802
-      ifM (optCompactRegions <$> commandLineOptions)
-        -- "Compact" the interfaces (without breaking sharing) to
-        -- reduce the amount of memory that is traversed by the
-        -- garbage collector.
-        (Bench.billTo [Bench.Deserialization, Bench.Compaction] $
-           liftIO (Just . C.getCompact <$> C.compactWithSharing x))
+#if __GLASGOW_HASKELL__ >= 804
+      -- "Compact" the interfaces (without breaking sharing) to
+      -- reduce the amount of memory that is traversed by the
+      -- garbage collector.
+      Bench.billTo [Bench.Deserialization, Bench.Compaction] $
+        liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+#else
+      return (Just x)
 #endif
-        (return (Just x))
     Left err -> do
       reportSLn "import.iface" 5 $ "Error when decoding interface file"
       -- Andreas, 2014-06-11 deactivated debug printing

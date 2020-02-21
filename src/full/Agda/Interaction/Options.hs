@@ -119,8 +119,6 @@ data CommandLineOptions = Options
   , optIgnoreInterfaces :: Bool
   , optIgnoreAllInterfaces :: Bool
   , optLocalInterfaces     :: Bool
-  , optCompactRegions      :: Bool
-    -- ^ Use compact regions?
   , optPragmaOptions    :: PragmaOptions
   , optOnlyScopeChecking :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
@@ -241,7 +239,6 @@ defaultOptions = Options
   , optIgnoreInterfaces = False
   , optIgnoreAllInterfaces = False
   , optLocalInterfaces     = False
-  , optCompactRegions      = False
   , optPragmaOptions    = defaultPragmaOptions
   , optOnlyScopeChecking = False
   , optWithCompiler      = Nothing
@@ -538,9 +535,6 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
-
-compactRegionsFlag :: Flag CommandLineOptions
-compactRegionsFlag o = return $ o { optCompactRegions = True }
 
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
@@ -867,8 +861,6 @@ standardOptions =
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
                     "put interface files next to the Agda files they correspond to"
-    , Option []     ["compact-regions"] (NoArg compactRegionsFlag)
-                    "use compact regions (if Agda was built with GHC 8.2 or newer)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
