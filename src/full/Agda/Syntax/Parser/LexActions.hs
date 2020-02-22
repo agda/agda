@@ -70,7 +70,7 @@ lexToken =
         case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo inp'
-            AlexToken inp' len action   -> fmap postToken $ action inp inp' len
+            AlexToken inp' len action   -> postToken <$> action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case listToMaybe $ lexInput i of

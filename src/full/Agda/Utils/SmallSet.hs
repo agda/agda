@@ -69,7 +69,7 @@ notMember a = not . member a
 -- | Time O(n).
 isSubsetOf ::  SmallSetElement a => SmallSet a -> SmallSet a -> Bool
 isSubsetOf s t = and $ toBoolListZipWith implies s t
-  where implies a b = if a then b else True
+  where implies a b = not a || b
 
 -- * Construction
 

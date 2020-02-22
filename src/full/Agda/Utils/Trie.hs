@@ -75,7 +75,7 @@ unionWith f (Trie v ss) (Trie w ts) =
 --
 --   @insert = insertWith (\ new old -> new)@
 insert :: (Ord k) => [k] -> v -> Trie k v -> Trie k v
-insert k v t = union (singleton k v) t
+insert k v t = (singleton k v) `union` t
 
 -- | Insert with function merging new value with old value.
 insertWith :: (Ord k) => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v

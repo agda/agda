@@ -207,7 +207,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                   (Just IdS, Perm m xs)        -> xs == [0 .. m - 1]
                   (Just (Wk n IdS), Perm m xs) -> xs == [0 .. m - n - 1]
                   _                            -> False
-          when (not sameContext) $ do
+          unless sameContext $ do
             ty <- getMetaType x
             let Perm m xs = mvPermutation mv
             reportSDoc "tc.generalize" 20 $ vcat
@@ -527,10 +527,10 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     findGenRec :: MetaVariable -> TCM (Maybe Int)
     findGenRec mv = do
       cxt <- instantiateFull =<< getContext
-      let notPruned = [ i | i <- permute (takeP (length cxt) $ mvPermutation mv) $
-                                 reverse $ zipWith const [0..] cxt ]
+      let notPruned = permute (takeP (length cxt) $ mvPermutation mv) $
+               reverse $ zipWith const [0..] cxt
       case [ i | (i, Dom{unDom = (_, El _ (Def q _))}) <- zip [0..] cxt,
-                 q == genRecName, elem i notPruned ] of
+                 q == genRecName, i `elem` notPruned ] of
         []    -> return Nothing
         _:_:_ -> __IMPOSSIBLE__
         [i]   -> return (Just i)
@@ -577,7 +577,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           names   = map (fst . unDom) telList
           late    = map (fst . unDom) $ filter (getAny . allMetas (Any . (== x))) telList
           projs (Proj _ q)
-            | elem q genRecFields = Set.fromList [x | Just x <- [getGeneralizedFieldName q]]
+            | q `elem` genRecFields = Set.fromList $ catMaybes [getGeneralizedFieldName q]
           projs _                 = Set.empty
           early = Set.toList $ flip foldTerm u $ \ case
                   Var _ es   -> foldMap projs es

@@ -51,13 +51,11 @@ defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
              `catchError` \_ -> return False
            | otherwise -> return False
 
-      if | or progress -> loop xs
-         | otherwise   -> return ()
+      when (or progress) $ _noParen_ (loop xs)
 
     openLevelMetas :: [MetaId] -> m [MetaId]
-    openLevelMetas xs = return xs
-      >>= filterM (\m -> isNothing <$> isInteractionMeta m)
-      >>= filterM (\m -> (== NoGeneralize) <$> isGeneralizableMeta m)
+    openLevelMetas xs = filterM (fmap isNothing . isInteractionMeta) xs
+      >>= filterM (fmap (== NoGeneralize) . isGeneralizableMeta)
       >>= filterM isLevelMeta
 
     isLevelMeta :: MetaId -> m Bool

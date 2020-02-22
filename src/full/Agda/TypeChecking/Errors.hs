@@ -346,8 +346,7 @@ instance PrettyTCM TypeError where
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
-      ++ if null xs then [] else
-         [parens $ fsep $ text "possible arguments:" : map pretty xs]
+      ++ [parens $ fsep $ text "possible arguments:" : map pretty xs | not (null xs)]
       where
       xs = filter (not . isNoName) xs0
 
@@ -416,7 +415,7 @@ instance PrettyTCM TypeError where
 
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
-      ++ [(parens $ prettyTCM (qnameToConcrete d)) <> colon]
+      ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
       ++ map pretty cs
 
     DoesNotConstructAnElementOf c t -> fsep $
@@ -474,26 +473,26 @@ instance PrettyTCM TypeError where
       [prettyTCM tel]
 
     ShouldBeEmpty t [] -> fsep $
-       [prettyTCM t] ++ pwords "should be empty, but that's not obvious to me"
+       prettyTCM t : pwords "should be empty, but that's not obvious to me"
 
     ShouldBeEmpty t ps -> fsep (
-      [prettyTCM t] ++
+      prettyTCM t :
       pwords "should be empty, but the following constructor patterns are valid:"
       ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
 
     ShouldBeASort t -> fsep $
-      [prettyTCM t] ++ pwords "should be a sort, but it isn't"
+      prettyTCM t : pwords "should be a sort, but it isn't"
 
     ShouldBePi t -> fsep $
-      [prettyTCM t] ++ pwords "should be a function type, but it isn't"
+      prettyTCM t : pwords "should be a function type, but it isn't"
 
     ShouldBePath t -> fsep $
-      [prettyTCM t] ++ pwords "should be a Path or PathP type, but it isn't"
+      prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
 
     NotAProperTerm -> fwords "Found a malformed term"
 
-    InvalidTypeSort s -> fsep $ [prettyTCM s] ++ pwords "is not a valid type"
-    InvalidType v -> fsep $ [prettyTCM v] ++ pwords "is not a valid type"
+    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid type"
+    InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
     FunctionTypeInSizeUniv v -> fsep $
       pwords "Functions may not return sizes, thus, function type " ++
@@ -612,7 +611,7 @@ instance PrettyTCM TypeError where
           pwords " bound in a module telescope (or patterns of a parent clause)"
 
     UnexpectedWithPatterns ps -> fsep $
-      pwords "Unexpected with patterns" ++ (punctuate " |" $ map prettyA ps)
+      pwords "Unexpected with patterns" ++ punctuate " |" (map prettyA ps)
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++
@@ -676,11 +675,11 @@ instance PrettyTCM TypeError where
 
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
-      [pretty tb] ++
+      pretty tb :
       pwords " is not allowed in a telescope here."
 
     IllegalPatternInTelescope bd -> fsep $
-      [pretty bd] ++
+      pretty bd :
       pwords " is not allowed in a telescope here."
 
     NoRHSRequiresAbsurdPattern ps -> fwords $
@@ -811,7 +810,7 @@ instance PrettyTCM TypeError where
       pwords "Repeated variables in pattern:" ++ map pretty xs
 
     NotAnExpression e -> fsep $
-      [pretty e] ++ pwords "is not a valid expression."
+      pretty e : pwords "is not a valid expression."
 
     NotAValidLetBinding nd -> fwords $
       "Not a valid let-declaration"
@@ -1226,8 +1225,8 @@ instance PrettyTCM SplitError where
           ]
         , zipWith prEq cIxs gIxs
         , if null errs then [] else
-            [ fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
-                     pwords "why unification failed:" ] ++
+            fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
+                     pwords "why unification failed:" :
             map (nest 2 . prettyTCM) errs
         ]
       where

@@ -190,7 +190,7 @@ instance EmbPrj AbsolutePath where
         [ "Panic while serializing absolute path: " ++ show file
         , "The path could not be found in the dictionary:"
         ]
-      putStrLn . show =<< H.toList d
+      print =<< H.toList d
       __IMPOSSIBLE__
 
   value m = do

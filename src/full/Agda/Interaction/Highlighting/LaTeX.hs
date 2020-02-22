@@ -607,45 +607,50 @@ defaultStyFile = "agda.sty"
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let mod = toTopLevelModuleName $ iModuleName i
-      hi  = iHighlighting i
-
+      hi = iHighlighting i
   options <- TCM.commandLineOptions
-
-  dir <- case O.optGHCiInteraction options of
-    False -> return $ O.optLaTeXDir options
-    True  -> do
-      sourceFile <- Find.srcFilePath <$> Find.findFile mod
-      return $ filePath (projectRoot sourceFile mod)
-                 </> O.optLaTeXDir options
+  dir <-
+    if O.optGHCiInteraction options
+      then
+        ( do
+            sourceFile <- Find.srcFilePath <$> Find.findFile mod
+            return $ filePath (projectRoot sourceFile mod) </> O.optLaTeXDir options
+        )
+      else return $ O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
-
-  (code, _, _) <- liftIO $ readProcessWithExitCode
-                    "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ] ""
-
+  (code, _, _) <-
+    liftIO $
+      readProcessWithExitCode
+        "kpsewhich"
+        ["--path=" ++ dir, defaultStyFile]
+        ""
   when (code /= ExitSuccess) $ do
-    TCM.reportS "compile.latex" 1
-      [ defaultStyFile ++ " was not found. Copying a default version of " ++
-          defaultStyFile
-      , "into " ++ dir ++ "."
+    TCM.reportS
+      "compile.latex"
+      1
+      [ defaultStyFile
+          ++ " was not found. Copying a default version of "
+          ++ defaultStyFile,
+        "into " ++ dir ++ "."
       ]
-
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
       liftIO $ copyFile styFile (dir </> defaultStyFile)
-
   let outPath = modToFile mod
-  inAbsPath <- liftM filePath (Find.srcFilePath <$> Find.findFile mod)
-
+  inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile mod)
   liftIO $ do
-    latex <- E.encodeUtf8 `fmap`
-               toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
-                       (mkAbsolute inAbsPath) (iSource i) hi
+    latex <-
+      E.encodeUtf8
+        `fmap` toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
+                       (mkAbsolute inAbsPath)
+                       (iSource i)
+                       hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
-  where
-    modToFile :: TopLevelModuleName -> FilePath
-    modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
+ where
+  modToFile :: TopLevelModuleName -> FilePath
+  modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =
@@ -668,7 +673,7 @@ toLaTeX cc path source hi
 
   = processTokens cc
 
-  . map (\(role, tokens) -> (role,) $
+  . map ((\(role, tokens) -> (role,) $
       -- This bit fixes issue 954
       (if L.isCode role then
         -- Remove trailing whitespace from the
@@ -691,9 +696,7 @@ toLaTeX cc path source hi
                     T.dropWhile isSpaceNotNewline pre)
       else
         -- do nothing
-        id) tokens)
-
-  . map (second (
+        id) tokens) . (second (
       -- Split tokens at newlines
       concatMap stringLiteral
 
@@ -706,10 +709,7 @@ toLaTeX cc path source hi
       -- Characters which share the same meta info are the same token, so
       -- group them together.
     . groupByFst
-    ))
-
-  -- Characters in different layers belong to different tokens
-  . groupByFst
+    ))) . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
   . map (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))

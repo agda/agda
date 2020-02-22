@@ -335,13 +335,13 @@ getUserVariableNames tel names = runWriter $
     makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
     makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
       ([]     , [])   -> return Nothing
-      ((x:xs) , [])   -> tellAsBindings xs *> return (Just x)
-      (xs     , y:ys) -> tellAsBindings (xs ++ ys) *> return (Just y)
+      ((x:xs) , [])   -> tellAsBindings xs $> (Just x)
+      (xs     , y:ys) -> tellAsBindings (xs ++ ys) $> (Just y)
       where
         tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
 
     partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
-    partitionIsParam = (map fst *** map fst) . (partition $ (== PVParam) . snd)
+    partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
 
 
 instance Subst Term (Problem a) where

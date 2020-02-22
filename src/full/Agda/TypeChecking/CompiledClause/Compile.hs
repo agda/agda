@@ -157,7 +157,7 @@ compileWithSplitTree t cs = case t of
 compile :: Cls -> CompiledClauses
 compile [] = Fail
 compile cs = case nextSplit cs of
-  Just (isRecP, n) -> Case n $ fmap compile $ splitOn isRecP (unArg n) cs
+  Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.

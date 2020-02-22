@@ -709,7 +709,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
             weakSub | isJust withSub' = wkS (max 0 $ numPats - arity a) idS -- if numPats < arity, Θ is empty
                     | otherwise       = wkS (numPats - length cxt) idS
             withSub  = fromMaybe idS withSub'
-            patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
+            patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
             paramSub = patSub `composeS` weakSub `composeS` withSub
 
         eqs <- addContext delta $ checkPatternLinearity eqs
@@ -1071,9 +1071,9 @@ checkLHS mf = updateModality checkLHS_ where
 
       let oix = size adelta2 -- de brujin index of IsOne
           o_n = fromMaybe __IMPOSSIBLE__ $
-            flip findIndex ip (\ x -> case namedThing (unArg x) of
-                                           VarP _ x -> dbPatVarIndex x == oix
-                                           _        -> False)
+            findIndex (\ x -> case namedThing (unArg x) of
+                                   VarP _ x -> dbPatVarIndex x == oix
+                                   _        -> False) ip
           delta2' = absApp adelta2 itisone
           delta2 = applySubst sigma delta2'
           mkConP (Con c _ [])
@@ -1149,8 +1149,8 @@ checkLHS mf = updateModality checkLHS_ where
       reportSDoc "tc.lhs.split" 10 $ vcat
         [ "checking lhs"
         , nest 2 $ "tel =" <+> prettyTCM tel
-        , nest 2 $ "rel =" <+> (text $ show $ getRelevance info)
-        , nest 2 $ "mod =" <+> (text $ show $ getModality  info)
+        , nest 2 $ "rel =" <+> text (show $ getRelevance info)
+        , nest 2 $ "mod =" <+> text (show $ getModality  info)
         ]
 
       reportSDoc "tc.lhs.split" 15 $ vcat
@@ -1360,7 +1360,7 @@ checkLHS mf = updateModality checkLHS_ where
             [ "new problem from rest"
             , nest 2 $ vcat
               [ "delta'  =" <+> prettyTCM (st' ^. lhsTel)
-              , "eqs'    =" <+> addContext (st' ^. lhsTel) (prettyTCM $ st' ^. lhsProblem ^. problemEqs)
+              , "eqs'    =" <+> addContext (st' ^. lhsTel) (prettyTCM $ st' ^. (lhsProblem . problemEqs))
               , "ip'     =" <+> addContext (st' ^. lhsTel) (pretty $ st' ^. lhsOutPat)
               ]
             ]
@@ -1421,7 +1421,7 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
   NotBlocked ReallyNotBlocked a -> case unEl a of
 
     -- Subcase: split type is a Def.
-    Def d es -> (liftTCM $ theDef <$> getConstInfo d) >>= \case
+    Def d es -> liftTCM (theDef <$> getConstInfo d) >>= \case
 
       Datatype{dataPars = np} -> do
 
