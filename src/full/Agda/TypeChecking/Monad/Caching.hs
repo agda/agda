@@ -26,7 +26,6 @@ import Agda.Interaction.Options
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad

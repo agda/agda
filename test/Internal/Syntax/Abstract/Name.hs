@@ -2,7 +2,7 @@
 module Internal.Syntax.Abstract.Name () where
 
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Fixity
+import Agda.Syntax.Common
 
 import Internal.Syntax.Concrete.Name ()
 

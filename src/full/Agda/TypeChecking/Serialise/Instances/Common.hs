@@ -40,7 +40,6 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 --import Agda.Syntax.Info
 import Agda.Syntax.Position as P
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 import Agda.Interaction.FindFile
@@ -357,7 +356,7 @@ instance EmbPrj Fixity where
 
   value = valueN Fixity
 
-instance EmbPrj Agda.Syntax.Fixity.Fixity' where
+instance EmbPrj Fixity' where
   icod_ (Fixity' a b r) = icodeN' (\ a b -> Fixity' a b r) a b  -- discard theNameRange
 
   value = valueN (\ f n -> Fixity' f n noRange)

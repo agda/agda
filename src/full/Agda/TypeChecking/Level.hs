@@ -177,16 +177,24 @@ levelLowerBound (Max m as) = maximum $ m : [n | Plus n _ <- as]
 
 -- | Given a constant @n@ and a level @l@, find the level @l'@ such
 --   that @l = n + l'@ (or Nothing if there is no such level).
+--   Operates on levels in canonical form.
 subLevel :: Integer -> Level -> Maybe Level
-subLevel n (Max m ls)
-  | m == 0    = Max 0 <$> traverse sub ls
-  | m >= n    = Max (m - n) <$> traverse sub ls
-  | otherwise = Nothing
+subLevel n (Max m ls) = Max <$> m' <*> traverse subPlus ls
   where
-    sub :: PlusLevel -> Maybe PlusLevel
-    sub (Plus j l) | j >= n    = Just $ Plus (j - n) l
-                   | otherwise = Nothing
+    m' :: Maybe Integer
+    m' | m == 0, not (null ls) = Just 0
+       | otherwise             = sub m
 
+    -- General purpose function.
+    nonNeg :: Integer -> Maybe Integer
+    nonNeg j | j >= 0 = Just j
+             | otherwise = Nothing
+
+    sub :: Integer -> Maybe Integer
+    sub = nonNeg . subtract n
+
+    subPlus :: PlusLevel -> Maybe PlusLevel
+    subPlus (Plus j l) = Plus <$> sub j <*> Just l
 
 -- | Given two levels @a@ and @b@, try to decompose the first one as
 -- @a = a' ⊔ b@ (for the minimal value of @a'@).

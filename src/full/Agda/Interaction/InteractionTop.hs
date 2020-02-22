@@ -338,7 +338,11 @@ maybeAbort m = do
         Left ((x, commandState'), tcState') -> do
           putTC tcState'
           put commandState'
-          return (Command (Just x))
+          case c of
+            IOTCM _ _ _ Cmd_exit -> do
+              putResponse Resp_DoneExiting
+              return Done
+            _ -> return (Command (Just x))
         Right a -> do
           liftIO $ popAbortedCommands q a
           putTC $ initState
@@ -480,6 +484,7 @@ updateInteractionPointsAfter Cmd_why_in_scope{}                  = False
 updateInteractionPointsAfter Cmd_why_in_scope_toplevel{}         = False
 updateInteractionPointsAfter Cmd_show_version{}                  = False
 updateInteractionPointsAfter Cmd_abort{}                         = False
+updateInteractionPointsAfter Cmd_exit{}                          = False
 
 -- | Interpret an interaction
 
@@ -816,10 +821,11 @@ interpret (Cmd_compute cmode ii rng s) = do
 interpret Cmd_show_version = display_info Info_Version
 
 interpret Cmd_abort = return ()
+interpret Cmd_exit  = return ()
 
 -- | Solved goals already instantiated internally
 -- The second argument potentially limits it to one specific goal.
-solveInstantiatedGoals :: B.Rewrite -> Maybe InteractionId -> CommandM ()
+solveInstantiatedGoals :: Rewrite -> Maybe InteractionId -> CommandM ()
 solveInstantiatedGoals norm mii = do
   -- Andreas, 2016-10-23 issue #2280: throw away meta elims.
   out <- lift $ localTC (\ e -> e { envPrintMetasBare = True }) $ do
@@ -1022,7 +1028,7 @@ sortInteractionPoints is =
 --
 --   Should not modify the state.
 
-cmd_goal_type_context_and :: GoalTypeAux -> B.Rewrite -> InteractionId -> Range ->
+cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ getResponseContext norm ii
@@ -1033,7 +1039,7 @@ cmd_goal_type_context_and aux norm ii _ _ = do
 -- | Shows all the top-level names in the given module, along with
 -- their types.
 
-showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
+showModuleContents :: Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = do
   (modules, tel, types) <- lift $ B.moduleContents norm rng s
   display_info $ Info_ModuleContents modules tel types
@@ -1041,7 +1047,7 @@ showModuleContents norm rng s = do
 -- | Shows all the top-level names in scope which mention all the given
 -- identifiers in their type.
 
-searchAbout :: B.Rewrite -> Range -> String -> CommandM ()
+searchAbout :: Rewrite -> Range -> String -> CommandM ()
 searchAbout norm rg names = do
   let trimmedNames = trim names
   unless (null trimmedNames) $ do

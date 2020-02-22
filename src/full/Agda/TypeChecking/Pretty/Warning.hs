@@ -204,6 +204,9 @@ prettyWarning wng = case wng of
     SafeFlagNoUniverseCheck -> fsep $
       pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
 
+    SafeFlagEta -> fsep $
+      pwords "Cannot use ETA pragma with safe flag."
+
     SafeFlagInjective -> fsep $
       pwords "Cannot use INJECTIVE pragma with safe flag."
 

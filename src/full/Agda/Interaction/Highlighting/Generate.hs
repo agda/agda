@@ -11,7 +11,7 @@ module Agda.Interaction.Highlighting.Generate
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
-  , warningHighlighting
+  , highlightWarning, warningHighlighting
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
   , storeDisambiguatedName, disambiguateRecordFields
@@ -79,61 +79,6 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
--- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
---   result. Additionally, some code may be highlighted:
---
--- * If @r@ is non-empty and not a sub-range of @rPre@ (after
---   'P.continuousPerLine' has been applied to both): @r@ is
---   highlighted as being type-checked while @m@ is running (this
---   highlighting is removed if @m@ completes /successfully/).
---
--- * Otherwise: Highlighting is removed for @rPre - r@ before @m@
---   runs, and if @m@ completes successfully, then @rPre - r@ is
---   highlighted as being type-checked.
-
-highlightAsTypeChecked
-  :: (MonadTCM tcm, ReadTCState tcm)
-  => Range   -- ^ @rPre@
-  -> Range   -- ^ @r@
-  -> tcm a
-  -> tcm a
-highlightAsTypeChecked rPre r m
-  | r /= noRange && delta == rPre' = wrap r'    highlight clear
-  | otherwise                      = wrap delta clear     highlight
-  where
-  rPre'     = rToR (P.continuousPerLine rPre)
-  r'        = rToR (P.continuousPerLine r)
-  delta     = rPre' `minus` r'
-  clear     = mempty
-  highlight = parserBased { otherAspects = Set.singleton TypeChecks }
-
-  wrap rs x y = do
-    p rs x
-    v <- m
-    p rs y
-    return v
-    where
-    p rs x = printHighlightingInfo KeepHighlighting (singletonC rs x)
-
--- | Lispify and print the given highlighting information.
-
-printHighlightingInfo ::
-  (MonadTCM tcm, ReadTCState tcm) =>
-  RemoveTokenBasedHighlighting ->
-  HighlightingInfo ->
-  tcm ()
-printHighlightingInfo remove info = do
-  modToSrc <- useTC stModuleToSource
-  method   <- viewTC eHighlightingMethod
-  liftTCM $ reportS "highlighting" 50
-    [ "Printing highlighting info:"
-    , show info
-    , "  modToSrc = " ++ show modToSrc
-    ]
-  unless (null $ ranges info) $ do
-    liftTCM $ appInteractionOutputCallback $
-        Resp_HighlightingInfo info remove method modToSrc
-
 -- | Highlighting levels.
 
 data Level
@@ -143,6 +88,14 @@ data Level
   | Partial
     -- ^ Highlighting without disambiguation of overloaded
     --   constructors.
+
+-- | Highlight a warning.
+highlightWarning :: TCWarning -> TCM ()
+highlightWarning tcwarn = do
+  let h = compress $ warningHighlighting tcwarn
+  modifyTCLens stSyntaxInfo (h <>)
+  ifTopLevelAndHighlightingLevelIs NonInteractive $
+    printHighlightingInfo KeepHighlighting h
 
 -- | Generate syntax highlighting information for the given
 -- declaration, and (if appropriate) print it. If the boolean is
@@ -192,9 +145,6 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     cm <- P.rangeFile <$> viewTC eRange
     reportSLn "highlighting.warning" 60 $ "current path = " ++ show cm
 
-    warnInfo <- Fold.foldMap warningHighlighting
-                 . filter ((cm ==) . tcWarningOrigin) <$> useTC stTCWarnings
-
     let (from, to) = case P.rangeToInterval (getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -211,7 +161,6 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
-                                       , warnInfo
                                        ])
                        `mappend`
                      curTokens
@@ -504,17 +453,25 @@ nameKinds :: Level
           -> A.Declaration
           -> TCM NameKinds
 nameKinds hlLevel decl = do
-  imported <- fix <$> useTC stImports
+  imported <- useTC $ stImports . sigDefinitions
   local    <- case hlLevel of
-    Full{} -> fix <$> useTC stSignature
+    Full{} -> useTC $ stSignature . sigDefinitions
     _      -> return HMap.empty
+  impPatSyns <- useTC stPatternSynImports
+  locPatSyns <- case hlLevel of
+    Full{} -> useTC stPatternSyns
+    _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
   let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
-  let merged = unions [local, imported, syntax]
-  return (\n -> HMap.lookup n merged)
+  return $ \ n -> unionsMaybeWith merge
+    [ defnToKind . theDef <$> HMap.lookup n local
+    , con <$ Map.lookup n locPatSyns
+    , defnToKind . theDef <$> HMap.lookup n imported
+    , con <$ Map.lookup n impPatSyns
+    , HMap.lookup n syntax
+    ]
   where
-  fix = HMap.map (defnToKind . theDef) . (^. sigDefinitions)
 
   -- | The 'M.Axiom' constructor is used to represent various things
   -- which are not really axioms, so when maps are merged 'Postulate's
@@ -525,7 +482,6 @@ nameKinds hlLevel decl = do
   merge _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
   merge k         _ = k
 
-  unions = foldr (HMap.unionWith merge) HMap.empty
   insert = HMap.insertWith merge
 
   defnToKind :: Defn -> NameKind
@@ -557,7 +513,7 @@ nameKinds hlLevel decl = do
   declToKind (A.Pragma {})          = id
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
-  declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
+  declToKind (A.PatternSynDef q _ _) = insert q con
   declToKind (A.Generalize _ _ _ q _) = insert q Generalizable
   declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
@@ -565,14 +521,13 @@ nameKinds hlLevel decl = do
   declToKind (A.DataSig _ q _ _)      = insert q Datatype
   declToKind (A.DataDef _ q _ _ cs)   = \m ->
                                       insert q Datatype $
-                                      foldr (\d -> insert (A.axiomName d)
-                                                          (Constructor Common.Inductive))
+                                      foldr (\d -> insert (A.axiomName d) con)
                                             m cs
   declToKind (A.RecSig _ q _ _)       = insert q Record
-  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record .
-                                      case c of
-                                        Nothing -> id
-                                        Just q  -> insert q (Constructor Common.Inductive)
+  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record . maybe id (`insert` con) c
+
+  con :: NameKind
+  con = Constructor Common.Inductive
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declaration.
@@ -621,7 +576,6 @@ printErrorInfo e =
     errorHighlighting e
 
 -- | Generate highlighting for error.
---   Does something special for termination errors.
 
 errorHighlighting :: TCErr -> TCM File
 errorHighlighting e = do
@@ -678,6 +632,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
   SafeFlagWithoutKFlagPrimEraseEquality -> mempty
+  SafeFlagEta                -> mempty
   SafeFlagInjective          -> mempty
   SafeFlagNoCoverageCheck    -> mempty
   WithoutKFlagPrimEraseEquality -> mempty
@@ -744,7 +699,6 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.
 
--- TODO: highlight also the problematic occurrences
 positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
 positivityErrorHighlighting q os =
   several (rToR <$> getRange q : rs) m
@@ -982,21 +936,21 @@ nameToFileA modMap file x include m =
     if P.rangeFile r == Strict.Just file
     then r else noRange
     where
-    r = theNameRange $ A.nameFixity $ A.qnameName x
+    r = Common.theNameRange $ A.nameFixity $ A.qnameName x
 
   notationFile =
     if P.rangeFile (getRange notation) == Strict.Just file
     then mconcat $ map genPartFile notation
     else mempty
     where
-    notation = theNotation $ A.nameFixity $ A.qnameName x
+    notation = Common.theNotation $ A.nameFixity $ A.qnameName x
 
     boundAspect = parserBased{ aspect = Just $ Name (Just Bound) False }
 
-    genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile WildHole{}       = mempty
-    genPartFile (IdPart x)       = singleton (rToR $ getRange x) (m False)
+    genPartFile (Common.BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile (Common.NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile Common.WildHole{}       = mempty
+    genPartFile (Common.IdPart x)       = singleton (rToR $ getRange x) (m False)
 
 concreteBase :: I.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName

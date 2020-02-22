@@ -19,9 +19,8 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps
-  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
-import Agda.Interaction.Base (CommandState)
+import Agda.Interaction.Base
+  (CommandState, OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..), Arg)
@@ -68,6 +67,9 @@ data Response
     | Resp_DoneAborting
       -- ^ A command sent when an abort command has completed
       -- successfully.
+    | Resp_DoneExiting
+      -- ^ A command sent when an exit command is about to be
+      -- completed.
 
 -- | Should token-based highlighting be removed in conjunction with
 -- the application of new highlighting (in order to reduce the risk of
@@ -206,3 +208,4 @@ defaultInteractionOutputCallback r = case r of
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
+  Resp_DoneExiting {}       -> __IMPOSSIBLE__

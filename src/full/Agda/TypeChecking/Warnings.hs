@@ -26,7 +26,7 @@ import Control.Monad.Trans ( lift )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
-import {-# SOURCE #-} Agda.TypeChecking.Pretty
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ()
 
@@ -35,6 +35,7 @@ import Agda.Syntax.Parser
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
+import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 
 import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
@@ -62,7 +63,9 @@ instance {-# OVERLAPPING #-} Semigroup (TCM P.Doc) where
   d1 <> d2 = (<>) <$> d1 <*> d2
 
 instance MonadWarning TCM where
-  addWarning tcwarn = stTCWarnings `modifyTCLens` add w' tcwarn
+  addWarning tcwarn = do
+    stTCWarnings `modifyTCLens` add w' tcwarn
+    highlightWarning tcwarn
     where
       w' = tcWarning tcwarn
 
