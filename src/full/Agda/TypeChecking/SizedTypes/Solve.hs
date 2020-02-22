@@ -123,8 +123,7 @@ solveSizeConstraints flag =  do
     -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
-      [ text $ "Solving constraints (" ++ show flag ++ ")"
-      ] ++ map prettyTCM cs0
+      text $ "Solving constraints (" ++ show flag ++ ")" : map prettyTCM cs0
   let -- Error for giving up
       cannotSolve :: TCM a
       cannotSolve = typeError . GenericDocError =<<
@@ -163,10 +162,7 @@ solveSizeConstraints flag =  do
   constrainedMetas <- Set.unions <$> do
     forM  (ccs) $ \ (cs :: NonEmpty CC) -> do
 
-      reportSDoc "tc.size.solve" 60 $ vcat $ concat
-        [ [ "size constraint cluster:" ]
-        , map (text . show) $ NonEmpty.toList cs
-        ]
+      reportSDoc "tc.size.solve" 60 $ vcat $ "size constraint cluster:" : map (text . show) (NonEmpty.toList cs)
 
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
@@ -177,10 +173,9 @@ solveSizeConstraints flag =  do
           mapM (runMaybeT . castConstraintToCurrentContext) $ NonEmpty.toList cs
 
         reportSDoc "tc.size.solve" 20 $ vcat $
-          [ "converted size constraints to context: " <+> do
+          "converted size constraints to context: " <+> do
               tel <- getContextTelescope
-              inTopContext $ prettyTCM tel
-          ] ++ map (nest 2 . prettyTCM) cs'
+              inTopContext $ prettyTCM tel : map (nest 2 . prettyTCM) cs'
 
         -- Solve the converted constraints.
         solveSizeConstraints_ flag =<<  mapM buildClosure cs'
@@ -395,7 +390,7 @@ solveCluster flag ccs = do
           [ text $ "Cannot solve size constraints" ] ++ prettyCs ++
           [ text $ "Reason: " ++ reason ]
   reportSDoc "tc.size.solve" 20 $ vcat $
-    [ "Solving constraint cluster" ] ++ prettyCs
+    "Solving constraint cluster" : prettyCs
   -- Find the super context of all contexts.
 {-
   -- We use the @'ctxId'@s.
@@ -467,7 +462,7 @@ solveCluster flag ccs = do
 
   -- Convert size metas to flexible vars.
   let metas :: [SizeMeta]
-      metas = concat $ map (foldMap (:[])) csC
+      metas = concatMap (foldMap (:[])) csC
       csF   :: [Size.Constraint' NamedRigid Int]
       csF   = map (fmap (metaId . sizeMetaId)) csC
 
@@ -533,7 +528,7 @@ solveCluster flag ccs = do
   let noIP = Set.null $ Set.intersection ims ms
 
   unless (null ms) $ reportSDoc "tc.size.solve" 30 $ fsep $
-    [ "cluster did not solve these size metas: " ] ++ map prettyTCM (Set.toList ms)
+    "cluster did not solve these size metas: " : map prettyTCM (Set.toList ms)
 
   solvedAll <- do
     -- If no metas are left, we have solved this cluster completely.
@@ -740,7 +735,7 @@ instance PrettyTCM HypSizeConstraint where
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
       applyUnless (null hs)
-       (((hcat $ punctuate ", " $ map prettyTCM hs) <+> "|-") <+>)
+       ((hcat (punctuate ", " $ map prettyTCM hs) <+> "|-") <+>)
        (prettyTCM c)
 
 -- | Turn a constraint over de Bruijn indices into a size constraint.

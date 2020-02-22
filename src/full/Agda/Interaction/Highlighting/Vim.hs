@@ -41,7 +41,7 @@ keyword cat ws  = "syn keyword " ++ unwords (cat : ws)
 match :: String -> [String] -> String
 match _ [] = ""
 match cat ws    = "syn match " ++ cat ++ " \"" ++
-                    concat (List.intersperse "\\|" $ map (wordBounded . escape) ws) ++ "\""
+                    intercalate "\\|" (map (wordBounded . escape) ws) ++ "\""
 
 matches :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String]
 matches cons icons defs idefs flds iflds =

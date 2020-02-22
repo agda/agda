@@ -460,7 +460,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                 -- arguments.
                 Application (A.Con (A.AmbQ cs')) es -> do
                   cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
-                  unless (elem c cs') mismatch
+                  unless (c `elem` cs') mismatch
                   return $ (map . fmap . fmap) (A.DotP r) es
                 _  -> return $ map (unnamed (A.WildP empty) <$) qs'
             stripConP d us b c ConOCon qs' ps'
@@ -488,7 +488,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
             cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
-            unless (elem c cs') mismatch
+            unless (c `elem` cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
 
@@ -697,7 +697,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
     -- Andreas, 2015-10-28: Yes, but properly! (Issue 1407)
     sub top ys wild = parallelS $ map term [0 .. m + top - 1]
       where
-        term i = maybe wild var $ List.findIndex (Just i ==) ys
+        term i = maybe wild var $ List.elemIndex (Just i) ys
 
 -- Andreas, 2014-12-05 refactored using numberPatVars
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns

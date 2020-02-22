@@ -30,7 +30,6 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 -- import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Conversion (equalTermOnFace)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce

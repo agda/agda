@@ -79,15 +79,13 @@ instance LabelPatVars a b i => LabelPatVars [a] [b] i                 where
 instance LabelPatVars Pattern DeBruijnPattern Int where
   labelPatVars p =
     case p of
-      VarP o x     -> do i <- next
-                         return $ VarP o (DBPatVar x i)
+      VarP o x     -> do VarP o . DBPatVar x <$> next
       DotP o t     -> DotP o t <$ next
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       DefP o q ps -> DefP o q <$> labelPatVars ps
       LitP o l     -> return $ LitP o l
       ProjP o q    -> return $ ProjP o q
-      IApplyP o u t x -> do i <- next
-                            return $ IApplyP o u t (DBPatVar x i)
+      IApplyP o u t x -> do IApplyP o u t . DBPatVar x <$> next
     where next = caseListM get __IMPOSSIBLE__ $ \ x xs -> do put xs; return x
   unlabelPatVars = fmap dbPatVarName
 
@@ -130,7 +128,7 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
-    picks = forM (downFrom n) $ \ i -> List.findIndex (Just i ==) ixs
+    picks = forM (downFrom n) $ \ i -> List.elemIndex (Just i) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP _ x)    = [Just $ dbPatVarIndex x]

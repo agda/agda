@@ -450,7 +450,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
                 -> Just $ p { projIndex = n - size ts'
                             , projLams  = projLams p `apply` ts'
-                            , projProper= fmap copyName $ projProper p
+                            , projProper= copyName Control.Applicative.<$> projProper p
                             }
               _ -> Nothing
             def =
@@ -546,8 +546,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       reportSDoc "tc.mod.apply" 80 $ "Copying section" <+> pretty x <+> "to" <+> pretty y
       reportSDoc "tc.mod.apply" 80 $ "  ts           = " <+> mconcat (List.intersperse "; " (map pretty ts))
       reportSDoc "tc.mod.apply" 80 $ "  totalArgs    = " <+> text (show totalArgs)
-      reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (List.intercalate " " (map (fst . unDom) $ telToList tel))  -- only names
-      reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (List.intercalate " " (map (fst . unDom) $ telToList ptel)) -- only names
+      reportSDoc "tc.mod.apply" 80 $ "  tel          = " <+> text (unwords (map (fst . unDom) $ telToList tel))  -- only names
+      reportSDoc "tc.mod.apply" 80 $ "  sectionTel   = " <+> text (unwords (map (fst . unDom) $ telToList ptel)) -- only names
       addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
@@ -979,7 +979,7 @@ moduleParamsToApply m = do
 inFreshModuleIfFreeParams :: TCM a -> TCM a
 inFreshModuleIfFreeParams k = do
   msub <- getModuleParameterSub =<< currentModule
-  if msub == Nothing || msub == Just IdS then k else do
+  if isNothing msub || msub == Just IdS then k else do
     m  <- currentModule
     m' <- qualifyM m . mnameFromList . (:[]) <$>
             freshName_ ("_" :: String)
@@ -1151,7 +1151,7 @@ isInlineFun = (^. funInline)
 --   (projection applied to argument).
 isProperProjection :: Defn -> Bool
 isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
-  if projIndex isP <= 0 then False else isJust $ projProper isP
+  (projIndex isP > 0) && isJust (projProper isP)
 
 -- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Defn -> Int

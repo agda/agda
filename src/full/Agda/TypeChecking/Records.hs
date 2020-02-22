@@ -170,7 +170,7 @@ getRecordTypeFields t = do
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
-getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
+getRecordConstructor r = killRange . recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
@@ -669,7 +669,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
       case zipWithM check args xs of
-        Just as -> case [ a | Just a <- as ] of
+        Just as -> case catMaybes as of
           (a:as) ->
             if all (a ==) as
               then return a
@@ -712,15 +712,13 @@ isSingletonRecord' regardIrrelevance r ps = do
       EmptyTel -> return $ Right $ Just []
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ \ tel ->
-            emap (Arg (domInfo dom) __DUMMY_TERM__ :) <$> check tel)
+          (underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
         {-else-} $ do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
             Left mid       -> return $ Left mid
             Right Nothing  -> return $ Right Nothing
-            Right (Just v) -> underAbstraction dom tel $ \ tel ->
-              emap (Arg (domInfo dom) v :) <$> check tel
+            Right (Just v) -> underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) v :)) . check
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.

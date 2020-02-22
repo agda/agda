@@ -279,7 +279,7 @@ instance PrettyTCM Constraint where
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        Guarded c pid            -> prettyTCM c <?> (parens $ "blocked by problem" <+> prettyTCM pid)
+        Guarded c pid            -> prettyTCM c <?> parens ("blocked by problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m
@@ -447,10 +447,10 @@ instance PrettyTCM NLPat where
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $
     text ("λ " ++ absName u ++ " →") <+>
-    (addContext (absName u) $ prettyTCM $ absBody u)
+    addContext (absName u) (prettyTCM $ absBody u)
   prettyTCM (PPi a b)   = parens $
     text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
-    (addContext (absName b) $ prettyTCM $ unAbs b)
+    addContext (absName b) (prettyTCM $ unAbs b)
   prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)

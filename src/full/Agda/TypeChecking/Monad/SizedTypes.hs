@@ -155,9 +155,7 @@ sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
   Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
-  return $ case iterate (sizeSuc_ suc) v !!! n of
-             Nothing -> __IMPOSSIBLE__
-             Just t  -> t
+  return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
@@ -298,7 +296,7 @@ maxViewCons v ws = case sizeViewComparableWithMax v ws of
 sizeViewComparableWithMax :: DeepSizeView -> SizeMaxView -> SizeViewComparable SizeMaxView'
 sizeViewComparableWithMax v (w :| ws) =
   case (ws, sizeViewComparable v w) of
-    (w':ws', NotComparable) -> fmap (w:) $ sizeViewComparableWithMax v (w' :| ws')
+    (w':ws', NotComparable) -> (w:) <$> sizeViewComparableWithMax v (w' :| ws')
     (ws    , r)             -> fmap (const ws) r
 
 
