@@ -56,6 +56,50 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
+If you use `Nix-style Local Builds
+<https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
+by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
+following error when compiling with the GHC backend:
+
+.. code-block::
+
+  Compilation error:
+
+  MAlonzo/RTE.hs:13:1: error:
+      Failed to load interface for ‘Numeric.IEEE’
+      Use -v to see a list of the files searched for.
+
+This is because packages are sandboxed in ``$HOME/.cabal/store``
+and you have to explicitly register required packaged in a `GHC environment
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html?highlight=environment#package-environments>`_.
+This can be done by running the following command:
+
+.. code-block:: bash
+
+  cabal v2-install --lib Agda ieee754
+
+This will register `ieee754
+<http://hackage.haskell.org/package/ieee754>`_ in the GHC default environment.
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create separate Agda
+environment by running:
+
+.. code-block:: bash
+
+  cabal v2-install --package-env agda --lib Agda ieee754
+
+You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
+
+.. code-block:: bash
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+.. NOTE::
+
+  Actually it is not necessary to register the Agda libraries,
+  but doing so forces Cabal to install the same version of `ieee754
+  <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
 
 .. _prebuilt-packages:
 
