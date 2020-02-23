@@ -145,6 +145,7 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
+  , optSubtyping                 :: WithDefault 'True
   , optCumulativity              :: Bool
   , optSizedTypes                :: WithDefault 'True
   , optGuardedness               :: WithDefault 'True
@@ -261,6 +262,7 @@ defaultPragmaOptions = PragmaOptions
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
+  , optSubtyping                 = Default
   , optCumulativity              = False
   , optSizedTypes                = Default
   , optGuardedness               = Default
@@ -413,6 +415,7 @@ restartOptions =
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
+  , (B . collapseDefault . optSubtyping, "--subtyping")
   , (B . optCumulativity, "--cumulativity")
   , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
@@ -462,6 +465,7 @@ coinfectiveOptions =
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . collapseDefault . optSizedTypes, "--no-sized-types")
   , (not . collapseDefault . optGuardedness, "--no-guardedness")
+  , (not . collapseDefault . optSubtyping, "--no-subtyping")
   , (not . optCumulativity, "--no-cumulativity")
   ]
 
@@ -622,8 +626,17 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
+subtypingFlag :: Flag PragmaOptions
+subtypingFlag o = return $ o { optSubtyping = Value True }
+
+noSubtypingFlag :: Flag PragmaOptions
+noSubtypingFlag o = return $ o { optSubtyping = Value False }
+
 cumulativityFlag :: Flag PragmaOptions
-cumulativityFlag o = return $ o { optCumulativity = True }
+cumulativityFlag o =
+  return $ o { optCumulativity = True
+             , optSubtyping    = setDefault True $ optSubtyping o
+             }
 
 noCumulativityFlag :: Flag PragmaOptions
 noCumulativityFlag o = return $ o { optCumulativity = False }
@@ -636,7 +649,10 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o = return $ o { optSizedTypes = Value True }
+sizedTypes o =
+  return $ o { optSizedTypes = Value True
+             , optSubtyping  = setDefault True $ optSubtyping o
+             }
 
 noSizedTypes :: Flag PragmaOptions
 noSizedTypes o = return $ o { optSizedTypes = Value False }
@@ -918,8 +934,12 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
+    , Option []     ["subtyping"] (NoArg subtypingFlag)
+                    "enable subtyping rules in general (e.g. for irrelevance and erasure)"
+    , Option []     ["no-subtyping"] (NoArg noSubtypingFlag)
+                    "disable subtyping rules in general (e.g. for irrelevance and erasure) (default)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
-                    "enable subtyping of universes (e.g. Set =< Set₁)"
+                    "enable subtyping of universes (e.g. Set =< Set₁) (implies --subtyping)"
     , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
                     "disable subtyping of universes (default)"
     , Option []     ["prop"] (NoArg propFlag)
@@ -927,7 +947,7 @@ pragmaOptions =
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "enable sized types (default, inconsistent with --guardedness)"
+                    "enable sized types (default, inconsistent with --guardedness, implies --subtyping)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
