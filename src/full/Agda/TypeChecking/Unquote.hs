@@ -683,7 +683,6 @@ evalTCM v = do
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
       setDirty
-      let r = getRelevance i -- TODO:: Defined but not used
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]

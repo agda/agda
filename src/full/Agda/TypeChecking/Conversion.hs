@@ -1655,9 +1655,6 @@ equalSort s1 s2 = do
                   | otherwise -> postpone
            | otherwise -> postpone
 
-      set0 = mkType 0  -- TODO:: Defined but not used
-      prop0 = mkProp 0 -- TODO:: Defined but not used
-
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
       univSortEquals :: Sort -> Sort -> m ()

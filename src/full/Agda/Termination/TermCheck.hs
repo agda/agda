@@ -127,11 +127,6 @@ termDecl' d = case d of
   where
     termDecls ds = concat <$> mapM termDecl' ds
 
-    unscopeDefs = concatMap unscopeDef -- TODO:: Defined but not used
-
-    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds -- TODO:: Defined but not used
-    unscopeDef d = [d]
-
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName

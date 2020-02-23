@@ -164,8 +164,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- Return the data definition
             return dataDef{ dataPathCons = catMaybes pathCons }
 
-        let s      = dataSort dataDef -- TODO:: Defined but not used
-            cons   = map A.axiomName cs  -- get constructor names
+        let cons   = map A.axiomName cs  -- get constructor names
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.

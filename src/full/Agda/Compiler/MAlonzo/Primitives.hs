@@ -263,7 +263,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   ]
   where
   x |-> s = (x, Left <$> s)
-  -- TODO:: Defined but not used: ‘bin’
+  -- NB is defined but not used
   bin blt op ty from to = do
     from' <- bltQual' blt from
     to'   <- bltQual' blt to
