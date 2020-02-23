@@ -656,7 +656,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
       (working_tel,_deltaEx) = splitTelescopeAt (size gamma + 3 + size delta) tel
 
       -- Γ,φ,u,u0,(x:H)(δ : Δ) ⊢ rhoS : Γ(x:H)(δ : Δ)
-      rhoS = liftS (size hdelta) $ raiseS 3 -- TODO:: Defined but not used
+      {- rhoS = liftS (size hdelta) $ raiseS 3 -}
       vs = iApplyVars (scPats old_sc)
 
   -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]

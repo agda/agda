@@ -415,7 +415,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
         b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
-        showRec :: MonadPretty m => m Doc -- TODO:: Defined but not used
+        showRec :: MonadPretty m => m Doc -- Defined, but currently not used
         showRec = sep
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps

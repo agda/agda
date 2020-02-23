@@ -303,9 +303,6 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
         pwords "useInjectivity on" ++
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
-          allUnique       = all isUnique hdMap -- TODO:: Defined but not used
-          isUnique [_] = True                  -- TODO:: Defined but not used
-          isUnique _   = False
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
