@@ -1782,13 +1782,13 @@ equalSort s1 s2 = do
           -- Anything else: postpone
           _        -> synEq s0 (FunSort s1 s2)
 
-      -- TODO:: Defined but not used: isBottomSort
       -- check if the given sort @s0@ is a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
       isBottomSort :: Bool -> Sort -> Bool
       isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
       isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
       isBottomSort propEnabled _                      = False
+      -- (NB: Defined but not currently used)
 
       definitelyNotInf :: Sort -> Bool
       definitelyNotInf = \case

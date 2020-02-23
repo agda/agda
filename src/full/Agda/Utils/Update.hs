@@ -51,7 +51,7 @@ runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
 runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
 
 -- | Run a 'ChangeT' computation, but ignore change flag.
-execChangeT :: Functor m => ChangeT m a -> m a -- TODO:: Defined but not used
+execChangeT :: Functor m => ChangeT m a -> m a -- A library function, so keep
 execChangeT = fmap fst . runChangeT
 
 -- | Map a 'ChangeT' computation (monad transformer action).

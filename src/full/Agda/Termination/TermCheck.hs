@@ -487,7 +487,7 @@ termType = return mempty
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames -- TODO:: Defined but not used
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames -- Defined but not currently used
   mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i -- TODO:: Defined but not used
 
 -- | Mask arguments and result for termination checking

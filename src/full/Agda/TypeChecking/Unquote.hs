@@ -705,7 +705,6 @@ evalTCM v = do
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
       setDirty
-      let r = getRelevance i -- TODO:: Defined but not used
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
