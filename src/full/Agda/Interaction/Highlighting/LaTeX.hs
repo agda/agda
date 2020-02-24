@@ -669,38 +669,55 @@ toLaTeX
   -> L.Text
   -> HighlightingInfo
   -> IO L.Text
-toLaTeX cc path source hi
+toLaTeX cc path source hi =
 
-  = processTokens cc
+  processTokens cc
 
-  . map ((\(role, tokens) -> (role,) $
-      -- This bit fixes issue 954
-      (if L.isCode role then
-        -- Remove trailing whitespace from the
-        -- final line; the function spaces
-        -- expects trailing whitespace to be
-        -- followed by a newline character.
-        whenMoreThanOne
-          (withLast $
-            withTokenText $ \suf ->
-              maybe suf (T.dropWhileEnd isSpaceNotNewline) (T.stripSuffix "\n" suf))
-        .
-        withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
-        .
-        withFirst (
-          withTokenText $ \pre ->
-              fromMaybe pre $
-                  T.stripPrefix "\n" $
-                    T.dropWhile isSpaceNotNewline pre)
-      else
-        -- do nothing
-        id) tokens) . (second (
-      -- Split tokens at newlines
-      concatMap (stringLiteral . (\(mi, cs) ->
-                          Token { text = T.pack cs
-                                , info = fromMaybe mempty mi
-                                })) . groupByFst
-    ))) . groupByFst
+    . map
+      ( ( \(role, tokens) ->
+            (role,) $
+              -- This bit fixes issue 954
+              ( if L.isCode role
+                  then-- Remove trailing whitespace from the
+                  -- final line; the function spaces
+                  -- expects trailing whitespace to be
+                  -- followed by a newline character.
+                    whenMoreThanOne
+                      ( withLast
+                          $ withTokenText
+                          $ \suf ->
+                            maybe
+                              suf
+                              (T.dropWhileEnd isSpaceNotNewline)
+                              (T.stripSuffix "\n" suf)
+                      )
+                      . withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+                      . withFirst
+                        ( withTokenText $
+                            \pre ->
+                              fromMaybe pre $ T.stripPrefix "\n" $
+                                T.dropWhile
+                                  isSpaceNotNewline
+                                  pre
+                        )
+                  else-- do nothing
+                    id
+              )
+                tokens
+        )
+          . ( second
+                ( -- Split tokens at newlines
+                  concatMap
+                    ( stringLiteral
+                        . ( \(mi, cs) ->
+                              Token {text = T.pack cs, info = fromMaybe mempty mi}
+                          )
+                    )
+                    . groupByFst
+                )
+            )
+      )
+    . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
   . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char))) [1..] . atomizeLayers . literateTeX (startPos (Just path))

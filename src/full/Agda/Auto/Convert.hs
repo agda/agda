@@ -138,7 +138,8 @@ tomy imi icns typs = do
        let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
 
-       projfcns <- mapM ((\name -> getConst False name TMAll) . I.unDom) fields
+       projfcns <- mapM (\ dom -> getConst False (I.unDom dom) TMAll) fields
+       -- Equivalently projfcns <- mapM (($ TMAll) . getConst False . I.unDom) fields
 
        return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do

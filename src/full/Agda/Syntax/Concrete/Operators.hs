@@ -364,9 +364,9 @@ buildParsers kind exprNames = do
     let g = Data.Function.fix $ \p -> InternalParsers
               { pTop    = memoise TopK $
                           Fold.asum $
-                            foldr (($) . (\(l, ns) higher ->
+                            foldr (\(l, ns) higher ->
                                        mkP (Right l) parseSections
-                                           (pTop p) ns higher True)) (pApp p)
+                                           (pTop p) ns higher True) (pApp p)
                                    relatedOperators :
                             zipWith (\ k n ->
                                     mkP (Left k) parseSections

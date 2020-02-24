@@ -21,6 +21,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
+import Agda.Utils.Functor
 import Agda.Utils.Monad
 
 -- | Run the given action. At the end take all new metavariables of
@@ -54,7 +55,7 @@ defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
       when (or progress) $ (loop xs)
 
     openLevelMetas :: [MetaId] -> m [MetaId]
-    openLevelMetas xs = filterM (fmap isNothing . isInteractionMeta) xs
+    openLevelMetas xs = filterM (isNothing <.> isInteractionMeta) xs
       >>= filterM (fmap (== NoGeneralize) . isGeneralizableMeta)
       >>= filterM isLevelMeta
 
