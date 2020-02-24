@@ -683,13 +683,11 @@ toLaTeX cc path source hi
         whenMoreThanOne
           (withLast $
             withTokenText $ \suf ->
-              fromMaybe suf $
-                fmap (T.dropWhileEnd isSpaceNotNewline) $
-                  T.stripSuffix "\n" suf)
+              maybe suf (T.dropWhileEnd isSpaceNotNewline) (T.stripSuffix "\n" suf))
         .
-        (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+        withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
         .
-        (withFirst $
+        withFirst (
           withTokenText $ \pre ->
               fromMaybe pre $
                   T.stripPrefix "\n" $
@@ -698,27 +696,14 @@ toLaTeX cc path source hi
         -- do nothing
         id) tokens) . (second (
       -- Split tokens at newlines
-      concatMap stringLiteral
-
-      -- Head the list (the grouped chars contain the same meta info) and
-      -- collect the characters into a string.
-    . map (\(mi, cs) ->
+      concatMap (stringLiteral . (\(mi, cs) ->
                           Token { text = T.pack cs
                                 , info = fromMaybe mempty mi
-                                })
-      -- Characters which share the same meta info are the same token, so
-      -- group them together.
-    . groupByFst
+                                })) . groupByFst
     ))) . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
-  . map (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))
-
-  -- Add position in file to each character.
-  . zip [1..]
-
-  -- Map each character to its role
-  . atomizeLayers . literateTeX (startPos (Just path))
+  . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char))) [1..] . atomizeLayers . literateTeX (startPos (Just path))
 
   $ L.unpack source
   where

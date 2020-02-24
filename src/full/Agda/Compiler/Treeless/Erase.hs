@@ -286,7 +286,7 @@ getTypeInfo t0 = do
     Sort{}    -> return Erasable
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
-  let e | any (== Empty) is = Erasable
+  let e | Empty `elem` is = Erasable
         | null is           = et        -- TODO: guard should really be "all inhabited is"
         | et == Empty       = Erasable
         | otherwise         = et
@@ -299,10 +299,10 @@ getTypeInfo t0 = do
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q
-      mcs    <- return $ case I.theDef def of
-        I.Datatype{ dataCons = cs } -> Just cs
-        I.Record{ recConHead = c }  -> Just [conName c]
-        _                           -> Nothing
+      let mcs = case I.theDef def of
+                  I.Datatype{ dataCons = cs } -> Just cs
+                  I.Record{ recConHead = c }  -> Just [conName c]
+                  _                           -> Nothing
       case mcs of
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do

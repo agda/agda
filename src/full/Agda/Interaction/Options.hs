@@ -33,7 +33,7 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( when )
+import Control.Monad            ( when, void  )
 import Control.Monad.Trans
 
 import Data.IORef
@@ -326,7 +326,7 @@ type Flag opts = opts -> OptM opts
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | htmlRelated = throwError htmlRelatedMessage
-  | not (matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] <= 1) =
+  | matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] > 1 =
       throwError "Choose at most one: input file, --interactive, or --interaction-json.\n"
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
       throwError exclusiveMessage
@@ -1037,7 +1037,7 @@ deadPragmaOptions =
 -- | Used for printing usage info.
 --   Does not include the dead options.
 standardOptions_ :: [OptDescr ()]
-standardOptions_ = map (fmap $ const ()) standardOptions
+standardOptions_ = map void standardOptions
 
 -- | Simple interface for System.Console.GetOpt
 --   Could be moved to Agda.Utils.Options (does not exist yet)
@@ -1064,7 +1064,7 @@ getOptSimple argv opts fileArg = \ defaults ->
       -- Suggest alternatives that are at most 3 typos away
 
       longopts :: [String]
-      longopts = map ("--" ++) $ concat $ map (\ (Option _ long _ _) -> long) opts
+      longopts = map ("--" ++) $ concatMap (\ (Option _ long _ _) -> long) opts
 
       dist :: String -> String -> Int
       dist s t = restrictedDamerauLevenshteinDistance defaultEditCosts s t
@@ -1085,7 +1085,7 @@ getOptSimple argv opts fileArg = \ defaults ->
 
       sugs :: [String] -> String
       sugs [a] = a
-      sugs as  = "any of " ++ intercalate " " as
+      sugs as  = "any of " ++ unwords as
 
 {- No longer used in favour of parseBackendOptions in Agda.Compiler.Backend
 -- | Parse the standard options.

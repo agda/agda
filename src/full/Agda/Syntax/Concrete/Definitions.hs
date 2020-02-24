@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), second)
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -428,7 +428,7 @@ instance Pretty DeclarationException where
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
-    text $ declName nd : pwords "are not allowed in macro blocks"
+    text (declName nd) : pwords "are not allowed in macro blocks"
   pretty (DeclarationPanic s) = text s
 
 instance Pretty DeclarationWarning where

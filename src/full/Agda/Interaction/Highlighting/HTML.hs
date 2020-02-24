@@ -235,8 +235,7 @@ tokenStream contents info =
             (pos, map (snd . snd) cs, fromMaybe mempty mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
-  map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
-  zip [1..] (T.unpack contents)
+  zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
   where
   infoMap = toMap (decompress info)
 
@@ -316,7 +315,7 @@ code onlyCode fileType = mconcat . if onlyCode
     posAttributes :: [Attribute]
     posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
-      , toList $ fmap link $ definitionSite mi
+      , toList $ link <$> definitionSite mi
       , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
@@ -338,7 +337,7 @@ code onlyCode fileType = mconcat . if onlyCode
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
       showKind k                         = show k
 
-      opClass = if op then ["Operator"] else []
+      opClass = ["Operator" | op]
     aspectClasses a = [show a]
 
 

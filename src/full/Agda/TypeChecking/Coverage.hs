@@ -1530,7 +1530,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
 splitResult :: QName -> SplitClause -> TCM (Either SplitError [SplitClause])
 splitResult f sc = do
   caseMaybeM (splitResultPath f sc)
-             (f Control.Applicative.<$> splitResultRecord f sc)
+             ((fmap . fmap) splitClauses $ splitResultRecord f sc)
              (return . Right . (:[]))
 
 

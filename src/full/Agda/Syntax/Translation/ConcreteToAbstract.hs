@@ -414,7 +414,8 @@ checkOpen r mam x dir = do
         }
   let adecls = [A.Open minfo m adir]
   reportSDoc "scope.decl" 70 $ vcat $
-    text $ "scope checked NiceOpen " ++ prettyShow x : map (nest 2 . prettyA) adecls
+    text ( "scope checked NiceOpen " ++ prettyShow x
+         ) : map (nest 2 . prettyA) adecls
   return (minfo, m, adir)
 
 {--------------------------------------------------------------------------
@@ -1717,7 +1718,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         scopeCheckNiceModule r p name tel $ toAbstract ds
 
       reportSDoc "scope.decl" 70 $ vcat $
-        text $ "scope checked NiceModule " ++ prettyShow x : map (nest 2 . prettyA) adecls
+        text ( "scope checked NiceModule " ++ prettyShow x
+             ) : map (nest 2 . prettyA) adecls
       return adecls
 
     NiceModule _ _ _ m@C.Qual{} _ _ ->
@@ -1731,7 +1733,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       adecls <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
 
       reportSDoc "scope.decl" 70 $ vcat $
-        text $ "scope checked NiceModuleMacro " ++ prettyShow x : map (nest 2 . prettyA) adecls
+        text ( "scope checked NiceModuleMacro " ++ prettyShow x
+             ) : map (nest 2 . prettyA) adecls
       return adecls
 
     NiceOpen r x dir -> do

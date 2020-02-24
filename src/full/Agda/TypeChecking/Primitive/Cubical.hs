@@ -1362,7 +1362,7 @@ primTransHComp cmd ts nelims = do
            transp <- getTermLocal builtinTrans
            io <- getTermLocal builtinIOne
            iz <- getTermLocal builtinIZero
-           (redReturn =<<) . runNamesT [] $ do
+           redReturn <=< runNamesT [] $ do
              [l,bC,phi,psi,u,u0] <- mapM (open . unArg) [l,bC,ignoreBlocking sphi,psi,u,u0]
              -- hcomp (sc 1) [psi |-> transp sc phi u] (transp sc phi u0)
              pure hcomp <#> (l <@> pure io) <#> (bC <@> pure io) <#> psi
@@ -1398,7 +1398,7 @@ primComp = do
             tHComp <- getTermLocal builtinHComp
             tTrans <- getTermLocal builtinTrans
             iz      <- getTermLocal builtinIZero
-            (redReturn =<<) . runNamesT [] $ do
+            redReturn <=< runNamesT [] $ do
               comp <- do
                 let
                   ineg j = (pure tINeg <@> j) :: TCMT IO Term
@@ -1468,7 +1468,7 @@ prim_unglueU' = do
            tTransp <- getTerm builtin_unglueU builtinTrans
            iNeg    <- getTerm builtin_unglueU builtinINeg
            iZ      <- getTerm builtin_unglueU builtinIZero
-           (redReturn =<<) . runNamesT [] $ do
+           redReturn <=< runNamesT [] $ do
              [la,bT,b] <- mapM (open . unArg) [la,bT,b]
              pure tTransp <#> lam "i" (\ _ -> la)
                           <@> lam "i" (\ i -> bT <@> (pure iNeg <@> i) <..> pure one)

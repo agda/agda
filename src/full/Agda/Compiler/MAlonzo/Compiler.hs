@@ -421,7 +421,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
 
   fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
-    [ HS.TypeSig [unqhname "d" q] ty ] ++ fb e
+    HS.TypeSig [unqhname "d" q] ty : fb e
 
   fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
@@ -555,17 +555,17 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
       erased  <- lift $ getErasedConArgs c
       let missing = drop (length ts) erased
           notErased = not
-      case all notErased missing of
-        -- If the constructor is fully applied or all missing arguments are retained,
-        -- we can drop the erased arguments here, doing a complete job of dropping erased arguments.
-        True  -> do
-          f <- lift $ HS.Con <$> conhqn c
-          hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
-        -- Otherwise, we translate the eta-expanded constructor application.
-        False -> do
-          let n = length missing
-          unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
-          term $ etaExpand (length missing) tm0
+      if all notErased missing
+        then (do
+                f <- lift $ HS.Con <$> conhqn c
+                hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
+             )
+        else
+             (do
+                let n = length missing
+                unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
+                term $ etaExpand (length missing) tm0
+             )
 
     -- Other kind of application: fall back to apps.
     (t, ts) -> noApplication t >>= \ t' -> coe t' `apps` ts
@@ -622,7 +622,7 @@ alt sc a = do
           if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
              | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
              | otherwise      -> lift $ conhqn c
-        mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
+        mkAlt (HS.PApp hConNm $ [HS.PVar x | (x, False) <- zip xs erased])
     T.TAGuard g b -> do
       g <- term g
       b <- term b
@@ -691,7 +691,7 @@ hslit l = case l of LitNat    _ x -> HS.Int    x
 litString :: String -> HS.Exp
 litString s =
   HS.Var (HS.Qual (HS.ModuleName "Data.Text") (HS.Ident "pack")) `HS.App`
-    (HS.Lit $ HS.String s)
+    HS.Lit (HS.String s)
 
 litqname :: QName -> HS.Exp
 litqname x =

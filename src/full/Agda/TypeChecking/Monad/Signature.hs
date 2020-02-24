@@ -450,7 +450,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
                 -> Just $ p { projIndex = n - size ts'
                             , projLams  = projLams p `apply` ts'
-                            , projProper= copyName Control.Applicative.<$> projProper p
+                            , projProper= copyName <$> projProper p
                             }
               _ -> Nothing
             def =

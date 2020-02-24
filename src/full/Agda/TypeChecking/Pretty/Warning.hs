@@ -110,8 +110,9 @@ prettyWarning wng = case wng of
           empty { clauseTel = tel, namedClausePats = ps }
 
     CoverageNoExactSplit f cs -> vcat $
-      fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
-               pwords "could not be preserved as definitional equalities in the translation to a case tree:" :
+      fsep (pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
+            pwords "could not be preserved as definitional equalities in the translation to a case tree:"
+           ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
 
     NotStrictlyPositive d ocs -> fsep $
@@ -269,7 +270,7 @@ prettyWarning wng = case wng of
              ]
       suggestion inscope x = nest 2 $ par $
         [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
-        [ "did you forget space around the '->'?" | "->" `isInfixOf` s ] ++
+        [ "did you forget space around the '->'?" | "->" `List.isInfixOf` s ] ++
         [ sep [ "did you mean"
               , nest 2 $ vcat (punctuate " or"
                        $ map (\ y -> text $ "'" ++ y ++ "'") ys)

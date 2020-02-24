@@ -89,7 +89,7 @@ options =
   where
   opts = Options
     <$> (not <$>
-         (switch $
+         switch (
             long "must-fail" <>
             help "The command must fail (by default it must succeed)"))
     <*> many
@@ -107,7 +107,7 @@ options =
              , show internalErrorString ++ ";"
              , "implies --must-fail"
              ]))
-    <*> (optional $
+    <*> optional (
            option
              (do n <- auto
                  if n < 0 || n > maxBound then
@@ -164,7 +164,7 @@ options =
                       help "Store a git bisect log in FILE" <>
                       metavar "FILE" <>
                       action "file"))
-    <*> (((\b g -> Right (b, g)) <$>
+    <*> (((curry Right) <$>
           strOption (long "bad" <>
                      metavar "BAD" <>
                      help "Bad commit" <>
@@ -198,7 +198,7 @@ options =
           many (strArgument (metavar "ARGUMENTS..." <>
                              help "The arguments supplied to Agda")))
            <|>
-         ((\prog args -> Left (prog, args)) <$>
+         ((curry Left) <$>
           strOption (long "script" <>
                      metavar "PROGRAM" <>
                      help ("Do not invoke Agda directly, run " ++
@@ -585,7 +585,7 @@ installAgda :: Options -> IO (Maybe FilePath)
 installAgda opts
   | cacheBuilds opts = do
       commit <- currentCommit
-      agdas  <- forM (True : if timeout opts then [] else [False])
+      agdas  <- forM (True : [False | not (timeout opts)])
                      (\timeout -> do
                        agda <- cachedAgda commit timeout
                        b    <- doesFileExist agda
@@ -619,22 +619,23 @@ installAgda opts
 cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
 cabalInstall opts file = do
   commit <- currentCommit
-  ok <- callProcessWithResult "cabal" $
-    [ "v1-install"
-    , "--force-reinstalls"
-    , "--disable-library-profiling"
-    , "--disable-documentation"
-    ] ++ (if cacheBuilds opts then ["--program-suffix=" ++
-                                    programSuffix commit (timeout opts)]
-                              else [])
-      ++ compilerFlag opts
-      ++ cabalOptions opts ++
-    [ file
-    ]
+  ok     <-
+    callProcessWithResult "cabal"
+    $  [ "v1-install"
+       , "--force-reinstalls"
+       , "--disable-library-profiling"
+       , "--disable-documentation"
+       ]
+    ++ [ "--program-suffix=" ++ programSuffix commit (timeout opts)
+       | cacheBuilds opts
+       ]
+    ++ compilerFlag opts
+    ++ cabalOptions opts
+    ++ [file]
   case (ok, cacheBuilds opts) of
-    (True, False) -> Just <$> compiledAgda
-    (True, True)  -> Just <$> cachedAgda commit (timeout opts)
-    (False, _)    -> return Nothing
+    (True , False) -> Just <$> compiledAgda
+    (True , True ) -> Just <$> cachedAgda commit (timeout opts)
+    (False, _    ) -> return Nothing
 
 -- | Tries to copy data files to the correct location.
 --
@@ -644,7 +645,7 @@ cabalInstall opts file = do
 
 copyDataFiles :: Options -> IO ()
 copyDataFiles opts = do
-  callProcessWithResult "cabal" (["v1-configure"] ++ compilerFlag opts)
+  callProcessWithResult "cabal" ("v1-configure" : compilerFlag opts)
   callProcessWithResult "cabal" ["v1-copy", "-v"]
   return ()
 

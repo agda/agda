@@ -22,6 +22,7 @@ module Agda.Syntax.Parser.Literate
   where
 
 import Prelude hiding (getLine)
+import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Agda.Syntax.Common
@@ -65,7 +66,7 @@ unMkLayers :: Layers -> [(LayerRole, String)]
 unMkLayers = map ((,) <$> layerRole <*> layerContent)
 
 atomizeLayers :: Layers -> [(LayerRole, Char)]
-atomizeLayers = (>>= fmap <$> ((,) . fst) <*> snd) . unMkLayers
+atomizeLayers = (fmap <$> ((,) . fst) <*> snd) <=< unMkLayers
 
 -- | Type of a literate preprocessor:
 --   Invariants:

@@ -87,7 +87,7 @@ instance MonadMetaSolver TCM where
 --   @reverse@ is necessary because we are directly abstracting over the list.
 --
 findIdx :: Eq a => [a] -> a -> Maybe Int
-findIdx vs v = elemIndex v (reverse vs)
+findIdx vs v = List.elemIndex v (reverse vs)
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool

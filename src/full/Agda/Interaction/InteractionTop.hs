@@ -231,7 +231,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     handleNastyErrors m = commandMToIO $ \ toIO -> do
       let handle e =
             Right <$>
-              (toIO $ handleErr $ Exception noRange $ text $ show e)
+              toIO (handleErr $ Exception noRange $ text $ show e)
 
           asyncHandler e@AsyncCancelled = return (Left e)
 
@@ -421,7 +421,7 @@ initialiseCommandQueue next = do
             atomically $ writeTVar abort (Just n)
             readCommands n
           _ -> do
-            n' <- return (succ n)
+            let n' = (succ n)
             atomically $ writeTChan commands (n', c)
             case c of
               Done -> return ()
@@ -573,30 +573,30 @@ interpret (Cmd_load_highlighting_info source) = do
     -- Make sure that the include directories have
     -- been set.
     setCommandLineOpts =<< lift commandLineOptions
-
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
-      ex <- liftIO $ doesFileExist source
+      ex        <- liftIO $ doesFileExist source
       absSource <- liftIO $ SourceFile <$> absolute source
-      case ex of
-        False -> return Nothing
-        True  -> (do
-          si <- Imp.sourceInfo absSource
-          let m = Imp.siModuleName si
-          checkModuleName m absSource Nothing
-          mmi <- getVisitedModule m
-          case mmi of
-            Nothing -> return Nothing
-            Just mi ->
-              if hashText (Imp.siSource si) ==
-                 iSourceHash (miInterface mi)
-               then do
-                modFile <- useTC stModuleToSource
-                method  <- viewTC eHighlightingMethod
-                return $ Just (iHighlighting $ miInterface mi, method, modFile)
-               else
-                return Nothing)
-            `catchError`
-          \_ -> return Nothing
+      if ex
+        then
+          (do
+              si <- Imp.sourceInfo absSource
+              let m = Imp.siModuleName si
+              checkModuleName m absSource Nothing
+              mmi <- getVisitedModule m
+              case mmi of
+                Nothing -> return Nothing
+                Just mi ->
+                  if hashText (Imp.siSource si) == iSourceHash (miInterface mi)
+                    then do
+                      modFile <- useTC stModuleToSource
+                      method  <- viewTC eHighlightingMethod
+                      return $ Just (iHighlighting $ miInterface mi, method, modFile)
+                    else
+                      return Nothing
+            )
+            `catchError` \_ -> return Nothing
+        else
+          return Nothing
     mapM_ putResponse resp
 
 interpret (Cmd_tokenHighlighting source remove) = do
@@ -913,7 +913,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
 -- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
-  mfile <- fmap fst <$> gets theCurrentFile
+  mfile <- gets (fmap fst . theCurrentFile)
   localTC (\ e -> e { envCurrentPath = mfile }) m
 
 data GiveRefine = Give | Refine | Intro | ElaborateGive
@@ -1077,9 +1077,9 @@ setCommandLineOpts opts = do
 
 status :: CommandM Status
 status = do
-  cf <- gets theCurrentFile
+  cf       <- gets theCurrentFile
   showImpl <- lift showImplicitArguments
-
+  --
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
@@ -1087,17 +1087,17 @@ status = do
     Nothing     -> return False
     Just (f, t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
-      case t == t' of
-        False -> return False
-        True  -> do
-          mm <- lookupModuleFromSource f
-          case mm of
-            Nothing -> return False -- work-around for Issue1007
-            Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+      if t == t'
+        then
+          (do
+            mm <- lookupModuleFromSource f
+            case mm of
+              Nothing -> return False -- work-around for Issue1007
+              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+          )
+        else return False
 
-  return $ Status { sShowImplicitArguments = showImpl
-                  , sChecked               = checked
-                  }
+  return $ Status { sShowImplicitArguments = showImpl, sChecked = checked }
 
 -- | Displays or updates status information.
 --

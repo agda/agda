@@ -130,7 +130,7 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 --
 --   TODO: more efficient implementation!?
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
-findWithIndex p as = find (p . fst) (zip as [0..])
+findWithIndex p as = List.find (p . fst) (zip as [0..])
 
 -- | A generalised variant of 'elemIndex'.
 -- O(n).
