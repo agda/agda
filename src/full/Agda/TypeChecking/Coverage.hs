@@ -814,7 +814,7 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
          if n > 1 then
            pure tComp <#> l <@> (lam "i" $ \ i -> unEl . unDom <$> ty i)
                 <@> (cl primIMax <@> phi <@> alphas)
-                <@> (lam "i" $ \ i -> ilam "o" $ \ _ -> combine (l <@> i) (unEl . unDom <$> ty i) =<< (lazyAbsApp <$> sides <*> i))
+                <@> (lam "i" $ \ i -> combine (l <@> i) (unEl . unDom <$> ty i) =<< (lazyAbsApp <$> sides <*> i))
                 <@> (lazyAbsApp <$> w <*> primIZero)
          else
            pure tTrans <#> l <@> (lam "i" $ \ i -> unEl . unDom <$> ty i)
