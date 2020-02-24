@@ -23,7 +23,7 @@ import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import Data.Text.Lazy (Text)
-import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+import Data.Typeable ( cast, Typeable, typeOf, TypeRep, typeRep )
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
@@ -193,7 +193,7 @@ class Typeable a => EmbPrj a where
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
 tickICode _ = whenM (asks collectStats) $ do
-    let key = "icode " ++ show (typeOf (undefined :: a))
+    let key = "icode " ++ show (typeRep (Proxy :: Proxy a))
     hmap <- asks stats
     liftIO $ do
       n <- fromMaybe 0 <$> H.lookup hmap key
@@ -348,7 +348,7 @@ vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
     -- compute run-time representation of type a
-    let aTyp = typeOf (undefined :: a)
+    let aTyp = typeRep (Proxy :: Proxy a)
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     maybeU <- liftIO $ H.lookup memo (ix, aTyp)

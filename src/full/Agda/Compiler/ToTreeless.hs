@@ -254,7 +254,7 @@ casetree cc = do
               ([], (LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
-          x <- lookupLevel n <$> asks ccCxt
+          x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
           let caseInfo = C.CaseInfo { caseType = caseTy, caseLazy = lazy }
           C.TCase x caseInfo def <$> do
@@ -265,7 +265,7 @@ casetree cc = do
     -- normally, Agda should make sure that a pattern match is total,
     -- so we set the default to unreachable if no default has been provided.
     fromCatchAll :: CC C.TTerm
-    fromCatchAll = maybe C.tUnreachable C.TVar <$> asks ccCatchAll
+    fromCatchAll = asks (maybe C.tUnreachable C.TVar . ccCatchAll)
 
 commonArity :: CC.CompiledClauses -> Int
 commonArity cc =
@@ -275,7 +275,7 @@ commonArity cc =
   where
     arities cxt (Case (Arg _ x) (Branches False cons eta lits def _ _)) =
       concatMap (wArities cxt') (Map.elems cons) ++
-      concatMap (wArities cxt') (map snd $ maybeToList eta) ++
+      concatMap ((wArities cxt') . snd) (maybeToList eta) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
       where cxt' = max (x + 1) cxt
@@ -298,7 +298,7 @@ updateCatchAll (Just cc) cont = do
 -- MUST NOT be used inside `cont`.
 withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
 withContextSize n cont = do
-  diff <- (n -) . length <$> asks ccCxt
+  diff <- asks (((n -) . length) . ccCxt)
 
   if diff <= 0
   then do
@@ -318,7 +318,7 @@ withContextSize n cont = do
 -- Updates the catchAll expression to take the additional lambdas into account.
 lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
 lambdasUpTo n cont = do
-  diff <- (n -) . length <$> asks ccCxt
+  diff <- asks (((n -) . length) . ccCxt)
 
   if diff <= 0 then cont -- no new lambdas needed
   else do
@@ -399,12 +399,12 @@ substTerm :: I.Term -> CC C.TTerm
 substTerm term = normaliseStatic term >>= \ term ->
   case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
-      ind' <- lookupIndex ind <$> asks ccCxt
+      ind' <- asks (lookupIndex ind . ccCxt)
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
     I.Lam _ ab ->
       C.TLam <$>
-        local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
+        local (\e -> e { ccCxt = 0 : shift 1 (ccCxt e) })
           (substTerm $ I.unAbs ab)
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit

@@ -10,6 +10,7 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
+import Control.Applicative ((<|>))
 import Control.Arrow (first)
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -677,7 +678,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  let e' = e { nameOf = (nameOf e) Control.Applicative.<|> dname }
+                  let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) $
@@ -1041,7 +1042,8 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
             def <- lift $ getConstInfo d
             let isP = isProjection_ $ theDef def
             reportSDoc "tc.proj.amb" 40 $ vcat $
-              text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes") : caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+              text ( "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+                   ) : caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
               [ text $ "  proper       = " ++ show proper
               , text $ "  orig         = " ++ prettyShow orig
               ])

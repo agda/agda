@@ -70,7 +70,7 @@ runMListT ml = ListT $ runListT =<< ml
 
 -- | Monadic cons.
 consMListT :: Monad m => m a -> ListT m a -> ListT m a
-consMListT ma l = ListT $ (Just . (,l)) fmap ma
+consMListT ma l = ListT $ (Just . (,l)) <$> ma
 -- consMListT ma l = runMListT $ liftM (`consListT` l) ma
 
 -- simplification:

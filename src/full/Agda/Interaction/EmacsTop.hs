@@ -425,7 +425,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
       maybeVal <- traverse prettyATop letv
 
       return $
-        [ (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) ] ++
+        (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) :
         [ (prettyShow x, "=" <+> val) | val <- maybeToList maybeVal ]
 
   where

@@ -2,6 +2,7 @@
 module Agda.Auto.Convert where
 
 import Control.Monad.State
+import Data.Bifunctor (first)
 import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
@@ -100,7 +101,7 @@ tomy imi icns typs = do
    nxt <- popMapS sConsts (\x y -> y {sConsts = x})
    case nxt of
     Just cn -> do
-     cmap <- fst `liftM` gets sConsts
+     cmap <- gets (fst . sConsts)
      let (mode, c) = cmap Map.! cn
      def <- lift $ getConstInfo cn
      let typ = MB.defType def
@@ -137,7 +138,7 @@ tomy imi icns typs = do
        let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
 
-       projfcns <- mapM (\name -> getConst False name TMAll) (map I.unDom fields)
+       projfcns <- mapM ((\name -> getConst False name TMAll) . I.unDom) fields
 
        return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do
@@ -171,7 +172,7 @@ tomy imi icns typs = do
         Just sol -> do
          m <- getMeta mi
          sol' <- convert sol
-         modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
+         modify $ \s -> s {sEqs = first (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol'))) (sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
            localVars = map (snd . I.unDom) . envContext . clEnv $ minfo
@@ -185,7 +186,7 @@ tomy imi icns typs = do
        typ' <- convert targettype
        ctx' <- mapM convert localVars
        modify (\s -> s {sCurMeta = Nothing})
-       modify (\s -> s {sMetas = (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
+       modify (\s -> s {sMetas = first (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi) (sMetas s)})
        r projfcns
       Nothing -> do
        nxt <- popMapS sEqs (\x y -> y {sEqs = x})
@@ -194,7 +195,7 @@ tomy imi icns typs = do
          let (ineq, e, i) = eqs !! eqi
          e' <- convert e
          i' <- convert i
-         modify (\s -> s {sEqs = (Map.adjust (\_ -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
+         modify (\s -> s {sEqs = first (Map.adjust (\_ -> Just (ineq, e', i')) eqi) (sEqs s)})
          r projfcns
         Nothing ->
          return projfcns
@@ -223,7 +224,7 @@ getConst iscon name mode = do
   MB.Record {MB.recConHead = con} -> do
    let conname = I.conName con
        conflds = I.conFields con
-   cmap <- fst `liftM` gets sConsts
+   cmap <- gets (fst . sConsts)
    case Map.lookup name cmap of
     Just (mode', c) ->
      if iscon then do
@@ -241,7 +242,7 @@ getConst iscon name mode = do
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return $ if iscon then ccon else c
   _ -> do
-   cmap <- fst `liftM` gets sConsts
+   cmap <- gets (fst . sConsts)
    case Map.lookup name cmap of
     Just (mode', c) ->
      return c
@@ -264,7 +265,7 @@ getdfv mainm name = do
 
 getMeta :: I.MetaId -> TOM (Metavar (Exp O) (RefInfo O))
 getMeta name = do
- mmap <- fst `liftM` gets sMetas
+ mmap <- gets (fst . sMetas)
  case Map.lookup name mmap of
   Just (m, _, _) ->
    return m
@@ -388,9 +389,7 @@ instance Conversion TOM I.Term (MExp O) where
             case mcurmeta of
               Nothing -> return ()
               Just curmeta ->
-                modify $ \ s -> s { sMetas = ( Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s)
-                                           , snd $ sMetas s
-                                           ) }
+                modify $ \ s -> s { sMetas = first (Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta) (sMetas s) }
             m <- getMeta mid
             return $ Meta m
           _ -> convert t
@@ -426,8 +425,7 @@ fmExp m (I.DontCare _) = False
 fmExp _ I.Dummy{} = False
 
 fmExps :: I.MetaId -> I.Args -> Bool
-fmExps m [] = False
-fmExps m (a : as) = fmExp m (Cm.unArg a) || fmExps m as
+fmExps m as = any (fmExp m . Cm.unArg) as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m (I.Plus _ l) = case l of

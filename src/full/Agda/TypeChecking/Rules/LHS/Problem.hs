@@ -15,6 +15,7 @@ import Control.Arrow ( (***) )
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Foldable ( Foldable )
+import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List ( partition )

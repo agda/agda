@@ -123,7 +123,7 @@ solveSizeConstraints flag =  do
     -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
-      text $ "Solving constraints (" ++ show flag ++ ")" : map prettyTCM cs0
+      text ( "Solving constraints (" ++ show flag ++ ")" ) : map prettyTCM cs0
   let -- Error for giving up
       cannotSolve :: TCM a
       cannotSolve = typeError . GenericDocError =<<
@@ -173,9 +173,10 @@ solveSizeConstraints flag =  do
           mapM (runMaybeT . castConstraintToCurrentContext) $ NonEmpty.toList cs
 
         reportSDoc "tc.size.solve" 20 $ vcat $
-          "converted size constraints to context: " <+> do
+          ( "converted size constraints to context: " <+> do
               tel <- getContextTelescope
-              inTopContext $ prettyTCM tel : map (nest 2 . prettyTCM) cs'
+              inTopContext $ prettyTCM tel
+          ) : map (nest 2 . prettyTCM) cs'
 
         -- Solve the converted constraints.
         solveSizeConstraints_ flag =<<  mapM buildClosure cs'

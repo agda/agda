@@ -1225,8 +1225,8 @@ instance PrettyTCM SplitError where
           ]
         , zipWith prEq cIxs gIxs
         , if null errs then [] else
-            fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
-                     pwords "why unification failed:" :
+            fsep ( pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
+                     pwords "why unification failed:" ) :
             map (nest 2 . prettyTCM) errs
         ]
       where
