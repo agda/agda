@@ -460,7 +460,7 @@ nameKinds hlLevel decl = do
     _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-  let syntax = foldr (($) . declToKind) HMap.empty (universeBi decl)
+  let syntax = foldr declToKind HMap.empty (universeBi decl)
   return $ \ n -> unionsMaybeWith merge
     [ defnToKind . theDef <$> HMap.lookup n local
     , con <$ Map.lookup n locPatSyns

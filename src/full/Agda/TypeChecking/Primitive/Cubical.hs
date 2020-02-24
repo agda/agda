@@ -1288,7 +1288,7 @@ primTransHComp cmd ts nelims = do
           combine l ty d [] = d
           combine l ty d [(psi,u)] = u
           combine l ty d ((psi,u):xs)
-            = pure tPOr <#> l <@> psi <@> (foldr (imax . fst) iz xs)
+            = pure tPOr <#> l <@> psi <@> foldr (imax . fst) iz xs
                         <#> ilam "o" (\ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
           noRed' su = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
@@ -1607,38 +1607,47 @@ primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
   requireCubical
   t <- (elInf primInterval --> elInf primInterval) --> elInf primInterval
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts ->
-    case ts of
-      [phi] -> do
-        sphi <- reduceB' phi
-        case unArg $ ignoreBlocking $ sphi of
-          Lam _ t -> do
-            t <- reduce' t
-            case t of
-              NoAbs _ t -> redReturn t
-              Abs   _ t -> maybe (return $ NoReduction [reduced sphi]) redReturn =<< toFaceMapsPrim t
-          _ -> return (NoReduction [reduced sphi])
-      _     -> __IMPOSSIBLE__
- where
-  toFaceMapsPrim t = do
-     view   <- intervalView'
-     unview <- intervalUnview'
-     us'    <- decomposeInterval t
-     fr     <- getTerm builtinFaceForall builtinFaceForall
-     let
-         v = view t
-         us = [ map Left (Map.toList bsm) ++ map Right ts
-              | (bsm,ts) <- us'
-              , 0 `Map.notMember` bsm
-              ]
-         fm (i,b) = if b then var (i-1) else unview (INeg (argN (var $ i-1)))
-         ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
-         r = Just $ foldr ((\ x r -> unview (IMax (argN x) (argN r))) . (foldr (\ x r -> unview (IMin (argN (either fm ffr x)) (argN r))) (unview IOne))) (unview IZero) us
-  --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
-     return $
-       case us' of
-         [(m,[_])] | Map.null m -> Nothing
-         v                      -> r
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts -> case ts of
+    [phi] -> do
+      sphi <- reduceB' phi
+      case unArg $ ignoreBlocking $ sphi of
+        Lam _ t -> do
+          t <- reduce' t
+          case t of
+            NoAbs _ t -> redReturn t
+            Abs _ t ->
+              maybe (return $ NoReduction [reduced sphi]) redReturn
+                =<< toFaceMapsPrim t
+        _ -> return (NoReduction [reduced sphi])
+    _ -> __IMPOSSIBLE__
+  where
+    toFaceMapsPrim t = do
+      view <- intervalView'
+      unview <- intervalUnview'
+      us' <- decomposeInterval t
+      fr <- getTerm builtinFaceForall builtinFaceForall
+      let v = view t
+          us =
+            [ map Left (Map.toList bsm) ++ map Right ts
+              | (bsm, ts) <- us',
+                0 `Map.notMember` bsm
+            ]
+          fm (i, b) = if b then var (i - 1) else unview (INeg (argN (var $ i - 1)))
+          ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
+          r =
+            Just $
+              foldr
+                ( (\x r -> unview (IMax (argN x) (argN r)))
+                    . foldr
+                      (\x r -> unview (IMin (argN (either fm ffr x)) (argN r)))
+                      (unview IOne)
+                )
+                (unview IZero)
+                us
+      --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
+      return $ case us' of
+        [(m, [_])] | Map.null m -> Nothing
+        v -> r
 
 decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
 decomposeInterval t = do
