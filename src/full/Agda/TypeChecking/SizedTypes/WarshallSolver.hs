@@ -349,28 +349,26 @@ implies :: (Ord r, Ord f, Pretty r, Pretty f, Pretty a, Top a, Ord a, Negative a
   => Graph r f a -> Graph r f a -> Bool
 -- iterate 'test' over all edges in g
 implies h g = all test (graphToList g)
- where
+  where
     -- NB: doing the @test k l@ before the recursive @b@ gives
     -- opportunity to short-cut the conjunction @&&@.
-
     -- test :: Key -> a -> Bool
     test k@(Edge src dest l)
       | isZeroNode src, not (negative l) = True
-      | isInftyNode dest = True
-      | isJust $ isFlexNode src = True
-      | isJust $ isFlexNode dest = True
-      | isTop l = True
+      | isInftyNode dest                 = True
+      | isJust $ isFlexNode src          = True
+      | isJust $ isFlexNode dest         = True
+      | isTop l                          = True
       | otherwise = case lookupEdge h src dest of
         Nothing -> False
         Just l' ->
-          (l' <= l)
-            || ( trace
-                   ( "edge " ++ prettyShow (l <$ k)
-                       ++ " not implied by "
-                       ++ prettyShow (l' <$ k)
-                   )
-                   $ False
-               )
+          (l' <= l) || ( trace
+                           ( "edge " ++ prettyShow (l <$ k)
+                               ++ " not implied by "
+                               ++ prettyShow (l' <$ k)
+                           )
+                           $ False
+                       )
 
 -- implies h g = Map.foldlWithKey (\ b k l -> test k l && b) True g
 --   -- NB: doing the @test k l@ before the recursive @b@ gives

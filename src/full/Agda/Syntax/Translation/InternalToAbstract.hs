@@ -457,15 +457,13 @@ reifyTerm expandAnonDefs0 v0 = do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
       if isR || ci == ConORec
-        then
-          ( do
-              showImp <- showImplicitArguments
-              let keep (a, v) = showImp || visible a
-              r <- getConstructorData x
-              xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
-              vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
-              return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
-          )
+        then do
+          showImp <- showImplicitArguments
+          let keep (a, v) = showImp || visible a
+          r <- getConstructorData x
+          xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+          vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
+          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
         else reifyDisplayForm x vs $ do
           def <- getConstInfo x
           let Constructor {conPars = np} = theDef def
@@ -508,7 +506,7 @@ reifyTerm expandAnonDefs0 v0 = do
                             -- setRelevance Relevant $
                             hideOrKeepInstance $ Arg ai underscore
                       apps h $ us ++ es -- Note: unless --show-implicit, @apps@ will drop @us@.
-                          -- otherwise, we drop all parameters
+                    -- otherwise, we drop all parameters
                     _ -> apps h es
 
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info

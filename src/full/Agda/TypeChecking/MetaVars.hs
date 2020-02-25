@@ -403,28 +403,25 @@ blockTermOnProblem t v pid =
     inst <- isInstantiatedMeta x
     if inst
       then instantiate (MetaV x es)
-      else
-        (do
-      -- We don't return the blocked term instead create a fresh metavariable
-      -- that we compare against the blocked term once it's unblocked. This way
-      -- blocked terms can be instantiated before they are unblocked, thus making
-      -- constraint solving a bit more robust against instantiation order.
-      -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-          (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-          reportSDoc "tc.meta.blocked" 30
-            $   "setting twin of"
-            <+> prettyTCM m'
-            <+> "to be"
-            <+> prettyTCM x
-          updateMetaVar m' (\mv -> mv { mvTwin = Just x })
-          i   <- fresh
-          -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-          cmp <- buildProblemConstraint_
-            (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
-          reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
-          listenToMeta (CheckConstraint i cmp) x
-          return v
-        )
+      else do
+        -- We don't return the blocked term instead create a fresh metavariable
+        -- that we compare against the blocked term once it's unblocked. This way
+        -- blocked terms can be instantiated before they are unblocked, thus making
+        -- constraint solving a bit more robust against instantiation order.
+        -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
+        (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
+        reportSDoc "tc.meta.blocked" 30
+          $   "setting twin of"
+          <+> prettyTCM m'
+          <+> "to be"
+          <+> prettyTCM x
+        updateMetaVar m' (\mv -> mv { mvTwin = Just x })
+        i   <- fresh
+        -- This constraint is woken up when unblocking, so it doesn't need a problem id.
+        cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
+        reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
+        listenToMeta (CheckConstraint i cmp) x
+        return v
 
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)

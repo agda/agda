@@ -838,7 +838,7 @@ checkConstructorApplication cmp org t c args = do
       let (hargs, rest) = break visible args
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
-      in  any (notUnderscore . (unScope . namedArg)) hargs
+      in  any (notUnderscore . unScope . namedArg) hargs
 
     -- Drop the constructor arguments that correspond to parameters.
     dropArgs [] args                = args

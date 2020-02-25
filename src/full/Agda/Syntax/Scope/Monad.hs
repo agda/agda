@@ -688,6 +688,8 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     let extra x = inNames (ImportedName   x)
                && notMissing (ImportedModule x)
                && (not . inNames $ ImportedModule x)
+                  -- The last test implies that @hiding (module M)@ prevents @module M@
+                  -- from entering the @using@ list in @addExtraModule@.
 
     dir' <- sanityCheck (not . inNames) $ addExtraModules extra dir
 

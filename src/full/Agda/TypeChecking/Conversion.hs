@@ -1976,24 +1976,21 @@ leqInterval r q =
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
 leqConj (rs, rst) (qs, qst) = do
   if toSet qs `Set.isSubsetOf` toSet rs
-    then
-      ( do
-          interval <-
-            elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
-          -- we don't want to generate new constraints here because
-          -- 1) in some situations the same constraint would get generated twice.
-          -- 2) unless things are completely accepted we are going to
-          --    throw patternViolation in compareInterval.
-          let eqT t u =
-                tryConversion (compareAtom CmpEq (AsTermsOf interval) t u)
-          let listSubset ts us =
-                and <$> forM ts (\t -> or <$> forM us (\u -> eqT t u)) -- TODO shortcut
-          listSubset qst rst
-      )
-    else return False
+    then do
+      interval <-
+        elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+      -- we don't want to generate new constraints here because
+      -- 1) in some situations the same constraint would get generated twice.
+      -- 2) unless things are completely accepted we are going to
+      --    throw patternViolation in compareInterval.
+      let eqT t u = tryConversion (compareAtom CmpEq (AsTermsOf interval) t u)
+      let listSubset ts us =
+            and <$> forM ts (\t -> or <$> forM us (\u -> eqT t u)) -- TODO shortcut
+      listSubset qst rst
+    else
+      return False
   where
-    toSet m =
-      Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
+    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
