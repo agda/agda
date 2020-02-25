@@ -1320,17 +1320,17 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
 
 
 data IInfo = NoInfo
-           | TheInfo { infoTel :: Telescope -- Γ'
-                     , infoEqTel :: Telescope -- Γ ⊢ Δ
-                     , infoEqLHS :: [Term]
-                     , infoEqRHS :: [Term]
-                     , infoRho :: PatternSubstitution -- Γ' ⊢ ρ : Γ
-                     -- Γ ⊢ us, vs : Δ
-                     , infoTau :: Substitution -- Γ,(φs : Is),(eqs : Paths us vs) ⊢ τ : Γ'
-                     -- Δ = Γ,(φs : Is),(eqs : Paths us vs)
-                     , infoLeftInv :: Substitution   -- Δ | (i : I) ⊢ leftInv : Δ
-                     -- leftInv[0] = ρ[τ],i1,refls
-                     -- leftInv[1] = idS
+           | TheInfo { infoTel :: Telescope           -- Γ'
+                     , infoEqTel :: Telescope         -- Γ0 ⊢ Δ
+                     , infoEqLHS :: [Term]            -- Γ0 ⊢ us : Δ
+                     , infoEqRHS :: [Term]            -- Γ0 ⊢ vs : Δ
+                     , infoRho :: PatternSubstitution -- Γ' ⊢ ρ : Γ0
+                                                      -- Γ = Γ0,(φs : Is),(eqs : Paths Δ us vs)
+                                                      -- Γ' ⊢ ρ,i1s,refls : Γ
+                     , infoTau :: Substitution        -- Γ  ⊢ τ           : Γ'
+                     , infoLeftInv :: Substitution    -- Γ | (i : I) ⊢ leftInv : Γ
+                     -- leftInv[i=0] = ρ[τ],i1s,refls
+                     -- leftInv[i=1] = idS
                      }
        deriving (Show)
 
