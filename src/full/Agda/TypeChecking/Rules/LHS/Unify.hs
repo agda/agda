@@ -247,24 +247,26 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
     reportSDoc "tc.lhs.unify" 70 $ "initial unifyState:" <+> text (show initialState)
     (result,log) <- runUnifyM $ unify initialState rightToLeftStrategy
-    let output = mconcat [output | UnificationStep _ _ output <- log ]
+    let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
     let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
     (tau,leftInv) <- buildLeftInverse log
-    return $ fmap (\s -> (varTel s , unifySubst output , ps, tau, leftInv)) result
+    reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
+    return $ fmap (\s -> (varTel s, unifySubst output, ps, tau, leftInv)) result
 
 
 buildLeftInverse :: MonadTCM tcm => UnifyLog -> tcm (Substitution, Substitution)
 buildLeftInverse log = liftTCM $ do
     mpathp <- getTerm' builtinPathP
-    equivs <- if isJust mpathp then mapM buildEquiv log else return []
+    equivs <- if isJust mpathp then forM log $ uncurry buildEquiv
+                               else return []
     case equivs of
       [Just (tel,_,tau,leftInv)] -> return (tau,leftInv)
       _                 -> return (idS,idS)
 
 type Retract = (Telescope, Substitution, Substitution, Substitution)
 
-buildEquiv :: MonadTCM tcm => UnifyLogEntry -> tcm (Maybe Retract)
-buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) = liftTCM . fmap Just $ do
+buildEquiv :: MonadTCM tcm => UnifyLogEntry -> UnifyState -> tcm (Maybe Retract)
+buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = liftTCM . fmap Just $ do
         reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
         reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
         unview <- intervalUnview'
@@ -279,7 +281,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) = liftTCM
           x = flexVar fx
           neqs = size eqs 
         interval <- elInf primInterval
-
+         -- Γ, φs : I^eqs
         let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. neqs - 1])
         working_tel <- abstract gamma_phis <$>
           pathTelescope (raise neqs $ eqTel st) (raise neqs $ eqLHS st) (raise neqs $ eqRHS st)
@@ -357,7 +359,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) = liftTCM
           -- to transp and what not to.
           let flag = True
 
-          tau <- {-dropAt (size gamma - 1 + k) .-} (gamma1_args ++) . either __IMPOSSIBLE__ id <$> lift (runExceptT (transpTel' flag d phi d_zero_args))
+          tau <- dropAt (size gamma - 1 + k) . (gamma1_args ++) . either __IMPOSSIBLE__ id <$> lift (runExceptT (transpTel' flag d phi d_zero_args))
           leftInv <- do
             gamma1_args <- open gamma1_args
             phi <- open phi
@@ -406,11 +408,13 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) = liftTCM
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv[1]:" <+> (prettyTCM =<< reduce  (subst 0 io $ map (setHiding NotHidden) leftInv))
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "[rho]tau :" <+>
                                                                                   -- k   φ
-          prettyTCM (applySubst (parallelS $ reverse $ map unArg tau) $ fromPatternSubstitution (raise (size (eqTel st) - 1{-k-} + neqs{-φ-}) $ unifySubst output))
+          prettyTCM (applySubst (parallelS $ reverse $ map unArg tau) $ fromPatternSubstitution
+                                                                      $ raise (size (eqTel st) - 1{-k-} + neqs{-φs-} - 1{-φ0-})
+                                                                      $ unifySubst output)
         reportSDoc "tc.lhs.unify.inv" 20 $ "."
         return $ (working_tel, fromPatternSubstitution $ unifySubst output -- TODO fix with unifyProof output and so on.
                  , parallelS (reverse $ map unArg tau), parallelS (reverse $ map unArg leftInv))
-buildEquiv _  = liftTCM $ do
+buildEquiv _ _ = liftTCM $ do
   reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
   return $ Nothing
 
@@ -1029,11 +1033,13 @@ data UnifyLogEntry
  -- = UnificationDone  UnifyState
   = UnificationStep UnifyState UnifyStep UnifyOutput
 
-type UnifyLog = [UnifyLogEntry]
+type UnifyLog = [(UnifyLogEntry,UnifyState)]
 
+-- Given varΓ ⊢ eqΓ, varΓ ⊢ us, vs : eqΓ
 data UnifyOutput = UnifyOutput
-  { unifySubst :: PatternSubstitution
-  , unifyProof :: PatternSubstitution
+  { unifySubst :: PatternSubstitution -- varΓ' ⊢ σ : varΓ
+  , unifyProof :: PatternSubstitution -- varΓ',eqΓ' ⊢ ps : eqΓ[σ]
+                                      -- varΓ', us' =_eqΓ' vs' ⊢ ap(ps) : us[σ] =_{eqΓ[σ]} vs[σ]
 --  , unifyLog   :: UnifyLog
   }
 
@@ -1058,7 +1064,7 @@ tellUnifySubst sub = tell $ UnifyOutput sub IdS
 tellUnifyProof :: PatternSubstitution -> UnifyStepM ()
 tellUnifyProof sub = tell $ UnifyOutput IdS sub
 
-writeUnifyLog :: UnifyLogEntry -> UnifyM ()
+writeUnifyLog :: (UnifyLogEntry,UnifyState) -> UnifyM ()
 writeUnifyLog x = tell $ [x] -- UnifyOutput IdS IdS [x]
 
 runUnifyM :: UnifyM a -> TCM (a,UnifyLog)
@@ -1439,7 +1445,7 @@ unify s strategy = if isUnifyStateSolved s
           reportSDoc "tc.lhs.unify" 20 $ "unifyStep successful."
           reportSDoc "tc.lhs.unify" 20 $ "new unifyState:" <+> prettyTCM s'
           -- tell output
-          writeUnifyLog $ UnificationStep s step output
+          writeUnifyLog $ (UnificationStep s step output,s')
           return x
         NoUnify{}     -> return x
         DontKnow err1 -> do
