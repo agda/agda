@@ -1,0 +1,13 @@
+AGDA_FAILURE
+
+ret > ExitFailure 1
+out > Failed to solve the following constraints:
+out >   _x_26 (A = A) (h = h) (x = x) (x = x₁) = x : Unit
+out >   Q x A =< Q _x_27 A
+out >   P _x_27 =< P (_x_26 (A = A) (h = h) (x = x) (x = x₁))
+out > Unsolved metas at the following locations:
+out >   Issue4408.agda:28,31-32
+out >   Issue4408.agda:28,37-38
+out >   Issue4408.agda:28,35-38
+out >   Issue4408.agda:28,11-39
+out >
