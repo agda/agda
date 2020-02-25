@@ -104,6 +104,7 @@ etaLam i x b = do
         -- E.g. \ .x -> f .(subst P eq x)  can in general not be contracted to f.
         -- -- (isIrrelevant info || isVar0 tyty v)
              && sameHiding i info
+             && sameModality i info
              && not (freeIn 0 u)
            then return $ strengthen __IMPOSSIBLE__ u
            else fallback
