@@ -64,6 +64,7 @@ import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -841,7 +842,8 @@ assign dir x args v target = do
           --   @
           -- we need to check that @A <: A'@ (due to contravariance).
           let sigma = parallelS $ reverse $ map unArg args
-          forM_ ids $ \(i , u) -> do
+          hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+          when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
             a  <- applySubst sigma <$> addContext tel' (infer u)
             a' <- typeOfBV i
