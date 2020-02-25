@@ -1,4 +1,4 @@
-resolver: lts-15.0
+resolver: lts-15.1
 
 extra-deps:
 - data-hash-0.2.0.1

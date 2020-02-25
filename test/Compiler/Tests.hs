@@ -85,6 +85,9 @@ disabledTests =
   , disable "Compiler/JS/simple/Issue3732"
   , disable "Compiler/JS/simple/VecReverseIrr"
   , disable "Compiler/JS/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
+    -----------------------------------------------------------------------------
+    -- Disabled because #4469 only affects some versions of GHC.
+  , disable "Compiler/MAlonzo/simple/Issue2909-[56]"
   ]
   where disable = RFInclude
 

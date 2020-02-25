@@ -54,6 +54,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -139,10 +140,10 @@ compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareAs cmp a u v = do
+compareAs cmp0 a u v = do
   reportSDoc "tc.conv.term" 10 $ sep $
     [ "compareTerm"
-    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+    , nest 2 $ prettyTCM u <+> prettyTCM cmp0 <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
   -- Check syntactic equality. This actually saves us quite a bit of work.
@@ -153,6 +154,10 @@ compareAs cmp a u v = do
   -- let equal = u == v
   if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
+
+      subtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+      let cmp = if subtyping then cmp0 else CmpEq
+
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
