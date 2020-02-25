@@ -92,6 +92,7 @@ extra-deps:
 - geniplate-mirror-0.7.6
 - STMonadTrans-0.4.4
 - bifunctors-5.5.7
+- comonad-5.0.6
 
 flags:
   transformers-compat:
