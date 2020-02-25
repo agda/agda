@@ -578,7 +578,7 @@ interpret (Cmd_load_highlighting_info source) = do
       absSource <- liftIO $ SourceFile <$> absolute source
       if ex
         then
-          (do
+           do
               si <- Imp.sourceInfo absSource
               let m = Imp.siModuleName si
               checkModuleName m absSource Nothing
@@ -593,7 +593,6 @@ interpret (Cmd_load_highlighting_info source) = do
                       return $ Just (iHighlighting $ miInterface mi, method, modFile)
                     else
                       return Nothing
-            )
             `catchError` \_ -> return Nothing
         else
           return Nothing
@@ -1079,7 +1078,7 @@ status :: CommandM Status
 status = do
   cf       <- gets theCurrentFile
   showImpl <- lift showImplicitArguments
-  --
+
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
@@ -1089,13 +1088,13 @@ status = do
       t' <- liftIO $ getModificationTime $ filePath f
       if t == t'
         then
-          (do
+          do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
               Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
-          )
-        else return False
+        else
+            return False
 
   return $ Status { sShowImplicitArguments = showImpl, sChecked = checked }
 

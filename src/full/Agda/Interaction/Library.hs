@@ -458,8 +458,9 @@ formatLibError installed (LibError mc e) = prefix <+> body where
 
     AmbiguousLib lib tgts -> vcat $
       sep [ text $ "Ambiguous library '" ++ lib ++ "'."
-            , "Could refer to any one of" ] : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l)
-           | l <- tgts ]
+            , "Could refer to any one of"
+          ]
+        : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
 
     OtherError err -> text err
 

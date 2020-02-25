@@ -181,13 +181,14 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
                  cost
-                   | null mblkvar = if scrut < length ctx - nscrutavoid && nothid
-                                      then costCaseSplitLow + costAddVarDepth
-                                           * Cost (depthofvar scrut pats)
-                                      else costCaseSplitVeryHigh
-                   | scrut `elem` mblkvar = costCaseSplitLow
+                   | null mblkvar && scrut < length ctx - nscrutavoid && nothid
+                                                                = costCaseSplitLow +
+                                                                  costAddVarDepth *
+                                                                  Cost (depthofvar scrut pats)
+                   | null mblkvar                               = costCaseSplitVeryHigh
+                   | scrut `elem` mblkvar                       = costCaseSplitLow
                    | scrut < length ctx - nscrutavoid && nothid = costCaseSplitHigh
-                   | otherwise = costCaseSplitVeryHigh
+                   | otherwise                                  = costCaseSplitVeryHigh
 
                  nothid = let HI hid _ = ctx !! scrut
                           in hid == NotHidden

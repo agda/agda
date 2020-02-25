@@ -519,7 +519,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- ...or it was an IApply pattern, so we might just need to introduce the variable now.
     trySplitRes (BlockedOnApply IsIApply) finalSplit splitError cont
        = do
-         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) Control.Monad.<=< insertTrailingArgs
+         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) <=< insertTrailingArgs
       where
         fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
                  | otherwise  = cont

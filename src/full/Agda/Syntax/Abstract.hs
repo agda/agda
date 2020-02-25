@@ -1079,8 +1079,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr ns e
   = foldr
-      (\ n
-         -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
+      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
       e
       ns
 

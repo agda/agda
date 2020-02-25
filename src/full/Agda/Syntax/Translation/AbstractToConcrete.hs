@@ -1410,10 +1410,10 @@ cOpApp r x n es =
           (map (defaultNamedArg . placeholder) eps)
   where
     x0 = C.unqualify x
-    positions | isPrefix  x0 =                [ Middle | _ <- drop 1 es ] ++ [End]
+    positions | isPrefix  x0 =             [ Middle | _ <- drop 1 es ] ++ [End]
               | isPostfix x0 = Beginning : [ Middle | _ <- drop 1 es ]
-              | isInfix x0   = [Beginning] ++ [ Middle | _ <- drop 2 es ] ++ [End]
-              | otherwise    =                [ Middle | _ <- es ]
+              | isInfix x0   = Beginning : [ Middle | _ <- drop 2 es ] ++ [End]
+              | otherwise    =             [ Middle | _ <- es ]
     eps = zip es positions
     placeholder (YesSection , pos ) = Placeholder pos
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)

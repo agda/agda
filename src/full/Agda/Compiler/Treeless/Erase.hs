@@ -287,9 +287,9 @@ getTypeInfo t0 = do
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
   let e | Empty `elem` is = Erasable
-        | null is           = et        -- TODO: guard should really be "all inhabited is"
-        | et == Empty       = Erasable
-        | otherwise         = et
+        | null is         = et        -- TODO: guard should really be "all inhabited is"
+        | et == Empty     = Erasable
+        | otherwise       = et
   lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where

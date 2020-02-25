@@ -101,9 +101,7 @@ import Agda.Utils.Impossible
 --   are in normal form.
 computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
 computeForcingAnnotations c t =
-  ifNotM (optForcing <$> pragmaOptions {-then-}
-                                      ) (return []) $ {-else-}
-                                                      do
+  ifNotM (optForcing <$> pragmaOptions {-then-}) (return []) $ {-else-} do
     -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
     -- t <- normalise t
     -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
@@ -127,7 +125,7 @@ computeForcingAnnotations c t =
         -- case it isn't really forced.
         isForced :: Modality -> Nat -> Bool
         isForced m i =
-          (hasQuantity0 m || noUserQuantity m)
+               (hasQuantity0 m || noUserQuantity m)
             && (getRelevance m /= Irrelevant)
             && any (\(m', j) -> i == j
             && m' `moreUsableModality` m) xs
@@ -135,9 +133,7 @@ computeForcingAnnotations c t =
           [ if isForced m i then Forced else NotForced
           | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
           ]
-    reportS
-      "tc.force"
-      60
+    reportS "tc.force" 60
       [ "Forcing analysis for " ++ show c
       , "  xs          = " ++ show (map snd xs)
       , "  forcedArgs  = " ++ show forcedArgs

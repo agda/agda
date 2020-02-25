@@ -410,8 +410,11 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
          ) mcomptr
         obs <- ureadIORef (mobs m)
         res <- recalcs obs
-        if res then -- failed
-         return $ Left False else lift $ search depthleft -- succeeded
+        if res
+          then
+            return $ Left False     -- failed
+          else
+            lift $ search depthleft -- succeeded
 
     doit = do
      res <- search depth
@@ -444,12 +447,13 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
  runUndo $ do
   res <- reccalc p (Just mainroot)
   if res -- failed immediately
-    then return False
+    then
+        return False
     else
-      ( do
-          Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
-          lift $ readIORef depthreached
-      )
+      do
+        Left _solFound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
+        lift $ readIORef depthreached
+
 
 extractblkinfos :: Metavar a blk -> IO [blk]
 extractblkinfos m = do
@@ -630,7 +634,8 @@ propagatePrio node = do
             _           -> return []
           phs2 <- propagatePrio parent
           return $ phs ++ phs2
-        else return []
+        else
+          return []
 
 data Choice = LeftDisjunct | RightDisjunct
 

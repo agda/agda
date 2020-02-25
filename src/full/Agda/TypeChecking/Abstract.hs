@@ -284,7 +284,7 @@ instance EqualSy a => EqualSy (Elim' a) where
     (Proj _ f, Proj _ f') -> f == f'
     (Apply a, Apply a') -> equalSy a a'
     (IApply u v r, IApply u' v' r') ->
-          equalSy u u'
+           equalSy u u'
         && equalSy v v'
         && equalSy r r'
     _ -> False

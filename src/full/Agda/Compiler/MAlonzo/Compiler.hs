@@ -556,16 +556,13 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
       let missing = drop (length ts) erased
           notErased = not
       if all notErased missing
-        then (do
+        then do
                 f <- lift $ HS.Con <$> conhqn c
                 hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
-             )
-        else
-             (do
+        else do
                 let n = length missing
                 unless (n >= 1) __IMPOSSIBLE__  -- We will add at least on TLam, not getting a busy loop here.
                 term $ etaExpand (length missing) tm0
-             )
 
     -- Other kind of application: fall back to apps.
     (t, ts) -> noApplication t >>= \ t' -> coe t' `apps` ts

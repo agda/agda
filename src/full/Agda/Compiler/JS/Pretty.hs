@@ -106,7 +106,12 @@ exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
 exports n i lss [] = ""
 exports n i lss (Export ls e : es)
   | member (init ls) lss =
-    "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n (i + 1) e ++ ";" ++ br i
+    "exports["
+      ++ intercalate "][" (pretties n i ls)
+      ++ "] = "
+      ++ pretty n (i + 1) e
+      ++ ";"
+      ++ br i
       ++ exports n i (insert ls lss) es
 exports n i lss (Export ls e : es)
   | otherwise =
