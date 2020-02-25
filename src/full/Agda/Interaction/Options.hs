@@ -651,7 +651,7 @@ noEtaFlag o = return $ o { optEta = False }
 sizedTypes :: Flag PragmaOptions
 sizedTypes o =
   return $ o { optSizedTypes = Value True
-             , optSubtyping  = setDefault True $ optSubtyping o
+             --, optSubtyping  = setDefault True $ optSubtyping o
              }
 
 noSizedTypes :: Flag PragmaOptions
