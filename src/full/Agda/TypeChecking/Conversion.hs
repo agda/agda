@@ -140,10 +140,10 @@ compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareAs cmp0 a u v = do
+compareAs cmp a u v = do
   reportSDoc "tc.conv.term" 10 $ sep $
     [ "compareTerm"
-    , nest 2 $ prettyTCM u <+> prettyTCM cmp0 <+> prettyTCM v
+    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
   -- Check syntactic equality. This actually saves us quite a bit of work.
@@ -154,10 +154,6 @@ compareAs cmp0 a u v = do
   -- let equal = u == v
   if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
-
-      subtyping <- collapseDefault . optSubtyping <$> pragmaOptions
-      let cmp = if subtyping then cmp0 else CmpEq
-
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
@@ -696,19 +692,21 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp
+compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 errH errR errQ errC cont
-  | not $ sameHiding dom1 dom2 = errH
-  | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
-  | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) = errQ
-  | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) = errC
-  | otherwise = do
+  b1 b2 errH errR errQ errC cont = do
+  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+  let cmp = if hasSubtyping then cmp0 else CmpEq
+  if | not $ sameHiding dom1 dom2 -> errH
+     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp a1 a2
+      pid <- newProblem_ $ compareType cmp0 a1 a2
       dom <- if dependent
              then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
              else return dom1
