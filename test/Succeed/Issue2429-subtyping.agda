@@ -1,3 +1,5 @@
+{-# OPTIONS --subtyping #-}
+
 -- Andreas, 2017-01-24, issue #2429
 -- Respect subtyping also for irrelevant lambdas!
 

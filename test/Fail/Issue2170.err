@@ -1,3 +1,5 @@
-Issue2170.agda:32,36-40
-unirr (irr a) != a of type Bool
-when checking that the expression refl has type unirr (irr a) ≡ a
+Issue2170.agda:32,16-19
+(.(unirr₁ : _A_13) → Irr _A_13) !=< (Bool → Irr Bool) because one
+is a relevant function type and the other is an irrelevant function
+type
+when checking that the expression irr has type Bool → Irr Bool
