@@ -1,3 +1,5 @@
+{-# OPTIONS --subtyping #-}
+
 open import Agda.Builtin.Equality
 
 record _↠_ (A B : Set) : Set where
