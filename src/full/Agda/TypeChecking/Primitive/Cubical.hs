@@ -10,6 +10,7 @@ import Control.Monad.Trans ( lift )
 import Data.Either ( partitionEithers )
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Foldable hiding (null)
@@ -1717,12 +1718,28 @@ transpTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
 transpTel = transpTel' False
+
+
 transpTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
-transpTel' flag delta phi args = do
+transpTel' flag delta phi args = transpSysTel' flag delta [] phi args
+
+type LM a = NamesT (ExceptT (Closure (Abs Type)) TCM) a
+-- transporting with an extra system/partial element
+-- or composing when some of the system is known to be constant.
+transpSysTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+          -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]
+          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ 
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
+transpSysTel' flag delta us phi args = do
+  let getTermLocal = getTerm "transpSys"
   tTransp <- liftTCM primTrans
+  tComp <- getTermLocal builtinComp
+  tPOr <- getTermLocal builtinPOr
+  iz <- liftTCM $ primIZero
   imin <- liftTCM primIMin
   imax <- liftTCM primIMax
   ineg <- liftTCM primINeg
@@ -1730,14 +1747,34 @@ transpTel' flag delta phi args = do
     noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
     bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
     bapp t u = lazyAbsApp <$> t <*> u
-    gTransp (Just l) t phi a | flag = do
-      t' <- t
-      case 0 `freeIn` (raise 1 t' `lazyAbsApp` var 0) of
-        False -> a
-        True -> pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
-                             | otherwise = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+    doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+                           | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> uphi <@> a
+      where
+        -- [phi -> a; us]
+        uphi = lam "i" $ \ i -> ilam "o" $ \ o -> do
+          let sys' = ((phi , a) : [ (psi,bapp u i) | (psi,u) <- us])
+              sys = [(phi, ilam "o" (const u)) | (psi,u) <- sys']
+          combine (l <@> i) (unEl <$> bapp t i) __IMPOSSIBLE__ sys
+    combine l ty d [] = d
+    combine l ty d [(psi,u)] = u
+    combine l ty d ((psi,u):xs)
+            = pure tPOr <#> l <@> psi <@> (foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (map fst xs))
+                        <#> (ilam "o" $ \ _ -> ty) -- the type
+                        <@> u <@> (combine l ty d xs)
 
-    gTransp Nothing  t phi a = do
+    gTransp :: Maybe (LM Term) -> LM (Abs Type) -> [(LM Term,LM (Abs Term))] -> LM Term -> LM Term -> LM Term
+    gTransp (Just l) t u phi a
+     | flag = do
+      t' <- t
+      us' <- sequence $ map snd u
+      case (0 `freeIn` (raise 1 t' `lazyAbsApp` var 0),0 `freeIn` map (`lazyAbsApp` var 0) (map (raise 1) us')) of
+        (False,False) -> a
+        (False,True)  -> doGTransp l t u phi a -- TODO? optimize to "hcomp (l <@> io) (bapp t io) ((phi,NoAbs a):u) a" ?
+        (True,_) -> doGTransp l t u phi a
+     | otherwise = doGTransp l t u phi a
+
+    gTransp Nothing t sys phi a = do
+      let (psis,us) = unzip sys
       -- Γ ⊢ i.Ξ
       xi <- (open =<<) $ do
         bind "i" $ \ i -> do
@@ -1753,6 +1790,13 @@ transpTel' flag delta phi args = do
           ni <- pure ineg <@> i
           phi <- phi
           lift $ piApplyM ti =<< trFillTel' flag xin phi xi_args ni
+        usxi <- forM us $ \ u -> bind "i" $ \ i -> do
+          ui <- u `bapp` i
+          xin <- bind "i" $ \ i -> xi `bapp` (pure ineg <@> i)
+          xi_args <- xi_args
+          ni <- pure ineg <@> i
+          phi <- phi
+          lift $ apply ui <$> trFillTel' flag xin phi xi_args ni
         axi <- do
           a <- a
           xif <- bind "i" $ \ i -> xi `bapp` (pure ineg <@> i)
@@ -1763,45 +1807,49 @@ transpTel' flag delta phi args = do
         reportSDoc "cubical.transp" 20 $ pretty (raise 1 b' `lazyAbsApp` var 0)
         case s of
           Type l -> do
-            case 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) of
-              False | flag -> return axi
-              _ -> do
                 l <- open $ lam_i (Level l)
                 b' <- open b'
                 axi <- open axi
-                gTransp (Just l) b' phi axi
+                usxi <- mapM open usxi
+                gTransp (Just l) b' (zip psis usxi) phi axi
           Inf    ->
-            case 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) of
+            case 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) || 0 `freeIn` (map (`lazyAbsApp` var 0) (raise 1 usxi)) of
               False -> return axi
               True -> noTranspError b'
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
-    go :: Telescope -> Term -> Args -> ExceptT (Closure (Abs Type)) TCM Args
-    go EmptyTel            _   []       = return []
-    go (ExtendTel t delta) phi (a:args) = do
+    go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) TCM Args
+    go EmptyTel            [] _  []       = return []
+    go (ExtendTel t delta) (u:us) phi (a:args) = do
       -- Γ,i ⊢ t
       -- Γ,i ⊢ (x : t). delta
       -- Γ ⊢ a : t[0]
       s <- reduce $ getSort t
-      -- Γ ⊢ b : t[1], Γ,i ⊢ b : t[i]
+      -- Γ ⊢ b : t[1]    Γ, i ⊢ bf : t[i]
       (b,bf) <- runNamesT [] $ do
         l <- case s of
                Inf -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)
+        u <- forM u $ \ (psi,upsi) -> do
+              (,) <$> open psi <*> open (Abs "i" upsi)
         [phi,a] <- mapM open [phi, unArg a]
-        b <- gTransp l t phi a
+        b <- gTransp l t u phi a
         bf <- bind "i" $ \ i -> do
                             gTransp ((<$> l) $ \ l -> lam "j" $ \ j -> l <@> (pure imin <@> i <@> j))
                                     (bind "j" $ \ j -> t `bapp` (pure imin <@> i <@> j))
+                                    u
                                     (pure imax <@> (pure ineg <@> i) <@> phi)
                                     a
         return (b, absBody bf)
-      (:) (b <$ a) <$> go (lazyAbsApp delta bf) phi args
-    go (ExtendTel t delta) phi []    = __IMPOSSIBLE__
-    go EmptyTel            _   (_:_) = __IMPOSSIBLE__
-  go (absBody delta) phi args
+      (:) (b <$ a) <$> go (lazyAbsApp delta bf) us phi args
+    go EmptyTel            _ _ _ = __IMPOSSIBLE__
+    go (ExtendTel t delta) _ _ _ = __IMPOSSIBLE__
+  let (psis,uss) = unzip us
+      us' | null us = replicate (length args) []
+          | otherwise = map (zip psis) $ List.transpose (map absBody uss)
+  go (absBody delta) us' phi args
 
 -- | Like @transpTel@ but performing a transpFill.
 trFillTel :: Abs Telescope -- Γ ⊢ i.Δ
@@ -1825,6 +1873,16 @@ trFillTel' flag delta phi args r = do
             args
 
 
+
+-- hcompTel' :: Bool -> Telescope -> [(Term,Abs [Term])] -> [Term] -> ExceptT (Closure (Abs Type)) TCM [Term]
+-- hcompTel' b delta sides base = undefined
+
+-- hFillTel' :: Bool -> Telescope -- Γ ⊢ Δ
+--           -> [(Term,Abs [Term])]  -- [(φ,i.δ)] with  Γ,φ ⊢ i.δ : I → Δ
+--           -> [Term]            -- Γ ⊢ δ0 : Δ, matching the [(φ,i.δ)]
+--           -> Term -- Γ ⊢ r : I
+--           -> ExceptT (Closure (Abs Type)) TCM [Term]
+-- hFillTel' b delta sides base = undefined
 
 pathTelescope
   :: Telescope -- Δ
