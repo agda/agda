@@ -202,6 +202,7 @@ TAGS :
 .PHONY : std-lib ## Update the standard library.
 std-lib :
 	git submodule update --init std-lib
+	git submodule update --init cubical
 
 .PHONY : up-to-date-std-lib ##
 up-to-date-std-lib : std-lib
@@ -210,6 +211,7 @@ up-to-date-std-lib : std-lib
 .PHONY : fast-forward-std-lib ##
 fast-forward-std-lib :
 	git submodule update --init --remote std-lib
+	git submodule update --init --remote cubical
 	@(cd std-lib && make setup)
 
 ##############################################################################
@@ -223,6 +225,7 @@ test : check-whitespace \
        interaction \
        examples \
        std-lib-test \
+       cubical-test \
        interactive \
        latex-html-test \
        api-test \
@@ -308,6 +311,12 @@ std-lib-test :
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
+
+.PHONY : cubical-test ##
+cubical-test :
+	@$(call decorate, "Cubical library test", \
+		time $(MAKE) -C cubical \
+                  AGDA_EXEC=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
 
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :

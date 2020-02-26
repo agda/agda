@@ -342,6 +342,7 @@ instance EncodeTCM Response where
     [ "tokenBased"    @= tokenBased
     ]
   encodeTCM Resp_DoneAborting = kind "DoneAborting" []
+  encodeTCM Resp_DoneExiting = kind "DoneExiting" []
   encodeTCM Resp_ClearRunningInfo = kind "ClearRunningInfo" []
   encodeTCM (Resp_RunningInfo debugLevel msg) = kind "RunningInfo"
     [ "debugLevel"    @= debugLevel

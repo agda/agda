@@ -24,13 +24,21 @@ Installation and infrastructure
   The flag `--local-interfaces` forces Agda to revert back to storing
   interface files alongside module files no matter what.
 
-* Agda now uses the default RTS options `-H3.5G -M3.5G -A128M`.  If
+* Agda now uses the default RTS options `-M3.5G -I0`.  If
   you run Agda on a 32-bit system or a system with less than 8GB of
   RAM, it is recommended to set the RTS options explicitly to a lower
-  value by running `agda` with option `+RTS -H0.6G -M1.2G -A64M -RTS`
+  value by running `agda` with option `+RTS -M1.2G -RTS`
   (for example) or by setting the GHCRTS enviroment variable. See the
   [GHC User's Guide](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/runtime_control.html#setting-rts-options)
   for more information.
+
+* If Agda is compiled using GHC 8.4 or later, then one can expect to
+  see substantially lower memory consumption
+  [Issues [#4457](https://github.com/agda/agda/issues/4457)
+  and [#4316](https://github.com/agda/agda/issues/4316)].
+
+  This is due to the use of ["compact
+  regions"](https://hackage.haskell.org/package/ghc-compact-0.1.0.0/docs/GHC-Compact.html).
 
 * The `CHANGELOG.md` was split. Changes to previous versions of Agda
   are in the directory `doc/release-notes`.
@@ -76,6 +84,18 @@ Pragmas and options
 
 * New pragma option `--keep-pattern-variables` to prevent case
   splitting from replacing variables with dot patterns.
+
+* Pragma `{-# ETA <record name> #-}` is no longer considered `--safe`.
+  See [Issue [#4450](https://github.com/agda/agda/issues/4450)].
+
+* New pragma options `--subtyping` and `--no-subtyping` (default) to
+  turn on/off subtyping rules globally [see
+  Issue_[#4474](https://github.com/agda/agda/issues/4474)]. Currently,
+  this includes subtyping for irrelevance, erasure, and flat
+  modalities. Additionally, `--subtyping` is implied by
+  `--cumulativity` (see below). `--subtyping` is currently NOT implied
+  by `--sized-types`, and subtyping for sized types is used even when
+  `--subtyping` is not enabled.
 
 Language
 --------
@@ -267,6 +287,16 @@ Language
   unsolved even in code that doesn't use run-time erasure (see issue
   [#4174](https://github.com/agda/agda/issues/4174)).
 
+* Subtyping rules for modalities are by default no longer used (see
+  Issue_[#4390](https://github.com/agda/agda/issues/4390)). For
+  example, if `f : .A → A`, Agda no longer accepts `f` at type `A →
+  A`. Instead, Agda accepts `λ x → f x : A → A`. The same holds for
+  erasure (`@0`) and flat (`@♭`) modalities. Consequently, it may be
+  required to eta-expand certain functions in order to make old code
+  work with Agda 2.6.1. Alternatively, enabling the new `--subtyping`
+  flag will restore the old behaviour but might negatively impact
+  typechecking performance.
+
 ### Universe levels
 
 * New (experimental) option `--cumulativity`
@@ -288,6 +318,77 @@ Language
   feature was originally introduced and
   [#3604](https://github.com/agda/agda/issues/3604) for why it had to
   be removed.
+
+  The easiest way to fix termination problems caused by `with` is to abstract
+  over the offending recursive call before any other `with`s. For example
+
+  ```agda
+  data D : Set where
+    [_] : Nat → D
+
+  fails : D → Nat
+  fails [ zero  ] = zero
+  fails [ suc n ] with some-stuff
+  ... | _ = fails [ n ]
+  ```
+
+  This fails termination because the relation between `[ suc n ]` and `[ n ]`
+  is lost since the generated with-function only gets passed `n`. To fix it we
+  can abstract over the recursive call:
+
+  ```agda
+  fixed : D → Nat
+  fixed [ zero  ] = zero
+  fixed [ suc n ] with fixed [ n ] | some-stuff
+  ... | rec | _ = rec
+  ```
+
+  If the function takes more arguments you might need to abstract over a
+  partial application to just the structurally recursive argument. For instance,
+
+  ```agda
+  fails : Nat → D → Nat
+  fails _ [ zero  ] = zero
+  fails _ [ suc n ] with some-stuff
+  ... | m = fails m [ n ]
+
+  fixed : Nat → D → Nat
+  fixed _ [ zero  ] = zero
+  fixed _ [ suc n ] with (λ m → fixed m [ n ]) | some-stuff
+  ... | rec | m = rec m
+  ```
+
+  A possible complication is that later `with`-abstractions might change the
+  type of the abstracted recursive call:
+
+  ```agda
+  T      : D → Set
+  suc-T  : ∀ {n} → T [ n ] → T [ suc n ]
+  zero-T : T [ zero ]
+
+  fails : (d : D) → T d
+  fails [ zero  ] = zero-T
+  fails [ suc n ] with some-stuff
+  ... | _ with [ n ]
+  ...   | z = suc-T (fails [ n ])
+
+  still-fails : (d : D) → T d
+  still-fails [ zero ] = zero-T
+  still-fails [ suc n ] with still-fails [ n ] | some-stuff
+  ... | rec | _ with [ n ]
+  ...   | z = suc-T rec -- Type error because rec : T z
+  ```
+
+  To solve this problem you can add `rec` to the with-abstraction messing up
+  its type. This will prevent it from having its type changed:
+
+  ```agda
+  fixed : (d : D) → T d
+  fixed [ zero ] = zero-T
+  fixed [ suc n ] with fixed [ n ] | some-stuff
+  ... | rec | _ with rec | [ n ]
+  ...   | _ | z = suc-T rec
+  ```
 
 * The termination checker will now try to dispose of recursive calls
   by reducing with the non-recursive function clauses.
@@ -470,6 +571,9 @@ Emacs mode
   _ : A   (instance)
   ```
 
+* It is now possible to ask Agda to terminate itself after any
+  previously invoked commands have completed, by giving a prefix
+  argument to `agda2-term`.
 
 GHC Backend
 -----------

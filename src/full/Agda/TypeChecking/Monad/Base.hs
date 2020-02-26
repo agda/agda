@@ -3055,7 +3055,7 @@ data Warning
     -- ^ Generic error which doesn't abort proceedings (not a warning)
   -- Safe flag errors
   | SafeFlagPostulate C.Name
-  | SafeFlagPragma [String]
+  | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
   | SafeFlagNonTerminating
   | SafeFlagTerminating
   | SafeFlagWithoutKFlagPrimEraseEquality
@@ -3065,6 +3065,7 @@ data Warning
   | SafeFlagNoUniverseCheck
   | SafeFlagNoCoverageCheck
   | SafeFlagInjective
+  | SafeFlagEta                            -- ^ ETA pragma is unsafe.
   | ParseWarning             ParseWarning
   | LibraryWarning           LibWarning
   | DeprecationWarning String String String
@@ -3094,7 +3095,7 @@ data Warning
 
 
 warningName :: Warning -> WarningName
-warningName w = case w of
+warningName = \case
   -- special cases
   NicifierIssue dw             -> declarationWarningName dw
   ParseWarning pw              -> parseWarningName pw
@@ -3125,6 +3126,7 @@ warningName w = case w of
   SafeFlagPolarity             -> SafeFlagPolarity_
   SafeFlagPostulate{}          -> SafeFlagPostulate_
   SafeFlagPragma{}             -> SafeFlagPragma_
+  SafeFlagEta                  -> SafeFlagEta_
   SafeFlagInjective            -> SafeFlagInjective_
   SafeFlagNoCoverageCheck      -> SafeFlagNoCoverageCheck_
   SafeFlagWithoutKFlagPrimEraseEquality -> SafeFlagWithoutKFlagPrimEraseEquality_

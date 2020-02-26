@@ -515,7 +515,9 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
     _    -> [ c ]
+#if __GLASGOW_HASKELL__ < 810
 escape _                         = __IMPOSSIBLE__
+#endif
 
 -- | Every element in the list should consist of either one or more
 -- newline characters, or one or more space characters. Two adjacent

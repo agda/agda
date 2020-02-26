@@ -1,4 +1,5 @@
-{-# OPTIONS --without-K --safe --no-universe-polymorphism --no-sized-types --no-guardedness #-}
+{-# OPTIONS --without-K --safe --no-universe-polymorphism
+            --no-sized-types --no-guardedness --no-subtyping #-}
 
 module Agda.Builtin.Unit where
 
