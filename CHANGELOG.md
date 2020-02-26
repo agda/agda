@@ -88,6 +88,15 @@ Pragmas and options
 * Pragma `{-# ETA <record name> #-}` is no longer considered `--safe`.
   See [Issue [#4450](https://github.com/agda/agda/issues/4450)].
 
+* New pragma options `--subtyping` and `--no-subtyping` (default) to
+  turn on/off subtyping rules globally [see
+  Issue_[#4474](https://github.com/agda/agda/issues/4474)]. Currently,
+  this includes subtyping for irrelevance, erasure, and flat
+  modalities. Additionally, `--subtyping` is implied by
+  `--cumulativity` (see below). `--subtyping` is currently NOT implied
+  by `--sized-types`, and subtyping for sized types is used even when
+  `--subtyping` is not enabled.
+
 Language
 --------
 
@@ -277,6 +286,16 @@ Language
   Note that this feature can cause previously solved metavariables to become
   unsolved even in code that doesn't use run-time erasure (see issue
   [#4174](https://github.com/agda/agda/issues/4174)).
+
+* Subtyping rules for modalities are by default no longer used (see
+  Issue_[#4390](https://github.com/agda/agda/issues/4390)). For
+  example, if `f : .A → A`, Agda no longer accepts `f` at type `A →
+  A`. Instead, Agda accepts `λ x → f x : A → A`. The same holds for
+  erasure (`@0`) and flat (`@♭`) modalities. Consequently, it may be
+  required to eta-expand certain functions in order to make old code
+  work with Agda 2.6.1. Alternatively, enabling the new `--subtyping`
+  flag will restore the old behaviour but might negatively impact
+  typechecking performance.
 
 ### Universe levels
 
