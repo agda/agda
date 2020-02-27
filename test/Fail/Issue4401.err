@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  _from_12 x = erased x : A
+  _4 (f = f) (x = x) = f x : Set
 Unsolved metas at the following locations:
-  Issue3855d.agda:28,15-16
-  Issue3855d.agda:29,21-25
+  Issue4401.agda:8,12-13
+  Issue4401.agda:11,14-18

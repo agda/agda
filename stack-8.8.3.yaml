@@ -89,6 +89,8 @@ extra-deps:
 - comonad-5.0.6
 - cabal-doctest-1.0.8
 - distributive-0.6.1
+- cpphs-1.20.9
+- polyparse-1.13
 
 flags:
   transformers-compat:

@@ -171,7 +171,8 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
+  (mf, r) <- liftIO $ E.handle (\(E.SomeException e) ->
+                                   noResult (show e)) $ do
 
     ((r, nL, sL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
     if s /= L.empty
@@ -246,7 +247,7 @@ decodeInterface s = do
   -- or the one in decode.
 
   s <- liftIO $
-       E.handle (\(E.ErrorCall s) -> return (Left s)) $
+       E.handle (\(E.SomeException e) -> return (Left (show e))) $
        E.evaluate $
        let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
        if ver /= currentInterfaceVersion

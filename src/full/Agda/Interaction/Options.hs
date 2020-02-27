@@ -145,7 +145,7 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
-  , optSubtyping                 :: WithDefault 'True
+  , optSubtyping                 :: WithDefault 'False
   , optCumulativity              :: Bool
   , optSizedTypes                :: WithDefault 'True
   , optGuardedness               :: WithDefault 'True
@@ -651,7 +651,7 @@ noEtaFlag o = return $ o { optEta = False }
 sizedTypes :: Flag PragmaOptions
 sizedTypes o =
   return $ o { optSizedTypes = Value True
-             , optSubtyping  = setDefault True $ optSubtyping o
+             --, optSubtyping  = setDefault True $ optSubtyping o
              }
 
 noSizedTypes :: Flag PragmaOptions

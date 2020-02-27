@@ -103,6 +103,10 @@ isType' c e s =
 -- | Check that an expression is a type and infer its (minimal) sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e = traceCall (IsType_ e) $ do
+  reportResult "tc.term.istype" 15 (\a -> vcat
+    [ "isType_" <?> prettyTCM e
+    , nest 2 $ "returns" <?> prettyTCM a
+    ]) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do

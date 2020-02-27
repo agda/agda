@@ -28,6 +28,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
+import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
@@ -47,7 +48,7 @@ import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(throwError)
+  , MonadError(throwError, catchError)
   , runExceptT
   )
 import Agda.Utils.Function
@@ -63,6 +64,7 @@ import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -835,9 +837,34 @@ assign dir x args v target = do
               -- case: non-linear variables that could possibly be pruned
               Left ()   -> attemptPruning x args fvs
 
+          let n = length args
+          TelV tel' _ <- telViewUpToPath n t
+
+          -- Check subtyping constraints on the context variables.
+
+          -- Intuition: suppose @_X : (x : A) → B@, then to turn
+          --   @
+          --     Γ(x : A') ⊢ _X x =?= v : B'@
+          --   @
+          -- into
+          --   @
+          --     Γ ⊢ _X =?= λ x → v
+          --   @
+          -- we need to check that @A <: A'@ (due to contravariance).
+          let sigma = parallelS $ reverse $ map unArg args
+          hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+          when hasSubtyping $ forM_ ids $ \(i , u) -> do
+            -- @u@ is a (projected) variable, so we can infer its type
+            a  <- applySubst sigma <$> addContext tel' (infer u)
+            a' <- typeOfBV i
+            checkSubtypeIsEqual a' a
+              `catchError` \case
+                TypeError{} -> patternViolation
+                err         -> throwError err
+
           -- Solve.
           m <- getContextSize
-          assignMeta' m x t (length args) ids v
+          assignMeta' m x t n ids v
   where
     -- | Try to remove meta arguments from lhs that mention variables not occurring on rhs.
     attemptPruning
@@ -975,27 +1002,26 @@ assignMeta' m x t n ids v = do
       "preparing to instantiate: " <+> prettyTCM v
 
   -- Rename the variables in v to make it suitable for abstraction over ids.
-  v' <- do
-    -- Basically, if
-    --   Γ   = a b c d e
-    --   ids = d b e
-    -- then
-    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-    --
-    -- Andreas, 2013-10-25 Solve using substitutions:
-    -- Convert assocList @ids@ (which is sorted) into substitution,
-    -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
-    -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
-    -- ALT 1: O(m * size ids), serves as specification
-    -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
-    -- ALT 2: O(m)
-    let assocToList i l = case l of
-          _           | i >= m -> []
-          ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
-          _                    -> Nothing : assocToList (i+1) l
-        ivs = assocToList 0 ids
-        rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
-    return $ applySubst rho v
+  -- Basically, if
+  --   Γ   = a b c d e
+  --   ids = d b e
+  -- then
+  --   v' = (λ a b c d e. v) _ 1 _ 2 0
+  --
+  -- Andreas, 2013-10-25 Solve using substitutions:
+  -- Convert assocList @ids@ (which is sorted) into substitution,
+  -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
+  -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
+  -- ALT 1: O(m * size ids), serves as specification
+  -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
+  -- ALT 2: O(m)
+  let assocToList i l = case l of
+        _           | i >= m -> []
+        ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
+        _                    -> Nothing : assocToList (i+1) l
+      ivs = assocToList 0 ids
+      rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
+      v'  = applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do
@@ -1099,6 +1125,42 @@ checkSolutionForMeta x m v a = do
       s <- shouldBeSort (El __DUMMY_SORT__ v)
       traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
         checkSort defaultAction s
+
+-- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
+checkSubtypeIsEqual :: Type -> Type -> TCM ()
+checkSubtypeIsEqual a b = do
+  reportSDoc "tc.meta.subtype" 30 $
+    "checking that subtype" <+> prettyTCM a <+>
+    "of" <+> prettyTCM b <+> "is actually equal."
+  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+  unless equal $ do
+    cumulativity <- optCumulativity <$> pragmaOptions
+    reduce (unEl b) >>= \case
+      Sort sb -> reduce (unEl a) >>= \case
+        Sort sa | cumulativity -> equalSort sa sb
+                | otherwise    -> return ()
+        MetaV{} -> patternViolation
+        Dummy{} -> return () -- TODO: this shouldn't happen but
+                             -- currently does because of generalized
+                             -- metas being created in a dummy context
+        _ -> patternViolation
+      Pi b1 b2 -> reduce (unEl a) >>= \case
+        Pi a1 a2
+          | getRelevance a1 /= getRelevance b1 -> patternViolation
+          | getQuantity  a1 /= getQuantity  b1 -> patternViolation
+          | getCohesion  a1 /= getCohesion  b1 -> patternViolation
+          | otherwise -> do
+              checkSubtypeIsEqual (unDom b1) (unDom a1)
+              underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
+        MetaV{} -> patternViolation
+        Dummy{} -> return () -- TODO: this shouldn't happen but
+                             -- currently does because of generalized
+                             -- metas being created in a dummy context
+        _ -> patternViolation
+      MetaV{} -> patternViolation
+      -- TODO: check subtyping for Size< types
+      _ -> return ()
+
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
 -- @_X args = SizeLt (_Y args)@ and constraint
