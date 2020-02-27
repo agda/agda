@@ -199,6 +199,13 @@ prependS err us rho = foldr f rho us
     f Nothing  rho = Strengthen err rho
     f (Just u) rho = consS u rho
 
+-- | @
+--        Γ ⊢ reverse vs : Δ
+--      -----------------------------
+--        Γ ⊢ parallelS vs ρ : Γ, Δ
+--   @
+--
+--   Note the @Γ@ in @Γ, Δ@.
 parallelS :: DeBruijn a => [a] -> Substitution' a
 parallelS us = us ++# idS
 
