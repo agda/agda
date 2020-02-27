@@ -1,0 +1,6 @@
+Issue4484a.agda:15,1-17
+(fst a , x) ≡ a should be empty, but the following constructor
+patterns are valid:
+  refl
+when checking the clause left hand side
+hard-fail a x ()
