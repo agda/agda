@@ -1752,8 +1752,8 @@ transpSysTel' flag delta us phi args = do
       where
         -- [phi -> a; us]
         uphi = lam "i" $ \ i -> ilam "o" $ \ o -> do
-          let sys' = ((phi , a) : [ (psi,bapp u i) | (psi,u) <- us])
-              sys = [(phi, ilam "o" (const u)) | (psi,u) <- sys']
+          let sys' = (phi , a) : map (mapSnd (`bapp` i)) us
+              sys = map (mapSnd $ ilam "o" . const) sys'
           combine (l <@> i) (unEl <$> bapp t i) __IMPOSSIBLE__ sys
     combine l ty d [] = d
     combine l ty d [(psi,u)] = u
