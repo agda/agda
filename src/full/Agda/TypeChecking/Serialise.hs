@@ -35,6 +35,7 @@ import Control.Monad.State.Strict
 
 import Data.Array.IArray
 import Data.Word
+import qualified Data.ByteString.Builder as L
 import qualified Data.ByteString.Lazy as L
 import qualified Data.HashTable.IO as H
 import qualified Data.Map as Map
@@ -43,8 +44,10 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+import Data.Monoid
 
 import qualified Codec.Compression.GZip as G
+import qualified Codec.Compression.Zlib.Internal as Z
 
 #if __GLASGOW_HASKELL__ >= 804
 import GHC.Compact as C
@@ -168,8 +171,7 @@ decode s = do
   -- The decoder is (intended to be) strict enough to ensure that all
   -- such errors can be caught by the handler here.
 
-  (mf, r) <- liftIO $ E.handle (\(E.SomeException e) ->
-                                   noResult (show e)) $ do
+  (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
     ((r, nL, sL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
     if s /= L.empty
@@ -240,20 +242,27 @@ encodeFile f i = do
 decodeInterface :: L.ByteString -> TCM (Maybe Interface)
 decodeInterface s = do
 
-  -- Note that runGetState and G.decompress can raise errors if the
-  -- input is malformed. The decoder is (intended to be) strict enough
-  -- to ensure that all such errors can be caught by the handler here
-  -- or the one in decode.
+  -- Note that runGetState and the decompression code below can raise
+  -- errors if the input is malformed. The decoder is (intended to be)
+  -- strict enough to ensure that all such errors can be caught by the
+  -- handler here or the one in decode.
 
   s <- liftIO $
-       E.handle (\(E.SomeException e) -> return (Left (show e))) $
+       E.handle (\(E.ErrorCall s) -> return (Left s)) $
        E.evaluate $
        let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
        if ver /= currentInterfaceVersion
-        then Left "Wrong interface version."
-        else Right (G.decompress s')
-             -- Note that G.decompress seems to throw away garbage at
-             -- the end.
+       then Left "Wrong interface version."
+       else Right $
+            L.toLazyByteString $
+            Z.foldDecompressStreamWithInput
+              (\s -> (L.byteString s <>))
+              (\s -> if L.null s
+                     then mempty
+                     else error "Garbage at end.")
+              (\err -> error (show err))
+              (Z.decompressST Z.gzipFormat Z.defaultDecompressParams)
+              s'
 
   case s of
     Right s  -> decode s
