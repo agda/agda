@@ -27,12 +27,12 @@ record Box (A : Set) : Set where
   field
     @0 unbox : A
 
-test : (A : Set) → P (Box A) (Box (Box A)) (box {A = Box A})
+test : (A : Set) → P (Box A) (Box (Box A)) (λ x → box {A = Box A} x)
 test A = p _ _ (record
-  { to      = box {A = _}
+  { to      = λ x → box {A = _} x
   ; from    = λ { (box (box x)) → box {A = A} x }
       -- at first, a postponed type checking problem ?from
-  ; from-to = λ x → refl {A = Box A} {x = _}
+  ; from-to = λ x → refl {A = Box A} {x = x}
   })
 -- from-to creates constraint
 --
@@ -58,11 +58,11 @@ record Box' (A : Set) : Set where
     unit : ⊤
     @0 unbox' : A
 
-test' : (A : Set) → P (Box' A) (Box' (Box' A)) (box' {A = Box' A} _)
+test' : (A : Set) → P (Box' A) (Box' (Box' A)) (λ x → box' {A = Box' A} _ x)
 test' A = p _ _ (record
-  { to      = box' {A = _} _
+  { to      = λ x → box' {A = _} _ x
   ; from    = λ { (box' _ (box' _ x)) → box' {A = A} _ x }
-  ; from-to = λ x → refl {A = Box' A} {x = _}
+  ; from-to = λ x → refl {A = Box' A} {x = x}
   })
 
 -- UPDATE (2019-11-17):

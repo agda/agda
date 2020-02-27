@@ -1,3 +1,5 @@
+{-# OPTIONS --subtyping #-}
+
 module FlatDomInequality where
 
 

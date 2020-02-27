@@ -357,8 +357,9 @@ topModality = Modality topRelevance topQuantity topCohesion
 
 -- | Equality ignoring origin.
 
-sameModality :: Modality -> Modality -> Bool
-sameModality (Modality r q c) (Modality r' q' c') = sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
+sameModality :: (LensModality a, LensModality b) => a -> b -> Bool
+sameModality x y = case (getModality x , getModality y) of
+  (Modality r q c , Modality r' q' c') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
 
 -- boilerplate instances
 
