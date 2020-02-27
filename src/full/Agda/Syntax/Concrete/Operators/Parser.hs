@@ -15,7 +15,6 @@ import Data.Set (Set)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)

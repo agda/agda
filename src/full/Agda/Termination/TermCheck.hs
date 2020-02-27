@@ -25,7 +25,6 @@ import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
---import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Abstract (AllNames(..))
 import qualified Agda.Syntax.Abstract as A
@@ -51,7 +50,6 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
@@ -482,8 +480,8 @@ termType = return mempty
         extract dom `mappend` underAbstractionAbs dom absB (loop $! n + 1)
 
   -- create n variable patterns
-  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames -- Defined but not currently used
-  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i -- TODO:: Defined but not used
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.

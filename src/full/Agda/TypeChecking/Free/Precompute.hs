@@ -7,7 +7,6 @@ module Agda.TypeChecking.Free.Precompute
 import Control.Monad.Writer
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
---import Data.Traversable (Traversable, traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

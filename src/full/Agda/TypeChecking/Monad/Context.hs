@@ -17,7 +17,6 @@ import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, na
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
---import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Base

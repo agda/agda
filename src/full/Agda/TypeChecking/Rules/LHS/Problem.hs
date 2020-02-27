@@ -14,13 +14,11 @@ import Prelude hiding (null)
 import Control.Arrow ( (***) )
 import Control.Monad.Writer hiding ((<>))
 
---import Data.Foldable ( Foldable )
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List ( partition )
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
---import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -35,7 +33,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
---import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens

@@ -27,7 +27,6 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
---import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
@@ -39,7 +38,6 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Data (Data, toConstr)
---import Data.Foldable (Foldable)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T

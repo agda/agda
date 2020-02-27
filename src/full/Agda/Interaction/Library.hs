@@ -37,7 +37,6 @@ import Data.Char
 import Data.Data ( Data )
 import Data.Either
 import Data.Bifunctor ( first )
---import Data.Foldable ( foldMap )
 import Data.Function
 import qualified Data.List as List
 import System.Directory

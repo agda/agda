@@ -16,7 +16,6 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible

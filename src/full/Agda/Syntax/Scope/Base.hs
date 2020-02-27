@@ -1034,7 +1034,7 @@ scopeLookup' q scope =
             -- | Get the definitions named @x@ in scope @s@ and interpret them as modules.
             -- Andreas, 2013-05-01: Issue 836 debates this feature:
             -- Qualified constructors are qualified by their datatype rather than a module
-            defs :: [A.ModuleName] -- TODO:: Defined but not used
+            defs :: [A.ModuleName] -- NB:: Defined but not used
             defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
         -- Andreas, 2013-05-01:  Issue 836 complains about the feature
         -- that constructors can also be qualified by their datatype

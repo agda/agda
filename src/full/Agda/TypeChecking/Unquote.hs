@@ -7,9 +7,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
---import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
---import Data.Traversable (traverse)
 import Data.Word
 
 import Agda.Syntax.Common
@@ -18,14 +16,11 @@ import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Fixity
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Constraints
---import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute

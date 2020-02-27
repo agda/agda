@@ -4,18 +4,11 @@
 -}
 module Agda.Syntax.Fixity where
 
-import Control.DeepSeq
-
-import qualified Data.List as List
-import Data.Maybe
-
 import Data.Data (Data)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Notation
 
-import Agda.Utils.List
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

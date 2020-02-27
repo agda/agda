@@ -14,7 +14,6 @@ module Agda.Syntax.Abstract
 import Prelude
 import Control.Arrow (first)--, second, (***))
 
---import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function (on)
 import Data.Map (Map)
@@ -30,7 +29,6 @@ import Data.Monoid (mappend)
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
---import Agda.Syntax.Abstract.Name as A (QNamed)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Info

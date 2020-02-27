@@ -50,8 +50,6 @@ import qualified Codec.Compression.GZip as G
 import GHC.Compact as C
 #endif
 
-import Agda.Interaction.Options
-
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
@@ -63,7 +61,6 @@ import Agda.Utils.Hash
 import Agda.Utils.IORef
 
 import Agda.Utils.Except
-import Agda.Utils.Monad
 
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on

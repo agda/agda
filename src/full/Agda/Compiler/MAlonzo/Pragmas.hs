@@ -4,7 +4,6 @@ import Control.Monad
 import Data.Maybe
 import Data.Char
 import qualified Data.List as List
---import Data.Traversable (traverse)
 import qualified Data.Map as Map
 import Text.ParserCombinators.ReadP
 

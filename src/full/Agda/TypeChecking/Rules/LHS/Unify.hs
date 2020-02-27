@@ -130,12 +130,9 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
---import Data.IntSet (IntSet)
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 
---import Data.Foldable (Foldable)
---import Data.Traversable (Traversable,traverse)
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -145,7 +142,6 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
---import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes

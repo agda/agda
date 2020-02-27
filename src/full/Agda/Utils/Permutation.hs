@@ -10,8 +10,6 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Array
 
---import Data.Foldable (Foldable)
---import Data.Traversable (Traversable)
 
 import Data.Data (Data)
 

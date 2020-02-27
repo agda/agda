@@ -27,7 +27,6 @@ import Control.Monad ( guard )
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
---import Data.Maybe ( fromMaybe )
 import Data.List ( stripPrefix, intercalate )
 
 import Agda.Utils.Lens

@@ -10,9 +10,7 @@ module Agda.Utils.Monad
 import Control.Applicative  (liftA2)
 import Control.Monad hiding (mapM, forM)
 
---import qualified Control.Monad.Fail as Fail
 
---import Control.Monad.Identity ( Identity )
 import Control.Monad.State
 
 import Data.Traversable as Trav hiding (for, sequence)

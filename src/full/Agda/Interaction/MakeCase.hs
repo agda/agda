@@ -35,7 +35,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
---import Agda.TypeChecking.Rules.Term (isModuleFreeVar)
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps

@@ -10,12 +10,9 @@ module Agda.Syntax.Abstract.Pattern where
 import Prelude hiding (null)
 
 import Control.Arrow ((***), second)
---import Control.Monad ((>=>))
 import Control.Monad.Identity
 import Control.Applicative (liftA2)
 
---import Data.Foldable (Foldable, foldMap)
---import Data.Traversable (Traversable, traverse)
 
 import Data.Maybe
 import Data.Monoid

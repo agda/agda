@@ -14,7 +14,6 @@ import Agda.Syntax.Internal
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings
 

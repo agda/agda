@@ -71,7 +71,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad as TCM hiding (Offset)
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Reduce

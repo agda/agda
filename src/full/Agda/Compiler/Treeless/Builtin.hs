@@ -17,14 +17,12 @@
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
---import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Compiler.Treeless.Subst () --instance only
 import Agda.Utils.Impossible

@@ -47,7 +47,6 @@ import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
---import Data.Traversable (traverse)
 import Data.Semigroup ((<>))
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -61,12 +60,10 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
---import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Monad hiding (Closure(..))
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Rewriting (rewrite)
 import Agda.TypeChecking.Substitute
---import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 
 import Agda.Interaction.Options
 
@@ -74,7 +71,6 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
---import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
 import Agda.Utils.Pretty

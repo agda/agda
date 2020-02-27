@@ -33,7 +33,6 @@ import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 

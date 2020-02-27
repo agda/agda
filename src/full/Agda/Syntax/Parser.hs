@@ -26,7 +26,6 @@ module Agda.Syntax.Parser
 
 import Control.Arrow (second)
 import Control.Exception
---import Control.Monad (forM_)
 import Control.Monad.State
 
 import qualified Data.List as List

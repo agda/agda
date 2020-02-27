@@ -3,13 +3,11 @@ module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 
---import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
 
 import Data.Char ( isSpace )
 import Data.List ( intercalate, partition )
 import Data.Set ( Set, null, insert, difference, delete )
---import Data.Traversable (traverse)
 import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -34,13 +32,10 @@ import Agda.Syntax.Literal ( Literal(..) )
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
---import Agda.TypeChecking.Monad.Debug ( reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Maybe
---import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P

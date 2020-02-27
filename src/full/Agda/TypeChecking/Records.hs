@@ -9,7 +9,6 @@ import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
---import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -21,7 +20,6 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only

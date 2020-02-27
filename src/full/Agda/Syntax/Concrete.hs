@@ -58,7 +58,6 @@ module Agda.Syntax.Concrete
 import Prelude hiding (null)
 
 import Control.DeepSeq
---import Data.Foldable (Foldable)
 import Data.Traversable (forM)
 import Data.List hiding (null)
 import Data.Set (Set)
@@ -68,7 +67,6 @@ import Data.Data (Data)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name

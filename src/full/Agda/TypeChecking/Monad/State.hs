@@ -14,12 +14,10 @@ import Data.Maybe
 
 import qualified Data.Map as Map
 
---import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
---import Data.Traversable (traverse)
 
 import Agda.Benchmarking
 

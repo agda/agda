@@ -616,7 +616,7 @@ instance ToQName C.Name  where toQName = C.QName
 instance ToQName C.QName where toQName = id
 
 -- Should be a defined name.
-instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
+instance ToQName a => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (toQName x)
     case rx of

@@ -36,7 +36,6 @@ import Agda.Syntax.Scope.Monad (withContextPrecedence)
 
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
@@ -420,10 +419,10 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
-        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc -- TODO:: Defined but not used
+        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
         showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
-        showCon :: MonadPretty m => m Doc -- TODO:: Defined but not used
+        showCon :: MonadPretty m => m Doc -- NB:: Defined but not used
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP _ l)    = text (P.prettyShow l)

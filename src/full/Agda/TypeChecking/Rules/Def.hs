@@ -14,7 +14,6 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
---import Data.Tuple ( swap )
 
 import Agda.Interaction.Options
 
@@ -27,11 +26,9 @@ import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Fixity
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Warnings ( warning )
 
@@ -526,8 +523,6 @@ checkSystemCoverage f [n] t cs = do
         phis = map andI $ map (map dir) alphas
         psi = orI $ phis
         pcs = zip phis cs
-        boolToI True = i1 -- TODO:: Defined but not used
-        boolToI False = i0
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       interval <- elInf primInterval

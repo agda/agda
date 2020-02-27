@@ -3,12 +3,10 @@ module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
 import Data.Maybe
 
---import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Impossible

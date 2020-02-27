@@ -25,10 +25,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Literal
-import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute

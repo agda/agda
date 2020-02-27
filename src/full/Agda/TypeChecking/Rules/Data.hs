@@ -8,8 +8,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
---import Data.Foldable (traverse_)
---import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -21,11 +19,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -753,7 +749,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
 
       -- Γ, i : I ⊢ [δ i] : Δ
-      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params) -- TODO:: Defined but not used
+      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params) -- Defined but not used
 
       -- Γ, i : I ⊢ Φ[δ i]
       fsT' = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)  `applySubst`
@@ -946,8 +942,6 @@ defineHCompForFields applyProj name params fsT fns rect = do
                        )
           u0 <- w0
           pure $ Def theName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m)) -- TODO:: Defined but not used
 
       -- (γ : Γ) ⊢ (flatten Φ)[n ↦ f_n (compR γ)]
       clause_types = parallelS [compTerm `applyProj` (unArg fn)

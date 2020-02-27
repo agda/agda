@@ -2,15 +2,12 @@ module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Arrow (second, (***))
 import Control.Monad.Reader
---import Data.Traversable (traverse)
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless
---import Agda.Syntax.Internal (Substitution'(..))
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Substitute
 

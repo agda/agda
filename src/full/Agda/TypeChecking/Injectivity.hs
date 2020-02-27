@@ -61,7 +61,6 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars

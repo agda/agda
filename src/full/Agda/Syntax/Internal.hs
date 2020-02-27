@@ -17,7 +17,6 @@ import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 import Control.Monad.Identity hiding (mapM)
 import Control.DeepSeq
 
---import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe

@@ -37,11 +37,9 @@ import qualified Data.Text.Lazy as T
 import Data.Void
 
 import Agda.Interaction.Response
-  ( Response( Resp_HighlightingInfo )
-  , RemoveTokenBasedHighlighting( KeepHighlighting )
-  )
+  ( RemoveTokenBasedHighlighting( KeepHighlighting ) )
 import Agda.Interaction.Highlighting.Precise as P
-import Agda.Interaction.Highlighting.Range (rToR, minus)  -- Range is ambiguous
+import Agda.Interaction.Highlighting.Range (rToR)  -- Range is ambiguous
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
@@ -57,8 +55,6 @@ import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Info ( ModuleInfo(..), defMacro )
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -70,7 +66,6 @@ import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict

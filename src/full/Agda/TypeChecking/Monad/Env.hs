@@ -12,8 +12,6 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
---import Agda.Utils.Function
---import Agda.Utils.SmallSet
 import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible

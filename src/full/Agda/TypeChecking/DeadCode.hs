@@ -3,7 +3,6 @@ module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
---import Data.Traversable (traverse)
 import qualified Data.HashMap.Strict as HMap
 
 import qualified Agda.Syntax.Abstract as A

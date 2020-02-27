@@ -15,7 +15,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -263,12 +262,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   ]
   where
   x |-> s = (x, Left <$> s)
-  -- NB is defined but not used
-  bin blt op ty from to = do
-    from' <- bltQual' blt from
-    to'   <- bltQual' blt to
-    return $ repl [op, opty ty, from', to'] $
-               "\\ x y -> <<3>> ((<<0>> :: <<1>>) (<<2>> x) (<<2>> y))"
   binNat  op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
   binNat4 op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"

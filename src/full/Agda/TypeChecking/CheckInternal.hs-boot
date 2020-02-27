@@ -8,8 +8,6 @@ import qualified Data.Kind as Hs
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
---import Agda.TypeChecking.Monad.Statistics (MonadStatistics)
 import Agda.TypeChecking.Warnings
 import Agda.Utils.Except ( MonadError )
 

@@ -22,7 +22,6 @@ import GHC.Int (Int32)
 -- import qualified Agda.Syntax.Concrete as C
 -- import qualified Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Pretty (PrettyTCM(..))
 import Agda.Utils.Pretty
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -95,7 +94,6 @@ kind' k = object . (("kind" .= String k) :)
 --------------------------------------------------------------------------------
 -- Instances of ToJSON or EncodeTCM
 
--- TODO:: Defined but not used
 encodeListTCM :: EncodeTCM a => [a] -> TCM Value
 encodeListTCM = mapM encodeTCM >=> return . toJSONList
 

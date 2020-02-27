@@ -30,7 +30,6 @@ import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
                               , emptyScopeInfo
                               , exportedNamesInScope)
 import Agda.Syntax.Scope.Monad (getNamedScope)
---import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
@@ -45,7 +44,6 @@ import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty

@@ -22,7 +22,6 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
---import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -1533,7 +1532,7 @@ equalLevel' a b = do
           lvl <- levelType
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
-        -- TODO:: Defined but not used: wrap
+        -- NB:: Defined but not used: wrap
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \case
             TypeError{} -> notok

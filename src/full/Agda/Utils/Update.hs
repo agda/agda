@@ -25,7 +25,6 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict
 
---import Data.Traversable (Traversable(..), traverse)
 
 import Agda.Utils.Tuple
 
@@ -81,7 +80,7 @@ type EndoFun a = a -> a
 type Change  a = ChangeT Identity a
 type Updater a = UpdaterT Identity a
 
--- TODO:: Defined but not used
+-- NB:: Defined but not used
 fromChange :: Change a -> Writer Any a
 fromChange = fromChangeT
 

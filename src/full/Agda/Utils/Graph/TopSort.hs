@@ -3,18 +3,11 @@ module Agda.Utils.Graph.TopSort
     ( topSort
     ) where
 
---import Data.List
---import Data.Maybe
---import Data.Function
 import qualified Data.Set as Set
 import qualified Data.Map as Map
---import qualified Data.Graph as Graph
---import Control.Arrow
---import Agda.Utils.List (nubOn)
---import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 
--- TODO:: Defined but not used
+-- NB:: Defined but not used
 mergeBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 mergeBy _ [] xs = xs
 mergeBy _ xs [] = xs

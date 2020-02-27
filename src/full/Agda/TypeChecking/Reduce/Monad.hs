@@ -12,24 +12,20 @@ import Prelude hiding (null)
 
 import Control.Monad.Reader
 
---import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe
 
 import System.IO.Unsafe
 
---import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
 import Agda.TypeChecking.Substitute
 
---import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty () --instance only
 
---import Agda.Utils.Impossible
 
 instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)

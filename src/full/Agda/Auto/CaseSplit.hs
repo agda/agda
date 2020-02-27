@@ -6,7 +6,6 @@ import Data.IORef
 import Data.Tuple (swap)
 import Data.List (findIndex)
 import Data.Monoid ((<>), Sum(..))
-import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 import Control.Monad.State as St hiding (lift)
