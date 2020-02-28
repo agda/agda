@@ -25,6 +25,7 @@ import Agda.Syntax.Position (killRange)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
@@ -32,6 +33,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Lock
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
@@ -736,8 +738,14 @@ assign dir x args v = do
         case res of
           -- all args are variables
           Right ids -> do
+            reportSDoc "tc.meta.assign" 60 $
+              "inverseSubst returns:" <+> sep (map pretty ids)
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
+            -- -- from commit d3f3af7d98
+            -- let boundVars = VarSet.fromList $ map fst ids
+            -- if | fvs `VarSet.isSubsetOf` boundVars -> return $ Just ids
+            --    | otherwise                         -> return Nothing
             return $ Just ids
           -- we have proper values as arguments which could be cased on
           -- here, we cannot prune, since offending vars could be eliminated
@@ -759,6 +767,19 @@ assign dir x args v = do
               Right ids -> return ids
               -- case: non-linear variables that could possibly be pruned
               Left ()   -> attemptPruning x args fvs
+
+          -- Check ids is time respecting.
+          () <- do
+            let idvars = map (mapSnd allFreeVars) ids
+            -- earlierThan α v := v "arrives" before α
+            let earlierThan l j = j > l
+            TelV tel' _ <- telViewUpToPath (length args) t
+            forM_ ids $ \(i,u) -> do
+              d <- lookupBV i
+              when (getLock (getArgInfo d) == IsLock) $ do
+                let us = Set.unions $ map snd $ filter (earlierThan i . fst) idvars
+                -- us Earlier than u
+                addContext tel' $ checkEarlierThan u us
 
           -- Solve.
           m <- getContextSize

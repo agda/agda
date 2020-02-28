@@ -1,6 +1,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-module Agda.TypeChecking.Lock where
+module Agda.TypeChecking.Lock
+  ( isTimeless
+  , checkLockedVars
+  , checkEarlierThan
+  )
+where
 
 import Control.Arrow (first, second)
 import Control.Monad.Reader
@@ -29,6 +34,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.VarSet as Set
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -86,15 +92,18 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     typeError . GenericDocError =<<
          ("The following vars are not allowed in a later value applied to"
           <+> prettyTCM lk <+> ":" <+> prettyTCM (map var $ ISet.toList illegalVars))
-  where
-    isVar (Var l []) = return $ Just l
-    isVar (MetaV{}) = patternViolation
-    isVar _ = return $ Nothing
-    noVar = typeError $ GenericError "lock should be a var"
-    isLock i = do
-      islock <- getLock . domInfo <$> lookupBV i
-      unless (islock == IsLock) $
-        typeError $ GenericError "Cannot eliminate with non-lock variable."
+ where
+   noVar = typeError $ GenericError "lock should be a var"
+   isLock i = do
+     islock <- getLock . domInfo <$> lookupBV i
+     unless (islock == IsLock) $
+       typeError $ GenericError "Cannot eliminate with non-lock variable."
+
+-- to use only on lock terms
+isVar :: Term -> TCMT IO (Maybe Int)
+isVar (Var l []) = return $ Just l
+isVar (MetaV{}) = patternViolation
+isVar _ = return $ Nothing
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
@@ -103,3 +112,14 @@ isTimeless t = do
   case unEl t of
     Def q _ | Just q `elem` timeless -> return True
     _                                -> return False
+
+
+checkEarlierThan :: Term -> VarSet -> TCM ()
+checkEarlierThan lk fvs = do
+  mv <- isVar =<< reduce lk
+  caseMaybe mv patternViolation $ \ i -> do
+    let problems = filter (<= i) $ Set.toList fvs
+    forM_ problems $ \ j -> do
+      ty <- typeOfBV j
+      unlessM (isTimeless ty) $
+        patternViolation
