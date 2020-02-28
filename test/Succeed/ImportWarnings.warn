@@ -22,10 +22,23 @@ when scope checking the declaration
 
 ———— All done; warnings encountered ————————————————————————
 
+ImportWarningsB.agda:12,1-16
+Empty REWRITE pragma
+when scope checking the declaration
+  {-# REWRITE #-}
+
+Issue708quote.agda:9,1-29
+Unreachable clause
+when checking the definition of example
+
 RewritingEmptyPragma.agda:3,1-16
 Empty REWRITE pragma
 when scope checking the declaration
   {-# REWRITE #-}
+
+Issue2243.agda:9,1-12
+Unreachable clause
+when checking the definition of f
 
 Unreachable.agda:21,1-23,19
 Unreachable clauses
