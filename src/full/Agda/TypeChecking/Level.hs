@@ -104,7 +104,7 @@ unlevelWithKit :: LevelKit -> Level -> Term
 unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case
   Max m []  -> unConstV zer suc m
   Max 0 [a] -> unPlusV suc a
-  Max m as  -> maximum $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
+  Max m as  -> foldl1 max $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
 
 unConstV :: Term -> (Term -> Term) -> Integer -> Term
 unConstV zer suc n = foldr ($) zer (List.genericReplicate n suc)
