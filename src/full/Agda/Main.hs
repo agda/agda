@@ -3,6 +3,7 @@
 -}
 module Agda.Main where
 
+import Control.Monad (void)
 import Control.Monad.State
 
 import Data.Maybe
@@ -175,7 +176,7 @@ printUsage backends hp = do
 backendUsage :: Backend -> String
 backendUsage (Backend b) =
   usageInfo ("\n" ++ backendName b ++ " backend options") $
-    map (fmap $ const ()) (commandLineFlags b)
+    map void (commandLineFlags b)
 
 -- | Print version information.
 printVersion :: [Backend] -> IO ()
