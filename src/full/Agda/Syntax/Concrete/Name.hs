@@ -343,9 +343,10 @@ moduleNameToFileName (TopLevelModuleName _ ms) ext =
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
-  foldr (.) id (replicate (length m - 1) takeDirectory) $
-  takeDirectory $
-  filePath file
+    foldr
+      ($)
+      (takeDirectory $ filePath file)
+      (replicate (length m - 1) takeDirectory)
 
 ------------------------------------------------------------------------
 -- * No name stuff
