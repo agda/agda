@@ -165,7 +165,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primSigma,
-    primList, primNil, primCons, primIO, primNat, primSuc, primZero,
+    primList, primNil, primCons, primIO, primNat, primSuc, primZero, primMaybe, primNothing, primJust,
     primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
@@ -235,6 +235,9 @@ primFalse                             = getBuiltin builtinFalse
 primList                              = getBuiltin builtinList
 primNil                               = getBuiltin builtinNil
 primCons                              = getBuiltin builtinCons
+primMaybe                             = getBuiltin builtinMaybe
+primNothing                           = getBuiltin builtinNothing
+primJust                              = getBuiltin builtinJust
 primIO                                = getBuiltin builtinIO
 primId                                = getBuiltin builtinId
 primConId                             = getBuiltin builtinConId

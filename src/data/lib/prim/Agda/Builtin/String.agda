@@ -4,14 +4,17 @@
 module Agda.Builtin.String where
 
 open import Agda.Builtin.Bool
-open import Agda.Builtin.List
 open import Agda.Builtin.Char
+open import Agda.Builtin.List
+open import Agda.Builtin.Maybe
 open import Agda.Builtin.Nat using (Nat)
+open import Agda.Builtin.Sigma
 
 postulate String : Set
 {-# BUILTIN STRING String #-}
 
 primitive
+  primStringUncons   : String → Maybe (Σ Char (λ _ → String))
   primStringToList   : String → List Char
   primStringFromList : List Char → String
   primStringAppend   : String → String → String

@@ -107,6 +107,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/IO.agda
                     lib/prim/Agda/Builtin/Int.agda
                     lib/prim/Agda/Builtin/List.agda
+                    lib/prim/Agda/Builtin/Maybe.agda
                     lib/prim/Agda/Builtin/Nat.agda
                     lib/prim/Agda/Builtin/Reflection.agda
                     lib/prim/Agda/Builtin/Reflection/Properties.agda

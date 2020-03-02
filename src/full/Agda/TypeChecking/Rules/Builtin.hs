@@ -74,6 +74,7 @@ coreBuiltins =
   , (builtinArgInfo                          |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool                             |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                              |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinMaybe                            |-> BuiltinData (tset --> tset) [builtinNothing, builtinJust])
   , (builtinSigma                            |-> BuiltinData (runNamesT [] $
                                                               hPi' "la" (el $ cl primLevel) $ \ a ->
                                                               hPi' "lb" (el $ cl primLevel) $ \ b ->
@@ -261,6 +262,8 @@ coreBuiltins =
   , (builtinRewrite                          |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
   , (builtinNil                              |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
+  , (builtinNothing                          |-> BuiltinDataCons (hPi "A" tset (el (tMaybe v0))))
+  , (builtinJust                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (tMaybe v0))))
   , (builtinZero                             |-> BuiltinDataCons tnat)
   , (builtinSuc                              |-> BuiltinDataCons (tnat --> tnat))
   , (builtinTrue                             |-> BuiltinDataCons tbool)
@@ -389,6 +392,7 @@ coreBuiltins =
         tsetL l    = return $ sort (varSort l)
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
+        tmaybe x   = el $ tMaybe (fmap unEl x)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
@@ -730,6 +734,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
            | s == builtinUnit     -> bindBuiltinUnit     v
            | s == builtinSigma    -> bindBuiltinSigma    v
            | s == builtinList     -> bindBuiltinData s   v
+           | s == builtinMaybe    -> bindBuiltinData s   v
            | otherwise            -> bindBuiltinName s   v
 
       BuiltinDataCons t -> do

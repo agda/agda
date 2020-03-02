@@ -109,6 +109,9 @@ t <@@> (x,y,r) = do
 list :: TCM Term -> TCM Term
 list t = primList <@> t
 
+tMaybe :: TCM Term -> TCM Term
+tMaybe t = primMaybe <@> t
+
 io :: TCM Term -> TCM Term
 io t = primIO <@> t
 
