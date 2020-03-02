@@ -276,7 +276,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
     In   -> \x y -> app (\es -> (x, leadingHole) : es ++ [(y, trailingHole)])
     Pre  -> \  y -> app (\es ->                    es ++ [(y, trailingHole)])
     Post -> \x   -> app (\es -> (x, leadingHole) : es)
-    Non  ->         app (\es ->                    es)
+    Non  ->         app (\es -> es)
 
   where
 
