@@ -178,7 +178,7 @@ addImportedThings isig ibuiltin patsyns display userwarn partialdefs warnings = 
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
-  stTCWarnings           `modifyTCLens` \ imp -> List.union imp warnings
+  stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
   addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
