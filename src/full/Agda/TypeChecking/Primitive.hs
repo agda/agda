@@ -376,7 +376,7 @@ instance FromTerm a => FromTerm (Maybe a) where
           | c == just, Just [x] <- allApplyElims es ->
             redBind (toA x)
               (\ x' -> notReduced $ arg $ Con c ci [Apply (ignoreReduced x')])
-              (\ y  -> redReturn (Just y))
+              (redReturn . Just)
         _ -> return $ NoReduction (reduced b)
 
     where
