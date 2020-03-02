@@ -7,7 +7,7 @@
 
 
 # Warnings currently triggered by your code
- - ignore: {name: "Avoid lambda using `infix`"}
+# - ignore: {name: "Avoid lambda using `infix`"}
  - ignore: {name: "Avoid lambda"}
  - ignore: {name: "Eta reduce"}
 # - ignore: {name: "Functor law"}
@@ -27,7 +27,7 @@
  - ignore: {name: "Redundant bracket"}
  - ignore: {name: "Redundant do"}
 # - ignore: {name: "Redundant flip"}
-# - ignore: {name: "Redundant guard"}
+ - ignore: {name: "Redundant guard"}
 # - ignore: {name: "Redundant id"}
 # - ignore: {name: "Redundant if"}
  - ignore: {name: "Redundant lambda"}
