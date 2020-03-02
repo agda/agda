@@ -384,8 +384,8 @@ icodeN :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
           All EmbPrj (Domains t) =>
           Int32 -> t -> Arrows (Domains t) (S Int32)
 icodeN tag _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32))
-    $ ((icodeNode . (tag :)) <=< icodeArgs (Proxy :: Proxy t))
+  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
+  icodeNode . (tag :) =<< icodeArgs (Proxy :: Proxy t) args
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}

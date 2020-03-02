@@ -107,7 +107,7 @@ computeForcingAnnotations c t =
     -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
     -- Instantiation also fixes Issue 1454.
     -- Note that normalization of s0 below does not help.
-    t                 <- instantiateFull t
+    t <- instantiateFull t
     -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
     -- get to the actual data type.
     -- Also #2947: The type might reduce to a pi type.

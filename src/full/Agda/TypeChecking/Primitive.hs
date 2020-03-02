@@ -160,7 +160,7 @@ instance ToTerm Term where
 
 instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
-  toTermR = do quoteTypeWithKit <$> quotingKit;
+  toTermR = quoteTypeWithKit <$> quotingKit
 
 instance ToTerm ArgInfo where
   toTerm = do

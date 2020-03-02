@@ -77,16 +77,18 @@ instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
 instance LabelPatVars a b i => LabelPatVars [a] [b] i                 where
 
 instance LabelPatVars Pattern DeBruijnPattern Int where
-  labelPatVars p =
-    case p of
-      VarP o x     -> do VarP o . DBPatVar x <$> next
-      DotP o t     -> DotP o t <$ next
-      ConP c mt ps -> ConP c mt <$> labelPatVars ps
-      DefP o q ps -> DefP o q <$> labelPatVars ps
-      LitP o l     -> return $ LitP o l
-      ProjP o q    -> return $ ProjP o q
-      IApplyP o u t x -> do IApplyP o u t . DBPatVar x <$> next
-    where next = caseListM get __IMPOSSIBLE__ $ \ x xs -> do put xs; return x
+  labelPatVars p = case p of
+    VarP o x        -> VarP o . DBPatVar x <$> next
+    DotP o t        -> DotP o t <$ next
+    ConP c mt ps    -> ConP c mt <$> labelPatVars ps
+    DefP o q  ps    -> DefP o q <$> labelPatVars ps
+    LitP  o l       -> return $ LitP o l
+    ProjP o q       -> return $ ProjP o q
+    IApplyP o u t x -> IApplyP o u t . DBPatVar x <$> next
+   where
+    next = caseListM get __IMPOSSIBLE__ $ \x xs -> do
+      put xs
+      return x
   unlabelPatVars = fmap dbPatVarName
 
 -- | Augment pattern variables with their de Bruijn index.

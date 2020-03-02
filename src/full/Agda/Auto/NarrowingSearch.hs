@@ -490,18 +490,21 @@ recalc (con, node) = case con of
 
 reccalc :: MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo Bool
 reccalc cont node = do
- res <- calc cont node
- case res of
-  Nothing -> return True
-  Just pendhandles ->
-   foldM (\res1 h ->
-    if res1 then return res1 else (do
-
-
-     uwriteIORef (mbind h) $ Just OKVal
-     obs <- ureadIORef (mobs h)
-     recalcs obs)
-   ) False pendhandles
+  res <- calc cont node
+  case res of
+    Nothing -> return True
+    Just pendhandles ->
+      foldM
+        ( \res1 h ->
+            if res1
+              then return res1
+              else do
+                uwriteIORef (mbind h) $ Just OKVal
+                obs <- ureadIORef (mobs h)
+                recalcs obs
+        )
+        False
+        pendhandles
 
 calc :: forall blk . MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo (Maybe [OKMeta blk])
 calc cont node = do
