@@ -241,6 +241,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   pragma <- getHaskellPragma q
   mbool  <- getBuiltinName builtinBool
   mlist  <- getBuiltinName builtinList
+  mmaybe <- getBuiltinName builtinMaybe
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
   checkTypeOfMain isMain q def $ do
@@ -286,6 +287,21 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         let vars f n = map (f . ihname "a") [0 .. n - 1]
         cs <- mapM compiledcondecl [nil, cons]
         return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
+                 , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                 cs
+
+      -- Compiling Maybe
+      Datatype{ dataPars = np } | Just q == mmaybe -> do
+        _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
+        caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
+          fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
+        let d = unqhname "d" q
+            t = unqhname "T" q
+        Just nothing <- getBuiltinName builtinNothing
+        Just just    <- getBuiltinName builtinJust
+        let vars f n = map (f . ihname "a") [0 .. n - 1]
+        cs <- mapM compiledcondecl [nothing, just]
+        return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
                  , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                  cs
 

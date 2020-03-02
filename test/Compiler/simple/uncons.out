@@ -1,0 +1,24 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > pen import Agda.Builtin.Char
+out > open import Agda.Builtin.String
+out > open import Agda.Builtin.Maybe
+out > open import Agda.Builtin.Sigma
+out > open import Common.IO
+out >
+out > printTail : String → IO _
+out > printTail str with primStringUncons str
+out > ... | just (_ , tl) = putStr tl
+out > ... | nothing       = putStr ""
+out >
+out >
+out > postulate
+out >   readFile : String → IO String
+out >
+out > {-# FOREIGN GHC import qualified Data.Text as T #-}
+out > {-# COMPILE GHC readFile = \ fp -> T.pack <$> readFile (T.unpack fp) #-}
+out >
+out > main : _
+out > main = readFile "test/Compiler/simple/uncons.agda" >>= printTail
+out >

@@ -151,19 +151,23 @@ sanityCheckPragma def (Just HsExport{}) =
 --       occurrence!
 getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c     <- canonicalName c
-  cDef  <- theDef <$> getConstInfo c
-  true  <- getBuiltinName builtinTrue
-  false <- getBuiltinName builtinFalse
-  nil   <- getBuiltinName builtinNil
-  cons  <- getBuiltinName builtinCons
-  sharp <- getBuiltinName builtinSharp
+  c       <- canonicalName c
+  cDef    <- theDef <$> getConstInfo c
+  true    <- getBuiltinName builtinTrue
+  false   <- getBuiltinName builtinFalse
+  nil     <- getBuiltinName builtinNil
+  cons    <- getBuiltinName builtinCons
+  nothing <- getBuiltinName builtinNothing
+  just    <- getBuiltinName builtinJust
+  sharp   <- getBuiltinName builtinSharp
   case cDef of
-    _ | Just c == true  -> return $ Just "True"
-      | Just c == false -> return $ Just "False"
-      | Just c == nil   -> return $ Just "[]"
-      | Just c == cons  -> return $ Just "(:)"
-      | Just c == sharp -> return $ Just "MAlonzo.RTE.Sharp"
+    _ | Just c == true    -> return $ Just "True"
+      | Just c == false   -> return $ Just "False"
+      | Just c == nil     -> return $ Just "[]"
+      | Just c == cons    -> return $ Just "(:)"
+      | Just c == nothing -> return $ Just "Nothing"
+      | Just c == just    -> return $ Just "Just"
+      | Just c == sharp   -> return $ Just "MAlonzo.RTE.Sharp"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of
