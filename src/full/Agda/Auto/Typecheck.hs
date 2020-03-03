@@ -152,8 +152,8 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
   mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case rawValue hnityp of
    HNPi hid2 possdep it (Abs _ ot)
      | ndfv > 0 || copyarg a || hid == hid2 -> mpret $
-    And (Just (([Term a | possdep]) ++ [Term ctx, Term ityptrs]))
-        (if ndfv > 0 then mpret OK else (tcExp (isdep || possdep) ctx (t it) a))
+    And (Just ([Term a | possdep] ++ [Term ctx, Term ityptrs]))
+        (if ndfv > 0 then mpret OK else tcExp (isdep || possdep) ctx (t it) a)
         (tcargs (ndfv - 1) isdep ctx (sub a (t ot)) as (addend hid a elimtrm) isconstructor cont)
    _ -> mpret $ Error "tcargs, inf type should be fun or pi (and same hid)"
 

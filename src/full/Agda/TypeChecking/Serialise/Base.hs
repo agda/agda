@@ -384,8 +384,8 @@ icodeN :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
           All EmbPrj (Domains t) =>
           Int32 -> t -> Arrows (Domains t) (S Int32)
 icodeN tag _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32))
-    $ ((icodeNode . (tag :)) <=< icodeArgs (Proxy :: Proxy t))
+  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
+  icodeNode . (tag :) =<< icodeArgs (Proxy :: Proxy t) args
 
 -- | @icodeN'@ is the same as @icodeN@ except that there is no tag
 {-# INLINE icodeN' #-}
@@ -393,8 +393,8 @@ icodeN' :: forall t. ICODE t (IsBase t) => Currying (Domains t) (S Int32) =>
            All EmbPrj (Domains t) =>
            t -> Arrows (Domains t) (S Int32)
 icodeN' _ =
-  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32))
-    $  (icodeNode <=< icodeArgs (Proxy :: Proxy t))
+  currys (Proxy :: Proxy (Domains t)) (Proxy :: Proxy (S Int32)) $ \ args ->
+  icodeNode =<< icodeArgs (Proxy :: Proxy t) args
 
 -- Instead of having up to 25 versions of @valu N@, we define
 -- the class VALU which generates them by typeclass resolution.
