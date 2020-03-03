@@ -246,22 +246,22 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   checkTypeOfMain isMain q def $ do
     infodecl q <$> case d of
 
-      _ | Just HsDefn{} <- pragma, Just q == mflat ->
-        genericError
-          "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
+      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
+          if Just q == mflat
+          then genericError
+                "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
+          else do
+            -- Make sure we have imports for all names mentioned in the type.
+            hsty <- haskellType q
+            ty   <- normalise ty
+            sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
 
-      _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $ do
-        -- Make sure we have imports for all names mentioned in the type.
-        hsty <- haskellType q
-        ty   <- normalise ty
-        sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
+          -- Check that the function isn't INLINE (since that will make this
+          -- definition pointless).
+            inline <- (^. funInline) . theDef <$> getConstInfo q
+            when inline $ warning $ UselessInline q
 
-        -- Check that the function isn't INLINE (since that will make this
-        -- definition pointless).
-        inline <- (^. funInline) . theDef <$> getConstInfo q
-        when inline $ warning $ UselessInline q
-
-        return $ fbWithType hsty (fakeExp hs)
+            return $ fbWithType hsty (fakeExp hs)
 
       -- Compiling Bool
       Datatype{} | Just q == mbool -> do
@@ -359,17 +359,18 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
     ccls  <- mkwhere <$> fun
     mflat <- getBuiltinName builtinFlat
     case mhe of
-      Just HsExport{} | Just q == mflat ->
-        genericError
-          "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
-      Just (HsExport r name) -> do
-        t <- setCurrentRange r $ haskellType q
-        let tsig :: HS.Decl
-            tsig = HS.TypeSig [HS.Ident name] t
+      Just (HsExport r name) -> setCurrentRange r $
+        if Just q == mflat
+        then genericError
+              "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
+        else do
+          t <- setCurrentRange r $ haskellType q
+          let tsig :: HS.Decl
+              tsig = HS.TypeSig [HS.Ident name] t
 
-            def :: HS.Decl
-            def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
-        return ([tsig,def] ++ ccls)
+              def :: HS.Decl
+              def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
+          return ([tsig,def] ++ ccls)
       _ -> return ccls
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
