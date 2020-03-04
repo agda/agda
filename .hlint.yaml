@@ -38,7 +38,7 @@
 # - ignore: {name: "Replace case with fromMaybe"}
 # - ignore: {name: "Replace case with maybe"}
 # - ignore: {name: "Too strict maybe"}
- - ignore: {name: "Unused LANGUAGE pragma"}
+# - ignore: {name: "Unused LANGUAGE pragma"}
 # - ignore: {name: "Use $>"}
 # - ignore: {name: "Use &&"}
 # - ignore: {name: "Use ++"}
@@ -97,7 +97,7 @@
  - ignore: {name: "Use record patterns"}
 # - ignore: {name: "Use replicate"}
 # - ignore: {name: "Use second"}
-# - ignore: {name: "Use section"}
+ - ignore: {name: "Use section"}
  - ignore: {name: "Use tuple-section"}
 # - ignore: {name: "Use typeRep"}
 # - ignore: {name: "Use uncurry"}
