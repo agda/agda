@@ -292,6 +292,7 @@ occursCheck
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
   n  <- getContextSize
+  reportSLn "tc.meta.occurs" 35 $ "occursCheck " ++ show m ++ " " ++ show xs
   let initEnv unf = FreeEnv
         {  feExtra = OccursExtra
           { occUnfold  = unf
@@ -339,7 +340,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
                    , prettyTCM v
                    , "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
+                   , "which is not in scope of the metavariable"
                    ]
             )
         MetaIrrelevantSolution _ _ ->
@@ -392,8 +393,12 @@ instance Occurs Term where
                 -- cannot decide, blocked by meta-var
                 Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
-                Right Nothing -> -- abort Rigid turns this error into PatternErr
-                  strongly $ abort $ MetaCannotDependOn m i
+                Right Nothing ->
+                  -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
+                  -- could potentially be salvaged by eta expansion.
+                  ifM (($ i) <$> allowedVars)
+                      (patternViolation' 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
+                      (strongly $ abort $ MetaCannotDependOn m i)
                 -- is a singleton type with unique inhabitant sv
                 Right (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occurs f

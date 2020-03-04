@@ -3167,11 +3167,7 @@ instance HasRange TCWarning where
 
 -- used for merging lists of warnings
 instance Eq TCWarning where
-  x == y = equalHeadConstructors (tcWarning x) (tcWarning y)
-            && getRange x == getRange y
-
-equalHeadConstructors :: Warning -> Warning -> Bool
-equalHeadConstructors = (==) `on` toConstr
+  (==) = (==) `on` tcWarningPrintedWarning
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
