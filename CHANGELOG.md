@@ -575,6 +575,8 @@ Emacs mode
   previously invoked commands have completed, by giving a prefix
   argument to `agda2-term`.
 
+* The command `agda2-measure-load-time` has been removed.
+
 GHC Backend
 -----------
 

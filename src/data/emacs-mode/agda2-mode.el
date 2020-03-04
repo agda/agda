@@ -807,22 +807,22 @@ command is sent to Agda (if it is sent)."
             (agda2-list-quote agda2-program-args)
             ))
 
-(defun agda2-measure-load-time
-  (&optional highlighting-level continuation)
-  "Load the current buffer and print how much time it takes.
-\(Wall-clock time.)
+;; (defun agda2-measure-load-time
+;;   (&optional highlighting-level continuation)
+;;   "Load the current buffer and print how much time it takes.
+;; \(Wall-clock time.)
 
-The given HIGHLIGHTING-LEVEL is used (if non-nil).
+;; The given HIGHLIGHTING-LEVEL is used (if non-nil).
 
-If CONTINUATION is non-nil, then CONTINUATION is applied to the
-resulting time (represented as a string)."
-  (interactive)
-  (when agda2-in-progress
-    (error "Agda is busy with something"))
-  (let* ((agda2-highlight-level
-          (or highlighting-level agda2-highlight-level)))
-    (setq agda2-measure-data (cons continuation (current-time)))
-    (agda2-load)))
+;; If CONTINUATION is non-nil, then CONTINUATION is applied to the
+;; resulting time (represented as a string)."
+;;   (interactive)
+;;   (when agda2-in-progress
+;;     (error "Agda is busy with something"))
+;;   (let* ((agda2-highlight-level
+;;           (or highlighting-level agda2-highlight-level)))
+;;     (setq agda2-measure-data (cons continuation (current-time)))
+;;     (agda2-load)))
 
 (defun agda2-compile ()
   "Compile the current module.
