@@ -74,8 +74,10 @@ print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   -- reportSLn "" 0 $ prettyShow b
   -- Ulf, 2020-03-04: Using benchmarkLevel here means that it only prints if internal benchmarking
   -- is turned on, effectively making module/definition benchmarking impossible (since internal
-  -- takes precedence). It needs to be > 1 to avoid triggering #2602 though.
-  reportSLn benchmarkKey 2 $ prettyShow b
+  -- takes precedence). It needs to be > 1 to avoid triggering #2602 though. Also use
+  -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2 in addition to the
+  -- specific profile levels.
+  displayDebugMessage benchmarkKey 2 $ prettyShow b
 
 -- -- | Bill a computation to a specific account.
 -- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}
