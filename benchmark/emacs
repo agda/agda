@@ -44,21 +44,21 @@ for MODE in None NonInteractive Interactive; do
     time -p agda --ghci-interaction > /dev/null 2>>"$OUTPUT"
 done
 
-for MODE in none non-interactive interactive; do
-  printf "\nIn Emacs, %s: " $MODE >> "$OUTPUT"
-  emacs -Q \
-    --eval "(load-file (let ((coding-system-for-read 'utf-8))
-                             (shell-command-to-string \"agda-mode locate\")))" \
-    "$MODULE" \
-    --eval "(progn
-               (defun test nil
-                  (agda2-measure-load-time '$MODE nil
-                     (lambda (time)
-                        (with-temp-buffer
-                           (insert time)
-                           (append-to-file (point-min) (point-max) \"$OUTPUT\"))
-                        (kill-emacs))))
-               (run-with-idle-timer 1 nil 'test))" \
-    2>/dev/null
-  printf "\n" >> "$OUTPUT"
-done
+# for MODE in none non-interactive interactive; do
+#   printf "\nIn Emacs, %s: " $MODE >> "$OUTPUT"
+#   emacs -Q \
+#     --eval "(load-file (let ((coding-system-for-read 'utf-8))
+#                              (shell-command-to-string \"agda-mode locate\")))" \
+#     "$MODULE" \
+#     --eval "(progn
+#                (defun test nil
+#                   (agda2-measure-load-time '$MODE nil
+#                      (lambda (time)
+#                         (with-temp-buffer
+#                            (insert time)
+#                            (append-to-file (point-min) (point-max) \"$OUTPUT\"))
+#                         (kill-emacs))))
+#                (run-with-idle-timer 1 nil 'test))" \
+#     2>/dev/null
+#   printf "\n" >> "$OUTPUT"
+# done
