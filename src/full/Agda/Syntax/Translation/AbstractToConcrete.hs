@@ -41,6 +41,7 @@ import Data.Map (Map)
 import qualified Data.Foldable as Fold
 import Data.Void
 import Data.List (sortBy)
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Agda.Syntax.Common
