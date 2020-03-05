@@ -15,6 +15,8 @@ import Agda.Syntax.Fixity
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
+import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
 -- Don't serialize the tactic.
@@ -65,10 +67,25 @@ instance EmbPrj WhyInScope where
     valu [1, a, b] = valuN Applied a b
     valu _         = malformed
 
-instance EmbPrj AbstractName where
-  icod_ (AbsName a b c d) = icodeN' AbsName a b c d
+-- Issue #1346: QNames are shared on their nameIds, so serializing will lose fixity information for
+-- rebound fixities. We don't care about that in terms, but in the scope it's important to keep the
+-- right fixity. Thus serialize the fixity separately.
 
-  value = valueN AbsName
+data AbsNameWithFixity = AbsNameWithFixity Fixity A.QName KindOfName WhyInScope NameMetadata
+
+toAbsName :: AbsNameWithFixity -> AbstractName
+toAbsName (AbsNameWithFixity fx a b c d) = AbsName (set lensFixity fx a) b c d
+
+fromAbsName :: AbstractName -> AbsNameWithFixity
+fromAbsName (AbsName a b c d) = AbsNameWithFixity (a ^. lensFixity) a b c d
+
+instance EmbPrj AbsNameWithFixity where
+  icod_ (AbsNameWithFixity a b c d e) = icodeN' AbsNameWithFixity a b c d e
+  value = valueN AbsNameWithFixity
+
+instance EmbPrj AbstractName where
+  icod_ a = icod_ (fromAbsName a)
+  value = toAbsName <.> value
 
 instance EmbPrj NameMetadata where
   icod_ NoMetadata                  = icodeN' NoMetadata
