@@ -170,6 +170,14 @@ isBuiltinFun :: AbsToCon (A.QName -> String -> Bool)
 isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
+-- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (NonEmpty A.QName) ResolvedName)
+resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
+
+-- | Treat illegally ambiguous names as UnknownNames.
+resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
+resolveName_ q cands = either (const UnknownName) id <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+
 -- The Monad --------------------------------------------------------------
 
 -- | We need:
@@ -1306,7 +1314,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        runExceptT (tryResolveName (someKindsOfNames [FldName]) Nothing (C.QName cn)) >>= \case
+        resolveName (someKindsOfNames [FldName]) Nothing (C.QName cn) >>= \ case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
@@ -1512,7 +1520,16 @@ recoverOpApp bracket isLam opApp view e = case view e of
   doQNameHelper n args = do
     x <- either (C.QName <.> toConcrete) toConcrete n
     let n' = either id A.qnameName n
-    doQName (theFixity $ nameFixity n') x n' args (C.nameParts $ C.unqualify x)
+    -- #1346: The fixity of the abstract name is not necessarily correct, it depends on which
+    -- concrete name we choose! Make sure to resolve ambiguities with n'.
+    fx <- resolveName_ x [n'] <&> \ case
+            VarName y _                -> y ^. lensFixity
+            DefinedName _ q            -> q ^. lensFixity
+            FieldName (q :| _)         -> q ^. lensFixity
+            ConstructorName (q :| _)   -> q ^. lensFixity
+            PatternSynResName (q :| _) -> q ^. lensFixity
+            UnknownName                -> noFixity
+    doQName fx x n' args (C.nameParts $ C.unqualify x)
 
   doQName :: Fixity -> C.QName -> A.Name -> [MaybeSection (AppInfo, a)] -> [NamePart] -> AbsToCon (Maybe c)
 
