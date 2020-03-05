@@ -202,7 +202,6 @@ TAGS :
 .PHONY : std-lib ## Update the standard library.
 std-lib :
 	git submodule update --init std-lib
-	git submodule update --init cubical
 
 .PHONY : up-to-date-std-lib ##
 up-to-date-std-lib : std-lib
@@ -211,8 +210,20 @@ up-to-date-std-lib : std-lib
 .PHONY : fast-forward-std-lib ##
 fast-forward-std-lib :
 	git submodule update --init --remote std-lib
-	git submodule update --init --remote cubical
 	@(cd std-lib && make setup)
+
+##############################################################################
+## Cubical library
+.PHONY : cubical ## Update the cubical library.
+cubical :
+	git submodule update --init cubical
+
+.PHONY : up-to-date-cubical ##
+up-to-date-cubical : cubical
+
+.PHONY : fast-forward-cubical ##
+fast-forward-cubical :
+	git submodule update --init --remote cubical
 
 ##############################################################################
 ## Testing
