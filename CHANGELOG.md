@@ -97,6 +97,13 @@ Pragmas and options
   by `--sized-types`, and subtyping for sized types is used even when
   `--subtyping` is not enabled.
 
+* New profiling options to measure time spent per module or top-level
+  definition.
+
+  - `-v profile.modules:10` prints a breakdown per top-level module
+  - `-v profile.definitions:10` prints a breakdown per top-level
+    definition
+
 Language
 --------
 
@@ -574,6 +581,8 @@ Emacs mode
 * It is now possible to ask Agda to terminate itself after any
   previously invoked commands have completed, by giving a prefix
   argument to `agda2-term`.
+
+* The command `agda2-measure-load-time` has been removed.
 
 GHC Backend
 -----------
