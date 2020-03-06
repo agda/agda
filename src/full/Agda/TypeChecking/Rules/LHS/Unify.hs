@@ -296,7 +296,7 @@ buildLeftInverse s0 log = liftTCM $ do
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0    :" <+> prettyTCM tau0
         addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0:  " <+> prettyTCM leftInv0
-    
+
     reportSDoc "tc.lhs.unify.inv" 20 $ "=== after mod"
     do
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
@@ -304,7 +304,12 @@ buildLeftInverse s0 log = liftTCM $ do
                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv 
 
     return (tau,leftInv)
+
 type Retract = (Telescope, Substitution, Substitution, Substitution)
+     -- Γ (the problem, including equalities),
+     -- Δ ⊢ ρ : Γ
+     -- Γ ⊢ τ : Δ
+     -- Γ, i : I ⊢ leftInv : Γ, such that (λi. leftInv) : ρ[τ] = id_Γ
 
 termsS ::  DeBruijn a => [a] -> Substitution' a
 termsS xs = reverse xs ++# EmptyS __IMPOSSIBLE__
@@ -316,8 +321,8 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   addContext prob0 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau0  :" <+> prettyTCM tau0
   reportSDoc "tc.lhs.unify.inv" 20 $ "Γ1   :" <+> prettyTCM prob1
   addContext prob1 $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau1  :" <+> prettyTCM tau1
-  
-  
+
+
   {-
   Γ0 = prob0
   S0 ⊢ ρ0 : Γ0
@@ -341,7 +346,7 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
   S1 ⊢ ρ := ρ0[ρ1] : Γ0
   Γ0 ⊢ τ := τ1[τ0] : S1
   -}
-  
+
   let prob = prob0
   let rho = rho1 `composeS` rho0
   let tau = tau0 `composeS` tau1
@@ -372,10 +377,10 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
 
   -}
   let step0 = liftS 1 tau0 `composeS` leftInv1 `composeS` rho0
-  
+
   addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv0  :" <+> prettyTCM leftInv0
   addContext prob0 $ addContext ("r" :: String, __DUMMY_DOM__) $ reportSDoc "tc.lhs.unify.inv" 20 $ "step0  :" <+> prettyTCM step0
-  
+
   interval <- liftTCM $ elInf primInterval
   max <- liftTCM $ primIMax
   neg <- liftTCM $ primINeg
@@ -551,7 +556,29 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = li
           reportSDoc "tc.lhs.unify.inv" 20 $ "rho   :" <+> prettyTCM rho
         return $ ((working_tel
                  , rho
-                 , termsS $ map unArg tau, termsS $ map unArg leftInv), phi)
+                 , termsS $ map unArg tau
+                 , termsS $ map unArg leftInv)
+                 , phi)
+buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = liftTCM . fmap Just $ do
+        reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv EtaExpandVar"
+        let
+          gamma = varTel st
+          eqs = eqTel st
+          x = flexVar fv
+          neqs = size eqs
+          phis = 1
+        interval <- elInf primInterval
+         -- Γ, φs : I^phis
+        let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. phis - 1])
+        working_tel <- abstract gamma_phis <$>
+          pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
+        let raiseFrom tel x = (size working_tel - size tel) + x
+        let phi = var $ raiseFrom gamma_phis 0 -- $ neqs - k - 1
+
+        caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
+          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
+          return $ ((working_tel,rho,tau,raiseS 1),phi)
+
 buildEquiv _ _ = liftTCM $ do
   reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
   return $ Nothing
