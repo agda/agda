@@ -639,7 +639,7 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
   tComp  <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
   conId <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinConId
   let bindSplit (tel1,tel2) = (tel1,AbsN (teleNames tel1) tel2)
-  let 
+  let
       old_tel = scTel old_sc
 
   -- old_tel = Γ(x: Id A u v)Δ

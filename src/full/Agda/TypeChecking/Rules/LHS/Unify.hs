@@ -301,7 +301,7 @@ buildLeftInverse s0 log = liftTCM $ do
     do
         addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
         addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
-                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv 
+                               $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv
 
     return (tau,leftInv)
 

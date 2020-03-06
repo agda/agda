@@ -1731,7 +1731,7 @@ type LM a = NamesT (ExceptT (Closure (Abs Type)) TCM) a
 -- or composing when some of the system is known to be constant.
 transpSysTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
           -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]
-          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ 
+          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
 transpSysTel' flag delta us phi args = do
