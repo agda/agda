@@ -80,6 +80,16 @@ make up-to-date-std-lib
 
 travis_fold end "fetch.std-lib"
 
+##############################################################################
+# Getting the cubical library
+
+travis_fold start "fetch.cubical"
+
+title "Fetching the cubical library"
+make up-to-date-cubical
+
+travis_fold end "fetch.cubical"
+
 ###############################################################################
 ## Installing a recent version of Node (see Issue #2192)
 #
