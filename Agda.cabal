@@ -187,7 +187,7 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
-  build-depends:  aeson >= 0.11.3.0 && < 1.5
+  build-depends:  aeson >= 1.1.2.0 && < 1.5
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.9.0.0 && < 4.15
