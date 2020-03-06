@@ -97,7 +97,7 @@ You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
 
 .. NOTE::
 
-  Actually it is not necessary to register the Agda libraries,
+  Actually it is not necessary to register the Agda library,
   but doing so forces Cabal to install the same version of `ieee754
   <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
 
