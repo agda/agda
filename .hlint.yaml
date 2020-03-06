@@ -90,7 +90,7 @@
 # - ignore: {name: "Use maximum"}
 # - ignore: {name: "Use maybe"}
 # - ignore: {name: "Use negate"}
- - ignore: {name: "Use newtype instead of data"}
+# - ignore: {name: "Use newtype instead of data"}
 # - ignore: {name: "Use notElem"}
 # - ignore: {name: "Use null"}
 # - ignore: {name: "Use print"}
