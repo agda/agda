@@ -56,7 +56,7 @@ runP :: P a -> (Either String a, [LibWarning'])
 runP = runWriter . runExceptT
 
 -- | Library Warnings.
-data LibWarning'
+newtype LibWarning'
   = UnknownField String
   deriving (Show, Data)
 

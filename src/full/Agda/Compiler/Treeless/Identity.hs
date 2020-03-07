@@ -59,7 +59,7 @@ recursiveIdentity q t =
         match (TApp (TDef f) args) y = f == q && length args == n && match (proj x args) y
         match _                    _ = False
 
-data IdentityIn = IdIn [Int]
+newtype IdentityIn = IdIn [Int]
 
 notId :: IdentityIn
 notId = IdIn []

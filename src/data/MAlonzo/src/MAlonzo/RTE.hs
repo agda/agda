@@ -168,5 +168,5 @@ lt64 = (<)
 
 -- Support for musical coinduction.
 
-data Inf                   a = Sharp { flat :: a }
+data Inf                   a = Sharp { flat :: a } -- Cannot be a newtype (Issue #2909)
 type Infinity (level :: *) a = Inf a

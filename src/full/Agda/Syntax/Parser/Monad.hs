@@ -89,7 +89,7 @@ data LayoutContext  = NoLayout        -- ^ no layout
     deriving Show
 
 -- | Parser flags.
-data ParseFlags = ParseFlags
+newtype ParseFlags = ParseFlags
   { parseKeepComments :: Bool
     -- ^ Should comment tokens be returned by the lexer?
   }

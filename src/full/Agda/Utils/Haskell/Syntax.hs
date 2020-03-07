@@ -16,7 +16,7 @@ data ImportDecl = ImportDecl
   , importSpecs     :: Maybe (Bool, [ImportSpec])
   }
 
-data ImportSpec = IVar Name
+newtype ImportSpec = IVar Name
 
 -- * Declarations
 
@@ -39,7 +39,7 @@ data Strictness = Lazy | Strict
 
 type Deriving = (QName, [Type])
 
-data Binds = BDecls [Decl]
+newtype Binds = BDecls [Decl]
   deriving (Eq)
 
 data Rhs = UnGuardedRhs Exp
@@ -99,7 +99,7 @@ data Literal = Int Integer | Frac Rational | Char Char | String String
 
 -- * Names
 
-data ModuleName = ModuleName String
+newtype ModuleName = ModuleName String
   deriving (Eq, Ord)
 
 data QName = Qual ModuleName Name | UnQual Name
@@ -108,10 +108,10 @@ data QName = Qual ModuleName Name | UnQual Name
 data Name = Ident String | Symbol String
   deriving (Eq)
 
-data QOp = QVarOp QName
+newtype QOp = QVarOp QName
   deriving (Eq)
 
-data TyVarBind = UnkindedVar Name
+newtype TyVarBind = UnkindedVar Name
   deriving (Eq)
 
 unit_con :: Exp

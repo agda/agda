@@ -1337,7 +1337,7 @@ instance Verbalize Cohesion where
       Squash     -> "squashed"
 
 -- | Indefinite article.
-data Indefinite a = Indefinite a
+newtype Indefinite a = Indefinite a
 
 instance Verbalize a => Verbalize (Indefinite a) where
   verbalize (Indefinite a) =

@@ -2786,7 +2786,7 @@ instance LensModality TCEnv where
 instance LensRelevance TCEnv where
 instance LensQuantity  TCEnv where
 
-data UnquoteFlags = UnquoteFlags
+newtype UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
   deriving Data
 

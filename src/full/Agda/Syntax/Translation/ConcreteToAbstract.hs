@@ -508,12 +508,12 @@ data OldQName = OldQName
 -- | We sometimes do not want to fail hard if the name is not actually
 --   in scope because we have a strategy to recover from this problem
 --   (e.g. drop the offending COMPILE pragma)
-data MaybeOldQName = MaybeOldQName OldQName
+newtype MaybeOldQName = MaybeOldQName OldQName
 
 newtype OldName a = OldName a
 
 -- | Wrapper to resolve a name to a 'ResolvedName' (rather than an 'A.Expr').
-data ResolveQName = ResolveQName C.QName
+newtype ResolveQName = ResolveQName C.QName
 
 data PatName      = PatName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one

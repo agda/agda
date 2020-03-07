@@ -93,7 +93,7 @@ jsBackend' = Backend'
 
 --- Options ---
 
-data JSOptions = JSOptions
+newtype JSOptions = JSOptions
   { optJSCompile :: Bool }
 
 defaultJSOptions :: JSOptions

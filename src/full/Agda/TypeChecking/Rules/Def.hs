@@ -582,7 +582,7 @@ checkSystemCoverage _ _ t cs = __IMPOSSIBLE__
 
 -- * Info that is needed after all clauses have been processed.
 
-data ClausesPostChecks = CPC
+newtype ClausesPostChecks = CPC
     { cpcPartialSplits :: IntSet
       -- ^ Which argument indexes have a partial split.
     }

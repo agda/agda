@@ -18,6 +18,7 @@ sudo: required
 branches:
   only:
     - master
+    - newtype
     - future
     - maint-2.4
     - stable-2.5

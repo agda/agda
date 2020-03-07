@@ -217,7 +217,7 @@ instance ParserClass (Parser k r tok) k r tok where
 
 -- | An extended parser type, with some support for printing parsers.
 
-data ParserWithGrammar k r tok a =
+newtype ParserWithGrammar k r tok a =
   PG (Bool -> Either (Parser k r tok a) (Docs k))
   -- ^ Invariant: If the boolean is 'True', then the result must be
   -- @'Left' something@, and if the boolean is 'False', then the

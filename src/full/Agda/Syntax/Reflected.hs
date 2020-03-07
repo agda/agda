@@ -9,7 +9,7 @@ import Agda.Syntax.Internal (Dom)
 
 type Args       = [Arg Term]
 
-data Elim' a = Apply (Arg a) -- no record projections for now
+newtype Elim' a = Apply (Arg a) -- no record projections for now
   deriving (Show)
 type Elim = Elim' Term
 type Elims = [Elim]
