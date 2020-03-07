@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Agda'
-copyright = u'''2005–2019 remains with the authors.
+copyright = u'''2005–2020 remains with the authors.
 Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
