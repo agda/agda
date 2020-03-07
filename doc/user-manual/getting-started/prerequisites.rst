@@ -39,7 +39,7 @@ the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
 to install *libicu-dev*. Once the ICU library is installed one can
 hopefully enable the :option:`--count-clusters` flag by giving the
 :option:`enable-cluster-counting` flag to *cabal install*.  Under MacOS
-you will need to (a) install the native library using *brew install icu4c* 
+you will need to (a) install the native library using *brew install icu4c*
 for example; (b) download the Haskell ICU wrapper library from 
 `Hackage<https://hackage.haskell.org/package/text-icu-0.7.0.1/text-icu-0.7.0.1.tar.gz>`_ 
 (c) untar it; and then install it from the resulting `text-0.7.0.1` folder:
