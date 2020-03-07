@@ -2,7 +2,7 @@ Tested with `cabal-install 3.0.0.0`.
 
 When releasing the following procedure can be followed:
 
-* Verify that the Travis builds and GitHub actions have no errors.
+* Verify that the Travis builds and GitHub workflows have no errors.
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
