@@ -285,8 +285,10 @@ Language
   in the documentation for more.
 
 * New run-time erasure modality (`@0` / `@erased`).
-  Terms marked as erased cannot influence computations and are erased at run time.
-  See [Run-time
+  Terms marked as erased cannot influence computations and are erased
+  at run time
+  [Issue [#3855](https://github.com/agda/agda/issues/3855)]. See
+  [Run-time
   Irrelevance](https://agda.readthedocs.io/en/latest/language/runtime-irrelevance.html)
   in the documentation for more information.
 
