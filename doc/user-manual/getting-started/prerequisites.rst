@@ -45,7 +45,6 @@ for example; (b) download the Haskell ICU wrapper library from
 (c) untar it; and then install it from the resulting `text-0.7.0.1` folder:
 
 .. code-block:: bash
- 
   cabal v1-install --extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include
 
 
