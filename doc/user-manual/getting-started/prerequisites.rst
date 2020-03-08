@@ -8,7 +8,7 @@ You need recent versions of the following programs to compile Agda:
 
 * GHC:           https://www.haskell.org/ghc/
 
-  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5 and 8.8.2.
+  + Agda have been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5 and 8.8.3.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -16,7 +16,8 @@ You need recent versions of the following programs to compile Agda:
 * GNU Emacs:     http://www.gnu.org/software/emacs/
 
 You should also make sure that programs installed by *cabal-install*
-are on your shell's search path.
+are on your shell's search path (eg, by default, in
+*~/.cabal/bin* on MacOS or Linux).
 
 For instructions on installing a suitable version of Emacs under
 Windows, see :ref:`emacs-under-windows`.
@@ -35,16 +36,23 @@ as root to get the correct files installed.
 
 Optionally one can also install the `ICU
 <http://site.icu-project.org>`_ library, which is used to implement
-the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
-to install *libicu-dev*. Once the ICU library is installed one can
-hopefully enable the :option:`--count-clusters` flag by giving the
-:option:`enable-cluster-counting` flag to *cabal install*.  Under MacOS
-you will need to (a) install the native library using *brew install icu4c*
+the :option:`--count-clusters` flag. This flag makes the latex (and html?) 
+backend count compound Unicode characters correctly for layout purposes.
+You can compile and use Agda without it though.
+
+To install the ICU library, under Debian or Ubuntu, it may suffice
+to install *libicu-dev*. Once it is installed one can
+enable the :option:`--count-clusters` flag by giving the
+:option:`enable-cluster-counting` flag to *cabal install*.  
+
+Under MacOS
+you will need to (a) install the native ICU library using *brew install icu4c*,
 for example; (b) download the Haskell ICU wrapper library from
 `Hackage<https://hackage.haskell.org/package/text-icu-0.7.0.1/text-icu-0.7.0.1.tar.gz>`_
 (c) untar it; and then install it from the resulting `text-0.7.0.1` folder:
 
 .. code-block:: bash
+
   cabal v1-install --extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include
 
 
