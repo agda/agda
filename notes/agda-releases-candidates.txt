@@ -3,7 +3,7 @@ Tested with `cabal-install 3.0.0.0`.
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds and GitHub actions have no errors.
+* Verify that the Travis builds and GitHub workflows have no errors.
 
 * Finish the release notes in the CHANGELOG.
 
