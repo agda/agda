@@ -124,6 +124,11 @@ isType_ e = traceCall (IsType_ e) $ do
       noFunctionsIntoSize t0 t'
       return t'
 
+    A.Generalized s e -> do
+      (_, t') <- generalizeType s $ isType_ e
+      noFunctionsIntoSize t' t'
+      return t'
+
     -- Setᵢ
     A.Set _ n -> do
       return $ sort (mkType n)
