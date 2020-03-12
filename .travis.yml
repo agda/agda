@@ -26,8 +26,9 @@ branches:
     - /^issue.*/
 
 ##############################################################################
-# The submodule is only needed by std-lib compiler test, so
-# it is fetched manually in the `install` section.
+# The submodules are only needed by the tests using the standard library
+# and the cubical library, so they are fetched manually in the
+# `install` section.
 #
 git:
   submodules: false
@@ -51,7 +52,7 @@ jobs:
   include:
     - stage: compilation
       env:
-        GHC_VER=8.8.2
+        GHC_VER=8.8.3
       cache:
         directories:
           - $HOME/.stack
@@ -88,11 +89,11 @@ jobs:
       stage: main
       name: "Bug, successful, and failing tests"
       env:
-        GHC_VER=8.8.2
+        GHC_VER=8.8.3
       addons:
         apt:
           packages:
-            - ghc-8.8.2
+            - ghc-8.8.3
             - cabal-install-3.0
             - texlive-binaries
             - librsvg2-bin
@@ -138,11 +139,12 @@ jobs:
         - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
 
     - <<: *main-job
-      name: "Test suites using standard library"
+      name: "Test suites using the standard library and the cubical library"
       git:
         submodules: true
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-test
+        - stack ${ARGS} exec -- ${MAKE_CMD} cubical-test
         - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-compiler-test
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
@@ -175,7 +177,7 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.2 CABAL_VER=3.0
+      env: GHC_VER=8.8.3 CABAL_VER=3.0
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
@@ -202,6 +204,7 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test
         - make BUILD_DIR=$BUILD_DIR examples
         - make BUILD_DIR=$BUILD_DIR std-lib-test
+        - make BUILD_DIR=$BUILD_DIR cubical-test
         - make BUILD_DIR=$BUILD_DIR api-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests

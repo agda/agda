@@ -60,7 +60,13 @@ travis_fold end "build.dependencies"
 travis_fold start "build.agda"
 
 title "Building Agda"
-make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+# We remove options `-fexpose-all-unfoldings` and
+# `-fspecialise-aggressively` on GHC 8.0.2. See Issue #4177.
+if [[ $GHC_VER == "8.0.2" ]]; then
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --ghc-option=-fno-specialise --ghc-option=-fno-expose-all-unfoldings" install-bin
+else
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+fi
 
 travis_fold end "build.agda"
 
@@ -73,6 +79,16 @@ title "Fetching the standard library"
 make up-to-date-std-lib
 
 travis_fold end "fetch.std-lib"
+
+##############################################################################
+# Getting the cubical library
+
+travis_fold start "fetch.cubical"
+
+title "Fetching the cubical library"
+make up-to-date-cubical
+
+travis_fold end "fetch.cubical"
 
 ###############################################################################
 ## Installing a recent version of Node (see Issue #2192)

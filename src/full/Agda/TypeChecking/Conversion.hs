@@ -54,6 +54,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -691,19 +692,21 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp
+compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 errH errR errQ errC cont
-  | not $ sameHiding dom1 dom2 = errH
-  | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
-  | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) = errQ
-  | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) = errC
-  | otherwise = do
+  b1 b2 errH errR errQ errC cont = do
+  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+  let cmp = if hasSubtyping then cmp0 else CmpEq
+  if | not $ sameHiding dom1 dom2 -> errH
+     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp a1 a2
+      pid <- newProblem_ $ compareType cmp0 a1 a2
       dom <- if dependent
              then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
              else return dom1

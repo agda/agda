@@ -85,6 +85,7 @@ disabledTests =
   , disable "Compiler/JS/simple/Issue3732"
   , disable "Compiler/JS/simple/VecReverseIrr"
   , disable "Compiler/JS/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
+    -----------------------------------------------------------------------------
   ]
   where disable = RFInclude
 

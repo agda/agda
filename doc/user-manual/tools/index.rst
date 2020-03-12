@@ -16,4 +16,5 @@ Tools
    generating-html
    generating-latex
    package-system
+   performance
    search-about

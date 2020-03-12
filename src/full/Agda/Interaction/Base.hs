@@ -268,6 +268,8 @@ data Interaction' range
     -- ^ Abort the current computation.
     --
     -- Does nothing if no computation is in progress.
+  | Cmd_exit
+    -- ^ Exit the program.
         deriving (Show, Read, Functor, Foldable, Traversable)
 
 type IOTCM = IOTCM' Range

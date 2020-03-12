@@ -226,15 +226,16 @@ TokensR : TokensR Token { $2 : $1 }
 -- Parse single token.
 Token :: { Token }
 Token
+      -- Please keep these keywords in alphabetical order!
     : 'abstract'                { TokKeyword KwAbstract $1 }
     | 'codata'                  { TokKeyword KwCoData $1 }
     | 'coinductive'             { TokKeyword KwCoInductive $1 }
     | 'constructor'             { TokKeyword KwConstructor $1 }
     | 'data'                    { TokKeyword KwData $1 }
+    | 'do'                      { TokKeyword KwDo $1 }
     | 'eta-equality'            { TokKeyword KwEta $1 }
     | 'field'                   { TokKeyword KwField $1 }
     | 'forall'                  { TokKeyword KwForall $1 }
-    | 'variable'                { TokKeyword KwVariable $1 }
     | 'hiding'                  { TokKeyword KwHiding $1 }
     | 'import'                  { TokKeyword KwImport $1 }
     | 'in'                      { TokKeyword KwIn $1 }
@@ -243,13 +244,13 @@ Token
     | 'infixl'                  { TokKeyword KwInfixL $1 }
     | 'infixr'                  { TokKeyword KwInfixR $1 }
     | 'instance'                { TokKeyword KwInstance $1 }
-    | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'let'                     { TokKeyword KwLet $1 }
     | 'macro'                   { TokKeyword KwMacro $1 }
     | 'module'                  { TokKeyword KwModule $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
+    | 'overlap'                 { TokKeyword KwOverlap $1 }
     | 'pattern'                 { TokKeyword KwPatternSyn $1 }
     | 'postulate'               { TokKeyword KwPostulate $1 }
     | 'primitive'               { TokKeyword KwPrimitive $1 }
@@ -269,23 +270,24 @@ Token
     | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
     | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
     | 'using'                   { TokKeyword KwUsing $1 }
+    | 'variable'                { TokKeyword KwVariable $1 }
     | 'where'                   { TokKeyword KwWhere $1 }
-    | 'do'                      { TokKeyword KwDo $1 }
     | 'with'                    { TokKeyword KwWith $1 }
 
+      -- Please keep these pragmas in alphabetical order!
     | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
     | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }
+    | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
     | 'ETA'                     { TokKeyword KwETA $1 }
     | 'FOREIGN'                 { TokKeyword KwFOREIGN $1 }
-    | 'COMPILE'                 { TokKeyword KwCOMPILE $1 }
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INJECTIVE'               { TokKeyword KwINJECTIVE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
-    | 'NOINLINE'                { TokKeyword KwNOINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
-    | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
+    | 'NOINLINE'                { TokKeyword KwNOINLINE $1 }
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
+    | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NO_UNIVERSE_CHECK'       { TokKeyword KwNO_UNIVERSE_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'NON_COVERING'            { TokKeyword KwNON_COVERING $1 }
@@ -294,8 +296,8 @@ Token
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
     | 'TERMINATING'             { TokKeyword KwTERMINATING $1 }
-    | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
     | 'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $1 }
+    | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
 
     | setN                      { TokSetN $1 }
     | propN                     { TokPropN $1 }

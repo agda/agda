@@ -327,12 +327,6 @@ terminate fairly quickly).")
 ;; reference. If the agda2-*-brace definitions were inlined, then
 ;; goals would be displayed as "{{ }}n" instead of "{ }n".
 
-(defvar agda2-measure-data nil
-  "Used by `agda2-measure-load-time'.
-This value is either nil or a pair containing a continuation (or
-nil) and the time at which the measurement was started.")
-(make-variable-buffer-local 'agda2-measure-data)
-
 ;; The following variables are used by the filter process,
 ;; `agda2-output-filter'. Their values are only modified by the filter
 ;; process, `agda2-go', `agda2-restart', `agda2-abort-highlighting',
@@ -702,18 +696,7 @@ reloaded from `agda2-highlighting-file', unless
                 agda2-in-progress nil
                 agda2-last-responses (nreverse agda2-last-responses))
 
-          (agda2-run-last-commands)
-
-          (when agda2-measure-data
-            (let ((elapsed
-                   (format "%.2fs"
-                           (float-time (time-since
-                                        (cdr agda2-measure-data)))))
-                  (continuation (car agda2-measure-data)))
-              (setq agda2-measure-data nil)
-              (message "Load time: %s." elapsed)
-              (when continuation
-                (funcall continuation elapsed))))))))))
+          (agda2-run-last-commands)))))))
 
 (defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
@@ -806,23 +789,6 @@ command is sent to Agda (if it is sent)."
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-program-args)
             ))
-
-(defun agda2-measure-load-time
-  (&optional highlighting-level continuation)
-  "Load the current buffer and print how much time it takes.
-\(Wall-clock time.)
-
-The given HIGHLIGHTING-LEVEL is used (if non-nil).
-
-If CONTINUATION is non-nil, then CONTINUATION is applied to the
-resulting time (represented as a string)."
-  (interactive)
-  (when agda2-in-progress
-    (error "Agda is busy with something"))
-  (let* ((agda2-highlight-level
-          (or highlighting-level agda2-highlight-level)))
-    (setq agda2-measure-data (cons continuation (current-time)))
-    (agda2-load)))
 
 (defun agda2-compile ()
   "Compile the current module.
@@ -1125,13 +1091,45 @@ is inserted, and point is placed before this text."
   (agda2-remove-annotations)
   (agda2-term))
 
-(defun agda2-term ()
-  "Interrupt the Agda process and kill its buffer."
-  (interactive)
-  (when (and agda2-process
-             (process-status agda2-process))
-    (interrupt-process agda2-process))
-  (when (buffer-live-p agda2-process-buffer)
+(defun agda2-term (&optional nicely)
+  "Interrupt the Agda process and kill its buffer.
+If this function is invoked with a prefix argument, then Agda is
+asked nicely to terminate itself after any previously invoked
+commands have completed."
+  (interactive "P")
+  (if nicely
+      (progn
+        ;; Set up things so that if the Agda process terminates, then
+        ;; its buffer is killed.
+        (when (and agda2-process
+                   (process-status agda2-process))
+          (set-process-sentinel agda2-process 'agda2-kill-process-buffer))
+        ;; Kill the process buffer if the Agda process has already
+        ;; been killed.
+        (agda2-kill-process-buffer)
+        ;; Try to kill the Agda process.
+        (agda2-send-command nil
+                            "IOTCM"
+                            (agda2-string-quote (buffer-file-name))
+                            "None"
+                            "Indirect"
+                            "Cmd_exit"))
+    ;; Try to kill the Agda process and the process buffer.
+    (when (and agda2-process
+               (process-status agda2-process))
+      (interrupt-process agda2-process))
+    (when (buffer-live-p agda2-process-buffer)
+      (kill-buffer agda2-process-buffer))))
+
+(defun agda2-kill-process-buffer (&optional process event)
+  "Kills the Agda process buffer, if any.
+But only if the Agda process does not exist or has terminated.
+
+This function can be used as a process sentinel."
+  (when (and (or (null agda2-process)
+                 (member (process-status agda2-process)
+                         '(exit signal failed nil)))
+             (buffer-live-p agda2-process-buffer))
     (kill-buffer agda2-process-buffer)))
 
 (cl-defmacro agda2--with-gensyms ((&rest names) &body body)

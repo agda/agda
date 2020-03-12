@@ -133,6 +133,19 @@ The type checker enters compile-time mode when
 Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
 checking a term against ``Set`` does not trigger compile-time mode.
 
+
+
+Subtyping of runtime-irrelevant function spaces
+===============================================
+
+Normally, if ``f : (@0 x : A) → B`` then we have ``λ x → f x : (x : A)
+→ B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
+enabled, Agda will make use of the subtyping rule ``(@0 x : A) → B <:
+(x : A) → B``, so there is no need for eta-expanding the function
+``f``.
+
+
+
 .. _references:
 
 References

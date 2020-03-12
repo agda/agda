@@ -11,7 +11,7 @@ module Agda.Interaction.Highlighting.Generate
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
-  , warningHighlighting
+  , highlightWarning, warningHighlighting
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
   , storeDisambiguatedName, disambiguateRecordFields
@@ -89,6 +89,14 @@ data Level
     -- ^ Highlighting without disambiguation of overloaded
     --   constructors.
 
+-- | Highlight a warning.
+highlightWarning :: TCWarning -> TCM ()
+highlightWarning tcwarn = do
+  let h = compress $ warningHighlighting tcwarn
+  modifyTCLens stSyntaxInfo (h <>)
+  ifTopLevelAndHighlightingLevelIs NonInteractive $
+    printHighlightingInfo KeepHighlighting h
+
 -- | Generate syntax highlighting information for the given
 -- declaration, and (if appropriate) print it. If the boolean is
 -- 'True', then the state is additionally updated with the new
@@ -137,9 +145,6 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     cm <- P.rangeFile <$> viewTC eRange
     reportSLn "highlighting.warning" 60 $ "current path = " ++ show cm
 
-    warnInfo <- Fold.foldMap warningHighlighting
-                 . filter ((cm ==) . tcWarningOrigin) <$> useTC stTCWarnings
-
     let (from, to) = case P.rangeToInterval (getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -156,7 +161,6 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
-                                       , warnInfo
                                        ])
                        `mappend`
                      curTokens
@@ -572,7 +576,6 @@ printErrorInfo e =
     errorHighlighting e
 
 -- | Generate highlighting for error.
---   Does something special for termination errors.
 
 errorHighlighting :: TCErr -> TCM File
 errorHighlighting e = do
@@ -629,6 +632,7 @@ warningHighlighting w = case tcWarning w of
   SafeFlagNonTerminating     -> mempty
   SafeFlagTerminating        -> mempty
   SafeFlagWithoutKFlagPrimEraseEquality -> mempty
+  SafeFlagEta                -> mempty
   SafeFlagInjective          -> mempty
   SafeFlagNoCoverageCheck    -> mempty
   WithoutKFlagPrimEraseEquality -> mempty
@@ -695,7 +699,6 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.
 
--- TODO: highlight also the problematic occurrences
 positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
 positivityErrorHighlighting q os =
   several (rToR <$> getRange q : rs) m
