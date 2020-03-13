@@ -184,6 +184,10 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+
+data NoLeftInv = UnsupportedYet {badStep :: UnifyStep} | Illegal {badStep :: UnifyStep} deriving Show
+
+
 -- | Result of 'unifyIndices'.
 type UnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
@@ -195,8 +199,7 @@ type FullUnificationResult = UnificationResult'
   ( Telescope                  -- @tel@
   , PatternSubstitution        -- @sigma@ s.t. @tel ⊢ sigma : varTel@
   , [NamedArg DeBruijnPattern] -- @ps@    s.t. @tel ⊢ ps    : eqTel @
-  , Substitution -- τ
-  , Substitution -- leftInv
+  , Either NoLeftInv (Substitution, Substitution) -- (τ,leftInv)
   )
 
 data UnificationResult' a
@@ -224,7 +227,7 @@ unifyIndices
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
   -> tcm UnificationResult
-unifyIndices tel flex a us vs = fmap (\(a,b,c,_,_) -> (a,b,c)) <$> unifyIndices' tel flex a us vs
+unifyIndices tel flex a us vs = fmap (\(a,b,c,_) -> (a,b,c)) <$> unifyIndices' tel flex a us vs
 
 unifyIndices' :: MonadTCM tcm
              => Telescope
@@ -233,7 +236,7 @@ unifyIndices' :: MonadTCM tcm
              -> Args
              -> Args
              -> tcm FullUnificationResult
-unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [], idS, raiseS 1)
+unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, raiseS 1))
 unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
@@ -251,24 +254,28 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
       Unifies s -> do
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
-        (tau,leftInv) <- buildLeftInverse initialState log
+        tauInv <- buildLeftInverse initialState log
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
-        return $ Unifies $ (varTel s, unifySubst output, ps, tau, leftInv)
+        return $ Unifies $ (varTel s, unifySubst output, ps, tauInv)
       NoUnify ni -> return $ NoUnify ni
       DontKnow xs -> return $ DontKnow xs
 
-
-buildLeftInverse :: MonadTCM tcm => UnifyState -> UnifyLog -> tcm (Substitution, Substitution)
+buildLeftInverse :: MonadTCM tcm => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = liftTCM $ do
-    mpathp <- getTerm' builtinPathP
-    equivs <- if isJust mpathp then forM log $ uncurry buildEquiv
-                               else return []
+  mpathp <- getTerm' builtinPathP
+  equivs <- if isJust mpathp then forM log $ uncurry buildEquiv
+                             else return []
+  case sequence equivs of
+    Left no -> do
+      reportSDoc "tc.lhs.unify.inv" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
+      return (Left no)
+    Right xs -> do
     -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
     -- Γ,φ,us =_Δ vs, i : I ⊢ leftInv0 : Γ,φ,us =_Δ vs
     -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,φ,refls][τ0] = IdS : Γ,φ,us =_Δ vs
-    (tau0,leftInv0) <- case sequence equivs of
-      Just [] -> return (idS,raiseS 1)
-      Just xs -> do
+    (tau0,leftInv0) <- case xs of
+      [] -> return (idS,raiseS 1)
+      xs -> do
         let
             loop [] = __IMPOSSIBLE__
             loop [x] = return $ fst x
@@ -277,7 +284,7 @@ buildLeftInverse s0 log = liftTCM $ do
               uncurry composeRetract x r
         (_,_,tau,leftInv) <- loop xs
         return (tau,leftInv)
-      Nothing -> return (idS,raiseS 1) -- TODO propagate lack of equiv
+  --    Nothing -> return (idS,raiseS 1) -- TODO propagate lack of equiv
     -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
     -- leftInv0 : [wkS |φ,us =_Δ vs| ρ,1,refls][τ] = idS : Γ,φ,us =_Δ vs
     let tau = tau0 `composeS` raiseS 1
@@ -303,7 +310,7 @@ buildLeftInverse s0 log = liftTCM $ do
         addContext working_tel $ addContext ("r" :: String, __DUMMY_DOM__)
                                $ reportSDoc "tc.lhs.unify.inv" 20 $ "leftInv:   " <+> prettyTCM leftInv
 
-    return (tau,leftInv)
+    return $ Right (tau,leftInv)
 
 type Retract = (Telescope, Substitution, Substitution, Substitution)
      -- Γ (the problem, including equalities),
@@ -399,8 +406,8 @@ composeRetract (prob0,rho0,tau0,leftInv0) phi0 (prob1,rho1,tau1,leftInv1) = do
               lift $ liftTCM $ either (error "propagate me") (map unArg) <$> (runExceptT $ transpSysTel' True tel [(i, leftInv0)] face step0i)
   return (prob, rho, tau , termsS $ absBody $ leftInv)
 
-buildEquiv :: MonadTCM tcm => UnifyLogEntry -> UnifyState -> tcm (Maybe (Retract,Term))
-buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = liftTCM . fmap Just $ do
+buildEquiv :: MonadTCM tcm => UnifyLogEntry -> UnifyState -> tcm (Either NoLeftInv (Retract,Term))
+buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = liftTCM . fmap Right $ do
         reportSDoc "tc.lhs.unify.inv" 20 $ "step unifyState:" <+> prettyTCM st
         reportSDoc "tc.lhs.unify.inv" 20 $ "step step:" <+> addContext (varTel st) (prettyTCM step)
         unview <- intervalUnview'
@@ -559,7 +566,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = li
                  , termsS $ map unArg tau
                  , termsS $ map unArg leftInv)
                  , phi)
-buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = liftTCM . fmap Just $ do
+buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = liftTCM . fmap Right $ do
         reportSDoc "tc.lhs.unify.inv" 20 "buildEquiv EtaExpandVar"
         let
           gamma = varTel st
@@ -578,10 +585,18 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = li
         caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
           addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
           return $ ((working_tel,rho,tau,raiseS 1),phi)
-
-buildEquiv _ _ = liftTCM $ do
+buildEquiv (UnificationStep st step output) _ = liftTCM $ do
   reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
-  return $ Nothing
+  let illegal     = return $ Left $ Illegal step
+      unsupported = return $ Left $ UnsupportedYet step
+  case step of
+    Deletion{}           -> illegal
+    TypeConInjectivity{} -> illegal
+    -- These should end up in a NoUnify
+    Conflict{}    -> __IMPOSSIBLE__
+    LitConflict{} -> __IMPOSSIBLE__
+    Cycle{}       -> __IMPOSSIBLE__
+    _ -> unsupported
 
 ----------------------------------------------------
 -- Equalities

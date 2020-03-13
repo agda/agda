@@ -1321,8 +1321,8 @@ data IInfo = NoInfo
                      , infoEqLHS :: [Term]            -- Γ0 ⊢ us : Δ
                      , infoEqRHS :: [Term]            -- Γ0 ⊢ vs : Δ
                      , infoRho :: PatternSubstitution -- Γ' ⊢ ρ : Γ0
-                                                      -- Γ = Γ0,(φs : Is),(eqs : Paths Δ us vs)
-                                                      -- Γ' ⊢ ρ,i1s,refls : Γ
+                                                      -- Γ = Γ0,(φ : I),(eqs : Paths Δ us vs)
+                                                      -- Γ' ⊢ ρ,i1,refls : Γ
                      , infoTau :: Substitution        -- Γ  ⊢ τ           : Γ'
                      , infoLeftInv :: Substitution    -- Γ | (i : I) ⊢ leftInv : Γ
                      -- leftInv[i=0] = ρ[τ],i1s,refls
@@ -1423,12 +1423,17 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
     DontKnow errs -> do
       debugCantSplit
       throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
-    Unifies (delta1',rho0,eqs,tau,leftInv) -> do
-      -- let unifyInfo | null conIxs = NoInfo
-      --               | otherwise   = TheInfo delta1' rho0 undefined undefined
+    Unifies (delta1',rho0,eqs,tauInv) -> do
+
       mid <- getName' builtinId
-      let unifyInfo | Just d == mid = TheInfo delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
-                    | otherwise     = NoInfo
+      let unifyInfo | Just d == mid -- here because we only handle Id for now.
+                    , not $ null $ conIxs
+                    , Right (tau,leftInv) <- tauInv
+                    -- TODO report error if Illegal.
+            = TheInfo delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
+                    | otherwise
+            = NoInfo
+
       debugSubst "rho0" rho0
 
       let rho0' = toSplitPSubst rho0
