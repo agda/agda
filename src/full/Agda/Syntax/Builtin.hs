@@ -40,6 +40,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
+  builtinAgdaCmpEq, builtinAgdaCmpLEq, builtinAgdaComparison,
+  builtinAgdaAsTermsOf, builtinAgdaAsTypes, builtinAgdaAsSizes,
+  builtinAgdaClosure, builtinAgdaClosureClosure, builtinAgdaCompareAs, builtinAgdaConstraintValueCmp, builtinAgdaConstraintUnsupported, builtinAgdaConstraint,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
@@ -62,7 +65,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
-  builtinAgdaTCMRunSpeculative
+  builtinAgdaTCMGetConstraintsMentioning,
+  builtinAgdaTCMRunSpeculative,
+  builtinAgdaTCMDelayMacro
   :: String
 
 builtinNat                               = "NATURAL"
@@ -185,6 +190,18 @@ builtinAgdaTermSort                      = "AGDATERMSORT"
 builtinAgdaTermLit                       = "AGDATERMLIT"
 builtinAgdaTermUnsupported               = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                      = "AGDATERMMETA"
+builtinAgdaCmpEq                         = "AGDACMPEQ"
+builtinAgdaCmpLEq                        = "AGDACMPLEQ"
+builtinAgdaComparison                    = "AGDACOMPARISON"
+builtinAgdaAsTermsOf                     = "AGDAASTERMSOF"
+builtinAgdaAsTypes                       = "AGDAASTYPES"
+builtinAgdaAsSizes                       = "AGDAASSIZES"
+builtinAgdaClosure                       = "AGDACLOSURE"
+builtinAgdaClosureClosure                = "AGDACLOSURECLOSURE"
+builtinAgdaCompareAs                     = "AGDACOMPAREAS"
+builtinAgdaConstraintValueCmp            = "AGDACONSTRAINTVALUECMP"
+builtinAgdaConstraintUnsupported         = "AGDACONSTRAINTUNSUPPORTED"
+builtinAgdaConstraint                    = "AGDACONSTRAINT"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
@@ -242,7 +259,9 @@ builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
+builtinAgdaTCMGetConstraintsMentioning   = "AGDATCMGETCONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
+builtinAgdaTCMDelayMacro                 = "AGDATCMDELAYMACRO"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

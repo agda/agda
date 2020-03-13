@@ -477,6 +477,7 @@ evalTCM v = do
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext,       tcGetContext)
              , (f `isDef` primAgdaTCMCommit,           tcCommit)
+             , (f `isDef` primAgdaTCMDelayMacro, tcDelayMacro)
              ]
              failEval
     I.Def f [u] ->
@@ -487,6 +488,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
+             , (f `isDef` primAgdaTCMGetConstraintsMentioning,   tcFun1 tcGetConstraintsMentioning   u)
              ]
              failEval
     I.Def f [u, v] ->
@@ -603,6 +605,16 @@ evalTCM v = do
 
     tcNoConstraints :: Term -> UnquoteM Term
     tcNoConstraints m = liftU1 noConstraints (evalTCM m)
+
+    tcGetConstraintsMentioning :: [MetaId] -> TCM Term
+    tcGetConstraintsMentioning ms = do
+      let cond = return . mentionsMetas (HashSet.fromList ms)
+      cs <- map theConstraint <$> getConstraintsMentioning cond
+      buildList <*> mapM (\ cl -> enterClosure cl (\ x ->
+                                                   do
+                                                     as <- map (fmap snd) <$> getContext
+                                                     as <- etaContract =<< process as
+                                                     quoteClosure as x )) cs
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
@@ -743,3 +755,12 @@ evalTCM v = do
           return x
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
+
+    tcDelayMacro :: UnquoteM Term
+    tcDelayMacro = do
+      s <- gets snd
+      d <- liftTCM $ useTC stMacrosCanBeDelayed
+      case d of
+        True  -> do
+          throwError (DelayedMacro s)
+        False -> liftTCM primUnitUnit

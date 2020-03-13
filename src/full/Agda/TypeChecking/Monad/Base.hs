@@ -215,6 +215,8 @@ data PostScopeState = PostScopeState
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
+  , stPostMacrosCanBeDelayed  :: !Bool
+  , stPostDelayedMacros       :: !DelayedMacros
   , stPostDirty               :: !Bool -- local
     -- ^ Dirty when a constraint is added, used to prevent pointer update.
     -- Currently unused.
@@ -377,6 +379,8 @@ initPostScopeState = PostScopeState
   , stPostInteractionPoints    = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
+  , stPostDelayedMacros        = []
+  , stPostMacrosCanBeDelayed   = True
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
@@ -560,6 +564,17 @@ stSleepingConstraints :: Lens' Constraints TCState
 stSleepingConstraints f s =
   f (stPostSleepingConstraints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSleepingConstraints = x}}
+
+
+stMacrosCanBeDelayed  :: Lens' Bool TCState
+stMacrosCanBeDelayed f s =
+  f (stPostMacrosCanBeDelayed (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMacrosCanBeDelayed = x}}
+
+stDelayedMacros :: Lens' DelayedMacros TCState
+stDelayedMacros f s =
+  f (stPostDelayedMacros (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostDelayedMacros = x}}
 
 stDirty :: Lens' Bool TCState
 stDirty f s =
@@ -1162,6 +1177,26 @@ instance TermLike CompareAs where
     AsTermsOf a -> AsTermsOf <$> traverseTermM f a
     AsSizes     -> return AsSizes
     AsTypes     -> return AsTypes
+
+---------------------------------------------------------------------------
+-- * Delayed Macros
+---------------------------------------------------------------------------
+
+type DelayedMacros = [Closure DelayedMacro]
+
+data DelayedMacro = DMacro
+  { tac  :: Term
+  , hole :: Term
+  , goal :: Type
+  }
+
+modifyDMacros :: (DelayedMacros -> DelayedMacros) -> TCM ()
+modifyDMacros = modifyTC . (over stDelayedMacros)
+
+addDMacro :: DelayedMacro -> TCM ()
+addDMacro m = do
+  cm <- buildClosure m
+  modifyDMacros (\ ms -> cm : ms)
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -3267,6 +3302,7 @@ data UnquoteError
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
   | BlockedOnMeta TCState MetaId
+  | DelayedMacro TCState
   | UnquotePanic String
   deriving (Show)
 

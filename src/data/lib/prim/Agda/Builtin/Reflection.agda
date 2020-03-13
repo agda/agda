@@ -239,6 +239,40 @@ data ErrorPart : Set where
 {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
 {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
+
+-- Constraints --
+data Comparison : Set where
+  cmpEq  : Comparison
+  cmpLEq : Comparison
+
+{-# BUILTIN AGDACOMPARISON       Comparison #-}
+{-# BUILTIN AGDACMPEQ            cmpEq      #-}
+{-# BUILTIN AGDACMPLEQ           cmpLEq     #-}
+
+data CompareAs : Set where
+  asTermsOf : Term → CompareAs
+  asTypes   : CompareAs
+  asSizes   : CompareAs
+
+{-# BUILTIN AGDACOMPAREAS       CompareAs #-}
+{-# BUILTIN AGDAASTERMSOF       asTermsOf #-}
+{-# BUILTIN AGDAASTYPES         asTypes   #-}
+{-# BUILTIN AGDAASSIZES         asSizes   #-}
+
+data Constraint : Set where
+  valueCmp    : Comparison → CompareAs → Term → Term → Constraint
+  unsupported : Constraint
+
+{-# BUILTIN AGDACONSTRAINT             Constraint  #-}
+{-# BUILTIN AGDACONSTRAINTVALUECMP     valueCmp    #-}
+{-# BUILTIN AGDACONSTRAINTUNSUPPORTED  unsupported #-}
+
+data Closure {a} (A : Set a) : Set a where
+  closure : List (Arg Type) → A → Closure A
+
+{-# BUILTIN AGDACLOSURE           Closure #-}
+{-# BUILTIN AGDACLOSURECLOSURE    closure #-}
+
 -- TC monad --
 
 postulate
@@ -279,10 +313,17 @@ postulate
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
 
+-- Gets all the constraints that mention the given meta-variables.
+  getConstraintsMentioning : List Meta → TC (List (Closure Constraint))
+
   -- Run the given TC action and return the first component. Resets to
   -- the old TC state if the second component is 'false', or keep the
   -- new TC state if it is 'true'.
   runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
+  -- Delay the execution of a macro till the Declaration it is
+  -- used in, has been typechecked.
+  delayMacro : TC ⊤
 
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
@@ -311,4 +352,6 @@ postulate
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+{-# BUILTIN AGDATCMGETCONSTRAINTSMENTIONING   getConstraintsMentioning   #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+{-# BUILTIN AGDATCMDELAYMACRO                 delayMacro                 #-}
