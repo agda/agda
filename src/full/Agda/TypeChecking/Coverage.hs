@@ -478,7 +478,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
-          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (createMissingConIdClause f n x sc)
+          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (createMissingConIdClause f n x sc . snd . snd)
           results <- mapM (cover f cs) (map snd scs)
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
@@ -496,11 +496,8 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               , "ps  = " <+> prettyTCMPatternList (fromSplitPatterns ps)
               ]
             ]
-          -- TODO Andrea: do something with etaRecordSplits and qsss?
-          -- let trees' = zipWith (etaRecordSplits (unArg n) ps) (scs ++ scs') (trees ++ trees')
-          --     tree   = SplitAt n trees'
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n StrictSplit (trees' ++ mtrees)
+              tree   = SplitAt n StrictSplit (trees' ++ mtrees) -- TODO: Lazy?
           return $ CoverResult tree (IntSet.unions useds) (concat psss) (concat qsss) (IntSet.unions noex)
 
     -- Try to split result
@@ -619,9 +616,9 @@ createMissingConIdClause :: QName
                          -> Arg Nat
                          -> BlockingVar
                          -> SplitClause
-                         -> (SplitTag, (SplitClause, IInfo))
+                         -> IInfo
                          -> TCM (Maybe ((SplitTag,SplitTree),Clause))
-createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRange f $ do
+createMissingConIdClause f n x old_sc info@TheInfo{} = setCurrentRange f $ do
   let
     -- iΓ'
     itel = infoTel
@@ -838,8 +835,7 @@ createMissingConIdClause f n x old_sc (tag,(sc,info@TheInfo{})) = setCurrentRang
                     }
   addClauses f [cl]
   return $ Just ((SplitCon conId,SplittingDone (size working_tel)),cl)
-createMissingConIdClause f n x old_sc (tag,(sc,NoInfo)) = return Nothing
---createMissingConIdClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+createMissingConIdClause f n x old_sc NoInfo = return Nothing
 
 
 {-
