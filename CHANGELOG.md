@@ -12,7 +12,7 @@ General
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.8.2
+* Added support for GHC 8.8.2 and 8.8.3
   [Issue [#4285](https://github.com/agda/agda/issues/4285)].
 
 * Removed support for GHC 7.10.3.
