@@ -136,9 +136,15 @@ encode a = do
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
-      FreshAndReuse fresh reused <- liftIO $ readIORef ioref
+      FreshAndReuse fresh
+#ifdef DEBUG
+                          reused
+#endif
+                                 <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
+#ifdef DEBUG
       tickN (kind ++ " (reused)") $ fromIntegral reused
+#endif
 
 -- encode :: EmbPrj a => a -> TCM L.ByteString
 -- encode a = do

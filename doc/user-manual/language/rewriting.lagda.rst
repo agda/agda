@@ -11,7 +11,7 @@ computation rules.
 
 .. note:: This page is about the :option:`--rewriting` option and the
   associated :ref:`REWRITE <builtin-rewrite>` builtin. You might be
-  looking for the documentation on the :ref:`rewrite constuct
+  looking for the documentation on the :ref:`rewrite construct
   <with-rewrite>` instead.
 
 Rewrite rules by example
@@ -51,7 +51,7 @@ problem that is encountered by almost every newcomer to Agda.  This
 problem usually pops up as the question why ``0 + m`` computes to
 ``m``, but ``m + 0`` does not (and similarly, ``(suc m) + n`` computes
 to ``suc (m + n)`` but ``m + (suc n)`` does not). This problem
-manifests for example when trying to prove commutativity of ``_+_``:
+manifests itself for example when trying to prove commutativity of ``_+_``:
 
 .. code-block:: agda
 
@@ -61,9 +61,9 @@ manifests for example when trying to prove commutativity of ``_+_``:
 
 Here, Agda complains that ``n != n + zero of type Nat``. The usual way
 to solve this problem is by proving the equations ``m + 0 ≡ m`` and
-``m + (suc n) ≡ suc (m + n)`` and using an explicit `rewrite`
-statement in the main proof (N.B.: Agda's `rewrite` keyword should not
-be confused with rewrite rules, which are added by a `REWRITE`
+``m + (suc n) ≡ suc (m + n)`` and using an explicit ``rewrite``
+statement in the main proof (N.B.: Agda's ``rewrite`` keyword should not
+be confused with rewrite rules, which are added by a ``REWRITE``
 pragma.)
 
 By using rewrite rules, we can simulate the solution from our
@@ -97,7 +97,7 @@ Now the proof of commutativity works exactly as we wrote it before:
 
 Note that there is no way to make this proof go through without
 rewrite rules: it is essential that ``_+_`` computes both on its first
-and second arguments, but there's no way to define ``_+_`` in such a
+and its second argument, but there's no way to define ``_+_`` in such a
 way using Agda's regular pattern matching.
 
 More examples
