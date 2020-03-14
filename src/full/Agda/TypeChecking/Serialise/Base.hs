@@ -56,19 +56,30 @@ type HashTable k v = H.BasicHashTable k v
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
+#ifdef DEBUG
 data FreshAndReuse = FreshAndReuse
   { farFresh :: !Int32 -- ^ Number of hash map misses.
   , farReuse :: !Int32 -- ^ Number of hash map hits.
   }
+#else
+newtype FreshAndReuse = FreshAndReuse
+  { farFresh :: Int32 -- ^ Number of hash map misses.
+  }
+#endif
 
 farEmpty :: FreshAndReuse
-farEmpty = FreshAndReuse 0 0
+farEmpty = FreshAndReuse 0
+#ifdef DEBUG
+                           0
+#endif
 
 lensFresh :: Lens' Int32 FreshAndReuse
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
+#ifdef DEBUG
 lensReuse :: Lens' Int32 FreshAndReuse
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
+#endif
 
 -- | Two 'QName's are equal if their @QNameId@ is equal.
 type QNameId = [NameId]
@@ -243,7 +254,9 @@ icodeX dict counter key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -262,7 +275,9 @@ icodeInteger key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -277,7 +292,9 @@ icodeDouble key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -292,7 +309,9 @@ icodeString key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -307,7 +326,9 @@ icodeNode key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -331,7 +352,9 @@ icodeMemo getDict getCounter a icodeP = do
     st <- asks getCounter
     case mi of
       Just i  -> liftIO $ do
+#ifdef DEBUG
         modifyIORef' st $ over lensReuse (+ 1)
+#endif
         return i
       Nothing -> do
         liftIO $ modifyIORef' st $ over lensFresh (+1)
