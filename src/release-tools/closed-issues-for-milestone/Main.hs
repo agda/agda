@@ -81,6 +81,7 @@ labelsNotInChangelog =
   , "documented-in-changelog"
   , "faq"
   , "fix-agda-whitespace"
+  , "github-workflows"
   , "haddock"
   , "not-in-changelog"
   , "regression on master"

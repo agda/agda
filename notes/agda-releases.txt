@@ -11,6 +11,14 @@ When releasing the following procedure can be followed:
 
 * Finish the release notes in the CHANGELOG.
 
+* Replace in the CHANGELOG
+
+  https://agda.readthedocs.io/en/latest
+
+  by
+
+  https://agda.readthedocs.io/en/vMAJORVERSION
+
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
 

@@ -277,11 +277,11 @@ Language
 
 ### Modalities
 
-* New Flat Modality
+* New Flat Morality
 
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
-  See [Flat Modality](https://agda.readthedocs.io/en/latest/language/flat.html)
+  See [Flat Modality](https://agda.readthedocs.io/en/v2.6.1/language/flat.html)
   in the documentation for more.
 
 * New run-time erasure modality (`@0` / `@erased`).
@@ -289,7 +289,7 @@ Language
   at run time
   [Issue [#3855](https://github.com/agda/agda/issues/3855)]. See
   [Run-time
-  Irrelevance](https://agda.readthedocs.io/en/latest/language/runtime-irrelevance.html)
+  Irrelevance](https://agda.readthedocs.io/en/v2.6.1/language/runtime-irrelevance.html)
   in the documentation for more information.
 
   Note that this feature can cause previously solved metavariables to become
@@ -315,7 +315,7 @@ Language
   addition to its usual type ``Set``, ``Nat`` also has the type
   ``Set₁`` and even ``Set i`` for any ``i : Level``. More information
   about this new option can be found in section
-  [Cumulativity](https://agda.readthedocs.io/en/latest/language/cumulativity.html)
+  [Cumulativity](https://agda.readthedocs.io/en/v2.6.1/language/cumulativity.html)
   of the user manual.
 
 ### Termination checking
