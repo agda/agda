@@ -1434,6 +1434,9 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
                     | otherwise
             = NoInfo
 
+      when (Just d == mid && isLeft tauInv) $
+        lift $ genericWarning =<< text "No equiv while spitting on Id"
+
       debugSubst "rho0" rho0
 
       let rho0' = toSplitPSubst rho0

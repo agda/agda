@@ -138,7 +138,7 @@ import Data.IntMap (IntMap)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
+import Agda.Interaction.Options (optInjectiveTypeConstructors, optCubical)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -185,8 +185,11 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 
-data NoLeftInv = UnsupportedYet {badStep :: UnifyStep} | Illegal {badStep :: UnifyStep} deriving Show
-
+data NoLeftInv
+  = UnsupportedYet {badStep :: UnifyStep}
+  | Illegal        {badStep :: UnifyStep}
+  | NoCubical
+  deriving Show
 
 -- | Result of 'unifyIndices'.
 type UnificationResult = UnificationResult'
@@ -262,12 +265,15 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
 
 buildLeftInverse :: MonadTCM tcm => UnifyState -> UnifyLog -> tcm (Either NoLeftInv (Substitution, Substitution))
 buildLeftInverse s0 log = liftTCM $ do
-  mpathp <- getTerm' builtinPathP
-  equivs <- if isJust mpathp then forM log $ uncurry buildEquiv
-                             else return []
+  let cond = andM
+       [ isJust <$> getTerm' builtinPathP
+       , optCubical <$> pragmaOptions
+       ]
+  ifNotM cond (return $ Left NoCubical) $ do
+  equivs <- forM log $ uncurry buildEquiv
   case sequence equivs of
     Left no -> do
-      reportSDoc "tc.lhs.unify.inv" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
+      reportSDoc "tc.lhs.unify.inv.badstep" 20 $ "No Left Inverse:" <+> prettyTCM (badStep no)
       return (Left no)
     Right xs -> do
     -- Γ,φ,us =_Δ vs ⊢ τ0 : Γ', φ
