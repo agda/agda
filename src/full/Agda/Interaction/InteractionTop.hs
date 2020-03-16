@@ -226,7 +226,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       return x
 
     -- | Handle every possible kind of error (#637), except for
-    -- ThreadKilled, which is used to abort Agda.
+    -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
       let handle e =

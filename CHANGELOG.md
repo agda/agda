@@ -277,7 +277,7 @@ Language
 
 ### Modalities
 
-* New Flat Morality
+* New Flat Modality
 
   New modality `@♭/@flat` (previously only available in the branch "flat").
   An idempotent comonadic modality modeled after spatial/crisp type theory.
