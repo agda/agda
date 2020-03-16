@@ -133,7 +133,9 @@ revLiftTC run lift' f = do
     return a
 
 -- | Opposite of 'liftIO' for 'CommandM'.
---   Use only if main errors are already catched.
+--
+-- This function should only be applied to computations that are
+-- guaranteed not to raise any errors (except for 'IOException's).
 
 commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
 commandMToIO ci_i = revLift runStateT lift $ \ct -> revLiftTC runSafeTCM liftIO $ ci_i . (. ct)
@@ -206,7 +208,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- Yet, it looks like s == s' in case the command failed.
     cmd `catchErr` \ e -> do
       onFail
-      handleErr e
+      handleErr Nothing e
       -- Andreas, 2016-11-18, issue #2174
       -- Reset TCState after error is handled, to get rid of metas created during failed command
       lift $ do
@@ -226,12 +228,13 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       return x
 
     -- | Handle every possible kind of error (#637), except for
-    -- ThreadKilled, which is used to abort Agda.
+    -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
       let handle e =
             Right <$>
-              toIO (handleErr $ Exception noRange $ text $ show e)
+              toIO (handleErr (Just Direct) $
+                        Exception noRange $ text $ show e)
 
           asyncHandler e@AsyncCancelled = return (Left e)
 
@@ -246,13 +249,15 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- | Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
-    handleErr e = do
+    handleErr method e = do
         unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
         meta    <- lift $ computeUnsolvedMetaWarnings
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
-        method  <- lift $ viewTC eHighlightingMethod
+        method  <- case method of
+          Nothing -> lift $ viewTC eHighlightingMethod
+          Just m  -> return m
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
                      err : if unsolvedNotOK then [meta, constr] else []
