@@ -71,7 +71,7 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.4.md
                     doc/release-notes/2.2.0.md
 -- Liang-Ting (2019-11-26): See Issues #4216
-                    doc/user-manual.pdf
+--                    doc/user-manual.pdf
                     stack-8.8.3.yaml
 -- ASR (2020-03-09). I'll keep the below file until a resolver for GHC8.8.3
 -- is available.
@@ -598,6 +598,7 @@ library
                -fspecialise-aggressively
                -- Initially, we disable all the warnings.
                -w
+               -Werror
                -- This option must be the first one after disabling the
                -- warnings. See Issue #2094.
                -Wunrecognised-warning-flags
@@ -655,6 +656,8 @@ library
     -- GHC 8.10.1-rc1. I'm waiting the final release for removing
     -- it (Issue #4242).
     ghc-options: -Whi-shadowing
+
+  ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
 
@@ -718,3 +721,207 @@ executable agda-mode
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
   default-language: Haskell2010
+
+-- Cabal testsuite integration has some serious bugs, but we
+-- can still make it work. See also:
+-- https://github.com/haskell/cabal/issues/1938
+-- https://github.com/haskell/cabal/issues/2214
+-- https://github.com/haskell/cabal/issues/1953
+--
+-- This test suite should only be run using the Makefile.
+-- The Makefile sets up the required environment,
+-- executing the tests using cabal directly is almost
+-- guarantued to fail. See also Issue 1490.
+test-suite agda-tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test/
+  main-is:          Main.hs
+  other-modules:      Compiler.Tests
+                    , Fail.Tests
+                    , Interactive.Tests
+                    , Internal.Compiler.MAlonzo.Encode
+                    , Internal.Helpers
+                    , Internal.Interaction.Highlighting.Precise
+                    , Internal.Interaction.Highlighting.Range
+                    , Internal.Interaction.Library
+                    , Internal.Interaction.Options
+                    , Internal.Syntax.Abstract.Name
+                    , Internal.Syntax.Common
+                    , Internal.Syntax.Concrete.Name
+                    , Internal.Syntax.Internal
+                    , Internal.Syntax.Parser.Parser
+                    , Internal.Syntax.Position
+                    , Internal.Termination.CallGraph
+                    , Internal.Termination.CallMatrix
+                    , Internal.Termination.Order
+                    , Internal.Termination.Semiring
+                    , Internal.Termination.SparseMatrix
+                    , Internal.Termination.Termination
+                    , Internal.Tests
+                    , Internal.TypeChecking
+                    , Internal.TypeChecking.Substitute
+                    , Internal.TypeChecking.Free
+                    , Internal.TypeChecking.Free.Lazy
+                    , Internal.TypeChecking.Generators
+                    , Internal.TypeChecking.Irrelevance
+                    , Internal.TypeChecking.Monad.Base
+                    , Internal.TypeChecking.Positivity
+                    , Internal.TypeChecking.Positivity.Occurrence
+                    , Internal.TypeChecking.Rules.LHS.Problem
+                    , Internal.TypeChecking.SizedTypes
+                    , Internal.TypeChecking.SizedTypes.Syntax
+                    , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.Utils.AssocList
+                    , Internal.Utils.Bag
+                    , Internal.Utils.BiMap
+                    , Internal.Utils.Cluster
+                    , Internal.Utils.Either
+                    , Internal.Utils.Favorites
+                    , Internal.Utils.FileName
+                    , Internal.Utils.Graph.AdjacencyMap.Unidirectional
+                    , Internal.Utils.IntSet
+                    , Internal.Utils.List
+                    , Internal.Utils.ListT
+                    , Internal.Utils.Monoid
+                    , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.NonEmptyList
+                    , Internal.Utils.PartialOrd
+                    , Internal.Utils.Permutation
+                    , Internal.Utils.SmallSet
+                    , Internal.Utils.Three
+                    , Internal.Utils.Trie
+                    , Internal.Utils.Warshall
+                    , LaTeXAndHTML.Tests
+                    , LibSucceed.Tests
+                    , Succeed.Tests
+                    , Bugs.Tests
+                    , UserManual.Tests
+                    , Utils
+
+  build-depends:  Agda
+                , array >= 0.5.1.1 && < 0.6
+                , base >= 4.9.0.0 && < 4.15
+                , bytestring >= 0.10.8.1 && < 0.11
+                , containers >= 0.5.7.1 && < 0.7
+                , directory >= 1.2.6.2 && < 1.4
+                , filepath >= 1.4.1.0 && < 1.5
+                , filemanip >= 0.3.6.3 && < 0.4
+                , mtl >= 2.2.1 && < 2.3
+                , process >= 1.4.2.0 && < 1.7
+                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
+                , QuickCheck >= 2.13.1 && < 2.14
+                , regex-tdfa >= 1.3.1.0 && < 1.4
+                , tasty >= 1.1.0.4 && < 1.3
+                --, tasty >= 1.2.2 && < 1.3
+                , tasty-hunit >= 0.9.2 && < 0.11
+                , tasty-quickcheck >= 0.9.2 && < 0.11
+                -- tasty-silver 3.1.13 has option --ansi-tricks=false
+                , tasty-silver >= 3.1.13 && < 3.2
+                , temporary >= 1.2.0.3 && < 1.4
+                , unix-compat >= 0.4.3.1 && < 0.6
+                , uri-encode >= 1.5.0.4 && < 1.6
+
+  -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
+  -- 8.4.3. See Issue #3277.
+  if impl(ghc >= 8.4.1) && impl(ghc <= 8.4.3)
+    build-depends: text >= 1.2.3.0 && < 1.3
+  else
+    build-depends: text >= 1.2.3.1 && < 1.3
+
+  -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
+  -- Agda Issue #3344.
+  if impl(ghc == 8.6.1)
+    buildable: False
+
+  -- Agda cannot be built with Windows and GHC 8.6.3 due to a compiler
+  -- bug, see Agda Issue #3657.
+  if os(windows) && impl(ghc == 8.6.3)
+    buildable: False
+
+  default-language:  Haskell2010
+
+  default-extensions:  ConstraintKinds
+                     , DataKinds
+                     , DefaultSignatures
+                     , DeriveFoldable
+                     , DeriveFunctor
+                     , DeriveTraversable
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , FunctionalDependencies
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , MultiWayIf
+                     , NamedFieldPuns
+                     , OverloadedStrings
+                     , RankNTypes
+                     , RecordWildCards
+                     , ScopedTypeVariables
+                     , StandaloneDeriving
+                     , TupleSections
+                     , TypeSynonymInstances
+
+  -- NOTE: If adding flags, also add to `.ghci800`
+  ghc-options: -fexpose-all-unfoldings
+               -fspecialise-aggressively
+               -threaded
+               -- Initially, we disable all the warnings.
+               -w
+               -Werror
+               -- This option must be the first one after disabling the
+               -- warnings. See Issue #2094.
+               -Wunrecognised-warning-flags
+               -Wdeprecated-flags
+               -Wderiving-typeable
+               -Wdodgy-exports
+               -Wdodgy-foreign-imports
+               -Wdodgy-imports
+               -Wduplicate-exports
+               -Wempty-enumerations
+               -Widentities
+               -Wincomplete-patterns
+               -Winline-rule-shadowing
+               -Wmissing-fields
+               -Wmissing-methods
+               -Wmissing-pattern-synonym-signatures
+               -Wmissing-signatures
+               -Wnoncanonical-monad-instances
+               -Wnoncanonical-monoid-instances
+               -Woverflowed-literals
+               -Woverlapping-patterns
+               -Wsemigroup
+               -Wtabs
+               -Wtyped-holes
+               -Wunrecognised-pragmas
+               -Wunticked-promoted-constructors
+               -Wunused-do-bind
+               -Wunused-foralls
+               -Wwarnings-deprecations
+               -Wwrong-do-bind
+
+  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- error.
+  -- NOTE: If adding flags, also add to `.ghci820`
+  if impl(ghc >= 8.2)
+    ghc-options: -Wcpp-undef
+                 -Wsimplifiable-class-constraints
+                 -Wunbanged-strict-patterns
+
+  -- NOTE: If adding flags, also add to `.ghci860`
+  if impl(ghc >= 8.6)
+    ghc-options: -Winaccessible-code
+                 -Wstar-binder
+                 -Wstar-is-type
+
+  if impl(ghc >= 8.6) && impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- it (Issue #4242).
+    ghc-options: -Wimplicit-kind-vars
+
+  if impl(ghc < 8.10)
+    -- ASR TODO (2020-02-03). This warning was deprecated in
+    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
+    -- it (Issue #4242).
+    ghc-options: -Whi-shadowing
