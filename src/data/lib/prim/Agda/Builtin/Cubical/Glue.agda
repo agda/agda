@@ -64,8 +64,6 @@ primitive
       → {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
       → primGlue A T e → A
 
-    -- Needed for transp in Glue.
-    primFaceForall : (I → I) → I
 
 
 module _ {ℓ : I → Level} (P : (i : I) → Set (ℓ i)) where
