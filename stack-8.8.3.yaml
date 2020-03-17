@@ -5,10 +5,6 @@ extra-deps:
 - equivalence-0.3.5
 - geniplate-mirror-0.7.6
 - STMonadTrans-0.4.4
-- bifunctors-5.5.7
-- comonad-5.0.6
-- cabal-doctest-1.0.8
-- distributive-0.6.1
 - cpphs-1.20.9
 
 # Local packages, usually specified by relative directory name
