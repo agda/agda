@@ -12,7 +12,7 @@ open import Relation.Binary using (Rel;_Respects₂_;Transitive;IsEquivalence)
 
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
-import Level
+open import Level using (0ℓ)
 open import Size using (Size;↑_)
 
 -- keeping the definition of Vec for the positivity check
@@ -34,12 +34,23 @@ postulate
   -- Vec : ∀ {a} (A : Set a) → ℕ → Set a
   Vec→List : ∀ {a n} {A : Set a} → Vec A n → List A
 
-data Type : {z : Size} → Set where
-  TyApp : {z : Size} (n : ℕ) → (as : Vec (Type {z}) n) → Type {↑ z}
+data Type : Size → Set where
+  TyApp : {z : Size} (n : ℕ) → (as : Vec (Type z) n) → Type (↑ z)
+
+<-transf : ∀ {z} → Rel (Type z) 0ℓ → Rel (ℕ × List (Type z)) 0ℓ
+<-transf _<_ = ×-Lex _≡_ _N<_ (Lex-< _≡_ _<_)
 
 infix 4 _<_
-data _<_ : {z : Size} → Rel (Type {z}) Level.zero where
-  TyApp<TyApp : ∀ {z} {n₁} {as₁} {n₂} {as₂} → ×-Lex _≡_ _N<_ (Lex-< _≡_ (_<_ {z})) (n₁ , Vec→List as₁) (n₂ , Vec→List as₂) → _<_ {↑ z} (TyApp n₁ as₁) (TyApp n₂ as₂)
+data _<_ : {z : Size} → Rel (Type z) 0ℓ where
+  TyApp<TyApp : ∀ {z} {n₁} {as₁} {n₂} {as₂} →
+                <-transf (_<_ {z}) (n₁ , Vec→List as₁) (n₂ , Vec→List as₂) →
+                _<_ {↑ z} (TyApp n₁ as₁) (TyApp n₂ as₂)
 
-<-trans : {z : Size} → Transitive (_<_ {z})
-<-trans (TyApp<TyApp p) (TyApp<TyApp q) = TyApp<TyApp (×-transitive PropEq.isEquivalence (PropEq.resp₂ _N<_) N<-trans {_≤₂_ = Lex-< _≡_ _<_ } (Lex<-trans PropEq.isEquivalence (PropEq.resp₂ _<_) <-trans) p q)
+<-trans : ∀ {z} → Transitive (_<_ {z})
+<-trans (TyApp<TyApp p) (TyApp<TyApp q) =
+  TyApp<TyApp (×-transitive {_<₂_ = Lex-< _≡_ _<_}
+                 PropEq.isEquivalence
+                (PropEq.resp₂ _N<_)
+                N<-trans
+                (Lex<-trans PropEq.isEquivalence (PropEq.resp₂ _<_) <-trans)
+                p q)

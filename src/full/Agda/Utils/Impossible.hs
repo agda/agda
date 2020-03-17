@@ -38,8 +38,9 @@ instance Show Impossible where
     , "Location of the error: " ++ file ++ ":" ++ show line
     ]
   show (ImpMissingDefinitions needed forthis) = unlines
-    [ "The following builtins or primitives need to be bound to use " ++ forthis ++ ":"]
-    ++ unwords needed
+    [ "The following builtins or primitives need to be bound to use " ++ forthis ++ ":"
+    , unwords needed
+    ]
 
 instance Exception Impossible
 

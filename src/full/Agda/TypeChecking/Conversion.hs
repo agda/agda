@@ -341,6 +341,8 @@ compareTerm' cmp a m n =
        mGlue  <- getPrimitiveName' builtinGlue
        mHComp <- getPrimitiveName' builtinHComp
        mSub   <- getBuiltinName' builtinSub
+       mUnglueU <- getPrimitiveTerm' builtin_unglueU
+       mSubIn   <- getPrimitiveTerm' builtinSubIn
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
@@ -351,11 +353,11 @@ compareTerm' cmp a m n =
               compareTermOnFace cmp (unArg phi) ty m n
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
-                  , Sort (Type lvl) <- unArg s -> do
+                  , Sort (Type lvl) <- unArg s
+                  , Just unglueU <- mUnglueU, Just subIn <- mSubIn
+                  -> do
               let l = Level lvl
               ty <- el' (pure $ l) (pure $ unArg u0)
-              unglueU <- prim_unglueU
-              subIn <- primSubIn
               let bA = subIn `apply` [sl,s,phi,u0]
               let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
               reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
