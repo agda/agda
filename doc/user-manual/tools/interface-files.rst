@@ -10,17 +10,16 @@ Interface files
 
 Probably you already noticed that when you save an agda file, another file
 with the same name and extension .agdai is automatically created. This .agdai
-file is what we call an **interface file** that stores a compressed form of
-the type-checked version of the code that lives in the corresponding .agda file.
+file is what we call an **interface file**.
 
-Interface files store the results from the type-checking process and resolve
-all implicit arguments (unless you use the flag ``--allow-unsolved-metas``).
-Formally, an .agdai file is a compiled version of the agda source code that can
-be executed by the Agda machine.
+Interface files store the results from the type-checking process. These
+results include:
 
-Interface files are intended to make operations faster. They translate
-pattern-matching definitions to case trees (this translation speeds up
-computation).
+* A translation of pattern-matching definitions to case trees (this translation
+  speeds up computation).
+
+* The resolution of all implicit arguments (optional, you can avoid this by
+  using the flag --allow-unsolved-metas).
 
 .. note::
    When an agda file is renamed, the old .agdai file is kept, and a new .agdai
