@@ -23,7 +23,6 @@ branches:
     - stable-2.5
     - /^release-.*/
     # Test all issue* branches. Saves you opening a PR.
-    - hlint
     - /^issue.*/
 
 ##############################################################################
