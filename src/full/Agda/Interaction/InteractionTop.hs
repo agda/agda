@@ -62,7 +62,6 @@ import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
-import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.Backend
 
 import Agda.Auto.Auto as Auto

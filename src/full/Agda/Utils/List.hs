@@ -6,7 +6,6 @@ import Control.Arrow (first, second)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
-import Data.Functor ((<$>))
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe

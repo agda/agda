@@ -54,7 +54,7 @@ import Control.Monad hiding (forM, forM_)
 import Control.Monad.Trans.Maybe
 
 import Data.Either
-import Data.Foldable (foldMap, forM_)
+import Data.Foldable (forM_)
 import qualified Data.Foldable as Fold
 import Data.Function
 import qualified Data.List as List
@@ -71,7 +71,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad as TCM hiding (Offset)
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Reduce
@@ -125,7 +124,7 @@ solveSizeConstraints flag =  do
     reportSDoc "tc.size.solve" 40 $ vcat $
       text ( "Solving constraints (" ++ show flag ++ ")" ) : map prettyTCM cs0
   let -- Error for giving up
-      cannotSolve :: TCM a
+      cannotSolve :: TCM a -- Defined, but not currently used
       cannotSolve = typeError . GenericDocError =<<
         vcat ("Cannot solve size constraints" : map prettyTCM cs0)
 

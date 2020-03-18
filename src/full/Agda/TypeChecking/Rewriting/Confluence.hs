@@ -39,7 +39,6 @@ import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Records
@@ -185,8 +184,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
         sub1 <- makeMetaSubst $ rewContext rew1
 
-        let f          = rewHead rew1
-            bvTel0     = ohBoundVars hole0
+        let bvTel0     = ohBoundVars hole0
             k          = size bvTel0
             b0         = applySubst (liftS k sub1) $ ohType hole0
             (g,_,es0)  = fromMaybe __IMPOSSIBLE__ $ headView $

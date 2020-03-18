@@ -11,7 +11,6 @@ import Data.Monoid
 import qualified Data.List as List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
 
 import Agda.Utils.List

@@ -19,17 +19,14 @@ module Agda.TypeChecking.Errors
 import Prelude hiding ( null )
 
 import Data.Function
-import Data.List (sortBy, isInfixOf, dropWhileEnd)
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List (sortBy, dropWhileEnd)
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import Data.Char (toLower)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C

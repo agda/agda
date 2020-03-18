@@ -27,7 +27,6 @@ import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
 

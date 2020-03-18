@@ -13,8 +13,6 @@ import qualified Data.Strict.Maybe as Strict
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
 import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)

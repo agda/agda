@@ -1,6 +1,5 @@
 module Agda.TypeChecking.Monad.Base where
 
-import Control.Applicative (Applicative)
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
 import Data.Map (Map)

@@ -7,11 +7,9 @@ import Control.Monad.Writer (WriterT, runWriterT, tell)
 
 import Data.Either
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Foldable ( foldrM )
-import Data.Traversable ( traverse )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I

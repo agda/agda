@@ -19,13 +19,10 @@ import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
 import Data.Either (partitionEithers)
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
@@ -39,7 +36,6 @@ import Agda.Interaction.Options.Lenses
 
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
 import Agda.Syntax.Concrete (FieldAssignment'(..),LensInScope(..))
@@ -62,7 +58,6 @@ import Agda.TypeChecking.Irrelevance
 -- We can't explicitly hide just the constructor here because it isn't in the
 -- hs-boot file.
 import {-# SOURCE #-} Agda.TypeChecking.Empty (ensureEmptyType)
-import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
@@ -70,7 +65,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Monad.Builtin
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -881,7 +875,7 @@ checkLHS mf = updateModality checkLHS_ where
              softTypeError $ SplitOnNonVariable v a
 
       let pos = size tel - (i+1)
-          (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel
+          (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- liftTCM $ expandLitPattern p
       case snd $ asView p of

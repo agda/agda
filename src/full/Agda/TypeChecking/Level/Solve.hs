@@ -12,7 +12,6 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars.Mention

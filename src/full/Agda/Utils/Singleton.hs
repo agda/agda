@@ -11,7 +11,6 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

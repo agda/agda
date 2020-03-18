@@ -9,7 +9,6 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
@@ -27,7 +26,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 

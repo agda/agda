@@ -17,7 +17,6 @@ import Prelude hiding (null, lookup, filter)
 
 
 import Data.Function
-import Data.Foldable (Foldable)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map

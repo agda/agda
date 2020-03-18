@@ -7,7 +7,6 @@ import Data.IORef
 import Data.Maybe (catMaybes)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common (Hiding(..), getHiding, Arg)
 import Agda.Syntax.Concrete (exprFieldA)

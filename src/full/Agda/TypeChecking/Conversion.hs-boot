@@ -5,7 +5,6 @@ import qualified Control.Monad.Fail as Fail
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Warnings
 import Agda.Utils.Except ( MonadError )
 

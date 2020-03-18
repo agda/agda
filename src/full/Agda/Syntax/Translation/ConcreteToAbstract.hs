@@ -25,8 +25,8 @@ import Control.Applicative
 import Control.Arrow (second)
 import Control.Monad.Reader hiding (mapM)
 
-import Data.Foldable (Foldable, traverse_)
-import Data.Traversable (mapM, traverse)
+import Data.Foldable (traverse_)
+import Data.Traversable (mapM)
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
@@ -186,7 +186,6 @@ recordConstructorType decls =
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
-          info    = ExprRange r
           mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
@@ -616,7 +615,7 @@ instance ToQName C.Name  where toQName = C.QName
 instance ToQName C.QName where toQName = id
 
 -- Should be a defined name.
-instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
+instance ToQName a => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (toQName x)
     case rx of
@@ -2067,7 +2066,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       _       -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
   toAbstract (C.CompilePragma _ rb x s) = do
-    let b = rangedThing rb
     me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
     case me of
       Nothing -> [] <$ notInScopeWarning x

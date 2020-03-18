@@ -15,7 +15,6 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
-import Control.DeepSeq
 import Control.Monad
 
 import qualified Data.List as List
@@ -23,15 +22,12 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Data.Data (Data)
-
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(throwError) )
-import Agda.Utils.Functor ((<&>))
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null

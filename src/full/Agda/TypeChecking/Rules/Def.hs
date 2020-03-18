@@ -14,7 +14,6 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
-import Data.Tuple ( swap )
 
 import Agda.Interaction.Options
 
@@ -27,11 +26,9 @@ import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Fixity
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Warnings ( warning )
 
@@ -526,8 +523,6 @@ checkSystemCoverage f [n] t cs = do
         phis = map (andI . (map dir)) alphas
         psi = orI $ phis
         pcs = zip phis cs
-        boolToI True = i1
-        boolToI False = i0
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
       interval <- elInf primInterval
@@ -684,6 +679,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
 
         -- check naturality wrt the interval.
         let
+          -- TODO:: Defined but not used
           iApplyVars :: [NamedArg DeBruijnPattern] -> [(Int, (Term,Term))]
           iApplyVars ps = flip concatMap (map namedArg ps) $ \case
                              IApplyP _ t u x -> [(dbPatVarIndex x,(t,u))]
@@ -842,6 +838,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       -- Thus, we restore the state in this case,
       -- unless the rewrite expression contains questionmarks.
       st <- getTC
+      -- TODO:: recurse defined but not used
       let recurse = do
            st' <- getTC
            -- Comparing the whole stInteractionPoints maps is a bit

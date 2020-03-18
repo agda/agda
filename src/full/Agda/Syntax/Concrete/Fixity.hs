@@ -20,8 +20,6 @@ import Data.Semigroup
 import Agda.Syntax.Builtin (builtinsNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 

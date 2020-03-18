@@ -32,7 +32,6 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe

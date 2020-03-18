@@ -934,8 +934,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
   withMetaInfo info $ do
     -- List of local variables.
     cxt <- getContext
-    let n         = length cxt
-        localVars = zipWith raise [1..] cxt
+    let localVars = zipWith raise [1..] cxt
     -- List of let-bindings.
     letVars <- Map.toAscList <$> asksTC envLetBindings
     -- Reify the types and filter out bindings without a name.

@@ -29,7 +29,6 @@ import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
 
-import Data.Foldable (Foldable, foldMap)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
@@ -37,12 +36,11 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (traverse, mapM)
+import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
@@ -55,7 +53,6 @@ import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))

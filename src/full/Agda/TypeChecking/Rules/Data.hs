@@ -8,8 +8,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
-import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -21,11 +19,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -164,8 +160,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- Return the data definition
             return dataDef{ dataPathCons = catMaybes pathCons }
 
-        let s      = dataSort dataDef
-            cons   = map A.axiomName cs  -- get constructor names
+        let cons   = map A.axiomName cs  -- get constructor names
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
@@ -754,7 +749,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
 
       -- Γ, i : I ⊢ [δ i] : Δ
-      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)
+      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params) -- Defined but not used
 
       -- Γ, i : I ⊢ Φ[δ i]
       fsT' = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)  `applySubst`
@@ -947,8 +942,6 @@ defineHCompForFields applyProj name params fsT fns rect = do
                        )
           u0 <- w0
           pure $ Def theName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
 
       -- (γ : Γ) ⊢ (flatten Φ)[n ↦ f_n (compR γ)]
       clause_types = parallelS [compTerm `applyProj` (unArg fn)
@@ -1083,7 +1076,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)
   where
-    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
     continue ps x = bindParameter npars ps x dom b ret
 
 bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a

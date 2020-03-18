@@ -2,8 +2,9 @@
 
 module Agda.TypeChecking.Conversion where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.Monad
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
@@ -21,7 +22,6 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -1534,6 +1534,7 @@ equalLevel' a b = do
           lvl <- levelType
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
+        -- NB:: Defined but not used: wrap
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \case
             TypeError{} -> notok
@@ -1657,9 +1658,6 @@ equalSort s1 s2 = do
                if | equal     -> return ()
                   | otherwise -> postpone
            | otherwise -> postpone
-
-      set0 = mkType 0
-      prop0 = mkProp 0
 
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
@@ -1791,6 +1789,7 @@ equalSort s1 s2 = do
       isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
       isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
       isBottomSort propEnabled _                      = False
+      -- (NB: Defined but not currently used)
 
       definitelyNotInf :: Sort -> Bool
       definitelyNotInf = \case

@@ -7,7 +7,6 @@ module Agda.TypeChecking.Reduce where
 import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 
-import Data.List ((\\))
 import Data.Maybe
 import Data.Map (Map)
 import Data.Traversable
@@ -25,7 +24,6 @@ import Agda.Syntax.Literal
 import {-# SOURCE #-} Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import {-# SOURCE #-} Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad hiding ( enterClosure, constructorForm )
-import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract

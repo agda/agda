@@ -25,9 +25,8 @@ import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse)
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
+import Agda.Syntax.Abstract (AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -51,7 +50,6 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
@@ -126,11 +124,6 @@ termDecl' d = case d of
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
     termDecls ds = concat <$> mapM termDecl' ds
-
-    unscopeDefs = concatMap unscopeDef
-
-    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
-    unscopeDef d = [d]
 
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.

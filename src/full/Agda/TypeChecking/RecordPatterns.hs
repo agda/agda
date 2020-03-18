@@ -37,7 +37,6 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
@@ -472,7 +471,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
-      rhsSubst = mkSub s'
+      rhsSubst = mkSub s' -- NB:: Defined but not used
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.

@@ -7,7 +7,6 @@ import Prelude hiding (null, map)
 
 import Text.Show.Functions () -- instance only
 
-import Data.Foldable (Foldable(foldMap))
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map

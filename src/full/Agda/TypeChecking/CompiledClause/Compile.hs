@@ -9,8 +9,6 @@ import Control.Monad.Trans.Identity
 
 import Data.Maybe
 import qualified Data.Map as Map
-import Data.List (nubBy)
-import Data.Function
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -18,7 +16,6 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute

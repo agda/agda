@@ -25,10 +25,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Literal
-import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute
@@ -546,7 +544,6 @@ primForce :: TCM PrimitiveImpl
 primForce = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   genPrimForce (nPi "x" (varT 3 1) $
                 nPi "y" (varT 4 2) (varEl 4 $ varM 2 <@> varM 0) -->
                 varEl 3 (varM 1 <@> varM 0)) $
@@ -556,7 +553,6 @@ primForceLemma :: TCM PrimitiveImpl
 primForceLemma = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   refl  <- primRefl
   force <- primFunName <$> getPrimitive "primForce"
   genPrimForce (nPi "x" (varT 3 1) $

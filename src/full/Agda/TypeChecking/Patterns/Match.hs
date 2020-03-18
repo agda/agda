@@ -10,7 +10,6 @@ import Prelude hiding (null)
 import Control.Monad
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -26,7 +25,6 @@ import Agda.TypeChecking.Records
 import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size

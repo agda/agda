@@ -39,7 +39,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Foldable as Fold
-import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -49,7 +48,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Info as A
-import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
@@ -76,7 +74,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Singleton
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

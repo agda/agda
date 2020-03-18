@@ -17,14 +17,12 @@
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Compiler.Treeless.Subst () --instance only
 import Agda.Utils.Impossible
@@ -129,9 +127,6 @@ transform BuiltinKit{..} = tr
 
                 nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
                                 TLet (tOp PSub (TVar e) (tInt k)) b
-
-                str err = compactS err [Nothing]
-
             TACon c 1 b | isPos c ->
               case tr b of
                 -- collapse nested nat patterns
@@ -158,7 +153,6 @@ transform BuiltinKit{..} = tr
                   TAGuard (tOp PLt (TVar e) (tInt (-k))) $
                   body $ TLet (tNegPlusK (k + 1) (TVar $ e + 1)) b
                 negsucBranch _ = __IMPOSSIBLE__
-
 
             TACon c a b -> [TACon c a (tr b)]
             TALit l b   -> [TALit l (tr b)]

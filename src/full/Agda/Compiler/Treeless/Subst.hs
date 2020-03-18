@@ -10,7 +10,6 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>), All(..), Any(..) )
 
 import Agda.Syntax.Treeless
-import Agda.Syntax.Internal (Substitution'(..))
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible

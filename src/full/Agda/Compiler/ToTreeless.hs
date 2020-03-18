@@ -10,7 +10,6 @@ import Control.Monad.Reader
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
