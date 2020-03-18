@@ -87,7 +87,7 @@ instance MonadMetaSolver TCM where
 --   @reverse@ is necessary because we are directly abstracting over the list.
 --
 findIdx :: Eq a => [a] -> a -> Maybe Int
-findIdx vs v = List.findIndex (==v) (reverse vs)
+findIdx vs v = List.elemIndex v (reverse vs)
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
@@ -109,7 +109,7 @@ isEtaExpandable kinds x = do
     i <- mvInstantiation <$> lookupMeta x
     return $ case i of
       Open{}                         -> True
-      OpenInstance{}                 -> notElem Records kinds
+      OpenInstance{}                 -> Records `notElem` kinds
       InstV{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
@@ -386,25 +386,34 @@ blockTermOnProblem t v pid =
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
     x   <- newMeta' (BlockedConst $ abstract tel v)
-                    Instantiable i lowMetaPriority (idP $ size tel)
+                    Instantiable
+                    i
+                    lowMetaPriority
+                    (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
     inTopContext $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext (prettyTCM $ abstract tel v)
-      , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
+      [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
+        (prettyTCM $ abstract tel v)
+      , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
+      ]
     inst <- isInstantiatedMeta x
-    case inst of
-      True  -> instantiate (MetaV x es)
-      False -> do
+    if inst
+      then instantiate (MetaV x es)
+      else do
         -- We don't return the blocked term instead create a fresh metavariable
         -- that we compare against the blocked term once it's unblocked. This way
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
         (m', v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-        reportSDoc "tc.meta.blocked" 30 $ "setting twin of" <+> prettyTCM m' <+> "to be" <+> prettyTCM x
-        updateMetaVar m' (\ mv -> mv { mvTwin = Just x })
+        reportSDoc "tc.meta.blocked" 30
+          $   "setting twin of"
+          <+> prettyTCM m'
+          <+> "to be"
+          <+> prettyTCM x
+        updateMetaVar m' (\mv -> mv { mvTwin = Just x })
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
@@ -802,8 +811,9 @@ assign dir x args v target = do
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
             let boundVars = VarSet.fromList $ map fst ids
-            if | fvs `VarSet.isSubsetOf` boundVars -> return $ Just ids
-               | otherwise                         -> return Nothing
+            if fvs `VarSet.isSubsetOf` boundVars
+              then return $ Just ids
+              else return Nothing
           -- we have proper values as arguments which could be cased on
           -- here, we cannot prune, since offending vars could be eliminated
           Left CantInvert  -> return Nothing
@@ -1402,7 +1412,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                | isIrrelevant info = return vars
                | otherwise                              = failure
           irrProj <- optIrrelevantProjections <$> pragmaOptions
-          (lift $ isRecordConstructor $ conName c) >>= \case
+          lift (isRecordConstructor $ conName c) >>= \case
             Just (_, r@Record{ recFields = fs })
               | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
               , length fs == length es

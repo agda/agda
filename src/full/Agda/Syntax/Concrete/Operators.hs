@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
@@ -20,6 +21,7 @@ module Agda.Syntax.Concrete.Operators
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
 import Control.Monad
+import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
@@ -51,6 +53,8 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
@@ -112,7 +116,7 @@ localNames flat = do
     localOp (x, y) = namesToNotation (QName x) y
     split ops      = partitionEithers $ concatMap opOrNot ops
     opOrNot n      = Left (notaName n) :
-                     if null (notation n) then [] else [Right n]
+                     [Right n | not (null (notation n))]
 
 -- | A data structure used internally by 'buildParsers'.
 data InternalParsers e = InternalParsers
@@ -337,7 +341,7 @@ buildParsers kind exprNames = do
         -- level comes first.
         relatedOperators :: [(PrecedenceLevel, [NotationSection])]
         relatedOperators =
-          map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
+          map (\((l, ns) : rest) -> (l, ns ++ concatMap snd rest)) .
           List.groupBy ((==) `on` fst) .
           List.sortBy (compare `on` fst) .
           mapMaybe (\n -> case level n of
@@ -362,21 +366,19 @@ buildParsers kind exprNames = do
     let g = Data.Function.fix $ \p -> InternalParsers
               { pTop    = memoise TopK $
                           Fold.asum $
-                            foldr ($) (pApp p)
-                              (map (\(l, ns) higher ->
+                            foldr (\(l, ns) higher ->
                                        mkP (Right l) parseSections
-                                           (pTop p) ns higher True)
-                                   relatedOperators) :
-                            map (\(k, n) ->
+                                           (pTop p) ns higher True) (pApp p)
+                                   relatedOperators :
+                            zipWith (\ k n ->
                                     mkP (Left k) parseSections
-                                        (pTop p) [n] (pApp p) False)
-                                (zip [0..] unrelatedOperators)
+                                        (pTop p) [n] (pApp p) False) [0..] unrelatedOperators
               , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
               , pArgs   = argsP (pNonfix p)
               , pNonfix = memoise NonfixK $
                           Fold.asum $
                             pAtom p :
-                            flip map nonWithSections (\sect ->
+                            map (\sect ->
                               let n = sectNotation sect
 
                                   inner :: forall k. NK k ->
@@ -394,7 +396,7 @@ buildParsers kind exprNames = do
                                   flip ($) <$> placeholder Beginning
                                            <*> inner Post
                                 NonfixNotation -> inner Non
-                                NoNotation     -> __IMPOSSIBLE__)
+                                NoNotation     -> __IMPOSSIBLE__) nonWithSections
               , pAtom   = atomP isAtom
               }
 
@@ -616,13 +618,15 @@ parseLHS' lhsOrPatSyn top p = do
     let flds = getNames (someKindsOfNames [FldName])
                         (flattenedScope patP)
     let conf = PatternCheckConfig top cons flds
-    case mapMaybe (validPattern conf) ps of
+
+    let (errs, results) = partitionEithers $ map (validPattern conf) ps
+    case results of
         -- Unique result.
         [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
                         return (lhs, operators patP)
         -- No result.
         []        -> typeError $ OperatorInformation (operators patP)
-                               $ NoParseForLHS lhsOrPatSyn p
+                               $ NoParseForLHS lhsOrPatSyn (catMaybes errs) p
         -- Ambiguous result.
         rs        -> typeError $ OperatorInformation (operators patP)
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
@@ -632,12 +636,13 @@ parseLHS' lhsOrPatSyn top p = do
           map (notaName . head) $ getDefinedNames kinds flat
 
         -- The pattern is retained for error reporting in case of ambiguous parses.
-        validPattern :: PatternCheckConfig -> Pattern -> Maybe (Pattern, ParseLHS)
-        validPattern conf p =
-          case (classifyPattern conf p, top) of
-            (Just res@Left{}, Nothing) -> Just (p, res)  -- expect pattern
-            (Just res@Right{}, Just{}) -> Just (p, res)  -- expect lhs
-            _ -> Nothing
+        validPattern :: PatternCheckConfig -> Pattern -> PM (Pattern, ParseLHS)
+        validPattern conf p = do
+          res <- classifyPattern conf p
+          case (res, top) of
+            (Left{}, Nothing) -> return (p, res)  -- expect pattern
+            (Right{}, Just{}) -> return (p, res)  -- expect lhs
+            _ -> throwError Nothing
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
@@ -646,14 +651,20 @@ data PatternCheckConfig = PatternCheckConfig
   , fldNames :: [QName]     -- ^ Valid field names.
   }
 
+-- | The monad for pattern checking and classification.
+--
+--   The error message is either empty or a subpattern that was found to be invalid.
+type PM = Either (Maybe Pattern)
+
 -- | Returns zero or one classified patterns.
-classifyPattern :: PatternCheckConfig -> Pattern -> Maybe ParseLHS
+--   In case of zero, return the offending subpattern.
+classifyPattern :: PatternCheckConfig -> Pattern -> PM ParseLHS
 classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
-      guard $ all validPat ps
+      mapM_ (validConPattern isCon . namedArg) ps
       return $ Right (x, lhsCoreAddSpine (LHSHead x []) ps)
 
     -- case @d ps@
@@ -661,24 +672,29 @@ classifyPattern conf p =
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
-      (p2, ps3) <- uncons rest -- when (null rest): no field pattern or def pattern found
-      guard $ all (isLeft . namedArg) ps3
+      (p2, ps3) <- maybeToEither Nothing $ uncons rest -- when (null rest): no field pattern or def pattern found
+
+      -- Ensure that the @ps3@ are patterns (@Left@) rather than lhss (@Right@).
+      mapM_ (either return (const $ throwError Nothing) . namedArg) ps3
+
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
       return $ Right (f, lhsCoreAddSpine (LHSProj x ps' lhs []) ps'')
 
     -- case: ordinary pattern
     _ -> do
-      guard $ validConPattern (conNames conf) p
+      validConPattern isCon p
       return $ Left p
 
-  where -- allNames = conNames conf ++ fldNames conf
-        validPat = validConPattern (conNames conf) . namedArg
-        classPat :: NamedArg Pattern -> Maybe (NamedArg ParseLHS)
-        classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
-        fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
-        fromR (Arg info (Named n (Right (b, c)))) = (b, Arg info (Named n c))
-        fromR (Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
+  where
+  isCon = hasElem $ conNames conf
+
+  classPat :: NamedArg Pattern -> PM (NamedArg ParseLHS)
+  classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
+
+  fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
+  fromR (Arg info (Named n (Right (b, c)))) = (b, Arg info (Named n c))
+  fromR (Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
 
 
 
@@ -689,7 +705,7 @@ parseLHS top p = billToParser IsPattern $ do
   case res of
     Right (f, lhs) -> return lhs
     _ -> typeError $ OperatorInformation ops
-                   $ NoParseForLHS IsLHS p
+                   $ NoParseForLHS IsLHS [] p
 
 -- | Parses a pattern.
 parsePattern :: Pattern -> ScopeM Pattern
@@ -704,32 +720,56 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
   case res of
     Left p -> return p
     _      -> typeError $ OperatorInformation ops
-                        $ NoParseForLHS lhsOrPatSyn p
+                        $ NoParseForLHS lhsOrPatSyn [] p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
-validConPattern :: [QName] -> Pattern -> Bool
-validConPattern cons p = case appView p of
-    [WithP _ p]   -> validConPattern cons p
-    [_]           -> True
-    IdentP x : ps -> elem x cons && all (validConPattern cons) ps
-    [QuoteP _, _] -> True
-    DotP _ e : ps -> all (validConPattern cons) ps
-    _             -> False
--- Andreas, 2012-06-04: I do not know why the following line was
--- the catch-all case.  It seems that the new catch-all works also
--- and is more logical.
---    ps            -> all (validConPattern cons) ps
+--
+--   Returns a subpattern that is not a valid constructor pattern
+--   or nothing if the whole pattern is a valid constructor pattern.
+validConPattern
+  :: (QName -> Bool)     -- ^ Test for constructor name.
+  -> Pattern             -- ^ Supposedly a constructor pattern.
+  -> PM ()   -- ^ Offending subpattern or nothing.
+validConPattern cons = loop
+  where
+  loop p = case appView p of
+      WithP _ p :| [] -> loop p
+      _ :| []         -> ok
+      IdentP x :| ps
+        | cons x      -> mapM_ loop ps
+        | otherwise   -> failure
+      QuoteP _ :| [_] -> ok
+      DotP _ e :| ps  -> mapM_ loop ps
+      _               -> failure
+    where
+    ok      = return ()
+    failure = throwError $ Just p
+
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
-appView :: Pattern -> [Pattern]
-appView p = case p of
-    AppP p a         -> appView p ++ [namedArg a]
-    OpAppP _ op _ ps -> IdentP op : map namedArg ps
-    ParenP _ p       -> appView p
+appView :: Pattern -> List1 Pattern
+appView = loop []
+  where
+  loop acc = \case
+    AppP p a         -> loop (namedArg a : acc) p
+    OpAppP _ op _ ps -> IdentP op :| map namedArg ps `mappend` reverse acc
+    ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__
     InstanceP _ _    -> __IMPOSSIBLE__
-    _                -> [p]
+    p@IdentP{}       -> ret p
+    p@WildP{}        -> ret p
+    p@AsP{}          -> ret p
+    p@AbsurdP{}      -> ret p
+    p@LitP{}         -> ret p
+    p@QuoteP{}       -> ret p
+    p@DotP{}         -> ret p
+    p@RecP{}         -> ret p
+    p@EqualP{}       -> ret p
+    p@EllipsisP{}    -> ret p
+    p@WithP{}        -> ret p
+   where
+   ret p = p :| reverse acc
 
 -- | Return all qualifiers occuring in a list of 'QName's.
 --   Each qualifier is returned as a list of names, e.g.

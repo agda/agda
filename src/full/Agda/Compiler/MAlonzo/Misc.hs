@@ -187,7 +187,7 @@ rtmVar  = HS.Var . rtmQual
 
 rtmError :: String -> HS.Exp
 rtmError s = rtmVar "error" `HS.App`
-             (HS.Lit $ HS.String $ "MAlonzo Runtime Error: " ++ s)
+             HS.Lit (HS.String $ "MAlonzo Runtime Error: " ++ s)
 
 unsafeCoerceMod :: HS.ModuleName
 unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"

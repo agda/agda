@@ -88,11 +88,11 @@ prettyWarning wng = case wng of
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
+        $$ nest 2 (fsep $ punctuate comma $
              map (pretty . dropTopLevel) $
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . List.nub) $
+        $$ nest 2 (fmap (P.vcat . List.nub) $
               mapM prettyTCM $ List.sortBy (compare `on` callInfoRange) $
               concatMap termErrCalls because)
 
@@ -110,9 +110,9 @@ prettyWarning wng = case wng of
           empty { clauseTel = tel, namedClausePats = ps }
 
     CoverageNoExactSplit f cs -> vcat $
-      [ fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
-               pwords "could not be preserved as definitional equalities in the translation to a case tree:"
-      ] ++
+      fsep (pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
+            pwords "could not be preserved as definitional equalities in the translation to a case tree:"
+           ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
 
     NotStrictlyPositive d ocs -> fsep $
@@ -249,12 +249,11 @@ prettyWarning wng = case wng of
 
     RewriteMaybeNonConfluent lhs1 lhs2 cs -> do
       vcat $
-        [ fsep
+        fsep
            [ "Couldn't determine overlap between left-hand sides"
            , prettyTCM lhs1 , "and" , prettyTCM lhs2
            , "because of unsolved constraints:"
-           ]
-        ] ++ map (nest 2 . return) cs
+           ] : map (nest 2 . return) cs
 
     PragmaCompileErased bn qn -> fsep $
       pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
@@ -271,7 +270,7 @@ prettyWarning wng = case wng of
              ]
       suggestion inscope x = nest 2 $ par $
         [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
-        [ "did you forget space around the '->'?" | List.isInfixOf "->" s ] ++
+        [ "did you forget space around the '->'?" | "->" `List.isInfixOf` s ] ++
         [ sep [ "did you mean"
               , nest 2 $ vcat (punctuate " or"
                        $ map (\ y -> text $ "'" ++ y ++ "'") ys)
@@ -305,7 +304,7 @@ filterTCWarnings = \case
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
   ws  -> (`filter` ws) $ \ w -> case tcWarning w of
-    UnsolvedConstraints cs -> not $ null $ filter interestingConstraint cs
+    UnsolvedConstraints cs -> any interestingConstraint cs
     _ -> True
 
 

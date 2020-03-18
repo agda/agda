@@ -433,9 +433,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           OpenInstance{}  -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
     reify (FindInstance m _b mcands) = FindInstanceOF
-      <$> (reify $ MetaV m [])
+      <$> reify (MetaV m [])
       <*> (reify =<< getMetaType m)
-      <*> (forM (fromMaybe [] mcands) $ \ (Candidate tm ty _) -> do
+      <*> forM (fromMaybe [] mcands) (\ (Candidate tm ty _) -> do
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
@@ -1049,7 +1049,7 @@ introTactic pmLambda ii = do
         let okHiding0 h = imp || h == NotHidden
             -- if none of the vars were displayed, we would get a parse error
             -- thus, we switch to displaying all
-            allHidden   = null (filter okHiding0 hs)
+            allHidden   = not (any okHiding0 hs)
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
                 (if allHidden then withShowAllArguments else id) $
@@ -1213,7 +1213,7 @@ getRecordContents norm ce = do
         , "  cxt  = " TP.<+> (prettyTCM =<< getContextTelescope)
         , "  tel  = " TP.<+> prettyTCM tel
         , "  doms = " TP.<+> prettyTCM doms
-        , "  doms'= " TP.<+> (addContext tel $ prettyTCM doms)
+        , "  doms'= " TP.<+> addContext tel (prettyTCM doms)
         ]
       ts <- mapM (normalForm norm . unDom) doms
       return ([], tel, zip xs ts)

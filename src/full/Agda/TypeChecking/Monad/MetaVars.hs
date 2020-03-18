@@ -14,6 +14,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -256,7 +257,8 @@ constraintMetas c = metas c
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
-      UnquoteTactic m t h g    -> return $ Set.fromList [x | Just x <- [m]] `Set.union` allMetas Set.singleton (t, h, g)
+      UnquoteTactic m t h g    -> return $ (maybe Set.empty Set.singleton m) `Set.union`
+                                           allMetas Set.singleton (t, h, g)
       Guarded c _              -> metas c
       TelCmp _ _ _ tel1 tel2   -> return $ allMetas Set.singleton (tel1, tel2)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)

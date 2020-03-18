@@ -369,7 +369,7 @@ defineCompData d con params names fsT t boundary = do
     defineTranspOrHCompD cmd d con params names fsT t boundary = do
       let project = (\ t p -> apply (Def p []) [argN t])
       stuff <- defineTranspOrHCompForFields cmd
-                 (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
+                 (guard (not $ null boundary) >> Just (Con con ConOSystem $ teleElims fsT boundary))
                  project d params fsT (map argN names) t
       caseMaybe stuff (return Nothing) $ \ ((theName, gamma , ty, _cl_types , bodies), theSub) -> do
 
@@ -434,7 +434,7 @@ defineCompData d con params names fsT t boundary = do
               ineg r = pure tINeg <@> r
               lvlOfType = (\ (Type l) -> Level l) . getSort
               pOr la i j u0 u1 = pure tPOr <#> (lvlOfType <$> la) <@> i <@> j
-                                           <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
+                                           <#> ilam "o" (\ _ -> unEl <$> la) <@> u0 <@> u1
               absAp x y = liftM2 absApp x y
 
               mkFace (r,(u1,u2)) = runNamesT [] $ do
@@ -450,8 +450,8 @@ defineCompData d con params names fsT t boundary = do
                   let
                     -- Γ, i ⊢ squeeze u = primTrans (\ j -> ty [i := i ∨ j]) (φ ∨ i) u
                     squeeze u = cl primTrans
-                                          <#> (lam "j" $ \ j -> lvlOfType <$> ty `absAp` (imax i j))
-                                          <@> (lam "j" $ \ j -> unEl <$> ty `absAp` (imax i j))
+                                          <#> lam "j" (\ j -> lvlOfType <$> ty `absAp` (imax i j))
+                                          <@> lam "j" (\ j -> unEl <$> ty `absAp` (imax i j))
                                           <@> (phi `imax` i)
                                           <@> u
                   alpha <- pOr (ty `absAp` i)
@@ -890,7 +890,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   theType <- (abstract delta <$>) $ runNamesT [] $ do
               rect <- open $ fromLType rect
               nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
+               nPi' "i" (elInf $ cl primInterval) (\ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 
@@ -936,9 +936,9 @@ defineHCompForFields applyProj name params fsT fns rect = do
           u <- lam "j" (\ j -> pure por <#> lvl
                                         <@> phi
                                         <@> (pure ineg <@> i)
-                                        <#> (lam "_" $ \ o -> rect)
+                                        <#> lam "_" (\ o -> rect)
                                         <@> (w <@> (pure imin <@> i <@> j))
-                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
+                                        <@> lam "_" (\ o -> w0) -- TODO wait for i = 0
                        )
           u0 <- w0
           pure $ Def theName [] `apply` (args ++ [argN psi, argN u, argN u0])
@@ -960,13 +960,13 @@ defineHCompForFields applyProj name params fsT fns rect = do
   comp <- do
         let
           imax i j = pure tIMax <@> i <@> j
-        let forward la bA r u = pure transp <#> (lam "i" $ \ i -> la <@> (i `imax` r))
-                                            <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+        let forward la bA r u = pure transp <#> lam "i" (\ i -> la <@> (i `imax` r))
+                                            <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
           pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                      <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                      <@> lam "i" (\ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0
   let

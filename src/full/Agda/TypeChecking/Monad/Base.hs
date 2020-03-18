@@ -860,7 +860,7 @@ instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
-  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
 
 instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
   runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
@@ -2130,7 +2130,7 @@ funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
   f (Set.member flag flags) <&>
   \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
-funFlag _ f def = f False <&> const def
+funFlag _ f def = f False $> def
 
 funStatic, funInline, funMacro :: Lens' Bool Defn
 funStatic       = funFlag FunStatic
@@ -3450,8 +3450,11 @@ data TypeError
     -- Operator errors
         | NoParseForApplication [C.Expr]
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
-        | NoParseForLHS LHSOrPatSyn C.Pattern
+        | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
+            -- ^ The list contains patterns that failed to be interpreted.
+            --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+            -- ^ Pattern and its possible interpretations.
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
@@ -3912,7 +3915,7 @@ instance MonadIO m => Functor (TCMT m) where
   fmap = fmapTCMT
 
 fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
-fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
+fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
 instance MonadIO m => Applicative (TCMT m) where
@@ -4175,8 +4178,8 @@ generalizedFieldName = ".generalizedField-"
 -- | Check whether we have a generalized variable field
 getGeneralizedFieldName :: A.QName -> Maybe String
 getGeneralizedFieldName q
-  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
-  | otherwise                                    = Nothing
+  | generalizedFieldName `List.isPrefixOf` strName = Just (drop (length generalizedFieldName) strName)
+  | otherwise                                      = Nothing
   where strName = prettyShow $ nameConcrete $ qnameName q
 
 ---------------------------------------------------------------------------

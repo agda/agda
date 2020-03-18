@@ -218,7 +218,7 @@ instance LensInScope NameInScope where
 instance LensInScope Name where
   lensInScope f = \case
     n@Name{ nameInScope = nis } -> (\nis' -> n { nameInScope = nis' }) <$> f nis
-    n@NoName{} -> const n <$> f InScope
+    n@NoName{} -> n <$ f InScope
 
 instance LensInScope QName where
   lensInScope f = \case
@@ -343,9 +343,10 @@ moduleNameToFileName (TopLevelModuleName _ ms) ext =
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
-  foldr (.) id (replicate (length m - 1) takeDirectory) $
-  takeDirectory $
-  filePath file
+    foldr
+      ($)
+      (takeDirectory $ filePath file)
+      (replicate (length m - 1) takeDirectory)
 
 ------------------------------------------------------------------------
 -- * No name stuff

@@ -123,9 +123,9 @@ data SplitPatVar = SplitPatVar
 
 instance Pretty SplitPatVar where
   prettyPrec _ x =
-    (text $ patVarNameToString (splitPatVarName x)) <>
-    (text $ "@" ++ show (splitPatVarIndex x)) <>
-    (ifNull (splitExcludedLits x) empty $ \lits ->
+    text (patVarNameToString (splitPatVarName x)) <>
+    text ("@" ++ show (splitPatVarIndex x)) <>
+    ifNull (splitExcludedLits x) empty (\lits ->
       "\\{" <> prettyList_ lits <> "}")
 
 instance PrettyTCM SplitPatVar where
@@ -468,15 +468,17 @@ isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
 isLitP (LitP _ l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
-  _     -> return $ Nothing
+  _ -> return $ Nothing
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-  if | c == zero -> return $ Just $ LitNat (getRange c) 0
-     | otherwise -> return Nothing
+  if c == zero
+    then return $ Just $ LitNat (getRange c) 0
+    else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
   Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
-  if | c == suc  -> fmap inc <$> isLitP (namedArg a)
-     | otherwise -> return Nothing
+  if c == suc
+    then fmap inc <$> isLitP (namedArg a)
+    else return Nothing
   where
     inc :: Literal -> Literal
     inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1

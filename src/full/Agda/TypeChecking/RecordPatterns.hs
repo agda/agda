@@ -58,7 +58,7 @@ import Agda.Utils.Impossible
 recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
-    VarP{}       -> return [ \ x -> x ]
+    VarP{}       -> return [ id ]
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
@@ -399,7 +399,7 @@ translateSplitTree t = snd <$> loop t
       -- invariant: if record constructor, then exactly one constructor
       if x then unless (rs == [True]) __IMPOSSIBLE__
       -- else no record constructor
-       else unless (or rs == False) __IMPOSSIBLE__
+       else when (or rs) __IMPOSSIBLE__
       return (x, conjColumns xss, ts)
 
 -- | @dropFrom i n@ drops arguments @j@  with @j < i + n@ and @j >= i@.

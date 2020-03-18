@@ -194,7 +194,7 @@ showQNameId q = show ns ++ "@" ++ show m
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName
 qnameToConcrete (QName m x) =
-  foldr C.Qual (C.QName $ nameConcrete x) $ map nameConcrete $ mnameToList m
+   foldr (C.Qual . nameConcrete) (C.QName $ nameConcrete x) (mnameToList m)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?

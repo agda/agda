@@ -164,7 +164,7 @@ updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs0
-  | null $ filter properlyMatchingClause cs = do
+  | not (any properlyMatchingClause cs) = do
       reportSLn "tc.inj.check.pointless" 35 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective

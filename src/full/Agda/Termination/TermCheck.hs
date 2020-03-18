@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 
@@ -556,7 +556,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 --   termToPattern t = unnamed <$> termToPattern t
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = (liftTCM $ constructorForm t) >>= \case
+  termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
@@ -979,7 +979,7 @@ maskSizeLt !dom = liftTCM $ do
       TelV tel c <- telView a
       case a of
         El s (Def d [v]) | d == sizelt -> return $
-          (abstract tel $ El s $ Def size []) <$ dom
+          abstract tel (El s $ Def size []) <$ dom
         _ -> return dom
 
 {- | @compareArgs es@

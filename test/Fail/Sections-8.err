@@ -1,5 +1,6 @@
 Sections-8.agda:5,1-17
 Could not parse the left-hand side Test ((⟨_⟩ X) _)
+Problematic expression: ((⟨_⟩ X) _)
 Operators used in the grammar:
   ⟨_⟩ (prefix operator, level 20) [⟨_⟩_ (Sections-8.agda:2,3-7)]
 when scope checking the left-hand side Test ((⟨_⟩ X) _) in the

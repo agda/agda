@@ -542,8 +542,8 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
         addMod  x y rec = modify $ \ i -> i { memoModules = (x, (y, rec)) : filter ((/= x) . fst) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = lookup x <$> gets memoNames -- NB:: Defined but not used
-        findMod  x = lookup x <$> gets memoModules
+        findName x = gets (lookup x . memoNames) -- NB:: Defined but not used
+        findMod  x = gets (lookup x . memoModules)
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
@@ -570,9 +570,9 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           -- would break the invariant that all functions in a module share the
           -- module telescope. Instead we copy M1.M2.X to M.M2.X for a fresh
           -- module M2 that gets the right telescope.
-          m <- case x `isInModule` old of
-                 True  -> return new'
-                 False -> renMod' False (qnameModule x)
+          m <- if x `isInModule` old
+                 then return new'
+                 else renMod' False (qnameModule x)
                           -- Don't copy recursively here, we only know that the
                           -- current name x should be copied.
           -- Generate a fresh name for the target.
@@ -685,13 +685,11 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- Efficient test of whether a module import should be added to the import
     -- of a definition (like a data or record definition).
-    let extra x = and
-          [ inNames       $ ImportedName   x
-          , notMissing    $ ImportedModule x
-          , not . inNames $ ImportedModule x
-              -- The last test implies that @hiding (module M)@ prevents @module M@
-              -- from entering the @using@ list in @addExtraModule@.
-          ]
+    let extra x = inNames (ImportedName   x)
+               && notMissing (ImportedModule x)
+               && (not . inNames $ ImportedModule x)
+                  -- The last test implies that @hiding (module M)@ prevents @module M@
+                  -- from entering the @using@ list in @addExtraModule@.
 
     dir' <- sanityCheck (not . inNames) $ addExtraModules extra dir
 
@@ -873,7 +871,7 @@ openModule kind mam cm dir = do
   verboseS "scope.locals" 10 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
-        shadowed = List.intersect locals newdefs
+        shadowed = locals `List.intersect` newdefs
     reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
   -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
   modifyLocalVars $ AssocList.mapWithKey $ \ c x ->

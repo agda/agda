@@ -248,7 +248,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
   defaultName = rootNameModule file
 
 parseFileExtsShortList :: [String]
-parseFileExtsShortList = [".agda"] ++ literateExtsShortList
+parseFileExtsShortList = ".agda" : literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripSuffix ext s

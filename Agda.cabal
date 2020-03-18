@@ -191,6 +191,7 @@ library
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.9.0.0 && < 4.15
+                , bifunctors >= 5.4 && < 6.1
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -557,6 +558,7 @@ library
                     Agda.Utils.Lens
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
+                    Agda.Utils.List1
                     Agda.Utils.ListT
                     Agda.Utils.Map
                     Agda.Utils.Maybe
@@ -806,6 +808,7 @@ test-suite agda-tests
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
+                , ieee754 >= 0.7.8 && < 0.9
                 , mtl >= 2.2.1 && < 2.3
                 , process >= 1.4.2.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8

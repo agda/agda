@@ -4,7 +4,7 @@ module Agda.Auto.CaseSplit where
 
 import Data.IORef
 import Data.Tuple (swap)
-import Data.List (findIndex)
+import Data.List (elemIndex)
 import Data.Monoid ((<>), Sum(..))
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
@@ -79,8 +79,7 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
                       , rieEqReasoningConsts = meqr
                       }
       depreached <- topSearch ticks nsol hsol env initcon depth (depth + 1)
-      rsol <- readIORef sol
-      return rsol
+      readIORef sol
      ctx' = ff 1 ctx
      ff _ [] = []
      ff n (HI hid (id, t) : ctx) = HI hid (id, lift n t) : ff (n + 1) ctx
@@ -91,8 +90,7 @@ caseSplitSearch' :: forall o .
   Int -> Cost -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
   recdefd <- readIORef recdef
-  sols <- rc depth (cddeffreevars recdefd) ctx tt pats
-  return sols
+  rc depth (cddeffreevars recdefd) ctx tt pats
  where
   rc :: Cost -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
   rc depth _ _ _ _ | depth < 0 = return []
@@ -163,9 +161,9 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
               ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx) ++
-                     reverse (map (\(((hid, _), id, t), i) ->
+                     reverse (zipWith (\((hid, _), id, t) i ->
                        HI hid (Id (case id of {NoId -> newvarprefix{- ++ show i-}; Id id -> id}), t)
-                      ) (zip newvars [0..])) ++
+                      ) newvars [0..]) ++
                      map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (scrut + 1) ctx)
               tt' = thesub tt
               pats' = map (replacep scrut (length newvars) pconstrapp constrapp) pats
@@ -181,13 +179,15 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
             do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
-                 cost = if null mblkvar then
-                         if scrut < length ctx - nscrutavoid && nothid
-                         then costCaseSplitLow + costAddVarDepth
-                              * Cost (depthofvar scrut pats)
-                         else costCaseSplitVeryHigh
-                        else
-                         if scrut `elem` mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
+                 cost
+                   | null mblkvar && scrut < length ctx - nscrutavoid && nothid
+                                                                = costCaseSplitLow +
+                                                                  costAddVarDepth *
+                                                                  Cost (depthofvar scrut pats)
+                   | null mblkvar                               = costCaseSplitVeryHigh
+                   | scrut `elem` mblkvar                       = costCaseSplitLow
+                   | scrut < length ctx - nscrutavoid && nothid = costCaseSplitHigh
+                   | otherwise                                  = costCaseSplitVeryHigh
 
                  nothid = let HI hid _ = ctx !! scrut
                           in hid == NotHidden
@@ -198,7 +198,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               [] -> return []
               _ -> do
                sols2 <- dobranches cons
-               return $ concat (map (\sol -> map (\sol2 -> sol ++ sol2) sols2) sols)
+               return $ concatMap (\sol -> map (\sol2 -> sol ++ sol2) sols2) sols
        _ -> return [] -- split failed "scrut type is not datatype"
      _ -> return [] -- split failed "scrut type is not datatype"
 
@@ -272,13 +272,9 @@ replacep sv nnew rp re = r
  where
   r :: CSPat o -> CSPat o
   r (HI hid (CSPatConApp c ps)) = HI hid (CSPatConApp c (map r ps))
-  r (HI hid (CSPatVar v)) = if v == sv then
-                    HI hid rp
-                   else
-                    if v > sv then
-                     HI hid (CSPatVar (v + nnew - 1))
-                    else
-                     HI hid (CSPatVar v)
+  r (HI hid (CSPatVar v)) | v == sv   = HI hid rp
+                          | v > sv    = HI hid (CSPatVar (v + nnew - 1))
+                          | otherwise = HI hid (CSPatVar v)
   r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ replace sv nnew re e)
 
   r p@(HI _ CSOmittedArg) = p
@@ -460,7 +456,7 @@ applyperm perm ctx tt pats =
  in (ctx3, tt', pats')
 
 ren :: [Nat] -> Nat -> Int
-ren n i = let Just j = findIndex (== i) n in j
+ren n i = let Just j = elemIndex i n in j
 
 instance Renaming t => Renaming (HI t) where
   renameOffset j ren (HI hid t) = HI hid $ renameOffset j ren t
@@ -484,7 +480,7 @@ depthofvar :: Nat -> [CSPat o] -> Nat
 depthofvar v pats =
  let [depth] = concatMap (f 0) (drophid pats)
      f d (CSPatConApp _ pats) = concatMap (f (d + 1)) (drophid pats)
-     f d (CSPatVar v') = if v == v' then [d] else []
+     f d (CSPatVar v') = [d | v == v']
      f _ _ = []
  in depth
 

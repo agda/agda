@@ -12,14 +12,12 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal.Generic
--- import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.Interaction.Options
 
 import Agda.TypeChecking.Primitive hiding (Nat)
--- import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records

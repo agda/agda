@@ -69,7 +69,7 @@ pure2 :: Applicative f => a -> f (a, a)
 pure2 a = pure (a, a)
 
 (<**>) :: Applicative f => f (a -> b, a -> b) -> f (a, a) -> f (b, b)
-ff <**> xx = pure (uncurry (***)) <*> ff <*> xx
+ff <**> xx = (uncurry (***)) <$> ff <*> xx
 
 -- | Instantiate full as long as things are equal
 class SynEq a where
@@ -78,7 +78,7 @@ class SynEq a where
   synEq' a a' = ifEqual (uncurry synEq) (a, a')
 
 instance SynEq Bool where
-  synEq x y | x == y = return (x, y)
+  synEq x y | x == y    = return (x, y)
   synEq x y | otherwise = inequal (x, y)
 
 -- | Syntactic term equality ignores 'DontCare' stuff.

@@ -608,44 +608,48 @@ generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let mod = toTopLevelModuleName $ iModuleName i
       hi  = iHighlighting i
-
   options <- TCM.commandLineOptions
-
-  dir <- case O.optGHCiInteraction options of
-    False -> return $ O.optLaTeXDir options
-    True  -> do
-      sourceFile <- Find.srcFilePath <$> Find.findFile mod
-      return $ filePath (projectRoot sourceFile mod)
-                 </> O.optLaTeXDir options
+  dir <-
+    if O.optGHCiInteraction options
+      then do
+             sourceFile <- Find.srcFilePath <$> Find.findFile mod
+             return $ filePath (projectRoot sourceFile mod) </> O.optLaTeXDir options
+      else
+             return $ O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
-
-  (code, _, _) <- liftIO $ readProcessWithExitCode
-                    "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ] ""
-
+  (code, _, _) <-
+    liftIO $
+      readProcessWithExitCode
+        "kpsewhich"
+        ["--path=" ++ dir, defaultStyFile]
+        ""
   when (code /= ExitSuccess) $ do
-    TCM.reportS "compile.latex" 1
-      [ defaultStyFile ++ " was not found. Copying a default version of " ++
-          defaultStyFile
-      , "into " ++ dir ++ "."
+    TCM.reportS
+      "compile.latex"
+      1
+      [ defaultStyFile
+          ++ " was not found. Copying a default version of "
+          ++ defaultStyFile,
+        "into " ++ dir ++ "."
       ]
-
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
       liftIO $ copyFile styFile (dir </> defaultStyFile)
-
   let outPath = modToFile mod
-  inAbsPath <- liftM filePath (Find.srcFilePath <$> Find.findFile mod)
-
+  inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile mod)
   liftIO $ do
-    latex <- E.encodeUtf8 `fmap`
-               toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
-                       (mkAbsolute inAbsPath) (iSource i) hi
+    latex <-
+      E.encodeUtf8
+        `fmap` toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
+                       (mkAbsolute inAbsPath)
+                       (iSource i)
+                       hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
-  where
-    modToFile :: TopLevelModuleName -> FilePath
-    modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
+ where
+  modToFile :: TopLevelModuleName -> FilePath
+  modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =
@@ -664,61 +668,60 @@ toLaTeX
   -> L.Text
   -> HighlightingInfo
   -> IO L.Text
-toLaTeX cc path source hi
+toLaTeX cc path source hi =
 
-  = processTokens cc
+  processTokens cc
 
-  . map (\(role, tokens) -> (role,) $
-      -- This bit fixes issue 954
-      (if L.isCode role then
-        -- Remove trailing whitespace from the
-        -- final line; the function spaces
-        -- expects trailing whitespace to be
-        -- followed by a newline character.
-        whenMoreThanOne
-          (withLast $
-            withTokenText $ \suf ->
-              fromMaybe suf $
-                fmap (T.dropWhileEnd isSpaceNotNewline) $
-                  T.stripSuffix "\n" suf)
-        .
-        (withLast $ withTokenText $ T.dropWhileEnd isSpaceNotNewline)
-        .
-        (withFirst $
-          withTokenText $ \pre ->
-              fromMaybe pre $
-                  T.stripPrefix "\n" $
-                    T.dropWhile isSpaceNotNewline pre)
-      else
-        -- do nothing
-        id) tokens)
-
-  . map (second (
-      -- Split tokens at newlines
-      concatMap stringLiteral
-
-      -- Head the list (the grouped chars contain the same meta info) and
-      -- collect the characters into a string.
-    . map (\(mi, cs) ->
-                          Token { text = T.pack cs
-                                , info = fromMaybe mempty mi
-                                })
-      -- Characters which share the same meta info are the same token, so
-      -- group them together.
+    . map
+      ( ( \(role, tokens) ->
+            (role,) $
+              -- This bit fixes issue 954
+              ( if L.isCode role
+                  then-- Remove trailing whitespace from the
+                  -- final line; the function spaces
+                  -- expects trailing whitespace to be
+                  -- followed by a newline character.
+                    whenMoreThanOne
+                      ( withLast
+                          $ withTokenText
+                          $ \suf ->
+                            maybe
+                              suf
+                              (T.dropWhileEnd isSpaceNotNewline)
+                              (T.stripSuffix "\n" suf)
+                      )
+                      . withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+                      . withFirst
+                        ( withTokenText $
+                            \pre ->
+                              fromMaybe pre $ T.stripPrefix "\n" $
+                                T.dropWhile
+                                  isSpaceNotNewline
+                                  pre
+                        )
+                  else-- do nothing
+                    id
+              )
+                tokens
+        ) . ( second
+                ( -- Split tokens at newlines
+                  concatMap
+                    ( stringLiteral
+                        . ( \(mi, cs) ->
+                              Token {text = T.pack cs, info = fromMaybe mempty mi}
+                          )
+                    )
+                    . groupByFst
+                )
+            )
+      )
     . groupByFst
-    ))
-
-  -- Characters in different layers belong to different tokens
-  . groupByFst
 
   -- Look up the meta info at each position in the highlighting info.
-  . map (\(pos, (role, char)) -> (role, (IntMap.lookup pos infoMap, char)))
-
-  -- Add position in file to each character.
-  . zip [1..]
-
-  -- Map each character to its role
-  . atomizeLayers . literateTeX (startPos (Just path))
+  . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char)))
+            [1..] . -- Add position in file to each character.
+              -- Map each character to its role
+              atomizeLayers . literateTeX (startPos (Just path))
 
   $ L.unpack source
   where

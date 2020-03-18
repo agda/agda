@@ -88,44 +88,44 @@ import Agda.Utils.Impossible
 --   are in normal form.
 computeForcingAnnotations :: QName -> Type -> TCM [IsForced]
 computeForcingAnnotations c t =
-  ifNotM (optForcing <$> pragmaOptions) {-then-} (return []) $ {-else-} do
-  -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
-  -- t <- normalise t
-  -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
-  -- Instantiation also fixes Issue 1454.
-  -- Note that normalization of s0 below does not help.
-  t <- instantiateFull t
-  -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
-  -- get to the actual data type.
-  -- Also #2947: The type might reduce to a pi type.
-  TelV tel (El _ a) <- telViewPath t
-  let vs = case a of
-        Def _ us -> us
-        _        -> __IMPOSSIBLE__
-      n  = size tel
-      xs :: [(Modality, Nat)]
-      xs = forcedVariables vs
-      -- #2819: We can only mark an argument as forced if it appears in the
-      -- type with a relevance below (i.e. more relevant) than the one of the
-      -- constructor argument. Otherwise we can't actually get the value from
-      -- the type. Also the argument shouldn't be irrelevant, since in that
-      -- case it isn't really forced.
-      isForced :: Modality -> Nat -> Bool
-      isForced m i = and
-        [ hasQuantity0 m || noUserQuantity m   -- User can disable forcing by giving quantity explicitly.
-        , getRelevance m /= Irrelevant
-        , any (\ (m', j) -> i == j && m' `moreUsableModality` m) xs
-        ]
-      forcedArgs =
-        [ if isForced m i then Forced else NotForced
-        | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
-        ]
-  reportS "tc.force" 60
-    [ "Forcing analysis for " ++ show c
-    , "  xs          = " ++ show (map snd xs)
-    , "  forcedArgs  = " ++ show forcedArgs
-    ]
-  return forcedArgs
+  ifNotM (optForcing <$> pragmaOptions {-then-}) (return []) $ {-else-} do
+    -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
+    -- t <- normalise t
+    -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
+    -- Instantiation also fixes Issue 1454.
+    -- Note that normalization of s0 below does not help.
+    t <- instantiateFull t
+    -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
+    -- get to the actual data type.
+    -- Also #2947: The type might reduce to a pi type.
+    TelV tel (El _ a) <- telViewPath t
+    let vs = case a of
+          Def _ us -> us
+          _        -> __IMPOSSIBLE__
+        n = size tel
+        xs :: [(Modality, Nat)]
+        xs = forcedVariables vs
+        -- #2819: We can only mark an argument as forced if it appears in the
+        -- type with a relevance below (i.e. more relevant) than the one of the
+        -- constructor argument. Otherwise we can't actually get the value from
+        -- the type. Also the argument shouldn't be irrelevant, since in that
+        -- case it isn't really forced.
+        isForced :: Modality -> Nat -> Bool
+        isForced m i =
+               (hasQuantity0 m || noUserQuantity m)
+            && (getRelevance m /= Irrelevant)
+            && any (\(m', j) -> i == j
+            && m' `moreUsableModality` m) xs
+        forcedArgs =
+          [ if isForced m i then Forced else NotForced
+          | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
+          ]
+    reportS "tc.force" 60
+      [ "Forcing analysis for " ++ show c
+      , "  xs          = " ++ show (map snd xs)
+      , "  forcedArgs  = " ++ show forcedArgs
+      ]
+    return forcedArgs
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where

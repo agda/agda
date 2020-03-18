@@ -219,7 +219,7 @@ noFunctionsIntoSize t tBlame = do
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
 isTypeEqualTo e0 t = scopedExpr e0 >>= \case
   A.ScopedExpr{} -> __IMPOSSIBLE__
-  A.Underscore i | A.metaNumber i == Nothing -> return t
+  A.Underscore i | isNothing (A.metaNumber i) -> return t
   e -> workOnTypes $ do
     t' <- isType e (getSort t)
     t' <$ leqType t t'
@@ -654,8 +654,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
-          tel <- getContextTelescope
-          return $ Def aux $ map Apply $ teleArgs tel
+          Def aux . map Apply . teleArgs <$> getContextTelescope
       _ -> typeError $ ShouldBePi t'
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
@@ -826,9 +825,8 @@ expandModuleAssigns mfs xs = do
       [(_, fa)] -> return (Just fa)
       mfas      -> typeError . GenericDocError =<< do
         vcat $
-          [ "Ambiguity: the field" <+> prettyTCM f
-            <+> "appears in the following modules: " ]
-          ++ map (prettyTCM . fst) mfas
+          "Ambiguity: the field" <+> prettyTCM f
+            <+> "appears in the following modules: " : map (prettyTCM . fst) mfas
   return (fs ++ catMaybes fs')
 
 -- | @checkRecordExpression fs e t@ checks record construction against type @t@.
@@ -1114,7 +1112,7 @@ checkExpr' cmp e t =
 
         A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) && isNothing (A.binderPattern $ namedArg x) ->
-              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ fmap A.unBind $ namedArg x) e0) t
+              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit lit    -> checkLiteral lit t
@@ -1546,7 +1544,7 @@ inferExprForWith e = do
 ---------------------------------------------------------------------------
 
 checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
-checkLetBindings = foldr (.) id . map checkLetBinding
+checkLetBindings = foldr ((.) . checkLetBinding) id
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
@@ -1636,7 +1634,7 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   reportSDoc "tc.term.let.apply" 20 $ vcat
     [ "context =" <+> (prettyTCM =<< getContextTelescope)
     , "module  =" <+> (prettyTCM =<< currentModule)
-    , "fv      =" <+> (text $ show fv)
+    , "fv      =" <+> text (show fv)
     ]
   checkSectionApplication i x modapp copyInfo
   withAnonymousModule x new ret

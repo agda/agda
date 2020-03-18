@@ -131,7 +131,7 @@ getFullyAppliedConType
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getFullyAppliedConType c t = do
-  reportSLn "tc.getConType" 35 $ List.intercalate " " $
+  reportSLn "tc.getConType" 35 $ unwords $
     [ "getFullyAppliedConType", prettyShow c, prettyShow t ]
   c <- fromRight __IMPOSSIBLE__ <$> do getConHead $ conName c
   case unEl t of
@@ -139,7 +139,7 @@ getFullyAppliedConType c t = do
     -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__
     -- coming from strengthening.  (Thus, printing them is not safe.)
     Def d es -> do
-      reportSLn "tc.getConType" 35 $ List.intercalate " " $
+      reportSLn "tc.getConType" 35 $ unwords $
         [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       def <- getConstInfo d
       let cont n = do

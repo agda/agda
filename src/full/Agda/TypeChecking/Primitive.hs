@@ -154,11 +154,11 @@ instance ToTerm Bool where
 
 instance ToTerm Term where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
-  toTermR = do kit <- quotingKit; return (quoteTermWithKit kit)
+  toTermR = do quoteTermWithKit <$> quotingKit;
 
 instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
-  toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
+  toTermR = quoteTypeWithKit <$> quotingKit
 
 instance ToTerm ArgInfo where
   toTerm = do
@@ -326,8 +326,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     nil   <- isCon nil'
     cons  <- isCon cons'
     toA   <- fromTerm
-    fromA <- toTerm
-    return $ mkList nil cons toA fromA
+    mkList nil cons toA <$> toTerm
     where
       isCon (Lam _ b)  = isCon $ absBody b
       isCon (Con c _ _)= return c
@@ -546,7 +545,7 @@ primForce = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
   genPrimForce (nPi "x" (varT 3 1) $
-                (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) -->
+                nPi "y" (varT 4 2) (varEl 4 $ varM 2 <@> varM 0) -->
                 varEl 3 (varM 1 <@> varM 0)) $
     \ f u -> apply f [u]
 
@@ -685,7 +684,7 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = fmap localTCStateSavingWarnings $ Map.fromList
+primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
   --   is bad for caching since it happens when scope checking import declarations (rebinding
