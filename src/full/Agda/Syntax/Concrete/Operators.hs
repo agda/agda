@@ -619,7 +619,7 @@ parseLHS' lhsOrPatSyn top p = do
                         (flattenedScope patP)
     let flds = getNames (someKindsOfNames [FldName])
                         (flattenedScope patP)
-    let conf = PatternCheckConfig top cons flds
+    let conf = PatternCheckConfig top (hasElem cons) (hasElem flds)
 
     let (errs, results) = partitionEithers $ map (validPattern conf) ps
     case results of
@@ -648,9 +648,9 @@ parseLHS' lhsOrPatSyn top p = do
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
-  { topName  :: Maybe QName -- ^ Name of defined symbol.
-  , conNames :: [QName]     -- ^ Valid constructor names.
-  , fldNames :: [QName]     -- ^ Valid field names.
+  { topName :: Maybe QName    -- ^ Name of defined symbol.
+  , conName :: QName -> Bool  -- ^ Valid constructor name?
+  , fldName :: QName -> Bool  -- ^ Valid field name?
   }
 
 -- | The monad for pattern checking and classification.
@@ -666,11 +666,11 @@ classifyPattern conf p =
 
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
-      mapM_ (validConPattern isCon . namedArg) ps
+      mapM_ (valid . namedArg) ps
       return $ Right (x, lhsCoreAddSpine (LHSHead x []) ps)
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
+    Arg _ (Named _ (IdentP x)) : ps | fldName conf x -> do
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
@@ -684,12 +684,10 @@ classifyPattern conf p =
       return $ Right (f, lhsCoreAddSpine (LHSProj x ps' lhs []) ps'')
 
     -- case: ordinary pattern
-    _ -> do
-      validConPattern isCon p
-      return $ Left p
+    _ -> Left p <$ valid p
 
   where
-  isCon = hasElem $ conNames conf
+  valid = validConPattern $ conName conf
 
   classPat :: NamedArg Pattern -> PM (NamedArg ParseLHS)
   classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
