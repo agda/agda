@@ -21,6 +21,7 @@ module Agda.Syntax.Concrete.Operators
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
 import Control.Monad
+import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
@@ -627,7 +628,7 @@ parseLHS' lhsOrPatSyn top p = do
                         return (lhs, operators patP)
         -- No result.
         []        -> typeError $ OperatorInformation (operators patP)
-                               $ NoParseForLHS lhsOrPatSyn errs p
+                               $ NoParseForLHS lhsOrPatSyn (catMaybes errs) p
         -- Ambiguous result.
         rs        -> typeError $ OperatorInformation (operators patP)
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
@@ -637,13 +638,13 @@ parseLHS' lhsOrPatSyn top p = do
           map (notaName . head) $ getDefinedNames kinds flat
 
         -- The pattern is retained for error reporting in case of ambiguous parses.
-        validPattern :: PatternCheckConfig -> Pattern -> Either Pattern (Pattern, ParseLHS)
+        validPattern :: PatternCheckConfig -> Pattern -> PM (Pattern, ParseLHS)
         validPattern conf p = do
           res <- classifyPattern conf p
           case (res, top) of
             (Left{}, Nothing) -> return (p, res)  -- expect pattern
             (Right{}, Just{}) -> return (p, res)  -- expect lhs
-            _ -> Left p
+            _ -> throwError Nothing
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
@@ -652,9 +653,14 @@ data PatternCheckConfig = PatternCheckConfig
   , fldNames :: [QName]     -- ^ Valid field names.
   }
 
+-- | The monad for pattern checking and classification.
+--
+--   The error message is either empty or a subpattern that was found to be invalid.
+type PM = Either (Maybe Pattern)
+
 -- | Returns zero or one classified patterns.
 --   In case of zero, return the offending subpattern.
-classifyPattern :: PatternCheckConfig -> Pattern -> Either Pattern ParseLHS
+classifyPattern :: PatternCheckConfig -> Pattern -> PM ParseLHS
 classifyPattern conf p =
   case patternAppView p of
 
@@ -668,10 +674,10 @@ classifyPattern conf p =
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
-      (p2, ps3) <- maybeToEither p $ uncons rest -- when (null rest): no field pattern or def pattern found
+      (p2, ps3) <- maybeToEither Nothing $ uncons rest -- when (null rest): no field pattern or def pattern found
 
       -- Ensure that the @ps3@ are patterns (@Left@) rather than lhss (@Right@).
-      mapM_ (either Right (const $ Left p) . namedArg) ps3
+      mapM_ (either return (const $ throwError Nothing) . namedArg) ps3
 
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
@@ -685,7 +691,7 @@ classifyPattern conf p =
   where
   isCon = hasElem $ conNames conf
 
-  classPat :: NamedArg Pattern -> Either Pattern (NamedArg ParseLHS)
+  classPat :: NamedArg Pattern -> PM (NamedArg ParseLHS)
   classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
 
   fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
@@ -725,7 +731,7 @@ parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
 validConPattern
   :: (QName -> Bool)     -- ^ Test for constructor name.
   -> Pattern             -- ^ Supposedly a constructor pattern.
-  -> Either Pattern ()   -- ^ Offending subpattern or nothing.
+  -> PM ()   -- ^ Offending subpattern or nothing.
 validConPattern cons = loop
   where
   loop p = case appView p of
@@ -739,7 +745,7 @@ validConPattern cons = loop
       _               -> failure
     where
     ok      = return ()
-    failure = Left p
+    failure = throwError $ Just p
 
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
