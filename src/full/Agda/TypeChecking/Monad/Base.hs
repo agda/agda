@@ -3452,8 +3452,11 @@ data TypeError
     -- Operator errors
         | NoParseForApplication [C.Expr]
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
-        | NoParseForLHS LHSOrPatSyn C.Pattern
+        | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
+            -- ^ The list contains patterns that failed to be interpreted.
+            --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+            -- ^ Pattern and its possible interpretations.
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern

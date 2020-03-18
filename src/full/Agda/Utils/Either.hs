@@ -20,6 +20,7 @@ module Agda.Utils.Either
   , allRight
   , groupByEither
   , maybeToEither
+  , swapEither
   ) where
 
 import Data.Bifunctor
@@ -122,6 +123,12 @@ groupByEither = listCase [] (go . init) where
   adjust = bimap reverse reverse
   init   = bimap pure pure
 
--- | Convert 'Maybe' to @'Either' ()@.
-maybeToEither :: Maybe a -> Either () a
-maybeToEither = maybe (Left ()) Right
+-- | Convert 'Maybe' to @'Either' e@, given an error @e@ for the 'Nothing' case.
+maybeToEither :: e -> Maybe a -> Either e a
+maybeToEither e = maybe (Left e) Right
+
+-- | Swap tags 'Left' and 'Right'.
+swapEither :: Either a b -> Either b a
+swapEither = \case
+  Left a -> Right a
+  Right b -> Left b

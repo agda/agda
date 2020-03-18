@@ -558,6 +558,7 @@ library
                     Agda.Utils.Lens
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
+                    Agda.Utils.List1
                     Agda.Utils.ListT
                     Agda.Utils.Map
                     Agda.Utils.Maybe

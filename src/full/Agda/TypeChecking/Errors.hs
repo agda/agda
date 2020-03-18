@@ -885,11 +885,17 @@ instance PrettyTCM TypeError where
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
 
-    NoParseForLHS IsLHS p -> fsep (
-      pwords "Could not parse the left-hand side" ++ [pretty p])
-
-    NoParseForLHS IsPatSyn p -> fsep (
-      pwords "Could not parse the pattern synonym" ++ [pretty p])
+    NoParseForLHS lhsOrPatSyn errs p -> vcat
+      [ fsep $ pwords "Could not parse the" ++ prettyLhsOrPatSyn ++ [pretty p]
+      , prettyErrs
+      ]
+      where
+      prettyLhsOrPatSyn = pwords $ case lhsOrPatSyn of
+        IsLHS    -> "left-hand side"
+        IsPatSyn -> "pattern synonym"
+      prettyErrs = case errs of
+        []     -> empty
+        p0 : _ -> fsep $ pwords "Problematic expression:" ++ [pretty p0]
 
 {- UNUSED
     NoParseForPatternSynonym p -> fsep $
