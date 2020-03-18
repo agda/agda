@@ -78,22 +78,18 @@ main = do
     (putStrLn "") $ \pkg -> do
 
     let realPkgId = sourcePackageId pkg
-        pkgId     =
-          -- For some reason integer-gmp-1.0.1.0 is not available on
-          -- Hackage, but it seems as if integer-gmp-1.0.0.1 has the
-          -- same licence.
-          if unPackageName (pkgName realPkgId) == "integer-gmp"
-               &&
-             pkgVersion realPkgId == mkVersion [1,0,1,0]
-          then realPkgId { pkgVersion = mkVersion [1,0,0,1] }
-          else
-          -- Replace the rts package, which cannot be unpacked, with
-          -- the ghc package.
-          if unPackageName (pkgName realPkgId) == "rts"
-          then PackageIdentifier { pkgName    = mkPackageName "ghc"
-                                 , pkgVersion = nullVersion
-                                 }
-          else realPkgId
+        pkgId
+            -- For some reason integer-gmp-1.0.1.0 is not available on
+            -- Hackage, but it seems as if integer-gmp-1.0.0.1 has the
+            -- same licence.
+          | unPackageName (pkgName realPkgId) == "integer-gmp" &&
+            pkgVersion realPkgId == mkVersion [1,0,1,0] = realPkgId { pkgVersion = mkVersion [1,0,0,1] }
+          | unPackageName (pkgName realPkgId) == "rts" = PackageIdentifier { pkgName    = mkPackageName "ghc"
+                               , pkgVersion = nullVersion
+                               }
+            -- Replace the rts package, which cannot be unpacked, with
+            -- the ghc package.
+          | otherwise = realPkgId
 
     withSystemTempDirectory "agda-licenses" $ \tempDir -> do
       pkgDir <-
@@ -137,7 +133,7 @@ printLicenses header cabalFile = do
     (do putStrLn ""
         hrule '-'
         putStrLn "")
-    (\f -> putStr . unlines . lines =<< readFile f)
+    ((putStr . unlines . lines) <=< readFile)
   where
   hrule c = putStrLn $ replicate 72 c
 
@@ -148,9 +144,7 @@ printLicenses header cabalFile = do
 forAndIntersperseM_ :: Monad m => [a] -> m () -> (a -> m ()) -> m ()
 forAndIntersperseM_ xs a f =
   forM_ (intersperse Nothing $ map Just xs) $ \x ->
-    case x of
-      Nothing -> a
-      Just x  -> f x
+    maybe a f x
 
 -- | Prints the given error message (if any) and usage information to
 -- stderr, and exits with an exit code signalling failure.

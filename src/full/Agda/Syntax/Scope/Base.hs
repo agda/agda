@@ -961,7 +961,7 @@ flattenScope ms scope =
 
     build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
     build ms getNames s = Map.unionsWith (++) $
-        (Map.mapKeysMonotonic C.QName $ getNames s) :
+        Map.mapKeysMonotonic C.QName (getNames s) :
           [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
               build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
@@ -992,7 +992,7 @@ concreteNamesInScope scope =
 
     build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
     build getNames s = Set.unions $
-        (Set.fromList $ map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
+        Set.fromList (map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
           [ Set.mapMonotonic (\ y -> C.Qual x y) $
               build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
@@ -1270,7 +1270,7 @@ prettyNameSpace (NameSpace names mods _) =
 instance Pretty Scope where
   pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     vcat $
-      [ "scope" <+> pretty name ] ++ ind (
+      "scope" <+> pretty name : ind (
         concat [ blockOfLines (pretty nsid) $ prettyNameSpace ns
                | (nsid, ns) <- scopeNameSpaces scope ]
       ++ blockOfLines "imports"
@@ -1288,8 +1288,8 @@ instance Pretty ScopeInfo where
     [ "ScopeInfo"
     , "  current = " <> pretty this
     ] ++
-    (if null toBind then [] else [ "  toBind  = " <> pretty locals ]) ++
-    (if null locals then [] else [ "  locals  = " <> pretty locals ]) ++
+    (["  toBind  = " <> pretty locals | not (null toBind)]) ++
+    (["  locals  = " <> pretty locals | not (null locals)]) ++
     [ "  context = " <> pretty ctx
     , "  modules"
     ] ++

@@ -110,14 +110,14 @@ coreBuiltins =
   , (builtinIO                               |-> builtinPostulate (tset --> tset))
   , (builtinPath                             |-> BuiltinUnknown
                                                              (Just $ requireCubical >>
-                                                             (hPi "a" (el primLevel) $
+                                                             hPi "a" (el primLevel) (
                                                               hPi "A" (return $ sort $ varSort 0) $
                                                               (El (varSort 1) <$> varM 0) -->
                                                               (El (varSort 1) <$> varM 0) -->
                                                               return (sort $ varSort 1)))
                                                              verifyPath)
   , (builtinPathP                            |-> builtinPostulateC (hPi "a" (el primLevel) $
-                                                              nPi "A" (tinterval --> (return $ sort $ varSort 0)) $
+                                                              nPi "A" (tinterval --> return (sort $ varSort 0)) $
                                                               (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                               (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                               return (sort $ varSort 1)))
@@ -125,14 +125,14 @@ coreBuiltins =
   , (builtinSub                              |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-                                                                   elInf (cl primPartial <#> a <@> phi <@> bA) --> (return $ sort Inf)
+                                                                   elInf (cl primPartial <#> a <@> phi <@> bA) --> return (sort Inf)
                                                                   ))
   , (builtinSubIn                            |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
                                                                    nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
-                                                                   elInf $ cl primSub <#> a <@> bA <@> phi <@> (lam "o" $ \ _ -> x)))
+                                                                   elInf $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (\ _ -> x)))
   , (builtinIZero                            |-> BuiltinDataCons (elInf primInterval))
   , (builtinIOne                             |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial                          |-> BuiltinPrim "primPartial" (const $ return ()))
@@ -197,10 +197,10 @@ coreBuiltins =
                                                                     fiber = el' (cl primLevelMax <@> la <@> lb)
                                                                                 (cl primSigma <#> la <#> lb
                                                                                   <@> bA
-                                                                                  <@> (lam "a" $ \ a ->
+                                                                                  <@> lam "a" (\ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                                 nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                  (pPi' "o" phi $ \ o -> fiber) --> fiber
+                                                                  pPi' "o" phi (\ o -> fiber) --> fiber
                                                              ))
                                                               (const $ const $ return ()))
   , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
@@ -209,14 +209,14 @@ coreBuiltins =
                                                                let lb = la; bA = e <@> cl primIZero; bB = e <@> cl primIOne
                                                                nPi' "φ" (cl tinterval) $ \ phi -> do
                                                                nPi' "a" (pPi' "o" phi (\ _ -> el' la bA)) $ \ a -> do
-                                                               let f = cl primTrans <#> (lam "i" $ \ _ -> la) <@> e <@> cl primIZero
+                                                               let f = cl primTrans <#> lam "i" (\ _ -> la) <@> e <@> cl primIZero
                                                                    z = ilam "o" $ \ o -> f <@> (a <@> o)
                                                                nPi' "b" (elInf (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
                                                                let b = cl primSubOut <#> lb <#> bB <#> phi <#> z <@> b'
                                                                    fiber = el' la
                                                                                (cl primSigma <#> la <#> lb
                                                                                   <@> bA
-                                                                                  <@> (lam "a" $ \ a ->
+                                                                                  <@> lam "a" (\ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                                fiber
                                                              ))
@@ -542,8 +542,8 @@ coreBuiltins =
         verifyPath :: Term -> Type -> TCM ()
         verifyPath path t = do
           let hlam n t = glam (setHiding Hidden defaultArgInfo) n t
-          noConstraints $ equalTerm t path =<< (runNamesT [] $
-            hlam "l" $ \ l -> hlam "A" $ \ bA -> cl primPathP <#> l <@> (lam "i" $ \ _ -> bA))
+          noConstraints $ equalTerm t path =<< runNamesT [] (
+            hlam "l" $ \ l -> hlam "A" $ \ bA -> cl primPathP <#> l <@> lam "i" (\ _ -> bA))
 
 -- | Checks that builtin with name @b : String@ of type @t : Term@
 --   is a data type or inductive record with @n : Int@ constructors.
@@ -851,7 +851,7 @@ bindBuiltin b x = do
     now new b = warning $ OldBuiltin b new
 
 isUntypedBuiltin :: String -> Bool
-isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
+isUntypedBuiltin b = b `elem` [builtinFromNat, builtinFromNeg, builtinFromString]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case

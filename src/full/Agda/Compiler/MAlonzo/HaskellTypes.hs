@@ -71,8 +71,8 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
     reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
     reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
     reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
-    reason (NoPragmaFor      x) = [prettyTCM x] ++ pwords "which does not have a COMPILE pragma."
-    reason (WrongPragmaFor _ x) = [prettyTCM x] ++ pwords "which has the wrong kind of COMPILE pragma."
+    reason (NoPragmaFor      x) = prettyTCM x : pwords "which does not have a COMPILE pragma."
+    reason (WrongPragmaFor _ x) = prettyTCM x : pwords "which has the wrong kind of COMPILE pragma."
 
     possibleFix BadLambda{}     = empty
     possibleFix BadMeta{}       = empty
@@ -209,7 +209,7 @@ checkConstructorCount d cs hsCons
              | otherwise = ""
 
     genericDocError =<<
-      fsep ([prettyTCM d] ++ pwords ("has " ++ show n ++
+      fsep (prettyTCM d : pwords ("has " ++ show n ++
             " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hsCons ++ "]"))
   where
     n  = length cs
@@ -238,7 +238,7 @@ hsTypeApproximation poly fv t = do
           Pi a b -> HS.TyFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
-            | q `is` list, Apply t <- last ([Proj ProjSystem __IMPOSSIBLE__] ++ els)
+            | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
                         -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
             | q `is` bool -> return $ tyCon "Bool"
             | q `is` int  -> return $ tyCon "Integer"

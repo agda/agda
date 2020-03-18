@@ -348,7 +348,7 @@ fastCase env (Branches proj con _ lit wild fT _) =
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses env . content) (stripSuc con)
     , fsucBranch      = fmap (fastCompiledClauses env . content) $ flip Map.lookup con . conName =<< bSuc env
     , flitBranches    = fmap (fastCompiledClauses env) lit
-    , ffallThrough    = fromMaybe False fT
+    , ffallThrough    = (Just True ==) fT
     , fcatchAllBranch = fmap (fastCompiledClauses env) wild }
   where
     stripSuc | Just c <- bSuc env = Map.delete (conName c)
@@ -1392,7 +1392,7 @@ instance Pretty FastCompiledClauses where
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
     text ("eta " ++ show n ++ " of") <?>
-      vcat ([ "{} ->" <?> pretty cc ] ++
+      vcat ("{} ->" <?> pretty cc :
             [ "_ ->" <?> pretty cc | Just cc <- [ca] ])
   pretty (FCase n bs) | fprojPatterns bs =
     sep [ text $ "project " ++ show n

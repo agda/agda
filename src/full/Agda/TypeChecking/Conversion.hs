@@ -332,7 +332,7 @@ compareTerm' cmp a m n =
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
-        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
+        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef a'@(El s ty) m n = do
@@ -461,7 +461,7 @@ compareAtom cmp t m n =
         postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
         postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
         postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
-          (\m t -> (f $ Blocked m $ AsTermsOf t) `catchError` \case
+          (\m t -> f (Blocked m $ AsTermsOf t) `catchError` \case
               TypeError{} -> postpone
               err         -> throwError err)
           (\nb t -> f $ NotBlocked nb $ AsTermsOf t)
@@ -607,9 +607,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
-                        (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
+              equalType (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -1019,7 +1019,7 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else (assignE DirEq x es w (AsTermsOf t) $ compareIrrelevant t) `catchError` \ _ -> fallback
+        else assignE DirEq x es w (AsTermsOf t) (compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1976,24 +1976,23 @@ leqInterval r q =
 -- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
-leqConj (rs,rst) (qs,qst) = do
-  case toSet qs `Set.isSubsetOf` toSet rs of
-    False -> return False
-    True  -> do
-      interval <- elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
-
+leqConj (rs, rst) (qs, qst) = do
+  if toSet qs `Set.isSubsetOf` toSet rs
+    then do
+      interval <-
+        elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1) in some situations the same constraint would get generated twice.
       -- 2) unless things are completely accepted we are going to
       --    throw patternViolation in compareInterval.
       let eqT t u = tryConversion (compareAtom CmpEq (AsTermsOf interval) t u)
-
-      let listSubset ts us = and <$> forM ts (\ t ->
-                              or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
+      let listSubset ts us =
+            and <$> forM ts (\t -> or <$> forM us (\u -> eqT t u)) -- TODO shortcut
       listSubset qst rst
+    else
+      return False
   where
-    toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
-
+    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()

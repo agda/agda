@@ -318,7 +318,7 @@ instance Free NLPat where
 
 instance Free NLPType where
   freeVars' (NLPType s a) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
       {- then -} (freeVars' (s, a))
       {- else -} (freeVars' a)
 

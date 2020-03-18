@@ -42,7 +42,7 @@ showAspects modFile (r, m) = L $
         ++
       [A $ maybe "nil" quote $ note m]
         ++
-      (maybeToList $ fmap defSite $ definitionSite m))
+      maybeToList (defSite <$> definitionSite m))
   where
   defSite (DefinitionSite m p _ _) =
     Cons (A $ quote $ filePath f) (A $ show p)

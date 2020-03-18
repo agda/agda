@@ -41,7 +41,7 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         -- is significant for implicit insertion.
         A.VarP A.BindName{unBind = x}
           | not (isNoName x)
-          , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
+          , visible dom || (getOrigin ai == UserWritten && isNothing nm) ->
           dom{ unDom = (nameToArgName x, a) }
         A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left

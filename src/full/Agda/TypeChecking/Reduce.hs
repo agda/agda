@@ -111,7 +111,7 @@ instance Instantiate Term where
     blocking <- view stInstantiateBlocking <$> getTCState
 
     mv <- lookupMeta x
-    mi <- mvInstantiation <$> pure mv
+    let mi = mvInstantiation mv
 
     case mi of
       InstV tel v -> instantiate' inst
@@ -743,7 +743,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
           if length es < npats then goCls cls es else do
             let (es0, es1) = splitAt npats es
             (m, es0) <- matchCopatterns pats es0
-            es <- return $ es0 ++ es1
+            let es = es0 ++ es1
             case m of
               No         -> goCls cls es
               DontKnow b -> rewrite b v rewr es

@@ -175,10 +175,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
   -- All names mentioned in the syntax tree (not bound variables).
   names :: [A.AmbiguousQName]
   names =
-    (map I.unambiguous $
-     filter (not . isExtendedLambdaName) $
-     universeBi decl) ++
-    universeBi decl
+    map I.unambiguous (filter (not . isExtendedLambdaName) $ universeBi decl) ++
+                      universeBi decl
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols and some other things.
@@ -350,17 +348,16 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getFieldDecl _                   = mempty
 
     getModuleName :: A.ModuleName -> File
-    getModuleName m@(A.MName { A.mnameToList = xs }) =
+    getModuleName m@(A.MName {A.mnameToList = xs}) =
       mconcat $ map (mod isTopLevelModule) xs
       where
-      isTopLevelModule =
-        case mapMaybe (join .
-                  fmap (Strict.toLazy . P.srcFile) .
-                  P.rStart .
-                  A.nameBindingSite) xs of
-          f : _ -> Map.lookup f modMap ==
-                   Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
-          []    -> False
+        isTopLevelModule =
+          case mapMaybe
+              ((Strict.toLazy . P.srcFile) <=< (P.rStart . A.nameBindingSite)) xs of
+            f : _ ->
+              Map.lookup f modMap
+                == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
+            [] -> False
 
     getModuleInfo :: ModuleInfo -> File
     getModuleInfo (ModuleInfo{ minfoAsTo, minfoAsName }) =
@@ -392,7 +389,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM CompressedFile
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting <$> fst <$> Pa.parseFile Pa.tokensParser file input
+  runPM $ tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
@@ -413,7 +410,7 @@ tokenHighlighting = merge . map tokenToCFile
   aToF a r = singletonC (rToR r) (mempty { aspect = Just a })
 
   -- Merges /sorted, non-overlapping/ compressed files.
-  merge = CompressedFile . concat . map ranges
+  merge = CompressedFile . concatMap ranges
 
   tokenToCFile :: T.Token -> CompressedFile
   tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (getRange i)
@@ -463,7 +460,7 @@ nameKinds hlLevel decl = do
     _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-  let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
+  let syntax = foldr declToKind HMap.empty (universeBi decl)
   return $ \ n -> unionsMaybeWith merge
     [ defnToKind . theDef <$> HMap.lookup n local
     , con <$ Map.lookup n locPatSyns
@@ -804,7 +801,7 @@ generate modMap file kinds (A.AmbQ qs) =
     -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
     -- than doing no highlighting if there's an ambiguity between an
     -- inductive and coinductive constructor.
-    kind = case [ k | Just k <- ks ] of
+    kind = case catMaybes ks of
              k : _ -> Just k
              []    -> Nothing
     -- kind = case (allEqual ks, ks) of

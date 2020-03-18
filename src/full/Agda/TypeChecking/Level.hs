@@ -107,10 +107,10 @@ unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case
   Max m as  -> foldl1 max $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
 
 unConstV :: Term -> (Term -> Term) -> Integer -> Term
-unConstV zer suc n = foldr (.) id (List.genericReplicate n suc) zer
+unConstV zer suc n = foldr ($) zer (List.genericReplicate n suc)
 
 unPlusV :: (Term -> Term) -> PlusLevel -> Term
-unPlusV suc (Plus n a) = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
+unPlusV suc (Plus n a) = foldr ($) (unLevelAtom a) (List.genericReplicate n suc)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do

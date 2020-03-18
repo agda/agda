@@ -324,8 +324,7 @@ decompress :: CompressedFile -> File
 decompress =
   File .
   IntMap.fromList .
-  concat .
-  map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
+  concatMap (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
 
 -- | Clear any highlighting info for the given ranges. Used to make sure

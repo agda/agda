@@ -22,6 +22,7 @@ module Agda.Syntax.Parser.Literate
   where
 
 import Prelude hiding (getLine)
+import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Agda.Syntax.Common
@@ -65,7 +66,7 @@ unMkLayers :: Layers -> [(LayerRole, String)]
 unMkLayers = map ((,) <$> layerRole <*> layerContent)
 
 atomizeLayers :: Layers -> [(LayerRole, Char)]
-atomizeLayers = (>>= fmap <$> ((,) . fst) <*> snd) . unMkLayers
+atomizeLayers = (fmap <$> ((,) . fst) <*> snd) <=< unMkLayers
 
 -- | Type of a literate preprocessor:
 --   Invariants:
@@ -132,7 +133,7 @@ bleach s = map go s
 -- | Check if a character is a blank character.
 
 isBlank :: Char -> Bool
-isBlank = (&&) <$> isSpace <*> not . (== '\n')
+isBlank = (&&) <$> isSpace <*> (/= '\n')
 
 -- | Short list of extensions for literate Agda files.
 --   For display purposes.
@@ -285,15 +286,12 @@ literateRsT pos s = mkLayers pos$ rst s
 
   -- Process an indented block.
   indented :: String -> String -> [(LayerRole, String)]
-  indented _   [] = []
-  indented ind s  =
-    let (line, rest) = getLine s in
-    if all isSpace line then
-      (Code, line) : indented ind rest
-    else if ind `isPrefixOf` line then
-      (Code, line) : indented ind rest
-    else
-      maybe_code s
+  indented _ [] = []
+  indented ind s =
+    let (line, rest) = getLine s
+    in  if all isSpace line || (ind `isPrefixOf` line)
+          then (Code, line) : indented ind rest
+          else maybe_code s
 
   -- Beginning of a code block.
   r_code = rex "(.*)(::)([[:space:]]*)"

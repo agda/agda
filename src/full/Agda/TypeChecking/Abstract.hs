@@ -113,7 +113,7 @@ abstractTerm a u@Con{} b v = do
   let abstr b v = do
         m <- getContextSize
         let (a', u') = raise (m - n) (a, u)
-        case isPrefixOf u' v of
+        case u' `isPrefixOf` v of
           Nothing -> return v
           Just es -> do -- Check that the types match.
             s <- getTC
@@ -282,12 +282,11 @@ instance EqualSy Type where
 instance EqualSy a => EqualSy (Elim' a) where
   equalSy = curry $ \case
     (Proj _ f, Proj _ f') -> f == f'
-    (Apply a , Apply a' ) -> equalSy a a'
-    (IApply u v r, IApply u' v' r') -> and
-      [ equalSy u u'
-      , equalSy v v'
-      , equalSy r r'
-      ]
+    (Apply a, Apply a') -> equalSy a a'
+    (IApply u v r, IApply u' v' r') ->
+           equalSy u u'
+        && equalSy v v'
+        && equalSy r r'
     _ -> False
 
 -- | Ignores 'absName'.

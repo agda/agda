@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), second)
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -428,7 +428,7 @@ instance Pretty DeclarationException where
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
-    [text $ declName nd] ++ pwords "are not allowed in macro blocks"
+    text (declName nd) : pwords "are not allowed in macro blocks"
   pretty (DeclarationPanic s) = text s
 
 instance Pretty DeclarationWarning where
@@ -445,7 +445,7 @@ instance Pretty DeclarationWarning where
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map (pretty . fst) xs)
   pretty (NotAllowedInMutual r nd) = fsep $
-    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
+    text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -941,7 +941,7 @@ niceDeclarations fixs ds = do
             --            (id :: (([TerminationCheck], [PositivityCheck]) -> ([TerminationCheck], [PositivityCheck])))
             --            *** (d :)
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
-            cons d = fmap (id *** (d :) *** id)
+            cons d = fmap (second (first (d :)))
 
     notMeasure TerminationMeasure{} = False
     notMeasure _ = True
@@ -1317,7 +1317,7 @@ niceDeclarations fixs ds = do
 
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
-    niceAxioms b ds = liftM List.concat $ mapM (niceAxiom b) ds
+    niceAxioms b ds = List.concat <$> mapM (niceAxiom b) ds
 
     niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
     niceAxiom b d = case d of
@@ -1446,7 +1446,7 @@ niceDeclarations fixs ds = do
            let notStrings = stringParts (theNotation fix)
            in  -- trace ("notStrings = " ++ show notStrings) $
                -- trace ("patStrings = " ++ show patStrings) $
-               (not $ null notStrings) && (notStrings `isSublistOf` patStrings)
+               not (null notStrings) && (notStrings `isSublistOf` patStrings)
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False

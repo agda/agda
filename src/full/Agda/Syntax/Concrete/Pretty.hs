@@ -308,7 +308,7 @@ instance Pretty a => Pretty (FieldAssignment' a) where
   pretty (FieldAssignment x e) = sep [ pretty x <+> "=" , nest 2 $ pretty e ]
 
 instance Pretty ModuleAssignment where
-  pretty (ModuleAssignment m es i) = (fsep $ pretty m : map pretty es) <+> pretty i
+  pretty (ModuleAssignment m es i) = fsep (pretty m : map pretty es) <+> pretty i
 
 instance Pretty LamClause where
   pretty (LamClause lhs rhs wh _) =
@@ -519,7 +519,7 @@ instance Pretty Declaration where
             RecordDef _ x ind eta con tel cs ->
               pRecord x ind eta con tel Nothing cs
             Infix f xs  ->
-                pretty f <+> (fsep $ punctuate comma $ map pretty xs)
+                pretty f <+> fsep (punctuate comma $ map pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p

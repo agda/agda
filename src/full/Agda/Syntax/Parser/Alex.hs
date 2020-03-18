@@ -91,7 +91,7 @@ alexGetByte ai =
  --------------------------------------------------------------------------}
 
 getLexInput :: Parser AlexInput
-getLexInput = getInp <$> get
+getLexInput = gets getInp
     where
         getInp s = AlexInput
                     { lexSrcFile    = parseSrcFile s
