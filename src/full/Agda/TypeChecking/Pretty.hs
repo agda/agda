@@ -32,6 +32,7 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Scope.Base  (AbstractName(..))
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
 
 import Agda.TypeChecking.Coverage.SplitTree
@@ -386,6 +387,9 @@ instance PrettyTCM QName where
 
 instance PrettyTCM ModuleName where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x
+
+instance PrettyTCM AbstractName where
+  prettyTCM = prettyTCM . anameName
 
 instance PrettyTCM ConHead where
   prettyTCM = prettyTCM . conName

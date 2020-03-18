@@ -9,6 +9,8 @@ module Agda.TypeChecking.Rules.Builtin
   , bindUntypedBuiltin
   ) where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Data.List (find, sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -29,6 +31,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Names
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
@@ -842,9 +845,20 @@ isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
-  DefinedName _ x -> bindBuiltinName b (Def (anameName x) [])
-  FieldName (x :| []) -> bindBuiltinName b (Def (anameName x) [])
-  _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
+  DefinedName _ x      -> bind x
+  FieldName (x :| [])  -> bind x
+  FieldName (x :| _)   -> amb x
+  VarName _x _bnd      -> wrong
+  UnknownName          -> wrong
+  ConstructorName   xs -> err xs
+  PatternSynResName xs -> err xs
+  where
+  bind x = bindBuiltinName b (Def (anameName x) [])
+  wrong  = genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined name"
+  amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
+  err (x :| xs1)
+    | null xs1  = wrong
+    | otherwise = amb x
 
 -- | Bind a builtin thing to a new name.
 --
