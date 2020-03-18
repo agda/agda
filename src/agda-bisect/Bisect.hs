@@ -82,10 +82,10 @@ data Options = Options
 
 options :: IO Options
 options =
-  execParser
-    (info (helper <*> (fixOptions <$> opts))
+  execParser $
+     info (helper <*> (fixOptions <$> opts))
           (header "Git bisect wrapper script for the Agda code base" <>
-           footerDoc (Just msg)))
+           footerDoc (Just msg))
   where
   opts = Options
     <$> (not <$>
@@ -164,7 +164,7 @@ options =
                       help "Store a git bisect log in FILE" <>
                       metavar "FILE" <>
                       action "file"))
-    <*> (((curry Right) <$>
+    <*> ((curry Right <$>
           strOption (long "bad" <>
                      metavar "BAD" <>
                      help "Bad commit" <>
@@ -198,7 +198,7 @@ options =
           many (strArgument (metavar "ARGUMENTS..." <>
                              help "The arguments supplied to Agda")))
            <|>
-         ((curry Left) <$>
+         (curry Left <$>
           strOption (long "script" <>
                      metavar "PROGRAM" <>
                      help ("Do not invoke Agda directly, run " ++
@@ -619,19 +619,19 @@ installAgda opts
 cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
 cabalInstall opts file = do
   commit <- currentCommit
-  ok     <-
-    callProcessWithResult "cabal"
-    $  [ "v1-install"
+  ok     <- callProcessWithResult "cabal" $ concat
+     [ [ "v1-install"
        , "--force-reinstalls"
        , "--disable-library-profiling"
        , "--disable-documentation"
        ]
-    ++ [ "--program-suffix=" ++ programSuffix commit (timeout opts)
+     , [ "--program-suffix=" ++ programSuffix commit (timeout opts)
        | cacheBuilds opts
        ]
-    ++ compilerFlag opts
-    ++ cabalOptions opts
-    ++ [file]
+     , compilerFlag opts
+     , cabalOptions opts
+     , [file]
+     ]
   case (ok, cacheBuilds opts) of
     (True , False) -> Just <$> compiledAgda
     (True , True ) -> Just <$> cachedAgda commit (timeout opts)
