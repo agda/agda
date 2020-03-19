@@ -247,17 +247,24 @@ prettyWarning wng = case wng of
       , return err
       ]
 
-    RewriteMaybeNonConfluent lhs1 lhs2 cs -> do
-      vcat $
-        fsep
-           [ "Couldn't determine overlap between left-hand sides"
-           , prettyTCM lhs1 , "and" , prettyTCM lhs2
-           , "because of unsolved constraints:"
-           ] : map (nest 2 . return) cs
+    RewriteMaybeNonConfluent lhs1 lhs2 cs -> vcat $ concat
+      [ [ fsep $ concat
+          [ pwords "Couldn't determine overlap between left-hand sides"
+          , [ prettyTCM lhs1 , text "and" , prettyTCM lhs2 ]
+          , pwords "because of unsolved constraints:"
+          ]
+        ]
+      , map (nest 2 . return) cs
+      ]
 
-    PragmaCompileErased bn qn -> fsep $
-      pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
-      ++ pwords "so the COMPILE pragma will be ignored."
+    PragmaCompileErased bn qn -> fsep $ concat
+      [ pwords "The backend"
+      , [ text bn
+        , "erases"
+        , prettyTCM qn
+        ]
+      , pwords "so the COMPILE pragma will be ignored."
+      ]
 
     NotInScopeW xs -> do
       inscope <- Set.toList . concreteNamesInScope <$> getScope
