@@ -666,7 +666,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
       reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
-      warning $ ModuleDoesntExport m missingExports
+      warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports
 
     -- We can now define a cleaned-up version of the import directive.
     let notMissing = not . (missingExports `hasElem`)  -- #3997, efficient lookup in missingExports
@@ -764,6 +764,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     -- | Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
+    concreteNamesInScope = (Map.keys namesInScope ++ Map.keys modulesInScope :: [C.Name])
 
     -- | AST versions of the concrete names passed as an argument.
     --   We get back a pair consisting of a list of missing exports first,

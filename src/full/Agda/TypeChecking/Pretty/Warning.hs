@@ -5,6 +5,7 @@ import Prelude hiding ( null )
 
 import Data.Char ( toLower )
 import Data.Function
+import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.List as List
 
@@ -17,6 +18,7 @@ import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 
+import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -30,6 +32,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
 import Agda.Utils.Null
+import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
@@ -223,9 +226,17 @@ prettyWarning wng = case wng of
 
     UserWarning str -> text str
 
-    ModuleDoesntExport m xs -> fsep $
-      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
-      punctuate comma (map pretty xs)
+    ModuleDoesntExport m names modules xs -> vcat
+      [ fsep $ pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:"
+      , prettyNotInScopeNames False (suggestion names)   ys
+      , prettyNotInScopeNames False (suggestion modules) ms
+      ]
+      where
+      ys, ms :: [C.ImportedName]
+      ys            = map ImportedName   ys0
+      ms            = map ImportedModule ms0
+      (ys0, ms0)    = partitionImportedNames xs
+      suggestion zs = maybe empty parens . didYouMean (map C.QName zs) fromImportedName
 
     FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 
@@ -266,33 +277,61 @@ prettyWarning wng = case wng of
       , pwords "so the COMPILE pragma will be ignored."
       ]
 
-    NotInScopeW xs -> do
-      inscope <- Set.toList . concreteNamesInScope <$> getScope
-      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
+    NotInScopeW xs -> vcat
+      [ fsep $ pwords "Not in scope:"
+      , do
+        inscope <- Set.toList . concreteNamesInScope <$> getScope
+        prettyNotInScopeNames True (suggestion inscope) xs
+      ]
       where
-      name inscope x =
-        fsep [ pretty x
-             , "at" <+> prettyTCM (getRange x)
-             , suggestion inscope x
-             ]
-      suggestion inscope x = nest 2 $ par $
-        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
-        [ "did you forget space around the '->'?" | "->" `List.isInfixOf` s ] ++
-        [ sep [ "did you mean"
-              , nest 2 $ vcat (punctuate " or"
-                       $ map (\ y -> text $ "'" ++ y ++ "'") ys)
-              <> "?" ]
-          | not $ null ys ]
+      suggestion inscope x = nest 2 $ par $ concat
+        [ [ "did you forget space around the ':'?"  | ':' `elem` s ]
+        , [ "did you forget space around the '->'?" | "->" `List.isInfixOf` s ]
+        , maybeToList $ didYouMean inscope C.unqualify x
+        ]
         where
-          s = P.prettyShow x
-          par []  = empty
-          par [d] = parens d
-          par ds  = parens $ vcat ds
+        par []  = empty
+        par [d] = parens d
+        par ds  = parens $ vcat ds
+        s = P.prettyShow x
 
-          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
-          maxDist n = div n 3
-          close a b = editDistance a b <= maxDist (length a)
-          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+-- | Report a number of names that are not in scope.
+prettyNotInScopeNames
+  :: (MonadPretty m, Pretty a, HasRange a)
+  => Bool          -- ^ Print range?
+  -> (a -> m Doc)  -- ^ Correction suggestion generator.
+  -> [a]           -- ^ Names that are not in scope.
+  -> m Doc
+prettyNotInScopeNames printRange suggestion xs = nest 2 $ vcat $ map name xs
+  where
+  name x = fsep
+    [ pretty x
+    , if printRange then "at" <+> prettyTCM (getRange x) else empty
+    , suggestion x
+    ]
+
+-- | Suggest some corrections to a misspelled name.
+didYouMean
+  :: (MonadPretty m, Pretty a, Pretty b)
+  => [C.QName]     -- ^ Names in scope.
+  -> (a -> b)      -- ^ Canonization function for similarity search.
+  -> a             -- ^ A name which is not in scope.
+  -> Maybe (m Doc) -- ^ "did you mean" hint.
+didYouMean inscope canon x
+  | null ys   = Nothing
+  | otherwise = Just $ sep
+      [ "did you mean"
+      , nest 2 (vcat $ punctuate " or" $
+                 map (\ y -> text $ "'" ++ y ++ "'") ys)
+        <> "?"
+      ]
+  where
+  strip :: Pretty b => b -> String
+  strip        = map toLower . filter (/= '_') . prettyShow
+  -- dropModule x = fromMaybe x $ List.stripPrefix "module " x
+  maxDist n    = div n 3
+  close a b    = editDistance a b <= maxDist (length a)
+  ys           = map prettyShow $ filter (close (strip $ canon x) . strip . C.unqualify) inscope
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String

@@ -8,6 +8,8 @@ module Agda.Utils.Pretty
     , module Data.Semigroup
     ) where
 
+import Prelude hiding (null)
+
 import Data.Int ( Int32 )
 import Data.Data (Data(..))
 import Data.List.NonEmpty (NonEmpty(..))
@@ -17,6 +19,7 @@ import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
 import Data.Semigroup ((<>))
 
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -91,6 +94,10 @@ prettyList_ = fsep . punctuate comma . map pretty
 mparens :: Bool -> Doc -> Doc
 mparens True  = parens
 mparens False = id
+
+-- | Only wrap in parens if not 'empty'
+parensNonEmpty :: Doc -> Doc
+parensNonEmpty d = if null d then empty else parens d
 
 -- | @align max rows@ lays out the elements of @rows@ in two columns,
 -- with the second components aligned. The alignment column of the

@@ -3073,8 +3073,10 @@ data Warning
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | FixityInRenamingModule (NonEmpty Range)
     -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
-  | ModuleDoesntExport C.QName [C.ImportedName]
-    -- ^ Some imported names are not actually exported by the source module
+  | ModuleDoesntExport C.QName [C.Name] [C.Name] [C.ImportedName]
+    -- ^ Some imported names are not actually exported by the source module.
+    --   The second argument is the names that could be exported.
+    --   The third  argument is the module names that could be exported.
   | InfectiveImport String ModuleName
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport String ModuleName
