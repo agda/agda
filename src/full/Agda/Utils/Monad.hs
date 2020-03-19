@@ -208,6 +208,11 @@ tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
 tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
+-- | Like 'guard', but raise given error when condition fails.
+
+guardWithError :: MonadError e m => e -> Bool -> m ()
+guardWithError e b = if b then return () else throwError e
+
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.

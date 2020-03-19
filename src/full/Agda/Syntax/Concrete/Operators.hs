@@ -55,6 +55,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Monad (guardWithError)
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
@@ -582,8 +583,15 @@ parsePat prs = \case
    - the applied patterns
 -}
 
--- | The result of 'parseLHS' is either a pattern ('Left') or a lhs ('Right').
-type ParseLHS = Either Pattern (QName, LHSCore)
+-- | The result of 'parseLHS'.
+data ParseLHS
+  = ParsePattern Pattern    -- ^ We parsed a pattern.
+  | ParseLHS QName LHSCore  -- ^ We parsed a lhs.
+
+instance Pretty ParseLHS where
+  pretty = \case
+    ParsePattern p  -> pretty p
+    ParseLHS _f lhs -> pretty lhs
 
 -- | Parses a left-hand side, workhorse for 'parseLHS'.
 --
@@ -601,7 +609,7 @@ parseLHS'
        -- were used to generate the grammar.
 
 parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
-    return (Right (qn, LHSHead qn []), [])
+    return (ParseLHS qn $ LHSHead qn [], [])
 
 parseLHS' lhsOrPatSyn top p = do
 
@@ -640,8 +648,8 @@ parseLHS' lhsOrPatSyn top p = do
         validPattern conf p = do
           res <- classifyPattern conf p
           case (res, top) of
-            (Left{}, Nothing) -> return (p, res)  -- expect pattern
-            (Right{}, Just{}) -> return (p, res)  -- expect lhs
+            (ParsePattern{}, Nothing) -> return (p, res)  -- expect pattern
+            (ParseLHS{}    , Just{} ) -> return (p, res)  -- expect lhs
             _ -> throwError Nothing
 
 -- | Name sets for classifying a pattern.
@@ -665,24 +673,28 @@ classifyPattern conf p =
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
-      return $ Right (x, lhsCoreAddSpine (LHSHead x []) ps)
+      return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
     Arg _ (Named _ (IdentP x)) : ps | fldName conf x -> do
-      -- ps0 :: [NamedArg ParseLHS]
-      ps0 <- mapM classPat ps
-      let (ps1, rest) = span (isLeft . namedArg) ps0
-      (p2, ps3) <- maybeToEither Nothing $ uncons rest -- when (null rest): no field pattern or def pattern found
 
-      -- Ensure that the @ps3@ are patterns (@Left@) rather than lhss (@Right@).
-      mapM_ (either return (const $ throwError Nothing) . namedArg) ps3
+      -- Step 1: check for valid copattern lhs.
+      ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
+      let (ps1, rest) = span (isParsePattern . namedArg) ps0
+      (p2, ps3) <- maybeToEither Nothing $ uncons rest
+          -- when (null rest): no field pattern or def pattern found
 
-      let (f, lhs)      = fromR p2
+      -- Ensure that the @ps3@ are patterns rather than lhss.
+      mapM_ (guardWithError Nothing . isParsePattern . namedArg) ps3
+
+      -- Step 2: construct the lhs.
+      let (f, lhs0)     = fromParseLHS $ namedArg p2
+          lhs           = setNamedArg p2 lhs0
           (ps', _:ps'') = splitAt (length ps1) ps
-      return $ Right (f, lhsCoreAddSpine (LHSProj x ps' lhs []) ps'')
+      return $ ParseLHS f $ lhsCoreAddSpine (LHSProj x ps' lhs []) ps''
 
     -- case: ordinary pattern
-    _ -> Left p <$ valid p
+    _ -> ParsePattern p <$ valid p
 
   where
   valid = validConPattern $ conName conf
@@ -690,10 +702,14 @@ classifyPattern conf p =
   classPat :: NamedArg Pattern -> PM (NamedArg ParseLHS)
   classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
 
-  fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
-  fromR (Arg info (Named n (Right (b, c)))) = (b, Arg info (Named n c))
-  fromR (Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
+  isParsePattern = \case
+    ParsePattern{} -> True
+    ParseLHS{}     -> False
 
+  fromParseLHS :: ParseLHS -> (QName, LHSCore)
+  fromParseLHS = \case
+    ParseLHS f lhs -> (f, lhs)
+    ParsePattern{} -> __IMPOSSIBLE__
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
@@ -701,7 +717,7 @@ parseLHS :: QName -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser IsPattern $ do
   (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
-    Right (f, lhs) -> return lhs
+    ParseLHS f lhs -> return lhs
     _ -> typeError $ OperatorInformation ops
                    $ NoParseForLHS IsLHS [] p
 
@@ -716,9 +732,9 @@ parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
 parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
   (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
-    Left p -> return p
-    _      -> typeError $ OperatorInformation ops
-                        $ NoParseForLHS lhsOrPatSyn [] p
+    ParsePattern p -> return p
+    _ -> typeError $ OperatorInformation ops
+                   $ NoParseForLHS lhsOrPatSyn [] p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 --
