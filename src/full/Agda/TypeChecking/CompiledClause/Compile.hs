@@ -112,7 +112,7 @@ type Cls = [Cl]
 -- | Strip down a clause. Don't forget to apply the substitution to the dot
 --   patterns!
 unBruijn :: Clause -> Cl
-unBruijn c = Cl (applySubst sub $ (fmap dbPatVarName . namedThing) <$> namedClausePats c)
+unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) $ namedClausePats c)
                 (applySubst sub $ clauseBody c)
   where
     sub = renamingR $ fromMaybe __IMPOSSIBLE__ (clausePerm c)
