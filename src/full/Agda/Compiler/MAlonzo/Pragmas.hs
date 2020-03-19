@@ -176,7 +176,7 @@ getHaskellConstructor c = do
 --   file header pragmas, import statements, rest.
 foreignHaskell :: TCM ([String], [String], [String])
 foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+    . maybe [] (map getCode) . Map.lookup ghcBackendName . iForeignCode <$> curIF
   where getCode (ForeignCode _ code) = code
 
 -- | Classify @FOREIGN@ Haskell code.
