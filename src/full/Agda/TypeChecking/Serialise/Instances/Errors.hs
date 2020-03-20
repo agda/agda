@@ -56,7 +56,7 @@ instance EmbPrj Warning where
   icod_ (InversionDepthReached a)    = icodeN 8 InversionDepthReached a
   icod_ (UserWarning a)              = icodeN 9 UserWarning a
   icod_ (AbsurdPatternRequiresNoRHS a) = icodeN 10 AbsurdPatternRequiresNoRHS a
-  icod_ (ModuleDoesntExport a b)       = icodeN 11 ModuleDoesntExport a b
+  icod_ (ModuleDoesntExport a b c d) = icodeN 11 ModuleDoesntExport a b c d
   icod_ (LibraryWarning a)           = icodeN 12 LibraryWarning a
   icod_ (CoverageNoExactSplit a b)   = icodeN 13 CoverageNoExactSplit a b
   icod_ (CantGeneralizeOverSorts a)  = icodeN 14 CantGeneralizeOverSorts a
@@ -87,7 +87,7 @@ instance EmbPrj Warning where
       valu [8, a]       = valuN InversionDepthReached a
       valu [9, a]       = valuN UserWarning a
       valu [10, a]      = valuN AbsurdPatternRequiresNoRHS a
-      valu [11, a, b]   = valuN ModuleDoesntExport a b
+      valu [11, a, b, c, d] = valuN ModuleDoesntExport a b c d
       valu [12, a]      = valuN LibraryWarning a
       valu [13, a, b]   = valuN CoverageNoExactSplit a b
       valu [14, a]      = valuN CantGeneralizeOverSorts a

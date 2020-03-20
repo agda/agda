@@ -105,11 +105,12 @@ d1 <?> d2 = (P.<?>) <$> d1 <*> d2
 nest :: Functor m => Int -> m Doc -> m Doc
 nest n d   = P.nest n <$> d
 
-braces, dbraces, brackets, parens :: Functor m => m Doc -> m Doc
+braces, dbraces, brackets, parens, parensNonEmpty :: Functor m => m Doc -> m Doc
 braces d   = P.braces <$> d
 dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
+parensNonEmpty d = P.parensNonEmpty <$> d
 
 pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
