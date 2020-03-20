@@ -1,4 +1,4 @@
-Issue2075.agda:5,1-13
+Issue2075.agda:5,8-12
 Unexpected implicit argument
 when checking the clause left hand side
 F {x = unit}
