@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GADTs                      #-}
 
 {-# LANGUAGE ImplicitParams             #-}

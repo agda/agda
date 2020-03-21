@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns         #-}
 {-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 

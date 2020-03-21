@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE TypeFamilies #-} -- for type equality ~
 

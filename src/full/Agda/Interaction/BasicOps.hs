@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
