@@ -344,7 +344,7 @@ code onlyCode fileType = mconcat . if onlyCode
     otherAspectClasses = map show
 
     -- Notes are not included.
-    noteClasses s = []
+    noteClasses _s = []
 
     -- | Should we output a named anchor?
     --   Only if we are at the definition site now (@here@)

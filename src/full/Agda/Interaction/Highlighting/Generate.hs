@@ -580,7 +580,7 @@ errorHighlighting e = do
   s <- E.prettyError e
   let error = singleton (rToR r)
          $ parserBased { otherAspects = Set.singleton Error
-                       , note         = Just s
+                       , note         = s
                        }
   return $ mconcat [ erase, error ]
 

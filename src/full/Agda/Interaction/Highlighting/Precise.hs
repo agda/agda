@@ -144,8 +144,8 @@ data OtherAspect
 data Aspects = Aspects
   { aspect       :: Maybe Aspect
   , otherAspects :: Set OtherAspect
-  , note         :: Maybe String
-    -- ^ This note, if present, can be displayed as a tool-tip or
+  , note         :: String
+    -- ^ This note, if not null, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
@@ -233,13 +233,11 @@ mergeAspects m1 m2 = Aspects
   { aspect       = (mplus `on` aspect) m1 m2
   , otherAspects = (Set.union `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
-      (Just n1, Just n2) -> Just $
-         if n1 == n2
-           then n1
-           else addFinalNewLine n1 ++ "----\n" ++ n2
-      (Just n1, Nothing) -> Just n1
-      (Nothing, Just n2) -> Just n2
-      (Nothing, Nothing) -> Nothing
+      (n1, "") -> n1
+      ("", n2) -> n2
+      (n1, n2)
+        | n1 == n2  -> n1
+        | otherwise -> addFinalNewLine n1 ++ "----\n" ++ n2
   , definitionSite = (mplus `on` definitionSite) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
@@ -251,7 +249,7 @@ instance Monoid Aspects where
   mempty = Aspects
     { aspect         = Nothing
     , otherAspects   = Set.empty
-    , note           = Nothing
+    , note           = []
     , definitionSite = Nothing
     , tokenBased     = mempty
     }

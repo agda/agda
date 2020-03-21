@@ -6,6 +6,8 @@ module Agda.Interaction.Highlighting.Emacs
   , lispifyTokenBased
   ) where
 
+import Prelude hiding (null)
+
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range (Range(..))
@@ -20,6 +22,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
 
+import Agda.Utils.Null
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -40,7 +43,7 @@ showAspects modFile (r, m) = L $
     dropNils (
       [lispifyTokenBased (tokenBased m)]
         ++
-      [A $ maybe "nil" quote $ note m]
+      [A $ ifNull (note m) "nil" quote]
         ++
       maybeToList (defSite <$> definitionSite m))
   where
