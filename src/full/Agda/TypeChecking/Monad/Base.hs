@@ -37,7 +37,7 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data, toConstr)
+import Data.Data (Data)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T

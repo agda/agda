@@ -7,112 +7,41 @@
 
 
 # Warnings currently triggered by your code
- - ignore: {name: "Avoid lambda using `infix`"}
- - ignore: {name: "Avoid lambda"}
- - ignore: {name: "Eta reduce"}
-# - ignore: {name: "Functor law"}
-# - ignore: {name: "Fuse concatMap/map"}
-# - ignore: {name: "Fuse foldr/map"}
-# - ignore: {name: "Fuse mapM/map"}
-# - ignore: {name: "Fuse mapM_/map"}
-# - ignore: {name: "Hoist not"}
-# - ignore: {name: "Monad law, left identity"}
-# - ignore: {name: "Move brackets to avoid $"}
-# - ignore: {name: "Move map inside list comprehension"}
-# - ignore: {name: "Parse error"}
- - ignore: {name: "Reduce duplication"}
- - ignore: {name: "Redundant $"}
-# - ignore: {name: "Redundant <$>"}
-# - ignore: {name: "Redundant =="}
- - ignore: {name: "Redundant bracket"}
- - ignore: {name: "Redundant do"}
-# - ignore: {name: "Redundant flip"}
- - ignore: {name: "Redundant guard"}
-# - ignore: {name: "Redundant id"}
-# - ignore: {name: "Redundant if"}
- - ignore: {name: "Redundant lambda"}
-# - ignore: {name: "Redundant list comprehension"}
- - ignore: {name: "Redundant multi-way if"}
-# - ignore: {name: "Redundant return"}
-# - ignore: {name: "Redundant variable capture"}
-# - ignore: {name: "Replace case with fromMaybe"}
-# - ignore: {name: "Replace case with maybe"}
-# - ignore: {name: "Too strict maybe"}
-# - ignore: {name: "Unused LANGUAGE pragma"}
-# - ignore: {name: "Use $>"}
-# - ignore: {name: "Use &&"}
-# - ignore: {name: "Use ++"}
-# - ignore: {name: "Use ."}
-# - ignore: {name: "Use /="}
-# - ignore: {name: "Use :"}
-# - ignore: {name: "Use <$"}
-# - ignore: {name: "Use <$>"}
-# - ignore: {name: "Use <=<"}
-# - ignore: {name: "Use <|>"}
-# - ignore: {name: "Use =<<"}
-# - ignore: {name: "Use >"}
-# - ignore: {name: "Use Just"}
- - ignore: {name: "Use String"}
-# - ignore: {name: "Use all"}
-# - ignore: {name: "Use and"}
-# - ignore: {name: "Use any"}
-# - ignore: {name: "Use asks"}
-# - ignore: {name: "Use break"}
- - ignore: {name: "Use camelCase"}
-# - ignore: {name: "Use catMaybes"}
-# - ignore: {name: "Use concatMap"}
- - ignore: {name: "Use const"}
-# - ignore: {name: "Use curry"}
-# - ignore: {name: "Use elem"}
-# - ignore: {name: "Use elemIndex"}
-# - ignore: {name: "Use fewer imports"}
-# - ignore: {name: "Use find"}
-# - ignore: {name: "Use first"}
-# - ignore: {name: "Use fmap"}
-# - ignore: {name: "Use foldr"}
-# - ignore: {name: "Use forM"}
-# - ignore: {name: "Use forM_"}
-# - ignore: {name: "Use gets"}
-# - ignore: {name: "Use guards"}
-# - ignore: {name: "Use id"}
-# - ignore: {name: "Use if"}
-# - ignore: {name: "Use infix"}
-# - ignore: {name: "Use intercalate"}
-# - ignore: {name: "Use isNothing"}
-# - ignore: {name: "Use lambda"}
- - ignore: {name: "Use lambda-case"}
-# - ignore: {name: "Use let"}
-# - ignore: {name: "Use list comprehension"}
- - ignore: {name: "Use list literal pattern"}
- - ignore: {name: "Use list literal"}
-# - ignore: {name: "Use map once"}
-# - ignore: {name: "Use mapMaybe"}
-# - ignore: {name: "Use maximum"}
-# - ignore: {name: "Use maybe"}
-# - ignore: {name: "Use negate"}
- - ignore: {name: "Use newtype instead of data"}
-# - ignore: {name: "Use notElem"}
-# - ignore: {name: "Use null"}
-# - ignore: {name: "Use print"}
- - ignore: {name: "Use record patterns"}
-# - ignore: {name: "Use replicate"}
-# - ignore: {name: "Use second"}
- - ignore: {name: "Use section"}
- - ignore: {name: "Use tuple-section"}
-# - ignore: {name: "Use typeRep"}
-# - ignore: {name: "Use uncurry"}
-# - ignore: {name: "Use unless"}
-# - ignore: {name: "Use unwords"}
-# - ignore: {name: "Use void"}
-# - ignore: {name: "Use zipWith"}
-# - ignore: {name: "Use zipWithM"}
-# - ignore: {name: "Use ||"}
+#- ignore: {name: "Redundant $"}
+- ignore: {name: "Redundant do"}
+#- ignore: {name: "Redundant bracket"}
+#- ignore: {name: "Reduce duplication"}
+#- ignore: {name: "Use list literal pattern"}
+#- ignore: {name: "Avoid lambda"}
+#- ignore: {name: "Eta reduce"}
+#- ignore: {name: "Use lambda-case"}
+- ignore: {name: "Use camelCase"}
+#- ignore: {name: "Redundant guard"}
+#- ignore: {name: "Unused LANGUAGE pragma"}
+#- ignore: {name: "Redundant multi-way if"}
+#- ignore: {name: "Use newtype instead of data"}
+#- ignore: {name: "Use String"}
+#- ignore: {name: "Use record patterns"}
+#- ignore: {name: "Redundant variable capture"}
+#- ignore: {name: "Use section"}
+#- ignore: {name: "Use tuple-section"}
+#- ignore: {name: "Use const"}
+#- ignore: {name: "Redundant lambda"}
+#- ignore: {name: "Avoid lambda using `infix`"}
+#- ignore: {name: "Hoist not"}
+#- ignore: {name: "Use id"}
+#- ignore: {name: "Use list literal"}
+#- ignore: {name: "Use <$>"}
+#- ignore: {name: "Use maximum"}
+#- ignore: {name: "Use ++"}
+#- ignore: {name: "Use <=<"}
+#- ignore: {name: "Redundant if"}
 
 
 # Specify additional command line arguments
 #
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]
- - arguments: [--with-group=extra]
+
 
 # Control which extensions/flags/modules/functions can be used
 #

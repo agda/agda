@@ -20,7 +20,6 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
-import Control.Monad
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
@@ -54,7 +53,6 @@ import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
-import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad (guardWithError)
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
