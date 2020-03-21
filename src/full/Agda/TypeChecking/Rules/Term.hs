@@ -677,16 +677,21 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
      mod <- asksTC getModality
      let info = setModality mod defaultArgInfo
 
-     reportSDoc "tc.term.exlam" 20 $
-       (text (show $ A.defAbstract di) <+>
-       "extended lambda's implementation \"") <> prettyTCM qname <>
-       "\" has type: " $$ prettyTCM t -- <+> " where clauses: " <+> text (show cs)
+     reportSDoc "tc.term.exlam" 20 $ vcat
+       [ hsep
+         [ text $ show $ A.defAbstract di
+         , "extended lambda's implementation"
+         , doubleQuotes $ prettyTCM qname
+         , "has type:"
+         ]
+       , prettyTCM t -- <+> " where clauses: " <+> text (show cs)
+       ]
      args     <- getContextArgs
 
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
      -- in case the lhs checker failed due to insufficient type info for the patterns.
      -- Issues 480, 1159, 1811.
-     (abstract (A.defAbstract di) $ do
+     abstract (A.defAbstract di) $ do
        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
@@ -696,7 +701,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
          checkIApplyConfluence_ qname
-       return $ Def qname $ map Apply args)
+       return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
