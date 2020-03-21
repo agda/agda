@@ -186,5 +186,3 @@ The recommended definition is the following one:
   data _≈_ : Coℕ → Coℕ → Set where
     zero : zero ≈ zero
     suc  : ∀ {m n} → ∞ (♭ m ≈ ♭ n) → suc m ≈ suc n
-
-The current implementation of coinductive types comes with some `limitations <http://article.gmane.org/gmane.comp.lang.agda/763/>`_.

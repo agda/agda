@@ -287,4 +287,4 @@ isolate the definitions from the rest of the file.
 
 
 
-.. _`reStructuredText format`: http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html
+.. _`reStructuredText format`: https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html
