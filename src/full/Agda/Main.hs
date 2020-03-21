@@ -3,7 +3,6 @@
 -}
 module Agda.Main where
 
-import Control.Monad (void)
 import Control.Monad.State
 
 import Data.Maybe

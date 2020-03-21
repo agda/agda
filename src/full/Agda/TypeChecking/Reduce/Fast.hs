@@ -1,5 +1,4 @@
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies  #-}
 
 {-|

@@ -7,14 +7,14 @@
 
 
 # Warnings currently triggered by your code
-#- ignore: {name: "Redundant $"}
+- ignore: {name: "Redundant $"}
 - ignore: {name: "Redundant do"}
-#- ignore: {name: "Redundant bracket"}
-#- ignore: {name: "Reduce duplication"}
+- ignore: {name: "Redundant bracket"}
+- ignore: {name: "Reduce duplication"}
 #- ignore: {name: "Use list literal pattern"}
 #- ignore: {name: "Avoid lambda"}
-#- ignore: {name: "Eta reduce"}
-#- ignore: {name: "Use lambda-case"}
+- ignore: {name: "Eta reduce"}
+- ignore: {name: "Use lambda-case"}
 - ignore: {name: "Use camelCase"}
 #- ignore: {name: "Redundant guard"}
 #- ignore: {name: "Unused LANGUAGE pragma"}
