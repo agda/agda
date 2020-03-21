@@ -109,7 +109,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   let m = length $ takeWhile (isNothing . A.isProjP) ps
   (TelV gamma b, boundary) <- telViewUpToPathBoundaryP m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
-    unless (sameHiding p a) $ typeError WrongHidingInLHS
+    unless (sameHiding p a) $ setCurrentRange p $ typeError WrongHidingInLHS
   let tel1      = useNamesFromPattern ps gamma
       n         = size tel1
       (ps1,ps2) = splitAt n ps

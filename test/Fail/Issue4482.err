@@ -1,4 +1,4 @@
-WrongHidingInLHS.agda:5,4-5
+Issue4482.agda:5,24-25
 Unexpected implicit argument
 when checking the clause left hand side
-f {x}
+.extendedlambda0 _ {B = B} {A = A}
