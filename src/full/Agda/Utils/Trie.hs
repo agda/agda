@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
 module Agda.Utils.Trie
@@ -165,4 +163,3 @@ valueAt :: Ord k => [k] -> Lens' (Maybe v) (Trie k v)
 valueAt path f t = f (lookup path t) <&> \ case
   Nothing -> delete path t
   Just v  -> insert path v t
-

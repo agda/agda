@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies  #-}

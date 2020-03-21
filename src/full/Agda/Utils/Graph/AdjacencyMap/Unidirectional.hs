@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns               #-}
-
 -- | Directed graphs (can of course simulate undirected graphs).
 --
 --   Represented as adjacency maps in direction from source to target.
@@ -869,4 +867,3 @@ gaussJordanFloydWarshallMcNaughtonYamada g =
 --         NEW EDGES WILL BE ADDED! Use 'Maybe ()' instead.
 transitiveClosure :: (Ord n, Eq e, StarSemiRing e) => Graph n e -> Graph n e
 transitiveClosure = fst . gaussJordanFloydWarshallMcNaughtonYamada
-
