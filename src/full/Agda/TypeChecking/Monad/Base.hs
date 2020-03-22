@@ -3456,7 +3456,8 @@ data TypeError
             --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
             -- ^ Pattern and its possible interpretations.
-        | OperatorInformation [NotationSection] TypeError
+        | OperatorInformation [NotationSection] [C.QName] TypeError
+            -- ^ Operators and other names used during failed operator parse.
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]

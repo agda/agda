@@ -924,14 +924,25 @@ instance PrettyTCM TypeError where
         unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
         unambiguousP e                    = e
 
-    OperatorInformation sects err ->
+    OperatorInformation sects names err ->
       prettyTCM err
         $+$
-      fsep (pwords "Operators used in the grammar:")
-        $$
-      nest 2
-        (if null sects then "None" else
-         vcat (map text $
+      usedOperators
+        $+$
+      usedNames
+      where
+      usedNames
+        | null names = empty
+        | otherwise  = vcat
+            [ fsep $ pwords "Further definitions used in the grammar:"
+            , nest 2 $ sep $ map prettyTCM names
+            ]
+      usedOperators
+        | null sects = "(no operators used in the grammar)"
+        | otherwise  = vcat
+            [ fsep $ pwords "Operators used in the grammar:"
+            , nest 2 $ vcat $
+               map text $
                lines $
                Boxes.render $
                (\(col1, col2, col3) ->
@@ -940,8 +951,8 @@ instance PrettyTCM TypeError where
                unzip3 $
                map prettySect $
                sortBy (compare `on` show . notaName . sectNotation) $
-               filter (not . closedWithoutHoles) sects))
-      where
+               filter (not . closedWithoutHoles) sects
+             ]
       trimLeft  = dropWhile isNormalHole
       trimRight = dropWhileEnd isNormalHole
 
