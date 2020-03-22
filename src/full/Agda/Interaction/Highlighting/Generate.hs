@@ -570,19 +570,31 @@ printErrorInfo e =
 -- | Generate highlighting for error.
 
 errorHighlighting :: TCErr -> TCM File
-errorHighlighting e = do
+errorHighlighting e = errorHighlighting' (getRange e) <$> E.prettyError e
 
-  -- Erase previous highlighting.
-  let r     = getRange e
-      erase = singleton (rToR $ P.continuousPerLine r) mempty
-
-  -- Print new highlighting.
-  s <- E.prettyError e
-  let error = singleton (rToR r)
+errorHighlighting'
+  :: Range     -- ^ Error range.
+  -> String    -- ^ Error message for tooltip.
+  -> File
+errorHighlighting' r s = mconcat
+  [ -- Erase previous highlighting.
+    singleton (rToR $ P.continuousPerLine r) mempty
+  , -- Print new highlighting.
+    singleton (rToR r)
          $ parserBased { otherAspects = Set.singleton Error
                        , note         = s
                        }
-  return $ mconcat [ erase, error ]
+  ]
+
+-- | Highlighting for warnings that are considered fatal.
+
+errorWarningHighlighting :: HasRange a => a -> File
+errorWarningHighlighting w =
+  singleton (rToR $ P.continuousPerLine $ getRange w) $
+    parserBased { otherAspects = Set.singleton ErrorWarning }
+-- errorWarningHighlighting w = errorHighlighting' (getRange w) ""
+  -- MonadPretty not available here, so, no tooltip.
+  -- errorHighlighting' (getRange w) . render <$> E. prettyWarning (tcWarning w)
 
 -- | Generate syntax highlighting for warnings.
 
@@ -618,24 +630,27 @@ warningHighlighting w = case tcWarning w of
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
-  GenericNonFatalError{}     -> mempty
-  SafeFlagPostulate{}        -> mempty
-  SafeFlagPragma{}           -> mempty
-  SafeFlagNonTerminating     -> mempty
-  SafeFlagTerminating        -> mempty
-  SafeFlagWithoutKFlagPrimEraseEquality -> mempty
-  SafeFlagEta                -> mempty
-  SafeFlagInjective          -> mempty
-  SafeFlagNoCoverageCheck    -> mempty
+  -- Andreas, 2020-03-21, issue #4456:
+  -- Error warnings that do not have dedicated highlighting
+  -- are highlighted as errors.
+  GenericNonFatalError{}                -> errorWarningHighlighting w
+  SafeFlagPostulate{}                   -> errorWarningHighlighting w
+  SafeFlagPragma{}                      -> errorWarningHighlighting w
+  SafeFlagNonTerminating                -> errorWarningHighlighting w
+  SafeFlagTerminating                   -> errorWarningHighlighting w
+  SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w
+  SafeFlagEta                           -> errorWarningHighlighting w
+  SafeFlagInjective                     -> errorWarningHighlighting w
+  SafeFlagNoCoverageCheck               -> errorWarningHighlighting w
+  SafeFlagNoPositivityCheck             -> errorWarningHighlighting w
+  SafeFlagPolarity                      -> errorWarningHighlighting w
+  SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
+  InfectiveImport{}                     -> errorWarningHighlighting w
+  CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
-  SafeFlagNoPositivityCheck  -> mempty
-  SafeFlagPolarity           -> mempty
-  SafeFlagNoUniverseCheck    -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
-  InfectiveImport{}          -> mempty
-  CoInfectiveImport{}        -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
   PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
@@ -671,7 +686,7 @@ warningHighlighting w = case tcWarning w of
     InvalidCatchallPragma{}           -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty
-    PragmaCompiled{}                  -> mempty
+    PragmaCompiled{}                  -> errorWarningHighlighting w
     UnknownFixityInMixfixDecl{}       -> mempty
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty

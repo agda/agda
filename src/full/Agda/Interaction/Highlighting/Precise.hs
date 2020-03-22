@@ -112,6 +112,8 @@ data NameKind
 
 data OtherAspect
   = Error
+  | ErrorWarning
+    -- ^ A warning that is considered fatal in the end.
   | DottedPattern
   | UnsolvedMeta
   | UnsolvedConstraint
