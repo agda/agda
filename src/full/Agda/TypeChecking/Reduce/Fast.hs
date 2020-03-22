@@ -1374,7 +1374,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
 instance Pretty a => Pretty (FastCase a) where
   prettyPrec p (FBranches _cop cs suc ls m _) =
-    mparens (p > 0) $ vcat (prettyMap cs ++ prettyMap ls ++ prSuc suc ++ prC m)
+    mparens (p > 0) $ vcat (prettyMap_ cs ++ prettyMap_ ls ++ prSuc suc ++ prC m)
     where
       prC Nothing = []
       prC (Just x) = ["_ ->" <?> pretty x]

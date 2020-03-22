@@ -631,14 +631,21 @@ instance Pretty Pragma where
       hsep ("POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
 
+instance Pretty Associativity where
+  pretty = \case
+    LeftAssoc  -> "infixl"
+    RightAssoc -> "infixr"
+    NonAssoc   -> "infix"
+
+instance Pretty FixityLevel where
+  pretty = \case
+    Unrelated  -> empty
+    Related d  -> text $ toStringWithoutDotZero d
+
 instance Pretty Fixity where
-    pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
-    pretty (Fixity _ (Related d) ass) = s <+> text (toStringWithoutDotZero d)
-      where
-      s = case ass of
-            LeftAssoc  -> "infixl"
-            RightAssoc -> "infixr"
-            NonAssoc   -> "infix"
+  pretty (Fixity _ level ass) = case level of
+    Unrelated  -> empty
+    Related{}  -> pretty ass <+> pretty level
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text $ rangedThing x
@@ -649,9 +656,9 @@ instance Pretty GenPart where
     prettyList = hcat . map pretty
 
 instance Pretty Fixity' where
-    pretty (Fixity' fix nota _)
-      | nota == noNotation = pretty fix
-      | otherwise          = "syntax" <+> pretty nota
+    pretty (Fixity' fix nota _range)
+      | null nota = pretty fix
+      | otherwise = "syntax" <+> pretty nota
 
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
