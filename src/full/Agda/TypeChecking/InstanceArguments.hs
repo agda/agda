@@ -274,7 +274,6 @@ findInstance' m cands = ifM (isFrozen m) (do
             prettyTCM (List.map candidateTerm cs)
           return (Just (cs, Nothing))
 
--- | Precondition: type is spine reduced and ends in a Def or a Var.
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret = reduce (unEl t) >>= \case
     Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
