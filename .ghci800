@@ -56,7 +56,6 @@
 :set -Wno-unused-matchesg
 :set -Wredundant-constraintsg
 
-
 :set -XBangPatterns
 :set -XConstraintKinds
 :set -XDataKinds

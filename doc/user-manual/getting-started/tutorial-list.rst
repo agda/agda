@@ -44,7 +44,6 @@ Introduction to Agda
      (OPLSS 2013).
 - Tesla Ice Zhang.
    - `Some books about Formal Verification in Agda (in Chinese) <https://github.com/ice1000/Books>`__
-   - `A blog created with Literate Agda (in Chinese) <https://ice1000.org/lagda/>`__
 - Phil Wadler.
    - `Programming Languages Foundations in Agda <https://plfa.github.io/>`__
 - Aaron Stump.

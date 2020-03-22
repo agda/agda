@@ -102,18 +102,17 @@ localNames flat = do
   locals <- nubOn fst . notShadowedLocals <$> getLocalVars
   -- Note: Debug printout aligned with the one in buildParsers.
   reportS "scope.operators" 50
-    [ "flat  = " ++ show flat
-    , "defs  = " ++ show defs
-    , "locals= " ++ show locals
+    [ "flat  = " ++ prettyShow flat
+    , "defs  = " ++ prettyShow defs
+    , "locals= " ++ prettyShow locals
     ]
   let localNots  = map localOp locals
-      localNames = Set.fromList $ map notaName localNots
-      otherNots  = filter (\n -> not (Set.member (notaName n) localNames))
-                          (concat defs)
+      notLocal   = not . hasElem (map notaName localNots) . notaName
+      otherNots  = concat $ map (filter notLocal) defs
   return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y
-    split ops      = partitionEithers $ concatMap opOrNot ops
+    split          = partitionEithers . concatMap opOrNot
     opOrNot n      = Left (notaName n) :
                      [Right n | not (null (notation n))]
 
@@ -357,9 +356,9 @@ buildParsers kind exprNames = do
           nonWithSections
 
     reportS "scope.operators" 50
-      [ "unrelatedOperators = " ++ show unrelatedOperators
-      , "nonWithSections    = " ++ show nonWithSections
-      , "relatedOperators   = " ++ show relatedOperators
+      [ "unrelatedOperators = " ++ prettyShow unrelatedOperators
+      , "nonWithSections    = " ++ prettyShow nonWithSections
+      , "relatedOperators   = " ++ prettyShow relatedOperators
       ]
 
     let g = Data.Function.fix $ \p -> InternalParsers

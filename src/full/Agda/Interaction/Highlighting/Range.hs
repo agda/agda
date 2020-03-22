@@ -15,7 +15,11 @@ module Agda.Interaction.Highlighting.Range
   , minus
   ) where
 
+import Prelude hiding (null)
+
 import qualified Agda.Syntax.Position as P
+
+import Agda.Utils.Null
 
 -- | Character ranges. The first character in the file has position 1.
 -- Note that the 'to' position is considered to be outside of the
@@ -25,6 +29,10 @@ import qualified Agda.Syntax.Position as P
 
 data Range = Range { from, to :: Int }
              deriving (Eq, Ord, Show)
+
+instance Null Range where
+  empty  = Range 0 0
+  null r = to r <= from r
 
 -- | The 'Range' invariant.
 
@@ -53,11 +61,6 @@ rangesInvariant (Ranges rs) =
 overlapping :: Range -> Range -> Bool
 overlapping r1 r2 = not $
   to r1 <= from r2 || to r2 <= from r1
-
--- | 'True' iff the range is empty.
-
-empty :: Range -> Bool
-empty r = to r <= from r
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -104,7 +107,7 @@ minus (Ranges rs1) (Ranges rs2) = Ranges (m rs1 rs2)
   m []     _      = []
   m xs     []     = xs
   m (x:xs) (y:ys)
-    | empty y         = m (x:xs) ys
+    | null y          = m (x:xs) ys
     | to x < from y   = x : m xs (y:ys)
     | to y < from x   = m (x:xs) ys
     | from x < from y = Range { from = from x, to = from y } :
