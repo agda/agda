@@ -228,7 +228,7 @@ findInstance' m cands = ifM (isFrozen m) (do
        nest 2 $ vcat
         [ sep [ (if overlap then "overlap" else empty) <+> pretty v <+> ":"
               , nest 2 $ pretty t ] | Candidate v t overlap <- cands ]
-      t <- normalise =<< getMetaTypeInContext m
+      t <- getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
@@ -276,8 +276,7 @@ findInstance' m cands = ifM (isFrozen m) (do
 
 -- | Precondition: type is spine reduced and ends in a Def or a Var.
 insidePi :: Type -> (Type -> TCM a) -> TCM a
-insidePi t ret =
-  case unEl t of
+insidePi t ret = reduce (unEl t) >>= \case
     Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t
