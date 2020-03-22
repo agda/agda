@@ -109,13 +109,12 @@ localNames flat = do
     , "locals= " ++ show locals
     ]
   let localNots  = map localOp locals
-      localNames = Set.fromList $ map notaName localNots
-      otherNots  = filter (\n -> not (Set.member (notaName n) localNames))
-                          (concat defs)
+      notLocal   = not . hasElem (map notaName localNots) . notaName
+      otherNots  = concat $ map (filter notLocal) defs
   return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y
-    split ops      = partitionEithers $ concatMap opOrNot ops
+    split          = partitionEithers . concatMap opOrNot
     opOrNot n      = Left (notaName n) :
                      [Right n | not (null (notation n))]
 
