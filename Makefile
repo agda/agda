@@ -60,7 +60,7 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-GHC_OPTS           = "+RTS -M3G -RTS"
+GHC_OPTS           = "-j4 -ddump-minimal-imports +RTS -M3G -RTS"
 CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
