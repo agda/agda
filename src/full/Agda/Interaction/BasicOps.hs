@@ -238,7 +238,7 @@ refine force ii mr e = do
   tryRefine 10 range scope e
   where
     tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
-    tryRefine nrOfMetas r scope e = try nrOfMetas Nothing e
+    tryRefine nrOfMetas r scope = try nrOfMetas Nothing
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
