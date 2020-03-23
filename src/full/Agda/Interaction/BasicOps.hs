@@ -238,11 +238,15 @@ refine force ii mr e = do
   tryRefine 10 range scope e
   where
     tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
-    tryRefine nrOfMetas r scope e = try nrOfMetas e
+    tryRefine nrOfMetas r scope e = try nrOfMetas Nothing e
       where
-        try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError $ stringTCErr "Cannot refine"
-        try n e = give force ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
+        try :: Int -> Maybe TCErr -> Expr -> TCM Expr
+        try 0 err e = throwError . stringTCErr $ case err of
+           Just (TypeError _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+             "Cannot refine functions with 10 or more arguments"
+           _ ->
+             "Cannot refine"
+        try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
