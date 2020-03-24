@@ -170,6 +170,7 @@ data PragmaOptions = PragmaOptions
       --   (False) or keep them as variables (True).
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
+  , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
@@ -281,6 +282,7 @@ defaultPragmaOptions = PragmaOptions
   , optKeepPatternVariables      = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
+  , optQualifiedInstances        = True
   , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optDoubleCheck               = False
@@ -430,6 +432,8 @@ restartOptions =
   , (B . optRewriting, "--rewriting")
   , (B . optCubical, "--cubical")
   , (B . optOverlappingInstances, "--overlapping-instances")
+  , (B . optQualifiedInstances, "--qualified-instances")
+  , (B . not . optQualifiedInstances, "--no-qualified-instances")
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
   , (B . not . optSyntacticEquality, "--no-syntactic-equality")
@@ -738,6 +742,12 @@ overlappingInstancesFlag o = return $ o { optOverlappingInstances = True }
 noOverlappingInstancesFlag :: Flag PragmaOptions
 noOverlappingInstancesFlag o = return $ o { optOverlappingInstances = False }
 
+qualifiedInstancesFlag :: Flag PragmaOptions
+qualifiedInstancesFlag o = return $ o { optQualifiedInstances = True }
+
+noQualifiedInstancesFlag :: Flag PragmaOptions
+noQualifiedInstancesFlag o = return $ o { optQualifiedInstances = False }
+
 inversionMaxDepthFlag :: String -> Flag PragmaOptions
 inversionMaxDepthFlag s o = do
   d <- integerArgument "--inversion-max-depth" s
@@ -1008,6 +1018,10 @@ pragmaOptions =
                     "consider recursive instance arguments during pruning of instance candidates"
     , Option []     ["no-overlapping-instances"] (NoArg noOverlappingInstancesFlag)
                     "don't consider recursive instance arguments during pruning of instance candidates (default)"
+    , Option []     ["qualified-instances"] (NoArg qualifiedInstancesFlag)
+                    "use instances with qualified names (default)"
+    , Option []     ["no-qualified-instances"] (NoArg noQualifiedInstancesFlag)
+                    "don't use instances with qualified names (default)"
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)

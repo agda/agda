@@ -15,13 +15,14 @@ import qualified Data.List as List
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
 
-import Agda.Interaction.Options (optOverlappingInstances)
+import Agda.Interaction.Options (optOverlappingInstances, optQualifiedInstances)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name (isQualified)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Scope.Base (isNameInScope)
+import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookup', AllowAmbiguousNames(..))
 
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
@@ -146,6 +147,10 @@ initialInstanceCandidates t = do
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)
     candidate rel q = ifNotM (isNameInScope q <$> getScope) (return Nothing) $ do
+      -- Jesper, 2020-03-16: When using --no-qualified-instances,
+      -- filter out instances that are only in scope under a qualified
+      -- name.
+      filterQualified $ do
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
       -- while opening a module, q may be in scope but not in the signature
@@ -173,6 +178,13 @@ initialInstanceCandidates t = do
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
         handle err                                                 = throwError err
+
+        filterQualified :: TCM (Maybe Candidate) -> TCM (Maybe Candidate)
+        filterQualified m = ifM (optQualifiedInstances <$> pragmaOptions) m $ do
+          qc <- inverseScopeLookup' AmbiguousAnything (Right q) <$> getScope
+          let isQual = maybe False isQualified $ listToMaybe qc
+          if isQual then return Nothing else m
+
 
 -- | @findInstance m (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
@@ -228,7 +240,7 @@ findInstance' m cands = ifM (isFrozen m) (do
        nest 2 $ vcat
         [ sep [ (if overlap then "overlap" else empty) <+> pretty v <+> ":"
               , nest 2 $ pretty t ] | Candidate v t overlap <- cands ]
-      t <- normalise =<< getMetaTypeInContext m
+      t <- getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
@@ -274,10 +286,8 @@ findInstance' m cands = ifM (isFrozen m) (do
             prettyTCM (List.map candidateTerm cs)
           return (Just (cs, Nothing))
 
--- | Precondition: type is spine reduced and ends in a Def or a Var.
 insidePi :: Type -> (Type -> TCM a) -> TCM a
-insidePi t ret =
-  case unEl t of
+insidePi t ret = reduce (unEl t) >>= \case
     Pi a b     -> addContext (absName b, a) $ insidePi (absBody b) ret
     Def{}      -> ret t
     Var{}      -> ret t

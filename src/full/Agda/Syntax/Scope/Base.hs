@@ -1097,7 +1097,7 @@ isNameInScope q scope =
   Set.member q (scope ^. scopeInScope)
 
 -- | Find the concrete names that map (uniquely) to a given abstract name.
---   Sort by length, shortest first.
+--   Sort by number of modules in the qualified name, unqualified names first.
 
 inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup = inverseScopeLookup' AmbiguousConProjs
