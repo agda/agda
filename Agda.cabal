@@ -87,6 +87,7 @@ data-files:         Agda.css
                     emacs-mode/*.el
                     JS/agda-rts.js
                     JS/biginteger.js
+                    JS/highlight-hover.js
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda
