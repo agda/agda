@@ -224,17 +224,18 @@ page css
                else docTypeHtml $ hdr <> rest
   where
 
-    hdr = if highlightOccurrences then hdr' <> highlightHover else hdr'
-    highlightHover = script mempty !!
-      [ type_ "text/javascript"
-      , src $ stringValue occurrenceHighlightJsFile
-      ]
-    hdr' = Html5.head $ mconcat
+    hdr = Html5.head $ mconcat
       [ meta !! [ charset "utf-8" ]
       , Html5.title (toHtml . render $ pretty modName)
       , link !! [ rel "stylesheet"
                 , href $ stringValue css
                 ]
+      , if highlightOccurrences
+        then script mempty !!
+          [ type_ "text/javascript"
+          , src $ stringValue occurrenceHighlightJsFile
+          ]
+        else mempty
       ]
 
     rest = body $ (pre ! class_ "Agda") pageContent
