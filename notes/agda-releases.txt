@@ -1,4 +1,4 @@
-Tested with `cabal-install 3.0.0.0`.
+Tested with `cabal-install 2.4.0.1`.
 
 When releasing the following procedure can be followed:
 
@@ -10,6 +10,14 @@ When releasing the following procedure can be followed:
 * Use the branch used for releasing the release candidate.
 
 * Finish the release notes in the CHANGELOG.
+
+* Replace in the CHANGELOG
+
+  https://agda.readthedocs.io/en/latest
+
+  by
+
+  https://agda.readthedocs.io/en/vMAJORVERSION
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
@@ -82,14 +90,14 @@ When releasing the following procedure can be followed:
 
 * Build source distributions:
 
-    cabal v1-configure
+    cabal configure
     cabal check
-    cabal v1-sdist
+    cabal sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal v1-haddock --for-hackage
+    cabal haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -99,7 +107,7 @@ When releasing the following procedure can be followed:
     tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
     cabal install --program-suffix=-$MAJORVERSION
-    agda-$MAJOY_VERSION --version
+    agda-$MAJOR_VERSION --version
     agda-mode-$MAJOR_VERSION compile
 
 * Tag the relase (do not forget to record the changes above first):

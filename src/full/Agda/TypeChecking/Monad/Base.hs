@@ -4117,18 +4117,15 @@ runTCMTop' m = do
   r <- liftIO $ newIORef initState
   unTCM m r initEnv
 
--- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which cannot fail)
---   in the initial environment.
+-- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which
+--   cannot fail, except that it might raise 'IOException's) in the
+--   initial environment.
 
 runSafeTCM :: TCM a -> TCState -> IO (a, TCState)
-runSafeTCM m st = runTCM initEnv st m `E.catch` (\ (e :: TCErr) -> __IMPOSSIBLE__)
--- runSafeTCM m st = either__IMPOSSIBLE__ return <$> do
---     -- Errors must be impossible.
---     runTCM $ do
---         putTC st
---         a <- m
---         st <- getTC
---         return (a, st)
+runSafeTCM m st =
+  runTCM initEnv st m `E.catch` \(e :: TCErr) -> case e of
+    IOException _ _ err -> E.throwIO err
+    _                   -> __IMPOSSIBLE__
 
 -- | Runs the given computation in a separate thread, with /a copy/ of
 -- the current state and environment.

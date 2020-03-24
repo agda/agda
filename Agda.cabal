@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.6.1
+version:         2.6.2
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
@@ -73,8 +73,8 @@ extra-source-files: CHANGELOG.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
                     stack-8.8.3.yaml
--- ASR (2020-02-25). We need to keep the below file because
--- https://github.com/actions/setup-haskell/issues/8.
+-- ASR (2020-03-16). We need to keep the below file because there is a
+-- problem with GHC 8.8.3, Windows and stack. See Issue #4476.
                     stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
@@ -131,7 +131,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.1
+  tag:      v2.6.2
 
 flag cpphs
   default:     False
