@@ -62,6 +62,11 @@ import Agda.Utils.Impossible
 defaultCSSFile :: FilePath
 defaultCSSFile = "Agda.css"
 
+-- | The name of the occurrence-highlighting JS file.
+
+occurrenceHighlightJsFile :: FilePath
+occurrenceHighlightJsFile = "highlight-hover.js"
+
 -- | The directive inserted before the rendered code blocks
 
 rstDelimiter :: String
@@ -98,6 +103,7 @@ highlightedFileExt hh ft
 
 type PageGen = FilePath    -- ^ Output directory
   -> FileType              -- ^ Source file type
+  -> Bool                  -- ^ Highlight occurrences
   -> Bool                  -- ^ Return value of `highlightOnlyCode`
   -> String                -- ^ Output file extension (return
                            --   value of `highlightedFileExt`)
@@ -110,7 +116,7 @@ generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
   pageGen :: PageGen
-  pageGen dir ft pc ext mod contents hinfo =
+  pageGen dir ft ho pc ext mod contents hinfo =
     generatePage (renderer pc ft) ext dir mod
     where
     renderer :: Bool -> FileType -> FilePath -> FilePath -> Text
@@ -135,6 +141,7 @@ generateHTMLWithPageGen generatePage = do
       -- There is a default directory given by 'defaultHTMLDir'
       let dir = optHTMLDir options
       let htmlHighlight = optHTMLHighlight options
+      let highlightOccurrences = optHighlightOccurrences options
       liftIO $ createDirectoryIfMissing True dir
 
       -- If the default CSS file should be used, then it is copied to
@@ -142,6 +149,10 @@ generateHTMLWithPageGen generatePage = do
       liftIO $ when (isNothing $ optCSSFile options) $ do
         cssFile <- getDataFileName defaultCSSFile
         copyFile cssFile (dir </> defaultCSSFile)
+      liftIO $ when highlightOccurrences $ do
+        highlightJsFile <- getDataFileName $
+          "JS" </> occurrenceHighlightJsFile
+        copyFile highlightJsFile (dir </> occurrenceHighlightJsFile)
 
       TCM.reportS "html" 1
         [ "" :: String
@@ -155,6 +166,7 @@ generateHTMLWithPageGen generatePage = do
               let i  = TCM.miInterface mi
                   ft = TCM.iFileType i in
               generatePage dir ft
+                highlightOccurrences
                 (highlightOnlyCode htmlHighlight ft)
                 (highlightedFileExt htmlHighlight ft) n
                 (TCM.iSource i) (TCM.iHighlighting i)) .
@@ -195,19 +207,29 @@ h !! as = h ! mconcat as
 -- | Constructs the web page, including headers.
 
 page :: FilePath              -- ^ URL to the CSS file.
+     -> Bool                  -- ^ Highlight occurrences
      -> Bool                  -- ^ Whether to reserve literate
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
      -> Text
-page css htmlHighlight modName pageContent =
+page css
+     highlightOccurrences
+     htmlHighlight
+     modName
+     pageContent =
   renderHtml $ if htmlHighlight
                then pageContent
                else docTypeHtml $ hdr <> rest
   where
 
-    hdr = Html5.head $ mconcat
+    hdr = if highlightOccurrences then hdr' <> highlightHover else hdr'
+    highlightHover = script mempty !!
+      [ type_ "text/javascript"
+      , src occurrenceHighlightJsFile
+      ]
+    hdr' = Html5.head $ mconcat
       [ meta !! [ charset "utf-8" ]
-      , Html5.title (toHtml $ render $ pretty modName)
+      , Html5.title (toHtml . render $ pretty modName)
       , link !! [ rel "stylesheet"
                 , href $ stringValue css
                 ]
