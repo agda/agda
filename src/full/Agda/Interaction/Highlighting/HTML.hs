@@ -117,11 +117,13 @@ generateHTML = generateHTMLWithPageGen pageGen
   where
   pageGen :: PageGen
   pageGen dir ft ho pc ext mod contents hinfo =
-    generatePage (renderer pc ft) ext dir mod
+    generatePage (renderer ho pc ft) ext dir mod
     where
-    renderer :: Bool -> FileType -> FilePath -> FilePath -> Text
-    renderer onlyCode fileType css _ =
-      page css onlyCode mod $
+    renderer :: Bool -> Bool
+             -> FileType -> FilePath -> FilePath
+             -> Text
+    renderer highlightOccur onlyCode fileType css _ =
+      page css highlightOccur onlyCode mod $
       code onlyCode fileType $
       tokenStream contents hinfo
 
@@ -225,7 +227,7 @@ page css
     hdr = if highlightOccurrences then hdr' <> highlightHover else hdr'
     highlightHover = script mempty !!
       [ type_ "text/javascript"
-      , src occurrenceHighlightJsFile
+      , src $ stringValue occurrenceHighlightJsFile
       ]
     hdr' = Html5.head $ mconcat
       [ meta !! [ charset "utf-8" ]
