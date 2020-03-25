@@ -89,41 +89,42 @@ data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
 -- if you make changes to the command-line options!
 
 data CommandLineOptions = Options
-  { optProgramName      :: String
-  , optInputFile        :: Maybe FilePath
-  , optIncludePaths     :: [FilePath]
-  , optAbsoluteIncludePaths :: [AbsolutePath]
-  , optLibraries        :: [LibName]
+  { optProgramName           :: String
+  , optInputFile             :: Maybe FilePath
+  , optIncludePaths          :: [FilePath]
+  , optAbsoluteIncludePaths  :: [AbsolutePath]
+  , optLibraries             :: [LibName]
   , optOverrideLibrariesFile :: Maybe FilePath
   -- ^ Use this (if Just) instead of .agda/libraries
-  , optDefaultLibs      :: Bool
+  , optDefaultLibs           :: Bool
   -- ^ Use ~/.agda/defaults
-  , optUseLibs          :: Bool
+  , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
-  , optShowVersion      :: Bool
-  , optShowHelp         :: Maybe Help
-  , optInteractive      :: Bool
-  , optGHCiInteraction  :: Bool
-  , optJSONInteraction  :: Bool
-  , optOptimSmashing    :: Bool
-  , optCompileDir       :: Maybe FilePath
+  , optShowVersion           :: Bool
+  , optShowHelp              :: Maybe Help
+  , optInteractive           :: Bool
+  , optGHCiInteraction       :: Bool
+  , optJSONInteraction       :: Bool
+  , optOptimSmashing         :: Bool
+  , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
-  , optGenerateVimFile  :: Bool
-  , optGenerateLaTeX    :: Bool
-  , optGenerateHTML     :: Bool
-  , optHTMLHighlight    :: HtmlHighlight
-  , optDependencyGraph  :: Maybe FilePath
-  , optLaTeXDir         :: FilePath
-  , optHTMLDir          :: FilePath
-  , optCSSFile          :: Maybe FilePath
-  , optIgnoreInterfaces :: Bool
-  , optIgnoreAllInterfaces :: Bool
-  , optLocalInterfaces     :: Bool
-  , optPragmaOptions    :: PragmaOptions
-  , optOnlyScopeChecking :: Bool
+  , optGenerateVimFile       :: Bool
+  , optGenerateLaTeX         :: Bool
+  , optGenerateHTML          :: Bool
+  , optHTMLHighlight         :: HtmlHighlight
+  , optDependencyGraph       :: Maybe FilePath
+  , optLaTeXDir              :: FilePath
+  , optHTMLDir               :: FilePath
+  , optCSSFile               :: Maybe FilePath
+  , optHighlightOccurrences  :: Bool
+  , optIgnoreInterfaces      :: Bool
+  , optIgnoreAllInterfaces   :: Bool
+  , optLocalInterfaces       :: Bool
+  , optPragmaOptions         :: PragmaOptions
+  , optOnlyScopeChecking     :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
-  , optWithCompiler     :: Maybe FilePath
+  , optWithCompiler          :: Maybe FilePath
     -- ^ Use the compiler at PATH instead of ghc / js / etc.
   }
   deriving Show
@@ -188,6 +189,8 @@ data PragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      :: Bool
   , optFastReduce                :: Bool
     -- ^ Use the Agda abstract machine (fastReduce)?
+  , optCallByName                :: Bool
+    -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Bool
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
@@ -216,34 +219,37 @@ defaultInteractionOptions = defaultPragmaOptions
 defaultOptions :: CommandLineOptions
 defaultOptions = Options
   { optProgramName      = "agda"
-  , optInputFile        = Nothing
-  , optIncludePaths     = []
-  , optAbsoluteIncludePaths = []
-  , optLibraries        = []
+  , optInputFile             = Nothing
+  , optIncludePaths          = []
+  , optAbsoluteIncludePaths  = []
+  , optLibraries             = []
   , optOverrideLibrariesFile = Nothing
-  , optDefaultLibs      = True
-  , optUseLibs          = True
-  , optShowVersion      = False
-  , optShowHelp         = Nothing
-  , optInteractive      = False
-  , optGHCiInteraction  = False
-  , optJSONInteraction  = False
-  , optOptimSmashing    = True
-  , optCompileDir       = Nothing
-  , optGenerateVimFile  = False
-  , optGenerateLaTeX    = False
-  , optGenerateHTML     = False
-  , optHTMLHighlight    = HighlightAll
-  , optDependencyGraph  = Nothing
-  , optLaTeXDir         = defaultLaTeXDir
-  , optHTMLDir          = defaultHTMLDir
-  , optCSSFile          = Nothing
-  , optIgnoreInterfaces = False
-  , optIgnoreAllInterfaces = False
-  , optLocalInterfaces     = False
-  , optPragmaOptions    = defaultPragmaOptions
-  , optOnlyScopeChecking = False
-  , optWithCompiler      = Nothing
+  , optDefaultLibs           = True
+  , optUseLibs               = True
+  , optShowVersion           = False
+  , optShowHelp              = Nothing
+  , optInteractive           = False
+  , optGHCiInteraction       = False
+  , optJSONInteraction       = False
+  , optOptimSmashing         = True
+  , optCompileDir            = Nothing
+  , optGenerateVimFile       = False
+  , optGenerateLaTeX         = False
+  , optGenerateHTML          = False
+  , optHTMLHighlight         = HighlightAll
+  , optDependencyGraph       = Nothing
+  , optLaTeXDir              = defaultLaTeXDir
+  , optHTMLDir               = defaultHTMLDir
+  , optCSSFile               = Nothing
+  -- Don't enable by default because it causes potential
+  -- performance problems
+  , optHighlightOccurrences  = False
+  , optIgnoreInterfaces      = False
+  , optIgnoreAllInterfaces   = False
+  , optLocalInterfaces       = False
+  , optPragmaOptions         = defaultPragmaOptions
+  , optOnlyScopeChecking     = False
+  , optWithCompiler          = Nothing
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -295,6 +301,7 @@ defaultPragmaOptions = PragmaOptions
   , optAutoInline                = True
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
+  , optCallByName                = False
   , optConfluenceCheck           = False
   , optFlatSplit                 = True
   }
@@ -374,11 +381,12 @@ checkOpts opts
     (  optionChanged optHTMLDir
     || optionChanged optHTMLHighlight
     || optionChanged optCSSFile
+    || optionChanged optHighlightOccurrences
     )
 
   htmlRelatedMessage = unlines $
-    [ "The options --html-highlight, --css-dir and --html-dir"
-    , "only be used along with --html flag."
+    [ "The options --html-highlight, --css-dir, --highlight-occurrences"
+    , "and --html-dir only be used along with --html flag."
     ]
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
@@ -440,6 +448,7 @@ restartOptions =
   , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
+  , (B . optCallByName, "--call-by-name")
   , (I . optInstanceSearchDepth, "--instance-search-depth")
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
@@ -601,6 +610,9 @@ noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
 
 noFastReduceFlag :: Flag PragmaOptions
 noFastReduceFlag o = return $ o { optFastReduce = False }
+
+callByNameFlag :: Flag PragmaOptions
+callByNameFlag o = return $ o { optCallByName = True }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -785,6 +797,9 @@ htmlDirFlag d o = return $ o { optHTMLDir = d }
 cssFlag :: FilePath -> Flag CommandLineOptions
 cssFlag f o = return $ o { optCSSFile = Just f }
 
+highlightOccurrencesFlag :: Flag CommandLineOptions
+highlightOccurrencesFlag o = return $ o { optHighlightOccurrences = True }
+
 includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
@@ -875,12 +890,15 @@ standardOptions =
     , Option []     ["html-dir"] (ReqArg htmlDirFlag "DIR")
                     ("directory in which HTML files are placed (default: " ++
                      defaultHTMLDir ++ ")")
+    , Option []     ["highlight-occurrences"] (NoArg highlightOccurrencesFlag)
+                    ("highlight all occurrences of hovered symbol in generated " ++
+                     "HTML files")
     , Option []     ["css"] (ReqArg cssFlag "URL")
                     "the CSS file used by the HTML files (can be relative)"
     , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all,auto]")
                     ("whether to highlight only the code parts (code) or " ++
-                    "the file as a whole (all) or " ++
-                    "decide by source file type (auto)")
+                     "the file as a whole (all) or " ++
+                     "decide by source file type (auto)")
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
@@ -1056,6 +1074,8 @@ pragmaOptions =
                     "expand pattern synonyms when printing terms"
     , Option []     ["no-fast-reduce"] (NoArg noFastReduceFlag)
                     "disable reduction using the Agda Abstract Machine"
+    , Option []     ["call-by-name"] (NoArg callByNameFlag)
+                    "use call-by-name evaluation instead of call-by-need"
     ]
 
 -- | Pragma options of previous versions of Agda.

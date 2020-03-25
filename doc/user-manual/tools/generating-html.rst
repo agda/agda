@@ -15,6 +15,12 @@ You can change the way in which the code is highlighted by providing
 your own CSS file instead of the :download:`default, included one
 <../../../src/data/Agda.css>` (use the ``--css`` option).
 
+You can also highlight all the occurrences of the symbol your mouse is
+hovering in the HTML by adding the ``--highlight-occurrences`` option.
+The default behaviour only highlight the single symbol your mouse is
+hovering. Note that this feature may cause browser performance problem,
+please enable it carefully (not recommended for huge files).
+
 If you're using Literate Agda with Markdown or reStructedText and you
 want to highlight your Agda codes with Agda's HTML backend and render
 the rest of the content (let's call it "literate" part for convenience)

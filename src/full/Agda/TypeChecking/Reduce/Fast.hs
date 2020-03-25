@@ -786,7 +786,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (IntMap.lookup (metaId m) metaStore)
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
-    callByNeed     = envCallByNeed (redEnv rEnv)
+    callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
     iview          = runReduce intervalView'
 
     runReduce :: ReduceM a -> a
