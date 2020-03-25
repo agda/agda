@@ -379,6 +379,10 @@ Other features
 
      Disable reduction using the Agda Abstract Machine.
 
+.. option:: --call-by-name
+
+     Disable call-by-need evaluation in the Agda Abstract Machine.
+
 .. option:: --no-forcing
 
      Disable the forcing optimisation. Since Agda 2.6.1 is a pragma

@@ -189,6 +189,8 @@ data PragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      :: Bool
   , optFastReduce                :: Bool
     -- ^ Use the Agda abstract machine (fastReduce)?
+  , optCallByName                :: Bool
+    -- ^ Use call-by-name instead of call-by-need
   , optConfluenceCheck           :: Bool
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
@@ -299,6 +301,7 @@ defaultPragmaOptions = PragmaOptions
   , optAutoInline                = True
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
+  , optCallByName                = False
   , optConfluenceCheck           = False
   , optFlatSplit                 = True
   }
@@ -445,6 +448,7 @@ restartOptions =
   , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
+  , (B . optCallByName, "--call-by-name")
   , (I . optInstanceSearchDepth, "--instance-search-depth")
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
@@ -606,6 +610,9 @@ noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
 
 noFastReduceFlag :: Flag PragmaOptions
 noFastReduceFlag o = return $ o { optFastReduce = False }
+
+callByNameFlag :: Flag PragmaOptions
+callByNameFlag o = return $ o { optCallByName = True }
 
 latexDirFlag :: FilePath -> Flag CommandLineOptions
 latexDirFlag d o = return $ o { optLaTeXDir = d }
@@ -1067,6 +1074,8 @@ pragmaOptions =
                     "expand pattern synonyms when printing terms"
     , Option []     ["no-fast-reduce"] (NoArg noFastReduceFlag)
                     "disable reduction using the Agda Abstract Machine"
+    , Option []     ["call-by-name"] (NoArg callByNameFlag)
+                    "use call-by-name evaluation instead of call-by-need"
     ]
 
 -- | Pragma options of previous versions of Agda.
