@@ -1,5 +1,6 @@
 
-module Utils where
+module Utils (module Utils,
+              AgdaError(..)) where
 
 import Control.Applicative
 
@@ -32,6 +33,7 @@ import Test.Tasty.Silver.Advanced (readFileMaybe)
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
 
+import Agda.Interaction.ExitCode (AgdaError(..), agdaErrorFromInt)
 import Agda.Utils.Maybe
 
 data ProgramResult = ProgramResult
@@ -60,8 +62,8 @@ readAgdaProcessWithExitCode args inp = do
   PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
 
 data AgdaResult
-  = AgdaSuccess (Maybe T.Text) -- A success can come with warnings
-  | AgdaFailure                -- A failure
+  = AgdaSuccess (Maybe T.Text) -- ^ A success can come with warnings
+  | AgdaFailure Int (Maybe AgdaError) -- ^ A failure, with exit code
 
 runAgdaWithOptions
   :: String         -- ^ test name
@@ -89,8 +91,8 @@ runAgdaWithOptions testName opts mflag = do
   cleanedStdErr <- cleanOutput stdErr
   let res = ProgramResult ret cleanedStdOut cleanedStdErr
   pure $ (res,) $ case ret of
-    ExitSuccess -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
-    _           -> AgdaFailure
+    ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
+    ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
 
 hasWarning :: T.Text -> Bool
 hasWarning t =

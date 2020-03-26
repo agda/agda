@@ -312,6 +312,7 @@ library
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
+                    Agda.Interaction.ExitCode
                     Agda.Interaction.JSONTop
                     Agda.Interaction.JSON
                     Agda.Interaction.FindFile
