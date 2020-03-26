@@ -9,7 +9,6 @@ import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -21,7 +20,6 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
@@ -170,7 +168,7 @@ getRecordTypeFields t = do
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m ConHead
-getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
+getRecordConstructor r = killRange . recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
@@ -454,7 +452,7 @@ expandRecordVar i gamma0 = do
       l     = size gamma - 1 - i
   -- Extract type of @i@th de Bruijn index.
   -- Γ = Γ₁, x:a, Γ₂
-  let (gamma1, dom@(Dom{domInfo = ai, unDom = (x, a)}) : gamma2) = splitAt l gamma
+  let (gamma1, dom@(Dom{domInfo = ai, unDom = (x, a)}) : gamma2) = splitAt l gamma -- TODO:: Defined but not used dom, ai
   -- This must be a eta-expandable record type.
   let failure = do
         reportSDoc "tc.meta.assign.proj" 25 $
@@ -669,7 +667,7 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
       case zipWithM check args xs of
-        Just as -> case [ a | Just a <- as ] of
+        Just as -> case catMaybes as of
           (a:as) ->
             if all (a ==) as
               then return a
@@ -712,15 +710,13 @@ isSingletonRecord' regardIrrelevance r ps = do
       EmptyTel -> return $ Right $ Just []
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ \ tel ->
-            emap (Arg (domInfo dom) __DUMMY_TERM__ :) <$> check tel)
+          (underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
         {-else-} $ do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
             Left mid       -> return $ Left mid
             Right Nothing  -> return $ Right Nothing
-            Right (Just v) -> underAbstraction dom tel $ \ tel ->
-              emap (Arg (domInfo dom) v :) <$> check tel
+            Right (Just v) -> underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) v :)) . check
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.

@@ -1,7 +1,7 @@
 module Agda.Version where
 
 import Data.Version
-import Data.List ( intercalate, map )
+import Data.List ( intercalate )
 
 import qualified Paths_Agda as PA
 

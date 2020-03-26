@@ -389,9 +389,6 @@ Haskell-mode and the Agda codebase
 Emacs mode
 ==========
 
-* Load times (wall-clock time) can be measured using
-  `agda2-measure-load-time`.
-
 * If you fix a bug related to syntax highlighting, please add a test
   case under `test/interaction`. Example `.in` file command:
 

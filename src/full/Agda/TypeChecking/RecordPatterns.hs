@@ -37,7 +37,6 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
@@ -59,7 +58,7 @@ import Agda.Utils.Impossible
 recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
-    VarP{}       -> return [ \ x -> x ]
+    VarP{}       -> return [ id ]
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
@@ -400,7 +399,7 @@ translateSplitTree t = snd <$> loop t
       -- invariant: if record constructor, then exactly one constructor
       if x then unless (rs == [True]) __IMPOSSIBLE__
       -- else no record constructor
-       else unless (or rs == False) __IMPOSSIBLE__
+       else when (or rs) __IMPOSSIBLE__
       return (x, conjColumns xss, ts)
 
 -- | @dropFrom i n@ drops arguments @j@  with @j < i + n@ and @j >= i@.
@@ -472,7 +471,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
-      rhsSubst = mkSub s'
+      rhsSubst = mkSub s' -- NB:: Defined but not used
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.

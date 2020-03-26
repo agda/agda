@@ -75,8 +75,9 @@ the naming conventions of this library, for a detailed list of all of
 the built-in Cubical Agda files and primitives see
 :ref:`primitives-ref`. The main design choices of the core part of the
 library are explained in
-https://homotopytypetheory.org/2018/12/06/cubical-agda/ (lagda rendered
-version: https://ice1000.org/lagda/CubicalAgdaLiterate.html).
+https://homotopytypetheory.org/2018/12/06/cubical-agda/
+(lagda rendered version:
+https://ice1000.org/2018/12-06-CubicalAgda.html).
 
 The recommended way to get access to the Cubical primitives is to add
 the following to the top of a file (this assumes that the
@@ -458,14 +459,14 @@ bottom-to-top. As we are constructing a path from ``x`` to ``z`` along
 bottom. The direction ``j`` that we are doing the composition in is
 abstracted in the first argument to ``hcomp``.
 
-Note that the partial element ```u``` does not have to specify
+Note that the partial element ``u`` does not have to specify
 all the sides of the open box, giving more sides simply gives you
-more control on the result of ```hcomp```.
-For example if we omit the ```(i = i0) → x``` side in the
-definition of ```compPath``` we still get a valid term of type
-```A```. However, that term would reduce to ```hcomp (\ j → \ { () }) x```
-when ```i = i0``` and so that definition would not build
-a path that starts from ```x```.
+more control on the result of ``hcomp``.
+For example if we omit the ``(i = i0) → x`` side in the
+definition of ``compPath`` we still get a valid term of type
+``A``. However, that term would reduce to ``hcomp (\ j → \ { () }) x``
+when ``i = i0`` and so that definition would not build
+a path that starts from ``x``.
 
 We can also define homogeneous filling of cubes as
 
@@ -971,4 +972,3 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
                     (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
                     C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
-

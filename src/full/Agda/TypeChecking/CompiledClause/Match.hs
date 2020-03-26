@@ -151,7 +151,7 @@ match' ((c, es, patch) : stack) = do
             --    mo <- getBuiltinName' builtinIOne
             --    return $ Set.fromList $ catMaybes [mi,mo]
 
-            fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
+            fallThrough <- return $ (Just True ==) (fallThrough bs) && isJust (catchAllBranch bs)
 
             let
               isCon b =
@@ -159,8 +159,7 @@ match' ((c, es, patch) : stack) = do
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
             -- Now do the matching on the @n@ths argument:
-            id $
-             case eb of
+            case eb of
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v

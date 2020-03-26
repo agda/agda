@@ -1,0 +1,7 @@
+Issue4518.agda:13,1-12
+Could not parse the left-hand side test | suc n
+Problematic expression: (suc n)
+Operators used in the grammar:
+  None
+when scope checking the left-hand side test | suc n in the
+definition of test

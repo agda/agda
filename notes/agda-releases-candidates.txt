@@ -1,9 +1,9 @@
-Tested with `cabal-install 3.0.0.0`.
+Tested with `cabal-install 2.4.0.1`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
 
-* Verify that the Travis builds and GitHub actions have no errors.
+* Verify that the Travis builds and GitHub workflows have no errors.
 
 * Finish the release notes in the CHANGELOG.
 
@@ -83,14 +83,14 @@ followed:
 
 * Build source distributions:
 
-    cabal v1-configure
+    cabal configure
     cabal check
-    cabal v1-sdist
+    cabal sdist
 
 * Build documentation for uploading to Hackage. Adapted from
   https://hackage.haskell.org/upload (2018-07-19):
 
-    cabal v1-haddock --for-hackage
+    cabal haddock --for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.

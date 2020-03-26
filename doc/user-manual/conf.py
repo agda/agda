@@ -20,7 +20,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Agda'
-copyright = u'''2005–2019 remains with the authors.
+copyright = u'''2005–2020 remains with the authors.
 Agda 2 was originally written by Ulf Norell,
 partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
@@ -42,7 +42,7 @@ available at https://github.com/agda/agda/graphs/contributors'''
 author = u'The Agda Team'
 
 # The short X.Y version
-version = '2.6.1'
+version = '2.6.2'
 # The full version, including alpha/beta/rc tags
 release = version
 

@@ -39,7 +39,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Foldable as Fold
-import Data.Traversable (traverse)
 import Data.Void
 import Data.List (sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -49,7 +48,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Info as A
-import Agda.Syntax.Internal (MetaId(..))
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
@@ -76,7 +74,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Singleton
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -174,6 +171,14 @@ isBuiltinFun :: AbsToCon (A.QName -> String -> Bool)
 isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
+-- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (NonEmpty A.QName) ResolvedName)
+resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
+
+-- | Treat illegally ambiguous names as UnknownNames.
+resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
+resolveName_ q cands = either (const UnknownName) id <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+
 -- The Monad --------------------------------------------------------------
 
 -- | We need:
@@ -202,7 +207,7 @@ newtype AbsToCon a = AbsToCon
 -- TODO: Is there some way to automatically derive these boilerplate
 -- instances?  GeneralizedNewtypeDeriving fails us here.
 instance Functor AbsToCon where
-  fmap f x = AbsToCon $ fmap f $ unAbsToCon x
+  fmap f x = AbsToCon $ f <$> unAbsToCon x
 
 instance Applicative AbsToCon where
   pure x = AbsToCon $ pure x
@@ -284,7 +289,7 @@ lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x | Just s <- getGeneralizedFieldName x =
   return (C.QName $ C.Name noRange C.InScope $ C.stringNameParts s)
 lookupQName ambCon x = do
-  ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
+  ys <- asks (inverseScopeLookupName' ambCon x . currentScope)
   reportSLn "scope.inverse" 100 $
     "inverse looking up abstract name " ++ prettyShow x ++ " yields " ++ prettyShow ys
   loop ys
@@ -318,7 +323,7 @@ lookupModule x =
 --   name in the current scope?
 lookupNameInScope :: C.Name -> AbsToCon (Maybe A.Name)
 lookupNameInScope y =
-  fmap localVar . lookup y <$> asks ((^. scopeLocals) . currentScope)
+  asks ((fmap localVar . lookup y) . ((^. scopeLocals) . currentScope))
 
 -- | Have we already committed to a specific concrete name for this
 --   abstract name? If yes, return the concrete name(s).
@@ -357,10 +362,10 @@ toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
     -- Is 'y' a good concrete name for abstract name 'x'?
     isGoodName :: A.Name -> C.Name -> AbsToCon Bool
     isGoodName x y = do
-      zs <- Set.toList <$> asks takenVarNames
+      zs <- asks (Set.toList . takenVarNames)
       allM zs $ \z -> if x == z then return True else do
         czs <- hasConcreteNames z
-        return $ all (/= y) czs
+        return $ notElem y czs
 
 
 -- | Choose a new unshadowed name for the given abstract name
@@ -399,13 +404,13 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a
 bindName x ret = do
   y <- toConcreteName x
-  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope under concrete name " ++ C.nameToRawName y
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ C.nameToRawName (nameConcrete x) ++ " to the scope under concrete name " ++ C.nameToRawName y
   local (addBinding y x) $ ret y
 
 -- | Like 'bindName', but do not care whether name is already taken.
 bindName' :: A.Name -> AbsToCon a -> AbsToCon a
 bindName' x ret = do
-  reportSLn "toConcrete.bindName" 30 $ "adding " ++ (C.nameToRawName $ nameConcrete x) ++ " to the scope with forced name"
+  reportSLn "toConcrete.bindName" 30 $ "adding " ++ C.nameToRawName (nameConcrete x) ++ " to the scope with forced name"
   pickConcreteName x y
   applyUnless (isNoName y) (local $ addBinding y x) ret
   where y = nameConcrete x
@@ -1310,7 +1315,7 @@ instance ToConcrete A.Pattern C.Pattern where
         -- Erase @v@ to a concrete name and resolve it back to check whether
         -- we have a conflicting field name.
         cn <- toConcreteName v
-        runExceptT (tryResolveName (someKindsOfNames [FldName]) Nothing (C.QName cn)) >>= \case
+        resolveName (someKindsOfNames [FldName]) Nothing (C.QName cn) >>= \ case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
             reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
@@ -1410,10 +1415,10 @@ cOpApp r x n es =
           (map (defaultNamedArg . placeholder) eps)
   where
     x0 = C.unqualify x
-    positions | isPrefix  x0 =                [ Middle | _ <- drop 1 es ] ++ [End]
-              | isPostfix x0 = [Beginning] ++ [ Middle | _ <- drop 1 es ]
-              | isInfix x0   = [Beginning] ++ [ Middle | _ <- drop 2 es ] ++ [End]
-              | otherwise    =                [ Middle | _ <- es ]
+    positions | isPrefix  x0 =             [ Middle | _ <- drop 1 es ] ++ [End]
+              | isPostfix x0 = Beginning : [ Middle | _ <- drop 1 es ]
+              | isInfix x0   = Beginning : [ Middle | _ <- drop 2 es ] ++ [End]
+              | otherwise    =             [ Middle | _ <- es ]
     eps = zip es positions
     placeholder (YesSection , pos ) = Placeholder pos
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
@@ -1442,7 +1447,7 @@ tryToRecoverOpApp e def = fromMaybeM def $
         sectionArgs :: [A.Name] -> [NamedArg (AppInfo, A.Expr)] -> Maybe [NamedArg (MaybeSection (AppInfo, A.Expr))]
         sectionArgs xs = go xs
           where
-            noXs = getAll . foldExpr (\ case A.Var x -> All (notElem x xs)
+            noXs = getAll . foldExpr (\ case A.Var x -> All (x `notElem` xs)
                                              _       -> All True) . snd . namedArg
             go [] [] = return []
             go (y : ys) (arg : args)
@@ -1516,7 +1521,16 @@ recoverOpApp bracket isLam opApp view e = case view e of
   doQNameHelper n args = do
     x <- either (C.QName <.> toConcrete) toConcrete n
     let n' = either id A.qnameName n
-    doQName (theFixity $ nameFixity n') x n' args (C.nameParts $ C.unqualify x)
+    -- #1346: The fixity of the abstract name is not necessarily correct, it depends on which
+    -- concrete name we choose! Make sure to resolve ambiguities with n'.
+    fx <- resolveName_ x [n'] <&> \ case
+            VarName y _                -> y ^. lensFixity
+            DefinedName _ q            -> q ^. lensFixity
+            FieldName (q :| _)         -> q ^. lensFixity
+            ConstructorName (q :| _)   -> q ^. lensFixity
+            PatternSynResName (q :| _) -> q ^. lensFixity
+            UnknownName                -> noFixity
+    doQName fx x n' args (C.nameParts $ C.unqualify x)
 
   doQName :: Fixity -> C.QName -> A.Name -> [MaybeSection (AppInfo, a)] -> [NamePart] -> AbsToCon (Maybe c)
 
@@ -1563,7 +1577,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
         es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
         Just <$> do
           bracket (opBrackets fixity) $
-            return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
+            return $ opApp (getRange (e1, n)) x n (e1 : es)
 
   -- roundfix
   doQName _ x n as xs = do
@@ -1623,7 +1637,7 @@ recoverPatternSyn applySyn match e fallback = do
                 -- are already sorted from shortest to longest!
                 , C.QName{} <- Fold.toList $ listToMaybe $ inverseScopeLookupName q scope
                 ]
-        cmp (_, _, x) (_, _, y) = flip compare x y
+        cmp (_, _, x) (_, _, y) = compare y x
     reportSLn "toConcrete.patsyn" 50 $ render $ hsep $
       [ "Found pattern synonym candidates:"
       , prettyList_ $ map (\ (q,_,_) -> q) cands

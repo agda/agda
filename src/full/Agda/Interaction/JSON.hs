@@ -10,7 +10,7 @@ module Agda.Interaction.JSON
   -- , ToRep(..), rep
   ) where
 
-import Control.Monad ((>=>), (<=<), sequence, liftM2)
+import Control.Monad ((>=>), (<=<))
 import Data.Aeson
 import Data.Aeson.Types (Pair)
 import Data.Text (Text)
@@ -22,7 +22,6 @@ import GHC.Int (Int32)
 -- import qualified Agda.Syntax.Concrete as C
 -- import qualified Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty (PrettyTCM(..))
 import Agda.Utils.Pretty
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict

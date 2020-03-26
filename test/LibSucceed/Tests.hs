@@ -80,7 +80,7 @@ mkLibSucceedTest inp =
       (res, ret) <- runAgdaWithOptions testName agdaArgs Nothing
       pure $ case ret of
         AgdaSuccess{} -> TestSuccess -- TODO: fail if unexpected warnings?
-        AgdaFailure   -> TestUnexpectedFail res
+        AgdaFailure{} -> TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =

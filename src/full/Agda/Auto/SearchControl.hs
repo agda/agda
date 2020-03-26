@@ -69,7 +69,7 @@ getinfo = foldl step initExpRefInfo where
   step eri RINotConstructor         = eri { eriIsEliminand = True }
   step eri (RIUsedVars nuids nused) = eri { eriUsedVars = Just (nuids, nused) }
   step eri (RIIotaStep semif)       = eri { eriIotaStep = Just iota' } where
-    iota' = semif || fromMaybe False (eriIotaStep eri)
+    iota' = semif || (Just True ==) (eriIotaStep eri)
   step eri RIPickSubsvar            = eri { eriPickSubsVar = True }
   step eri (RIEqRState s)           = eri { eriEqRState = Just s }
   step eri _ = __IMPOSSIBLE__
@@ -207,10 +207,10 @@ instance Refinable (Exp o) (RefInfo o) where
    ExpRefInfo { eriMain  = Just (RIMainInfo n tt iotastepdone)
               , eriUnifs = unis
               , eriInfTypeUnknown = inftypeunknown
-              , eriIsEliminand = iseliminand
+              , eriIsEliminand = iseliminand -- TODO:: Defined but not used
               , eriUsedVars = Just (uids, usedvars)
               , eriIotaStep = iotastep
-              , eriPickSubsVar = picksubsvar
+              , eriPickSubsVar = picksubsvar -- TODO:: Defined but not used
               , eriEqRState = meqrstate
               } = getinfo infos
 
@@ -230,9 +230,9 @@ instance Refinable (Exp o) (RefInfo o) where
 
      adjustCost i = if inftypeunknown then costInferredTypeUnkown else i
      varcost v | v < n - deffreevars = adjustCost $
-       if elem v (mapMaybe getVar usedvars)
+       if v `elem` (mapMaybe getVar usedvars)
        then costAppVarUsed else costAppVar
-     varcost v | otherwise = adjustCost costAppHint
+     varcost v | otherwise           = adjustCost costAppHint
      varapps  = map (\ v -> Move (varcost v) $ app n meta Nothing (Var v)) [0..n - 1]
      hintapps = map (\(c, hm) -> Move (cost c hm) (app n meta Nothing (Const c))) hints
        where
@@ -240,10 +240,10 @@ instance Refinable (Exp o) (RefInfo o) where
          cost c hm = adjustCost $ case (iotastep , hm) of
            (Just _  , _       ) -> costIotaStep
            (Nothing , HMNormal) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppHintUsed else costAppHint
            (Nothing , HMRecCall) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppRecCallUsed else costAppRecCall
      generics = varapps ++ hintapps
     in case rawValue tt of
@@ -252,8 +252,8 @@ instance Refinable (Exp o) (RefInfo o) where
       return [eq_end, eq_step]
 
      HNPi hid _ _ (Abs id _) -> return $
-         (Move (adjustCost (if iotastepdone then costLamUnfold else costLam)) $ newLam hid id)
-       : (Move costAbsurdLam $ return $ AbsurdLambda hid)
+         Move (adjustCost (if iotastepdone then costLamUnfold else costLam)) (newLam hid id)
+       : Move costAbsurdLam (return $ AbsurdLambda hid)
        : generics
 
      HNSort (Set l) -> return $
@@ -300,12 +300,11 @@ instance Refinable (Exp o) (RefInfo o) where
        in uni ++ generics
       HNApp (Const c) _ ->
        let (uid, isunique) = pickUid uids $ seenUIds hne
-       in (Move (costUnificationIf isunique) $ app n meta uid (Const c)) : generics
+       in Move (costUnificationIf isunique) (app n meta uid (Const c)) : generics
       HNLam{} -> generics
       HNPi hid possdep _ _ ->
        let (uid, isunique) = pickUid uids $ seenUIds hne
-       in (Move (costUnificationIf isunique)
-          $ newPi (fromMaybe meta uid) possdep hid) : generics
+       in Move (costUnificationIf isunique) (newPi (fromMaybe meta uid) possdep hid) : generics
       HNSort (Set l) -> map (Move costUnification . set) [0..l] ++ generics
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-} -- for type equality ~
@@ -27,7 +26,6 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
@@ -39,7 +37,6 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Data (Data, toConstr)
-import Data.Foldable (Foldable)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
@@ -862,7 +859,7 @@ instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
-  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . (flip $ runReaderT . runStateT m)
+  runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
 
 instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
   runStConcreteNames m = StateT $ \s -> runStConcreteNames $ StateT $ \ns -> do
@@ -2132,7 +2129,7 @@ funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
   f (Set.member flag flags) <&>
   \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
-funFlag _ f def = f False <&> const def
+funFlag _ f def = f False $> def
 
 funStatic, funInline, funMacro :: Lens' Bool Defn
 funStatic       = funFlag FunStatic
@@ -3075,8 +3072,10 @@ data Warning
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | FixityInRenamingModule (NonEmpty Range)
     -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
-  | ModuleDoesntExport C.QName [C.ImportedName]
-    -- ^ Some imported names are not actually exported by the source module
+  | ModuleDoesntExport C.QName [C.Name] [C.Name] [C.ImportedName]
+    -- ^ Some imported names are not actually exported by the source module.
+    --   The second argument is the names that could be exported.
+    --   The third  argument is the module names that could be exported.
   | InfectiveImport String ModuleName
     -- ^ Importing a file using an infective option into one which doesn't
   | CoInfectiveImport String ModuleName
@@ -3452,8 +3451,11 @@ data TypeError
     -- Operator errors
         | NoParseForApplication [C.Expr]
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
-        | NoParseForLHS LHSOrPatSyn C.Pattern
+        | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
+            -- ^ The list contains patterns that failed to be interpreted.
+            --   If it is non-empty, the first entry could be printed as error hint.
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+            -- ^ Pattern and its possible interpretations.
         | OperatorInformation [NotationSection] TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
@@ -3914,7 +3916,7 @@ instance MonadIO m => Functor (TCMT m) where
   fmap = fmapTCMT
 
 fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
-fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
+fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
 instance MonadIO m => Applicative (TCMT m) where
@@ -4117,18 +4119,15 @@ runTCMTop' m = do
   r <- liftIO $ newIORef initState
   unTCM m r initEnv
 
--- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which cannot fail)
---   in the initial environment.
+-- | 'runSafeTCM' runs a safe 'TCM' action (a 'TCM' action which
+--   cannot fail, except that it might raise 'IOException's) in the
+--   initial environment.
 
 runSafeTCM :: TCM a -> TCState -> IO (a, TCState)
-runSafeTCM m st = runTCM initEnv st m `E.catch` (\ (e :: TCErr) -> __IMPOSSIBLE__)
--- runSafeTCM m st = either__IMPOSSIBLE__ return <$> do
---     -- Errors must be impossible.
---     runTCM $ do
---         putTC st
---         a <- m
---         st <- getTC
---         return (a, st)
+runSafeTCM m st =
+  runTCM initEnv st m `E.catch` \(e :: TCErr) -> case e of
+    IOException _ _ err -> E.throwIO err
+    _                   -> __IMPOSSIBLE__
 
 -- | Runs the given computation in a separate thread, with /a copy/ of
 -- the current state and environment.
@@ -4180,8 +4179,8 @@ generalizedFieldName = ".generalizedField-"
 -- | Check whether we have a generalized variable field
 getGeneralizedFieldName :: A.QName -> Maybe String
 getGeneralizedFieldName q
-  | List.isPrefixOf generalizedFieldName strName = Just (drop (length generalizedFieldName) strName)
-  | otherwise                                    = Nothing
+  | generalizedFieldName `List.isPrefixOf` strName = Just (drop (length generalizedFieldName) strName)
+  | otherwise                                      = Nothing
   where strName = prettyShow $ nameConcrete $ qnameName q
 
 ---------------------------------------------------------------------------

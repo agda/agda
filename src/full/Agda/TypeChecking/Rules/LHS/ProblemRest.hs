@@ -41,7 +41,7 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         -- is significant for implicit insertion.
         A.VarP A.BindName{unBind = x}
           | not (isNoName x)
-          , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
+          , visible dom || (getOrigin ai == UserWritten && isNothing nm) ->
           dom{ unDom = (nameToArgName x, a) }
         A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
@@ -109,7 +109,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   let m = length $ takeWhile (isNothing . A.isProjP) ps
   (TelV gamma b, boundary) <- telViewUpToPathBoundaryP m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
-    unless (sameHiding p a) $ typeError WrongHidingInLHS
+    unless (sameHiding p a) $ setCurrentRange p $ typeError WrongHidingInLHS
   let tel1      = useNamesFromPattern ps gamma
       n         = size tel1
       (ps1,ps2) = splitAt n ps

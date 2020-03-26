@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.6.1
+version:         2.6.2
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
@@ -73,8 +73,8 @@ extra-source-files: CHANGELOG.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
                     stack-8.8.3.yaml
--- ASR (2020-02-25). We need to keep the below file because
--- https://github.com/actions/setup-haskell/issues/8.
+-- ASR (2020-03-16). We need to keep the below file because there is a
+-- problem with GHC 8.8.3, Windows and stack. See Issue #4476.
                     stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
@@ -87,6 +87,7 @@ data-files:         Agda.css
                     emacs-mode/*.el
                     JS/agda-rts.js
                     JS/biginteger.js
+                    JS/highlight-hover.js
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda
@@ -132,7 +133,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.1
+  tag:      v2.6.2
 
 flag cpphs
   default:     False
@@ -188,10 +189,11 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
-  build-depends:  aeson >= 0.11.3.0 && < 1.5
+  build-depends:  aeson >= 1.1.2.0 && < 1.5
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.9.0.0 && < 4.15
+                , bifunctors >= 5.4 && < 6.1
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -311,6 +313,7 @@ library
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
+                    Agda.Interaction.ExitCode
                     Agda.Interaction.JSONTop
                     Agda.Interaction.JSON
                     Agda.Interaction.FindFile
@@ -558,6 +561,7 @@ library
                     Agda.Utils.Lens
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
+                    Agda.Utils.List1
                     Agda.Utils.ListT
                     Agda.Utils.Map
                     Agda.Utils.Maybe
@@ -662,7 +666,8 @@ library
 
   default-language: Haskell2010
 
-  default-extensions: ConstraintKinds
+  default-extensions: BangPatterns
+                    , ConstraintKinds
                     --L-T Chen (2019-07-15):
                     -- Enabling DataKinds only locally makes the compile time
                     -- slightly shorter, see PR #3920.
@@ -807,6 +812,7 @@ test-suite agda-tests
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
+                , ieee754 >= 0.7.8 && < 0.9
                 , mtl >= 2.2.1 && < 2.3
                 , process >= 1.4.2.0 && < 1.7
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
@@ -841,7 +847,8 @@ test-suite agda-tests
 
   default-language:  Haskell2010
 
-  default-extensions:  ConstraintKinds
+  default-extensions:  BangPatterns
+                     , ConstraintKinds
                      , DataKinds
                      , DefaultSignatures
                      , DeriveFoldable

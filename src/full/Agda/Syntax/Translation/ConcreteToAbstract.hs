@@ -25,8 +25,8 @@ import Control.Applicative
 import Control.Arrow (second)
 import Control.Monad.Reader hiding (mapM)
 
-import Data.Foldable (Foldable, traverse_)
-import Data.Traversable (mapM, traverse)
+import Data.Foldable (traverse_)
+import Data.Traversable (mapM)
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List
@@ -186,15 +186,13 @@ recordConstructorType decls =
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
-          info    = ExprRange r
           mkLet d = A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
         C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
           let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
-          tel <- toAbstract $ C.TBind r [bv] (unArg a)
-          return tel
+          toAbstract $ C.TBind r [bv] (unArg a)
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
@@ -415,8 +413,8 @@ checkOpen r mam x dir = do
         }
   let adecls = [A.Open minfo m adir]
   reportSDoc "scope.decl" 70 $ vcat $
-    [ text $ "scope checked NiceOpen " ++ prettyShow x
-    ] ++ map (nest 2 . prettyA) adecls
+    text ( "scope checked NiceOpen " ++ prettyShow x
+         ) : map (nest 2 . prettyA) adecls
   return (minfo, m, adir)
 
 {--------------------------------------------------------------------------
@@ -617,7 +615,7 @@ instance ToQName C.Name  where toQName = C.QName
 instance ToQName C.QName where toQName = id
 
 -- Should be a defined name.
-instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
+instance ToQName a => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (toQName x)
     case rx of
@@ -694,7 +692,7 @@ inferParenPreference _         = PreferParenless
 -- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
 toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
 toAbstractDot prec e = do
-    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ render (pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
       C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
@@ -836,7 +834,7 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.Underscore $ MetaInfo
                     { metaRange  = r
                     , metaScope  = scope
-                    , metaNumber = maybe Nothing __IMPOSSIBLE__ n
+                    , metaNumber = __IMPOSSIBLE__ =<< n
                     , metaNameSuggestion = fromMaybe "" n
                     }
 
@@ -1363,7 +1361,7 @@ newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
   toAbstract (LetDefs ds) =
-    concat <$> (niceDecls DoWarn ds $ toAbstract . map LetDef)
+    concat <$> niceDecls DoWarn ds (toAbstract . map LetDef)
 
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
@@ -1475,7 +1473,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 bindVarsToBind
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
                 rhs <- unbindVariable top $ toAbstract rhs
-                foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+                foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
             return (x, e)
         letToAbstract _ = notAValidLetBinding d
 
@@ -1518,7 +1516,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.Axiom r p a i rel x t -> do
       -- check that we do not postulate in --safe mode, unless it is a
       -- builtin module with safe postulates
-      whenM ((return . Lens.getSafeMode =<< commandLineOptions) `and2M`
+      whenM ((Lens.getSafeMode <$> commandLineOptions) `and2M`
              (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
             (warning $ SafeFlagPostulate x)
       -- check the postulate
@@ -1719,8 +1717,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         scopeCheckNiceModule r p name tel $ toAbstract ds
 
       reportSDoc "scope.decl" 70 $ vcat $
-        [ text $ "scope checked NiceModule " ++ prettyShow x
-        ] ++ map (nest 2 . prettyA) adecls
+        text ( "scope checked NiceModule " ++ prettyShow x
+             ) : map (nest 2 . prettyA) adecls
       return adecls
 
     NiceModule _ _ _ m@C.Qual{} _ _ ->
@@ -1734,8 +1732,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       adecls <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
 
       reportSDoc "scope.decl" 70 $ vcat $
-        [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
-        ] ++ map (nest 2 . prettyA) adecls
+        text ( "scope checked NiceModuleMacro " ++ prettyShow x
+             ) : map (nest 2 . prettyA) adecls
       return adecls
 
     NiceOpen r x dir -> do
@@ -2068,7 +2066,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       _       -> __IMPOSSIBLE__
   toAbstract (C.ForeignPragma _ rb s) = [] <$ addForeignCode (rangedThing rb) s
   toAbstract (C.CompilePragma _ rb x s) = do
-    let b = rangedThing rb
     me <- toAbstract $ MaybeOldQName $ OldQName x Nothing
     case me of
       Nothing -> [] <$ notInScopeWarning x

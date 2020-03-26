@@ -17,6 +17,7 @@ sudo: required
 
 branches:
   only:
+    - imports
     - master
     - future
     - maint-2.4
@@ -26,8 +27,9 @@ branches:
     - /^issue.*/
 
 ##############################################################################
-# The submodule is only needed by std-lib compiler test, so
-# it is fetched manually in the `install` section.
+# The submodules are only needed by the tests using the standard library
+# and the cubical library, so they are fetched manually in the
+# `install` section.
 #
 git:
   submodules: false
@@ -138,7 +140,7 @@ jobs:
         - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
 
     - <<: *main-job
-      name: "Test suites using standard library"
+      name: "Test suites using the standard library and the cubical library"
       git:
         submodules: true
       script:

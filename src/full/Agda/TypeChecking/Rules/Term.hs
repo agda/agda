@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
+import Agda.Syntax.Abstract (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -30,7 +31,6 @@ import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
                               , emptyScopeInfo
                               , exportedNamesInScope)
 import Agda.Syntax.Scope.Monad (getNamedScope)
-import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Constraints
@@ -45,7 +45,6 @@ import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
@@ -124,6 +123,11 @@ isType_ e = traceCall (IsType_ e) $ do
         return (t0, telePi tel t0)
       checkTelePiSort t'
       noFunctionsIntoSize t0 t'
+      return t'
+
+    A.Generalized s e -> do
+      (_, t') <- generalizeType s $ isType_ e
+      noFunctionsIntoSize t' t'
       return t'
 
     -- Setᵢ
@@ -221,7 +225,7 @@ noFunctionsIntoSize t tBlame = do
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
 isTypeEqualTo e0 t = scopedExpr e0 >>= \case
   A.ScopedExpr{} -> __IMPOSSIBLE__
-  A.Underscore i | A.metaNumber i == Nothing -> return t
+  A.Underscore i | isNothing (A.metaNumber i) -> return t
   e -> workOnTypes $ do
     t' <- isType e (getSort t)
     t' <$ leqType t t'
@@ -374,10 +378,32 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
+checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda before insertion xs =" <+> prettyA xps0
+    ]
+  -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
+  -- we need to insert skipped hidden arguments.
+  xps <- insertImplicitBindersT xps0 target
+  checkLambda' cmp (A.TBind r tac xps typ) xps typ body target
+
+checkLambda'
+  :: Comparison          -- ^ @cmp@
+  -> A.TypedBinding      -- ^ @TBind _ _ xps typ@
+  -> [NamedArg Binder]   -- ^ @xps@
+  -> A.Expr              -- ^ @typ@
+  -> A.Expr              -- ^ @body@
+  -> Type                -- ^ @target@
+  -> TCM Term
+checkLambda' cmp b xps typ body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda xs =" <+> prettyA xps
+    , "possiblePath   =" <+> prettyTCM possiblePath
+    , "numbinds       =" <+> prettyTCM numbinds
+    , "typ            =" <+> prettyA   (unScope typ)
+    ]
   reportSDoc "tc.term.lambda" 60 $ vcat
-    [ "checkLambda xs = " <+> prettyA xps
-    , "possiblePath = " <+> text (show (possiblePath, numbinds, unScope typ, info))
+    [ "info           =" <+> (text . show) info
     ]
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
@@ -412,7 +438,7 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
       -- First check that argsT is a valid type
       argsT <- workOnTypes $ isType_ typ
       let tel = namedBindsToTel xs argsT
-      reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
+      reportSDoc "tc.term.lambda" 30 $ "dontUseTargetType tel =" <+> pretty tel
 
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
@@ -451,10 +477,14 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 
     useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ y
+        reportSLn "tc.term.lambda" 30 $ "useTargetType y  = " ++ y
 
         let [x] = xs
         unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
+        when (isJust $ getNameOf x) $
+          -- Andreas, 2020-03-25, issue #4481: check for correct name
+          unless (namedSame dom x) $
+            setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
@@ -656,8 +686,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
-          tel <- getContextTelescope
-          return $ Def aux $ map Apply $ teleArgs tel
+          Def aux . map Apply . teleArgs <$> getContextTelescope
       _ -> typeError $ ShouldBePi t'
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
@@ -680,16 +709,21 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
      mod <- asksTC getModality
      let info = setModality mod defaultArgInfo
 
-     reportSDoc "tc.term.exlam" 20 $
-       (text (show $ A.defAbstract di) <+>
-       "extended lambda's implementation \"") <> prettyTCM qname <>
-       "\" has type: " $$ prettyTCM t -- <+> " where clauses: " <+> text (show cs)
+     reportSDoc "tc.term.exlam" 20 $ vcat
+       [ hsep
+         [ text $ show $ A.defAbstract di
+         , "extended lambda's implementation"
+         , doubleQuotes $ prettyTCM qname
+         , "has type:"
+         ]
+       , prettyTCM t -- <+> " where clauses: " <+> text (show cs)
+       ]
      args     <- getContextArgs
 
      -- Andreas, Ulf, 2016-02-02: We want to postpone type checking an extended lambda
      -- in case the lhs checker failed due to insufficient type info for the patterns.
      -- Issues 480, 1159, 1811.
-     (abstract (A.defAbstract di) $ do
+     abstract (A.defAbstract di) $ do
        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
@@ -699,7 +733,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
          checkIApplyConfluence_ qname
-       return $ Def qname $ map Apply args)
+       return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
@@ -828,9 +862,8 @@ expandModuleAssigns mfs xs = do
       [(_, fa)] -> return (Just fa)
       mfas      -> typeError . GenericDocError =<< do
         vcat $
-          [ "Ambiguity: the field" <+> prettyTCM f
-            <+> "appears in the following modules: " ]
-          ++ map (prettyTCM . fst) mfas
+          "Ambiguity: the field" <+> prettyTCM f
+            <+> "appears in the following modules: " : map (prettyTCM . fst) mfas
   return (fs ++ catMaybes fs')
 
 -- | @checkRecordExpression fs e t@ checks record construction against type @t@.
@@ -1116,7 +1149,7 @@ checkExpr' cmp e t =
 
         A.Lam i (A.DomainFree _ x) e0
           | isNothing (nameOf $ unArg x) && isNothing (A.binderPattern $ namedArg x) ->
-              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ fmap A.unBind $ namedArg x) e0) t
+              checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit lit    -> checkLiteral lit t
@@ -1548,7 +1581,7 @@ inferExprForWith e = do
 ---------------------------------------------------------------------------
 
 checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
-checkLetBindings = foldr (.) id . map checkLetBinding
+checkLetBindings = foldr ((.) . checkLetBinding) id
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
@@ -1638,7 +1671,7 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   reportSDoc "tc.term.let.apply" 20 $ vcat
     [ "context =" <+> (prettyTCM =<< getContextTelescope)
     , "module  =" <+> (prettyTCM =<< currentModule)
-    , "fv      =" <+> (text $ show fv)
+    , "fv      =" <+> text (show fv)
     ]
   checkSectionApplication i x modapp copyInfo
   withAnonymousModule x new ret

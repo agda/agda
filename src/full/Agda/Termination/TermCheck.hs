@@ -1,6 +1,5 @@
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
 
@@ -25,9 +24,8 @@ import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
-import Data.Traversable (Traversable, traverse)
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
+import Agda.Syntax.Abstract (AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -51,7 +49,6 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull, appDefE')
@@ -126,11 +123,6 @@ termDecl' d = case d of
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
     termDecls ds = concat <$> mapM termDecl' ds
-
-    unscopeDefs = concatMap unscopeDef
-
-    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
-    unscopeDef d = [d]
 
     -- The mutual names mentioned in the abstract syntax
     -- for symbols that need to be termination-checked.
@@ -563,7 +555,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 --   termToPattern t = unnamed <$> termToPattern t
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = (liftTCM $ constructorForm t) >>= \case
+  termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
@@ -986,7 +978,7 @@ maskSizeLt !dom = liftTCM $ do
       TelV tel c <- telView a
       case a of
         El s (Def d [v]) | d == sizelt -> return $
-          (abstract tel $ El s $ Def size []) <$ dom
+          abstract tel (El s $ Def size []) <$ dom
         _ -> return dom
 
 {- | @compareArgs es@

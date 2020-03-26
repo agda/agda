@@ -14,13 +14,12 @@ import Prelude hiding (null)
 import Control.Arrow ( (***) )
 import Control.Monad.Writer hiding ((<>))
 
-import Data.Foldable ( Foldable )
+import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List ( partition )
 import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -35,7 +34,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
@@ -335,13 +333,13 @@ getUserVariableNames tel names = runWriter $
     makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
     makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
       ([]     , [])   -> return Nothing
-      ((x:xs) , [])   -> tellAsBindings xs *> return (Just x)
-      (xs     , y:ys) -> tellAsBindings (xs ++ ys) *> return (Just y)
+      ((x:xs) , [])   -> tellAsBindings xs $> (Just x)
+      (xs     , y:ys) -> tellAsBindings (xs ++ ys) $> (Just y)
       where
         tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
 
     partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
-    partitionIsParam = (map fst *** map fst) . (partition $ (== PVParam) . snd)
+    partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
 
 
 instance Subst Term (Problem a) where

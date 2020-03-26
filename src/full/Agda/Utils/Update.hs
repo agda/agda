@@ -17,13 +17,14 @@ module Agda.Utils.Update
   , Updater2(..)
   ) where
 
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
+
 import Control.Monad.Identity
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict
 
-import Data.Traversable (Traversable(..), traverse)
 
 import Agda.Utils.Tuple
 
@@ -49,7 +50,7 @@ runChangeT :: Functor m => ChangeT m a -> m (a, Bool)
 runChangeT = fmap (mapSnd getAny) . runWriterT . fromChangeT
 
 -- | Run a 'ChangeT' computation, but ignore change flag.
-execChangeT :: Functor m => ChangeT m a -> m a
+execChangeT :: Functor m => ChangeT m a -> m a -- A library function, so keep
 execChangeT = fmap fst . runChangeT
 
 -- | Map a 'ChangeT' computation (monad transformer action).
@@ -79,6 +80,7 @@ type EndoFun a = a -> a
 type Change  a = ChangeT Identity a
 type Updater a = UpdaterT Identity a
 
+-- NB:: Defined but not used
 fromChange :: Change a -> Writer Any a
 fromChange = fromChangeT
 

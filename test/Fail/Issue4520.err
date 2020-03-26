@@ -1,0 +1,4 @@
+Issue4520.agda:20,1-32
+Name  fromNat  is ambiguous
+when scope checking the declaration
+  {-# BUILTIN FROMNAT fromNat #-}

@@ -38,9 +38,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Info
 import Agda.Syntax.Position as P
-import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 import Agda.Interaction.FindFile
 
@@ -190,7 +188,7 @@ instance EmbPrj AbsolutePath where
         [ "Panic while serializing absolute path: " ++ show file
         , "The path could not be found in the dictionary:"
         ]
-      putStrLn . show =<< H.toList d
+      print =<< H.toList d
       __IMPOSSIBLE__
 
   value m = do

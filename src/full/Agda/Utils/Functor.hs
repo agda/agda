@@ -19,7 +19,7 @@ module Agda.Utils.Functor
 
 import Control.Applicative ( Const(Const), getConst )
 
-import Data.Functor ((<$>), ($>))
+import Data.Functor (($>))
 import Data.Functor.Identity
 import Data.Functor.Compose
 

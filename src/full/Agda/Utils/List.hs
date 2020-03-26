@@ -6,7 +6,6 @@ import Control.Arrow (first, second)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
-import Data.Functor ((<$>))
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -130,7 +129,7 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 --
 --   TODO: more efficient implementation!?
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
-findWithIndex p as = listToMaybe $ filter (p . fst) $ zip as [0..]
+findWithIndex p as = List.find (p . fst) (zip as [0..])
 
 -- | A generalised variant of 'elemIndex'.
 -- O(n).
@@ -467,7 +466,7 @@ duplicates = mapMaybe dup . Bag.groups . Bag.fromList
 --
 --   @allDuplicates xs == sort $ xs \\ nub xs@.
 allDuplicates :: Ord a => [a] -> [a]
-allDuplicates = concat . map (drop 1 . reverse) . Bag.groups . Bag.fromList
+allDuplicates = concatMap (drop 1 . reverse) . Bag.groups . Bag.fromList
   -- The reverse is necessary to actually remove the *first* occurrence
   -- of each element.
 

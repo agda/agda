@@ -19,7 +19,6 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Impossible
 
@@ -38,7 +37,7 @@ expandLitPattern p = case asView p of
           info  = A.PatRange r
           cinfo = A.ConPatInfo ConOCon info ConPatEager
           p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr (A.AsP info) p' (map A.mkBindName xs)
+      return $ foldr ((A.AsP info) . A.mkBindName) p' xs
   _ -> return p
 
   where

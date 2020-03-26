@@ -14,7 +14,6 @@ module Agda.Syntax.Abstract
 import Prelude
 import Control.Arrow (first)--, second, (***))
 
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function (on)
 import Data.Map (Map)
@@ -30,7 +29,6 @@ import Data.Monoid (mappend)
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Abstract.Name as A (QNamed)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -176,11 +174,9 @@ data Declaration
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
-      -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
   | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
-      -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
-      --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
   | PatternSynDef QName [Arg Name] (Pattern' Void)
       -- ^ Only for highlighting purposes
@@ -394,7 +390,7 @@ data RHS
 instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
-  WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
+  WithRHS a b c    == WithRHS a' b' c'    = (a == a') && (b == b') && (c == c')
   RewriteRHS a b c d == RewriteRHS a' b' c' d' = and [ a == a', b == b', c == c' , d == d' ]
   _                == _                   = False
 
@@ -1077,10 +1073,11 @@ type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e =
-  Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n) $
-  lambdaLiftExpr ns e
+lambdaLiftExpr ns e
+  = foldr
+      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
+      e
+      ns
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a

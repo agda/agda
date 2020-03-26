@@ -5,7 +5,6 @@ module Agda.Utils.Empty where
 
 import Control.Exception (evaluate)
 
-import Data.Functor ((<$))
 import Data.Data (Data)
 
 import Agda.Utils.Impossible

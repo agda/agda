@@ -39,7 +39,7 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
 isProblemSolved pid =
   and2M (not . Set.member pid <$> asksTC envActiveProblems)
-        (all (not . Set.member pid . constraintProblems) <$> getAllConstraints)
+        (not . any (Set.member pid . constraintProblems) <$> getAllConstraints)
 
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints

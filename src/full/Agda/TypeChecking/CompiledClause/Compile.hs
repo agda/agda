@@ -9,8 +9,6 @@ import Control.Monad.Trans.Identity
 
 import Data.Maybe
 import qualified Data.Map as Map
-import Data.List (nubBy)
-import Data.Function
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -18,7 +16,6 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
@@ -157,7 +154,7 @@ compileWithSplitTree t cs = case t of
 compile :: Cls -> CompiledClauses
 compile [] = Fail
 compile cs = case nextSplit cs of
-  Just (isRecP, n) -> Case n $ fmap compile $ splitOn isRecP (unArg n) cs
+  Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.

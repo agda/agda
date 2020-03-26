@@ -114,7 +114,7 @@ isInfix op =
     _    -> Nothing
   where
     l n   = Just (n, n, n + 1)
-    r n   = Just (n, n + 1, n)
+    r n   = Just (n, n + 1, n) -- NB:: Defined but not used
     non n = Just (n, n + 1, n + 1)
 
 pTerm' :: Int -> TTerm -> P Doc

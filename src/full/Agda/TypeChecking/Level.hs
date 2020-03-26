@@ -4,8 +4,6 @@ module Agda.TypeChecking.Level where
 import Data.Maybe
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -14,7 +12,6 @@ import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
@@ -107,10 +104,10 @@ unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } = \case
   Max m as  -> foldl1 max $ [ unConstV zer suc m | m > 0 ] ++ map (unPlusV suc) as
 
 unConstV :: Term -> (Term -> Term) -> Integer -> Term
-unConstV zer suc n = foldr (.) id (List.genericReplicate n suc) zer
+unConstV zer suc n = foldr ($) zer (List.genericReplicate n suc)
 
 unPlusV :: (Term -> Term) -> PlusLevel -> Term
-unPlusV suc (Plus n a) = foldr (.) id (List.genericReplicate n suc) (unLevelAtom a)
+unPlusV suc (Plus n a) = foldr ($) (unLevelAtom a) (List.genericReplicate n suc)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = tryMaybe $ do

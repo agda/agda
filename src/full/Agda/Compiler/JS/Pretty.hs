@@ -18,7 +18,7 @@ import Agda.Compiler.JS.Syntax hiding (exports)
 -- assumes Haskell-like indentation.
 
 br :: Int -> String
-br i = "\n" ++ take (2*i) (repeat ' ')
+br i = "\n" ++ replicate (2*i) ' '
 
 unescape :: Char -> String
 unescape '"'      = "\\\""
@@ -30,7 +30,7 @@ unescape '\x2029' = "\\u2029"
 unescape c        = [c]
 
 unescapes :: String -> String
-unescapes s = concat (map unescape s)
+unescapes s = concatMap unescape s
 
 -- pretty n i e pretty-prints e, under n levels of de Bruijn binding,
 -- with i levels of indentation.
@@ -104,24 +104,32 @@ modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
 exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
 exports n i lss [] = ""
-exports n i lss (Export ls e : es) | member (init ls) lss =
-  "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n (i+1) e ++ ";" ++ br i ++
-  exports n i (insert ls lss) es
-exports n i lss (Export ls e : es) | otherwise =
-  exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
+exports n i lss (Export ls e : es)
+  | member (init ls) lss =
+    "exports["
+      ++ intercalate "][" (pretties n i ls)
+      ++ "] = "
+      ++ pretty n (i + 1) e
+      ++ ";"
+      ++ br i
+      ++ exports n i (insert ls lss) es
+exports n i lss (Export ls e : es)
+  | otherwise =
+    exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
   pretty n i mod@(Module m es ex) =
     imports ++ br i
-      ++ exports n i (singleton []) es ++ br i
+      ++ exports n i (singleton []) es
+      ++ br i
       ++ maybe "" (pretty n i) ex
     where
       js = toList (globals mod)
-      imports = unlines $
-            ["var agdaRTS = require(\"agda-rts\");"] ++
-            ["var " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
-            | e <- js
-            ]
+      imports = unlines
+        $ "const agdaRTS = require(\"agda-rts\");"
+        : [ "const " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
+          | e <- js
+          ]
 
 variableName :: String -> String
 variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)
