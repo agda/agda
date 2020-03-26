@@ -378,9 +378,14 @@ checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda xs =" <+> prettyA xps
+    , "possiblePath   =" <+> prettyTCM possiblePath
+    , "numbinds       =" <+> prettyTCM numbinds
+    , "typ            =" <+> prettyA   (unScope typ)
+    ]
   reportSDoc "tc.term.lambda" 60 $ vcat
-    [ "checkLambda xs = " <+> prettyA xps
-    , "possiblePath = " <+> text (show (possiblePath, numbinds, unScope typ, info))
+    [ "info           =" <+> (text . show) info
     ]
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
@@ -415,7 +420,7 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
       -- First check that argsT is a valid type
       argsT <- workOnTypes $ isType_ typ
       let tel = namedBindsToTel xs argsT
-      reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
+      reportSDoc "tc.term.lambda" 30 $ "dontUseTargetType tel =" <+> pretty tel
 
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
@@ -454,7 +459,7 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 
     useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ y
+        reportSLn "tc.term.lambda" 30 $ "useTargetType y  = " ++ y
 
         let [x] = xs
         unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
