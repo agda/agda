@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
+import Agda.Syntax.Abstract (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -377,7 +378,24 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
+checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda before insertion xs =" <+> prettyA xps0
+    ]
+  -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
+  -- we need to insert skipped hidden arguments.
+  xps <- insertImplicitBindersT xps0 target
+  checkLambda' cmp (A.TBind r tac xps typ) xps typ body target
+
+checkLambda'
+  :: Comparison          -- ^ @cmp@
+  -> A.TypedBinding      -- ^ @TBind _ _ xps typ@
+  -> [NamedArg Binder]   -- ^ @xps@
+  -> A.Expr              -- ^ @typ@
+  -> A.Expr              -- ^ @body@
+  -> Type                -- ^ @target@
+  -> TCM Term
+checkLambda' cmp b xps typ body target = do
   reportSDoc "tc.term.lambda" 30 $ vcat
     [ "checkLambda xs =" <+> prettyA xps
     , "possiblePath   =" <+> prettyTCM possiblePath
@@ -463,6 +481,10 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 
         let [x] = xs
         unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
+        when (isJust $ getNameOf x) $
+          -- Andreas, 2020-03-25, issue #4481: check for correct name
+          unless (namedSame dom x) $
+            setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523
