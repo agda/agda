@@ -319,8 +319,8 @@ instance PrettyTCM Constraint where
               case mcands of
                 Nothing -> "No candidates yet"
                 Just cnds ->
-                  hang "Candidates" 2 $
-                    vcat [ hang (overlap c <+> prettyTCM (candidateTerm c) <+> ":") 2 $
+                  hang "Candidates" 2 $ vcat
+                    [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
                             prettyTCM (candidateType c) | c <- cnds ]
               where overlap c | candidateOverlappable c = "overlap"
                               | otherwise               = empty
@@ -515,3 +515,8 @@ instance PrettyTCM SplitTag where
   prettyTCM (SplitCon c)  = prettyTCM c
   prettyTCM (SplitLit l)  = prettyTCM l
   prettyTCM SplitCatchall = return underscore
+
+instance PrettyTCM Candidate where
+  prettyTCM c = case candidateKind c of
+    (GlobalCandidate q) -> prettyTCM q
+    LocalCandidate      -> prettyTCM $ candidateTerm c

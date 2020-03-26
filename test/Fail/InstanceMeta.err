@@ -1,9 +1,8 @@
 Failed to solve the following constraints:
   Resolve instance argument _r_23 : Eq _A_22
   Candidates
-    eq InstanceMeta.aux : Eq Bool
-    λ {A} ⦃ z ⦄ → eq InstanceMeta.aux :
-      {A : Set} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
+    eq-Bool : Eq Bool
+    eq-Maybe : {A : Set} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
 Unsolved metas at the following locations:
   InstanceMeta.agda:34,13-15
 Unsolved interaction metas at the following locations:

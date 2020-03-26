@@ -2982,17 +2982,23 @@ isDontExpandLast ExpandLast           = False
 isDontExpandLast DontExpandLast       = True
 isDontExpandLast ReallyDontExpandLast = True
 
+data CandidateKind
+  = LocalCandidate
+  | GlobalCandidate QName
+  deriving (Show, Data)
+
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateTerm :: Term
+data Candidate  = Candidate { candidateKind :: CandidateKind
+                            , candidateTerm :: Term
                             , candidateType :: Type
                             , candidateOverlappable :: Bool
                             }
   deriving (Show, Data)
 
 instance Free Candidate where
-  freeVars' (Candidate t u _) = freeVars' (t, u)
+  freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)

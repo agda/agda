@@ -434,8 +434,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (FindInstance m _b mcands) = FindInstanceOF
       <$> reify (MetaV m [])
       <*> (reify =<< getMetaType m)
-      <*> forM (fromMaybe [] mcands) (\ (Candidate tm ty _) -> do
-            (,) <$> reify tm <*> reify ty)
+      <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
+            (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
     reify (CheckFunDef d i q cs) = do
@@ -483,7 +483,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       FindInstanceOF s t cs -> vcat
         [ "Resolve instance argument" <?> (pretty s .: t)
         , nest 2 $ "Candidate:"
-        , nest 4 $ vcat [ pretty v .: t | (v, t) <- cs ] ]
+        , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
     where
@@ -523,7 +523,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (SizeLtSat a) = SizeLtSat <$> toConcreteCtx TopCtx a
     toConcrete (FindInstanceOF s t cs) =
       FindInstanceOF <$> toConcrete s <*> toConcrete t
-                     <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
+                     <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
 
@@ -548,7 +548,6 @@ instance Pretty c => Pretty (IPBoundary' c) where
               Overapplied    -> "=" <+> pretty meta
               NotOverapplied -> mempty
     prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
-
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
