@@ -75,8 +75,9 @@ the naming conventions of this library, for a detailed list of all of
 the built-in Cubical Agda files and primitives see
 :ref:`primitives-ref`. The main design choices of the core part of the
 library are explained in
-https://homotopytypetheory.org/2018/12/06/cubical-agda/ (lagda rendered
-version: https://ice1000.org/lagda/CubicalAgdaLiterate.html).
+https://homotopytypetheory.org/2018/12/06/cubical-agda/
+(lagda rendered version:
+https://ice1000.org/2018/12-06-CubicalAgda.html).
 
 The recommended way to get access to the Cubical primitives is to add
 the following to the top of a file (this assumes that the
@@ -971,4 +972,3 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
                     (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
                     C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
-

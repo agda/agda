@@ -37,11 +37,9 @@ import qualified Data.Text.Lazy as T
 import Data.Void
 
 import Agda.Interaction.Response
-  ( Response( Resp_HighlightingInfo )
-  , RemoveTokenBasedHighlighting( KeepHighlighting )
-  )
+  ( RemoveTokenBasedHighlighting( KeepHighlighting ) )
 import Agda.Interaction.Highlighting.Precise as P
-import Agda.Interaction.Highlighting.Range (rToR, minus)  -- Range is ambiguous
+import Agda.Interaction.Highlighting.Range (rToR)  -- Range is ambiguous
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
@@ -57,8 +55,6 @@ import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Info ( ModuleInfo(..), defMacro )
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
@@ -70,7 +66,6 @@ import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -175,10 +170,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
   -- All names mentioned in the syntax tree (not bound variables).
   names :: [A.AmbiguousQName]
   names =
-    (map I.unambiguous $
-     filter (not . isExtendedLambdaName) $
-     universeBi decl) ++
-    universeBi decl
+    map I.unambiguous (filter (not . isExtendedLambdaName) $ universeBi decl) ++
+                      universeBi decl
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols and some other things.
@@ -350,17 +343,16 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getFieldDecl _                   = mempty
 
     getModuleName :: A.ModuleName -> File
-    getModuleName m@(A.MName { A.mnameToList = xs }) =
+    getModuleName m@(A.MName {A.mnameToList = xs}) =
       mconcat $ map (mod isTopLevelModule) xs
       where
-      isTopLevelModule =
-        case mapMaybe (join .
-                  fmap (Strict.toLazy . P.srcFile) .
-                  P.rStart .
-                  A.nameBindingSite) xs of
-          f : _ -> Map.lookup f modMap ==
-                   Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
-          []    -> False
+        isTopLevelModule =
+          case mapMaybe
+              ((Strict.toLazy . P.srcFile) <=< (P.rStart . A.nameBindingSite)) xs of
+            f : _ ->
+              Map.lookup f modMap
+                == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
+            [] -> False
 
     getModuleInfo :: ModuleInfo -> File
     getModuleInfo (ModuleInfo{ minfoAsTo, minfoAsName }) =
@@ -392,7 +384,7 @@ generateTokenInfoFromSource
      -- disk.
   -> TCM CompressedFile
 generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting <$> fst <$> Pa.parseFile Pa.tokensParser file input
+  runPM $ tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
@@ -413,7 +405,7 @@ tokenHighlighting = merge . map tokenToCFile
   aToF a r = singletonC (rToR r) (mempty { aspect = Just a })
 
   -- Merges /sorted, non-overlapping/ compressed files.
-  merge = CompressedFile . concat . map ranges
+  merge = CompressedFile . concatMap ranges
 
   tokenToCFile :: T.Token -> CompressedFile
   tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (getRange i)
@@ -463,7 +455,7 @@ nameKinds hlLevel decl = do
     _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-  let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
+  let syntax = foldr declToKind HMap.empty (universeBi decl)
   return $ \ n -> unionsMaybeWith merge
     [ defnToKind . theDef <$> HMap.lookup n local
     , con <$ Map.lookup n locPatSyns
@@ -578,19 +570,31 @@ printErrorInfo e =
 -- | Generate highlighting for error.
 
 errorHighlighting :: TCErr -> TCM File
-errorHighlighting e = do
+errorHighlighting e = errorHighlighting' (getRange e) <$> E.prettyError e
 
-  -- Erase previous highlighting.
-  let r     = getRange e
-      erase = singleton (rToR $ P.continuousPerLine r) mempty
-
-  -- Print new highlighting.
-  s <- E.prettyError e
-  let error = singleton (rToR r)
+errorHighlighting'
+  :: Range     -- ^ Error range.
+  -> String    -- ^ Error message for tooltip.
+  -> File
+errorHighlighting' r s = mconcat
+  [ -- Erase previous highlighting.
+    singleton (rToR $ P.continuousPerLine r) mempty
+  , -- Print new highlighting.
+    singleton (rToR r)
          $ parserBased { otherAspects = Set.singleton Error
-                       , note         = Just s
+                       , note         = s
                        }
-  return $ mconcat [ erase, error ]
+  ]
+
+-- | Highlighting for warnings that are considered fatal.
+
+errorWarningHighlighting :: HasRange a => a -> File
+errorWarningHighlighting w =
+  singleton (rToR $ P.continuousPerLine $ getRange w) $
+    parserBased { otherAspects = Set.singleton ErrorWarning }
+-- errorWarningHighlighting w = errorHighlighting' (getRange w) ""
+  -- MonadPretty not available here, so, no tooltip.
+  -- errorHighlighting' (getRange w) . render <$> E. prettyWarning (tcWarning w)
 
 -- | Generate syntax highlighting for warnings.
 
@@ -626,24 +630,27 @@ warningHighlighting w = case tcWarning w of
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
-  GenericNonFatalError{}     -> mempty
-  SafeFlagPostulate{}        -> mempty
-  SafeFlagPragma{}           -> mempty
-  SafeFlagNonTerminating     -> mempty
-  SafeFlagTerminating        -> mempty
-  SafeFlagWithoutKFlagPrimEraseEquality -> mempty
-  SafeFlagEta                -> mempty
-  SafeFlagInjective          -> mempty
-  SafeFlagNoCoverageCheck    -> mempty
+  -- Andreas, 2020-03-21, issue #4456:
+  -- Error warnings that do not have dedicated highlighting
+  -- are highlighted as errors.
+  GenericNonFatalError{}                -> errorWarningHighlighting w
+  SafeFlagPostulate{}                   -> errorWarningHighlighting w
+  SafeFlagPragma{}                      -> errorWarningHighlighting w
+  SafeFlagNonTerminating                -> errorWarningHighlighting w
+  SafeFlagTerminating                   -> errorWarningHighlighting w
+  SafeFlagWithoutKFlagPrimEraseEquality -> errorWarningHighlighting w
+  SafeFlagEta                           -> errorWarningHighlighting w
+  SafeFlagInjective                     -> errorWarningHighlighting w
+  SafeFlagNoCoverageCheck               -> errorWarningHighlighting w
+  SafeFlagNoPositivityCheck             -> errorWarningHighlighting w
+  SafeFlagPolarity                      -> errorWarningHighlighting w
+  SafeFlagNoUniverseCheck               -> errorWarningHighlighting w
+  InfectiveImport{}                     -> errorWarningHighlighting w
+  CoInfectiveImport{}                   -> errorWarningHighlighting w
   WithoutKFlagPrimEraseEquality -> mempty
-  SafeFlagNoPositivityCheck  -> mempty
-  SafeFlagPolarity           -> mempty
-  SafeFlagNoUniverseCheck    -> mempty
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
-  InfectiveImport{}          -> mempty
-  CoInfectiveImport{}        -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
   PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
@@ -679,7 +686,7 @@ warningHighlighting w = case tcWarning w of
     InvalidCatchallPragma{}           -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
     PragmaNoTerminationCheck{}        -> mempty
-    PragmaCompiled{}                  -> mempty
+    PragmaCompiled{}                  -> errorWarningHighlighting w
     UnknownFixityInMixfixDecl{}       -> mempty
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
@@ -804,7 +811,7 @@ generate modMap file kinds (A.AmbQ qs) =
     -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
     -- than doing no highlighting if there's an ambiguity between an
     -- inductive and coinductive constructor.
-    kind = case [ k | Just k <- ks ] of
+    kind = case catMaybes ks of
              k : _ -> Just k
              []    -> Nothing
     -- kind = case (allEqual ks, ks) of

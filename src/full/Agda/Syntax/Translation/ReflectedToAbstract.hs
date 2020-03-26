@@ -6,7 +6,6 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 
 import Control.Monad.Reader
 
-import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info

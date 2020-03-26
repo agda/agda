@@ -56,7 +56,7 @@ doCompile isMain i f = do
   where
     comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM r
     comp isMain i = do
-      alreadyDone <- Set.member (iModuleName i) <$> get
+      alreadyDone <- gets (Set.member (iModuleName i))
       if alreadyDone then return mempty else do
         imps <- lift $
           map miInterface . catMaybes <$>
@@ -113,9 +113,7 @@ sigMName sig = case Map.keys (sig ^. sigSections) of
 compileDir :: TCM FilePath
 compileDir = do
   mdir <- optCompileDir <$> commandLineOptions
-  case mdir of
-    Just dir -> return dir
-    Nothing  -> __IMPOSSIBLE__
+  maybe __IMPOSSIBLE__ return mdir
 
 
 repl :: [String] -> String -> String

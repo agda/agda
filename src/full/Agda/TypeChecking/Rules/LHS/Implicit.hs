@@ -72,7 +72,7 @@ insertImplicitPatternsT exh            ps a = do
          ]
   case ps of
     [] -> insImp dummy tel
-    p : _ -> do
+    p : _ -> setCurrentRange p $ do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.

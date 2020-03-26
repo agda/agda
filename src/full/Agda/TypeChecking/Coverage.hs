@@ -24,7 +24,6 @@ import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -37,9 +36,7 @@ import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.Primitive.Cubical (trFillTel)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
@@ -479,7 +476,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
           (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (createMissingConIdClause f n x sc . snd . snd)
-          results <- mapM (cover f cs) (map snd scs)
+          results <- mapM ((cover f cs) . snd) scs
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
@@ -520,8 +517,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- ...or it was an IApply pattern, so we might just need to introduce the variable now.
     trySplitRes (BlockedOnApply IsIApply) finalSplit splitError cont
        = do
-         caseMaybeM (splitResultPath f sc) fallback $ \ sc ->
-               cover f cs . snd =<< insertTrailingArgs sc
+         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) <=< insertTrailingArgs
       where
         fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
                  | otherwise  = cont
@@ -910,7 +906,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
       (working_tel,_deltaEx) = splitTelescopeAt (size gamma + 3 + size delta) tel
 
       -- Γ,φ,u,u0,(x:H)(δ : Δ) ⊢ rhoS : Γ(x:H)(δ : Δ)
-      rhoS = liftS (size hdelta) $ raiseS 3
+      {- rhoS = liftS (size hdelta) $ raiseS 3 -}
       vs = iApplyVars (scPats old_sc)
 
   -- Γ(x:H)(δ : Δ) ⊢ [ α ⇒ b ] = [(i,f old_ps (i=0),f old_ps (i=1)) | i <- vs]
@@ -948,7 +944,6 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
           let
             ineg j = pure tINeg <@> j
             imax i j = pure tIMax <@> i <@> j
-            imin i j = pure tIMin <@> i <@> j
             trFillTel' a b c d = do
               m <- trFillTel <$> a <*> b <*> c <*> d
               x <- lift $ runExceptT m
@@ -956,13 +951,13 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
                 Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
                 Right args -> return args
           comp <- do
-            let forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
-                                              <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+            let forward la bA r u = pure tTrans <#> lam "i" (\ i -> la <@> (i `imax` r))
+                                              <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                               <@> r
                                               <@> u
             return $ \ la bA phi u u0 ->
               pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                        <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                        <@> lam "i" (\ i -> ilam "o" $ \ o ->
                                 forward la bA i (u <@> i <..> o))
                         <@> forward la bA (pure iz) u0
           let
@@ -973,9 +968,9 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
 
             hfill la bA phi u u0 i = hcomp la bA
                                                (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> (ilam "o" $ \ _ -> bA)
-                                                     <@> (ilam "o" $ \ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
-                                                     <@> (ilam "o" $ \ _ -> u0)
+                                               (lam "j" $ \ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <#> ilam "o" (\ _ -> bA)
+                                                     <@> ilam "o" (\ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
+                                                     <@> ilam "o" (\ _ -> u0)
                                                    )
                                                u0
           -- Γ,φ,u,u0,(δ : Δ(x = hcomp φ u u0)) ⊢ hcompS : Γ(x:H)(δ : Δ)
@@ -1021,22 +1016,22 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
                     v <- hfill lvl htype phi u u0 i
                     hd <- old_t
                     args <- delta_fill `bapp` i
-                    lift $ piApplyM hd $ [Arg (domInfo hdom) v] ++ args
+                    lift $ piApplyM hd $ Arg (domInfo hdom) v : args
           ty_level <- do
             t <- bind "i" ty
             s <- reduce $ getSort (absBody t)
             reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
             case s of
-              Type l -> open =<< (lam "i" $ \ _ -> pure $ Level l)
-              _      -> cannotCreate "Cannot compose with type family:" =<< (liftTCM $ buildClosure t)
+              Type l -> open =<< lam "i" (\ _ -> pure $ Level l)
+              _      -> cannotCreate "Cannot compose with type family:" =<< liftTCM (buildClosure t)
 
           let
             pOr_ty i phi psi u0 u1 = pure tPOr <#> (ty_level <@> i)
                                                <@> phi <@> psi
-                                               <#> (ilam "o" $ \ _ -> unEl <$> ty i) <@> u0 <@> u1
+                                               <#> ilam "o" (\ _ -> unEl <$> ty i) <@> u0 <@> u1
           alpha <- do
             vars <- mapM (open . applySubst hcompS . fst) alphab
-            return $ foldr imax (pure iz) $ map (\ v -> v `imax` ineg v) vars
+            return $ foldr (imax . (\ v -> v `imax` ineg v)) (pure iz) vars
 
           -- Γ,φ,u,u0,Δ(x = hcomp φ u u0) ⊢ b : (i : I) → [α] -> old_t[x = hfill φ u u0 i,δ_fill[i]]
           b <- do
@@ -1048,12 +1043,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
                                                             (ilam "o" $ \ _ -> apply_delta_fill i $ side1 <@> hfill lvl htype phi u u0 i))
              let recurse []           i = __IMPOSSIBLE__
                  recurse [(psi,u)]    i = u i
-                 recurse ((psi,u):xs) i = pOr_ty i psi (foldr imax (pure iz) (map fst xs)) (u i) (recurse xs i)
+                 recurse ((psi,u):xs) i = pOr_ty i psi (foldr (imax . fst) (pure iz) xs) (u i) (recurse xs i)
              return $ recurse sides
 
           ((,) <$> ty (pure io) <*>) $ do
             comp ty_level
-               (lam "i" $ \ i -> unEl <$> ty i)
+               (lam "i" $ fmap unEl . ty)
                            (phi `imax` alpha)
                            (lam "i" $ \ i ->
                                let rhs = (ilam "o" $ \ o -> call (u <@> i <..> o) i)
@@ -1760,9 +1755,9 @@ split' checkEmpty ind allowPartialCover inserttrailing
       let inferred_tags = maybe Set.empty (Set.singleton . SplitCon) mHCompName
       let all_tags = Set.fromList ptags `Set.union` inferred_tags
 
-      when (allowPartialCover == NoAllowPartialCover && overlap == False) $
+      when (allowPartialCover == NoAllowPartialCover && not overlap) $
         for_ ns $ \(tag, (sc, _)) -> do
-          when (not $ tag `Set.member` all_tags) $ do
+          unless (tag `Set.member` all_tags) $ do
             isImpossibleClause <- liftTCM $ isEmptyTel $ scTel sc
             unless isImpossibleClause $ do
               liftTCM $ reportSDoc "tc.cover" 10 $ vcat
@@ -1842,7 +1837,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ "splitting result:"
     , nest 2 $ "f      =" <+> prettyTCM f
-    , nest 2 $ "target =" <+> (addContext tel $ maybe empty prettyTCM target)
+    , nest 2 $ "target =" <+> addContext tel (maybe empty prettyTCM target)
     ]
   -- if we want to split projections, but have no target type, we give up
   let failure = return . Left
@@ -1852,7 +1847,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
       Just (_r, vs, Record{ recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
           [ text $ "we are of record type _r = " ++ prettyShow _r
-          , text   "applied to parameters vs =" <+> (addContext tel $ prettyTCM vs)
+          , text   "applied to parameters vs =" <+> addContext tel (prettyTCM vs)
           , text $ "and have fields       fs = " ++ prettyShow fs
           ]
         -- Andreas, 2018-06-09, issue #2170, we always have irrelevant projections

@@ -354,11 +354,11 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     checkOccurs cls n = all (nonOccur n) cls
 
     nonOccur n cl =
-      and [ take n p == [0..n - 1]
-          , onlyMatch n ps  -- projection-like functions are only allowed to match on the eliminatee
-                            -- otherwise we may end up projecting from constructor applications, in
-                            -- which case we can't reconstruct the dropped parameters
-          , checkBody m n b ]
+        (take n p == [0..n - 1]) &&
+        onlyMatch n ps &&  -- projection-like functions are only allowed to match on the eliminatee
+                          -- otherwise we may end up projecting from constructor applications, in
+                          -- which case we can't reconstruct the dropped parameters
+        checkBody m n b
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl

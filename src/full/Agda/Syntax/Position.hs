@@ -69,18 +69,15 @@ import Prelude hiding ( null )
 
 import Control.Monad.Writer (runWriter, tell)
 
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable)
 import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -558,9 +555,7 @@ instance Show a => Show (Interval' (Strict.Maybe a)) where
                Strict.Just f  -> show f ++ ":"
 
 instance Show a => Show (Range' (Strict.Maybe a)) where
-  show r = case rangeToIntervalWithFile r of
-    Nothing -> ""
-    Just i  -> show i
+  show r = maybe "" show (rangeToIntervalWithFile r)
 
 instance Show a => Show (Range' (Maybe a)) where
   show = show . fmap Strict.toStrict
@@ -601,9 +596,7 @@ instance Pretty a => Pretty (Interval' (Strict.Maybe a)) where
                Strict.Just f  -> pretty f <> colon
 
 instance Pretty a => Pretty (Range' (Strict.Maybe a)) where
-  pretty r = case rangeToIntervalWithFile r of
-    Nothing -> empty
-    Just i  -> pretty i
+  pretty r = maybe empty pretty (rangeToIntervalWithFile r)
 
 instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
   pretty (PrintRange a) = pretty a <+> parens ("at" <+> pretty (getRange a))

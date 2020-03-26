@@ -21,6 +21,7 @@ runNames [] $ do
 -}
 module Agda.TypeChecking.Names where
 
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
 import Control.Monad.Reader
@@ -32,7 +33,6 @@ import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Errors

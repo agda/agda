@@ -2,8 +2,9 @@
 
 module Agda.TypeChecking.Conversion where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.Monad
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
@@ -21,7 +22,6 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -141,7 +141,7 @@ compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> T
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareAs cmp a u v = do
-  reportSDoc "tc.conv.term" 10 $ sep $
+  reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
@@ -332,7 +332,7 @@ compareTerm' cmp a m n =
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
-        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
+        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef a'@(El s ty) m n = do
@@ -425,6 +425,7 @@ compareAtom cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
   (catchConstraint (ValueCmp cmp t m n) :: m () -> m ()) $ do
+    reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                              , prettyTCM n
@@ -436,6 +437,7 @@ compareAtom cmp t m n =
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
+    reportSLn "tc.conv.atom.size" 50 $ "term size after reduce: " ++ show (termSize $ ignoreBlocking mb', termSize $ ignoreBlocking nb')
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
@@ -461,7 +463,7 @@ compareAtom cmp t m n =
         postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
         postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
         postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
-          (\m t -> (f $ Blocked m $ AsTermsOf t) `catchError` \case
+          (\m t -> f (Blocked m $ AsTermsOf t) `catchError` \case
               TypeError{} -> postpone
               err         -> throwError err)
           (\nb t -> f $ NotBlocked nb $ AsTermsOf t)
@@ -607,9 +609,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
-                        (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
+              equalType (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -822,7 +824,9 @@ antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
+compareElims pols0 fors0 a v els01 els02 =
+  verboseBracket "tc.conv.elim" 20 "compareElims" $
+  (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
@@ -894,10 +898,10 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
       ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
-        reportSLn "tc.conv.elim" 90 $ "type is not blocked"
+        reportSLn "tc.conv.elim" 40 $ "type is not blocked"
         case unEl a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
-            reportSLn "tc.conv.elim" 90 $ "type is a function type"
+            reportSLn "tc.conv.elim" 40 $ "type is a function type"
             mlvl <- tryMaybe primLevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False
@@ -914,34 +918,34 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyModalityToContext info $
                 if isForced for then
-                  reportSLn "tc.conv.elim" 90 $ "argument is forced"
+                  reportSLn "tc.conv.elim" 40 $ "argument is forced"
                 else if isIrrelevant info then do
-                  reportSLn "tc.conv.elim" 90 $ "argument is irrelevant"
+                  reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
                   compareIrrelevant b (unArg arg1) (unArg arg2)
                 else do
-                  reportSLn "tc.conv.elim" 90 $ "argument has polarity " ++ show pol
+                  reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
                   compareWithPol pol (flip compareTerm b)
                     (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
             solved <- isProblemSolved pid
-            reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
+            reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- if dependent && not solved
                    then applyModalityToContext info $ do
-                    reportSDoc "tc.conv.elims" 30 $ vcat $
+                    reportSDoc "tc.conv.elims" 50 $ vcat $
                       [ "Trying antiUnify:"
                       , nest 2 $ "b    =" <+> prettyTCM b
                       , nest 2 $ "arg1 =" <+> prettyTCM arg1
                       , nest 2 $ "arg2 =" <+> prettyTCM arg2
                       ]
                     arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                    reportSDoc "tc.conv.elims" 30 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                    reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
                     reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
                     return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
             compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associated to the comparison
-            reportSLn "tc.conv.elim" 90 $ "stealing constraints from problem " ++ show pid
+            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
             stealConstraints pid
             {- Stealing solves this issue:
 
@@ -1019,7 +1023,7 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else (assignE DirEq x es w (AsTermsOf t) $ compareIrrelevant t) `catchError` \ _ -> fallback
+        else assignE DirEq x es w (AsTermsOf t) (compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1534,6 +1538,7 @@ equalLevel' a b = do
           lvl <- levelType
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
+        -- NB:: Defined but not used: wrap
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \case
             TypeError{} -> notok
@@ -1657,9 +1662,6 @@ equalSort s1 s2 = do
                if | equal     -> return ()
                   | otherwise -> postpone
            | otherwise -> postpone
-
-      set0 = mkType 0
-      prop0 = mkProp 0
 
       -- Equate a sort @s1@ to @univSort s2@
       -- Precondition: @s1@ and @univSort s2@ are already reduced.
@@ -1791,6 +1793,7 @@ equalSort s1 s2 = do
       isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
       isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
       isBottomSort propEnabled _                      = False
+      -- (NB: Defined but not currently used)
 
       definitelyNotInf :: Sort -> Bool
       definitelyNotInf = \case
@@ -1976,24 +1979,23 @@ leqInterval r q =
 -- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
-leqConj (rs,rst) (qs,qst) = do
-  case toSet qs `Set.isSubsetOf` toSet rs of
-    False -> return False
-    True  -> do
-      interval <- elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
-
+leqConj (rs, rst) (qs, qst) = do
+  if toSet qs `Set.isSubsetOf` toSet rs
+    then do
+      interval <-
+        elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1) in some situations the same constraint would get generated twice.
       -- 2) unless things are completely accepted we are going to
       --    throw patternViolation in compareInterval.
       let eqT t u = tryConversion (compareAtom CmpEq (AsTermsOf interval) t u)
-
-      let listSubset ts us = and <$> forM ts (\ t ->
-                              or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
+      let listSubset ts us =
+            and <$> forM ts (\t -> or <$> forM us (\u -> eqT t u)) -- TODO shortcut
       listSubset qst rst
+    else
+      return False
   where
-    toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
-
+    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()

@@ -4,7 +4,6 @@ import Control.Monad
 import Data.Maybe
 import Data.Char
 import qualified Data.List as List
-import Data.Traversable (traverse)
 import qualified Data.Map as Map
 import Text.ParserCombinators.ReadP
 
@@ -192,8 +191,8 @@ data KindOfForeignCode
 -- | Classify a @FOREIGN GHC@ declaration.
 classifyForeign :: String -> KindOfForeignCode
 classifyForeign s0 = case ltrim s0 of
-  s | List.isPrefixOf "import " s -> ForeignImport
-  s | List.isPrefixOf "{-#" s -> classifyPragma $ drop 3 s
+  s | "import " `List.isPrefixOf` s -> ForeignImport
+  s | "{-#" `List.isPrefixOf` s -> classifyPragma $ drop 3 s
   _ -> ForeignOther
 
 -- | Classify a Haskell pragma into whether it is a file header pragma or not.

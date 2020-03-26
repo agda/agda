@@ -10,6 +10,7 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
+import Control.Applicative ((<|>))
 import Control.Arrow (first)
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
@@ -20,7 +21,6 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Either (partitionEithers)
-import Data.Traversable (sequenceA)
 import Data.Void
 import qualified Data.IntSet as IntSet
 
@@ -32,7 +32,6 @@ import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
@@ -51,7 +50,6 @@ import Agda.TypeChecking.Names
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def
@@ -677,7 +675,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  let e' = e { nameOf = maybe dname Just (nameOf e) }
+                  let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) $
@@ -834,10 +832,10 @@ checkConstructorApplication cmp org t c args = do
     --
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
-      let (hargs, rest) = span (not . visible) args
+      let (hargs, rest) = break visible args
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
-      in  any notUnderscore $ map (unScope . namedArg) hargs
+      in  any (notUnderscore . unScope . namedArg) hargs
 
     -- Drop the constructor arguments that correspond to parameters.
     dropArgs [] args                = args
@@ -1041,8 +1039,8 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
             def <- lift $ getConstInfo d
             let isP = isProjection_ $ theDef def
             reportSDoc "tc.proj.amb" 40 $ vcat $
-              [ text $ "  isProjection = " ++ caseMaybe isP "no" (const "yes")
-              ] ++ caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
+              text ( "  isProjection = " ++ caseMaybe isP "no" (const "yes")
+                   ) : caseMaybe isP [] (\ Projection{ projProper = proper, projOrig = orig } ->
               [ text $ "  proper       = " ++ show proper
               , text $ "  orig         = " ++ prettyShow orig
               ])
@@ -1240,7 +1238,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg phi) <@> (pure $ unArg a `apply` [iz])
+      ty <- elInf $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1261,7 +1259,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg phi) <@> (pure $ unArg a)
+      ty <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1370,7 +1368,7 @@ check_glue c rs vs _ = do
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
-            elInf $ cl primPartialP <#> lb <@> phi <@> (glam iinfo "o" $ \ _ -> bA)
+            elInf $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v
@@ -1392,7 +1390,7 @@ check_glueU c rs vs _ = do
       let iinfo = setRelevance Irrelevant defaultArgInfo
       v <- runNamesT [] $ do
             [la, phi, bT, bA, t] <- mapM (open . unArg) [la, phi, bT, bA, t]
-            let f o = cl primTrans <#> (lam "i" $ const la) <@> (lam "i" $ \ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
+            let f o = cl primTrans <#> lam "i" (const la) <@> lam "i" (\ i -> bT <@> (cl primINeg <@> i) <..> o) <@> cl primIZero
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [la, phi, bT] <- mapM (open . unArg) [la, phi, bT]

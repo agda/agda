@@ -15,7 +15,6 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
-import Control.DeepSeq
 import Control.Monad
 
 import qualified Data.List as List
@@ -23,18 +22,17 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Data.Data (Data)
-
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(throwError) )
-import Agda.Utils.Functor ((<&>))
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
@@ -376,3 +374,24 @@ noSection n = NotationSection
   , sectLevel     = Just (fixityLevel (notaFixity n))
   , sectIsSection = False
   }
+
+
+-- * Pretty printing
+
+instance Pretty NewNotation where
+  pretty (NewNotation x _xs fx nota isOp) = hsepWith "=" px pn
+    where
+    px = fsep [ if isOp then empty else "syntax" , pretty fx , pretty x ]
+    pn = if isOp then empty else pretty nota
+
+instance Pretty NotationKind where pretty = pshow
+
+instance Pretty NotationSection where
+  pretty (NotationSection nota kind mlevel isSection)
+    | isSection = fsep
+        [ "section"
+        , pretty kind
+        , maybe empty pretty mlevel
+        , pretty nota
+        ]
+    | otherwise = pretty nota

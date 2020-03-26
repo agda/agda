@@ -44,11 +44,10 @@ Introduction to Agda
      (OPLSS 2013).
 - Tesla Ice Zhang.
    - `Some books about Formal Verification in Agda (in Chinese) <https://github.com/ice1000/Books>`__
-   - `A blog created with Literate Agda (in Chinese) <https://ice1000.org/lagda/>`__
 - Phil Wadler.
    - `Programming Languages Foundations in Agda <https://plfa.github.io/>`__
 - Aaron Stump.
-   - `Verified Functional Programming in Agda <https://dl.acm.org/citation.cfm?id=2841316>`__
+   - `Verified Functional Programming in Agda <https://dl.acm.org/doi/book/10.1145/2841316>`__
 - Diviánszky Péter.
    - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
 - Musa Al-hassy.
@@ -69,7 +68,6 @@ Courses using Agda
   , course at the University of Pennsylvania by Stephanie Weirich.
 - `Categorical Logic <https://www.cl.cam.ac.uk/teaching/0910/L20/>`__
   , course at the University of Cambridge by Samuel Staton.
-  - `More info and feedback <http://permalink.gmane.org/gmane.comp.lang.agda/1579>`__
 - `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
   , master level course at EAFIT University by Andrés Sicard-Ramírez.
 - `Introduction to Dependently Typed Programming using Agda <https://github.com/mietek/agda-intro>`__

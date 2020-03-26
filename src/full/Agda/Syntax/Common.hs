@@ -17,9 +17,9 @@ import Control.Arrow ((&&&))
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
 #endif
+import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Hashable (Hashable(..))
@@ -2207,9 +2207,20 @@ data ImportedName' n m
   | ImportedName    n  -- ^ Imported name of type @n@.
   deriving (Data, Eq, Ord, Show)
 
+fromImportedName :: ImportedName' a a -> a
+fromImportedName = \case
+  ImportedModule x -> x
+  ImportedName   x -> x
+
 setImportedName :: ImportedName' a a -> a -> ImportedName' a a
 setImportedName (ImportedName   x) y = ImportedName   y
 setImportedName (ImportedModule x) y = ImportedModule y
+
+-- | Like 'partitionEithers'.
+partitionImportedNames :: [ImportedName' n m] -> ([n], [m])
+partitionImportedNames = flip foldr ([], []) $ \case
+  ImportedName   n -> first  (n:)
+  ImportedModule m -> second (m:)
 
 -- -- Defined in Concrete.Pretty
 -- instance (Pretty n, Pretty m) => Pretty (ImportedName' n m) where

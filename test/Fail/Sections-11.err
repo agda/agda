@@ -1,5 +1,6 @@
 Sections-11.agda:4,1-8
 Could not parse the left-hand side _test n
+Problematic expression: (_test n)
 Operators used in the grammar:
   None
 when scope checking the left-hand side _test n in the definition of

@@ -53,8 +53,6 @@ import qualified Codec.Compression.Zlib.Internal as Z
 import GHC.Compact as C
 #endif
 
-import Agda.Interaction.Options
-
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
@@ -66,14 +64,13 @@ import Agda.Utils.Hash
 import Agda.Utils.IORef
 
 import Agda.Utils.Except
-import Agda.Utils.Monad
 
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200305 * 10 + 0
+currentInterfaceVersion = 20200325 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -193,9 +190,7 @@ decode s = do
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)
 
-  case mf of
-    Nothing -> return ()
-    Just mf -> stModuleToSource `setTCLens` mf
+  forM_ mf (setTCLens stModuleToSource)
 
   case r of
     Right x -> do

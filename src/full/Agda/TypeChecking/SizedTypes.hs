@@ -9,14 +9,12 @@ import Control.Monad.Writer
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -597,17 +595,17 @@ oldCanonicalizeSizeConstraint c@(Leq a n b) =
   case (a,b) of
     (Rigid{}, Rigid{})       -> return c
     (SizeMeta m xs, Rigid i) -> do
-      j <- List.findIndex (==i) xs
+      j <- List.elemIndex i xs
       return $ Leq (SizeMeta m [0..size xs-1]) n (Rigid j)
     (Rigid i, SizeMeta m xs) -> do
-      j <- List.findIndex (==i) xs
+      j <- List.elemIndex i xs
       return $ Leq (Rigid j) n (SizeMeta m [0..size xs-1])
     (SizeMeta m xs, SizeMeta l ys)
          -- try to invert xs on ys
-       | Just ys' <- mapM (\ y -> List.findIndex (==y) xs) ys ->
+       | Just ys' <- mapM (\ y -> List.elemIndex y xs) ys ->
            return $ Leq (SizeMeta m [0..size xs-1]) n (SizeMeta l ys')
          -- try to invert ys on xs
-       | Just xs' <- mapM (\ x -> List.findIndex (==x) ys) xs ->
+       | Just xs' <- mapM (\ x -> List.elemIndex x ys) xs ->
            return $ Leq (SizeMeta m xs') n (SizeMeta l [0..size ys-1])
          -- give up
        | otherwise -> Nothing

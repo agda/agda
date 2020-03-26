@@ -5,6 +5,7 @@
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative ( Alternative((<|>), many) )
+import Control.Monad ((<=<))
 
 import Data.Either
 import Data.Kind ( Type )
@@ -15,7 +16,6 @@ import Data.Set (Set)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
@@ -135,7 +135,7 @@ data ParseSections = ParseSections | DoNotParseSections
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
 parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
+parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
   where
   splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
   splitExpr e = case exprView e of
@@ -218,7 +218,7 @@ atLeastTwoParts =
 
 patternBinder :: IsExpr e => Parser e Binder
 patternBinder = inOnePart <|> mkBinder_ <$> atLeastTwoParts
-  where inOnePart = satNoPlaceholder $ \ e -> isBinderP =<< patternView e
+  where inOnePart = satNoPlaceholder $ isBinderP <=< patternView
 
 -- | Used to define the return type of 'opP'.
 

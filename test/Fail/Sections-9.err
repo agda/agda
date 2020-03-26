@@ -1,5 +1,6 @@
 Sections-9.agda:4,1-7
 Could not parse the left-hand side ⟨ _ ⟩_
+Problematic expression: ((⟨ _) ⟩_)
 Operators used in the grammar:
   None
 when scope checking the left-hand side ⟨ _ ⟩_ in the definition of

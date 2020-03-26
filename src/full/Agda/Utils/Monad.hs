@@ -10,9 +10,7 @@ module Agda.Utils.Monad
 import Control.Applicative  (liftA2)
 import Control.Monad hiding (mapM, forM)
 
-import qualified Control.Monad.Fail as Fail
 
-import Control.Monad.Identity ( Identity )
 import Control.Monad.State
 
 import Data.Traversable as Trav hiding (for, sequence)
@@ -169,11 +167,12 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
   ifM (p x) (return []) (return [x])
 
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
-partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a],[a])
-partitionM f [] =
-  pure ([], [])
-partitionM f (x:xs) =
-  (\ b (l, r) -> if b then (x:l, r) else (l, x:r)) <$> f x <*> partitionM f xs
+partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM f xs =
+  foldr
+    (\x -> (<*>) ((\b (l, r) -> if b then (x : l, r) else (l, x : r)) <$> f x))
+    (pure ([], []))
+    xs
 
 -- MonadPlus -----------------------------------------------------------------
 
@@ -208,6 +207,11 @@ tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 
 tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
 tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
+
+-- | Like 'guard', but raise given error when condition fails.
+
+guardWithError :: MonadError e m => e -> Bool -> m ()
+guardWithError e b = if b then return () else throwError e
 
 -- State monad ------------------------------------------------------------
 

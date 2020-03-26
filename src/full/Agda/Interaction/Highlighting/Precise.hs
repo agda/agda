@@ -37,6 +37,8 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
+import Prelude hiding (null)
+
 import Control.Arrow (second)
 import Control.Monad
 
@@ -55,12 +57,13 @@ import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Common as Common
-import qualified Agda.Syntax.Concrete as SC
+import qualified Agda.Syntax.Concrete as C
 
 import Agda.Interaction.Highlighting.Range
 
-import Agda.Utils.String
 import Agda.Utils.List
+import Agda.Utils.Null
+import Agda.Utils.String
 
 ------------------------------------------------------------------------
 -- Files
@@ -109,6 +112,8 @@ data NameKind
 
 data OtherAspect
   = Error
+  | ErrorWarning
+    -- ^ A warning that is considered fatal in the end.
   | DottedPattern
   | UnsolvedMeta
   | UnsolvedConstraint
@@ -141,8 +146,8 @@ data OtherAspect
 data Aspects = Aspects
   { aspect       :: Maybe Aspect
   , otherAspects :: Set OtherAspect
-  , note         :: Maybe String
-    -- ^ This note, if present, can be displayed as a tool-tip or
+  , note         :: String
+    -- ^ This note, if not null, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
@@ -155,7 +160,7 @@ data Aspects = Aspects
   deriving Show
 
 data DefinitionSite = DefinitionSite
-  { defSiteModule :: SC.TopLevelModuleName
+  { defSiteModule :: C.TopLevelModuleName
       -- ^ The defining module.
   , defSitePos    :: Int
       -- ^ The file position in that module. File positions are
@@ -230,13 +235,11 @@ mergeAspects m1 m2 = Aspects
   { aspect       = (mplus `on` aspect) m1 m2
   , otherAspects = (Set.union `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
-      (Just n1, Just n2) -> Just $
-         if n1 == n2
-           then n1
-           else addFinalNewLine n1 ++ "----\n" ++ n2
-      (Just n1, Nothing) -> Just n1
-      (Nothing, Just n2) -> Just n2
-      (Nothing, Nothing) -> Nothing
+      (n1, "") -> n1
+      ("", n2) -> n2
+      (n1, n2)
+        | n1 == n2  -> n1
+        | otherwise -> addFinalNewLine n1 ++ "----\n" ++ n2
   , definitionSite = (mplus `on` definitionSite) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
@@ -248,7 +251,7 @@ instance Monoid Aspects where
   mempty = Aspects
     { aspect         = Nothing
     , otherAspects   = Set.empty
-    , note           = Nothing
+    , note           = []
     , definitionSite = Nothing
     , tokenBased     = mempty
     }
@@ -301,7 +304,7 @@ compressedFileInvariant :: CompressedFile -> Bool
 compressedFileInvariant (CompressedFile []) = True
 compressedFileInvariant (CompressedFile f)  =
   all rangeInvariant rs &&
-  all (not . empty) rs &&
+  all (not . null) rs &&
   and (zipWith (<=) (map to $ init rs) (map from $ tail rs))
   where rs = map fst f
 
@@ -324,8 +327,7 @@ decompress :: CompressedFile -> File
 decompress =
   File .
   IntMap.fromList .
-  concat .
-  map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
+  concatMap (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
 
 -- | Clear any highlighting info for the given ranges. Used to make sure
@@ -347,7 +349,7 @@ noHighlightingInRange rs (CompressedFile hs) =
 
 singletonC :: Ranges -> Aspects -> CompressedFile
 singletonC (Ranges rs) m =
-  CompressedFile [(r, m) | r <- rs, not (empty r)]
+  CompressedFile [(r, m) | r <- rs, not (null r)]
 
 -- | Like 'singletonR', but with a list of 'Ranges' instead of a
 -- single one.
@@ -382,7 +384,7 @@ mergeC (CompressedFile f1) (CompressedFile f2) =
     [(a, ma), (b, _), (c, _), (d, md)] =
       List.sortBy (compare `on` fst)
              [(from i1, m1), (to i1, m1), (from i2, m2), (to i2, m2)]
-    fix = filter (not . empty . fst)
+    fix = filter (not . null . fst)
 
 instance Semigroup CompressedFile where
   (<>) = mergeC
@@ -413,8 +415,7 @@ splitAtC p f = (CompressedFile f1, CompressedFile f2)
 selectC :: P.Range -> CompressedFile -> CompressedFile
 selectC r cf = cf'
   where
-    empty         = (0,0)
-    (from, to)    = fromMaybe empty (rangeToEndPoints r)
+    (from, to)    = fromMaybe (0,0) (rangeToEndPoints r)
     (_, (cf', _)) = (second (splitAtC to)) . splitAtC from $ cf
 
 

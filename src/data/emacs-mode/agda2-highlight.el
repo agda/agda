@@ -122,6 +122,9 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-error-face
              :foreground "red"
              :underline t)
+            (agda2-highlight-error-warning-face
+             :background "light coral"
+             :underline t)
             (agda2-highlight-unsolved-meta-face
              :foreground "black"
              :background "yellow")
@@ -385,6 +388,14 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for errors."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-error-warning-face
+  '((((background light))
+     (:background "light coral" :underline t))
+    (((background dark))
+     (:background "#802400" :underline t)))
+  "The face used for fatal warnings."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-unsolved-meta-face
   '((((background light))
      (:background "yellow"))
@@ -498,6 +509,7 @@ If `agda2-highlight-face-groups' is nil."
     (dotted                 . agda2-highlight-dotted-face)
     (operator               . agda2-highlight-operator-face)
     (error                  . agda2-highlight-error-face)
+    (errorwarning           . agda2-highlight-error-warning-face)
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
@@ -524,6 +536,7 @@ The aspects currently recognised are the following:
 `deadcode'               Deadcode (like unreachable clauses or RHS).
 `dotted'                 Dotted patterns.
 `error'                  Errors.
+`errorwarning'           Fatal warnings.
 `field'                  Record fields.
 `function'               Functions.
 `generalizable'          Generalizable variables.

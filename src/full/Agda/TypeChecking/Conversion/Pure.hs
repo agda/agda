@@ -2,7 +2,9 @@
 
 module Agda.TypeChecking.Conversion.Pure where
 
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
+
 import Control.Monad.State
 
 import Data.String
@@ -12,7 +14,6 @@ import Agda.Syntax.Internal
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings
 

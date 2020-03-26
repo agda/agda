@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies  #-}
@@ -47,7 +46,6 @@ import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import Data.Traversable (traverse)
 import Data.Semigroup ((<>))
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -61,12 +59,10 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Irrelevance (isPropM)
 import Agda.TypeChecking.Monad hiding (Closure(..))
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Rewriting (rewrite)
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 
 import Agda.Interaction.Options
 
@@ -74,7 +70,6 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
 import Agda.Utils.Pretty
@@ -348,7 +343,7 @@ fastCase env (Branches proj con _ lit wild fT _) =
     , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses env . content) (stripSuc con)
     , fsucBranch      = fmap (fastCompiledClauses env . content) $ flip Map.lookup con . conName =<< bSuc env
     , flitBranches    = fmap (fastCompiledClauses env) lit
-    , ffallThrough    = fromMaybe False fT
+    , ffallThrough    = (Just True ==) fT
     , fcatchAllBranch = fmap (fastCompiledClauses env) wild }
   where
     stripSuc | Just c <- bSuc env = Map.delete (conName c)
@@ -792,7 +787,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (IntMap.lookup (metaId m) metaStore)
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
-    callByNeed     = envCallByNeed (redEnv rEnv)
+    callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
     iview          = runReduce intervalView'
 
     runReduce :: ReduceM a -> a
@@ -1379,7 +1374,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
 instance Pretty a => Pretty (FastCase a) where
   prettyPrec p (FBranches _cop cs suc ls m _) =
-    mparens (p > 0) $ vcat (prettyMap cs ++ prettyMap ls ++ prSuc suc ++ prC m)
+    mparens (p > 0) $ vcat (prettyMap_ cs ++ prettyMap_ ls ++ prSuc suc ++ prC m)
     where
       prC Nothing = []
       prC (Just x) = ["_ ->" <?> pretty x]
@@ -1392,7 +1387,7 @@ instance Pretty FastCompiledClauses where
   pretty FFail        = "fail"
   pretty (FEta n _ cc ca) =
     text ("eta " ++ show n ++ " of") <?>
-      vcat ([ "{} ->" <?> pretty cc ] ++
+      vcat ("{} ->" <?> pretty cc :
             [ "_ ->" <?> pretty cc | Just cc <- [ca] ])
   pretty (FCase n bs) | fprojPatterns bs =
     sep [ text $ "project " ++ show n

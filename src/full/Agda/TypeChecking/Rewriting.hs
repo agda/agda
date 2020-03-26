@@ -204,7 +204,7 @@ checkRewriteRule q = do
   let failureFreeVars :: IntSet -> TCM a
       failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
-  let failureIllegalRule :: TCM a
+  let failureIllegalRule :: TCM a -- TODO:: Defined but not used
       failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
