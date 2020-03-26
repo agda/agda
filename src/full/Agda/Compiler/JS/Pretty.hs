@@ -111,16 +111,17 @@ exports n i lss (Export ls e : es) | otherwise =
   exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
-  pretty n i (Module m es ex) =
+  pretty n i mod@(Module m es ex) =
     imports ++ br i
       ++ exports n i (singleton []) es ++ br i
       ++ maybe "" (pretty n i) ex
     where
-      js = toList (globals es)
+      js = toList (globals mod)
       imports = unlines $
             ["var agdaRTS = require(\"agda-rts\");"] ++
             ["var " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
-            | e <- js]
+            | e <- js
+            ]
 
 variableName :: String -> String
 variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)

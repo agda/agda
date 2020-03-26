@@ -1,6 +1,8 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Compiler.JS.Syntax where
 
+import Data.Foldable (foldMap)
 import Data.Map ( Map )
 import qualified Data.Map as Map
 
@@ -50,7 +52,11 @@ newtype MemberId = MemberId String
 data Export = Export { expName :: [MemberId], defn :: Exp }
   deriving Show
 
-data Module = Module { modName :: GlobalId, exports :: [Export], postscript :: Maybe Exp }
+data Module = Module
+  { modName :: GlobalId
+  , exports :: [Export]
+  , postscript :: Maybe Exp
+  }
   deriving Show
 
 -- Note that modules are allowed to be recursive, via the Self expression,
@@ -61,11 +67,11 @@ data Module = Module { modName :: GlobalId, exports :: [Export], postscript :: M
 class Uses a where
   uses :: a -> Set [MemberId]
 
-instance Uses a => Uses [a] where
-  uses = foldr (union . uses) empty
+  default uses :: (a ~ t b, Foldable t, Uses b) => a -> Set [MemberId]
+  uses = foldMap uses
 
-instance Uses a => Uses (Map k a) where
-  uses = Map.foldr (union . uses) empty
+instance Uses a => Uses [a]
+instance Uses a => Uses (Map k a)
 
 instance Uses Exp where
   uses (Object o)     = Map.foldr (union . uses) empty o
@@ -87,11 +93,12 @@ instance Uses Export where
 class Globals a where
   globals :: a -> Set GlobalId
 
-instance Globals a => Globals [a] where
-  globals = foldr (union . globals) empty
+  default globals :: (a ~ t b, Foldable t, Globals b) => a -> Set GlobalId
+  globals = foldMap globals
 
-instance Globals a => Globals (Map k a) where
-  globals = Map.foldr (union . globals) empty
+instance Globals a => Globals [a]
+instance Globals a => Globals (Maybe a)
+instance Globals a => Globals (Map k a)
 
 instance Globals Exp where
   globals (Global i) = singleton i
@@ -108,4 +115,4 @@ instance Globals Export where
   globals (Export _ e) = globals e
 
 instance Globals Module where
-  globals (Module m es _) = globals es
+  globals (Module _ es me) = globals es `union` globals me
