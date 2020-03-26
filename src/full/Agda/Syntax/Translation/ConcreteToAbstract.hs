@@ -1473,7 +1473,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 bindVarsToBind
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
                 rhs <- unbindVariable top $ toAbstract rhs
-                foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+                foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
             return (x, e)
         letToAbstract _ = notAValidLetBinding d
 

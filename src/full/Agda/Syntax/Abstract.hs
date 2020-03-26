@@ -174,11 +174,9 @@ data Declaration
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
-      -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
   | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
-      -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
-      --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
   | PatternSynDef QName [Arg Name] (Pattern' Void)
       -- ^ Only for highlighting purposes
