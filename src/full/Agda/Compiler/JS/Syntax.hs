@@ -3,10 +3,11 @@
 module Agda.Compiler.JS.Syntax where
 
 import Data.Foldable (foldMap)
-import Data.Map ( Map )
+import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Data.Set ( Set, empty, singleton, union )
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common ( Nat )
 
@@ -54,6 +55,7 @@ data Export = Export { expName :: [MemberId], defn :: Exp }
 
 data Module = Module
   { modName :: GlobalId
+  , imports :: [GlobalId]
   , exports :: [Export]
   , postscript :: Maybe Exp
   }
@@ -73,17 +75,23 @@ class Uses a where
 instance Uses a => Uses [a]
 instance Uses a => Uses (Map k a)
 
+instance (Uses a, Uses b) => Uses (a, b) where
+  uses (a, b) = uses a `Set.union` uses b
+
+instance (Uses a, Uses b, Uses c) => Uses (a, b, c) where
+  uses (a, b, c) = uses a `Set.union` uses b `Set.union` uses c
+
 instance Uses Exp where
-  uses (Object o)     = Map.foldr (union . uses) empty o
-  uses (Apply e es)   = foldr (union . uses) (uses e) es
+  uses (Object o)     = uses o
+  uses (Apply e es)   = uses (e, es)
   uses (Lookup e l)   = uses' e [l] where
-      uses' Self         ls = singleton ls
+      uses' Self         ls = Set.singleton ls
       uses' (Lookup e l) ls = uses' e (l : ls)
       uses' e            ls = uses e
-  uses (If e f g)     = uses e `union` uses f `union` uses g
-  uses (BinOp e op f) = uses e `union` uses f
+  uses (If e f g)     = uses (e, f, g)
+  uses (BinOp e op f) = uses (e, f)
   uses (PreOp op e)   = uses e
-  uses e              = empty
+  uses e              = Set.empty
 
 instance Uses Export where
   uses (Export _ e) = uses e
@@ -100,19 +108,25 @@ instance Globals a => Globals [a]
 instance Globals a => Globals (Maybe a)
 instance Globals a => Globals (Map k a)
 
+instance (Globals a, Globals b) => Globals (a, b) where
+  globals (a, b) = globals a `Set.union` globals b
+
+instance (Globals a, Globals b, Globals c) => Globals (a, b, c) where
+  globals (a, b, c) = globals a `Set.union` globals b `Set.union` globals c
+
 instance Globals Exp where
-  globals (Global i) = singleton i
+  globals (Global i) = Set.singleton i
   globals (Lambda n e) = globals e
   globals (Object o) = globals o
-  globals (Apply e es) = globals e `union` globals es
+  globals (Apply e es) = globals (e, es)
   globals (Lookup e l) = globals e
-  globals (If e f g) = globals e `union` globals f `union` globals g
-  globals (BinOp e op f) = globals e `union` globals f
+  globals (If e f g) = globals (e, f, g)
+  globals (BinOp e op f) = globals (e, f)
   globals (PreOp op e) = globals e
-  globals _ = empty
+  globals _ = Set.empty
 
 instance Globals Export where
   globals (Export _ e) = globals e
 
 instance Globals Module where
-  globals (Module _ es me) = globals es `union` globals me
+  globals (Module _ _ es me) = globals (es, me)

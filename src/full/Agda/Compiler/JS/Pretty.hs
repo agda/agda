@@ -4,6 +4,7 @@ import Prelude hiding ( null )
 import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
 import Data.List ( intercalate )
 import Data.Set ( Set, toList, singleton, insert, member )
+import qualified Data.Set as Set
 import Data.Map ( Map, toAscList, empty, null )
 
 import Agda.Syntax.Common ( Nat )
@@ -101,35 +102,34 @@ block' n i e          = block n i e
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
-
 exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
 exports n i lss [] = ""
-exports n i lss (Export ls e : es)
-  | member (init ls) lss =
-    "exports["
-      ++ intercalate "][" (pretties n i ls)
-      ++ "] = "
-      ++ pretty n (i + 1) e
-      ++ ";"
-      ++ br i
-      ++ exports n i (insert ls lss) es
-exports n i lss (Export ls e : es)
-  | otherwise =
-    exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
+exports n i lss (Export ls e : es) | member (init ls) lss = concat
+  [ "exports["
+  , intercalate "][" (pretties n i ls)
+  , "] = "
+  , pretty n (i+1) e
+  , ";"
+  , br i
+  , exports n i (insert ls lss) es
+  ]
+exports n i lss (Export ls e : es) | otherwise =
+  exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
-  pretty n i mod@(Module m es ex) =
-    imports ++ br i
-      ++ exports n i (singleton []) es
-      ++ br i
-      ++ maybe "" (pretty n i) ex
+  pretty n i mod@(Module m is es ex) = concat
+    [ imports
+    , br i
+    , exports n i (singleton []) es
+    , br i
+    , maybe "" (pretty n i) ex
+    ]
     where
-      js = toList (globals mod)
-      imports = unlines
-        $ "const agdaRTS = require(\"agda-rts\");"
-        : [ "const " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
-          | e <- js
-          ]
+      imports = unlines $
+            ["var agdaRTS = require(\"agda-rts\");"] ++
+            ["var " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
+            | e <- toList (Set.fromList is `Set.union` globals mod)
+            ]
 
 variableName :: String -> String
 variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)
