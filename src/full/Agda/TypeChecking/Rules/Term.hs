@@ -923,7 +923,7 @@ checkRecordExpression cmp mfs e t = do
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFields r meta fs cxs
+      es <- insertMissingFieldsWarn r meta fs cxs
 
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
@@ -932,7 +932,7 @@ checkRecordExpression cmp mfs e t = do
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con ConORec (map Apply args)
-    _         -> typeError $ ShouldBeRecordType t
+    _ -> typeError $ ShouldBeRecordType t
 
   where
     -- Case: We don't know the type of the record.

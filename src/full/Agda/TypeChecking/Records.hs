@@ -71,6 +71,21 @@ orderFields r fill axs fs = do
     alien     = filter (not . hasElem xs . fst) fs      -- spurious fields
     warn w    = tell . singleton . w . map (second getRange)
 
+-- | Raise generated 'RecordFieldWarning's as warnings.
+warnOnRecordFieldWarnings :: Writer [RecordFieldWarning] a -> TCM a
+warnOnRecordFieldWarnings comp = do
+  let (res, ws) = runWriter comp
+  mapM_ (warning . RecordFieldWarning) ws
+  return res
+
+-- | Raise generated 'RecordFieldWarning's as errors.
+failOnRecordFieldWarnings :: Writer [RecordFieldWarning] a -> TCM a
+failOnRecordFieldWarnings comp = do
+  let (res, ws) = runWriter comp
+  mapM_ (typeError . recordFieldWarningToError) ws
+    -- This will raise the first warning (if any) as error.
+  return res
+
 -- | Order the fields of a record construction.
 --   Raise generated 'RecordFieldWarning's as warnings.
 orderFieldsWarn
@@ -80,10 +95,7 @@ orderFieldsWarn
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFieldsWarn r fill axs fs = do
-  let (res, ws) = runWriter $ orderFields r fill axs fs
-  mapM_ (warning . RecordFieldWarning) ws
-  return res
+orderFieldsWarn r fill axs fs = warnOnRecordFieldWarnings $ orderFields r fill axs fs
 
 -- | Order the fields of a record construction.
 --   Raise generated 'RecordFieldWarning's as errors.
@@ -94,11 +106,7 @@ orderFieldsFail
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFieldsFail r fill axs fs = do
-  let (res, ws) = runWriter $ orderFields r fill axs fs
-  mapM_ (typeError . recordFieldWarningToError) ws
-    -- This will raise the first warning (if any) as error.
-  return res
+orderFieldsFail r fill axs fs = failOnRecordFieldWarnings $ orderFields r fill axs fs
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
@@ -110,7 +118,8 @@ insertMissingFields
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
-  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+  -> Writer [RecordFieldWarning] [NamedArg a]
+       -- ^ Given fields enriched by placeholders for missing explicit fields.
 insertMissingFields r placeholder fs axs = do
   -- Compute the list of given fields, decorated with the ArgInfo from the record def.
   let arg x e = caseMaybe (List.find ((x ==) . unArg) axs) (defaultNamedArg e) $ \ a ->
@@ -120,7 +129,7 @@ insertMissingFields r placeholder fs axs = do
   -- Omitted explicit fields are filled in with placeholders.
   -- Omitted implicit or instance fields
   -- are still left out and inserted later by checkArguments_.
-  catMaybes <$> orderFieldsFail r fill axs givenFields
+  catMaybes <$> orderFields r fill axs givenFields
   where
     fill :: Arg C.Name -> Maybe (NamedArg a)
     fill ax
@@ -133,6 +142,34 @@ insertMissingFields r placeholder fs axs = do
     nameIfHidden ax
       | visible ax = unnamed
       | otherwise  = named $ WithOrigin Inserted $ Ranged (getRange ax) $ prettyShow $ unArg ax
+
+-- | A record field assignment @record{xs = es}@ might not mention all
+--   visible fields.  @insertMissingFields@ inserts placeholders for
+--   the missing visible fields and returns the values in order
+--   of the fields in the record declaration.
+insertMissingFieldsWarn
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
+  -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
+  -> [FieldAssignment' a] -- ^ Given fields.
+  -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
+  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+insertMissingFieldsWarn r placeholder fs axs =
+  warnOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
+
+-- | A record field assignment @record{xs = es}@ might not mention all
+--   visible fields.  @insertMissingFields@ inserts placeholders for
+--   the missing visible fields and returns the values in order
+--   of the fields in the record declaration.
+insertMissingFieldsFail
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
+  -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
+  -> [FieldAssignment' a] -- ^ Given fields.
+  -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
+  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+insertMissingFieldsFail r placeholder fs axs =
+  failOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName
