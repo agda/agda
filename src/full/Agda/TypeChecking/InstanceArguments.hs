@@ -79,30 +79,30 @@ initialInstanceCandidates t = do
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
           -- Context variables with their types lifted to live in the full context
       let varsAndRaisedTypes = [ (var i, raise (i + 1) t) | (i, t) <- zip [0..] ctx ]
-          vars = [ Candidate x t (isOverlappable info)
+          vars = [ Candidate LocalCandidate x t (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
                  , usableModality info
                  ]
 
       -- {{}}-fields of variables are also candidates
-      let cxtAndTypes = [ (x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
+      let cxtAndTypes = [ (LocalCandidate, x, t) | (x, Dom{unDom = (_, t)}) <- varsAndRaisedTypes ]
       fields <- concat <$> mapM instanceFields (reverse cxtAndTypes)
       reportSDoc "tc.instance.fields" 30 $
         if null fields then "no instance field candidates" else
           "instance field candidates" $$ do
             nest 2 $ vcat
-              [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":"
+              [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
                     , nest 2 $ prettyTCM t
                     ]
-              | Candidate v t overlap <- fields
+              | c@(Candidate q v t overlap) <- fields
               ]
 
       -- get let bindings
       env <- asksTC envLetBindings
-      env <- mapM (getOpen . snd) $ Map.toList env
-      let lets = [ Candidate v t False
-                 | (v, Dom{domInfo = info, unDom = t}) <- env
+      env <- mapM (traverse getOpen) $ Map.toList env
+      let lets = [ Candidate LocalCandidate v t False
+                 | (_,(v, Dom{domInfo = info, unDom = t})) <- env
                  , isInstance info
                  , usableModality info
                  ]
@@ -124,19 +124,19 @@ initialInstanceCandidates t = do
                 else return Nothing
         r -> return r
 
-    instanceFields :: (Term,Type) -> ExceptT Blocked_ TCM [Candidate]
+    instanceFields :: (CandidateKind,Term,Type) -> ExceptT Blocked_ TCM [Candidate]
     instanceFields = instanceFields' True
 
-    instanceFields' :: Bool -> (Term,Type) -> ExceptT Blocked_ TCM [Candidate]
-    instanceFields' etaOnce (v, t) =
+    instanceFields' :: Bool -> (CandidateKind,Term,Type) -> ExceptT Blocked_ TCM [Candidate]
+    instanceFields' etaOnce (q, v, t) =
       ifBlocked t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
       caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
         (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
         fmap concat $ forM (zip args types) $ \ (arg, t) ->
-          ([ Candidate (unArg arg) t (isOverlappable arg)
+          ([ Candidate LocalCandidate (unArg arg) t (isOverlappable arg)
            | isInstance arg ] ++) <$>
-          instanceFields' False (unArg arg, t)
+          instanceFields' False (LocalCandidate, unArg arg, t)
 
     getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
@@ -173,7 +173,7 @@ initialInstanceCandidates t = do
                -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c ConOSystem []
                _                                  -> Def q $ map Apply args
-          return $ Just $ Candidate v t False
+          return $ Just $ Candidate (GlobalCandidate q) v t False
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
@@ -234,12 +234,12 @@ findInstance' m cands = ifM (isFrozen m) (do
       reportSLn "tc.instance" 15 $
         "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
-        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":"
-              , nest 2 $ prettyTCM t ] | Candidate v t overlap <- cands ]
+        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
+              , nest 2 $ prettyTCM t ] | c@(Candidate q v t overlap) <- cands ]
       reportSDoc "tc.instance" 70 $ "raw" $$ do
        nest 2 $ vcat
-        [ sep [ (if overlap then "overlap" else empty) <+> pretty v <+> ":"
-              , nest 2 $ pretty t ] | Candidate v t overlap <- cands ]
+        [ sep [ (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":"
+              , nest 2 $ pretty t ] | c@(Candidate q v t overlap) <- cands ]
       t <- getMetaTypeInContext m
       reportSLn "tc.instance" 70 $ "findInstance 2: t: " ++ prettyShow t
       insidePi t $ \ t -> do
@@ -266,10 +266,10 @@ findInstance' m cands = ifM (isFrozen m) (do
           setCurrentRange (take 1 $ map snd sortedErrs) $
             typeError $ InstanceNoCandidate t [ (candidateTerm c, err) | (c, err) <- sortedErrs ]
 
-        Just (_, [Candidate term t' _]) -> do
+        Just (_, [c@(Candidate q term t' _)]) -> do
           reportSDoc "tc.instance" 15 $ vcat
             [ "findInstance 5: solved by instance search using the only candidate"
-            , nest 2 $ prettyTCM term
+            , nest 2 $ prettyTCM c <+> "=" <+> prettyTCM term
             , "of type " <+> prettyTCM t'
             , "for type" <+> prettyTCM t
             ]
@@ -396,18 +396,18 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | Candidate v t overlap <- cands ] ]
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
+             | c@(Candidate q v t overlap) <- cands ] ]
     cands' <- filterResetingState m cands (checkCandidateForMeta m t)
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "valid candidates"
-      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
-             | Candidate v t overlap <- snd cands' ] ]
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
+             | c@(Candidate q v t overlap) <- snd cands' ] ]
     return cands'
   where
     anyMetaTypes :: [Candidate] -> TCM Bool
     anyMetaTypes [] = return False
-    anyMetaTypes (Candidate _ a _ : cands) = do
+    anyMetaTypes (Candidate _ _ a _ : cands) = do
       a <- instantiate a
       case unEl a of
         MetaV{} -> return True
@@ -421,7 +421,7 @@ checkCandidates m t cands =
       k
 
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
-    checkCandidateForMeta m t (Candidate term t' _) = checkDepth term t' $ do
+    checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m

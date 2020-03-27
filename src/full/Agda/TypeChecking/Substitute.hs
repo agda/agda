@@ -1014,7 +1014,7 @@ instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) wh
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
 instance Subst Term Candidate where
-  applySubst rho (Candidate u t ov) = Candidate (applySubst rho u) (applySubst rho t) ov
+  applySubst rho (Candidate q u t ov) = Candidate q (applySubst rho u) (applySubst rho t) ov
 
 instance Subst Term EqualityView where
   applySubst rho (OtherType t) = OtherType
@@ -1264,6 +1264,7 @@ deriving instance Ord Level
 deriving instance Eq PlusLevel
 deriving instance Eq NotBlocked
 deriving instance Eq t => Eq (Blocked t)
+deriving instance Eq CandidateKind
 deriving instance Eq Candidate
 
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)

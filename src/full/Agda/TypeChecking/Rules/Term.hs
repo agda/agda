@@ -923,7 +923,7 @@ checkRecordExpression cmp mfs e t = do
       -- In @es@ omitted explicit fields are replaced by underscores.
       -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es <- insertMissingFields r meta fs cxs
+      es <- insertMissingFieldsWarn r meta fs cxs
 
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
@@ -932,7 +932,7 @@ checkRecordExpression cmp mfs e t = do
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con ConORec (map Apply args)
-    _         -> typeError $ ShouldBeRecordType t
+    _ -> typeError $ ShouldBeRecordType t
 
   where
     -- Case: We don't know the type of the record.
@@ -986,41 +986,50 @@ checkRecordUpdate
   -> A.Expr       -- ^ @recexpr@
   -> A.Assigns    -- ^ @fs@
   -> A.Expr       -- ^ @e = RecUpdate ei recexpr fs@
-  -> Type         -- ^ Reduced.
+  -> Type         -- ^ Need not be reduced.
   -> TCM Term
-checkRecordUpdate cmp ei recexpr fs e t = do
-  case unEl t of
-    Def r vs  -> do
-      v <- checkExpr' cmp recexpr t
-      name <- freshNoName (getRange recexpr)
-      addLetBinding defaultArgInfo name v t $ do
-        projs <- map argFromDom . recFields <$> getRecordDef r
+checkRecordUpdate cmp ei recexpr fs eupd t = do
+  ifBlocked t (\ _ _ -> tryInfer) $ {-else-} \ _ t' -> do
+    caseMaybeM (isRecordType t') should $ \ (r, _pars, defn) -> do
+      -- Bind the record value (before update) to a fresh @name@.
+      v <- checkExpr' cmp recexpr t'
+      name <- freshNoName $ getRange recexpr
+      addLetBinding defaultArgInfo name v t' $ do
+
+        let projs = map argFromDom $ recFields defn
 
         -- Andreas, 2018-09-06, issue #3122.
         -- Associate the concrete record field names used in the record expression
         -- to their counterpart in the record type definition.
         disambiguateRecordFields (map _nameFieldA fs) (map unArg projs)
 
+        -- Desugar record update expression into record expression.
+        let fs' = map (\ (FieldAssignment x e) -> (x, Just e)) fs
         axs <- map argFromDom <$> getRecordFieldNames r
-        let xs = map unArg axs
-        es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
-        let es' = zipWith (replaceFields name ei) projs es
-        checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
-
-    MetaV _ _ -> do
-      inferred <- inferExpr recexpr >>= reduce . snd
-      case unEl inferred of
-        MetaV _ _ -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t
-        _         -> do
-          v <- checkExpr' cmp e inferred
-          coerce cmp v inferred t
-    _         -> typeError $ ShouldBeRecordType t
+        es  <- orderFieldsWarn r (const Nothing) axs fs'
+        let es'  = zipWith (replaceFields name ei) projs es
+        let erec = A.Rec ei [ Left (FieldAssignment x e) | (Arg _ x, Just e) <- zip axs es' ]
+        -- Call the type checker on the desugared syntax.
+        checkExpr' cmp erec t
   where
     replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-    replaceFields n ei a@(Arg _ p) Nothing | visible a =
-        Just $ A.App (A.defaultAppInfo $ getRange ei) (A.Def p) $ defaultNamedArg $ A.Var n
-    replaceFields _ _  (Arg _ _) Nothing  = Nothing
-    replaceFields _ _  _         (Just e) = Just $ e
+    replaceFields name ei (Arg ai p) Nothing | visible ai = Just $
+      -- omitted visible fields remain unchanged: @{ ...; p = p name; ...}@
+      -- (hidden fields are supposed to be inferred)
+      A.App
+        (A.defaultAppInfo $ getRange ei)
+        (A.Proj ProjSystem $ unambiguous p)
+        (defaultNamedArg $ A.Var name)
+    replaceFields _ _ _ me = me  -- other fields get the user-written updates
+
+    tryInfer = do
+      (_, trec) <- inferExpr recexpr
+      ifBlocked trec (\ _ _ -> postpone) $ {-else-} \ _ _ -> do
+        v <- checkExpr' cmp eupd trec
+        coerce cmp v trec t
+
+    postpone = postponeTypeCheckingProblem_ $ CheckExpr cmp eupd t
+    should   = typeError $ ShouldBeRecordType t
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -1118,18 +1127,7 @@ checkExpr' cmp e t =
 
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
-          let quoted (A.Def x) = return x
-              quoted (A.Macro x) = return x
-              quoted (A.Proj o p) | Just x <- getUnambiguous p = return x
-              quoted (A.Proj o p)  =
-                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
-              quoted (A.Con c) | Just x <- getUnambiguous c = return x
-              quoted (A.Con c)  =
-                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
-              quoted (A.ScopedExpr _ e) = quoted e
-              quoted _                  =
-                genericError "quote: not a defined name"
-          x <- quoted (namedThing e)
+          x <- quotedName $ namedThing e
           ty <- qNameType
           coerce cmp (quoteName x) ty t
 
@@ -1199,7 +1197,7 @@ checkExpr' cmp e t =
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
 
-        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e tReduced
+        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asksTC getRelevance)

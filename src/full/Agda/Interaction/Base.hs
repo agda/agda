@@ -413,7 +413,7 @@ data OutputConstraint a b
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a
       | SizeLtSat a
-      | FindInstanceOF b a [(a,a)]
+      | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
       | PostponedCheckFunDef QName a
   deriving (Functor)

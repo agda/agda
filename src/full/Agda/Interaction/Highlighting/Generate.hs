@@ -655,6 +655,7 @@ warningHighlighting w = case tcWarning w of
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
   PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
   NotInScopeW{}              -> deadcodeHighlighting $ getRange w
+  RecordFieldWarning w       -> recordFieldWarningHighlighting w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
@@ -691,6 +692,16 @@ warningHighlighting w = case tcWarning w of
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
 
+recordFieldWarningHighlighting :: RecordFieldWarning -> File
+recordFieldWarningHighlighting = \case
+  DuplicateFieldsWarning xrs      -> dead xrs
+  TooManyFieldsWarning _q _ys xrs -> dead xrs
+  where
+  dead :: [(C.Name, Range)] -> File
+  dead = mconcat . map (deadcodeHighlighting . getRange)
+  -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
+  -- dead = mconcat . map f
+  -- f (x, r) = deadcodeHighlighting (getRange x) `mappend` deadcodeHighlighting r
 
 -- | Generate syntax highlighting for termination errors.
 

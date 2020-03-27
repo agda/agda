@@ -195,7 +195,7 @@ encodeOC f encodePrettyTCM = \case
   , "candidates"     #= forM cs encodeKVPairs
   , "type"           #= encodePrettyTCM t
   ]
-  where encodeKVPairs (v, t) = obj
+  where encodeKVPairs (_, v, t) = obj -- TODO: encode kind
           [ "value"  #= encodePrettyTCM v
           , "type"   #= encodePrettyTCM t
           ]
