@@ -57,15 +57,15 @@ orderFields r fill axs fs = do
     , "  official fields: " <+> sep (map pretty xs)
     , "  provided fields: " <+> sep (map pretty ys)
     ]
-  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
   unlessNull alien     $ typeError . TooManyFields r missing
+  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
   return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
   where
     xs        = map unArg axs           -- official  fields (accord. record type)
     ys        = map fst fs              -- provided  fields
     duplicate = duplicates ys           -- duplicate fields
-    alien     = ys List.\\ xs           -- spurious  fields
     missing   = xs List.\\ ys           -- missing   fields
+    alien     = filter (not . hasElem xs) ys  -- spurious  fields
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
