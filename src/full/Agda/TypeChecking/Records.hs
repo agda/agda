@@ -22,7 +22,7 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
@@ -308,9 +308,9 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ ("definition f = " <> prettyTCM f) <+> text ("  -- raw: " ++ prettyShow f)
-    , "has type   a = " <> prettyTCM a
-    , "principal  t = " <> prettyTCM t
+    [ "definition f =" <+> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
+    , "has type   a =" <+> prettyTCM a
+    , "principal  t =" <+> prettyTCM t
     ]
   caseMaybe mp fallback $
     \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
@@ -382,7 +382,7 @@ data ElimType
 instance PrettyTCM ElimType where
   prettyTCM (ArgT a)    = prettyTCM a
   prettyTCM (ProjT a b) =
-    "." <> parens (prettyTCM a <+> "->" <+> prettyTCM b)
+    "." TCM.<> parens (prettyTCM a <+> "->" <+> prettyTCM b)
 
 -- | Given a head and its type, compute the types of the eliminations.
 
