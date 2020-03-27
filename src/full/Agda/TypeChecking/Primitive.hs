@@ -822,7 +822,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primStringToList"          |-> mkPrimFun1 T.unpack
   , "primStringToListInjective" |-> primStringToListInjective
   , "primStringFromList"        |-> mkPrimFun1 T.pack
-  , "primStringAppend"          |-> mkPrimFun2 ((<>) :: Text -> Text -> Text)
+  , "primStringAppend"          |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
   , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Text)
   , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString noRange)
   , "primStringUncons"          |-> mkPrimFun1 T.uncons

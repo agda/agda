@@ -245,7 +245,7 @@ unquoteString :: Term -> UnquoteM String
 unquoteString x = T.unpack <$> unquote x
 
 unquoteNString :: Arg Term -> UnquoteM Text
-unquoteNString x = unquoteN x
+unquoteNString = unquoteN
 
 data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
 
