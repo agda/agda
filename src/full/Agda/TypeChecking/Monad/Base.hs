@@ -3096,8 +3096,21 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | RecordFieldWarning RecordFieldWarning
   deriving (Show , Data)
 
+data RecordFieldWarning
+  = DuplicateFieldsWarning [(C.Name, Range)]
+      -- ^ Each redundant field comes with a range of associated dead code.
+  | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
+      -- ^ Record type, fields not supplied by user, non-fields but supplied.
+      --   The redundant fields come with a range of associated dead code.
+  deriving (Show, Data)
+
+recordFieldWarningToError :: RecordFieldWarning -> TypeError
+recordFieldWarningToError = \case
+  DuplicateFieldsWarning    xrs -> DuplicateFields    $ map fst xrs
+  TooManyFieldsWarning q ys xrs -> TooManyFields q ys $ map fst xrs
 
 warningName :: Warning -> WarningName
 warningName = \case
@@ -3151,6 +3164,10 @@ warningName = \case
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  -- record field warnings
+  RecordFieldWarning w -> case w of
+    DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
+    TooManyFieldsWarning{}     -> TooManyFieldsWarning_
 
 data TCWarning
   = TCWarning
@@ -3388,7 +3405,7 @@ data TypeError
         | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
-          -- ^ Record type, fields not supplied by user, non-fields not supplied.
+          -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term

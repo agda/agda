@@ -4,7 +4,9 @@ module Agda.TypeChecking.Records where
 
 import Control.Monad
 import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
+import Data.Bifunctor
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
@@ -25,6 +27,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
@@ -36,6 +39,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -45,35 +49,64 @@ mkCon h info args = Con h info (map Apply args)
 
 -- | Order the fields of a record construction.
 orderFields
-  :: forall a
-  .  QName             -- ^ Name of record type (for error message).
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
+  -> (Arg C.Name -> a) -- ^ How to fill a missing field.
+  -> [Arg C.Name]      -- ^ Field names of the record type.
+  -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
+  -> Writer [RecordFieldWarning] [a]           -- ^ Content arranged in official order.
+orderFields r fill axs fs = do
+  -- reportSDoc "tc.record" 30 $ vcat
+  --   [ "orderFields"
+  --   , "  official fields: " <+> sep (map pretty xs)
+  --   , "  provided fields: " <+> sep (map pretty ys)
+  --   ]
+  unlessNull alien     $ warn $ TooManyFieldsWarning r missing
+  unlessNull duplicate $ warn $ DuplicateFieldsWarning
+  return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
+  where
+    (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields
+    xs        = map unArg axs                       -- official fields (accord. record type)
+    missing   = filter (not . hasElem (map fst fs)) xs  -- missing  fields
+    alien     = filter (not . hasElem xs . fst) fs      -- spurious fields
+    warn w    = tell . singleton . w . map (second getRange)
+
+-- | Order the fields of a record construction.
+--   Raise generated 'RecordFieldWarning's as warnings.
+orderFieldsWarn
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
   -> (Arg C.Name -> a) -- ^ How to fill a missing field.
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFields r fill axs fs = do
-  reportSDoc "tc.record" 30 $ vcat
-    [ "orderFields"
-    , "  official fields: " <+> sep (map pretty xs)
-    , "  provided fields: " <+> sep (map pretty ys)
-    ]
-  unlessNull alien     $ typeError . TooManyFields r missing
-  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
-  return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
-  where
-    xs        = map unArg axs           -- official  fields (accord. record type)
-    ys        = map fst fs              -- provided  fields
-    duplicate = duplicates ys           -- duplicate fields
-    missing   = xs List.\\ ys           -- missing   fields
-    alien     = filter (not . hasElem xs) ys  -- spurious  fields
+orderFieldsWarn r fill axs fs = do
+  let (res, ws) = runWriter $ orderFields r fill axs fs
+  mapM_ (warning . RecordFieldWarning) ws
+  return res
+
+-- | Order the fields of a record construction.
+--   Raise generated 'RecordFieldWarning's as errors.
+orderFieldsFail
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
+  -> (Arg C.Name -> a) -- ^ How to fill a missing field.
+  -> [Arg C.Name]      -- ^ Field names of the record type.
+  -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
+  -> TCM [a]           -- ^ Content arranged in official order.
+orderFieldsFail r fill axs fs = do
+  let (res, ws) = runWriter $ orderFields r fill axs fs
+  mapM_ (typeError . recordFieldWarningToError) ws
+    -- This will raise the first warning (if any) as error.
+  return res
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
 --   the missing visible fields and returns the values in order
 --   of the fields in the record declaration.
 insertMissingFields
-  :: forall a
-  .  QName                -- ^ Name of record type (for error reporting).
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
@@ -87,7 +120,7 @@ insertMissingFields r placeholder fs axs = do
   -- Omitted explicit fields are filled in with placeholders.
   -- Omitted implicit or instance fields
   -- are still left out and inserted later by checkArguments_.
-  catMaybes <$> orderFields r fill axs givenFields
+  catMaybes <$> orderFieldsFail r fill axs givenFields
   where
     fill :: Arg C.Name -> Maybe (NamedArg a)
     fill ax

@@ -1003,7 +1003,7 @@ checkRecordUpdate cmp ei recexpr fs e t = do
 
         axs <- map argFromDom <$> getRecordFieldNames r
         let xs = map unArg axs
-        es <- orderFields r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
+        es <- orderFieldsWarn r (\ _ -> Nothing) axs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
         checkExpr' cmp (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
 
