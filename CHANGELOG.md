@@ -1,6 +1,12 @@
 Release notes for Agda version 2.6.2
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Added support for GHC 8.8.3
+  [Issue [#4476](https://github.com/agda/agda/issues/4476)].
+
 Command-line interaction
 ------------------------
 
@@ -28,4 +34,3 @@ Pragmas and options
   backend to include a JavaScript file that highlights all occurrences of
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
-
