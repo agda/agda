@@ -591,12 +591,16 @@ instance PrettyTCM TypeError where
       fields ys = P.singPlural ys [text "field"] [text "fields"]
 
     DuplicateConstructors xs -> fsep $
-      pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++
+      pwords "Duplicate" ++ constructors xs ++ punctuate comma (map pretty xs) ++
       pwords "in datatype"
+      where
+      constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
 
     DuplicateFields xs -> fsep $
-      pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
+      pwords "Duplicate" ++ fields xs ++ punctuate comma (map pretty xs) ++
       pwords "in record"
+      where
+      fields ys = P.singPlural ys [text "field"] [text "fields"]
 
     WithOnFreeVariable e v -> do
       de <- prettyA e
