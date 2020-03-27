@@ -160,6 +160,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Int.agda"
   , "Agda" </> "Builtin" </> "IO.agda"
   , "Agda" </> "Builtin" </> "List.agda"
+  , "Agda" </> "Builtin" </> "Maybe.agda"
   , "Agda" </> "Builtin" </> "Nat.agda"
   , "Agda" </> "Builtin" </> "Reflection.agda"
   , "Agda" </> "Builtin" </> "Reflection" </> "Properties.agda"

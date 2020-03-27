@@ -229,6 +229,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primCharToNatInjective" |-> return "erased"
 
   -- String functions
+  , "primStringUncons"   |-> return "Data.Text.uncons"
   , "primStringToList"   |-> return "Data.Text.unpack"
   , "primStringFromList" |-> return "Data.Text.pack"
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
