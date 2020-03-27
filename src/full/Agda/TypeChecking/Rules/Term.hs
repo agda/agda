@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
+import Agda.Syntax.Abstract (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -122,6 +123,11 @@ isType_ e = traceCall (IsType_ e) $ do
         return (t0, telePi tel t0)
       checkTelePiSort t'
       noFunctionsIntoSize t0 t'
+      return t'
+
+    A.Generalized s e -> do
+      (_, t') <- generalizeType s $ isType_ e
+      noFunctionsIntoSize t' t'
       return t'
 
     -- Setᵢ
@@ -372,10 +378,32 @@ checkPath b body ty = __IMPOSSIBLE__
 checkLambda :: Comparison -> A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda cmp (A.TLet _ lbs) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
+checkLambda cmp b@(A.TBind r tac xps0 typ) body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda before insertion xs =" <+> prettyA xps0
+    ]
+  -- Andreas, 2020-03-25, issue #4481: since we have named lambdas now,
+  -- we need to insert skipped hidden arguments.
+  xps <- insertImplicitBindersT xps0 target
+  checkLambda' cmp (A.TBind r tac xps typ) xps typ body target
+
+checkLambda'
+  :: Comparison          -- ^ @cmp@
+  -> A.TypedBinding      -- ^ @TBind _ _ xps typ@
+  -> [NamedArg Binder]   -- ^ @xps@
+  -> A.Expr              -- ^ @typ@
+  -> A.Expr              -- ^ @body@
+  -> Type                -- ^ @target@
+  -> TCM Term
+checkLambda' cmp b xps typ body target = do
+  reportSDoc "tc.term.lambda" 30 $ vcat
+    [ "checkLambda xs =" <+> prettyA xps
+    , "possiblePath   =" <+> prettyTCM possiblePath
+    , "numbinds       =" <+> prettyTCM numbinds
+    , "typ            =" <+> prettyA   (unScope typ)
+    ]
   reportSDoc "tc.term.lambda" 60 $ vcat
-    [ "checkLambda xs = " <+> prettyA xps
-    , "possiblePath = " <+> text (show (possiblePath, numbinds, unScope typ, info))
+    [ "info           =" <+> (text . show) info
     ]
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
@@ -410,7 +438,7 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
       -- First check that argsT is a valid type
       argsT <- workOnTypes $ isType_ typ
       let tel = namedBindsToTel xs argsT
-      reportSDoc "tc.term.lambda" 60 $ "dontUseTargetType tel =" <+> pretty tel
+      reportSDoc "tc.term.lambda" 30 $ "dontUseTargetType tel =" <+> pretty tel
 
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
@@ -449,10 +477,14 @@ checkLambda cmp b@(A.TBind _ _ xps typ) body target = do
 
     useTargetType tel@(ExtendTel dom (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ y
+        reportSLn "tc.term.lambda" 30 $ "useTargetType y  = " ++ y
 
         let [x] = xs
         unless (sameHiding dom info) $ typeError $ WrongHidingInLambda target
+        when (isJust $ getNameOf x) $
+          -- Andreas, 2020-03-25, issue #4481: check for correct name
+          unless (namedSame dom x) $
+            setCurrentRange x $ typeError $ WrongHidingInLHS
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         info <- lambdaModalityCheck dom info
         -- Andreas, 2015-05-28 Issue 1523

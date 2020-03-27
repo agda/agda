@@ -584,9 +584,11 @@ instance PrettyTCM TypeError where
 
     TooManyFields r missing xs -> fsep $
       pwords "The record type" ++ [prettyTCM r] ++
-      pwords "does not have the fields" ++ punctuate comma (map pretty xs) ++
+      pwords "does not have the" ++ fields xs ++ punctuate comma (map pretty xs) ++
       if null missing then [] else
-        pwords "but it would have the fields"  ++ punctuate comma (map pretty missing)
+        pwords "but it would have the" ++ fields missing ++ punctuate comma (map pretty missing)
+      where
+      fields ys = P.singPlural ys [text "field"] [text "fields"]
 
     DuplicateConstructors xs -> fsep $
       pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++

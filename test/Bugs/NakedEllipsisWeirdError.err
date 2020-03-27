@@ -1,6 +1,6 @@
 AGDA_FAILURE
 
-ret > ExitFailure 1
+ret > ExitFailure 42
 out > NakedEllipsisWeirdError.agda:3,1-4
 out > Missing type signature for left hand side ...
 out > when scope checking the declaration

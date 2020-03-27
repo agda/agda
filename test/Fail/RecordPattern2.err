@@ -1,4 +1,4 @@
 RecordPattern2.agda:10,6-19
-The record type R does not have the fields g but it would have the
-fields f
+The record type R does not have the field g but it would have the
+field f
 when checking that the pattern record { g = a } has type R

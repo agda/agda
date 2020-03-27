@@ -1,6 +1,6 @@
 AGDA_FAILURE
 
-ret > ExitFailure 1
+ret > ExitFailure 42
 out > Forcing analysis for Issue3898.FSet.sg
 out >   xs          = [2,1]
 out >   forcedArgs  = [NotForced]
