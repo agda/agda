@@ -37,7 +37,7 @@ agda versions. You can revert this behaviour with the flag ``--no-project``.
 Expression trees
 --------------------
 
-An expression tree provides a method of translating source code (in our
+An expression tree is the result of translating a given source code (in our
 case, the .agda file) into a data structure (the corresponding .agdai file).
 
 The compression run to create .agdai files introduces sharing in the expression
