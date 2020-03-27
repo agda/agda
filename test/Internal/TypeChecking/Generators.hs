@@ -6,6 +6,8 @@ module Internal.TypeChecking.Generators where
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import Data.Word
 
 import Agda.Syntax.Position
@@ -250,7 +252,7 @@ instance GenC Literal where
               [ uncurry LitNat    <$> genC conf
               , uncurry LitWord64 <$> genC conf
               , uncurry LitFloat  <$> genC conf
-              , uncurry LitString <$> genC conf
+              , uncurry LitString . fmap T.pack <$> genC conf
               , uncurry LitChar   <$> genC conf
               ]
            )
@@ -406,7 +408,7 @@ instance ShrinkC Literal Literal where
   shrinkC conf l         = LitNat noRange 0 : case l of
       LitNat    r n -> LitNat    r <$> shrink n
       LitWord64 r n -> LitWord64 r <$> shrink n
-      LitString r s -> LitString r <$> shrinkC conf s
+      LitString r s -> LitString r . T.pack <$> shrinkC conf (T.unpack s)
       LitChar   r c -> LitChar   r <$> shrinkC conf c
       LitFloat  r x -> LitFloat  r <$> shrink x
       LitQName  r x -> []

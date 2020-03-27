@@ -6,6 +6,7 @@ import Data.List ( intercalate )
 import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
 import Data.Map ( Map, toAscList, empty, null )
+import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Hash
@@ -71,7 +72,7 @@ instance Pretty Exp where
   pretty n i (Local x)              = pretty n i x
   pretty n i (Global m)             = pretty n i m
   pretty n i (Undefined)            = "undefined"
-  pretty n i (String s)             = "\"" ++ unescapes s ++ "\""
+  pretty n i (String s)             = "\"" ++ unescapes (T.unpack s) ++ "\""
   pretty n i (Char c)               = "\"" ++ unescape c ++ "\""
   pretty n i (Integer x)            = "agdaRTS.primIntegerFromString(\"" ++ show x ++ "\")"
   pretty n i (Double x)             = show x

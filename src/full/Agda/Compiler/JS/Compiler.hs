@@ -10,6 +10,7 @@ import Data.Set ( Set, null, insert, difference, delete )
 import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Text.Lazy as T
 
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )
@@ -469,7 +470,7 @@ litqname q =
   Object $ Map.fromList
     [ (mem "id", Integer $ fromIntegral n)
     , (mem "moduleId", Integer $ fromIntegral m)
-    , (mem "name", String $ prettyShow q)
+    , (mem "name", String $ T.pack $ prettyShow q)
     , (mem "fixity", litfixity fx)]
   where
     mem = MemberId

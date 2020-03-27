@@ -8,6 +8,7 @@ import Data.Function
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.List as List
+import qualified Data.Text.Lazy as T
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
@@ -224,7 +225,7 @@ prettyWarning wng = case wng of
 
     NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
-    UserWarning str -> text str
+    UserWarning str -> text (T.unpack str)
 
     ModuleDoesntExport m names modules xs -> vcat
       [ fsep $ pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:"

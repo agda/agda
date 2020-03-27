@@ -2,6 +2,7 @@
 module Agda.Compiler.MAlonzo.Misc where
 
 import Data.Char
+import Data.Text.Lazy (Text)
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -185,9 +186,9 @@ rtmQual = HS.UnQual . HS.Ident
 rtmVar :: String -> HS.Exp
 rtmVar  = HS.Var . rtmQual
 
-rtmError :: String -> HS.Exp
+rtmError :: Text -> HS.Exp
 rtmError s = rtmVar "error" `HS.App`
-             HS.Lit (HS.String $ "MAlonzo Runtime Error: " ++ s)
+             HS.Lit (HS.String $ "MAlonzo Runtime Error: " <> s)
 
 unsafeCoerceMod :: HS.ModuleName
 unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"

@@ -9,6 +9,8 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Data.Text.Lazy (Text)
+
 import Agda.Syntax.Common ( Nat )
 
 -- An untyped lambda calculus with records,
@@ -19,7 +21,7 @@ data Exp =
   Local LocalId |
   Global GlobalId |
   Undefined |
-  String String |
+  String Text |
   Char Char |
   Integer Integer |
   Double Double |

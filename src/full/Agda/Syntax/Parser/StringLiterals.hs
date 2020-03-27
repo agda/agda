@@ -6,6 +6,7 @@ module Agda.Syntax.Parser.StringLiterals
     ) where
 
 import Data.Char
+import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
@@ -23,7 +24,7 @@ import Agda.Utils.Tuple  ( (-*-) )
 -- | Lex a string literal. Assumes that a double quote has been lexed.
 litString :: LexAction Token
 litString = stringToken '"' (\i s ->
-              return $ TokLiteral $ LitString (getRange i) s)
+              return $ TokLiteral $ LitString (getRange i) (T.pack s))
 
 {-| Lex a character literal. Assumes that a single quote has been lexed.  A
     character literal is lexed in exactly the same way as a string literal.

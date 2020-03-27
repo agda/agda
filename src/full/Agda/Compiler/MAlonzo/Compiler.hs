@@ -8,6 +8,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Set as Set
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import Numeric.IEEE
 
@@ -443,7 +445,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
                                 (HS.UnGuardedRhs $ e) emptyBinds]]
 
   axiomErr :: HS.Exp
-  axiomErr = rtmError $ "postulate evaluated: " ++ prettyShow q
+  axiomErr = rtmError $ T.pack $ "postulate evaluated: " ++ prettyShow q
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
@@ -700,17 +702,15 @@ hslit l = case l of LitNat    _ x -> HS.Int    x
                     LitString _ _ -> __IMPOSSIBLE__
                     LitMeta{}     -> __IMPOSSIBLE__
 
-litString :: String -> HS.Exp
-litString s =
-  HS.Var (HS.Qual (HS.ModuleName "Data.Text") (HS.Ident "pack")) `HS.App`
-    HS.Lit (HS.String s)
+litString :: Text -> HS.Exp
+litString s = HS.Lit (HS.String s)
 
 litqname :: QName -> HS.Exp
 litqname x =
   rteCon "QName" `apps`
   [ hsTypedInt n
   , hsTypedInt m
-  , HS.Lit $ HS.String $ prettyShow x
+  , HS.Lit $ HS.String $ T.pack $ prettyShow x
   , rteCon "Fixity" `apps`
     [ litAssoc (fixityAssoc fx)
     , litPrec  (fixityLevel fx)

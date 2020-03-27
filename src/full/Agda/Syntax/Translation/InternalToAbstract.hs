@@ -36,6 +36,7 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text.Lazy as T
 import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal
@@ -590,7 +591,7 @@ reifyTerm expandAnonDefs0 v0 = do
       showIrr <- optShowIrrelevant <$> pragmaOptions
       if | showIrr   -> reifyTerm expandAnonDefs v
          | otherwise -> return underscore
-    I.Dummy s [] -> return $ A.Lit $ LitString noRange s
+    I.Dummy s [] -> return $ A.Lit $ LitString noRange (T.pack s)
     I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
                             h <- reify h
                             es' <- reify es'
@@ -1323,7 +1324,7 @@ instance Reify Sort Expr where
           return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
         I.MetaS x es -> reify $ I.MetaV x es
         I.DefS d es -> reify $ I.Def d es
-        I.DummyS s -> return $ A.Lit $ LitString noRange s
+        I.DummyS s -> return $ A.Lit $ LitString noRange (T.pack s)
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE

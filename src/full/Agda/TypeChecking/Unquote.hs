@@ -8,6 +8,8 @@ import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
 import Data.Maybe (fromMaybe)
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 import Data.Word
 
 import Agda.Syntax.Common
@@ -232,18 +234,18 @@ instance Unquote Char where
       Lit (LitChar _ x) -> return x
       _ -> throwError $ NonCanonical "char" t
 
-instance Unquote Str where
+instance Unquote Text where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitString _ x) -> return (Str x)
+      Lit (LitString _ x) -> return x
       _ -> throwError $ NonCanonical "string" t
 
 unquoteString :: Term -> UnquoteM String
-unquoteString x = unStr <$> unquote x
+unquoteString x = T.unpack <$> unquote x
 
-unquoteNString :: Arg Term -> UnquoteM String
-unquoteNString x = unStr <$> unquoteN x
+unquoteNString :: Arg Term -> UnquoteM Text
+unquoteNString x = unquoteN x
 
 data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
 
@@ -257,7 +259,7 @@ instance Unquote ErrorPart where
     t <- reduceQuotedTerm t
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
-        choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
+        choice [ (c `isCon` primAgdaErrorPartString, StrPart . T.unpack <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
@@ -316,7 +318,7 @@ instance Unquote a => Unquote (R.Abs a) where
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
-          [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
+          [(c `isCon` primAbsAbs, R.Abs <$> (hint . T.unpack <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "abstraction" t
@@ -425,7 +427,7 @@ instance Unquote R.Pattern where
           ] __IMPOSSIBLE__
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
+          [ (c `isCon` primAgdaPatVar,  R.VarP . T.unpack <$> unquoteNString x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
@@ -562,10 +564,10 @@ evalTCM v = do
     tcFun3 :: (Unquote a, Unquote b, Unquote c) => (a -> b -> c -> TCM d) -> Elim -> Elim -> Elim -> UnquoteM d
     tcFun3 fun = uqFun3 (\ x y z -> liftTCM (fun x y z))
 
-    tcFreshName :: Str -> TCM Term
+    tcFreshName :: Text -> TCM Term
     tcFreshName s = do
       m <- currentModule
-      quoteName . qualify m <$> freshName_ (unStr s)
+      quoteName . qualify m <$> freshName_ (T.unpack s)
 
     tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
@@ -591,9 +593,9 @@ evalTCM v = do
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
 
-    tcDebugPrint :: Str -> Integer -> [ErrorPart] -> TCM Term
-    tcDebugPrint (Str s) n msg = do
-      reportSDoc s (fromIntegral n) $ fsep (map prettyTCM msg)
+    tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
+    tcDebugPrint s n msg = do
+      reportSDoc (T.unpack s) (fromIntegral n) $ fsep (map prettyTCM msg)
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term

@@ -167,7 +167,7 @@ addImportedThings
   -> BuiltinThings PrimFun
   -> A.PatternSynDefns
   -> DisplayForms
-  -> Map A.QName String    -- ^ Imported user warnings
+  -> Map A.QName Text      -- ^ Imported user warnings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> [TCWarning]
   -> TCM ()
