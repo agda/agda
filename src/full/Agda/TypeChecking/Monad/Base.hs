@@ -4089,18 +4089,18 @@ patternViolation = throwError PatternErr
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-             => String -> m a
+-- | The constraints needed for 'typeError' and similar.
+type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+
+genericError :: MonadTCError m => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-                => Doc -> m a
+genericDocError :: MonadTCError m => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-          => TypeError -> m a
+typeError :: MonadTCError m => TypeError -> m a
 typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}

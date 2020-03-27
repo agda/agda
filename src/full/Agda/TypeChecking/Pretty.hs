@@ -2,8 +2,8 @@
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
-    -- This re-export can be removed once <GHC-8.4 is dropped.
-    , module Data.Semigroup
+    , module Data.Semigroup -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Reexport
     ) where
 
 import Prelude hiding ( null )
@@ -25,6 +25,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import qualified Agda.Syntax.Translation.AbstractToConcrete as Reexport (MonadAbsToCon)
 import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C

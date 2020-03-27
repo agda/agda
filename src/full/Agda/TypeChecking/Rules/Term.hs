@@ -1118,18 +1118,7 @@ checkExpr' cmp e t =
 
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
-          let quoted (A.Def x) = return x
-              quoted (A.Macro x) = return x
-              quoted (A.Proj o p) | Just x <- getUnambiguous p = return x
-              quoted (A.Proj o p)  =
-                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
-              quoted (A.Con c) | Just x <- getUnambiguous c = return x
-              quoted (A.Con c)  =
-                genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
-              quoted (A.ScopedExpr _ e) = quoted e
-              quoted _                  =
-                genericError "quote: not a defined name"
-          x <- quoted (namedThing e)
+          x <- quotedName $ namedThing e
           ty <- qNameType
           coerce cmp (quoteName x) ty t
 
