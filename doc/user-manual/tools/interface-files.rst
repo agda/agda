@@ -8,9 +8,9 @@ Interface files
    This is a stub. Contributions, additions and corrections are greatly
    appreciated.
 
-Probably you already noticed that when you save an agda file, another file
-with the same name and extension .agdai is automatically created. This .agdai
-file is what we call an **interface file**.
+When an agda file is saved in agda file, another file with the same name
+and extension .agdai is automatically created. This .agdai file is what we
+call an **interface file**.
 
 Interface files store the results from the type-checking process. These
 results include:
