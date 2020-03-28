@@ -73,6 +73,8 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf)
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -1305,7 +1307,7 @@ niceDeclarations fixs ds = do
         -- | Drop type annotations and lets from bindings.
         dropTypeAndModality :: LamBinding -> [LamBinding]
         dropTypeAndModality (DomainFull (TBind _ xs _)) =
-          map (DomainFree . setModality defaultModality) xs
+          map (DomainFree . setModality defaultModality) $ List1.toList xs
         dropTypeAndModality (DomainFull TLet{}) = []
         dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
@@ -1336,9 +1338,7 @@ niceDeclarations fixs ds = do
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
-          t = case mt of
-                Just t  -> t
-                Nothing -> underscore (getRange x)
+          t = fromMaybe (underscore (getRange x)) mt
 
     underscore r = Underscore r Nothing
 

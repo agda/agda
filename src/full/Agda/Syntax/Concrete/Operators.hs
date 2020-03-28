@@ -528,7 +528,7 @@ parsePat :: ([Pattern] -> [Pattern]) -> Pattern -> [Pattern]
 parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs ps)
+    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List1.toList ps))
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
@@ -607,7 +607,7 @@ parseLHS'
        -- ^ The returned list contains all operators/notations/sections that
        -- were used to generate the grammar.
 
-parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
+parseLHS' IsLHS (Just qn) (RawAppP _ (WildP{} :| [])) =
     return (ParseLHS qn $ LHSHead qn [], [])
 
 parseLHS' lhsOrPatSyn top p = do
@@ -792,32 +792,32 @@ qualifierModules qs =
   nubOn id $ filter (not . null) $ map (init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
-parseApplication :: [Expr] -> ScopeM Expr
-parseApplication [e] = return e
+parseApplication :: List1 Expr -> ScopeM Expr
+parseApplication (e :| []) = return e
 parseApplication es  = billToParser IsExpr $ do
+    let es0 = List1.toList es
     -- Build the parser
-    p <- buildParsers IsExpr [ q | Ident q <- es ]
+    p <- buildParsers IsExpr [ q | Ident q <- es0 ]
 
     -- Parse
-    let result = parser p es
+    let result = parser p es0
     case foldr seq () result `seq` result of
-        [e] -> do
+      [e]   -> do
           reportSDoc "scope.operators" 50 $ return $
             "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorInformation (operators p)
+      []    -> typeError $ OperatorInformation (operators p)
                          $ NoParseForApplication es
-        es' -> typeError $ OperatorInformation (operators p)
+      e:es' -> typeError $ OperatorInformation (operators p)
                          $ AmbiguousParseForApplication es
-                         $ map fullParen es'
+                         $ fmap fullParen (e :| es')
 
 parseModuleIdentifier :: Expr -> ScopeM QName
 parseModuleIdentifier (Ident m) = return m
 parseModuleIdentifier e = typeError $ NotAModuleExpr e
 
-parseRawModuleApplication :: [Expr] -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es = billToParser IsExpr $ do
-    let e : es_args = es
+parseRawModuleApplication :: List1 Expr -> ScopeM (QName, [NamedArg Expr])
+parseRawModuleApplication es@(e :| es_args) = billToParser IsExpr $ do
     m <- parseModuleIdentifier e
 
     -- Build the arguments parser
@@ -829,11 +829,11 @@ parseRawModuleApplication es = billToParser IsExpr $ do
         [as] -> return (m, as)
         []   -> typeError $ OperatorInformation (operators p)
                           $ NoParseForApplication es
-        ass -> do
+        as : ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
           typeError $ OperatorInformation (operators p)
                     $ AmbiguousParseForApplication es
-                    $ map f ass
+                    $ fmap f (as :| ass)
 
 -- | Parse an expression into a module application
 --   (an identifier plus a list of arguments).

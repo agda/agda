@@ -32,6 +32,8 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.ListT
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -289,9 +291,17 @@ instance AddContext ([Name], Dom Type) where
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
   contextSize (xs, _) = length xs
 
+instance AddContext (List1 Name, Dom Type) where
+  addContext (xs, dom) = addContext (bindsToTel'1 id xs dom)
+  contextSize (xs, _) = length xs
+
 instance AddContext ([WithHiding Name], Dom Type) where
-  addContext ([]                 , dom) = id
-  addContext (WithHiding h x : xs, dom) =
+  addContext ([]    , dom) = id
+  addContext (x : xs, dom) = addContext (x :| xs, dom)
+  contextSize (xs, _) = length xs
+
+instance AddContext (List1 (WithHiding Name), Dom Type) where
+  addContext (WithHiding h x :| xs, dom) =
     addContext (x , mapHiding (mappend h) dom) .
     addContext (xs, raise 1 dom)
   contextSize (xs, _) = length xs
@@ -300,9 +310,17 @@ instance AddContext ([Arg Name], Type) where
   addContext (xs, t) = addContext ((map . fmap) unnamed xs :: [NamedArg Name], t)
   contextSize (xs, _) = length xs
 
+instance AddContext (List1 (Arg Name), Type) where
+  addContext (xs, t) = addContext ((fmap . fmap) unnamed xs :: List1 (NamedArg Name), t)
+  contextSize (xs, _) = length xs
+
 instance AddContext ([NamedArg Name], Type) where
   addContext ([], _)     = id
-  addContext (x : xs, t) =
+  addContext (x : xs, t) = addContext (x :| xs, t)
+  contextSize (xs, _) = length xs
+
+instance AddContext (List1 (NamedArg Name), Type) where
+  addContext (x :| xs, t) =
     addContext (namedArg x, t <$ domFromNamedArgName x) .
     addContext (xs, raise 1 t)
   contextSize (xs, _) = length xs
