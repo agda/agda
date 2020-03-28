@@ -87,7 +87,7 @@ mkSucceedTest extraOpts dir inp =
                 if warnExists || isJust warn
                 then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
                 else TestSuccess
-            AgdaFailure -> return $ TestUnexpectedFail res
+            AgdaFailure{} -> return $ TestUnexpectedFail res
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =

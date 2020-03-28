@@ -6,7 +6,9 @@ module Agda.TypeChecking.Implicit where
 
 import Control.Monad
 
+import Agda.Syntax.Position (beginningOf, getRange)
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract (Binder, mkBinder_)
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Irrelevance
@@ -16,10 +18,56 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
+
+-- Cut and paste from insertImplicitPatternsT:
+
+-- | Insert implicit binders in a list of binders, but not at the end.
+insertImplicitBindersT
+  :: [NamedArg Binder]     -- ^ Should be non-empty, otherwise nothing happens.
+  -> Type                  -- ^ Function type eliminated by arguments given by binders.
+  -> TCM [NamedArg Binder] -- ^ Padded binders.
+insertImplicitBindersT bs a = do
+  TelV tel ty0 <- telViewUpTo' (-1) (not . visible) a
+  reportSDoc "tc.term.lambda.imp" 20 $
+    vcat [ "insertImplicitBindersT"
+         , nest 2 $ "bs  = " <+> do
+             brackets $ fsep $ punctuate comma $ map prettyA bs
+         , nest 2 $ "tel = " <+> prettyTCM tel
+         , nest 2 $ "ty  = " <+> addContext tel (prettyTCM ty0)
+         ]
+  reportSDoc "tc.term.lambda.imp" 70 $
+    vcat [ "insertImplicitBindersT"
+         , nest 2 $ "bs  = " <+> (text . show) bs
+         , nest 2 $ "tel = " <+> (text . show) tel
+         , nest 2 $ "ty  = " <+> (text . show) ty0
+         ]
+  case bs of
+    []    -> return bs
+    b : _ -> setCurrentRange b $ do
+      hs <- insImp b tel
+      -- Continue with implicit binders inserted before @b@.
+      -- The list @hs ++ bs@ cannot be empty.
+      let bs0@(~(b1 : bs1)) = hs ++ bs
+      reduce a >>= piOrPath >>= \case
+        -- If @a@ is a function (or path) type, continue inserting after @b1@.
+        Left (_, ty) -> (b1 :) <$> insertImplicitBindersT bs1 (absBody ty)
+        -- Otherwise, we are done.
+        Right{}      -> return bs0
+  where
+  insImp b EmptyTel = return []
+  insImp b tel = case insertImplicit b $ telToList tel of
+    BadImplicits   -> typeError WrongHidingInLHS
+    NoSuchName x   -> typeError WrongHidingInLHS
+    ImpInsert doms -> mapM implicitArg doms
+      where
+      implicitArg d = setOrigin Inserted . unnamedArg (domInfo d) . mkBinder_ <$> do
+        freshNoName $ beginningOf $ getRange b
+
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit argument
 --   metas (unbounded if @n<0@), as long as @t@ is a function type

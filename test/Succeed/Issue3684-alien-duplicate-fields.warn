@@ -1,0 +1,20 @@
+Issue3684-alien-duplicate-fields.agda:6,5-32
+The record type R does not have the fields f, f
+when checking that the expression record { f = Set ; f = Set } has
+type R
+Issue3684-alien-duplicate-fields.agda:6,5-32
+Duplicate field f in record
+when checking that the expression record { f = Set ; f = Set } has
+type R
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3684-alien-duplicate-fields.agda:6,5-32
+The record type R does not have the fields f, f
+when checking that the expression record { f = Set ; f = Set } has
+type R
+
+Issue3684-alien-duplicate-fields.agda:6,5-32
+Duplicate field f in record
+when checking that the expression record { f = Set ; f = Set } has
+type R

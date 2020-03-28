@@ -2982,17 +2982,23 @@ isDontExpandLast ExpandLast           = False
 isDontExpandLast DontExpandLast       = True
 isDontExpandLast ReallyDontExpandLast = True
 
+data CandidateKind
+  = LocalCandidate
+  | GlobalCandidate QName
+  deriving (Show, Data)
+
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateTerm :: Term
+data Candidate  = Candidate { candidateKind :: CandidateKind
+                            , candidateTerm :: Term
                             , candidateType :: Type
                             , candidateOverlappable :: Bool
                             }
   deriving (Show, Data)
 
 instance Free Candidate where
-  freeVars' (Candidate t u _) = freeVars' (t, u)
+  freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
@@ -3090,8 +3096,21 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | RecordFieldWarning RecordFieldWarning
   deriving (Show , Data)
 
+data RecordFieldWarning
+  = DuplicateFieldsWarning [(C.Name, Range)]
+      -- ^ Each redundant field comes with a range of associated dead code.
+  | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
+      -- ^ Record type, fields not supplied by user, non-fields but supplied.
+      --   The redundant fields come with a range of associated dead code.
+  deriving (Show, Data)
+
+recordFieldWarningToError :: RecordFieldWarning -> TypeError
+recordFieldWarningToError = \case
+  DuplicateFieldsWarning    xrs -> DuplicateFields    $ map fst xrs
+  TooManyFieldsWarning q ys xrs -> TooManyFields q ys $ map fst xrs
 
 warningName :: Warning -> WarningName
 warningName = \case
@@ -3145,6 +3164,10 @@ warningName = \case
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  -- record field warnings
+  RecordFieldWarning w -> case w of
+    DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
+    TooManyFieldsWarning{}     -> TooManyFieldsWarning_
 
 data TCWarning
   = TCWarning
@@ -3382,7 +3405,7 @@ data TypeError
         | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
-          -- ^ Record type, fields not supplied by user, non-fields not supplied.
+          -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term
@@ -4083,18 +4106,18 @@ patternViolation = throwError PatternErr
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-             => String -> m a
+-- | The constraints needed for 'typeError' and similar.
+type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+
+genericError :: MonadTCError m => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-                => Doc -> m a
+genericDocError :: MonadTCError m => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-          => TypeError -> m a
+typeError :: MonadTCError m => TypeError -> m a
 typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}

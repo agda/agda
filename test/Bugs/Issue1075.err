@@ -1,6 +1,6 @@
 AGDA_FAILURE
 
-ret > ExitFailure 1
+ret > ExitFailure 42
 out > Issue1075.agda:276,1-437,54
 out > Termination checking failed for the following functions:
 out >   cut⁺, cut⁻, rsubst+, lsubst

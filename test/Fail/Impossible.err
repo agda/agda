@@ -1,2 +1,4 @@
-An internal error has occurred. Please report this as a bug.
-Location of the error: src/full/Agda/ImpossibleTest.hs
+ret > ExitFailure 154
+out > An internal error has occurred. Please report this as a bug.
+out > Location of the error: src/full/Agda/ImpossibleTest.hs
+out >

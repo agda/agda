@@ -141,7 +141,7 @@ compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> T
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareAs cmp a u v = do
-  reportSDoc "tc.conv.term" 10 $ sep $
+  reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
@@ -425,6 +425,7 @@ compareAtom cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
   (catchConstraint (ValueCmp cmp t m n) :: m () -> m ()) $ do
+    reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                              , prettyTCM n
@@ -436,6 +437,7 @@ compareAtom cmp t m n =
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
+    reportSLn "tc.conv.atom.size" 50 $ "term size after reduce: " ++ show (termSize $ ignoreBlocking mb', termSize $ ignoreBlocking nb')
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
@@ -822,7 +824,9 @@ antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
+compareElims pols0 fors0 a v els01 els02 =
+  verboseBracket "tc.conv.elim" 20 "compareElims" $
+  (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
@@ -894,10 +898,10 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
       ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
-        reportSLn "tc.conv.elim" 90 $ "type is not blocked"
+        reportSLn "tc.conv.elim" 40 $ "type is not blocked"
         case unEl a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
-            reportSLn "tc.conv.elim" 90 $ "type is a function type"
+            reportSLn "tc.conv.elim" 40 $ "type is a function type"
             mlvl <- tryMaybe primLevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False
@@ -914,34 +918,34 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
             -- compare arg1 and arg2
             pid <- newProblem_ $ applyModalityToContext info $
                 if isForced for then
-                  reportSLn "tc.conv.elim" 90 $ "argument is forced"
+                  reportSLn "tc.conv.elim" 40 $ "argument is forced"
                 else if isIrrelevant info then do
-                  reportSLn "tc.conv.elim" 90 $ "argument is irrelevant"
+                  reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
                   compareIrrelevant b (unArg arg1) (unArg arg2)
                 else do
-                  reportSLn "tc.conv.elim" 90 $ "argument has polarity " ++ show pol
+                  reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
                   compareWithPol pol (flip compareTerm b)
                     (unArg arg1) (unArg arg2)
             -- if comparison got stuck and function type is dependent, block arg
             solved <- isProblemSolved pid
-            reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
+            reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
             arg <- if dependent && not solved
                    then applyModalityToContext info $ do
-                    reportSDoc "tc.conv.elims" 30 $ vcat $
+                    reportSDoc "tc.conv.elims" 50 $ vcat $
                       [ "Trying antiUnify:"
                       , nest 2 $ "b    =" <+> prettyTCM b
                       , nest 2 $ "arg1 =" <+> prettyTCM arg1
                       , nest 2 $ "arg2 =" <+> prettyTCM arg2
                       ]
                     arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                    reportSDoc "tc.conv.elims" 30 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                    reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
                     reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
                     return arg
                    else return arg1
             -- continue, possibly with blocked instantiation
             compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associated to the comparison
-            reportSLn "tc.conv.elim" 90 $ "stealing constraints from problem " ++ show pid
+            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
             stealConstraints pid
             {- Stealing solves this issue:
 

@@ -8,7 +8,7 @@ import Agda.Utils.List
 
 import Data.Either (partitionEithers)
 import Data.Function
-import Data.List
+import Data.List as List
 
 import Internal.Helpers
 
@@ -135,6 +135,10 @@ prop_zipWithKeepRest_init_zipWith f as bs =
 
 prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
+
+prop_nubAndDuplicatesOn :: (Integer -> Integer) -> [Integer] -> Bool
+prop_nubAndDuplicatesOn f xs = nubAndDuplicatesOn f xs == (ys, xs List.\\ ys)
+  where ys = nubBy ((==) `on` f) xs
 
 prop_uniqOn1 :: (Integer -> Integer) -> [Integer] -> Bool
 prop_uniqOn1 f xs' =

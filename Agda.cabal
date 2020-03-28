@@ -73,8 +73,8 @@ extra-source-files: CHANGELOG.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
                     stack-8.8.3.yaml
--- ASR (2020-03-16). We need to keep the below file because there is a
--- problem with GHC 8.8.3, Windows and stack. See Issue #4476.
+-- ASR (2020-03-27). We need to keep the below file because there is a
+-- problem with GHC 8.8.3, Windows and stack. See Issue #4543.
                     stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
@@ -87,6 +87,7 @@ data-files:         Agda.css
                     emacs-mode/*.el
                     JS/agda-rts.js
                     JS/biginteger.js
+                    JS/highlight-hover.js
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda
@@ -107,6 +108,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/IO.agda
                     lib/prim/Agda/Builtin/Int.agda
                     lib/prim/Agda/Builtin/List.agda
+                    lib/prim/Agda/Builtin/Maybe.agda
                     lib/prim/Agda/Builtin/Nat.agda
                     lib/prim/Agda/Builtin/Reflection.agda
                     lib/prim/Agda/Builtin/Reflection/Properties.agda
@@ -311,6 +313,7 @@ library
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
+                    Agda.Interaction.ExitCode
                     Agda.Interaction.JSONTop
                     Agda.Interaction.JSON
                     Agda.Interaction.FindFile

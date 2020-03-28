@@ -70,6 +70,7 @@ import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin, bu
 
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
+import Agda.TypeChecking.Quote (quotedName)
 import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.FindFile (checkModuleName, rootNameModule, SourceFile(SourceFile))
@@ -1473,7 +1474,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 bindVarsToBind
                 -- Make sure to unbind the function name in the RHS, since lets are non-recursive.
                 rhs <- unbindVariable top $ toAbstract rhs
-                foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+                foldM lambda rhs (reverse args)  -- just reverse because these are DomainFree
             return (x, e)
         letToAbstract _ = notAValidLetBinding d
 
@@ -2520,17 +2521,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       | IdentP x <- namedArg p,
         visible p = do
       e <- toAbstract (OldQName x Nothing)
-      let quoted (A.Def x) = return x
-          quoted (A.Macro x) = return x
-          quoted (A.Proj _ p)
-            | Just x <- getUnambiguous p = return x
-            | otherwise                  = genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ p)
-          quoted (A.Con c)
-            | Just x <- getUnambiguous c = return x
-            | otherwise                  = genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ c)
-          quoted (A.ScopedExpr _ e) = quoted e
-          quoted _                  = genericError $ "quote: not a defined name"
-      A.LitP . LitQName (getRange x) <$> quoted e
+      A.LitP . LitQName (getRange x) <$> quotedName e
 
     toAbstract (QuoteP r) =
       genericError "quote must be applied to an identifier"

@@ -9,6 +9,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
+  builtinMaybe, builtinNothing, builtinJust,
   builtinPath, builtinPathP, builtinInterval, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
@@ -91,6 +92,9 @@ builtinFalse                             = "FALSE"
 builtinList                              = "LIST"
 builtinNil                               = "NIL"
 builtinCons                              = "CONS"
+builtinMaybe                             = "MAYBE"
+builtinNothing                           = "NOTHING"
+builtinJust                              = "JUST"
 builtinIO                                = "IO"
 builtinId                                = "ID"
 builtinConId                             = "CONID"

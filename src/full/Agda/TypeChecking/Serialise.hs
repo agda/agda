@@ -70,7 +70,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200322 * 10 + 0
+currentInterfaceVersion = 20200325 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
