@@ -17,7 +17,7 @@ sudo: required
 
 branches:
   only:
-    - imports
+    - monoid
     - master
     - future
     - maint-2.4
