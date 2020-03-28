@@ -3,6 +3,7 @@ module Agda.Compiler.MAlonzo.Misc where
 
 import Data.Char
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
