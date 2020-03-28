@@ -45,7 +45,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 #if !(MIN_VERSION_base(4,11,0))
-import Data,Semigroup(<>)
+import Data,Semigroup((<>))
 #endif
 
 import qualified Codec.Compression.GZip as G
