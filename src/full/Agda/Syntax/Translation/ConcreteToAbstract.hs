@@ -87,6 +87,8 @@ import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -179,9 +181,12 @@ recordConstructorType decls =
     notField _           = True
 
     buildType :: [C.NiceDeclaration] -> ScopeM A.Expr
-    buildType ds = do
-      tel <- mapM makeBinding ds  -- TODO: Telescope instead of Expr in abstract RecDef
-      return $ A.Pi (ExprRange (getRange ds)) tel (A.Set exprNoRange 0)
+      -- TODO: Telescope instead of Expr in abstract RecDef
+    buildType ds = List1.ifNull ds (return dummy) $ \ ds -> do
+        tel <- mapM makeBinding ds
+        return $ A.Pi (ExprRange (getRange ds)) tel dummy
+      where
+      dummy = A.Set exprNoRange 0
 
     makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBinding
     makeBinding d = do
@@ -193,7 +198,7 @@ recordConstructorType decls =
         C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
           let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
-          toAbstract $ C.TBind r [bv] (unArg a)
+          toAbstract $ C.TBind r (singleton bv) (unArg a)
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
@@ -485,6 +490,9 @@ instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
 instance {-# OVERLAPPABLE #-} ToAbstract c a => ToAbstract [c] [a] where
   toAbstract = mapM toAbstract
 
+instance {-# OVERLAPPABLE #-} ToAbstract c a => ToAbstract (List1 c) (List1 a) where
+  toAbstract = mapM toAbstract
+
 instance (ToAbstract c1 a1, ToAbstract c2 a2) =>
          ToAbstract (Either c1 c2) (Either a1 a2) where
     toAbstract = traverseEither toAbstract toAbstract
@@ -704,23 +712,22 @@ toAbstractDot prec e = do
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
-toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
+toAbstractLam :: Range -> List1 C.LamBinding -> C.Expr -> Precedence -> ScopeM A.Expr
 toAbstractLam r bs e ctx = do
   -- Translate the binders
   lvars0 <- getLocalVars
-  localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \ bs -> do
+  -- We have at least one binder.  Get first @b@ and rest @bs@.
+  localToAbstract (fmap (C.DomainFull . makeDomainFull) bs) $ \ (b :| bs) -> do
     lvars1 <- getLocalVars
     checkNoShadowing lvars0 lvars1
     -- Translate the body
     e <- toAbstractCtx ctx e
-    -- We have at least one binder.  Get first @b@ and rest @bs@.
-    caseList bs __IMPOSSIBLE__ $ \ b bs -> do
-      return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
+    return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
   where
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
-scopeCheckExtendedLam :: Range -> [C.LamClause] -> ScopeM A.Expr
+scopeCheckExtendedLam :: Range -> List1 C.LamClause -> ScopeM A.Expr
 scopeCheckExtendedLam r cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
@@ -741,9 +748,9 @@ scopeCheckExtendedLam r cs = do
   -- Andreas, 2019-08-20
   -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
   -- for testing issue #4016.
-  d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
+  d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
-            let p   = C.RawAppP (getRange ps) $ IdentP (C.QName cname) : ps
+            let p   = C.RawAppP (getRange ps) $ IdentP (C.QName cname) :| ps
             let lhs = C.LHS p [] [] NoEllipsis
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
@@ -752,7 +759,7 @@ scopeCheckExtendedLam r cs = do
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
-      return $ A.ExtendedLam (ExprRange r) di qname' cs
+      return $ A.ExtendedLam (ExprRange r) di qname' $ List1.fromList cs
     _ -> __IMPOSSIBLE__
 
 -- | Scope check an expression.
@@ -939,8 +946,8 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
-                          (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
-                          DontOpen i
+               (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m :| es)))
+               DontOpen i
         case r of
           (LetApply _ m' _ _ _ : _) -> return (m', r)
           _ -> __IMPOSSIBLE__
@@ -975,19 +982,19 @@ instance ToAbstract C.LamBinding A.LamBinding where
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
 makeDomainFull (C.DomainFull b) = b
-makeDomainFull (C.DomainFree x) = C.TBind r [x] $ C.Underscore r Nothing
+makeDomainFull (C.DomainFree x) = C.TBind r (singleton x) $ C.Underscore r Nothing
   where r = getRange x
 
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
     tac <- traverse toAbstract $
-             case mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+             case List1.mapMaybe (bnameTactic . C.binderName . namedArg) xs of
                []      -> Nothing
                tac : _ -> Just tac
                -- Invariant: all tactics are the same
                -- (distributed in the parser, TODO: don't)
-    xs' <- toAbstract $ map (updateNamedArg (fmap $ NewName LambdaBound)) xs
+    xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
     return $ A.TBind r tac xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
@@ -1390,7 +1397,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             where
               definedName (C.IdentP (C.QName x)) = Just x
               definedName C.IdentP{}             = Nothing
-              definedName (C.RawAppP _ (p : _))  = definedName p
+              definedName (C.RawAppP _ (p :|_))  = definedName p
               definedName (C.ParenP _ p)         = definedName p
               definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
               definedName C.AbsurdP{}            = Nothing
@@ -1403,7 +1410,6 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
               definedName C.WithP{}              = Nothing
-              definedName (C.RawAppP _ [])       = __IMPOSSIBLE__
               definedName C.AppP{}               = __IMPOSSIBLE__
               definedName C.OpAppP{}             = __IMPOSSIBLE__
               definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
@@ -2124,7 +2130,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x
-        getHead (C.RawAppP _ (p : _)) = getHead p
+        getHead (C.RawAppP _ (p :|_)) = getHead p
         getHead _                     = err
 
     top <- getHead lhs
@@ -2302,7 +2308,7 @@ instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
   toAbstract = \case
     Rewrite es   -> Rewrite <$> mapM toAbstract es
     Invert _ pes -> Invert () <$> do
-      let (ps, es) = unzip pes
+      let (ps, es) = List1.unzip pes
       -- first check the expressions: the patterns may shadow some of the variables
       -- mentioned in them!
       es <- toAbstract es
@@ -2315,7 +2321,7 @@ instance ToAbstract C.RewriteEqn (RewriteEqn' () A.Pattern A.Expr) where
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
         bindVarsToBind
         toAbstract p
-      pure $ zip ps es
+      pure $ List1.zip ps es
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
