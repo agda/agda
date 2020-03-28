@@ -96,6 +96,8 @@ import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1264,7 +1266,7 @@ data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (NonEmpty QName) A.Args Type Int Term Type
-  | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
+  | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
     --   has already been checked.
@@ -3471,8 +3473,8 @@ data TypeError
         | CannotResolveAmbiguousPatternSynonym (NonEmpty (A.QName, A.PatternSynDefn))
         | UnusedVariableInPatternSynonym
     -- Operator errors
-        | NoParseForApplication [C.Expr]
-        | AmbiguousParseForApplication [C.Expr] [C.Expr]
+        | NoParseForApplication (List1 C.Expr)
+        | AmbiguousParseForApplication (List1 C.Expr) (List1 C.Expr)
         | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
             -- ^ The list contains patterns that failed to be interpreted.
             --   If it is non-empty, the first entry could be printed as error hint.
@@ -4034,6 +4036,10 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT
   mempty  = pure mempty
   mappend = (<>)
   mconcat = mconcat <.> sequence
+
+instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
+  empty = return empty
+  null  = __IMPOSSIBLE__
 
 -- | Interaction monad.
 

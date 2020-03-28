@@ -41,6 +41,8 @@ import Agda.Utils.Except
   )
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
@@ -388,7 +390,8 @@ instance Unquote R.Term where
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
+          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x)
+          ]
           __IMPOSSIBLE__
 
       Con c _ es | Just [x, y] <- allApplyElims es ->
@@ -399,7 +402,8 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> unquoteN x <*> unquoteN y) ]
+          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList <$> unquoteN x) <*> unquoteN y)
+          ]
           __IMPOSSIBLE__
         where
           mkPi :: Dom R.Type -> R.Abs R.Type -> R.Term

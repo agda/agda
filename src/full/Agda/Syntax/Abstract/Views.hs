@@ -17,6 +17,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 
 import Agda.Utils.Either
+import Agda.Utils.List1 (List1)
 
 data AppView' arg = Application Expr [NamedArg arg]
   deriving (Functor)
@@ -225,10 +226,11 @@ instance ExprLike Expr where
       PatternSyn{}            -> f e
       Macro{}                 -> f e
 
-instance ExprLike a => ExprLike (Arg a)     where
-instance ExprLike a => ExprLike (Maybe a)   where
-instance ExprLike a => ExprLike (Named x a) where
-instance ExprLike a => ExprLike [a]         where
+instance ExprLike a => ExprLike (Arg a)
+instance ExprLike a => ExprLike (Maybe a)
+instance ExprLike a => ExprLike (Named x a)
+instance ExprLike a => ExprLike [a]
+instance ExprLike a => ExprLike (List1 a)
 
 instance (ExprLike a, ExprLike b) => ExprLike (a, b) where
   recurseExpr f (x, y) = (,) <$> recurseExpr f x <*> recurseExpr f y

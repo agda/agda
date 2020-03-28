@@ -16,6 +16,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
+import Agda.Utils.List1  ( List1, pattern (:|) )
 import Agda.Utils.Maybe
 
 
@@ -27,9 +28,9 @@ class IsEllipsis a where
 -- | Is the pattern just @...@?
 instance IsEllipsis Pattern where
   isEllipsis = \case
-    EllipsisP{}   -> True
-    RawAppP _ [p] -> isEllipsis p
-    ParenP _ p    -> isEllipsis p
+    EllipsisP{}         -> True
+    RawAppP _ (p :| []) -> isEllipsis p
+    ParenP _ p          -> isEllipsis p
     _ -> False
 
 -- | Has the lhs an occurrence of the ellipsis @...@?
@@ -59,9 +60,9 @@ class IsWithP p where
 
 instance IsWithP Pattern where
   isWithP = \case
-    WithP _ p     -> Just p
-    RawAppP _ [p] -> isWithP p
-    ParenP _ p    -> isWithP p
+    WithP _ p           -> Just p
+    RawAppP _ (p :| []) -> isWithP p
+    ParenP _ p          -> isWithP p
     _ -> Nothing
 
 instance IsWithP p => IsWithP (Arg p) where
@@ -257,11 +258,12 @@ instance (CPatternLike a, CPatternLike b) => CPatternLike (a,b) where
       (traverseCPatternM pre post p)
       (traverseCPatternM pre post p')
 
-instance CPatternLike p => CPatternLike (Arg p)              where
-instance CPatternLike p => CPatternLike (Named n p)          where
-instance CPatternLike p => CPatternLike [p]                  where
-instance CPatternLike p => CPatternLike (Maybe p)            where
-instance CPatternLike p => CPatternLike (FieldAssignment' p) where
+instance CPatternLike p => CPatternLike (Arg p)
+instance CPatternLike p => CPatternLike (Named n p)
+instance CPatternLike p => CPatternLike [p]
+instance CPatternLike p => CPatternLike (List1 p)
+instance CPatternLike p => CPatternLike (Maybe p)
+instance CPatternLike p => CPatternLike (FieldAssignment' p)
 
 -- | Compute a value from each subpattern and collect all values in a monoid.
 
@@ -370,9 +372,9 @@ splitEllipsis k (p:ps)
 --
 --  Pattern needs to be parsed already (operators resolved).
 patternAppView :: Pattern -> [NamedArg Pattern]
-patternAppView p = case p of
+patternAppView = \case
     AppP p arg      -> patternAppView p ++ [arg]
     OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__
-    _               -> [ defaultNamedArg p ]
+    p               -> [ defaultNamedArg p ]

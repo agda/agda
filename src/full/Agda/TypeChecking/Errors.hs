@@ -54,6 +54,8 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
@@ -825,7 +827,7 @@ instance PrettyTCM TypeError where
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> "."] ++
       pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' es')
+      ) $$ nest 2 (vcat $ map pretty' $ List1.toList es')
       where
         pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es

@@ -27,6 +27,9 @@ import Data.Bifunctor
 import Data.Either (isLeft, isRight)
 
 import Agda.Utils.List ( listCase )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 -- | Loop while we have an exception.
 
@@ -109,19 +112,19 @@ allRight :: [Either a b] -> Maybe [b]
 allRight = mapM maybeRight
 
 -- | Groups a list into alternating chunks of 'Left' and 'Right' values
-groupByEither :: forall a b. [Either a b] -> [Either [a] [b]]
+groupByEither :: forall a b. [Either a b] -> [Either (List1 a) (List1 b)]
 groupByEither = listCase [] (go . init) where
 
-  go :: Either [a] [b] -> [Either a b] -> [Either [a] [b]]
+  go :: Either (List1 a) (List1 b) -> [Either a b] -> [Either (List1 a) (List1 b)]
   go acc         []              = adjust acc : []
   -- match: next value can be tacked onto the accumulator
-  go (Left  acc) (Left  a : abs) = go (Left  $ a : acc) abs
-  go (Right acc) (Right b : abs) = go (Right $ b : acc) abs
+  go (Left  acc) (Left  a : abs) = go (Left  $ a <| acc) abs
+  go (Right acc) (Right b : abs) = go (Right $ b <| acc) abs
   -- mismatch: switch the accumulator to the other mode
   go acc         (ab      : abs) = adjust acc : go (init ab) abs
 
-  adjust = bimap reverse reverse
-  init   = bimap pure pure
+  adjust = bimap List1.reverse List1.reverse
+  init   = bimap singleton singleton
 
 -- | Convert 'Maybe' to @'Either' e@, given an error @e@ for the 'Nothing' case.
 maybeToEither :: e -> Maybe a -> Either e a
