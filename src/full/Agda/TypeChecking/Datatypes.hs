@@ -4,7 +4,6 @@ module Agda.TypeChecking.Datatypes where
 import Control.Monad.Except
 
 import Data.Maybe (fromMaybe)
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

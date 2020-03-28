@@ -16,7 +16,6 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Reader
 
-import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
 import qualified Data.Set as Set
 

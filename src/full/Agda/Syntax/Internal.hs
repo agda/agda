@@ -19,7 +19,6 @@ import Control.DeepSeq
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
 
 import Data.Traversable

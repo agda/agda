@@ -15,7 +15,6 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import Data.Maybe
-import Data.Monoid ( Monoid)
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base

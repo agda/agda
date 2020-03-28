@@ -64,8 +64,6 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
-import Data.Monoid
-
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common

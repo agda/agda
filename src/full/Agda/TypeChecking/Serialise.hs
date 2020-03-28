@@ -44,7 +44,6 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
-import Data.Monoid
 
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z

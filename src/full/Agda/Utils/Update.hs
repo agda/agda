@@ -22,7 +22,6 @@ import Control.Monad.Fail (MonadFail)
 
 import Control.Monad.Identity
 import Control.Monad.Trans
-import Control.Monad.Trans.Identity
 import Control.Monad.Writer.Strict
 
 

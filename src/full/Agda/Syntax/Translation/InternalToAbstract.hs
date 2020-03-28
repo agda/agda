@@ -32,7 +32,6 @@ import Control.Monad.State hiding (mapM_, mapM)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set

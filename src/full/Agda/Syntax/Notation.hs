@@ -25,7 +25,7 @@ import qualified Data.Set as Set
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(throwError) )

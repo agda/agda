@@ -9,8 +9,6 @@ import Control.Arrow ( first )
 import Control.Monad.Identity
 import Control.Monad.Writer
 
-import Data.Monoid
-
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 

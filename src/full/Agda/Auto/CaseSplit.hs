@@ -5,7 +5,7 @@ module Agda.Auto.CaseSplit where
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (elemIndex)
-import Data.Monoid ((<>), Sum(..))
+import Data.Monoid (Sum(..))
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 import Control.Monad.State as St hiding (lift)

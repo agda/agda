@@ -8,7 +8,6 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Either (partitionEithers, lefts)
-import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
 
