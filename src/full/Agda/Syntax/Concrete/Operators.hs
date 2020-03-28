@@ -142,6 +142,8 @@ data Parsers e = Parsers
   , operators :: [NotationSection]
     -- ^ All operators/notations/sections that were used to generate
     -- the grammar.
+  , otherNames :: [QName]
+    -- ^ Non-operators used in the grammar to report with an error.
   , flattenedScope :: FlatScope
     -- ^ A flattened scope that only contains those names that are
     -- unqualified or qualified by qualifiers that occur in the list
@@ -352,15 +354,26 @@ buildParsers kind exprNames = do
           fix
 
         everything :: [NotationSection]
-        everything =
-          concatMap snd relatedOperators ++
-          unrelatedOperators ++
-          nonWithSections
+        everything = concat
+          [ concatMap snd relatedOperators
+          , unrelatedOperators
+          , nonWithSections
+          ]
+
+        -- Andreas, 2020-03-22, issue 3677, include non-operators
+        -- that share a name part for error reporting.
+        otherNames :: [QName]
+        otherNames = -- filter (not . hasElem evry) $
+          map notaName non
+          where
+          evry = map (notaName . sectNotation) everything
 
     reportS "scope.operators" 50
       [ "unrelatedOperators = " ++ prettyShow unrelatedOperators
       , "nonWithSections    = " ++ prettyShow nonWithSections
       , "relatedOperators   = " ++ prettyShow relatedOperators
+      , "otherNames         = " ++ prettyShow otherNames
+      , "allNames           = " ++ prettyShow allNames
       ]
 
     let g = Data.Function.fix $ \p -> InternalParsers
@@ -407,6 +420,7 @@ buildParsers kind exprNames = do
       { parser         = parse (parseSections, pTop  g)
       , argsParser     = parse (parseSections, pArgs g)
       , operators      = everything
+      , otherNames     = otherNames
       , flattenedScope = flat
       }
     where
@@ -603,12 +617,13 @@ parseLHS'
        --   'Nothing' if we parse a pattern.
   -> Pattern
        -- ^ Thing to parse.
-  -> ScopeM (ParseLHS, [NotationSection])
-       -- ^ The returned list contains all operators/notations/sections that
+  -> ScopeM (ParseLHS, [NotationSection], [QName])
+       -- ^ The first list contains all operators/notations/sections that
        -- were used to generate the grammar.
+       -- ^ The second list contains non-operators that were considered in the grammar.
 
 parseLHS' IsLHS (Just qn) (RawAppP _ [WildP{}]) =
-    return (ParseLHS qn $ LHSHead qn [], [])
+    return (ParseLHS qn $ LHSHead qn [], [], [])
 
 parseLHS' lhsOrPatSyn top p = do
 
@@ -630,12 +645,12 @@ parseLHS' lhsOrPatSyn top p = do
     case results of
         -- Unique result.
         [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
-                        return (lhs, operators patP)
+                        return (lhs, operators patP, otherNames patP)
         -- No result.
-        []        -> typeError $ OperatorInformation (operators patP)
+        []        -> typeError $ OperatorInformation (operators patP) (otherNames patP)
                                $ NoParseForLHS lhsOrPatSyn (catMaybes errs) p
         -- Ambiguous result.
-        rs        -> typeError $ OperatorInformation (operators patP)
+        rs        -> typeError $ OperatorInformation (operators patP) (otherNames patP)
                                $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
@@ -714,10 +729,10 @@ classifyPattern conf p =
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 parseLHS :: QName -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser IsPattern $ do
-  (res, ops) <- parseLHS' IsLHS (Just top) p
+  (res, ops, names) <- parseLHS' IsLHS (Just top) p
   case res of
     ParseLHS f lhs -> return lhs
-    _ -> typeError $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops names
                    $ NoParseForLHS IsLHS [] p
 
 -- | Parses a pattern.
@@ -729,10 +744,10 @@ parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
 parsePatternOrSyn lhsOrPatSyn p = billToParser IsPattern $ do
-  (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
+  (res, ops, names) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     ParsePattern p -> return p
-    _ -> typeError $ OperatorInformation ops
+    _ -> typeError $ OperatorInformation ops names
                    $ NoParseForLHS lhsOrPatSyn [] p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
@@ -805,9 +820,9 @@ parseApplication es  = billToParser IsExpr $ do
           reportSDoc "scope.operators" 50 $ return $
             "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorInformation (operators p)
+        []  -> typeError $ OperatorInformation (operators p) (otherNames p)
                          $ NoParseForApplication es
-        es' -> typeError $ OperatorInformation (operators p)
+        es' -> typeError $ OperatorInformation (operators p) (otherNames p)
                          $ AmbiguousParseForApplication es
                          $ map fullParen es'
 
@@ -827,11 +842,11 @@ parseRawModuleApplication es = billToParser IsExpr $ do
     -- TODO: not sure about forcing
     case {-force $-} argsParser p es_args of
         [as] -> return (m, as)
-        []   -> typeError $ OperatorInformation (operators p)
+        []   -> typeError $ OperatorInformation (operators p) (otherNames p)
                           $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
-          typeError $ OperatorInformation (operators p)
+          typeError $ OperatorInformation (operators p) (otherNames p)
                     $ AmbiguousParseForApplication es
                     $ map f ass
 
