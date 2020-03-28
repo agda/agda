@@ -12,6 +12,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 
 import Agda.Utils.Either
+import Agda.Utils.List1 (List1)
 
 import Agda.Utils.Impossible
 
@@ -63,6 +64,11 @@ instance ExprLike a => ExprLike (Arg a) where  -- TODO guilhem
   foldExpr     = foldMap  . foldExpr
 
 instance ExprLike a => ExprLike [a] where
+  mapExpr      = fmap     . mapExpr
+  traverseExpr = traverse . traverseExpr
+  foldExpr     = foldMap  . foldExpr
+
+instance ExprLike a => ExprLike (List1 a) where
   mapExpr      = fmap     . mapExpr
   traverseExpr = traverse . traverseExpr
   foldExpr     = foldMap  . foldExpr
@@ -186,11 +192,10 @@ instance ExprLike LHS where
 instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
   mapExpr f = \case
     Rewrite es    -> Rewrite (mapExpr f es)
-    Invert qn pes -> Invert qn (map (mapExpr f <$>) pes)
+    Invert qn pes -> Invert qn (fmap (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
-  mapExpr f (LamClause lhs rhs wh ca) =
-    LamClause (mapExpr f lhs) (mapExpr f rhs) (mapExpr f wh) (mapExpr f ca)
+  mapExpr f (LamClause ps rhs ca) = LamClause ps (mapExpr f rhs) ca
 
 instance ExprLike DoStmt where
   mapExpr f (DoBind r p e cs) = DoBind r p (mapExpr f e) (mapExpr f cs)

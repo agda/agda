@@ -44,6 +44,8 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Except
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
@@ -370,7 +372,7 @@ instance PrettyTCM TypeCheckingProblem where
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
                                else P.parens) <$> do
             fsep $
-              map prettyTCM xs ++
+              map prettyTCM (List1.toList xs) ++
               caseMaybe mt [] (\ a -> [":", prettyTCM a])) <+>
           return CP.arrow <+>
           prettyTCM e <+>

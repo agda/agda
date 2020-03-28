@@ -76,6 +76,8 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -270,9 +272,9 @@ refine force ii mr e = do
                       isX _                  = mempty
 
               lamView (A.Lam _ (DomainFree _ x) e) = Just (namedArg x, e)
-              lamView (A.Lam i (DomainFull (TBind r t (x : xs) a)) e)
-                | null xs   = Just (namedArg x, e)
-                | otherwise = Just (namedArg x, A.Lam i (DomainFull $ TBind r t xs a) e)
+              lamView (A.Lam i (DomainFull (TBind r t (x :| xs) a)) e) =
+                List1.ifNull xs {-then-} (Just (namedArg x, e)) {-else-} $ \ xs ->
+                  Just (namedArg x, A.Lam i (DomainFull $ TBind r t xs a) e)
               lamView _ = Nothing
 
               -- reduce beta-redexes where the argument is used at most once
@@ -421,7 +423,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               domType <- maybe (return underscore) reify mt
               target  <- reify target
               let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
-                  bs = mkTBind noRange (map mkN xs) domType
+                  bs = mkTBind noRange (fmap mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do
@@ -846,11 +848,6 @@ metaHelperType norm ii rng s = case words s of
       flip (caseMaybe $ isName ce) (\ _ -> return ()) $ do
          reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
          failure
-    isName :: C.Expr -> Maybe C.Name
-    isName = \case
-      C.Ident (C.QName x)              -> Just x
-      C.RawApp _ [C.Ident (C.QName x)] -> Just x
-      _ -> Nothing
     isVar :: A.Expr -> Maybe A.Name
     isVar = \case
       A.Var x -> Just x
@@ -1148,20 +1145,21 @@ atTopLevel m = inConcreteMode $ do
 -- | Parse a name.
 parseName :: Range -> String -> TCM C.QName
 parseName r s = do
-  m <- parseExpr r s
-  case m of
-    C.Ident m              -> return m
-    C.RawApp _ [C.Ident m] -> return m
-    _                      -> typeError $
-      GenericError $ "Not an identifier: " ++ show m ++ "."
+  e <- parseExpr r s
+  let failure = typeError $ GenericError $ "Not an identifier: " ++ show e ++ "."
+  maybe failure return $ isQName e
 
 -- | Check whether an expression is a (qualified) identifier.
 isQName :: C.Expr -> Maybe C.QName
-isQName m = do
-  case m of
-    C.Ident m              -> return m
-    C.RawApp _ [C.Ident m] -> return m
-    _ -> Nothing
+isQName = \case
+  C.Ident x                    -> return x
+  C.RawApp _ (C.Ident x :| []) -> return x
+  _ -> Nothing
+
+isName :: C.Expr -> Maybe C.Name
+isName = isQName >=> \case
+  C.QName x -> return x
+  _ -> Nothing
 
 -- | Returns the contents of the given module or record.
 

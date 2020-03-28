@@ -50,6 +50,8 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -1152,11 +1154,20 @@ bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
 bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
 
+bindsToTel'1 :: (Name -> a) -> List1 Name -> Dom Type -> ListTel' a
+bindsToTel'1 f = bindsToTel' f . List1.toList
+
+bindsToTel1 :: List1 Name -> Dom Type -> ListTel
+bindsToTel1 = bindsToTel . List1.toList
+
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
 namedBindsToTel []       t = EmptyTel
 namedBindsToTel (x : xs) t =
   ExtendTel (t <$ domFromNamedArgName x) $ Abs (nameToArgName $ namedArg x) $ namedBindsToTel xs (raise 1 t)
+
+namedBindsToTel1 :: List1 (NamedArg Name) -> Type -> Telescope
+namedBindsToTel1 = namedBindsToTel . List1.toList
 
 domFromNamedArgName :: NamedArg Name -> Dom ()
 domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)

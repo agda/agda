@@ -59,6 +59,8 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -783,19 +785,23 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     checkWithRHS x aux t lhsResult vtys cs
 
   -- Rewrite case: f xs (rewrite / invert) a | b | c | ...
-  rewriteEqnsRHS :: [A.RewriteEqn] -> [A.ProblemEq] -> A.RHS -> A.WhereDeclarations -> TCM (Maybe Term, WithFunctionProblem)
+  rewriteEqnsRHS
+    :: [A.RewriteEqn]
+    -> [A.ProblemEq]
+    -> A.RHS
+    -> A.WhereDeclarations
+    -> TCM (Maybe Term, WithFunctionProblem)
+
   rewriteEqnsRHS [] strippedPats rhs wh = checkWhere wh $ handleRHS rhs
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
   rewriteEqnsRHS (r:rs) strippedPats rhs wh = case r of
-    Rewrite ((qname, eq) : qes) ->
-      rewriteEqnRHS qname eq (case qes of { [] -> rs; _ -> Rewrite qes : rs })
-    Invert _     []  -> __IMPOSSIBLE__
-    Invert qname pes -> invertEqnRHS qname pes rs
-    -- Invariant: these lists are non-empty
-    Rewrite [] -> __IMPOSSIBLE__
+    Rewrite ((qname, eq) :| qes) ->
+      rewriteEqnRHS qname eq $
+        List1.ifNull qes {-then-} rs {-else-} $ \ qes -> Rewrite qes : rs
+    Invert qname pes -> invertEqnRHS qname (List1.toList pes) rs
 
     where
 
@@ -828,8 +834,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       checkWithRHS x qname t lhsResult vtys [cl]
 
     -- @rewrite@ clauses
-    rewriteEqnRHS :: QName -> A.Expr
-                  -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    rewriteEqnRHS
+      :: QName
+      -> A.Expr
+      -> [A.RewriteEqn]
+      -> TCM (Maybe Term, WithFunctionProblem)
     rewriteEqnRHS qname eq rs = do
 
       -- Action for skipping this rewrite.
