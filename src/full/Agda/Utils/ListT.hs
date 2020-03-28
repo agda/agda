@@ -116,8 +116,7 @@ instance Monad m => Monoid (ListT m a) where
   mempty        = nilListT
 #if !(MIN_VERSION_base(4,11,0))
   {-# INLINE mappend #-}
-  mappend l1 l2 = ListT $ foldListT cons (runListT l2) l1
-    where cons a = runListT . consListT a . ListT
+  mappend = (<>)
 #endif
 
 instance (Functor m, Applicative m, Monad m) => Alternative (ListT m) where
