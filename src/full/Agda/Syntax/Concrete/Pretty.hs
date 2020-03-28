@@ -309,10 +309,10 @@ instance Pretty ModuleAssignment where
   pretty (ModuleAssignment m es i) = fsep (pretty m : map pretty es) <+> pretty i
 
 instance Pretty LamClause where
-  pretty (LamClause lhs rhs wh _) =
-    sep [ pretty lhs
+  pretty (LamClause ps rhs _) =
+    sep [ fsep (map pretty ps)
         , nest 2 $ pretty' rhs
-        ] $$ nest 2 (pretty wh)
+        ]
     where
       pretty' (RHS e)   = arrow <+> pretty e
       pretty' AbsurdRHS = empty

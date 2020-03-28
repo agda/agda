@@ -332,10 +332,11 @@ data WhereClause' decls
     --   and is propagated from the parent function.
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
-data LamClause = LamClause { lamLHS      :: LHS
-                           , lamRHS      :: RHS
-                           , lamWhere    :: WhereClause -- ^ always 'NoWhere' (see parser)
-                           , lamCatchAll :: Bool }
+data LamClause = LamClause
+  { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
+  , lamRHS      :: RHS
+  , lamCatchAll :: Bool
+  }
   deriving (Data, Eq)
 
 -- | An expression followed by a where clause.
@@ -785,7 +786,7 @@ instance HasRange RHS where
   getRange (RHS e)   = getRange e
 
 instance HasRange LamClause where
-  getRange (LamClause lhs rhs wh _) = getRange (lhs, rhs, wh)
+  getRange (LamClause lhs rhs _) = getRange (lhs, rhs)
 
 instance HasRange DoStmt where
   getRange (DoBind r _ _ _) = r
@@ -957,7 +958,7 @@ instance KillRange LHS where
   killRange (LHS p r w e)  = killRange4 LHS p r w e
 
 instance KillRange LamClause where
-  killRange (LamClause a b c d) = killRange4 LamClause a b c d
+  killRange (LamClause a b c) = killRange3 LamClause a b c
 
 instance KillRange DoStmt where
   killRange (DoBind r p e w) = killRange4 DoBind r p e w
@@ -1186,7 +1187,7 @@ instance NFData a => NFData (WhereClause' a) where
   rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData LamClause where
-  rnf (LamClause a b c d) = rnf (a, b, c, d)
+  rnf (LamClause a b c) = rnf (a, b, c)
 
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a) = rnf a

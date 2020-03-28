@@ -737,26 +737,25 @@ instance ToConcrete A.Expr C.Expr where
                  Instance{} -> C.InstanceP noRange (unArg np)
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
-          let removeApp (C.RawAppP r (_:es)) = return $ C.RawAppP r es
-              removeApp (C.AppP (C.IdentP _) np) = return $ namedPat np
-              removeApp (C.AppP p np) = do
-                p <- removeApp p
-                return $ C.AppP p np
-
+          let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
+              removeApp (C.RawAppP _r (_:ps))    = return $ ps
+              removeApp (C.AppP (C.IdentP _) np) = return $ [namedPat np]
+              removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
               -- Empty pattern list also allowed in extended lambda,
               -- thus, we might face the unapplied .extendedlambda identifier.
-              removeApp x@C.IdentP{} = return $ C.RawAppP (getRange x) []
+              removeApp x@C.IdentP{} = return []
 
               removeApp p = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
-                return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause lhs rhs wh ca) = do
-                let p = lhsOriginalPattern lhs
+                return [p] -- __IMPOSSIBLE__
+                  -- Andreas, this is actually not impossible,
+                  -- my strictification exposed this sleeping bug
+          let decl2clause (C.FunClause (C.LHS p [] [] NoEllipsis) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
-                p' <- removeApp p
-                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
-                return $ LamClause lhs{ lhsOriginalPattern = p' } rhs wh ca
+                ps <- removeApp p
+                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
+                return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
     toConcrete (A.Pi _ [] e) = toConcrete e

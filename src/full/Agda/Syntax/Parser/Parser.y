@@ -659,17 +659,19 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
+    : '\\' '{' LamClauses '}'                  { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
     | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4)) (reverse $4) }
-    | '\\' AbsurdLamBindings       {% case $2 of
-                                       Left (bs, h) -> if null bs then return $ AbsurdLam r h else
-                                                       return $ Lam r bs (AbsurdLam r h)
-                                                         where r = fuseRange $1 bs
-                                       Right es -> do -- it is of the form @\ { p1 ... () }@
-                                                     p <- exprToLHS (RawApp (getRange es) es);
-                                                     return $ ExtendedLam (fuseRange $1 es)
-                                                                     [LamClause (p [] []) AbsurdRHS NoWhere False]
-                                   }
+    | '\\' AbsurdLamBindings
+             {% case $2 of
+                  Left (bs, h)
+                    | null bs   -> return $ AbsurdLam r h
+                    | otherwise -> return $ Lam r bs (AbsurdLam r h)
+                    where r = fuseRange $1 bs
+                  Right es -> do
+                    -- It is of the form @\ { p1 ... () }@.
+                    cl <- mkLamClause False es AbsurdRHS
+                    return $ ExtendedLam (fuseRange $1 es) [cl]
+             }
 
 Application3 :: { [Expr] }
 Application3
@@ -889,42 +891,20 @@ LamBindsAbsurd
   | '{' '}'                     { Left [Left Hidden] }
   | '{{' DoubleCloseBrace       { Left [Left (Instance NoOverlap)] }
 
--- FNF, 2011-05-05: No where clauses in extended lambdas for now
+-- FNF, 2011-05-05: No where-clauses in extended lambdas for now.
+-- Andreas, 2020-03-28: And also not in sight either nine years later.
 NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
-  : Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $1) $1) ;
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = RHS $3
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = False }
-        }
-  | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $2) $2) ;
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = RHS $4
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = True }
-        }
+  : Application3PossiblyEmpty '->' Expr {% mkLamClause False $1 (RHS $3) }
+  | CatchallPragma
+    Application3PossiblyEmpty '->' Expr {% mkLamClause True  $2 (RHS $4) }
 
 AbsurdLamClause :: { LamClause }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
-  : Application {% do
-      p <- exprToLHS (RawApp (getRange $1) $1);
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = AbsurdRHS
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = False }
-        }
-  | CatchallPragma Application {% do
-      p <- exprToLHS (RawApp (getRange $2) $2);
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = AbsurdRHS
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = True }
-        }
+  : Application                {% mkLamClause False $1 AbsurdRHS }
+  | CatchallPragma Application {% mkLamClause True  $2 AbsurdRHS }
 
 LamClause :: { LamClause }
 LamClause
@@ -2264,6 +2244,14 @@ patternSynArgs = mapM pSynArg
          = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
       | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
       | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+
+mkLamClause
+  :: Bool   -- ^ Catch-all?
+  -> [Expr] -- ^ Possibly empty list of patterns.
+  -> RHS
+  -> Parser LamClause
+mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
+  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchAll = catchAll }
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 

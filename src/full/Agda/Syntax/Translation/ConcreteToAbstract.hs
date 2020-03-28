@@ -738,42 +738,14 @@ scopeCheckExtendedLam r cs = do
   qname <- qualifyName_ name
   bindName (PrivateAccess Inserted) FunName cname qname
 
-  -- Compose a function definition and scope check it.
-  let
-    insertApp :: C.Pattern -> ScopeM C.Pattern
-    insertApp (C.RawAppP r es) = return $ C.RawAppP r $ IdentP (C.QName cname) : es
-    insertApp (C.AppP p1 p2)   = return $ (IdentP (C.QName cname) `C.AppP` defaultNamedArg p1) `C.AppP` p2  -- Case occurs in issue #2785
-    insertApp p = return $ C.RawAppP r $ IdentP (C.QName cname) : [p] -- Issue #2807: C.ParenP also possible
-      where r = getRange p
-      -- Andreas, 2017-10-17 issue #2807: do not raise IMPOSSSIBLE here
-      -- since we are actually not sure what is possible and what not.
-
-    -- insertApp (C.IdentP q    ) = return $ C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
-    --   where r = getRange q
-    -- insertApp p = do
-    --   reportSLn "impossible" 10 $ "scopeCheckExtendedLam: unexpected pattern: " ++
-    --     case p of
-    --       C.QuoteP{}    -> "QuoteP"
-    --       C.OpAppP{}    -> "OpAppP"
-    --       C.HiddenP{}   -> "HiddenP"
-    --       C.InstanceP{} -> "InstanceP"
-    --       C.ParenP{}    -> "ParenP"
-    --       C.WildP{}     -> "WildP"
-    --       C.AbsurdP{}   -> "AbsurdP"
-    --       C.AsP{}       -> "AsP"
-    --       C.DotP{}      -> "DotP"
-    --       C.LitP{}      -> "LitP"
-    --       C.RecP{}      -> "RecP"
-    --       _ -> __IMPOSSIBLE__
-    --   __IMPOSSIBLE__
-
   -- Andreas, 2019-08-20
   -- Keep the following __IMPOSSIBLE__, which is triggered by -v scope.decl.trace:80,
   -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname <$> do
-          forM cs $ \ (LamClause lhs rhs wh ca) -> do -- wh == NoWhere, see parser for more info
-            lhs' <- mapLhsOriginalPatternM insertApp lhs
-            return $ C.Clause cname ca lhs' rhs wh []
+          forM cs $ \ (LamClause ps rhs ca) -> do
+            let p   = C.RawAppP (getRange ps) $ IdentP (C.QName cname) : ps
+            let lhs = C.LHS p [] [] NoEllipsis
+            return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
 
   -- Create the abstract syntax for the extended lambda.

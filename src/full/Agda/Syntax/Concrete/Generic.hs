@@ -189,8 +189,7 @@ instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
     Invert qn pes -> Invert qn (map (mapExpr f <$>) pes)
 
 instance ExprLike LamClause where
-  mapExpr f (LamClause lhs rhs wh ca) =
-    LamClause (mapExpr f lhs) (mapExpr f rhs) (mapExpr f wh) (mapExpr f ca)
+  mapExpr f (LamClause ps rhs ca) = LamClause ps (mapExpr f rhs) ca
 
 instance ExprLike DoStmt where
   mapExpr f (DoBind r p e cs) = DoBind r p (mapExpr f e) (mapExpr f cs)

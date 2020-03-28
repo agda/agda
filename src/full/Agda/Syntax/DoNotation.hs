@@ -38,6 +38,8 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.List   ( initMaybe )
 
+import Agda.Utils.Impossible
+
 desugarDoNotation :: Range -> [DoStmt] -> ScopeM Expr
 desugarDoNotation r ss = do
   let qBind = QName $ Name noRange InScope [Hole, Id ">>=", Hole]
@@ -105,14 +107,16 @@ matchingBind qBind r p e body cs =
     $ ExtendedLam (getRange cs)       -- where-clauses to make highlighting of overlapping
     $ map addParens (mainClause : cs) -- patterns not highlight the rest of the do-block.
   where
-    mainClause = LamClause { lamLHS      = LHS p [] [] NoEllipsis
+    mainClause = LamClause { lamLHS      = [p]
                            , lamRHS      = RHS body
-                           , lamWhere    = NoWhere
                            , lamCatchAll = False }
 
-    -- Add parens to left-hand sides: there can only be one pattern in these clauses.
+    -- Add parens to left-hand sides.
     addParens c = c { lamLHS = addP (lamLHS c) }
-      where addP (LHS p rw we ell) = LHS (RawAppP noRange [ParenP noRange p]) rw we ell
+      where
+      addP []       = __IMPOSSIBLE__
+      addP [p]      = [ParenP noRange p]
+      addP (p : ps) = [ParenP noRange $ RawAppP (getRange (p, ps)) $ p : ps ]
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =
