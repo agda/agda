@@ -44,11 +44,14 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+#if !(MIN_VERSION_base(4,11,0))
+import Data,Semigroup(<>)
+#endif
 
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
 
-#if __GLASGOW_HASKELL__ >= 804
+#if __GLASGOW_HASKELL__ >= 821
 import GHC.Compact as C
 #endif
 
@@ -193,7 +196,7 @@ decode s = do
 
   case r of
     Right x -> do
-#if __GLASGOW_HASKELL__ >= 804
+#if __GLASGOW_HASKELL__ >= 821
       -- "Compact" the interfaces (without breaking sharing) to
       -- reduce the amount of memory that is traversed by the
       -- garbage collector.
