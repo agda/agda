@@ -1,8 +1,8 @@
 .. _interface-files:
 
-********************
+***************
 Interface files
-********************
+***************
 
 .. note::
    This is a stub. Contributions, additions and corrections are greatly
@@ -18,16 +18,17 @@ results include:
 * A translation of pattern-matching definitions to case trees (this translation
   speeds up computation).
 
-* The resolution of all implicit arguments (optional, you can avoid this by
-  using the flag ``--allow-unsolved-metas``).
+* The resolution of all implicit arguments.
+  (Note: under the flag ``--allow-unsolved-metas`` not **all** implicit arguments
+  need to be resolved to create an interface file.)
 
 Storage
---------------------
+-------
 
-The ``.agdai`` files are stored alongside the ``.agda`` source file in
-projects that don’t use any Agda library.
+In projects that do not use any Agda library, the ``.agdai`` files are
+stored alongside the ``.agda`` source file.
 
-Only if the ``.agda`` source file is part of a project with an *identifiable root*
+If the ``.agda`` source file is part of a project with an *identifiable root*
 (i.e. if there is an ``.agda-lib`` file in any of the directories above it),
 then the interface file is stored in the ``_build/VERSION`` directory at the
 identified root. This prevents losing the interface file when switching between
@@ -41,11 +42,11 @@ agda versions. You can revert this behaviour with the flag ``--no-project``.
 The compression run to create ``.agdai`` files introduces sharing. Sharing
 improves the memory efficiency of the code loaded from interface files.
 
-The syntax represented in ``.agdai`` files significantly differs from the syntax
+The syntax represented in ``.agdai`` files differs significantly from the syntax
 of source files.
 
 Compilation
---------------------
+-----------
 
 An external module is loaded by loading its interface file. Interface files are
 also intermediate points when compiling through a backend to e.g. Haskell.
