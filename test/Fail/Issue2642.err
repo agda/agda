@@ -1,5 +1,5 @@
 Issue2642.agda:5,5-6,6
-Duplicate fields F in record
+Duplicate field F in record
 when scope checking the declaration
   record R where
     field

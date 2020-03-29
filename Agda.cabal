@@ -685,6 +685,7 @@ library
                     , MultiWayIf
                     , NamedFieldPuns
                     , OverloadedStrings
+                    , PatternSynonyms
                     , RankNTypes
                     , RecordWildCards
                     , ScopedTypeVariables
@@ -863,6 +864,7 @@ test-suite agda-tests
                      , MultiWayIf
                      , NamedFieldPuns
                      , OverloadedStrings
+                     , PatternSynonyms
                      , RankNTypes
                      , RecordWildCards
                      , ScopedTypeVariables

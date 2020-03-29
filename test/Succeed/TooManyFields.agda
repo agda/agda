@@ -1,3 +1,5 @@
+-- Andreas, 2020-03-27, issue #3684
+-- Warn about invalid fields instead of hard error.
 
 module TooManyFields where
 
@@ -8,4 +10,3 @@ record D : Set where
 
 d : X -> D
 d x = record {x = x; y = x}
-

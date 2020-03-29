@@ -70,7 +70,7 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
 
 {-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
-prettyWarning wng = case wng of
+prettyWarning = \case
 
     UnsolvedMetaVariables ms  ->
       fsep ( pwords "Unsolved metas at the following locations:" )
@@ -295,6 +295,39 @@ prettyWarning wng = case wng of
         par [d] = parens d
         par ds  = parens $ vcat ds
         s = P.prettyShow x
+
+    RecordFieldWarning w -> prettyRecordFieldWarning w
+
+prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
+prettyRecordFieldWarning = \case
+  DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs
+  TooManyFieldsWarning q ys xrs -> prettyTooManyFields q ys $ map fst xrs
+
+prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
+prettyDuplicateFields xs = fsep $ concat
+    [ pwords "Duplicate"
+    , fields xs
+    , punctuate comma (map pretty xs)
+    , pwords "in record"
+    ]
+  where
+  fields ys = P.singPlural ys [text "field"] [text "fields"]
+
+prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> [C.Name] -> m Doc
+prettyTooManyFields r missing xs = fsep $ concat
+    [ pwords "The record type"
+    , [prettyTCM r]
+    , pwords "does not have the"
+    , fields xs
+    , punctuate comma (map pretty xs)
+    , if null missing then [] else concat
+      [ pwords "but it would have the"
+      , fields missing
+      , punctuate comma (map pretty missing)
+      ]
+    ]
+  where
+  fields ys = P.singPlural ys [text "field"] [text "fields"]
 
 -- | Report a number of names that are not in scope.
 prettyNotInScopeNames

@@ -4,7 +4,9 @@ module Agda.TypeChecking.Records where
 
 import Control.Monad
 import Control.Monad.Trans.Maybe
+import Control.Monad.Writer
 
+import Data.Bifunctor
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
@@ -20,11 +22,12 @@ import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Warnings
 
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
@@ -36,6 +39,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -45,39 +49,77 @@ mkCon h info args = Con h info (map Apply args)
 
 -- | Order the fields of a record construction.
 orderFields
-  :: forall a
-  .  QName             -- ^ Name of record type (for error message).
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
+  -> (Arg C.Name -> a) -- ^ How to fill a missing field.
+  -> [Arg C.Name]      -- ^ Field names of the record type.
+  -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
+  -> Writer [RecordFieldWarning] [a]           -- ^ Content arranged in official order.
+orderFields r fill axs fs = do
+  -- reportSDoc "tc.record" 30 $ vcat
+  --   [ "orderFields"
+  --   , "  official fields: " <+> sep (map pretty xs)
+  --   , "  provided fields: " <+> sep (map pretty ys)
+  --   ]
+  unlessNull alien     $ warn $ TooManyFieldsWarning r missing
+  unlessNull duplicate $ warn $ DuplicateFieldsWarning
+  return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) uniq
+  where
+    (uniq, duplicate) = nubAndDuplicatesOn fst fs   -- separating duplicate fields
+    xs        = map unArg axs                       -- official fields (accord. record type)
+    missing   = filter (not . hasElem (map fst fs)) xs  -- missing  fields
+    alien     = filter (not . hasElem xs . fst) fs      -- spurious fields
+    warn w    = tell . singleton . w . map (second getRange)
+
+-- | Raise generated 'RecordFieldWarning's as warnings.
+warnOnRecordFieldWarnings :: Writer [RecordFieldWarning] a -> TCM a
+warnOnRecordFieldWarnings comp = do
+  let (res, ws) = runWriter comp
+  mapM_ (warning . RecordFieldWarning) ws
+  return res
+
+-- | Raise generated 'RecordFieldWarning's as errors.
+failOnRecordFieldWarnings :: Writer [RecordFieldWarning] a -> TCM a
+failOnRecordFieldWarnings comp = do
+  let (res, ws) = runWriter comp
+  mapM_ (typeError . recordFieldWarningToError) ws
+    -- This will raise the first warning (if any) as error.
+  return res
+
+-- | Order the fields of a record construction.
+--   Raise generated 'RecordFieldWarning's as warnings.
+orderFieldsWarn
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
   -> (Arg C.Name -> a) -- ^ How to fill a missing field.
   -> [Arg C.Name]      -- ^ Field names of the record type.
   -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
   -> TCM [a]           -- ^ Content arranged in official order.
-orderFields r fill axs fs = do
-  reportSDoc "tc.record" 30 $ vcat
-    [ "orderFields"
-    , "  official fields: " <+> sep (map pretty xs)
-    , "  provided fields: " <+> sep (map pretty ys)
-    ]
-  unlessNull duplicate $ typeError . DuplicateFields . nubOn id
-  unlessNull alien     $ typeError . TooManyFields r missing
-  return $ for axs $ \ ax -> fromMaybe (fill ax) $ lookup (unArg ax) fs
-  where
-    xs        = map unArg axs           -- official  fields (accord. record type)
-    ys        = map fst fs              -- provided  fields
-    duplicate = duplicates ys           -- duplicate fields
-    alien     = ys List.\\ xs           -- spurious  fields
-    missing   = xs List.\\ ys           -- missing   fields
+orderFieldsWarn r fill axs fs = warnOnRecordFieldWarnings $ orderFields r fill axs fs
+
+-- | Order the fields of a record construction.
+--   Raise generated 'RecordFieldWarning's as errors.
+orderFieldsFail
+  :: forall a . HasRange a
+  => QName             -- ^ Name of record type (for error message).
+  -> (Arg C.Name -> a) -- ^ How to fill a missing field.
+  -> [Arg C.Name]      -- ^ Field names of the record type.
+  -> [(C.Name, a)]     -- ^ Provided fields with content in the record expression.
+  -> TCM [a]           -- ^ Content arranged in official order.
+orderFieldsFail r fill axs fs = failOnRecordFieldWarnings $ orderFields r fill axs fs
 
 -- | A record field assignment @record{xs = es}@ might not mention all
 --   visible fields.  @insertMissingFields@ inserts placeholders for
 --   the missing visible fields and returns the values in order
 --   of the fields in the record declaration.
 insertMissingFields
-  :: forall a
-  .  QName                -- ^ Name of record type (for error reporting).
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
   -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
   -> [FieldAssignment' a] -- ^ Given fields.
   -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
-  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+  -> Writer [RecordFieldWarning] [NamedArg a]
+       -- ^ Given fields enriched by placeholders for missing explicit fields.
 insertMissingFields r placeholder fs axs = do
   -- Compute the list of given fields, decorated with the ArgInfo from the record def.
   let arg x e = caseMaybe (List.find ((x ==) . unArg) axs) (defaultNamedArg e) $ \ a ->
@@ -100,6 +142,34 @@ insertMissingFields r placeholder fs axs = do
     nameIfHidden ax
       | visible ax = unnamed
       | otherwise  = named $ WithOrigin Inserted $ Ranged (getRange ax) $ prettyShow $ unArg ax
+
+-- | A record field assignment @record{xs = es}@ might not mention all
+--   visible fields.  @insertMissingFields@ inserts placeholders for
+--   the missing visible fields and returns the values in order
+--   of the fields in the record declaration.
+insertMissingFieldsWarn
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
+  -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
+  -> [FieldAssignment' a] -- ^ Given fields.
+  -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
+  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+insertMissingFieldsWarn r placeholder fs axs =
+  warnOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
+
+-- | A record field assignment @record{xs = es}@ might not mention all
+--   visible fields.  @insertMissingFields@ inserts placeholders for
+--   the missing visible fields and returns the values in order
+--   of the fields in the record declaration.
+insertMissingFieldsFail
+  :: forall a . HasRange a
+  => QName                -- ^ Name of record type (for error reporting).
+  -> (C.Name -> a)        -- ^ Function to generate a placeholder for missing visible field.
+  -> [FieldAssignment' a] -- ^ Given fields.
+  -> [Arg C.Name]         -- ^ All record field names with 'ArgInfo'.
+  -> TCM [NamedArg a]     -- ^ Given fields enriched by placeholders for missing explicit fields.
+insertMissingFieldsFail r placeholder fs axs =
+  failOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
 -- | The name of the module corresponding to a record.
 recordModule :: QName -> ModuleName
@@ -238,9 +308,9 @@ getDefType f t = do
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
   reportSDoc "tc.deftype" 20 $ vcat
-    [ ("definition f = " <> prettyTCM f) <+> text ("  -- raw: " ++ prettyShow f)
-    , "has type   a = " <> prettyTCM a
-    , "principal  t = " <> prettyTCM t
+    [ "definition f =" <+> prettyTCM f <+> text ("  -- raw: " ++ prettyShow f)
+    , "has type   a =" <+> prettyTCM a
+    , "principal  t =" <+> prettyTCM t
     ]
   caseMaybe mp fallback $
     \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
@@ -312,7 +382,7 @@ data ElimType
 instance PrettyTCM ElimType where
   prettyTCM (ArgT a)    = prettyTCM a
   prettyTCM (ProjT a b) =
-    "." <> parens (prettyTCM a <+> "->" <+> prettyTCM b)
+    "." TCM.<> parens (prettyTCM a <+> "->" <+> prettyTCM b)
 
 -- | Given a head and its type, compute the types of the eliminations.
 

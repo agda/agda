@@ -9,6 +9,7 @@ import Prelude hiding ( null )
 
 import Data.IORef
 import Data.Maybe
+import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
 import qualified Data.Text.Lazy as T
 
@@ -21,6 +22,8 @@ import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -239,7 +242,7 @@ instance Pretty Expr where
 --                      sep [ pretty e1
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
-            RawApp _ es    -> fsep $ map pretty es
+            RawApp _ es    -> fsep $ map pretty $ List1.toList es
             OpApp _ q _ es -> fsep $ prettyOpApp q es
 
             WithApp _ e es -> fsep $
@@ -247,19 +250,19 @@ instance Pretty Expr where
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e
-            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty bs) <+> absurd h
+            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty $ List1.toList bs) <+> absurd h
             Lam _ bs e ->
-                sep [ lambda <+> fsep (map pretty bs) <+> arrow
+                sep [ lambda <+> fsep (map pretty $ List1.toList bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty $ List1.toList pes)
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
-                sep [ pretty (Tel $ smashTel tel) <+> arrow
+                sep [ pretty (Tel $ smashTel $ List1.toList tel) <+> arrow
                     , pretty e
                     ]
             Set _   -> "Set"
@@ -276,7 +279,7 @@ instance Pretty Expr where
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> "do" <+> vcat (map pretty ss)
+            DoBlock _ ss -> "do" <+> vcat (map pretty $ List1.toList ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
             DoubleDot _ e  -> ".." <> pretty e
@@ -310,10 +313,10 @@ instance Pretty ModuleAssignment where
   pretty (ModuleAssignment m es i) = fsep (pretty m : map pretty es) <+> pretty i
 
 instance Pretty LamClause where
-  pretty (LamClause lhs rhs wh _) =
-    sep [ pretty lhs
+  pretty (LamClause ps rhs _) =
+    sep [ fsep (map pretty ps)
         , nest 2 $ pretty' rhs
-        ] $$ nest 2 (pretty wh)
+        ]
     where
       pretty' (RHS e)   = arrow <+> pretty e
       pretty' AbsurdRHS = empty
@@ -364,7 +367,7 @@ instance Pretty LamBinding where
 instance Pretty TypedBinding where
     pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
-      fsep (map (pretty . NamedBinding True) xs)
+      fsep (map (pretty . NamedBinding True) $ List1.toList xs)
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
@@ -373,7 +376,7 @@ instance Pretty TypedBinding where
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
-      | ys@(y : _) <- groupBinds xs ]
+      | ys@(y : _) <- groupBinds $ List1.toList xs ]
       where
         groupBinds [] = []
         groupBinds (x : xs)
@@ -395,7 +398,7 @@ instance Pretty Tel where
 smashTel :: Telescope -> Telescope
 smashTel (TBind r xs e  :
           TBind _ ys e' : tel)
-  | show e == show e' = smashTel (TBind r (xs ++ ys) e : tel)
+  | show e == show e' = smashTel (TBind r (xs Semigroup.<> ys) e : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 
@@ -518,7 +521,7 @@ instance Pretty Declaration where
             RecordDef _ x ind eta con tel cs ->
               pRecord x ind eta con tel Nothing cs
             Infix f xs  ->
-                pretty f <+> fsep (punctuate comma $ map pretty xs)
+                pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
@@ -680,7 +683,7 @@ instance Pretty Pattern where
     pretty = \case
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
-            RawAppP _ ps    -> fsep $ map pretty ps
+            RawAppP _ ps    -> fsep $ map pretty $ List1.toList ps
             OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps)
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p

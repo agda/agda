@@ -28,8 +28,7 @@ module Agda.Syntax.Concrete
   , ModuleAssignment(..)
   , BoundName(..), mkBoundName_, mkBoundName
   , TacticAttribute
-  , Telescope -- (..)
-  , countTelVars
+  , Telescope, Telescope1
   , lamBindingsToTelescope
   , makePi
     -- * Declarations
@@ -77,12 +76,14 @@ import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Either ( maybeLeft )
 import Agda.Utils.Lens
+import Agda.Utils.List1  ( List1, pattern (:|) )
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
 data OpApp e
-  = SyntaxBindingLambda Range [LamBinding] e
+  = SyntaxBindingLambda Range (List1 LamBinding) e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
@@ -129,7 +130,7 @@ data Expr
   | Lit Literal                                -- ^ ex: @1@ or @\"foo\"@
   | QuestionMark Range (Maybe Nat)             -- ^ ex: @?@ or @{! ... !}@
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
-  | RawApp Range [Expr]                        -- ^ before parsing operators
+  | RawApp Range (List1 Expr)                  -- ^ before parsing operators
   | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
   | OpApp Range QName (Set A.Name)
           [NamedArg
@@ -143,11 +144,11 @@ data Expr
   | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
   | HiddenArg Range (Named_ Expr)              -- ^ ex: @{e}@ or @{x=e}@
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
-  | Lam Range [LamBinding] Expr                -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+  | Lam Range (List1 LamBinding) Expr          -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
   | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
-  | ExtendedLam Range [LamClause]              -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
+  | ExtendedLam Range (List1 LamClause)        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
-  | Pi Telescope Expr                          -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
+  | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Set Range                                  -- ^ ex: @Set@
   | Prop Range                                 -- ^ ex: @Prop@
   | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
@@ -157,7 +158,7 @@ data Expr
   | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
-  | DoBlock Range [DoStmt]                     -- ^ ex: @do x <- m1; m2@
+  | DoBlock Range (List1 DoStmt)               -- ^ ex: @do x <- m1; m2@
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
@@ -178,7 +179,7 @@ data Pattern
   = IdentP QName                           -- ^ @c@ or @x@
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
-  | RawAppP Range [Pattern]                -- ^ @p1..pn@ before parsing operators
+  | RawAppP Range (List1 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set A.Name)
            [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
@@ -249,7 +250,7 @@ mkBoundName x f = BName x f Nothing
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind Range [NamedArg Binder] e
+  = TBind Range (List1 (NamedArg Binder)) e
     -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
   | TLet  Range [Declaration]
     -- ^ Let binding @(let Ds)@ or @(open M args)@.
@@ -257,28 +258,22 @@ data TypedBinding' e
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
-type Telescope = [TypedBinding]
-
-countTelVars :: Telescope -> Nat
-countTelVars tel =
-  sum [ case b of
-          TBind _ xs _ -> genericLength xs
-          TLet{}       -> 0
-      | b <- tel ]
+type Telescope1 = List1 TypedBinding
+type Telescope  = [TypedBinding]
 
 -- | We can try to get a @Telescope@ from a @[LamBinding]@.
 --   If we have a type annotation already, we're happy.
 --   Otherwise we manufacture a binder with an underscore for the type.
 lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
-lamBindingsToTelescope r = map $ \case
+lamBindingsToTelescope r = fmap $ \case
   DomainFull ty -> ty
-  DomainFree nm -> TBind r [nm] $ Underscore r Nothing
+  DomainFree nm -> TBind r (singleton nm) $ Underscore r Nothing
 
 -- | Smart constructor for @Pi@: check whether the @Telescope@ is empty
 
 makePi :: Telescope -> Expr -> Expr
-makePi [] e = e
-makePi bs e = Pi bs e
+makePi []     = id
+makePi (b:bs) = Pi (b :| bs)
 
 {-| Left hand sides can be written in infix style. For example:
 
@@ -333,10 +328,11 @@ data WhereClause' decls
     --   and is propagated from the parent function.
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
-data LamClause = LamClause { lamLHS      :: LHS
-                           , lamRHS      :: RHS
-                           , lamWhere    :: WhereClause -- ^ always 'NoWhere' (see parser)
-                           , lamCatchAll :: Bool }
+data LamClause = LamClause
+  { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
+  , lamRHS      :: RHS
+  , lamCatchAll :: Bool
+  }
   deriving (Data, Eq)
 
 -- | An expression followed by a where clause.
@@ -396,7 +392,7 @@ data Declaration
   | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
   | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
-  | Infix Fixity [Name]
+  | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
@@ -526,11 +522,10 @@ type HoleContent = HoleContent' () Pattern Expr
 data AppView = AppView Expr [NamedArg Expr]
 
 appView :: Expr -> AppView
-appView e =
-  case e of
-    App r e1 e2     -> vApp (appView e1) e2
-    RawApp _ (e:es) -> AppView e $ map arg es
-    _               -> AppView e []
+appView = \case
+    App r e1 e2      -> vApp (appView e1) e2
+    RawApp _ (e:|es) -> AppView e $ map arg es
+    e                -> AppView e []
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
 
@@ -545,16 +540,16 @@ isSingleIdentifierP p = case removeSingletonRawAppP p of
   _                -> Nothing
 
 removeSingletonRawAppP :: Pattern -> Pattern
-removeSingletonRawAppP p = case p of
-    RawAppP _ [p'] -> removeSingletonRawAppP p'
-    ParenP _ p'    -> removeSingletonRawAppP p'
-    _ -> p
+removeSingletonRawAppP = \case
+    RawAppP _ (p :| []) -> removeSingletonRawAppP p
+    ParenP _ p          -> removeSingletonRawAppP p
+    p -> p
 
 -- | Observe the hiding status of an expression
 
 observeHiding :: Expr -> WithHiding Expr
 observeHiding = \case
-  RawApp _ [e]                    -> observeHiding e
+  RawApp _ (e :| [])              -> observeHiding e
   HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
   InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
   e                               -> WithHiding NotHidden e
@@ -609,7 +604,7 @@ isAbsurdP = \case
   AbsurdP r      -> pure (r, NotHidden)
   AsP _ _      p -> isAbsurdP p
   ParenP _     p -> isAbsurdP p
-  RawAppP _ [p]  -> isAbsurdP p
+  RawAppP _ (p :| []) -> isAbsurdP p
   HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
   InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
   _ -> Nothing
@@ -648,17 +643,15 @@ instance LensHiding LamBinding where
   mapHiding f (DomainFull a) = DomainFull $ mapHiding f a
 
 instance LensHiding TypedBinding where
-  getHiding (TBind _ (x : _) _) = getHiding x   -- Slightly dubious
-  getHiding (TBind _ [] _)      = __IMPOSSIBLE__
+  getHiding (TBind _ (x :| _) _) = getHiding x   -- Slightly dubious
   getHiding TLet{}              = mempty
-  mapHiding f (TBind r xs e) = TBind r ((map . mapHiding) f xs) e
+  mapHiding f (TBind r xs e) = TBind r (fmap (mapHiding f) xs) e
   mapHiding f b@TLet{}       = b
 
 instance LensRelevance TypedBinding where
-  getRelevance (TBind _ (x : _) _) = getRelevance x   -- Slightly dubious
-  getRelevance (TBind _ [] _)      = __IMPOSSIBLE__
+  getRelevance (TBind _ (x :|_) _) = getRelevance x   -- Slightly dubious
   getRelevance TLet{}              = mempty
-  mapRelevance f (TBind r xs e) = TBind r ((map . mapRelevance) f xs) e
+  mapRelevance f (TBind r xs e) = TBind r (fmap (mapRelevance f) xs) e
   mapRelevance f b@TLet{}       = b
 
 -- HasRange instances
@@ -786,7 +779,7 @@ instance HasRange RHS where
   getRange (RHS e)   = getRange e
 
 instance HasRange LamClause where
-  getRange (LamClause lhs rhs wh _) = getRange (lhs, rhs, wh)
+  getRange (LamClause lhs rhs _) = getRange (lhs, rhs)
 
 instance HasRange DoStmt where
   getRange (DoBind r _ _ _) = r
@@ -958,7 +951,7 @@ instance KillRange LHS where
   killRange (LHS p r w e)  = killRange4 LHS p r w e
 
 instance KillRange LamClause where
-  killRange (LamClause a b c d) = killRange4 LamClause a b c d
+  killRange (LamClause a b c) = killRange3 LamClause a b c
 
 instance KillRange DoStmt where
   killRange (DoBind r p e w) = killRange4 DoBind r p e w
@@ -1187,7 +1180,7 @@ instance NFData a => NFData (WhereClause' a) where
   rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData LamClause where
-  rnf (LamClause a b c d) = rnf (a, b, c, d)
+  rnf (LamClause a b c) = rnf (a, b, c)
 
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a) = rnf a

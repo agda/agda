@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -v tc.record:30 #-}
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 record R : Set₁ where
   field
     foo {boo} moo : Set
