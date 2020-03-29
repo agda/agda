@@ -107,7 +107,6 @@ liftListT lift xs = runMListT $ caseMaybeM (lift $ runListT xs) (return nilListT
 -- Instances
 
 instance Monad m => Semigroup (ListT m a) where
-  {-# INLINE (<>) #-}
   l1 <> l2 = ListT $ foldListT cons (runListT l2) l1
     where cons a = runListT . consListT a . ListT
 
@@ -115,7 +114,6 @@ instance Monad m => Monoid (ListT m a) where
   {-# INLINE mempty #-}
   mempty        = nilListT
 #if !(MIN_VERSION_base(4,11,0))
-  {-# INLINE mappend #-}
   mappend = (<>)
 #endif
 
