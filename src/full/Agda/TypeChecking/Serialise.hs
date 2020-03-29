@@ -51,7 +51,7 @@ import Data.Semigroup((<>))
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
 
-#if __GLASGOW_HASKELL__ >= 821
+#if __GLASGOW_HASKELL__ >= 804
 import GHC.Compact as C
 #endif
 
@@ -196,7 +196,7 @@ decode s = do
 
   case r of
     Right x -> do
-#if __GLASGOW_HASKELL__ >= 821
+#if __GLASGOW_HASKELL__ >= 804
       -- "Compact" the interfaces (without breaking sharing) to
       -- reduce the amount of memory that is traversed by the
       -- garbage collector.
