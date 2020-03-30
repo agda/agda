@@ -75,7 +75,7 @@ rstDelimiter = ".. raw:: html\n"
 -- | The directive inserted before rendered code blocks in org
 
 orgDelimiterStart :: String
-orgDelimiterStart = "#+BEGIN_EXPORT html\n<pre class=\"agda\">\n"
+orgDelimiterStart = "#+BEGIN_EXPORT html\n<pre class=\"Agda\">\n"
 
 -- | The directive inserted after rendered code blocks in org
 
