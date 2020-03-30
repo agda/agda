@@ -111,7 +111,6 @@ instance Monad m => Semigroup (ListT m a) where
     where cons a = runListT . consListT a . ListT
 
 instance Monad m => Monoid (ListT m a) where
-  {-# INLINE mempty #-}
   mempty        = nilListT
 #if !(MIN_VERSION_base(4,11,0))
   mappend = (<>)
