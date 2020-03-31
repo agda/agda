@@ -59,9 +59,7 @@ files.
 If you use `Nix-style Local Builds
 <https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
 by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
-following error when compiling with the GHC backend:
-
-.. code-block::
+following error when compiling with the GHC backend::
 
   Compilation error:
 
