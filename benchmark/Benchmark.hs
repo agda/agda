@@ -73,7 +73,7 @@ bytesP :: ReadP Bytes
 bytesP = integerP <* skipSpaces <* string "bytes"
 
 megaBytesP :: ReadP MegaBytes
-megaBytesP = integerP <* skipSpaces <* (string "Mb" +++ string "MB")
+megaBytesP = integerP <* skipSpaces <* (string "Mb" +++ string "MB" +++ string "MiB")
 
 floatP :: ReadP Float
 floatP = do
