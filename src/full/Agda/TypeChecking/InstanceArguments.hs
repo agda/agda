@@ -182,7 +182,13 @@ initialInstanceCandidates t = do
         filterQualified :: TCM (Maybe Candidate) -> TCM (Maybe Candidate)
         filterQualified m = ifM (optQualifiedInstances <$> pragmaOptions) m $ do
           qc <- inverseScopeLookup' AmbiguousAnything (Right q) <$> getScope
-          let isQual = maybe False isQualified $ listToMaybe qc
+          let isQual = maybe True isQualified $ listToMaybe qc
+          reportSDoc "tc.instance.qualified" 30 $
+            if isQual then
+              "dropping qualified instance" <+> prettyTCM q
+            else
+              "keeping instance" <+> prettyTCM q <+>
+              "since it is in scope as" <+> prettyTCM qc
           if isQual then return Nothing else m
 
 
