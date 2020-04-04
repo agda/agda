@@ -201,9 +201,9 @@ findProjectConfig root = do
     []    -> do
       up <- canonicalizePath $ root </> ".."
       if up == root then return (Nothing, []) else findProjectConfig up
-    files@["prim.agda-lib"] -> do
+    files@["prim.agda-lib"] ->
       return (Nothing, files)
-    files -> return ((Just root, files))
+    files -> return (Just root, files)
 
 -- | Get project root
 
