@@ -153,7 +153,7 @@ instance Arbitrary Aspects where
   arbitrary = do
     aspect     <- arbitrary
     other      <- arbitrary
-    note       <- maybeGen string
+    note       <- string
     defSite    <- arbitrary
     tokenBased <- arbitrary
     return (Aspects { aspect         = aspect

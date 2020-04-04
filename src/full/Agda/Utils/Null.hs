@@ -31,7 +31,7 @@ import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Text.PrettyPrint (Doc)
+import Text.PrettyPrint (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -102,7 +102,7 @@ instance Null (Maybe a) where
 
 instance Null Doc where
   empty = mempty
-  null  = (== mempty)
+  null  = isEmpty
 
 instance (Null (m a), Monad m) => Null (ReaderT r m a) where
   empty = lift empty

@@ -6,6 +6,7 @@ import Control.Monad
 
 import Data.Maybe (fromMaybe)
 
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
@@ -16,12 +17,30 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
 import Agda.Utils.FileName
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+
+-- | Parse @quote@.
+quotedName :: (MonadTCError m, MonadAbsToCon m) => A.Expr -> m QName
+quotedName = \case
+  A.Var x          -> genericError $ "Cannot quote a variable " ++ prettyShow x
+  A.Def x          -> return x
+  A.Macro x        -> return x
+  A.Proj _o p      -> unambiguous p
+  A.Con c          -> unambiguous c
+  A.ScopedExpr _ e -> quotedName e
+  e -> genericDocError =<< do
+    text "Can only quote defined names, but encountered" <+> prettyA e
+  where
+  unambiguous xs
+    | Just x <- getUnambiguous xs = return x
+    | otherwise =
+        genericError $ "quote: Ambigous name: " ++ prettyShow (unAmbQ xs)
 
 
 data QuotingKit = QuotingKit

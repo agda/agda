@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
@@ -961,7 +960,7 @@ flattenScope ms scope =
 
     build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
     build ms getNames s = Map.unionsWith (++) $
-        (Map.mapKeysMonotonic C.QName $ getNames s) :
+        Map.mapKeysMonotonic C.QName (getNames s) :
           [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
               build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
@@ -992,7 +991,7 @@ concreteNamesInScope scope =
 
     build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
     build getNames s = Set.unions $
-        (Set.fromList $ map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
+        Set.fromList (map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
           [ Set.mapMonotonic (\ y -> C.Qual x y) $
               build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
@@ -1034,7 +1033,7 @@ scopeLookup' q scope =
             -- | Get the definitions named @x@ in scope @s@ and interpret them as modules.
             -- Andreas, 2013-05-01: Issue 836 debates this feature:
             -- Qualified constructors are qualified by their datatype rather than a module
-            defs :: [A.ModuleName]
+            defs :: [A.ModuleName] -- NB:: Defined but not used
             defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
         -- Andreas, 2013-05-01:  Issue 836 complains about the feature
         -- that constructors can also be qualified by their datatype
@@ -1098,7 +1097,7 @@ isNameInScope q scope =
   Set.member q (scope ^. scopeInScope)
 
 -- | Find the concrete names that map (uniquely) to a given abstract name.
---   Sort by length, shortest first.
+--   Sort by number of modules in the qualified name, unqualified names first.
 
 inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup = inverseScopeLookup' AmbiguousConProjs
@@ -1270,7 +1269,7 @@ prettyNameSpace (NameSpace names mods _) =
 instance Pretty Scope where
   pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     vcat $
-      [ "scope" <+> pretty name ] ++ ind (
+      "scope" <+> pretty name : ind (
         concat [ blockOfLines (pretty nsid) $ prettyNameSpace ns
                | (nsid, ns) <- scopeNameSpaces scope ]
       ++ blockOfLines "imports"
@@ -1288,8 +1287,8 @@ instance Pretty ScopeInfo where
     [ "ScopeInfo"
     , "  current = " <> pretty this
     ] ++
-    (if null toBind then [] else [ "  toBind  = " <> pretty locals ]) ++
-    (if null locals then [] else [ "  locals  = " <> pretty locals ]) ++
+    (["  toBind  = " <> pretty locals | not (null toBind)]) ++
+    (["  locals  = " <> pretty locals | not (null locals)]) ++
     [ "  context = " <> pretty ctx
     , "  modules"
     ] ++

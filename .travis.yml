@@ -4,11 +4,10 @@
 # NB: don't set `language: haskell` here.
 language: c
 
-# Request Ubuntu Trusty (14.04 LTS).
-dist: trusty
+os: linux
 
-# Explicitly request sudo-enabled virtual environments [Issue #1992].
-sudo: required
+# Request Ubuntu Xenial (16.04 LTS).
+dist: xenial
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
@@ -17,6 +16,7 @@ sudo: required
 
 branches:
   only:
+    - imports
     - master
     - future
     - maint-2.4
@@ -94,7 +94,7 @@ jobs:
         apt:
           packages:
             - ghc-8.8.3
-            - cabal-install-3.0
+            - cabal-install-3.2
             - texlive-binaries
             - librsvg2-bin
           sources:
@@ -177,7 +177,7 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.3 CABAL_VER=3.0
+      env: GHC_VER=8.8.3 CABAL_VER=3.2
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&

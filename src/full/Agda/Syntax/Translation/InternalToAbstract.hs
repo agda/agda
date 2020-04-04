@@ -29,7 +29,6 @@ import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
 import Control.Monad.State hiding (mapM_, mapM)
 
-import Data.Foldable (Foldable, foldMap)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
@@ -37,12 +36,11 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (traverse, mapM)
+import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
@@ -55,7 +53,6 @@ import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
@@ -72,6 +69,8 @@ import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -444,66 +443,70 @@ reifyTerm expandAnonDefs0 v0 = do
     -- only show up in errors. Check the spined form!
     _ | I.Var n (I.Proj _ p : es) <- v,
         Just name <- getGeneralizedFieldName p -> do
-      let fakeName = (qnameName p) { nameConcrete = C.Name noRange C.InScope [C.Id name] } -- TODO: infix names!?
+      let fakeName = (qnameName p) {nameConcrete = C.Name noRange C.InScope [C.Id name]} -- TODO: infix names!?
       elims (A.Var fakeName) =<< reify es
-    I.Var n es   -> do
-        x  <- fromMaybeM (freshName_ $ "@" ++ show n) $ nameOfBV' n
-        elims (A.Var x) =<< reify es
-    I.Def x es   -> do
+    I.Var n es -> do
+      x <- fromMaybeM (freshName_ $ "@" ++ show n) $ nameOfBV' n
+      elims (A.Var x) =<< reify es
+    I.Def x es -> do
       reportSLn "reify.def" 100 $ "reifying def " ++ prettyShow x
-      (x,es) <- reifyPathPConstAsPath x es
+      (x, es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c ci vs -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
-      case isR || ci == ConORec of
-        True -> do
+      if isR || ci == ConORec
+        then do
           showImp <- showImplicitArguments
           let keep (a, v) = showImp || visible a
-          r  <- getConstructorData x
+          r <- getConstructorData x
           xs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
           vs <- map unArg <$> reify (fromMaybe __IMPOSSIBLE__ $ allApplyElims vs)
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unDom) $ filter keep $ zip xs vs
-        False -> reifyDisplayForm x vs $ do
+        else reifyDisplayForm x vs $ do
           def <- getConstInfo x
-          let Constructor{conPars = np} = theDef def
+          let Constructor {conPars = np} = theDef def
           -- if we are the the module that defines constructor x
           -- then we have to drop at least the n module parameters
-          n  <- getDefFreeVars x
+          n <- getDefFreeVars x
           -- the number of parameters is greater (if the data decl has
           -- extra parameters) or equal (if not) to n
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (unambiguous x)
-          if null vs then return h else do
-            es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
-            -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
-            -- if the first regular constructor argument is hidden
-            -- we turn it into a named argument, in order to avoid confusion
-            -- with the parameter arguments which can be supplied in abstract syntax
-            --
-            -- Andreas, 2012-09-17: this does not remove all sources of confusion,
-            -- since parameters could have the same name as regular arguments
-            -- (see for example the parameter {i} to Data.Star.Star, which is also
-            -- the first argument to the cons).
-            -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-            if np == 0 then apps h es else do
-              -- Get name of first argument from type of constructor.
-              -- Here, we need the reducing version of @telView@
-              -- because target of constructor could be a definition
-              -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
-              TelV tel _ <- telView (defType def)
-              let (pars, rest) = splitAt np $ telToList tel
-              case rest of
-                -- Andreas, 2012-09-18
-                -- If the first regular constructor argument is hidden,
-                -- we keep the parameters to avoid confusion.
-                (Dom {domInfo = info} : _) | notVisible info -> do
-                  let us = for (drop n pars) $ \ (Dom {domInfo = ai}) ->
-                             -- setRelevance Relevant $
-                             hideOrKeepInstance $ Arg ai underscore
-                  apps h $ us ++ es  -- Note: unless --show-implicit, @apps@ will drop @us@.
-                -- otherwise, we drop all parameters
-                _ -> apps h es
+          if null vs
+            then return h
+            else do
+              es <- reify (map (fromMaybe __IMPOSSIBLE__ . isApplyElim) vs)
+              -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
+              -- if the first regular constructor argument is hidden
+              -- we turn it into a named argument, in order to avoid confusion
+              -- with the parameter arguments which can be supplied in abstract syntax
+              --
+              -- Andreas, 2012-09-17: this does not remove all sources of confusion,
+              -- since parameters could have the same name as regular arguments
+              -- (see for example the parameter {i} to Data.Star.Star, which is also
+              -- the first argument to the cons).
+              -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
+              if np == 0
+                then apps h es
+                else do
+                  -- Get name of first argument from type of constructor.
+                  -- Here, we need the reducing version of @telView@
+                  -- because target of constructor could be a definition
+                  -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
+                  TelV tel _ <- telView (defType def)
+                  let (pars, rest) = splitAt np $ telToList tel
+                  case rest of
+                    -- Andreas, 2012-09-18
+                    -- If the first regular constructor argument is hidden,
+                    -- we keep the parameters to avoid confusion.
+                    (Dom {domInfo = info} : _) | notVisible info -> do
+                      let us = for (drop n pars) $ \(Dom {domInfo = ai}) ->
+                            -- setRelevance Relevant $
+                            hideOrKeepInstance $ Arg ai underscore
+                      apps h $ us ++ es -- Note: unless --show-implicit, @apps@ will drop @us@.
+                    -- otherwise, we drop all parameters
+                    _ -> apps h es
 
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
@@ -528,12 +531,13 @@ reifyTerm expandAnonDefs0 v0 = do
         mkPi b (Arg info a') = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ mkBinder_ x] a'] b
+          let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
+          return $ A.Pi noExprInfo (singleton $ TBind noRange tac xs a') b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
           df <- asksTC envPrintDomainFreePi
-          return $ and [df, freeIn 0 b, closed a]
+          return $ df && freeIn 0 b && closed a
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
@@ -675,7 +679,7 @@ reifyTerm expandAnonDefs0 v0 = do
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
         case extLam of
-          Just (pars, sys) | df, notElem x alreadyPrinting ->
+          Just (pars, sys) | df, x `notElem` alreadyPrinting ->
             locallyTC ePrintingPatternLambdas (x :) $
             reifyExtLam x pars sys (defClauses defn) es
 
@@ -791,7 +795,7 @@ reifyTerm expandAnonDefs0 v0 = do
                (reify . QNamed x . (`apply` pars))
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      elims (A.ExtendedLam exprNoRange dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam exprNoRange dInfo x $ List1.fromList cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
@@ -936,11 +940,12 @@ class BlankVars a where
   default blank :: (Functor f, BlankVars b, f b ~ a) => Set Name -> a -> a
   blank = fmap . blank
 
-instance BlankVars a => BlankVars (Arg a)              where
-instance BlankVars a => BlankVars (Named s a)          where
-instance BlankVars a => BlankVars [a]                  where
--- instance BlankVars a => BlankVars (A.Pattern' a)       where  -- see case EqualP !
-instance BlankVars a => BlankVars (FieldAssignment' a) where
+instance BlankVars a => BlankVars (Arg a)
+instance BlankVars a => BlankVars (Named s a)
+instance BlankVars a => BlankVars [a]
+instance BlankVars a => BlankVars (List1 a)
+instance BlankVars a => BlankVars (FieldAssignment' a)
+-- instance BlankVars a => BlankVars (A.Pattern' a)         -- see case EqualP !
 
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
@@ -1091,11 +1096,12 @@ instance Binder LetBinding where
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
 
-instance Binder a => Binder (FieldAssignment' a) where
-instance Binder a => Binder (Arg a)              where
-instance Binder a => Binder (Named x a)          where
-instance Binder a => Binder [a]                  where
-instance Binder a => Binder (Maybe a)            where
+instance Binder a => Binder (FieldAssignment' a)
+instance Binder a => Binder (Arg a)
+instance Binder a => Binder (Named x a)
+instance Binder a => Binder [a]
+instance Binder a => Binder (List1 a)
+instance Binder a => Binder (Maybe a)
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
@@ -1182,9 +1188,8 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
     reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
     reifyDotP o v = do
       keepVars <- optKeepPatternVariables <$> pragmaOptions
-      if | PatOVar x <- o
-         , keepVars       -> return $ A.VarP $ mkBindName x
-         | otherwise      -> A.DotP patNoRange <$> reify v
+      if | PatOVar x <- o , keepVars       -> return $ A.VarP $ mkBindName x
+         | otherwise                       -> A.DotP patNoRange <$> reify v
 
     reifyConP :: MonadReify m
               => ConHead -> ConPatternInfo -> [NamedArg DeBruijnPattern]
@@ -1355,7 +1360,8 @@ instance Reify I.Telescope A.Telescope where
     let r    = getRange e
         name = domName arg
     tac <- traverse reify $ domTactic arg
-    return $ TBind r tac [Arg info $ Named name $ A.mkBinder_ x] e : bs
+    let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
+    return $ TBind r tac xs e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

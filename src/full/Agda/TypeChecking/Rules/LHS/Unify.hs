@@ -130,12 +130,9 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
-import Data.IntSet (IntSet)
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable,traverse)
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -145,7 +142,6 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
@@ -402,7 +398,7 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
       mapMaybe $ \(FlexibleVar ai fc k p x) ->
-        FlexibleVar ai fc k p <$> List.findIndex (x==) (permPicks perm)
+        FlexibleVar ai fc k p <$> List.elemIndex x (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -624,10 +620,7 @@ isHom n x = do
   return $ raise (-n) x
 
 findFlexible :: Int -> FlexibleVars -> Maybe (FlexibleVar Nat)
-findFlexible i flex =
-  let flex'      = map flexVar flex
-      flexible i = i `elem` flex'
-  in List.find ((i ==) . flexVar) flex
+findFlexible i flex = List.find ((i ==) . flexVar) flex
 
 basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
@@ -891,7 +884,6 @@ unifyStep s step@Solution{} = solutionStep RetryNormalised s step
 unifyStep s (Injectivity k a d pars ixs c) = do
   ifM (liftTCM $ consOfHIT $ conName c) (return $ DontKnow []) $ do
   withoutK <- liftTCM withoutKOption
-  let n = eqCount s
 
   -- Split equation telescope into parts before and after current equation
   let (eqListTel1, _ : eqListTel2) = splitAt k $ telToList $ eqTel s
@@ -900,7 +892,6 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- Get constructor telescope and target indices
   cdef  <- liftTCM (getConInfo c)
   let ctype  = defType cdef `piApply` pars
-      forced = defForced cdef
   addContext (varTel s `abstract` eqTel1) $ reportSDoc "tc.lhs.unify" 40 $
     "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
@@ -1036,7 +1027,6 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   where
     i = flexVar fi
     m = varCount s
-    n = eqCount s
 
     projFlexKind :: Int -> FlexibleVarKind
     projFlexKind j = case flexKind fi of
@@ -1102,9 +1092,7 @@ unifyStep s (SkipIrrelevantEquation k) = do
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n   = eqCount s
-      m   = size dtel
-      deq = Def d $ map Apply $ teleArgs dtel
+  let deq = Def d $ map Apply $ teleArgs dtel
   -- TODO: tellUnifyProof ???
   -- but d is not a constructor...
   Unifies <$> do
@@ -1264,7 +1252,7 @@ patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go defaultModality v') forced)
   where
-    noForced v = IntSet.null . IntSet.intersection (precomputedFreeVars v) . IntMap.keysSet <$> get
+    noForced v = gets (IntSet.null . IntSet.intersection (precomputedFreeVars v) . IntMap.keysSet)
 
     bind md i = do
       Just md' <- gets $ IntMap.lookup i

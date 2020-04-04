@@ -3,15 +3,16 @@
 -}
 module Agda.Main where
 
+import Control.Monad (void)
 import Control.Monad.State
 
 import Data.Maybe
 
 import System.Environment
-import System.Exit
 import System.Console.GetOpt
 
 import Agda.Interaction.CommandLine
+import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.Monad
@@ -175,7 +176,7 @@ printUsage backends hp = do
 backendUsage :: Backend -> String
 backendUsage (Backend b) =
   usageInfo ("\n" ++ backendName b ++ " backend options") $
-    map (fmap $ const ()) (commandLineFlags b)
+    map void (commandLineFlags b)
 
 -- | Print version information.
 printVersion :: [Backend] -> IO ()
@@ -190,7 +191,7 @@ optionError :: String -> IO ()
 optionError err = do
   prog <- getProgName
   putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
-  exitFailure
+  exitAgdaWith OptionError
 
 -- | Run a TCM action in IO; catch and pretty print errors.
 runTCMPrettyErrors :: TCM () -> IO ()
@@ -203,10 +204,10 @@ runTCMPrettyErrors tcm = do
       throwError err
     case r of
       Right _ -> exitSuccess
-      Left _  -> exitFailure
+      Left _  -> exitAgdaWith TCMError
   `catchImpossible` \e -> do
     putStr $ show e
-    exitFailure
+    exitAgdaWith ImpossibleError
 
 -- | Main
 main :: IO ()

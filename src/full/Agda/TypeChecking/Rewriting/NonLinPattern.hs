@@ -22,7 +22,6 @@ import Agda.TypeChecking.Free.Lazy
 import Agda.TypeChecking.Irrelevance (workOnTypes, isPropM)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -318,7 +317,7 @@ instance Free NLPat where
 
 instance Free NLPType where
   freeVars' (NLPType s a) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
       {- then -} (freeVars' (s, a))
       {- else -} (freeVars' a)
 

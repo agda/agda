@@ -4,7 +4,6 @@ import Control.Monad
 import Data.Maybe
 import Data.Char
 import qualified Data.List as List
-import Data.Traversable (traverse)
 import qualified Data.Map as Map
 import Text.ParserCombinators.ReadP
 
@@ -151,19 +150,23 @@ sanityCheckPragma def (Just HsExport{}) =
 --       occurrence!
 getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c     <- canonicalName c
-  cDef  <- theDef <$> getConstInfo c
-  true  <- getBuiltinName builtinTrue
-  false <- getBuiltinName builtinFalse
-  nil   <- getBuiltinName builtinNil
-  cons  <- getBuiltinName builtinCons
-  sharp <- getBuiltinName builtinSharp
+  c       <- canonicalName c
+  cDef    <- theDef <$> getConstInfo c
+  true    <- getBuiltinName builtinTrue
+  false   <- getBuiltinName builtinFalse
+  nil     <- getBuiltinName builtinNil
+  cons    <- getBuiltinName builtinCons
+  nothing <- getBuiltinName builtinNothing
+  just    <- getBuiltinName builtinJust
+  sharp   <- getBuiltinName builtinSharp
   case cDef of
-    _ | Just c == true  -> return $ Just "True"
-      | Just c == false -> return $ Just "False"
-      | Just c == nil   -> return $ Just "[]"
-      | Just c == cons  -> return $ Just "(:)"
-      | Just c == sharp -> return $ Just "MAlonzo.RTE.Sharp"
+    _ | Just c == true    -> return $ Just "True"
+      | Just c == false   -> return $ Just "False"
+      | Just c == nil     -> return $ Just "[]"
+      | Just c == cons    -> return $ Just "(:)"
+      | Just c == nothing -> return $ Just "Nothing"
+      | Just c == just    -> return $ Just "Just"
+      | Just c == sharp   -> return $ Just "MAlonzo.RTE.Sharp"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of
@@ -192,8 +195,8 @@ data KindOfForeignCode
 -- | Classify a @FOREIGN GHC@ declaration.
 classifyForeign :: String -> KindOfForeignCode
 classifyForeign s0 = case ltrim s0 of
-  s | List.isPrefixOf "import " s -> ForeignImport
-  s | List.isPrefixOf "{-#" s -> classifyPragma $ drop 3 s
+  s | "import " `List.isPrefixOf` s -> ForeignImport
+  s | "{-#" `List.isPrefixOf` s -> classifyPragma $ drop 3 s
   _ -> ForeignOther
 
 -- | Classify a Haskell pragma into whether it is a file header pragma or not.

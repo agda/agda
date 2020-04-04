@@ -27,11 +27,11 @@ module Agda.Syntax.Parser.Parser (
 import Control.Applicative ( (<|>) )
 import Control.Monad
 
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import Data.Char
 import Data.List
 import Data.Maybe
-import Data.Monoid
+import Data.Semigroup ((<>))
 import qualified Data.Traversable as T
 
 import Debug.Trace
@@ -44,7 +44,6 @@ import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Attribute
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
@@ -54,9 +53,12 @@ import Agda.Utils.Either hiding (tests)
 import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
+import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
 
@@ -406,10 +408,10 @@ Id :: { Name }
 Id : id     {% mkName $1 }
 
 -- Space separated list of one or more identifiers.
-SpaceIds :: { [Name] }
+SpaceIds :: { List1 Name }
 SpaceIds
-    : Id SpaceIds { $1 : $2 }
-    | Id          { [$1] }
+    : Id SpaceIds { $1 <| $2 }
+    | Id          { singleton $1 }
 
 -- When looking for a double closed brace, we accept either a single token '}}'
 -- (which is what the unicode character "RIGHT WHITE CURLY BRACKET" is
@@ -435,33 +437,33 @@ MaybeDottedId
   | Id      { defaultArg $1 }
 
 -- Space separated list of one or more possibly dotted identifiers.
-MaybeDottedIds :: { [Arg Name] }
+MaybeDottedIds :: { List1 (Arg Name) }
 MaybeDottedIds
-    : MaybeDottedId MaybeDottedIds { $1 : $2 }
-    | MaybeDottedId                { [$1] }
+    : MaybeDottedId MaybeDottedIds { $1 <| $2 }
+    | MaybeDottedId                { singleton $1 }
 
 -- Space separated list of one or more identifiers, some of which may
 -- be surrounded by braces or dotted.
-ArgIds :: { [Arg Name] }
+ArgIds :: { List1 (Arg Name) }
 ArgIds
-    : MaybeDottedId ArgIds            { $1 : $2 }
-    | MaybeDottedId                   { [$1] }
-    | '{{' MaybeDottedIds DoubleCloseBrace ArgIds { map makeInstance $2 ++ $4 }
-    | '{{' MaybeDottedIds DoubleCloseBrace        { map makeInstance $2 }
-    | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
-    | '{' MaybeDottedIds '}'          { map hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds     { map (hide . setRelevance Irrelevant . defaultArg) $3 ++ $5 }
-    | '.' '{' SpaceIds '}'            { map (hide . setRelevance Irrelevant . defaultArg) $3 }
-    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (makeInstance . setRelevance Irrelevant . defaultArg) $3 ++ $5 }
-    | '.' '{{' SpaceIds DoubleCloseBrace          { map (makeInstance . setRelevance Irrelevant . defaultArg) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { map (hide . setRelevance NonStrict . defaultArg) $3 ++ $5 }
-    | '..' '{' SpaceIds '}'           { map (hide . setRelevance NonStrict . defaultArg) $3 }
-    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (makeInstance . setRelevance NonStrict . defaultArg) $3 ++ $5 }
-    | '..' '{{' SpaceIds DoubleCloseBrace         { map (makeInstance . setRelevance NonStrict . defaultArg) $3 }
+    : MaybeDottedId ArgIds            { $1 <| $2 }
+    | MaybeDottedId                   { singleton $1 }
+    | '{{' MaybeDottedIds DoubleCloseBrace ArgIds { fmap makeInstance $2 <> $4 }
+    | '{{' MaybeDottedIds DoubleCloseBrace        { fmap makeInstance $2 }
+    | '{' MaybeDottedIds '}' ArgIds   { fmap hide $2 <> $4 }
+    | '{' MaybeDottedIds '}'          { fmap hide $2 }
+    | '.' '{' SpaceIds '}' ArgIds     { fmap (hide . setRelevance Irrelevant . defaultArg) $3 <> $5 }
+    | '.' '{' SpaceIds '}'            { fmap (hide . setRelevance Irrelevant . defaultArg) $3 }
+    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 <> $5 }
+    | '.' '{{' SpaceIds DoubleCloseBrace          { fmap (makeInstance . setRelevance Irrelevant . defaultArg) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { fmap (hide . setRelevance NonStrict . defaultArg) $3 <> $5 }
+    | '..' '{' SpaceIds '}'           { fmap (hide . setRelevance NonStrict . defaultArg) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 <> $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { fmap (makeInstance . setRelevance NonStrict . defaultArg) $3 }
 
 -- Modalities preceeding identifiers
 
-ModalArgIds :: { ([Attr], [Arg Name]) }
+ModalArgIds :: { ([Attr], List1 (Arg Name)) }
 ModalArgIds : Attributes ArgIds  {% ($1,) `fmap` mapM (applyAttrs $1) $2 }
 
 -- Attributes are parsed as '@' followed by an atomic expression.
@@ -475,9 +477,9 @@ Attributes :: { [Attr] }
 Attributes : {- empty -}  { [] }
   | Attributes Attribute { $2 : $1 }
 
-Attributes1 :: { [Attr] }
-Attributes1 : Attribute  { [$1] }
-  | Attributes1 Attribute { $2 : $1 }
+Attributes1 :: { List1 Attr }
+Attributes1 : Attribute  { singleton $1 }
+  | Attributes1 Attribute { $2 <| $1 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -506,10 +508,10 @@ MaybeDottedBId
 
 -- Space separated list of binding identifiers. Used in fixity
 -- declarations infixl 100 + -
-SpaceBIds :: { [Name] }
+SpaceBIds :: { List1 Name }
 SpaceBIds
-    : BId SpaceBIds { $1 : $2 }
-    | BId           { [$1] }
+    : BId SpaceBIds { $1 <| $2 }
+    | BId           { singleton $1 }
 
 {- DOES PRODUCE REDUCE/REDUCE CONFLICTS!
 -- Space-separated list of binding identifiers. Used in dependent
@@ -532,31 +534,31 @@ CommaBIds
 -- at point (x y  it is not clear whether x y is an application or
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
-CommaBIds :: { [NamedArg Binder] }
+CommaBIds :: { List1 (NamedArg Binder) }
 CommaBIds : CommaBIdAndAbsurds {%
     case $1 of
       Left ns -> return ns
       Right _ -> parseError $ "expected sequence of bound identifiers, not absurd pattern"
     }
 
-CommaBIdAndAbsurds :: { Either [NamedArg Binder] [Expr] }
+CommaBIdAndAbsurds :: { Either (List1 (NamedArg Binder)) (List1 Expr) }
 CommaBIdAndAbsurds
   : Application {% boundNamesOrAbsurd $1 }
-  | QId '=' QId {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Left $3) }
-  | '_' '=' QId {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Left $3) }
-  | QId '=' '_' {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Right $ getRange $3) }
-  | '_' '=' '_' {% (Left . pure . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Right $ getRange $3) }
+  | QId '=' QId {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Left $3) }
+  | '_' '=' QId {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Left $3) }
+  | QId '=' '_' {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg (Just $1) (Right $ getRange $3) }
+  | '_' '=' '_' {% (Left . singleton . updateNamedArg mkBinder) `fmap` mkNamedArg Nothing   (Right $ getRange $3) }
 
 -- Parse a sequence of identifiers, including hiding info.
 -- Does not include instance arguments.
 -- E.g. x {y z} _ {v}
 -- To be used in typed bindings, like (x {y z} _ {v} : Nat).
-BIdsWithHiding :: { [NamedArg Binder] }
+BIdsWithHiding :: { List1 (NamedArg Binder) }
 BIdsWithHiding : Application {%
   -- interpret an expression as a name and maybe a pattern
   case mapM exprAsNameOrHiddenNames $1 of
     Nothing   -> parseError "Expected sequence of possibly hidden bound identifiers"
-    Just good -> forM (concat good) $ updateNamedArgA $ \ (n, me) -> do
+    Just good -> forM (List1.concat good) $ updateNamedArgA $ \ (n, me) -> do
                    p <- traverse exprToPattern me
                    pure $ Binder p (mkBoundName_ n)
     }
@@ -619,7 +621,7 @@ Expr
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (defaultArg $ rawAppUnlessSingleton (getRange $1) $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
@@ -627,32 +629,31 @@ Expr
 -- Level 1: Application
 Expr1 :: { Expr }
 Expr1  : WithExprs {% case $1 of
-                      { [e]    -> return e
-                      ; e : es -> return $ WithApp (fuseRange e es) e es
-                      ; []     -> parseError "impossible: empty with expressions"
+                      { e :| [] -> return e
+                      ; e :| es -> return $ WithApp (fuseRange e es) e es
                       }
                    }
 
-WithExprs :: { [Expr] }
+WithExprs :: { List1 Expr }
 WithExprs
-  : Application3 '|' WithExprs { RawApp (getRange $1) $1 :  $3 }
-  | Application                { [RawApp (getRange $1) $1] }
+  : Application3 '|' WithExprs { RawApp (getRange $1) $1 <| $3 }
+  | Application                { singleton (RawApp (getRange $1) $1) }
 
-Application :: { [Expr] }
+Application :: { List1 Expr }
 Application
-    : Expr2             { [$1] }
-    | Expr3 Application { $1 : $2 }
+    : Expr2             { singleton $1 }
+    | Expr3 Application { $1 <| $2 }
 
 -- Level 2: Lambdas and lets
 Expr2 :: { Expr }
 Expr2
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
-    | 'forall' ForallBindings Expr        { forallPi $2 $3 }
+    | 'forall' ForallBindings Expr { forallPi $2 $3 }
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
-    | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) }
+    | 'tactic' Application3        { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -660,22 +661,24 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
-    | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4)) (reverse $4) }
-    | '\\' AbsurdLamBindings       {% case $2 of
-                                       Left (bs, h) -> if null bs then return $ AbsurdLam r h else
-                                                       return $ Lam r bs (AbsurdLam r h)
-                                                         where r = fuseRange $1 bs
-                                       Right es -> do -- it is of the form @\ { p1 ... () }@
-                                                     p <- exprToLHS (RawApp (getRange es) es);
-                                                     return $ ExtendedLam (fuseRange $1 es)
-                                                                     [LamClause (p [] []) AbsurdRHS NoWhere False]
-                                   }
+    : '\\' '{' LamClauses '}'                  { ExtendedLam (getRange ($1,$2,$3,$4)) (List1.reverse $3) }
+    | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4))  (List1.reverse $4) }
+    | '\\' AbsurdLamBindings
+             {% case $2 of
+                  Left (bs, h) -> List1.ifNull bs
+                    {-then-} (return $ AbsurdLam r h)
+                    {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
+                    where r = fuseRange $1 bs
+                  Right es -> do
+                    -- It is of the form @\ { p1 ... () }@.
+                    cl <- mkAbsurdLamClause False es
+                    return $ ExtendedLam (fuseRange $1 es) $ singleton cl
+             }
 
-Application3 :: { [Expr] }
+Application3 :: { List1 Expr }
 Application3
-    : Expr3              { [$1] }
-    | Expr3 Application3 { $1 : $2 }
+    : Expr3              { singleton $1 }
+    | Expr3 Application3 { $1 <| $2 }
 
 -- Christian Sattler, 2017-08-04, issue #2671
 -- We allow empty lists of expressions for the LHS of extended lambda clauses.
@@ -704,7 +707,7 @@ Expr3NoCurly
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | propN                             { PropN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $2 }
+    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
@@ -730,12 +733,12 @@ Expr3
 RecordAssignments :: { RecordAssignments }
 RecordAssignments
   : {- empty -}        { [] }
-  | RecordAssignments1 { $1 }
+  | RecordAssignments1 { List1.toList $1 }
 
-RecordAssignments1 :: { RecordAssignments }
+RecordAssignments1 :: { List1 RecordAssignment }
 RecordAssignments1
-  : RecordAssignment                        { [$1] }
-  | RecordAssignment ';' RecordAssignments1 { $1 : $3 }
+  : RecordAssignment                        { singleton $1 }
+  | RecordAssignment ';' RecordAssignments1 { $1 <| $3 }
 
 RecordAssignment :: { RecordAssignment }
 RecordAssignment
@@ -749,12 +752,12 @@ ModuleAssignment
 FieldAssignments :: { [FieldAssignment] }
 FieldAssignments
   : {- empty -}       { [] }
-  | FieldAssignments1 { $1 }
+  | FieldAssignments1 { List1.toList $1 }
 
-FieldAssignments1 :: { [FieldAssignment] }
+FieldAssignments1 :: { List1 FieldAssignment }
 FieldAssignments1
-  : FieldAssignment                       { [$1] }
-  | FieldAssignment ';' FieldAssignments1 { $1 : $3 }
+  : FieldAssignment                       { singleton $1 }
+  | FieldAssignment ';' FieldAssignments1 { $1 <| $3 }
 
 FieldAssignment :: { FieldAssignment }
 FieldAssignment
@@ -765,16 +768,16 @@ FieldAssignment
  --------------------------------------------------------------------------}
 
 -- "Delta ->" to avoid conflict between Delta -> Gamma and Delta -> A.
-TeleArrow :: { Telescope }
+TeleArrow :: { Telescope1 }
 TeleArrow : Telescope1 '->' { $1 }
 
-Telescope1 :: { Telescope }
+Telescope1 :: { Telescope1 }
 Telescope1 : TypedBindings { $1 }
 
-TypedBindings :: { [TypedBinding] }
+TypedBindings :: { List1 TypedBinding }
 TypedBindings
-    : TypedBinding TypedBindings { $1 : $2 }
-    | TypedBinding               { [$1] }
+    : TypedBinding TypedBindings { $1 <| $2 }
+    | TypedBinding               { singleton $1 }
 
 
 -- A typed binding is either (x1 .. xn : A) or   {y1 .. ym : B}
@@ -827,7 +830,7 @@ TBind : CommaBIds ':' Expr  {
 ModalTBind :: { TypedBinding }
 ModalTBind : Attributes1 CommaBIds ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
+    xs <- mapM (applyAttrs1 $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
@@ -841,91 +844,67 @@ TBindWithHiding : BIdsWithHiding ':' Expr  {
 ModalTBindWithHiding :: { TypedBinding }
 ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
     let r = getRange ($1,$2,$3,$4) -- the range is approximate only for TypedBindings
-    xs <- mapM (applyAttrs $1 . setTacticAttr $1) $2
+    xs <- mapM (applyAttrs1 $1 . setTacticAttr $1) $2
     return $ TBind r xs $4
   }
 
 -- A non-empty sequence of lambda bindings.
-LamBindings :: { [LamBinding] }
+LamBindings :: { List1 LamBinding }
 LamBindings
   : LamBinds '->' {%
-      case reverse $1 of
-        Left _ : _ -> parseError "Absurd lambda cannot have a body."
-        _ : _      -> return [ b | Right b <- $1 ]
-        []         -> parsePanic "Empty LamBinds"
+      case List1.reverse $1 of  -- TODO: use List1.last
+        Left _ :| _ -> parseError "Absurd lambda cannot have a body."
+        _ :| _      -> return $ List1.fromList [ b | Right b <- List1.toList $1 ]
       }
 
-AbsurdLamBindings :: { Either ([LamBinding], Hiding) [Expr] }
+AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }
 AbsurdLamBindings
   : LamBindsAbsurd {%
     case $1 of
-      Left lb -> case reverse lb of
-                   Right _ : _ -> parseError "Missing body for lambda"
-                   Left h  : _ -> return $ Left ([ b | Right b <- init lb], h)
-                   _           -> parseError "Unsupported variant of lambda"
+      Left lb -> case List1.reverse lb of
+                   Right _ :| _ -> parseError "Missing body for lambda"
+                   Left h  :| _ -> return $ Left ([ b | Right b <- List1.init lb], h)
       Right es -> return $ Right es
     }
 
 -- absurd lambda is represented by @Left hiding@
-LamBinds :: { [Either Hiding LamBinding] }
+LamBinds :: { List1 (Either Hiding LamBinding) }
 LamBinds
-  : DomainFreeBinding LamBinds  { map Right $1 ++ $2 }
-  | TypedBinding LamBinds       { Right (DomainFull $1) : $2 }
-  | DomainFreeBinding           { map Right $1 }
-  | TypedBinding                { [Right $ DomainFull $1] }
-  | '(' ')'                     { [Left NotHidden] }
-  | '{' '}'                     { [Left Hidden] }
-  | '{{' DoubleCloseBrace       { [Left (Instance NoOverlap)] }
+  : DomainFreeBinding LamBinds  { fmap Right $1 <> $2 }
+  | TypedBinding LamBinds       { Right (DomainFull $1) <| $2 }
+  | DomainFreeBinding           { fmap Right $1 }
+  | TypedBinding                { singleton $ Right $ DomainFull $1 }
+  | '(' ')'                     { singleton $ Left NotHidden }
+  | '{' '}'                     { singleton $ Left Hidden }
+  | '{{' DoubleCloseBrace       { singleton $ Left (Instance NoOverlap) }
 
 -- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
-LamBindsAbsurd :: { Either [Either Hiding LamBinding] [Expr] }
+LamBindsAbsurd :: { Either (List1 (Either Hiding LamBinding)) (List1 Expr) }
 LamBindsAbsurd
-  : DomainFreeBinding LamBinds  { Left $ map Right $1 ++ $2 }
-  | TypedBinding LamBinds       { Left $ Right (DomainFull $1) : $2 }
+  : DomainFreeBinding LamBinds  { Left $ fmap Right $1 <> $2 }
+  | TypedBinding LamBinds       { Left $ Right (DomainFull $1) <| $2 }
   | DomainFreeBindingAbsurd     { case $1 of
-                                    Left lb -> Left $ map Right lb
+                                    Left lb -> Left $ fmap Right lb
                                     Right es -> Right es }
-  | TypedBinding                { Left [Right $ DomainFull $1] }
-  | '(' ')'                     { Left [Left NotHidden] }
-  | '{' '}'                     { Left [Left Hidden] }
-  | '{{' DoubleCloseBrace       { Left [Left (Instance NoOverlap)] }
+  | TypedBinding                { Left $ singleton $ Right $ DomainFull $1 }
+  | '(' ')'                     { Left $ singleton $ Left NotHidden }
+  | '{' '}'                     { Left $ singleton $ Left Hidden }
+  | '{{' DoubleCloseBrace       { Left $ singleton $ Left (Instance NoOverlap) }
 
--- FNF, 2011-05-05: No where clauses in extended lambdas for now
+-- FNF, 2011-05-05: No where-clauses in extended lambdas for now.
+-- Andreas, 2020-03-28: And also not in sight either nine years later.
 NonAbsurdLamClause :: { LamClause }
 NonAbsurdLamClause
-  : Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $1) $1) ;
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = RHS $3
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = False }
-        }
-  | CatchallPragma Application3PossiblyEmpty '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $2) $2) ;
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = RHS $4
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = True }
-        }
+  : Application3PossiblyEmpty '->' Expr {% mkLamClause False $1 (RHS $3) }
+  | CatchallPragma
+    Application3PossiblyEmpty '->' Expr {% mkLamClause True  $2 (RHS $4) }
 
 AbsurdLamClause :: { LamClause }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
-  : Application {% do
-      p <- exprToLHS (RawApp (getRange $1) $1);
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = AbsurdRHS
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = False }
-        }
-  | CatchallPragma Application {% do
-      p <- exprToLHS (RawApp (getRange $2) $2);
-      return LamClause{ lamLHS      = p [] []
-                      , lamRHS      = AbsurdRHS
-                      , lamWhere    = NoWhere
-                      , lamCatchAll = True }
-        }
+  : Application                {% mkAbsurdLamClause False $1 }
+  | CatchallPragma Application {% mkAbsurdLamClause True  $2 }
 
 LamClause :: { LamClause }
 LamClause
@@ -934,42 +913,41 @@ LamClause
 
 -- Parses all extended lambda clauses except for a single absurd clause, which is taken care of
 -- in AbsurdLambda
-LamClauses :: { [LamClause] }
+LamClauses :: { List1 LamClause }
 LamClauses
-   : LamClauses semi LamClause { $3 : $1 }
-   | AbsurdLamClause semi LamClause { [$3, $1] }
-   | NonAbsurdLamClause { [$1] }
---   | {- empty -} { [] }
+   : LamClauses semi LamClause { $3 <| $1 }
+   | AbsurdLamClause semi LamClause { $3 <| singleton $1 }
+   | NonAbsurdLamClause { singleton $1 }
 
 -- Parses all extended lambda clauses including a single absurd clause. For λ
 -- where this is not taken care of in AbsurdLambda
-LamWhereClauses :: { [LamClause] }
+LamWhereClauses :: { List1 LamClause }
 LamWhereClauses
-   : LamWhereClauses semi LamClause { $3 : $1 }
-   | LamClause { [$1] }
+   : LamWhereClauses semi LamClause { $3 <| $1 }
+   | LamClause { singleton $1 }
 
-ForallBindings :: { [LamBinding] }
+ForallBindings :: { List1 LamBinding }
 ForallBindings
   : TypedUntypedBindings1 '->' { $1 }
 
 -- A non-empty sequence of possibly untyped bindings.
-TypedUntypedBindings1 :: { [LamBinding] }
+TypedUntypedBindings1 :: { List1 LamBinding }
 TypedUntypedBindings1
-  : DomainFreeBinding TypedUntypedBindings1 { $1 ++ $2 }
-  | TypedBinding TypedUntypedBindings1      { DomainFull $1 : $2 }
+  : DomainFreeBinding TypedUntypedBindings1 { $1 <> $2 }
+  | TypedBinding TypedUntypedBindings1      { DomainFull $1 <| $2 }
   | DomainFreeBinding                       { $1 }
-  | TypedBinding                            { [DomainFull $1] }
+  | TypedBinding                            { singleton $ DomainFull $1 }
 
 -- A possibly empty sequence of possibly untyped bindings.
 -- This is used as telescope in data and record decls.
 TypedUntypedBindings :: { [LamBinding] }
 TypedUntypedBindings
-  : DomainFreeBinding TypedUntypedBindings { $1 ++ $2 }
+  : DomainFreeBinding TypedUntypedBindings { List1.toList $1 ++ $2 }
   | TypedBinding TypedUntypedBindings      { DomainFull $1 : $2 }
   |                                        { [] }
 
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBinding :: { [LamBinding] }
+DomainFreeBinding :: { List1 LamBinding }
 DomainFreeBinding
   : DomainFreeBindingAbsurd {% case $1 of
                              Left lbs -> return lbs
@@ -982,39 +960,39 @@ MaybeAsPattern
   | {- empty -} { Nothing }
 
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
+DomainFreeBindingAbsurd :: { Either (List1 LamBinding) (List1 Expr)}
 DomainFreeBindingAbsurd
-    : BId      MaybeAsPattern { Left [mkDomainFree_ id $2 $1]  }
-    | '.' BId  MaybeAsPattern { Left [mkDomainFree_ (setRelevance Irrelevant) $3 $2]  }
-    | '..' BId MaybeAsPattern { Left [mkDomainFree_ (setRelevance NonStrict) $3 $2]  }
+    : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
+    | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
+    | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance NonStrict) $3 $2 }
     | '(' Application ')'     {% exprToPattern (RawApp (getRange $2) $2) >>= \ p ->
-                                 pure $ Left [mkDomainFree_ id (Just p) (Name noRange InScope [Hole])] }
+                                 pure . Left . singleton $ mkDomainFree_ id (Just p) $ Name noRange InScope [Hole] }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
-         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
+         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
+              first (fmap (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { mapLeft (map (DomainFree . hide)) $2 }
+         { first (fmap (DomainFree . hide)) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
-         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              mapLeft (map (DomainFree . hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance) $2 }
+         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
+              first (fmap (DomainFree . hide . setTacticAttr $2 . setArgInfo ai)) $3 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance) $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
-         {% applyAttrs $2 defaultArgInfo <&> \ ai ->
-              Left $ map (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree . hide . setRelevance Irrelevant) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree . hide . setRelevance NonStrict) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree . makeInstance . setRelevance NonStrict) $3 }
+         {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
+              Left $ fmap (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
+    | '.' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance Irrelevant) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
+    | '..' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance NonStrict) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance NonStrict) $3 }
 
 
 {--------------------------------------------------------------------------
     Do-notation
  --------------------------------------------------------------------------}
 
-DoStmts :: { [DoStmt] }
-DoStmts : DoStmt              { [$1] }
-        | DoStmt vsemi        { [$1] }    -- #3046
-        | DoStmt semi DoStmts { $1 : $3 }
+DoStmts :: { List1 DoStmt }
+DoStmts : DoStmt              { singleton $1 }
+        | DoStmt vsemi        { singleton $1 }    -- #3046
+        | DoStmt semi DoStmts { $1 <| $3 }
 
 DoStmt :: { DoStmt }
 DoStmt : Expr DoWhere {% buildDoStmt $1 $2 }
@@ -1022,7 +1000,7 @@ DoStmt : Expr DoWhere {% buildDoStmt $1 $2 }
 DoWhere :: { [LamClause] }
 DoWhere
   : {- empty -} { [] }
-  | 'where' vopen LamWhereClauses close { reverse $3 }
+  | 'where' vopen LamWhereClauses close { reverse (List1.toList $3) }
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -1086,16 +1064,16 @@ ImportName :: { ImportedName }
 ImportName : Id          { ImportedName $1 }
            | 'module' Id { ImportedModule $2 }
 
--- Actually semi-colon separated
+-- Actually semi-colon separated, possibly empty list of ImportName.
 CommaImportNames :: { [ImportedName] }
 CommaImportNames
     : {- empty -}       { [] }
-    | CommaImportNames1 { $1 }
+    | CommaImportNames1 { List1.toList $1 }
 
-CommaImportNames1 :: { [ImportedName] }
+CommaImportNames1 :: { List1 ImportedName }
 CommaImportNames1
-    : ImportName                        { [$1] }
-    | ImportName ';' CommaImportNames1  { $1 : $3 }
+    : ImportName                        { singleton $1 }
+    | ImportName ';' CommaImportNames1  { $1 <| $3 }
 
 {--------------------------------------------------------------------------
     Function clauses
@@ -1107,14 +1085,14 @@ LHS :: { LHS }
 LHS : Expr1 WithRewriteExpressions
         {% exprToLHS $1      >>= \p ->
            buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ map observeHiding es)
+           return (p rs $ fmap observeHiding es)
         }
 
-WithRewriteExpressions :: { [Either RewriteEqn [Expr]] }
+WithRewriteExpressions :: { [Either RewriteEqn (List1 Expr)] }
 WithRewriteExpressions
   : {- empty -} { [] }
   | 'with' Expr1 WithRewriteExpressions
-    {% fmap (++ $3) (buildWithStmt $2)  }
+    {% (++ $3) `fmap` buildWithStmt $2 }
   | 'rewrite' Expr1 WithRewriteExpressions
     { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
 
@@ -1177,16 +1155,16 @@ Declaration
 
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
-TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
+TypeSigs :: { List1 Declaration }
+TypeSigs : SpaceIds ':' Expr { fmap (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
-ArgTypeSigs :: { [Arg Declaration] }
+ArgTypeSigs :: { List1 (Arg Declaration) }
 ArgTypeSigs
   : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
-                           map (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
+                           fmap (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
       let (attrs, xs) = $2
           setOverlap x =
@@ -1199,14 +1177,14 @@ ArgTypeSigs
     let
       setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
       setInstance _ = __IMPOSSIBLE__ in
-    map (fmap setInstance) $2 }
+    fmap (fmap setInstance) $2 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
 FunClause :: { [Declaration] }
 FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
-  | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs $1 $2 $3 $4 }
+  | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 }
 
 RHS :: { RHSOrTypeSigs }
 RHS : '=' Expr      { JustRHS (RHS $2) }
@@ -1317,8 +1295,8 @@ Primitive : 'primitive' TypeSignatures0  { Primitive (fuseRange $1 $2) $2 }
 UnquoteDecl :: { Declaration }
 UnquoteDecl
   : 'unquoteDecl' '=' Expr { UnquoteDecl (fuseRange $1 $3) [] $3 }
-  | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) $2 $4 }
-  | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) $2 $4 }
+  | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) (List1.toList $2) $4 }
+  | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) (List1.toList $2) $4 }
 
 -- Syntax declaration (To declare eg. mixfix binders)
 Syntax :: { Declaration }
@@ -1340,7 +1318,7 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
 PatternSynArgs :: { [Arg Name] }
 PatternSynArgs
   : {- empty -} { [] }
-  | LamBinds    {% patternSynArgs $1 }
+  | LamBinds    {% patternSynArgs (List1.toList $1) }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
@@ -1401,7 +1379,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
         Private r Inserted
           [ ModuleMacro r m'
              (SectionApp (getRange es) []
-               (RawApp (getRange es) (Ident (QName fresh) : es)))
+               (RawApp (getRange es) (Ident (QName fresh) :| es)))
              doOpen dir
           ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
@@ -1447,7 +1425,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       { []  -> Open r m dir
       ; _   -> Private r Inserted
                  [ ModuleMacro r (noName $ beginningOf $ getRange m)
-                             (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+                             (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m :| es)))
                              DoOpen dir
                  ]
       }
@@ -1471,7 +1449,7 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }
                   | ModuleName OpenArgs {
-                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (RawApp (fuseRange $1 $2) (Ident $1 : $2)) ) }
+                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (RawApp (fuseRange $1 $2) (Ident $1 :| $2)) ) }
 
 
 -- Module instantiation
@@ -1671,31 +1649,31 @@ Polarity : string {% polarity $1 }
 TypeSignatures0 :: { [TypeSignature] }
 TypeSignatures
     : vopen close    { [] }
-    | TypeSignatures { $1 }
+    | TypeSignatures { List1.toList $1 }
 
 -- Non-empty list of type signatures, with several identifiers allowed
 -- for every signature.
-TypeSignatures :: { [TypeSignature] }
+TypeSignatures :: { List1 TypeSignature }
 TypeSignatures
-    : vopen TypeSignatures1 close   { reverse $2 }
+    : vopen TypeSignatures1 close   { List1.reverse $2 }
 
 -- Inside the layout block.
-TypeSignatures1 :: { [TypeSignature] }
+TypeSignatures1 :: { List1 TypeSignature }
 TypeSignatures1
-    : TypeSignatures1 semi TypeSigs { reverse $3 ++ $1 }
-    | TypeSigs                      { reverse $1 }
+    : TypeSignatures1 semi TypeSigs { List1.reverse $3 <> $1 }
+    | TypeSigs                      { List1.reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
-ArgTypeSignatures :: { [Arg TypeSignature] }
+ArgTypeSignatures :: { List1 (Arg TypeSignature) }
 ArgTypeSignatures
-    : vopen ArgTypeSignatures1 close   { reverse $2 }
+    : vopen ArgTypeSignatures1 close   { List1.reverse $2 }
 
 -- Inside the layout block.
-ArgTypeSignatures1 :: { [Arg TypeSignature] }
+ArgTypeSignatures1 :: { List1 (Arg TypeSignature) }
 ArgTypeSignatures1
-    : ArgTypeSignatures1 semi ArgTypeSigs { reverse $3 ++ $1 }
-    | ArgTypeSigs                         { reverse $1 }
+    : ArgTypeSignatures1 semi ArgTypeSigs { List1.reverse $3 <> $1 }
+    | ArgTypeSigs                         { List1.reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
@@ -1706,21 +1684,9 @@ ArgTypeSignaturesOrEmpty
 -- Inside the layout block.
 ArgTypeSignatures0 :: { [Arg TypeSignature] }
 ArgTypeSignatures0
-    : ArgTypeSignatures0 semi ArgTypeSigs { reverse $3 ++ $1 }
-    | ArgTypeSigs                         { reverse $1 }
+    : ArgTypeSignatures0 semi ArgTypeSigs { reverse (List1.toList $3) ++ $1 }
+    | ArgTypeSigs                         { reverse (List1.toList $1) }
     | {- empty -}                         { [] }
-
--- -- A variant of TypeSignatures which uses ModalArgTypeSigs instead of
--- -- TypeSigs.
--- ModalArgTypeSignatures :: { [Arg TypeSignature] }
--- ModalArgTypeSignatures
---     : vopen ModalArgTypeSignatures1 close   { reverse $2 }
-
--- -- Inside the layout block.
--- ModalArgTypeSignatures1 :: { [Arg TypeSignature] }
--- ModalArgTypeSignatures1
---     : ModalArgTypeSignatures1 semi ModalArgTypeSigs { reverse $3 ++ $1 }
---     | ModalArgTypeSigs                              { reverse $1 }
 
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance)), [Declaration]) }
@@ -1986,31 +1952,30 @@ isName s (_,s')
     | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
 
 -- | Build a forall pi (forall x y z -> ...)
-forallPi :: [LamBinding] -> Expr -> Expr
-forallPi bs e = Pi (map addType bs) e
+forallPi :: List1 LamBinding -> Expr -> Expr
+forallPi bs e = Pi (fmap addType bs) e
 
 -- | Builds a 'RawApp' from 'Range' and 'Expr' list, unless the list
 -- is a single expression.  In the latter case, just the 'Expr' is
 -- returned.
-rawAppUnlessSingleton :: Range -> [Expr] -> Expr
+rawAppUnlessSingleton :: Range -> List1 Expr -> Expr
 rawAppUnlessSingleton r = \case
-  []  -> __IMPOSSIBLE__
-  [e] -> e
-  es  -> RawApp r es
+  e :| [] -> e
+  es      -> RawApp r es
 
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding
 addType (DomainFull b) = b
-addType (DomainFree x) = TBind r [x] $ Underscore r Nothing
+addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
   where r = getRange x
 
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 
-exprAsTele :: Expr -> [Expr]
+exprAsTele :: Expr -> List1 Expr
 exprAsTele (RawApp _ es) = es
-exprAsTele e             = [e]
+exprAsTele e             = singleton e
 
-exprAsNamesAndPatterns :: Expr -> Maybe [(Name, Maybe Expr)]
+exprAsNamesAndPatterns :: Expr -> Maybe (List1 (Name, Maybe Expr))
 exprAsNamesAndPatterns = mapM exprAsNameAndPattern . exprAsTele
 
 exprAsNameAndPattern :: Expr -> Maybe (Name, Maybe Expr)
@@ -2021,17 +1986,16 @@ exprAsNameAndPattern (Paren r e)       = Just (Name r InScope [Hole], Just e)
 exprAsNameAndPattern _                 = Nothing
 
 -- interpret an expression as name or list of hidden / instance names
-exprAsNameOrHiddenNames :: Expr -> Maybe [NamedArg (Name, Maybe Expr)]
-exprAsNameOrHiddenNames t = case t of
-  HiddenArg _ (Named Nothing e) -> do
-    nps <- exprAsNamesAndPatterns e
-    pure $ map (hide . defaultNamedArg) nps
-  InstanceArg _ (Named Nothing e) -> do
-    nps <- exprAsNamesAndPatterns e
-    pure $ map (makeInstance . defaultNamedArg) nps
-  e -> (pure . defaultNamedArg) `fmap` exprAsNameAndPattern e
+exprAsNameOrHiddenNames :: Expr -> Maybe (List1 (NamedArg (Name, Maybe Expr)))
+exprAsNameOrHiddenNames = \case
+  HiddenArg _ (Named Nothing e) ->
+    fmap (hide . defaultNamedArg) <$> exprAsNamesAndPatterns e
+  InstanceArg _ (Named Nothing e) ->
+    fmap (makeInstance . defaultNamedArg) <$> exprAsNamesAndPatterns e
+  e ->
+    singleton . defaultNamedArg <$> exprAsNameAndPattern e
 
-boundNamesOrAbsurd :: [Expr] -> Parser (Either [NamedArg Binder] [Expr])
+boundNamesOrAbsurd :: List1 Expr -> Parser (Either (List1 (NamedArg Binder)) (List1 Expr))
 boundNamesOrAbsurd es
   | any isAbsurd es = return $ Right es
   | otherwise       =
@@ -2055,37 +2019,37 @@ boundNamesOrAbsurd es
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
 exprToAssignment (RawApp r es)
-  | (es1, arr : es2) <- break isLeftArrow es =
+  | (es1, arr : es2) <- List1.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) es1)
+      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) $ List1.fromList es1)
                            <*> pure (getRange arr)
-                           <*> pure (RawApp (getRange es2) es2))
+                           <*> pure (RawApp (getRange es2) $ List1.fromList es2))
   where
     isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 
 -- | Build a with-block
-buildWithBlock :: [Either RewriteEqn [Expr]] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock :: [Either RewriteEqn (List1 Expr)] -> Parser ([RewriteEqn], [Expr])
 buildWithBlock rees = case groupByEither rees of
-  (Left rs : rest) -> (rs,) <$> finalWith rest
+  (Left rs : rest) -> (List1.toList rs,) <$> finalWith rest
   rest             -> ([],) <$> finalWith rest
 
   where
 
-    finalWith :: [Either [RewriteEqn] [[Expr]]] -> Parser [Expr]
+    finalWith :: [Either (List1 RewriteEqn) (List1 (List1 Expr))] -> Parser [Expr]
     finalWith []             = pure $ []
-    finalWith [Right ees]    = pure $ concat ees
+    finalWith [Right ees]    = pure $ List1.toList $ List1.concat ees
     finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
       "Cannot use rewrite / pattern-matching with after a with-abstraction."
 
 -- | Build a with-statement
-buildWithStmt :: Expr -> Parser [Either RewriteEqn [Expr]]
+buildWithStmt :: Expr -> Parser [Either RewriteEqn (List1 Expr)]
 buildWithStmt e = do
   es <- mapM buildSingleWithStmt $ fromWithApp e
-  let ees = groupByEither es
-  pure $ map (mapLeft (Invert ())) ees
+  let ees = groupByEither $ List1.toList es
+  pure $ map (first (Invert ())) ees
 
 buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
 buildSingleWithStmt e = do
@@ -2094,10 +2058,10 @@ buildSingleWithStmt e = do
     Just (pat, _, expr) -> Left (pat, expr)
     Nothing             -> Right e
 
-fromWithApp :: Expr -> [Expr]
+fromWithApp :: Expr -> List1 Expr
 fromWithApp = \case
-  WithApp _ e es -> e : es
-  e              -> [e]
+  WithApp _ e es -> e :| es
+  e              -> singleton e
 
 -- | Build a do-statement
 defaultBuildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
@@ -2105,7 +2069,7 @@ defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern 
 defaultBuildDoStmt e []      = pure $ DoThen e
 
 buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (RawApp r [e])     cs = buildDoStmt e cs
+buildDoStmt (RawApp r (e:|[])) cs = buildDoStmt e cs
 buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
 buildDoStmt e@(RawApp r es)    cs = do
   mpatexpr <- exprToAssignment e
@@ -2125,7 +2089,7 @@ mergeImportDirectives is = do
       let err = parseError' (rStart' $ getRange i2) "Cannot mix using and hiding module directives"
       return $ ImportDirective
         { importDirRange = fuseRange i1 i2
-        , using          = mappend (using i1) (using i2)
+        , using          = using i1 <> using i2
         , hiding         = hiding i1 ++ hiding i2
         , impRenaming    = impRenaming i1 ++ impRenaming i2
         , publicOpen     = publicOpen i1 <|> publicOpen i2 }
@@ -2211,7 +2175,7 @@ validHaskellModuleName = all ok . splitOnDots
 
 -- | Turn an expression into a left hand side.
 exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
-exprToLHS e = (\e rwr wth -> LHS e rwr wth NoEllipsis) <$> exprToPattern e
+exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth NoEllipsis
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -2231,7 +2195,7 @@ exprToName (Ident (QName x)) = return x
 exprToName e = parseErrorRange e $ "Not a valid identifier: " ++ prettyShow e
 
 stripSingletonRawApp :: Expr -> Expr
-stripSingletonRawApp (RawApp _ [e]) = stripSingletonRawApp e
+stripSingletonRawApp (RawApp _ (e :| [])) = stripSingletonRawApp e
 stripSingletonRawApp e = e
 
 isEqual :: Expr -> Maybe (Expr, Expr)
@@ -2265,6 +2229,17 @@ patternSynArgs = mapM pSynArg
          = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
       | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
       | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+
+mkLamClause
+  :: Bool   -- ^ Catch-all?
+  -> [Expr] -- ^ Possibly empty list of patterns.
+  -> RHS
+  -> Parser LamClause
+mkLamClause catchAll es rhs = mapM exprToPattern es <&> \ ps ->
+  LamClause{ lamLHS = ps, lamRHS = rhs, lamCatchAll = catchAll }
+
+mkAbsurdLamClause :: Bool -> List1 Expr -> Parser LamClause
+mkAbsurdLamClause catchAll es = mkLamClause catchAll (List1.toList es) AbsurdRHS
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
@@ -2348,7 +2323,7 @@ applyAttr attr@(Attr r x a) = maybe failure return . setPristineAttribute a
 --   Expects a reversed list of attributes.
 --   This will fail if one of the attributes is already set
 --   in the thing to something else than the default value.
-applyAttrs :: (LensAttribute a) => [Attr] -> a -> Parser a
+applyAttrs :: LensAttribute a => [Attr] -> a -> Parser a
 applyAttrs rattrs arg = do
   let attrs = reverse rattrs
   checkForUniqueAttribute (isJust . isQuantityAttribute ) attrs
@@ -2356,10 +2331,13 @@ applyAttrs rattrs arg = do
   checkForUniqueAttribute (isJust . isTacticAttribute)    attrs
   foldM (flip applyAttr) arg attrs
 
+applyAttrs1 :: LensAttribute a => List1 Attr -> a -> Parser a
+applyAttrs1 = applyAttrs . List1.toList
+
 -- | Set the tactic attribute of a binder
-setTacticAttr :: [Attr] -> NamedArg Binder -> NamedArg Binder
+setTacticAttr :: List1 Attr -> NamedArg Binder -> NamedArg Binder
 setTacticAttr as = updateNamedArg $ fmap $ \ b ->
-  case getTacticAttr as of
+  case getTacticAttr $ List1.toList as of
     Just t  -> b { bnameTactic = Just t }
     Nothing -> b
 

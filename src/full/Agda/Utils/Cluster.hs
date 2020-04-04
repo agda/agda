@@ -13,7 +13,6 @@ import Control.Monad
 -- An imperative union-find library:
 import Data.Equivalence.Monad (runEquivT, equateAll, classDesc)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Data.IntMap as IntMap
 #if __GLASGOW_HASKELL__ < 804

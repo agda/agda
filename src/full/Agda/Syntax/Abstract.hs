@@ -12,9 +12,8 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude
-import Control.Arrow (first)--, second, (***))
 
-import Data.Foldable (Foldable)
+import Data.Bifunctor
 import qualified Data.Foldable as Fold
 import Data.Function (on)
 import Data.Map (Map)
@@ -30,7 +29,6 @@ import Data.Monoid (mappend)
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Abstract.Name as A (QNamed)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -42,6 +40,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -95,8 +95,8 @@ data Expr
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
-  | ExtendedLam ExprInfo DefInfo QName [Clause]
-  | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
+  | ExtendedLam ExprInfo DefInfo QName (List1 Clause)
+  | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
   | Generalized (Set.Set QName) Expr   -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
@@ -176,11 +176,9 @@ data Declaration
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
-      -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
   | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
-      -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
-      --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
   | PatternSynDef QName [Arg Name] (Pattern' Void)
       -- ^ Only for highlighting purposes
@@ -290,15 +288,16 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr [NamedArg Binder] Expr
+  = TBind Range TacticAttr (List1 (NamedArg Binder)) Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
-mkTBind :: Range -> [NamedArg Binder] -> Expr -> TypedBinding
+mkTBind :: Range -> List1 (NamedArg Binder) -> Expr -> TypedBinding
 mkTBind r = TBind r Nothing
 
+type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
 data GeneralizeTelescope = GeneralizeTel
@@ -394,7 +393,7 @@ data RHS
 instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
-  WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
+  WithRHS a b c    == WithRHS a' b' c'    = (a == a') && (b == b') && (c == c')
   RewriteRHS a b c d == RewriteRHS a' b' c' d' = and [ a == a', b == b', c == c' , d == d' ]
   _                == _                   = False
 
@@ -579,10 +578,9 @@ instance LensHiding LamBinding where
   mapHiding f (DomainFull tb)  = DomainFull $ mapHiding f tb
 
 instance LensHiding TypedBinding where
-  getHiding (TBind _ _ (x : _) _) = getHiding x   -- Slightly dubious
-  getHiding (TBind _ _ [] _)      = __IMPOSSIBLE__
+  getHiding (TBind _ _ (x :|_) _) = getHiding x   -- Slightly dubious
   getHiding TLet{}                = mempty
-  mapHiding f (TBind r t xs e)    = TBind r t ((map . mapHiding) f xs) e
+  mapHiding f (TBind r t xs e)    = TBind r t ((fmap . mapHiding) f xs) e
   mapHiding f b@TLet{}            = b
 
 instance HasRange a => HasRange (Binder' a) where
@@ -870,6 +868,9 @@ class AllNames a where
 instance AllNames a => AllNames [a] where
   allNames = Fold.foldMap allNames
 
+instance AllNames a => AllNames (List1 a) where
+  allNames = Fold.foldMap allNames
+
 instance AllNames a => AllNames (Maybe a) where
   allNames = Fold.foldMap allNames
 
@@ -1077,10 +1078,11 @@ type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e =
-  Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n) $
-  lambdaLiftExpr ns e
+lambdaLiftExpr ns e
+  = foldr
+      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
+      e
+      ns
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
@@ -1089,6 +1091,9 @@ instance SubstExpr a => SubstExpr (Maybe a) where
   substExpr = fmap . substExpr
 
 instance SubstExpr a => SubstExpr [a] where
+  substExpr = fmap . substExpr
+
+instance SubstExpr a => SubstExpr (List1 a) where
   substExpr = fmap . substExpr
 
 instance SubstExpr a => SubstExpr (Arg a) where

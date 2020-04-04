@@ -93,7 +93,10 @@ expectOk (res, ret) = pure $ case ret of
 expectFail :: (ProgramResult, AgdaResult) -> IO TestResult
 expectFail (res, ret) = pure $ case ret of
   AgdaSuccess{} -> TestUnexpectedSuccess res
-  _             -> TestResult $ stdOut res
+  -- If it's a type error, we do not print the exit code
+  AgdaFailure _ (Just TCMError) -> TestResult $ stdOut res
+  -- Otherwise, we print all the output
+  AgdaFailure{}                 -> TestResult $ printProgramResult res
 
 -- | Treats newlines or consecutive whitespaces as one single whitespace.
 --

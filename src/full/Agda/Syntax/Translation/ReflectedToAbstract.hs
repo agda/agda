@@ -6,7 +6,6 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 
 import Control.Monad.Reader
 
-import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
@@ -22,8 +21,11 @@ import Agda.Syntax.Scope.Monad (getCurrentModule)
 import Agda.Utils.Except
 import Agda.Utils.Monad
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Functor
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 type Names = [Name]
@@ -91,7 +93,7 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
   toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ mkTBind noRange [unnamedArg i $ mkBinder_ name] dom
+    return $ mkTBind noRange (singleton $ unnamedArg i $ mkBinder_ name) dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -135,12 +137,12 @@ instance ToAbstract Term Expr where
       let qname   = qualify m name
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
-      cs <- toAbstract $ map (QNamed qname) cs
+      cs <- toAbstract $ fmap (QNamed qname) cs
       toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)
-      return $ A.Pi exprNoRange [a] b
+      return $ A.Pi exprNoRange (singleton a) b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
     R.Meta x es    -> toAbstract (A.Underscore info, es)
@@ -196,4 +198,7 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
     return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where
+  toAbstract = traverse toAbstract
+
+instance ToAbstract (List1 (QNamed R.Clause)) (List1 A.Clause) where
   toAbstract = traverse toAbstract

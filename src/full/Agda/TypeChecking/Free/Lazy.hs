@@ -66,7 +66,6 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 
-import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -539,13 +538,13 @@ instance Free Term where
 
 instance Free t => Free (Type' t) where
   freeVars' (El s t) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
       {- then -} (freeVars' (s, t))
       {- else -} (freeVars' t)
 
 instance Free Sort where
   freeVars' s =
-    ifM ((IgnoreAll ==) <$> asks feIgnoreSorts) mempty $ {- else -}
+    ifM (asks ((IgnoreAll ==) . feIgnoreSorts)) mempty $ {- else -}
     case s of
       Type a     -> freeVars' a
       Prop a     -> freeVars' a

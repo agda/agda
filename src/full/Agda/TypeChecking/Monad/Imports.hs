@@ -70,7 +70,7 @@ storeDecodedModule i = modifyTC $ \s ->
   s { stPersistentState =
         (stPersistentState s) { stDecodedModules =
           Map.insert (toTopLevelModuleName $ iModuleName i) i $
-            (stDecodedModules $ stPersistentState s)
+            stDecodedModules (stPersistentState s)
         }
   }
 

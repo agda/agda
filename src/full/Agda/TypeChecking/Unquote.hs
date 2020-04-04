@@ -7,9 +7,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
-import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
-import Data.Traversable (traverse)
 import Data.Word
 
 import Agda.Syntax.Common
@@ -18,14 +16,11 @@ import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Fixity
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -46,6 +41,8 @@ import Agda.Utils.Except
   )
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
@@ -393,7 +390,8 @@ instance Unquote R.Term where
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
+          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x)
+          ]
           __IMPOSSIBLE__
 
       Con c _ es | Just [x, y] <- allApplyElims es ->
@@ -404,7 +402,8 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> unquoteN x <*> unquoteN y) ]
+          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList <$> unquoteN x) <*> unquoteN y)
+          ]
           __IMPOSSIBLE__
         where
           mkPi :: Dom R.Type -> R.Abs R.Type -> R.Term
@@ -683,7 +682,6 @@ evalTCM v = do
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
       setDirty
-      let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
@@ -705,7 +703,6 @@ evalTCM v = do
       when (Lens.getSafeMode clo) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot postulate '" <+> prettyTCM x <+> ":" <+> prettyR a <+> "' with safe flag"
       setDirty
-      let r = getRelevance i
       when (hidden i) $ liftTCM $ typeError . GenericDocError =<<
         "Cannot declare hidden function" <+> prettyTCM x
       tell [x]

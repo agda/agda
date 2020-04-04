@@ -39,7 +39,6 @@ import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Records
@@ -174,8 +173,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a hd (es1' ++ es2r) rhs1 rhs2
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++ es2r))
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
@@ -186,8 +184,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
         sub1 <- makeMetaSubst $ rewContext rew1
 
-        let f          = rewHead rew1
-            bvTel0     = ohBoundVars hole0
+        let bvTel0     = ohBoundVars hole0
             k          = size bvTel0
             b0         = applySubst (liftS k sub1) $ ohType hole0
             (g,_,es0)  = fromMaybe __IMPOSSIBLE__ $ headView $
@@ -258,8 +255,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ \ (rhs1 , rhs2) ->
-          checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1) rhs1 rhs2
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1))
 
     headView :: Term -> Maybe (QName, Elims -> Term, Elims)
     headView (Def f es) = Just (f , Def f , es)
@@ -624,13 +620,13 @@ instance MetasToVars Term where
   metasToVars = \case
     Var i es   -> Var i    <$> metasToVars es
     Lam i u    -> Lam i    <$> metasToVars u
-    Lit l      -> Lit      <$> pure l
+    Lit l      -> pure (Lit l)
     Def f es   -> Def f    <$> metasToVars es
     Con c i es -> Con c i  <$> metasToVars es
     Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
-    MetaV x es -> ($ x) <$> ask >>= \case
+    MetaV x es -> asks ($ x) >>= \case
       Just i   -> Var i    <$> metasToVars es
       Nothing  -> MetaV x  <$> metasToVars es
     DontCare u -> DontCare <$> metasToVars u

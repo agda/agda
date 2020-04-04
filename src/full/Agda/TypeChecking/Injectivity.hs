@@ -61,7 +61,6 @@ import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -165,7 +164,7 @@ updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs0
-  | null $ filter properlyMatchingClause cs = do
+  | not (any properlyMatchingClause cs) = do
       reportSLn "tc.inj.check.pointless" 35 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
@@ -303,9 +302,6 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
         pwords "useInjectivity on" ++
         [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
-          allUnique       = all isUnique hdMap
-          isUnique [_] = True
-          isUnique _   = False
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works

@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), (***), second)
+import Control.Arrow ((***), first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -54,7 +54,6 @@ import Data.Map (Map)
 import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
-import Data.Traversable (Traversable, traverse)
 import qualified Data.Traversable as Trav
 
 import Data.Data (Data)
@@ -71,13 +70,13 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
-import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf)
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import qualified Agda.Utils.Pretty as Pretty
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Three
@@ -428,7 +427,7 @@ instance Pretty DeclarationException where
   pretty (UnquoteDefRequiresSignature xs) = fsep $
     pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
-    [text $ declName nd] ++ pwords "are not allowed in macro blocks"
+    text (declName nd) : pwords "are not allowed in macro blocks"
   pretty (DeclarationPanic s) = text s
 
 instance Pretty DeclarationWarning where
@@ -445,7 +444,7 @@ instance Pretty DeclarationWarning where
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map (pretty . fst) xs)
   pretty (NotAllowedInMutual r nd) = fsep $
-    [text nd] ++ pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
+    text nd : pwords "in mutual blocks are not supported.  Suggestion: get rid of the mutual block by manually ordering declarations"
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:"
     ++ punctuate comma (map pretty xs)
@@ -941,10 +940,7 @@ niceDeclarations fixs ds = do
             --            (id :: (([TerminationCheck], [PositivityCheck]) -> ([TerminationCheck], [PositivityCheck])))
             --            *** (d :)
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
-            cons d = fmap (id *** (d :) *** id)
-
-    notMeasure TerminationMeasure{} = False
-    notMeasure _ = True
+            cons d = fmap (second (first (d :)))
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
@@ -1311,13 +1307,13 @@ niceDeclarations fixs ds = do
         -- | Drop type annotations and lets from bindings.
         dropTypeAndModality :: LamBinding -> [LamBinding]
         dropTypeAndModality (DomainFull (TBind _ xs _)) =
-          map (DomainFree . setModality defaultModality) xs
+          map (DomainFree . setModality defaultModality) $ List1.toList xs
         dropTypeAndModality (DomainFull TLet{}) = []
         dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
-    niceAxioms b ds = liftM List.concat $ mapM (niceAxiom b) ds
+    niceAxioms b ds = List.concat <$> mapM (niceAxiom b) ds
 
     niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
     niceAxiom b d = case d of
@@ -1342,9 +1338,7 @@ niceDeclarations fixs ds = do
       return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
         where
-          t = case mt of
-                Just t  -> t
-                Nothing -> underscore (getRange x)
+          t = fromMaybe (underscore (getRange x)) mt
 
     underscore r = Underscore r Nothing
 
@@ -1446,7 +1440,7 @@ niceDeclarations fixs ds = do
            let notStrings = stringParts (theNotation fix)
            in  -- trace ("notStrings = " ++ show notStrings) $
                -- trace ("patStrings = " ++ show patStrings) $
-               (not $ null notStrings) && (notStrings `isSublistOf` patStrings)
+               not (null notStrings) && (notStrings `isSublistOf` patStrings)
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False

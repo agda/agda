@@ -14,14 +14,12 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad as I
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
@@ -286,10 +284,10 @@ getTypeInfo t0 = do
     Sort{}    -> return Erasable
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
-  let e | any (== Empty) is = Erasable
-        | null is           = et        -- TODO: guard should really be "all inhabited is"
-        | et == Empty       = Erasable
-        | otherwise         = et
+  let e | Empty `elem` is = Erasable
+        | null is         = et        -- TODO: guard should really be "all inhabited is"
+        | et == Empty     = Erasable
+        | otherwise       = et
   lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where
@@ -299,10 +297,10 @@ getTypeInfo t0 = do
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q
-      mcs    <- return $ case I.theDef def of
-        I.Datatype{ dataCons = cs } -> Just cs
-        I.Record{ recConHead = c }  -> Just [conName c]
-        _                           -> Nothing
+      let mcs = case I.theDef def of
+                  I.Datatype{ dataCons = cs } -> Just cs
+                  I.Record{ recConHead = c }  -> Just [conName c]
+                  _                           -> Nothing
       case mcs of
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do

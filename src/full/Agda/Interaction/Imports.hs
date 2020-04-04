@@ -149,7 +149,7 @@ mergeInterface i = do
           where
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
-    mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
+    mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
     addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) (iPartialDefs i) warns
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
@@ -178,7 +178,7 @@ addImportedThings isig ibuiltin patsyns display userwarn partialdefs warnings = 
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
   stPatternSynImports    `modifyTCLens` \ imp -> Map.union imp patsyns
   stImportedDisplayForms `modifyTCLens` \ imp -> HMap.unionWith (++) imp display
-  stTCWarnings           `modifyTCLens` \ imp -> List.union imp warnings
+  stTCWarnings           `modifyTCLens` \ imp -> imp `List.union` warnings
   addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -477,7 +477,7 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
     implies :: Bool -> Bool -> Bool
     p `implies` q = p <= q
 
-    showOptions opts = P.prettyList (map (\ (o, n) -> (P.text n <> ": ") P.<+> (P.pretty $ o opts))
+    showOptions opts = P.prettyList (map (\ (o, n) -> (P.text n <> ": ") P.<+> P.pretty (o opts))
                                  (coinfectiveOptions ++ infectiveOptions))
 
 -- | Check whether interface file exists and is in cache
@@ -579,7 +579,7 @@ getStoredInterface x file isMain msi = do
 
       if optionsChanged then fallback else do
 
-        hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
+        hs <- map iFullHash <$> mapM (getInterface . fst) (iImportedModules i)
 
         -- If any of the imports are newer we need to retype check
         if hs /= map snd (iImportedModules i)
@@ -791,9 +791,7 @@ writeInterface file i = let fp = filePath file in do
 #else
       return (Just i)
 #endif
-    case i of
-      Just i  -> return i
-      Nothing -> __IMPOSSIBLE__
+    maybe __IMPOSSIBLE__ return i
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
@@ -1118,8 +1116,6 @@ buildInterface
 buildInterface source fileType topLevel pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
-    scope'  <- getScope
-    let scope = set scopeCurrent m scope'
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment

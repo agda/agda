@@ -1,6 +1,8 @@
 module Agda.TypeChecking.Primitive.Base where
 
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
+
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -108,6 +110,9 @@ t <@@> (x,y,r) = do
 
 list :: TCM Term -> TCM Term
 list t = primList <@> t
+
+tMaybe :: TCM Term -> TCM Term
+tMaybe t = primMaybe <@> t
 
 io :: TCM Term -> TCM Term
 io t = primIO <@> t

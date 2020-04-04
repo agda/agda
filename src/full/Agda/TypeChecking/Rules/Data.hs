@@ -8,8 +8,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
-import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -21,11 +19,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -45,6 +41,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Except
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -164,8 +162,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- Return the data definition
             return dataDef{ dataPathCons = catMaybes pathCons }
 
-        let s      = dataSort dataDef
-            cons   = map A.axiomName cs  -- get constructor names
+        let cons   = map A.axiomName cs  -- get constructor names
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
@@ -374,7 +371,7 @@ defineCompData d con params names fsT t boundary = do
     defineTranspOrHCompD cmd d con params names fsT t boundary = do
       let project = (\ t p -> apply (Def p []) [argN t])
       stuff <- defineTranspOrHCompForFields cmd
-                 (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
+                 (guard (not $ null boundary) >> Just (Con con ConOSystem $ teleElims fsT boundary))
                  project d params fsT (map argN names) t
       caseMaybe stuff (return Nothing) $ \ ((theName, gamma , ty, _cl_types , bodies), theSub) -> do
 
@@ -439,7 +436,7 @@ defineCompData d con params names fsT t boundary = do
               ineg r = pure tINeg <@> r
               lvlOfType = (\ (Type l) -> Level l) . getSort
               pOr la i j u0 u1 = pure tPOr <#> (lvlOfType <$> la) <@> i <@> j
-                                           <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
+                                           <#> ilam "o" (\ _ -> unEl <$> la) <@> u0 <@> u1
               absAp x y = liftM2 absApp x y
 
               mkFace (r,(u1,u2)) = runNamesT [] $ do
@@ -455,8 +452,8 @@ defineCompData d con params names fsT t boundary = do
                   let
                     -- Γ, i ⊢ squeeze u = primTrans (\ j -> ty [i := i ∨ j]) (φ ∨ i) u
                     squeeze u = cl primTrans
-                                          <#> (lam "j" $ \ j -> lvlOfType <$> ty `absAp` (imax i j))
-                                          <@> (lam "j" $ \ j -> unEl <$> ty `absAp` (imax i j))
+                                          <#> lam "j" (\ j -> lvlOfType <$> ty `absAp` (imax i j))
+                                          <@> lam "j" (\ j -> unEl <$> ty `absAp` (imax i j))
                                           <@> (phi `imax` i)
                                           <@> u
                   alpha <- pOr (ty `absAp` i)
@@ -754,7 +751,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
 
       -- Γ, i : I ⊢ [δ i] : Δ
-      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)
+      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params) -- Defined but not used
 
       -- Γ, i : I ⊢ Φ[δ i]
       fsT' = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)  `applySubst`
@@ -895,7 +892,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   theType <- (abstract delta <$>) $ runNamesT [] $ do
               rect <- open $ fromLType rect
               nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
+               nPi' "i" (elInf $ cl primInterval) (\ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 
@@ -941,14 +938,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
           u <- lam "j" (\ j -> pure por <#> lvl
                                         <@> phi
                                         <@> (pure ineg <@> i)
-                                        <#> (lam "_" $ \ o -> rect)
+                                        <#> lam "_" (\ o -> rect)
                                         <@> (w <@> (pure imin <@> i <@> j))
-                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
+                                        <@> lam "_" (\ o -> w0) -- TODO wait for i = 0
                        )
           u0 <- w0
           pure $ Def theName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
 
       -- (γ : Γ) ⊢ (flatten Φ)[n ↦ f_n (compR γ)]
       clause_types = parallelS [compTerm `applyProj` (unArg fn)
@@ -967,13 +962,13 @@ defineHCompForFields applyProj name params fsT fns rect = do
   comp <- do
         let
           imax i j = pure tIMax <@> i <@> j
-        let forward la bA r u = pure transp <#> (lam "i" $ \ i -> la <@> (i `imax` r))
-                                            <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+        let forward la bA r u = pure transp <#> lam "i" (\ i -> la <@> (i `imax` r))
+                                            <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
           pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                      <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                      <@> lam "i" (\ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0
   let
@@ -1061,7 +1056,7 @@ bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA $ List1.toList xs)
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
@@ -1083,7 +1078,7 @@ bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)
   where
-    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
     continue ps x = bindParameter npars ps x dom b ret
 
 bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a

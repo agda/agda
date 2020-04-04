@@ -25,10 +25,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Literal
-import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as Reduce
 import Agda.TypeChecking.Substitute
@@ -115,6 +113,9 @@ instance PrimTerm Fixity' where primTerm _ = primFixity
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimTerm (Maybe a) where
+  primTerm _ = tMaybe (primTerm (undefined :: a))
+
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 
@@ -156,11 +157,11 @@ instance ToTerm Bool where
 
 instance ToTerm Term where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
-  toTermR = do kit <- quotingKit; return (quoteTermWithKit kit)
+  toTermR = do quoteTermWithKit <$> quotingKit;
 
 instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
-  toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
+  toTermR = quoteTypeWithKit <$> quotingKit
 
 instance ToTerm ArgInfo where
   toTerm = do
@@ -236,6 +237,13 @@ instance ToTerm a => ToTerm [a] where
     mkList <- buildList
     fromA  <- toTerm
     return $ mkList . map fromA
+
+instance ToTerm a => ToTerm (Maybe a) where
+  toTerm = do
+    nothing <- primNothing
+    just    <- primJust
+    fromA   <- toTerm
+    return $ maybe nothing (apply1 just . fromA)
 
 -- From Haskell value to Agda term
 
@@ -323,17 +331,14 @@ instance FromTerm Bool where
 
 instance (ToTerm a, FromTerm a) => FromTerm [a] where
   fromTerm = do
-    nil'  <- primNil
-    cons' <- primCons
-    nil   <- isCon nil'
-    cons  <- isCon cons'
+    nil   <- isCon <$> primNil
+    cons  <- isCon <$> primCons
     toA   <- fromTerm
-    fromA <- toTerm
-    return $ mkList nil cons toA fromA
+    mkList nil cons toA <$> toTerm
     where
-      isCon (Lam _ b)  = isCon $ absBody b
-      isCon (Con c _ _)= return c
-      isCon v          = __IMPOSSIBLE__
+      isCon (Lam _ b)   = isCon $ absBody b
+      isCon (Con c _ _) = c
+      isCon v           = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do
         b <- reduceB' t
@@ -351,6 +356,31 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
                   (fmap $ \xs' -> arg $ Con c ci (map Apply [defaultArg $ fromA y, xs'])) $ \ys ->
               redReturn (y : ys)
           _ -> return $ NoReduction (reduced b)
+
+instance FromTerm a => FromTerm (Maybe a) where
+  fromTerm = do
+    nothing <- isCon <$> primNothing
+    just    <- isCon <$> primJust
+    toA     <- fromTerm
+    return $ \ t -> do
+      let arg = (<$ t)
+      b <- reduceB' t
+      let t = ignoreBlocking b
+      case unArg t of
+        Con c ci []
+          | c == nothing -> return $ YesReduction NoSimplification Nothing
+        Con c ci es
+          | c == just, Just [x] <- allApplyElims es ->
+            redBind (toA x)
+              (\ x' -> notReduced $ arg $ Con c ci [Apply (ignoreReduced x')])
+              (redReturn . Just)
+        _ -> return $ NoReduction (reduced b)
+
+    where
+      isCon (Lam _ b)   = isCon $ absBody b
+      isCon (Con c _ _) = c
+      isCon v           = __IMPOSSIBLE__
+
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
@@ -547,9 +577,8 @@ primForce :: TCM PrimitiveImpl
 primForce = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   genPrimForce (nPi "x" (varT 3 1) $
-                (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) -->
+                nPi "y" (varT 4 2) (varEl 4 $ varM 2 <@> varM 0) -->
                 varEl 3 (varM 1 <@> varM 0)) $
     \ f u -> apply f [u]
 
@@ -557,7 +586,6 @@ primForceLemma :: TCM PrimitiveImpl
 primForceLemma = do
   let varEl s a = El (varSort s) <$> a
       varT s a  = varEl s (varM a)
-      varS s    = pure $ sort $ varSort s
   refl  <- primRefl
   force <- primFunName <$> getPrimitive "primForce"
   genPrimForce (nPi "x" (varT 3 1) $
@@ -689,7 +717,7 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = fmap localTCStateSavingWarnings $ Map.fromList
+primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
   --   is bad for caching since it happens when scope checking import declarations (rebinding
@@ -796,6 +824,7 @@ primitiveFunctions = fmap localTCStateSavingWarnings $ Map.fromList
   , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
   , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
   , "primShowString"            |-> mkPrimFun1 (Str . prettyShow . LitString noRange . unStr)
+  , "primStringUncons"          |-> mkPrimFun1 (fmap (fmap Str) . uncons . unStr)
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

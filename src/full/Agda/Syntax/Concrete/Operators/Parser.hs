@@ -5,6 +5,7 @@
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative ( Alternative((<|>), many) )
+import Control.Monad ((<=<))
 
 import Data.Either
 import Data.Kind ( Type )
@@ -15,14 +16,15 @@ import Data.Set (Set)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 import Agda.Utils.Pretty
-import Agda.Utils.List ( spanEnd )
+import Agda.Utils.List  ( spanEnd )
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
 
@@ -58,7 +60,7 @@ data ExprView e
       -- to one of the names in the set.
     | HiddenArgV (Named_ e)
     | InstanceArgV (Named_ e)
-    | LamV [LamBinding] e
+    | LamV (List1 LamBinding) e
     | ParenV e
 --    deriving (Show)
 
@@ -135,7 +137,7 @@ data ParseSections = ParseSections | DoNotParseSections
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
 parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
+parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
   where
   splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
   splitExpr e = case exprView e of
@@ -218,7 +220,7 @@ atLeastTwoParts =
 
 patternBinder :: IsExpr e => Parser e Binder
 patternBinder = inOnePart <|> mkBinder_ <$> atLeastTwoParts
-  where inOnePart = satNoPlaceholder $ \ e -> isBinderP =<< patternView e
+  where inOnePart = satNoPlaceholder $ isBinderP <=< patternView
 
 -- | Used to define the return type of 'opP'.
 
@@ -329,9 +331,10 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
   findExprFor normalHoles binders n =
     case [ h | h@(_, m) <- normalHoles, rangedThing (namedArg m) == n ] of
       [(Placeholder p,     arg)] -> set (Placeholder p) arg
-      [(NoPlaceholder _ e, arg)] -> case [b | (b, m) <- binders, rangedThing m == n] of
-        [] -> set (noPlaceholder (Ordinary e)) arg -- no variable to bind
-        bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
+      [(NoPlaceholder _ e, arg)] ->
+        List1.ifNull [ b | (b, m) <- binders, rangedThing m == n ]
+        {-then-} (set (noPlaceholder (Ordinary e)) arg) -- no variable to bind
+        {-else-} $ \ bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__
 
   noPlaceholders :: [NamedArg (MaybePlaceholder (OpApp e))] -> Int

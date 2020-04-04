@@ -10,14 +10,12 @@ module Agda.Syntax.Abstract.Name
 import Control.DeepSeq
 
 import Data.Data (Data)
-import Data.Foldable (Foldable)
 import Data.Function
 import Data.Hashable (Hashable(..))
 import Data.List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import Data.Traversable (Traversable)
 import Data.Void
 
 import Agda.Syntax.Position
@@ -196,7 +194,7 @@ showQNameId q = show ns ++ "@" ++ show m
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName
 qnameToConcrete (QName m x) =
-  foldr C.Qual (C.QName $ nameConcrete x) $ map nameConcrete $ mnameToList m
+   foldr (C.Qual . nameConcrete) (C.QName $ nameConcrete x) (mnameToList m)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?

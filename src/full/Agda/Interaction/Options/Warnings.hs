@@ -27,7 +27,6 @@ import Control.Monad ( guard )
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe ( fromMaybe )
 import Data.List ( stripPrefix, intercalate )
 
 import Agda.Utils.Lens
@@ -219,6 +218,9 @@ data WarningName
   -- Checking consistency of options
   | CoInfectiveImport_
   | InfectiveImport_
+  -- Record field warnings
+  | DuplicateFieldsWarning_
+  | TooManyFieldsWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -271,7 +273,7 @@ usageWarning = intercalate "\n"
 -- Leave String empty to skip that name.
 
 warningNameDescription :: WarningName -> String
-warningNameDescription w = case w of
+warningNameDescription = \case
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
   -- Library Warnings
@@ -352,3 +354,6 @@ warningNameDescription w = case w of
   -- Checking consistency of options
   CoInfectiveImport_               -> "Importing a file not using e.g. `--safe'  from one which does."
   InfectiveImport_                 -> "Importing a file using e.g. `--cubical' into one which doesn't."
+  -- Record field warnings
+  DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
+  TooManyFieldsWarning_            -> "Record expression with invalid field names."

@@ -22,7 +22,6 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.Trans
-import qualified Data.List as List
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
@@ -249,7 +248,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
   defaultName = rootNameModule file
 
 parseFileExtsShortList :: [String]
-parseFileExtsShortList = [".agda"] ++ literateExtsShortList
+parseFileExtsShortList = ".agda" : literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripSuffix ext s

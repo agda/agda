@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns         #-}
 {-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -35,7 +34,6 @@ import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (builtinInf, getBuiltin', CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -78,7 +76,7 @@ checkStrictlyPositive mi qset = do
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
-    [ "positivity graph for" <+> (fsep $ map prettyTCM qs)
+    [ "positivity graph for" <+> fsep (map prettyTCM qs)
     , nest 2 $ prettyTCM g
     ]
   reportSLn "tc.pos.graph" 5 $
@@ -395,8 +393,7 @@ getOccurrences
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
-  kit <- coinductionKit
-  return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
+  runReader (occurrences a) . OccEnv vars . fmap nameOfInf <$> coinductionKit
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM OccurrencesBuilder
@@ -431,7 +428,7 @@ instance ComputeOccurrences Clause where
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
-    Var i args -> (occI <$> asks vars) <> (OccursAs VarArg <$> occurrences args)
+    Var i args -> (asks (occI . vars)) <> (OccursAs VarArg <$> occurrences args)
       where
       occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
       unbound = flip trace __IMPOSSIBLE__ $
@@ -557,7 +554,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               -- In any case, if @t@ is not showing itself as the data type, we need to
               -- do something conservative.  We will just collect *all* occurrences
               -- and flip their sign (variance) using 'LeftOfArrow'.
-              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vars $ size tel) t
+              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vars $ size tel) t -- NB::Defined but not used
               case unEl t of
                 Def q' vs
                   | q == q' -> do
@@ -642,7 +639,7 @@ buildOccurrenceGraph qs =
       reportSDoc "tc.pos.occs" 40 $
         (("Occurrences in" <+> prettyTCM q) <> ":")
           $+$
-        (nest 2 $ vcat $
+        nest 2 (vcat $
            map (\(i, n) ->
                    (text (show i) <> ":") <+> text (show n) <+>
                    "occurrences") $
@@ -656,7 +653,7 @@ buildOccurrenceGraph qs =
       reportSDoc "tc.pos.occs.edges" 60 $
         "Edges:"
           $+$
-        (nest 2 $ vcat $
+        nest 2 (vcat $
            map (\e ->
                    let Edge o w = Graph.label e in
                    prettyTCM (Graph.source e) <+>

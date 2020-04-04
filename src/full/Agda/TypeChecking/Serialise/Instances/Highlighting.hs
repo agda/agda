@@ -69,6 +69,7 @@ instance EmbPrj HP.Aspect where
 
 instance EmbPrj HP.OtherAspect where
   icod_ HP.Error                = icodeN 0 ()
+  icod_ HP.ErrorWarning         = icodeN 1 ()
   icod_ HP.DottedPattern        = icodeN' HP.DottedPattern
   icod_ HP.UnsolvedMeta         = icodeN 2 ()
   icod_ HP.TerminationProblem   = icodeN 3 ()
@@ -85,6 +86,7 @@ instance EmbPrj HP.OtherAspect where
 
   value = vcase valu where
     valu [0] = valuN HP.Error
+    valu [1] = valuN HP.ErrorWarning
     valu []  = valuN HP.DottedPattern
     valu [2] = valuN HP.UnsolvedMeta
     valu [3] = valuN HP.TerminationProblem

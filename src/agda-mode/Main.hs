@@ -127,8 +127,7 @@ alreadyInstalled :: Files -> IO Bool
 alreadyInstalled files = do
   exists <- doesFileExist (dotEmacs files)
   if not exists then return False else
-    withFile (dotEmacs files) ReadMode $ \h ->
-      evaluate . (identifier files `isInfixOf`) =<< hGetContents h
+    withFile (dotEmacs files) ReadMode $ (evaluate . (identifier files `isInfixOf`)) <=< hGetContents
       -- Uses evaluate to ensure that the file is not closed
       -- prematurely.
 

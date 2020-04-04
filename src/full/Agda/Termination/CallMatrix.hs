@@ -14,8 +14,6 @@ module Agda.Termination.CallMatrix where
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
 #endif
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order as Order

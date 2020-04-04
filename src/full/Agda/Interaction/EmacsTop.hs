@@ -32,7 +32,6 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Interaction.Imports (getAllWarningsOfTCErr)
-import Agda.Utils.Impossible (__IMPOSSIBLE__)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
@@ -425,7 +424,7 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
       maybeVal <- traverse prettyATop letv
 
       return $
-        [ (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) ] ++
+        (attribute ++ prettyCtxName, ":" <+> ty <+> (parenSep extras)) :
         [ (prettyShow x, "=" <+> val) | val <- maybeToList maybeVal ]
 
   where

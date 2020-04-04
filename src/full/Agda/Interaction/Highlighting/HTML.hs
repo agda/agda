@@ -62,6 +62,11 @@ import Agda.Utils.Impossible
 defaultCSSFile :: FilePath
 defaultCSSFile = "Agda.css"
 
+-- | The name of the occurrence-highlighting JS file.
+
+occurrenceHighlightJsFile :: FilePath
+occurrenceHighlightJsFile = "highlight-hover.js"
+
 -- | The directive inserted before the rendered code blocks
 
 rstDelimiter :: String
@@ -98,6 +103,7 @@ highlightedFileExt hh ft
 
 type PageGen = FilePath    -- ^ Output directory
   -> FileType              -- ^ Source file type
+  -> Bool                  -- ^ Highlight occurrences
   -> Bool                  -- ^ Return value of `highlightOnlyCode`
   -> String                -- ^ Output file extension (return
                            --   value of `highlightedFileExt`)
@@ -110,12 +116,14 @@ generateHTML :: TCM ()
 generateHTML = generateHTMLWithPageGen pageGen
   where
   pageGen :: PageGen
-  pageGen dir ft pc ext mod contents hinfo =
-    generatePage (renderer pc ft) ext dir mod
+  pageGen dir ft ho pc ext mod contents hinfo =
+    generatePage (renderer ho pc ft) ext dir mod
     where
-    renderer :: Bool -> FileType -> FilePath -> FilePath -> Text
-    renderer onlyCode fileType css _ =
-      page css onlyCode mod $
+    renderer :: Bool -> Bool
+             -> FileType -> FilePath -> FilePath
+             -> Text
+    renderer highlightOccur onlyCode fileType css _ =
+      page css highlightOccur onlyCode mod $
       code onlyCode fileType $
       tokenStream contents hinfo
 
@@ -135,6 +143,7 @@ generateHTMLWithPageGen generatePage = do
       -- There is a default directory given by 'defaultHTMLDir'
       let dir = optHTMLDir options
       let htmlHighlight = optHTMLHighlight options
+      let highlightOccurrences = optHighlightOccurrences options
       liftIO $ createDirectoryIfMissing True dir
 
       -- If the default CSS file should be used, then it is copied to
@@ -142,6 +151,10 @@ generateHTMLWithPageGen generatePage = do
       liftIO $ when (isNothing $ optCSSFile options) $ do
         cssFile <- getDataFileName defaultCSSFile
         copyFile cssFile (dir </> defaultCSSFile)
+      liftIO $ when highlightOccurrences $ do
+        highlightJsFile <- getDataFileName $
+          "JS" </> occurrenceHighlightJsFile
+        copyFile highlightJsFile (dir </> occurrenceHighlightJsFile)
 
       TCM.reportS "html" 1
         [ "" :: String
@@ -155,6 +168,7 @@ generateHTMLWithPageGen generatePage = do
               let i  = TCM.miInterface mi
                   ft = TCM.iFileType i in
               generatePage dir ft
+                highlightOccurrences
                 (highlightOnlyCode htmlHighlight ft)
                 (highlightedFileExt htmlHighlight ft) n
                 (TCM.iSource i) (TCM.iHighlighting i)) .
@@ -195,11 +209,16 @@ h !! as = h ! mconcat as
 -- | Constructs the web page, including headers.
 
 page :: FilePath              -- ^ URL to the CSS file.
+     -> Bool                  -- ^ Highlight occurrences
      -> Bool                  -- ^ Whether to reserve literate
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
      -> Text
-page css htmlHighlight modName pageContent =
+page css
+     highlightOccurrences
+     htmlHighlight
+     modName
+     pageContent =
   renderHtml $ if htmlHighlight
                then pageContent
                else docTypeHtml $ hdr <> rest
@@ -207,10 +226,16 @@ page css htmlHighlight modName pageContent =
 
     hdr = Html5.head $ mconcat
       [ meta !! [ charset "utf-8" ]
-      , Html5.title (toHtml $ render $ pretty modName)
+      , Html5.title (toHtml . render $ pretty modName)
       , link !! [ rel "stylesheet"
                 , href $ stringValue css
                 ]
+      , if highlightOccurrences
+        then script mempty !!
+          [ type_ "text/javascript"
+          , src $ stringValue occurrenceHighlightJsFile
+          ]
+        else mempty
       ]
 
     rest = body $ (pre ! class_ "Agda") pageContent
@@ -235,8 +260,7 @@ tokenStream contents info =
             (pos, map (snd . snd) cs, fromMaybe mempty mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
-  map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
-  zip [1..] (T.unpack contents)
+  zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
   where
   infoMap = toMap (decompress info)
 
@@ -316,7 +340,7 @@ code onlyCode fileType = mconcat . if onlyCode
     posAttributes :: [Attribute]
     posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
-      , toList $ fmap link $ definitionSite mi
+      , toList $ link <$> definitionSite mi
       , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
@@ -338,14 +362,14 @@ code onlyCode fileType = mconcat . if onlyCode
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
       showKind k                         = show k
 
-      opClass = if op then ["Operator"] else []
+      opClass = ["Operator" | op]
     aspectClasses a = [show a]
 
 
     otherAspectClasses = map show
 
     -- Notes are not included.
-    noteClasses s = []
+    noteClasses _s = []
 
     -- | Should we output a named anchor?
     --   Only if we are at the definition site now (@here@)

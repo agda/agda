@@ -17,7 +17,6 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.Substitute
@@ -176,7 +175,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           recordRelevance
             | eta          == Just NoEta  = Relevant
             | conInduction == CoInductive = Relevant
-            | otherwise                   = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
+            | otherwise                   = minimum $ Irrelevant : map getRelevance (telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
       -- Disallow coinductive records with eta-equality
@@ -469,7 +468,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
-  cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
+  cs <- forM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
               pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
               c = Clause { clauseTel       = gamma

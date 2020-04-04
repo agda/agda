@@ -15,12 +15,12 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
       with:
-        ghc-version: '8.8.2'
+        ghc-version: '8.8.3'
         cabal-version: '3.0'
     - name: Install dependencies
       run: |

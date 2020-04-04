@@ -9,7 +9,6 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
@@ -27,7 +26,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -607,7 +605,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
     , nest 2 $ "of sort " <+> prettyTCM (getSort t)
     ]
 
-  when (not $ null genParams) $
+  unless (null genParams) $
     reportSLn "tc.decl.ax" 40 $ "  generalized params: " ++ show genParams
 
   -- Jesper, 2018-06-05: should be done AFTER generalizing
@@ -890,7 +888,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
+    ts <- noConstraints (checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

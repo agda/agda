@@ -2,7 +2,6 @@
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Agda.Syntax.Internal

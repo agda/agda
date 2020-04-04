@@ -17,9 +17,9 @@ import Control.Arrow ((&&&))
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
 #endif
+import Data.Bifunctor
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Hashable (Hashable(..))
@@ -35,6 +35,8 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
@@ -2207,9 +2209,20 @@ data ImportedName' n m
   | ImportedName    n  -- ^ Imported name of type @n@.
   deriving (Data, Eq, Ord, Show)
 
+fromImportedName :: ImportedName' a a -> a
+fromImportedName = \case
+  ImportedModule x -> x
+  ImportedName   x -> x
+
 setImportedName :: ImportedName' a a -> a -> ImportedName' a a
 setImportedName (ImportedName   x) y = ImportedName   y
 setImportedName (ImportedModule x) y = ImportedModule y
+
+-- | Like 'partitionEithers'.
+partitionImportedNames :: [ImportedName' n m] -> ([n], [m])
+partitionImportedNames = flip foldr ([], []) $ \case
+  ImportedName   n -> first  (n:)
+  ImportedModule m -> second (m:)
 
 -- -- Defined in Concrete.Pretty
 -- instance (Pretty n, Pretty m) => Pretty (ImportedName' n m) where
@@ -2378,8 +2391,8 @@ instance Monoid CoverageCheck where
 --   @e@ is the type of expressions
 
 data RewriteEqn' qn p e
-  = Rewrite [(qn, e)]  -- ^ @rewrite e@
-  | Invert qn [(p, e)] -- ^ @with p <- e@
+  = Rewrite (List1 (qn, e))  -- ^ @rewrite e@
+  | Invert qn (List1 (p, e)) -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
 instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
@@ -2389,8 +2402,8 @@ instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
 
 instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
   pretty = \case
-    Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
-    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+    Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList $ pretty . snd <$> es
+    Invert _ pes -> prefixedThings (text "invert") $ List1.toList $ pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e
 
 instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
   getRange = \case

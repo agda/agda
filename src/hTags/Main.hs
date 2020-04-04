@@ -118,8 +118,9 @@ extractLangSettings ::
   GenericPackageDescription
   -> ([Extension], Maybe LHE.Language)
 extractLangSettings gpd =
-  fromMaybe ([], Nothing) $
-    (defaultExtensions &&& defaultLanguage) . libBuildInfo <$> (library . configurePackageDescription) gpd
+  maybe ([], Nothing)
+  ((defaultExtensions &&& defaultLanguage) . libBuildInfo)
+  ((library . configurePackageDescription) gpd)
 
 extToOpt :: Extension -> String
 extToOpt (UnknownExtension e) = "-X" ++ e

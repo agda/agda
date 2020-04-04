@@ -19,17 +19,14 @@ module Agda.TypeChecking.Errors
 import Prelude hiding ( null )
 
 import Data.Function
-import Data.List (sortBy, isInfixOf, dropWhileEnd)
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List (sortBy, dropWhileEnd)
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
-import Data.Char (toLower)
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
-import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
@@ -57,6 +54,8 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
@@ -346,8 +345,7 @@ instance PrettyTCM TypeError where
     WrongNamedArgument a xs0 -> fsep $
       pwords "Function does not accept argument "
       ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
-      ++ if null xs then [] else
-         [parens $ fsep $ text "possible arguments:" : map pretty xs]
+      ++ [parens $ fsep $ text "possible arguments:" : map pretty xs | not (null xs)]
       where
       xs = filter (not . isNoName) xs0
 
@@ -416,7 +414,7 @@ instance PrettyTCM TypeError where
 
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
-      ++ [(parens $ prettyTCM (qnameToConcrete d)) <> colon]
+      ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
       ++ map pretty cs
 
     DoesNotConstructAnElementOf c t -> fsep $
@@ -474,26 +472,26 @@ instance PrettyTCM TypeError where
       [prettyTCM tel]
 
     ShouldBeEmpty t [] -> fsep $
-       [prettyTCM t] ++ pwords "should be empty, but that's not obvious to me"
+       prettyTCM t : pwords "should be empty, but that's not obvious to me"
 
     ShouldBeEmpty t ps -> fsep (
-      [prettyTCM t] ++
+      prettyTCM t :
       pwords "should be empty, but the following constructor patterns are valid:"
       ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
 
     ShouldBeASort t -> fsep $
-      [prettyTCM t] ++ pwords "should be a sort, but it isn't"
+      prettyTCM t : pwords "should be a sort, but it isn't"
 
     ShouldBePi t -> fsep $
-      [prettyTCM t] ++ pwords "should be a function type, but it isn't"
+      prettyTCM t : pwords "should be a function type, but it isn't"
 
     ShouldBePath t -> fsep $
-      [prettyTCM t] ++ pwords "should be a Path or PathP type, but it isn't"
+      prettyTCM t : pwords "should be a Path or PathP type, but it isn't"
 
     NotAProperTerm -> fwords "Found a malformed term"
 
-    InvalidTypeSort s -> fsep $ [prettyTCM s] ++ pwords "is not a valid type"
-    InvalidType v -> fsep $ [prettyTCM v] ++ pwords "is not a valid type"
+    InvalidTypeSort s -> fsep $ prettyTCM s : pwords "is not a valid type"
+    InvalidType v -> fsep $ prettyTCM v : pwords "is not a valid type"
 
     FunctionTypeInSizeUniv v -> fsep $
       pwords "Functions may not return sizes, thus, function type " ++
@@ -586,19 +584,15 @@ instance PrettyTCM TypeError where
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
 
-    TooManyFields r missing xs -> fsep $
-      pwords "The record type" ++ [prettyTCM r] ++
-      pwords "does not have the fields" ++ punctuate comma (map pretty xs) ++
-      if null missing then [] else
-        pwords "but it would have the fields"  ++ punctuate comma (map pretty missing)
+    TooManyFields r missing xs -> prettyTooManyFields r missing xs
 
     DuplicateConstructors xs -> fsep $
-      pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++
+      pwords "Duplicate" ++ constructors xs ++ punctuate comma (map pretty xs) ++
       pwords "in datatype"
+      where
+      constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
 
-    DuplicateFields xs -> fsep $
-      pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
-      pwords "in record"
+    DuplicateFields xs -> prettyDuplicateFields xs
 
     WithOnFreeVariable e v -> do
       de <- prettyA e
@@ -612,7 +606,7 @@ instance PrettyTCM TypeError where
           pwords " bound in a module telescope (or patterns of a parent clause)"
 
     UnexpectedWithPatterns ps -> fsep $
-      pwords "Unexpected with patterns" ++ (punctuate " |" $ map prettyA ps)
+      pwords "Unexpected with patterns" ++ punctuate " |" (map prettyA ps)
 
     WithClausePatternMismatch p q -> fsep $
       pwords "With clause pattern " ++ [prettyA p] ++
@@ -676,11 +670,11 @@ instance PrettyTCM TypeError where
 
     IllegalLetInTelescope tb -> fsep $
       -- pwords "The binding" ++
-      [pretty tb] ++
+      pretty tb :
       pwords " is not allowed in a telescope here."
 
     IllegalPatternInTelescope bd -> fsep $
-      [pretty bd] ++
+      pretty bd :
       pwords " is not allowed in a telescope here."
 
     NoRHSRequiresAbsurdPattern ps -> fwords $
@@ -811,7 +805,7 @@ instance PrettyTCM TypeError where
       pwords "Repeated variables in pattern:" ++ map pretty xs
 
     NotAnExpression e -> fsep $
-      [pretty e] ++ pwords "is not a valid expression."
+      pretty e : pwords "is not a valid expression."
 
     NotAValidLetBinding nd -> fwords $
       "Not a valid let-declaration"
@@ -833,7 +827,7 @@ instance PrettyTCM TypeError where
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> "."] ++
       pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' es')
+      ) $$ nest 2 (vcat $ map pretty' $ List1.toList es')
       where
         pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es
@@ -886,11 +880,17 @@ instance PrettyTCM TypeError where
     UnusedVariableInPatternSynonym -> fsep $
       pwords "Unused variable in pattern synonym."
 
-    NoParseForLHS IsLHS p -> fsep (
-      pwords "Could not parse the left-hand side" ++ [pretty p])
-
-    NoParseForLHS IsPatSyn p -> fsep (
-      pwords "Could not parse the pattern synonym" ++ [pretty p])
+    NoParseForLHS lhsOrPatSyn errs p -> vcat
+      [ fsep $ pwords "Could not parse the" ++ prettyLhsOrPatSyn ++ [pretty p]
+      , prettyErrs
+      ]
+      where
+      prettyLhsOrPatSyn = pwords $ case lhsOrPatSyn of
+        IsLHS    -> "left-hand side"
+        IsPatSyn -> "pattern synonym"
+      prettyErrs = case errs of
+        []     -> empty
+        p0 : _ -> fsep $ pwords "Problematic expression:" ++ [pretty p0]
 
 {- UNUSED
     NoParseForPatternSynonym p -> fsep $
@@ -1226,8 +1226,8 @@ instance PrettyTCM SplitError where
           ]
         , zipWith prEq cIxs gIxs
         , if null errs then [] else
-            [ fsep $ pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
-                     pwords "why unification failed:" ] ++
+            fsep ( pwords "Possible" ++ pwords (P.singPlural errs "reason" "reasons") ++
+                     pwords "why unification failed:" ) :
             map (nest 2 . prettyTCM) errs
         ]
       where
