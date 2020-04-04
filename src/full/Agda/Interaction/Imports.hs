@@ -18,7 +18,6 @@ import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HMap
 import Data.Text.Lazy (Text)

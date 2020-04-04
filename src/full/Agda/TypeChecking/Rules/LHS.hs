@@ -24,7 +24,6 @@ import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
 import Data.Map (Map)

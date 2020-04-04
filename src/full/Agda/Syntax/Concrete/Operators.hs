@@ -20,7 +20,6 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
-import Control.Monad
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)

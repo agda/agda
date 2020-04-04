@@ -18,7 +18,6 @@ import Data.Functor (($>))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List ( partition )
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 import qualified Data.Set as Set
 

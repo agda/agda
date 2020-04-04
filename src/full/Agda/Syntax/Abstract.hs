@@ -24,7 +24,6 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Void
 import Data.Data (Data)
-import Data.Monoid (mappend)
 
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
