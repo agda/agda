@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 {-# LANGUAGE CPP  #-}
+{-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,
 --   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative
@@ -16,8 +16,8 @@ import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
 
-#if __GLASGOW_HASKELL__ < 804
-import Data.Semigroup
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup (Semigroup(..))
 #endif
 
 import Agda.Utils.Maybe
@@ -109,9 +109,12 @@ liftListT lift xs = runMListT $ caseMaybeM (lift $ runListT xs) (return nilListT
 instance Monad m => Semigroup (ListT m a) where
   l1 <> l2 = ListT $ foldListT cons (runListT l2) l1
     where cons a = runListT . consListT a . ListT
+
 instance Monad m => Monoid (ListT m a) where
   mempty        = nilListT
+#if !(MIN_VERSION_base(4,11,0))
   mappend = (<>)
+#endif
 
 instance (Functor m, Applicative m, Monad m) => Alternative (ListT m) where
   empty = mempty
