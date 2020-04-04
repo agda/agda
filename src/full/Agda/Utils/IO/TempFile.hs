@@ -4,8 +4,6 @@ module Agda.Utils.IO.TempFile
   ( writeToTempFile
   ) where
 
-import qualified Agda.Utils.IO.UTF8 as UTF8
-
 import qualified Control.Exception as E
 import qualified System.Directory as D
 import qualified System.IO as IO

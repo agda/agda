@@ -1390,8 +1390,8 @@ primComp = do
             redReturn <=< runNamesT [] $ do
               comp <- do
                 let imax i j = pure tIMax <@> i <@> j
-                    forward la bA r u = pure tTrans <#> (lam "i" $ \ i -> la <@> (i `imax` r))
-                                                    <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+                    forward la bA r u = pure tTrans <#> lam "i" (\ i -> la <@> (i `imax` r))
+                                                    <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                                     <@> r
                                                     <@> u
                 return $ \ la bA phi u u0 ->

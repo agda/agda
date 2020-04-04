@@ -2,7 +2,6 @@
 module Agda.Auto.Typecheck where
 
 import Data.IORef
-import Control.Monad (liftM)
 
 import Agda.Syntax.Common (Hiding (..))
 import Agda.Auto.NarrowingSearch

@@ -149,8 +149,8 @@ runCompilerPass eval q p t = do
   t' <- passCode p eval t
   let dbg f   = reportSDoc ("treeless.opt." ++ passTag p) (passVerbosity p) $ f $ text ("-- " ++ passName p)
       pbody b = sep [ text (prettyShow q) <+> "=", nest 2 $ prettyPure b ]
-  dbg $ if | t == t'   -> (<+> "(No effect)")
-           | otherwise -> ($$ pbody t')
+  dbg $ if t == t' then (<+> "(No effect)")
+                   else ($$ pbody t')
   return t'
 
 runFixedPoint :: Int -> EvaluationStrategy -> QName -> Pipeline -> TTerm -> TCM TTerm

@@ -43,6 +43,19 @@
 :set -Wunused-imports
 :set -Wunused-top-binds
 
+:set -Wall-missed-specialisations
+:set -Wcompat
+:set -Wcpp-undef
+:set -Wincomplete-record-updates
+:set -Wincomplete-uni-patterns  -- Noisy
+:set -Wmissed-specialisations
+:set -Wno-name-shadowing  -- Noisy
+:set -Wno-orphans  -- Noisy
+:set -Wno-type-defaults
+:set -Wno-unused-local-binds  -- Noisy
+:set -Wno-unused-matches
+:set -Wredundant-constraints
+
 :set -XBangPatterns
 :set -XConstraintKinds
 :set -XDataKinds

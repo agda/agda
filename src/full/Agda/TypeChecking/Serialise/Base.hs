@@ -23,7 +23,7 @@ import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import Data.Text.Lazy (Text)
-import Data.Typeable ( cast, Typeable, typeOf, TypeRep, typeRep )
+import Data.Typeable ( cast, Typeable, TypeRep, typeRep )
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)

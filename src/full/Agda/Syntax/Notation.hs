@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
-
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
     In contrast to concrete names, holes can be binders.
 
@@ -25,7 +23,7 @@ import qualified Data.Set as Set
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(throwError) )

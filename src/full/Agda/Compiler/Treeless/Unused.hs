@@ -43,8 +43,8 @@ computeUnused q t used = do
       TLam b    -> underBinder <$> go b
       TLet e b  -> do
         uses <- go b
-        if | Set.member 0 uses -> Set.union (underBinder uses) <$> go e
-           | otherwise         -> pure (underBinder uses)
+        if Set.member 0 uses then Set.union (underBinder uses) <$> go e
+                             else pure (underBinder uses)
       TCase x _ d bs -> Set.insert x . Set.unions <$> ((:) <$> go d <*> mapM goAlt bs)
       TUnit{}   -> pure Set.empty
       TSort{}   -> pure Set.empty
