@@ -1,6 +1,9 @@
 
 {-| Agda main module.
 -}
+-- Liang-Ting Chen (2020-04-05):
+-- Please do not import Main.hs.
+
 module Agda.Main where
 
 import Control.Monad.State
@@ -30,9 +33,6 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
-import Agda.Compiler.JS.Compiler (jsBackend)
-
 import Agda.Compiler.Backend
 
 import Agda.Utils.Monad
@@ -44,15 +44,9 @@ import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
-builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
-
 -- | The main function
 runAgda :: [Backend] -> IO ()
-runAgda backends = runAgda' $ builtinBackends ++ backends
-
-runAgda' :: [Backend] -> IO ()
-runAgda' backends = runTCMPrettyErrors $ do
+runAgda backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
   opts     <- liftIO $ runOptM $ parseBackendOptions backends argv defaultOptions
@@ -207,7 +201,3 @@ runTCMPrettyErrors tcm = do
   `catchImpossible` \e -> do
     putStr $ show e
     exitAgdaWith ImpossibleError
-
--- | Main
-main :: IO ()
-main = runAgda []
