@@ -68,6 +68,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -1039,11 +1040,13 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Add the type of the auxiliary function to the signature
 
+  -- Jesper, 2020-04-05: Currently variable generalization inserts
+  -- dummy terms, we have to reduce projections to get rid of them.
+  -- (see also #1332).
+  let reds = SmallSet.fromList [ProjectionReductions]
+  delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
+
   -- Generate the type of the with function
-  delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
-                             -- but module application is sloppy.
-                             -- We normalise to get rid of Def's coming
-                             -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vtys delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
