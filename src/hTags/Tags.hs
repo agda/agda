@@ -189,7 +189,7 @@ instance TagName name => HasTags (HsDecl name) where
     ValD _ d      -> tags d
     SigD _ d      -> tags d
     ForD _ d      -> tags d
-    XHsDecl _     -> []
+    XHsDecl _     -> missingImp "XHsDecl"
 #else
     TyClD d       -> tags d
     ValD d        -> tags d
