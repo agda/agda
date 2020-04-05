@@ -217,6 +217,7 @@ checkRewriteRule q = do
           n  = size vs
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
+      lhs <- instantiateFull lhs
       rhs <- instantiateFull rhs
       b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
 
@@ -231,7 +232,7 @@ checkRewriteRule q = do
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
       -- This is necessary to replace copies created by imports by their
       -- original definition.
-      lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ normalise lhs
+      lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
 
       -- Find head symbol f of the lhs, its type and its arguments.
       (f , hd , t , es) <- case lhs of
@@ -249,8 +250,6 @@ checkRewriteRule q = do
       ifNotAlreadyAdded f $ do
 
       addContext gamma1 $ do
-        -- Normalize lhs args: we do not want to match redexes.
-        es <- normalise es
 
         checkNoLhsReduction f es
 
