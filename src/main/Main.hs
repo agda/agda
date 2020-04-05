@@ -5,9 +5,9 @@
 
 module Main (main) where
 
-import qualified Agda.Main ( runAgda )
+import Agda.Main ( runAgda )
 import Agda.Compiler.Builtin ( builtinBackends )
 import Prelude ( IO )
 
 main :: IO ()
-main = Agda.Main.runAgda builtinBackends
+main = runAgda builtinBackends
