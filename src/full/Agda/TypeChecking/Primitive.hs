@@ -510,7 +510,12 @@ primEraseEquality = do
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
-    (u', v') <- normalise' (u, v)
+    -- Jesper, 2020-04-04: We reduce rather than normalise for
+    -- efficiency reasons. In general this is weaker but it is
+    -- equivalent at base types. A stronger version of
+    -- primEraseEquality (using type-directed conversion) may be
+    -- implemented using --rewriting.
+    (u', v') <- reduce' (u, v)
     if u' == v' then redReturn $ refl u else
       return $ NoReduction $ map notReduced ts
 
