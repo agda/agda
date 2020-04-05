@@ -105,8 +105,7 @@ checkFunDef delayed i name cs = do
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
-  t' <- normalise t
-  TelV tel tr <- telView t'
+  TelV tel tr <- telView t
 
   let telList = telToList tel
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
