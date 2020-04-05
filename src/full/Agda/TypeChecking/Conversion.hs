@@ -1266,11 +1266,6 @@ leqLevel a b = do
     "compareLevel" <+>
       sep [ prettyTCM a <+> "=<"
           , prettyTCM b ]
-  -- Andreas, 2015-12-28 Issue 1757
-  -- We normalize both sides to make the syntactic equality check (==) stronger.
-  -- See case for `same term` below.
-  a <- normalise a
-  b <- normalise b
   leqView a b
   where
     -- Andreas, 2016-09-28
@@ -1281,6 +1276,14 @@ leqLevel a b = do
         "compareLevelView" <+>
           sep [ pretty a <+> "=<"
               , pretty b ]
+
+      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+      reportSDoc "tc.conv.level" 60 $
+        "checkSyntacticEquality returns" <+> prettyTCM equal
+      unless equal $ do
+
+      (a, b) <- reduce (a, b)
+
       cumulativity <- optCumulativity <$> pragmaOptions
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
@@ -1288,10 +1291,8 @@ leqLevel a b = do
               , "=<"
               , prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ levelMaxView b)
               ]
-      wrap $ case (levelMaxView a, levelMaxView b) of
 
-        -- same term
-        _ | a == b -> ok
+      wrap $ case (levelMaxView a, levelMaxView b) of
 
         -- 0 ≤ any
         (SingleClosed 0 :| [] , _) -> ok
@@ -1401,10 +1402,7 @@ leqLevel a b = do
         isMetaLevel _ = False
 
 equalLevel :: MonadConversion m => Level -> Level -> m ()
-equalLevel a b = do
-  -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
-  (a, b) <- normalise (a, b)
-  equalLevel' a b
+equalLevel a b = equalLevel' a b
 
 -- | Precondition: levels are 'normalise'd.
 equalLevel' :: forall m. MonadConversion m => Level -> Level -> m ()
@@ -1426,6 +1424,13 @@ equalLevel' a b = do
                               ]
                ]
         ]
+
+  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+  reportSDoc "tc.conv.level" 60 $
+    "checkSyntacticEquality returns" <+> prettyTCM equal
+  unless equal $ do
+
+  (a, b) <- reduce (a, b)
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
@@ -1459,9 +1464,6 @@ equalLevel' a b = do
         ]
 
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
-
-        -- equal levels
-        _ | a == b -> ok
 
         -- closed == closed
         (SingleClosed m :| [], SingleClosed n :| [])
