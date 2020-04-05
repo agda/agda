@@ -109,11 +109,11 @@ isCon con tm = do t <- liftTCM tm
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
-isDef f tm = do
-  t <- liftTCM $ etaContract =<< normalise =<< tm
-  case t of
-    Def g _ -> return (f == g)
-    _       -> return False
+isDef f tm = loop <$> liftTCM tm
+  where
+    loop (Def g _) = f == g
+    loop (Lam _ b) = loop $ unAbs b
+    loop _         = False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
