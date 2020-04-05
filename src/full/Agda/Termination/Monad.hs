@@ -449,7 +449,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
                   "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
