@@ -30,6 +30,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Geniplate
 import Agda.Syntax.Info
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -37,7 +38,6 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1

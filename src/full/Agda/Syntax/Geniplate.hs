@@ -2,7 +2,7 @@
 
 -- | Utilities related to Geniplate.
 
-module Agda.Utils.Geniplate
+module Agda.Syntax.Geniplate
   ( instanceUniverseBiT'
   , instanceTransformBiMT'
   , dontDescendInto
