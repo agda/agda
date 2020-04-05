@@ -179,7 +179,7 @@ data Declaration
   | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
       -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
-  | PatternSynDef QName [Arg Name] (Pattern' Void)
+  | PatternSynDef QName [Arg BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr

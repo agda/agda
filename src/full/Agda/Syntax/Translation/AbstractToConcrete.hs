@@ -1117,7 +1117,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> dontFoldPatternSynonyms (toConcrete (vacuous p :: A.Pattern))
+    bindToConcrete (map (fmap A.unBind) xs) $ \ xs ->
+      singleton . C.PatternSyn (getRange x) x xs <$> do
+        dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
