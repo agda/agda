@@ -449,9 +449,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
     let c = Clause noRange noRange tel ps Nothing (argFromDom <$> t) False Nothing Nothing ell
-    -- Normalise the dot patterns
-    ps <- addContext tel $ normalise $ namedClausePats c
-    reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
+    let ps = namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 
