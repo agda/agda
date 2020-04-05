@@ -69,7 +69,7 @@ following error when compiling with the GHC backend::
 
 This is because packages are sandboxed in ``$HOME/.cabal/store``
 and you have to explicitly register required packaged in a `GHC environment
-<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html?highlight=environment#package-environments>`_.
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
 This can be done by running the following command:
 
 .. code-block:: bash
