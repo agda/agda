@@ -417,7 +417,7 @@ mkPrimInjective a b qn = do
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
-    eq' <- normalise' eq
+    eq' <- reduce' eq
     case eq' of
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
