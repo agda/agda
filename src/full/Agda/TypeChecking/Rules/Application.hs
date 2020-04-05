@@ -139,7 +139,7 @@ checkApplication cmp hd args e t =
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      TelV tel _ <- telView =<< normalise . defType =<< instantiateDef =<< getConstInfo x
+      TelV tel _ <- telView . defType =<< instantiateDef =<< getConstInfo x
 
       tTerm <- primAgdaTerm
       tName <- primQName
