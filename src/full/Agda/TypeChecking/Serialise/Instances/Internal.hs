@@ -353,7 +353,7 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t (_:_) c d e f g h i j k)   = __IMPOSSIBLE__
   icod_ (Function    a b s t []    c d e f g h i j k)   =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
-  icod_ (Datatype    a b c d e f g h)                   = icodeN 2 Datatype a b c d e f g h
+  icod_ (Datatype    a b c d e f g h i)                 = icodeN 2 Datatype a b c d e f g h i
   icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
   icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
@@ -364,7 +364,7 @@ instance EmbPrj Defn where
   value = vcase valu where
     valu [0]                                        = valuN Axiom
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
-    valu [2, a, b, c, d, e, f, g, h]                = valuN Datatype a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h, i]             = valuN Datatype a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
     valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e

@@ -145,6 +145,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataAbstr      = Info.defAbstract i
                   , dataMutual     = Nothing
                   , dataPathCons   = []     -- Path constructors are added later
+                  , dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
                   }
 
             escapeContext __IMPOSSIBLE__ npars $ do
@@ -157,8 +158,12 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
               isPathCons <- checkConstructor name uc tel' nofIxs s c
               return $ if isPathCons == PathCons then Just (A.axiomName c) else Nothing
 
+            mtranspix <- inTopContext $ defineTranspIx name
+
             -- Return the data definition
-            return dataDef{ dataPathCons = catMaybes pathCons }
+            return dataDef{ dataPathCons = catMaybes pathCons
+                          , dataTranspIx = mtranspix
+                          }
 
         let cons   = map A.axiomName cs  -- get constructor names
 
@@ -619,6 +624,138 @@ defineProjections dataName con params names fsT t = do
 
 freshAbstractQName'_ :: String -> TCM QName
 freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
+
+-- | Defines and returns the name of the `transpIx` function.
+defineTranspIx :: QName  -- ^ datatype name
+               -> TCM (Maybe QName)
+defineTranspIx d = do
+  def <- getConstInfo d
+  case theDef def of
+    Datatype { dataPars = npars
+             , dataIxs = nixs
+             , dataSort = s}
+     -> do
+      let t = defType def
+      reportSDoc "tc.data.ixs" 20 $ vcat
+        [ "name :" <+> prettyTCM d
+        , "type :" <+> prettyTCM t
+        , "npars:" <+> pretty npars
+        , "nixs :" <+> pretty nixs
+        ]
+      if nixs == 0 then return Nothing else do
+      trIx <- freshAbstractQName'_ $ "transpIx" ++ show d
+      TelV params t' <- telViewUpTo npars t
+      TelV ixs    dT <- telViewUpTo nixs t'
+      -- params     ⊢ s
+      -- params     ⊢ ixs
+      -- params.ixs ⊢ dT
+      reportSDoc "tc.data.ixs" 20 $ vcat
+        [ "params :" <+> prettyTCM params
+        , "ixs    :" <+> (addContext params $ prettyTCM ixs)
+        , "dT     :" <+> (addContext params $ addContext ixs $ prettyTCM dT)
+        ]
+      -- theType <- abstract params <$> undefined
+      interval <- elInf primInterval
+      let deltaI = expTelescope interval ixs
+      iz <- primIZero
+      io@(Con c _ _) <- primIOne
+      imin <- getPrimitiveTerm "primIMin"
+      imax <- getPrimitiveTerm "primIMax"
+      ineg <- getPrimitiveTerm "primINeg"
+      transp <- getPrimitiveTerm builtinTrans
+      por <- getPrimitiveTerm "primPOr"
+      one <- primItIsOne
+      -- reportSDoc "trans.rec" 20 $ text $ show params
+      -- reportSDoc "trans.rec" 20 $ text $ show deltaI
+      -- reportSDoc "trans.rec" 10 $ text $ show fsT
+
+      -- let thePrefix = "transp-"
+      -- theName <- freshAbstractQName'_ $ thePrefix ++ P.prettyShow (A.qnameName name)
+
+      -- reportSLn "trans.rec" 5 $ ("Generated name: " ++ show theName ++ " " ++ showQNameId theName)
+
+      -- record type in 'exponentiated' context
+      -- (params : Γ)(ixs : Δ^I), i : I |- T[params, ixs i]
+      let rect' = sub ixs `applySubst` El (raise (size ixs) s) (Def d (teleElims (abstract params ixs) []))
+      addContext params $ reportSDoc "tc.data.ixs" 20 $ "deltaI:" <+> prettyTCM deltaI
+      addContext params $ addContext deltaI $ addContext ("i"::String, defaultDom interval) $ do
+        reportSDoc "tc.data.ixs" 20 $ "rect':" <+> pretty (sub ixs)
+        reportSDoc "tc.data.ixs" 20 $ "rect':" <+> pretty rect'
+
+      theType <- (abstract params <$>) . (abstract deltaI <$>) $ runNamesT [] $ do
+                  rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
+                                                                 pure rect')
+                  nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+                   (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
+
+      TelV ctel ctype <- telView theType
+      reportSDoc "tc.data.ixs" 20 $ "transpIx:" <+> prettyTCM theType
+      let
+        ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel) 
+        ps = telePatterns ctel []
+        cpi = noConPatternInfo { conPType = Just (defaultArg interval) }
+        pat :: NamedArg (Pattern' DBPatVar)
+        pat = defaultNamedArg $ ConP c cpi []
+        clause = empty
+          { clauseTel         = ctel
+          , namedClausePats   = init ps ++ [pat, last ps]
+
+          , clauseBody        = Just $ var 0
+          , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io rect'
+          , clauseRecursive   = Just False  -- non-recursive
+          , clauseUnreachable = Just False
+          }
+
+    -- reportSDoc "tc.data.proj" 20 $ inTopContext $ sep
+    --   [ "proj" <+> prettyTCM (i,ty)
+    --   , nest 2 $ sep [ prettyTCM projName, ":", prettyTCM projType ]
+    --   ]
+
+    -- Andreas, 2020-02-14, issue #4437
+    -- Define data projections as projection-like from the start.
+      noMutualBlock $ do
+        let cs = [ clause ]
+        (mst, _, cc) <- compileClauses Nothing cs
+        let fun = emptyFunction
+                  { funClauses    = cs
+                  , funCompiled   = Just cc
+                  , funSplitTree  = mst
+                  , funProjection = Nothing
+                  , funMutual     = Just []
+                  , funTerminates = Just True
+                  }
+        inTopContext $ addConstant trIx $
+          (defaultDefn defaultArgInfo trIx theType fun)
+            { defNoCompilation  = True
+            , defArgOccurrences = [StrictPos]
+            }
+
+        -- reportSDoc "tc.data.proj.fun" 60 $ inTopContext $ vcat
+        --   [ "proj" <+> prettyTCM i
+        --   , nest 2 $ pretty fun
+        --   ]
+      addContext ctel $ do
+        let es = teleElims ctel []
+        r <- reduce $ Def trIx es
+        reportSDoc "tc.data.ixs" 20 $ "reducedx:" <+> prettyTCM r
+        r <- reduce $ Def trIx (init es ++ [Apply $ argN io, last es])
+        reportSDoc "tc.data.ixs" 20 $ "reduced1:" <+> prettyTCM r
+      return $ Just trIx
+    _ -> __IMPOSSIBLE__
+  where
+
+    -- Δ^I, i : I |- sub Δ : Δ
+    sub tel = prependS __IMPOSSIBLE__ (map Just [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]) (raiseS (size tel + 1))
+    -- given I type, and Γ ⊢ Δ telescope, build Δ^I such that
+    -- Γ ⊢ (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
+    expTelescope :: Type -> Telescope -> Telescope
+    expTelescope int tel = unflattenTel names ys
+      where
+        xs = flattenTel tel
+        names = teleNames tel
+        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
+        s = sub tel
+        ys = map (fmap (abstract t) . applySubst s) xs
 
 
 -- * Special cases of Type
