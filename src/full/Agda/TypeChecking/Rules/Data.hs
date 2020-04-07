@@ -1165,7 +1165,7 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  (pars, ixs) <- normalise $ splitAt nofPars vs
+                  let (pars, ixs) = splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars
                   return PointCons

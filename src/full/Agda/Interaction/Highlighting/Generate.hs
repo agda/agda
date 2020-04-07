@@ -281,7 +281,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     getTyped A.TLet{}           = mempty
 
     getPatSynArgs :: A.Declaration -> File
-    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . A.mkBindName . Common.unArg) xs
+    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
     -- Issue #4361, highlight BUILTINs like NAT, EQUALITY etc. in keyword color.

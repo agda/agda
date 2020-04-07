@@ -1848,7 +1848,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- fold them back when printing (issue #2762).
       ep <- expandPatternSynonyms p
       modifyPatternSyns (Map.insert y (as, ep))
-      return [A.PatternSynDef y as p]   -- only for highlighting, so use unexpanded version
+      return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
 

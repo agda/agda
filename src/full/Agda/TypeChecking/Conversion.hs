@@ -1261,26 +1261,18 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
     __IMPOSSIBLE__
 
 leqLevel :: MonadConversion m => Level -> Level -> m ()
-leqLevel a b = do
-  reportSDoc "tc.conv.nat" 30 $
-    "compareLevel" <+>
-      sep [ prettyTCM a <+> "=<"
-          , prettyTCM b ]
-  -- Andreas, 2015-12-28 Issue 1757
-  -- We normalize both sides to make the syntactic equality check (==) stronger.
-  -- See case for `same term` below.
-  a <- normalise a
-  b <- normalise b
-  leqView a b
-  where
-    -- Andreas, 2016-09-28
-    -- If we have to postpone a constraint, then its simplified form!
-    leqView :: MonadConversion m => Level -> Level -> m ()
-    leqView a b = catchConstraint (LevelCmp CmpLeq a b) $ do
+leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.level" 30 $
-        "compareLevelView" <+>
-          sep [ pretty a <+> "=<"
-              , pretty b ]
+        "compareLevel" <+>
+          sep [ prettyTCM a <+> "=<"
+              , prettyTCM b ]
+
+      (a, b) <- reduce (a, b)
+      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+      reportSDoc "tc.conv.level" 60 $
+        "checkSyntacticEquality returns" <+> prettyTCM equal
+      unless equal $ do
+
       cumulativity <- optCumulativity <$> pragmaOptions
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
@@ -1288,10 +1280,8 @@ leqLevel a b = do
               , "=<"
               , prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ levelMaxView b)
               ]
-      wrap $ case (levelMaxView a, levelMaxView b) of
 
-        -- same term
-        _ | a == b -> ok
+      wrap $ case (levelMaxView a, levelMaxView b) of
 
         -- 0 ≤ any
         (SingleClosed 0 :| [] , _) -> ok
@@ -1313,20 +1303,20 @@ leqLevel a b = do
 
         -- ⊔ as ≤ single
         (as@(_:|_:_), b :| []) ->
-          sequence_ [ leqView (unSingleLevel a') (unSingleLevel b) | a' <- NonEmpty.toList as ]
+          sequence_ [ leqLevel (unSingleLevel a') (unSingleLevel b) | a' <- NonEmpty.toList as ]
 
         -- reduce constants
         (as, bs)
           | let minN = min (fst $ levelPlusView a) (fst $ levelPlusView b)
                 a'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN a
                 b'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN b
-          , minN > 0 -> leqView a' b'
+          , minN > 0 -> leqLevel a' b'
 
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
           | (subsumed@(_:_) , as') <- List.partition isSubsumed (NonEmpty.toList as)
-          -> leqView (unSingleLevels as') b
+          -> leqLevel (unSingleLevels as') b
           where
             isSubsumed a = any (`subsumes` a) (NonEmpty.toList bs)
 
@@ -1400,15 +1390,9 @@ leqLevel a b = do
         isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
         isMetaLevel _ = False
 
-equalLevel :: MonadConversion m => Level -> Level -> m ()
-equalLevel a b = do
-  -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
-  (a, b) <- normalise (a, b)
-  equalLevel' a b
-
 -- | Precondition: levels are 'normalise'd.
-equalLevel' :: forall m. MonadConversion m => Level -> Level -> m ()
-equalLevel' a b = do
+equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
+equalLevel a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
   -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
   -- THAT's actually UNSOUND when metas are instantiated, because
@@ -1426,6 +1410,12 @@ equalLevel' a b = do
                               ]
                ]
         ]
+
+  (a, b) <- reduce (a, b)
+  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+  reportSDoc "tc.conv.level" 60 $
+    "checkSyntacticEquality returns" <+> prettyTCM equal
+  unless equal $ do
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
@@ -1460,9 +1450,6 @@ equalLevel' a b = do
 
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
-        -- equal levels
-        _ | a == b -> ok
-
         -- closed == closed
         (SingleClosed m :| [], SingleClosed n :| [])
           | m == n    -> ok
@@ -1478,9 +1465,9 @@ equalLevel' a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
-          sequence_ [ equalLevel' (ClosedLevel 0) (unSingleLevel b') | b' <- NonEmpty.toList bs ]
+          sequence_ [ equalLevel (ClosedLevel 0) (unSingleLevel b') | b' <- NonEmpty.toList bs ]
         (as@(_:|_:_) , SingleClosed 0 :| []) ->
-          sequence_ [ equalLevel' (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
+          sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
 
         -- meta == any
         (SinglePlus (Plus k (MetaLevel x as)) :| [] , bs)

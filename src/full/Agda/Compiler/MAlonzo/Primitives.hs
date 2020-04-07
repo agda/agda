@@ -63,7 +63,7 @@ checkTypeOfMain  IsMain q def ret
   | not (isMainFunction q $ theDef def) = ret
   | otherwise = do
     Def io _ <- primIO
-    ty <- normalise $ defType def
+    ty <- reduce $ defType def
     case unEl ty of
       Def d _ | d == io -> (mainAlias :) <$> ret
       _                 -> do

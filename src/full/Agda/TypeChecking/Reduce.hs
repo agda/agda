@@ -327,11 +327,15 @@ instance Reduce LevelAtom where
     where
       fromTm v = do
         bv <- reduceB' v
+        hasAllReductions <- (allReductions `SmallSet.isSubsetOf`) <$>
+                              asksTC envAllowedReductions
         let v = ignoreBlocking bv
         case bv of
           NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
           Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
-          NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
+          NotBlocked r _
+            | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
+            | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
 
 
 instance (Subst t a, Reduce a) => Reduce (Abs a) where
@@ -1089,7 +1093,7 @@ instance Normalise LevelAtom where
       MetaLevel m vs   -> MetaLevel m <$> normalise' vs
       BlockedLevel m v -> BlockedLevel m <$> normalise' v
       NeutralLevel r v -> NeutralLevel r <$> normalise' v
-      UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
+      UnreducedLevel v -> UnreducedLevel <$> normalise' v
 
 instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'

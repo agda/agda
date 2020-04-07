@@ -417,7 +417,7 @@ mkPrimInjective a b qn = do
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
-    eq' <- normalise' eq
+    eq' <- reduce' eq
     case eq' of
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
@@ -510,7 +510,12 @@ primEraseEquality = do
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
-    (u', v') <- normalise' (u, v)
+    -- Jesper, 2020-04-04: We reduce rather than normalise for
+    -- efficiency reasons. In general this is weaker but it is
+    -- equivalent at base types. A stronger version of
+    -- primEraseEquality (using type-directed conversion) may be
+    -- implemented using --rewriting.
+    (u', v') <- reduce' (u, v)
     if u' == v' then redReturn $ refl u else
       return $ NoReduction $ map notReduced ts
 
