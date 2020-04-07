@@ -1,9 +1,6 @@
 
 {-| Agda main module.
 -}
--- Liang-Ting Chen (2020-04-05):
--- Please do not import Main.hs.
-
 module Agda.Main where
 
 import Control.Monad.State
@@ -34,6 +31,7 @@ import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Backend
+import Agda.Compiler.Builtin
 
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -45,8 +43,10 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
 -- | The main function
-runAgda :: [Backend] -> IO ()
-runAgda backends = runTCMPrettyErrors $ do
+runAgda', runAgda :: [Backend] -> IO ()
+runAgda backends = runAgda' $ builtinBackends ++ backends
+
+runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
   opts     <- liftIO $ runOptM $ parseBackendOptions backends argv defaultOptions
