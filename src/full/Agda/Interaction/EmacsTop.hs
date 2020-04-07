@@ -132,7 +132,9 @@ lispifyDisplayInfo info = case info of
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
-      format (render doc) "*Normal Form*"
+          lbl | cmode == HeadCompute = "*Head Normal Form*"
+              | otherwise            = "*Normal Form*"
+      format (render doc) lbl
       where
         prettyExpr = localStateCommandM
             $ lift
