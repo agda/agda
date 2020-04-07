@@ -59,6 +59,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
+        # ASR (2020-04-07). We cannot use GHC 8.8.3 because Issue #4543.
         ghc-ver: [8.8.2]
         icu-ver: [58.2-3]
     env:
