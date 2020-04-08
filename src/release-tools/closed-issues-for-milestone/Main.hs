@@ -76,7 +76,8 @@ issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 -- Please keep the labels in the list in alphabetic order!
 labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
-  [ "closed-issues-program"
+  [ "benchmark-suite"
+  , "closed-issues-program"
   , "debug"
   , "documented-in-changelog"
   , "faq"
