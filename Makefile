@@ -370,6 +370,11 @@ benchmark-without-logs :
 	@$(call decorate, "Benchmark suite without creating logs", \
 	  $(MAKE) -C benchmark without-creating-logs)
 
+.PHONY : benchmark-summary ##
+benchmark-summary :
+	@$(call decorate, "Benchmark summary", \
+	  $(MAKE) -C benchmark summary)
+
 .PHONY : user-manual-test ##
 user-manual-test :
 	@$(call decorate, "User manual (test)", \

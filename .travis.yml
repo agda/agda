@@ -150,7 +150,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-interaction
     - <<: *main-job
-      name: "Compiler tests, benchmark, and other test suites"
+      name: "Compiler tests, benchmark summary, and other test suites"
       git:
         submodules: true
       script:
@@ -164,6 +164,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
+        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-summary
         - travis_retry cabal v1-update
         - ${MAKE_CMD} TAGS
         # Build & install size-solver
@@ -209,6 +210,7 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
         - make BUILD_DIR=$BUILD_DIR benchmark-without-logs
+        - make BUILD_DIR=$BUILD_DIR benchmark-summary
 
         ##################################################################################
         # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
