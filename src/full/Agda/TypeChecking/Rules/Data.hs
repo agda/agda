@@ -368,7 +368,7 @@ defineCompData d con params names fsT t boundary = do
       }
   where
     -- Δ^I, i : I |- sub Δ : Δ
-    sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
+    sub tel = [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ] ++# EmptyS __IMPOSSIBLE__
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
 
     defineTranspOrHCompD cmd d con params names fsT t boundary = do
@@ -382,7 +382,7 @@ defineCompData d con params names fsT t boundary = do
       body <- do
         case cmd of
           DoHComp -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
-          DoTransp | null boundary -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
+          DoTransp | null boundary {- && null ixs -} -> return $ Con con ConOSystem (map Apply $ withArgInfo fsT bodies)
                    | otherwise -> do
             io <- primIOne
             tIMax <- primIMax
@@ -781,11 +781,14 @@ toLType ty = do
 instance Subst Term LType where
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
--- | A @Type@ that either has sort @Type l@ or is a closed definition.
+-- | A @Type@ that either has sort @Type l@ or is a closed definition in Set\omega.
 --   Such a type supports some version of transp.
 --   In particular we want to allow the Interval as a @ClosedType@.
 data CType = ClosedType QName | LType LType deriving (Eq,Show)
 
+instance P.Pretty CType where
+  pretty = P.pretty . fromCType
+  
 fromCType :: CType -> Type
 fromCType (ClosedType q) = El Inf (Def q [])
 fromCType (LType t) = fromLType t
@@ -839,6 +842,13 @@ defineTranspForFields
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
+     -- ^ @((name, tel, rtype, clause_types, bodies), sigma)@
+     --   name: name of transport function for this constructor/record. clauses still missing.
+     --   tel: Ξ telescope for the RHS, Ξ ⊃ (Δ^I, φ : I), also Ξ ⊢ us0 : Φ[δ 0]
+     --   rtype: Ξ ⊢ T' := T[δ 1]
+     --   clause_types: Ξ ⊢ Φ' := Φ[δ 1]
+     --   bodies: Ξ ⊢ us1 : Φ'
+     --   sigma:  Ξ, i : I ⊢ σ : Δ.Φ -- line [δ 0,us0] ≡ [δ 0,us1]
 defineTranspForFields pathCons applyProj name params fsT fns rect = do
   interval <- elInf primInterval
   let deltaI = expTelescope interval params
@@ -850,9 +860,9 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   transp <- getPrimitiveTerm builtinTrans
   por <- getPrimitiveTerm "primPOr"
   one <- primItIsOne
-  reportSDoc "trans.rec" 20 $ text $ show params
-  reportSDoc "trans.rec" 20 $ text $ show deltaI
-  reportSDoc "trans.rec" 10 $ text $ show fsT
+  reportSDoc "trans.rec" 20 $ pretty params
+  reportSDoc "trans.rec" 20 $ pretty deltaI
+  reportSDoc "trans.rec" 10 $ pretty fsT
 
   let thePrefix = "transp-"
   theName <- freshAbstractQName'_ $ thePrefix ++ P.prettyShow (A.qnameName name)
