@@ -30,10 +30,8 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
-import Agda.Compiler.JS.Compiler (jsBackend)
-
 import Agda.Compiler.Backend
+import Agda.Compiler.Builtin
 
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -44,14 +42,10 @@ import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
-builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
-
 -- | The main function
-runAgda :: [Backend] -> IO ()
+runAgda', runAgda :: [Backend] -> IO ()
 runAgda backends = runAgda' $ builtinBackends ++ backends
 
-runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
@@ -207,7 +201,3 @@ runTCMPrettyErrors tcm = do
   `catchImpossible` \e -> do
     putStr $ show e
     exitAgdaWith ImpossibleError
-
--- | Main
-main :: IO ()
-main = runAgda []

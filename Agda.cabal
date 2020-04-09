@@ -280,6 +280,7 @@ library
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
                     Agda.Compiler.Backend
+                    Agda.Compiler.Builtin
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Common
                     Agda.Compiler.JS.Compiler
