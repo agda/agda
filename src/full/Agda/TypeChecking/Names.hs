@@ -104,7 +104,7 @@ open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m, Subst t' b, DeBruijn b, Subst t a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
+bind' :: (MonadFail m, Subst t' b, DeBruijn b) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
@@ -112,7 +112,6 @@ bind' n f = do
 bind :: ( MonadFail m
         , Subst t' b
         , DeBruijn b
-        , Subst t a
         ) =>
         ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
@@ -141,20 +140,29 @@ data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a }
 instance Subst t a => Subst t (AbsN a) where
   applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
 
-toAbsN :: Subst t a => Abs (AbsN a) -> AbsN a
-toAbsN x = AbsN (absName x : absNName x') (unAbsN x')
-  where x' = absBody x
+-- | Will crash on @NoAbs@
+toAbsN :: Abs (AbsN a) -> AbsN a
+toAbsN (Abs n x') = AbsN (n : absNName x') (unAbsN x')
+toAbsN NoAbs{} = __IMPOSSIBLE__
 
 absAppN :: Subst t a => AbsN a -> [t] -> a
 absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
+
 bindN :: ( MonadFail m
         , Subst t' b
         , DeBruijn b
-        , Subst t a
         ) =>
         [ArgName] -> ([NamesT m b] -> NamesT m a) -> NamesT m (AbsN a)
 bindN [] f = AbsN [] <$> f []
 bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
+
+bindNArg :: ( MonadFail m
+        , Subst t' b
+        , DeBruijn b
+        ) =>
+        [Arg ArgName] -> ([NamesT m (Arg b)] -> NamesT m a) -> NamesT m (AbsN a)
+bindNArg [] f = AbsN [] <$> f []
+bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
 
 
 applyN :: ( Monad m
@@ -181,7 +189,6 @@ applyN' f xs = do
 abstractN :: ( MonadFail m
              , Subst t' b
              , DeBruijn b
-             , Subst t a
              , Abstract a
              ) =>
              NamesT m Telescope -> ([NamesT m b] -> NamesT m a) -> NamesT m a
@@ -189,3 +196,16 @@ abstractN tel f = do
   tel <- tel
   u <- bindN (teleNames tel) f
   return $ abstract tel $ unAbsN u
+
+abstractN' :: ( MonadFail m
+             , Abstract a
+             ) =>
+             NamesT m Telescope -> (() -> NamesT m a) -> NamesT m a
+abstractN' tel f = do
+  tel <- tel
+  u <- bindN (teleNames tel) (\ xs -> let ys = pure (Var 0 [] :: Term) : xs in f ())
+  return $ abstract tel $ unAbsN u
+
+
+lamTel :: Monad m => NamesT m (Abs [Term]) -> NamesT m ([Term])
+lamTel t = map (Lam defaultArgInfo) . sequenceA <$> t
