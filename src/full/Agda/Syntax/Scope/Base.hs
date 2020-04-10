@@ -20,7 +20,7 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
-import qualified Data.Semigroup as Sgrp
+import Data.Semigroup ((<>))
 
 import Data.Data (Data)
 
@@ -41,7 +41,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Map as Map
 
@@ -152,7 +153,7 @@ instance Ord LocalVar where
 -- | We show shadowed variables as prefixed by a ".", as not in scope.
 instance Pretty LocalVar where
   pretty (LocalVar x _ []) = pretty x
-  pretty (LocalVar x _ xs) = "." <> pretty x
+  pretty (LocalVar x _ xs) = "." P.<> pretty x
 
 -- | Shadow a local name by a non-empty list of imports.
 shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
@@ -1182,7 +1183,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
       return (q, singleton (m, x))
 
     nameMap :: NameMap
-    nameMap = Map.fromListWith (Sgrp.<>) $ do
+    nameMap = Map.fromListWith (<>) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
@@ -1267,15 +1268,17 @@ prettyNameSpace (NameSpace names mods _) =
     pr (x, y) = pretty x <+> "-->" <+> pretty y
 
 instance Pretty Scope where
-  pretty (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
-    vcat $
-      "scope" <+> pretty name : ind (
-        concat [ blockOfLines (pretty nsid) $ prettyNameSpace ns
-               | (nsid, ns) <- scopeNameSpaces scope ]
-      ++ blockOfLines "imports"
-           (case Map.keys imps of [] -> []; ks -> [ prettyList ks ])
-      )
-    where ind = map $ nest 2
+  pretty scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps } =
+    vcat $ concat
+      [ [ "scope" <+> pretty name ]
+      , scopeNameSpaces scope >>= \ (nsid, ns) -> do
+          block (pretty nsid) $ prettyNameSpace ns
+      , ifNull (Map.keys imps) [] {-else-} $ \ ks ->
+          block "imports" [ prettyList ks ]
+      ]
+    where
+    block :: Doc -> [Doc] -> [Doc]
+    block hd = map (nest 2) . blockOfLines hd
 
 -- | Add first string only if list is non-empty.
 blockOfLines :: Doc -> [Doc] -> [Doc]
@@ -1283,16 +1286,17 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map (nest 2) ss
 
 instance Pretty ScopeInfo where
-  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _) = vcat $
-    [ "ScopeInfo"
-    , "  current = " <> pretty this
-    ] ++
-    (["  toBind  = " <> pretty locals | not (null toBind)]) ++
-    (["  locals  = " <> pretty locals | not (null locals)]) ++
-    [ "  context = " <> pretty ctx
-    , "  modules"
-    ] ++
-    map (nest 4) (List.filter (not . null) $ map pretty $ Map.elems mods)
+  pretty (ScopeInfo this mods toBind locals ctx _ _ _ _ _) = vcat $ concat
+    [ [ "ScopeInfo"
+      , nest 2 $ "current =" <+> pretty this
+      ]
+    , [ nest 2 $ "toBind  =" <+> pretty locals | not (null toBind) ]
+    , [ nest 2 $ "locals  =" <+> pretty locals | not (null locals) ]
+    , [ nest 2 $ "context =" <+> pretty ctx
+      , nest 2 $ "modules"
+      ]
+    , map (nest 4 . pretty) $ Map.elems mods
+    ]
 
 ------------------------------------------------------------------------
 -- * Boring instances
