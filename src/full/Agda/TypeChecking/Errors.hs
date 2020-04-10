@@ -984,7 +984,7 @@ instance PrettyTCM TypeError where
         section = qualifyFirstIdPart
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
-                           (init (C.qnameParts (notaName nota))))
+                           (List1.init (C.qnameParts (notaName nota))))
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []

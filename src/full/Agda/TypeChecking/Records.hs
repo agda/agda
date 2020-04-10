@@ -171,10 +171,6 @@ insertMissingFieldsFail
 insertMissingFieldsFail r placeholder fs axs =
   failOnRecordFieldWarnings $ insertMissingFields r placeholder fs axs
 
--- | The name of the module corresponding to a record.
-recordModule :: QName -> ModuleName
-recordModule = mnameFromList . qnameToList
-
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record or the record is abstract.
 getRecordDef :: (HasConstInfo m, ReadTCState m, MonadError TCErr m) => QName -> m Defn

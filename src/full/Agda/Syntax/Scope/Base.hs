@@ -39,6 +39,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
@@ -952,7 +953,7 @@ flattenScope ms scope =
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
                , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (List.stripPrefix $ C.qnameParts c) ms
+                     ms' = mapMaybe (List.stripPrefix $ List1.toList $ C.qnameParts c) ms
                , not $ null ms' ]
     qual c = Map.mapKeys (q c)
       where
@@ -1035,7 +1036,7 @@ scopeLookup' q scope =
             -- Andreas, 2013-05-01: Issue 836 debates this feature:
             -- Qualified constructors are qualified by their datatype rather than a module
             defs :: [A.ModuleName] -- NB:: Defined but not used
-            defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
+            defs = qnameToMName . anameName . fst <$> lookupName x s
         -- Andreas, 2013-05-01:  Issue 836 complains about the feature
         -- that constructors can also be qualified by their datatype
         -- and projections by their record type.  This feature is off

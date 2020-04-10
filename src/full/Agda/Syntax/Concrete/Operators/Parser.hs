@@ -146,8 +146,8 @@ parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
     where
     noSplit = [noPlaceholder e]
 
-    splitName n = case last ns of
-      Name r nis ps@(_ : _ : _) -> splitParts r nis (init ns) Beginning ps
+    splitName n = case List1.last ns of
+      Name r nis ps@(_ : _ : _) -> splitParts r nis (List1.init ns) Beginning ps
       _                         -> noSplit
       where
       ns = qnameParts n
@@ -250,7 +250,7 @@ opP :: forall e k. IsExpr e
     => ParseSections
     -> Parser e e -> NewNotation -> NK k -> Parser e (OperatorType k e)
 opP parseSections p (NewNotation q names _ syn isOp) kind =
-  flip fmap (worker (init $ qnameParts q)
+  flip fmap (worker (List1.init $ qnameParts q)
                     withoutExternalHoles) $ \(range, hs) ->
 
   let (normal, binders) = partitionEithers hs

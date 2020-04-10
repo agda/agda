@@ -18,12 +18,14 @@ import Control.Monad
 import qualified Control.Monad.Fail as Fail
 
 import Data.Functor
-import Data.Monoid ( mappend, mempty, Monoid, Endo(..) )
-import Data.Semigroup ( (<>), Semigroup )
+import Data.Semigroup        ( (<>), Semigroup )
 import Test.QuickCheck
-import Test.Tasty ( testGroup, TestName, TestTree )
+import Test.Tasty            ( testGroup, TestName, TestTree )
 import Test.Tasty.QuickCheck ( testProperties, testProperty )
 
+import Agda.Utils.Functor
+import Agda.Utils.List1      ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.PartialOrd
 import Agda.Utils.POMonoid
 
@@ -213,6 +215,10 @@ listOfElements :: [a] -> Gen [a]
 listOfElements [] = return []
 listOfElements xs = listOf $ elements xs
 
+-- | Generates an officially non-empty list, while 'listOf1' does it inofficially.
+list1Of :: Gen a -> Gen (List1 a)
+list1Of = List1.fromList <.> listOf1
+
 -- | If the given list is non-empty, then an element from the list is
 -- generated, and otherwise an arbitrary element is generated.
 
@@ -249,6 +255,9 @@ three gen = liftM3 (,,) gen gen gen
 
 instance Fail.MonadFail Gen where
   fail = error
+
+instance CoArbitrary a => CoArbitrary (List1 a) where
+  coarbitrary (x :| xs) = coarbitrary (x, xs)
 
 ------------------------------------------------------------------------
 -- Test driver

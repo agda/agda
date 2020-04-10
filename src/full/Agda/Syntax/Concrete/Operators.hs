@@ -788,7 +788,7 @@ appView = loop []
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
-  nubOn id $ filter (not . null) $ map (init . qnameParts) qs
+  nubOn id $ filter (not . null) $ map (List1.init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
 parseApplication :: List1 Expr -> ScopeM Expr

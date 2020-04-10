@@ -43,6 +43,11 @@ append (x :| xs) ys = x :| mappend xs ys
 prepend :: [a] -> List1 a -> List1 a
 prepend as bs = foldr (<|) bs as
 
+-- | More precise type for @snoc@.
+
+snoc :: [a] -> a -> List1 a
+snoc as a = prepend as $ a :| []
+
 -- | Concatenate one or more non-empty lists.
 
 concat :: List1 (List1 a) -> List1 a

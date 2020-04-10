@@ -40,13 +40,18 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Warnings (runPM)
 
+import Agda.Version ( version )
+
 import Agda.Utils.Applicative ( (?$>) )
 import Agda.Utils.Except
 import Agda.Utils.FileName
-import Agda.Utils.List ( stripSuffix, nubOn )
+import Agda.Utils.List  ( stripSuffix, nubOn )
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Singleton
+
 import Agda.Utils.Impossible
-import Agda.Version ( version )
 
 -- | Type aliases for source files and interface files.
 --   We may only produce one of these if we know for sure that the file
@@ -229,7 +234,7 @@ moduleName
   -> TCM TopLevelModuleName
 moduleName file parsedModule = billTo [Bench.ModuleName] $
   case moduleNameParts name of
-    ["_"] -> do
+    "_" :| [] -> do
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
@@ -241,7 +246,7 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
             "The file name " ++ show file ++ " is invalid because " ++
             defaultName ++ " is not an unqualified module name."
         QName {} ->
-          return $ TopLevelModuleName (getRange m) [defaultName]
+          return $ TopLevelModuleName (getRange m) $ singleton defaultName
     _ -> return name
   where
   name        = topLevelModuleName parsedModule

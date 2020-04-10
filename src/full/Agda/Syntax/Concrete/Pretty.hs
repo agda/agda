@@ -703,7 +703,7 @@ prettyOpApp :: forall a .
 prettyOpApp q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
-    ms = init (qnameParts q)
+    ms = List1.init (qnameParts q)
     -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
            Name _ _ xs    -> xs

@@ -119,7 +119,7 @@ initialInstanceCandidates t = do
               m <- currentModule
               -- Are we inside the record module? If so it's safe and desirable
               -- to eta-expand once (issue #2320).
-              if qnameToList r `List.isPrefixOf` mnameToList m
+              if qnameToList0 r `List.isPrefixOf` mnameToList m
                 then return (Just (r, vs))
                 else return Nothing
         r -> return r

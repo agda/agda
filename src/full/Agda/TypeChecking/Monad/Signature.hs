@@ -60,6 +60,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Update
 
@@ -317,7 +318,7 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
         rename x =
           case lookup x rd of
             Nothing -> do y <- freshName_ (show $ qnameName x)
-                          return [(x, qnameFromList [y])]
+                          return [(x, qnameFromList $ singleton y)]
             Just{}  -> return []
 
         constructorData :: QName -> TCM (Maybe QName)
@@ -979,7 +980,7 @@ inFreshModuleIfFreeParams k = do
   msub <- getModuleParameterSub =<< currentModule
   if isNothing msub || msub == Just IdS then k else do
     m  <- currentModule
-    m' <- qualifyM m . mnameFromList . (:[]) <$>
+    m' <- qualifyM m . mnameFromList1 . singleton <$>
             freshName_ ("_" :: String)
     addSection m'
     withCurrentModule m' k

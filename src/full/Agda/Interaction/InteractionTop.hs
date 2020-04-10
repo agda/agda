@@ -57,7 +57,7 @@ import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.BasicOps hiding (whyInScope)
-import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate)
+import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -82,6 +82,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
 import Agda.Utils.Tuple
@@ -1016,7 +1017,7 @@ highlightExpr e =
   where
     dummy = mkName_ (NameId 0 0) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
-    decl  = A.Axiom NoFunSig info defaultArgInfo Nothing (qnameFromList [dummy]) e
+    decl  = A.Axiom NoFunSig info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
 
 -- | Sorts interaction points based on their ranges.
 

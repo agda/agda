@@ -442,7 +442,7 @@ bindName' acc kind meta x y = do
     -- In case it's not the first one, we simply remove the one that came before
     _ | isNoName x      -> success
     DefinedName _ d     -> clash $ anameName d
-    VarName z _         -> clash $ A.qualify (mnameFromList []) z
+    VarName z _         -> clash $ A.qualify_ z
     FieldName       ds  -> ambiguous FldName ds
     ConstructorName ds  -> ambiguous ConName ds
     PatternSynResName n -> ambiguous PatternSynName n

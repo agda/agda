@@ -24,7 +24,10 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -125,7 +128,7 @@ instance Underscore QName where
 
 data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
-  , moduleNameParts :: [String]
+  , moduleNameParts :: List1 String
   }
   deriving (Show, Data)
 
@@ -288,9 +291,9 @@ unqualify q = unqualify' q `withRangeOf` q
   unqualify' (Qual _ x) = unqualify' x
 
 -- | @qnameParts A.B.x = [A, B, x]@
-qnameParts :: QName -> [Name]
-qnameParts (Qual x q) = x : qnameParts q
-qnameParts (QName x)  = [x]
+qnameParts :: QName -> List1 Name
+qnameParts (Qual x q) = x <| qnameParts q
+qnameParts (QName x)  = singleton x
 
 -- | Is the name (un)qualified?
 
@@ -310,27 +313,15 @@ isUnqualified (QName n) = Just n
 -- name is assumed to represent a top-level module name.
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName q = TopLevelModuleName (getRange q) $ map prettyShow $ qnameParts q
-
--- UNUSED
--- -- | Turns a top level module into a qualified name with 'noRange'.
-
--- fromTopLevelModuleName :: TopLevelModuleName -> QName
--- fromTopLevelModuleName (TopLevelModuleName _ [])     = __IMPOSSIBLE__
--- fromTopLevelModuleName (TopLevelModuleName _ (x:xs)) = loop x xs
---   where
---   loop x []       = QName (mk x)
---   loop x (y : ys) = Qual  (mk x) $ loop y ys
---   mk :: String -> Name
---   mk x = Name noRange [Id x]
+toTopLevelModuleName q = TopLevelModuleName (getRange q) $
+  fmap nameToRawName $ qnameParts q
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
 
 moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
-moduleNameToFileName (TopLevelModuleName _ []) ext = __IMPOSSIBLE__
 moduleNameToFileName (TopLevelModuleName _ ms) ext =
-  joinPath (init ms) </> last ms <.> ext
+  joinPath (List1.init ms) </> List1.last ms <.> ext
 
 -- | Finds the current project's \"root\" directory, given a project
 -- file and the corresponding top-level module name.
@@ -428,7 +419,7 @@ instance Pretty QName where
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." ms
+  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." $ List1.toList ms
 
 ------------------------------------------------------------------------
 -- * Range instances

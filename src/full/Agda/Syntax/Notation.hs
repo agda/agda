@@ -31,6 +31,7 @@ import Agda.Syntax.Position
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
@@ -261,7 +262,7 @@ notationNames (NewNotation q _ _ parts _) =
   zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id $ rangedThing x] | IdPart x <- parts ]
   where
     -- The qualification of @q@.
-    modules     = init (qnameParts q)
+    modules     = List1.init (qnameParts q)
     -- Putting the qualification onto @x@.
     reQualify x = List.foldr Qual (QName x) modules
 

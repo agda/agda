@@ -348,7 +348,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     printScope "mod.inst" 10 $ "after stripping"
     reportSDoc "scope.decl" 90 $ "after stripNo: m0 =" <+> prettyA m0
 
-    let m      = m0 `withRangesOf` [x]
+    let m      = m0 `withRangesOf` singleton x
         adecls = [ apply info m modapp' copyInfo adir ]
 
     reportSDoc "scope.decl" 70 $ vcat $
@@ -641,7 +641,7 @@ newtype NewModuleQName     = NewModuleQName     C.QName
 newtype OldModuleName      = OldModuleName      C.QName
 
 freshQModule :: A.ModuleName -> C.Name -> ScopeM A.ModuleName
-freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
+freshQModule m x = A.qualifyM m . mnameFromList1 . singleton <$> freshAbstractName_ x
 
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
@@ -1624,7 +1624,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           let x' = anameName ax
           -- Create the module for the qualified constructors
           checkForModuleClash x -- disallow shadowing previously defined modules
-          let m = mnameFromList $ qnameToList x'
+          let m = qnameToMName x'
           createModule (Just IsData) m
           bindModule p x m  -- make it a proper module
           cons <- toAbstract (map (ConstrDecl m a p) cons)
@@ -1657,7 +1657,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- the type of the constructor.
         contel <- localToAbstract (RecordConstructorType fields) return
         m0     <- getCurrentModule
-        let m = A.qualifyM m0 $ mnameFromList [ last $ qnameToList x' ]
+        let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
         printScope "rec" 15 "before record"
         createModule (Just IsRecord) m
         -- We scope check the fields a second time, as actual fields.
@@ -2139,7 +2139,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     (isPatSyn, hd) <- do
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
-        VarName x' _                -> return . (False,) $ A.qnameFromList [x']
+        VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
         DefinedName _ d             -> return . (False,) $ anameName d
         FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
