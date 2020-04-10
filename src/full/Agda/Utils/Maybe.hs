@@ -9,11 +9,9 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
-
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe
-
 
 -- * Conversion.
 
@@ -22,10 +20,6 @@ boolToMaybe :: Bool -> a -> Maybe a
 boolToMaybe b x = if b then Just x else Nothing
 
 -- * Collection operations.
-
--- UNUSED Liang-Ting Chen 05-07-2019
--- Andreas, 2020-02-17:
--- Yeah, but a useful function to have in the library nevertheless.
 
 -- | @unionWith@ for collections of size <= 1.
 unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
@@ -101,8 +95,8 @@ whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust m k = caseMaybe m (return ()) k
 
 -- | 'caseMaybe' without the 'Just' case.
-whenNothing :: Monad m => Maybe a -> m () -> m ()
-whenNothing m d = caseMaybe m d (\_ -> return ())
+whenNothing :: Monoid m => Maybe a -> m -> m
+whenNothing m d = caseMaybe m d (\_ -> mempty)
 
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
@@ -110,13 +104,10 @@ whenJustM c m = c >>= (`whenJust` m)
 
 -- | 'caseMaybeM' without the 'Just' case.
 whenNothingM :: Monad m => m (Maybe a) -> m () -> m ()
-whenNothingM mm d = mm >>= (`whenNothing` d)
+whenNothingM mm d = maybe d (\_ -> return ()) =<< mm
 
 -- | Lazy version of @allJust <.> sequence@.
 --   (@allJust = mapM@ for the @Maybe@ monad.)
 --   Only executes monadic effect while @isJust@.
 allJustM :: Monad m => [m (Maybe a)] -> m (Maybe [a])
 allJustM = runMaybeT . mapM MaybeT
--- allJustM []         = return $ Just []
--- allJustM (mm : mms) = caseMaybeM mm (return Nothing) $ \ a ->
---   fmap (a:) <$> allJust mms
