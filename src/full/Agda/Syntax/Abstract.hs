@@ -835,22 +835,7 @@ instance KillRange LetBinding where
 -- See Agda.Utils.GeniPlate:
 -- Does not descend into ScopeInfo and renaming maps, for instance.
 
-instanceUniverseBiT' [] [t| (Declaration, QName)          |]
-instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
-instanceUniverseBiT' [] [t| (Declaration, Expr)           |]
-instanceUniverseBiT' [] [t| (Declaration, LetBinding)     |]
-instanceUniverseBiT' [] [t| (Declaration, LamBinding)     |]
-instanceUniverseBiT' [] [t| (Declaration, TypedBinding)   |]
-instanceUniverseBiT' [] [t| (Declaration, Pattern)        |]
-instanceUniverseBiT' [] [t| (Declaration, Pattern' Void)  |]
 instanceUniverseBiT' [] [t| (Declaration, Declaration)    |]
-instanceUniverseBiT' [] [t| (Declaration, ModuleName)     |]
-instanceUniverseBiT' [] [t| (Declaration, ModuleInfo)     |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg LHSCore)  |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg BindName) |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg Expr)     |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg Pattern)  |]
-instanceUniverseBiT' [] [t| (Declaration, Quantity)          |]
 
 ------------------------------------------------------------------------
 -- Queries

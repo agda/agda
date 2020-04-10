@@ -325,6 +325,7 @@ library
                     Agda.Interaction.Highlighting.Common
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs
+                    Agda.Interaction.Highlighting.FromAbstract
                     Agda.Interaction.Highlighting.Generate
                     Agda.Interaction.Highlighting.HTML
                     Agda.Interaction.Highlighting.JSON
