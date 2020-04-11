@@ -21,18 +21,41 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.1]
+        ghc-ver: ["8.10.1"]
+        cabal-ver: ["3.2"]
+
     steps:
     - uses: actions/checkout@v2
+
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: '3.2'
+        cabal-version: ${{ matrix.cabal-ver }}
+
+    - uses: actions/cache@v1
+      name: Cache dependencies
+      with:
+        path: "~/.cabal"
+        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}
+        restore-key: |
+          ${{ runner.os }}-${{ matrix.ghc-ver }}-
+
+    - name: Resolve dependencies
+      run: |
+        cabal update
+        cabal configure -O0
+
+#    - uses: actions/cache@v1
+#      name: Cache dist-newstyle
+#      with:
+#        path: dist-newstyle
+#        # The file `plan.json` contains the complete build information.
+#        key: ${{ runner.os }}-dist-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+#
     - name: Install dependencies
       run: |
-        cabal new-update
-        cabal new-configure -O0
-        cabal new-install --only-dependencies
+        cabal build --only-dependencies
+
     - name: Build Agda
       run: |
-        cabal new-build
+        cabal build

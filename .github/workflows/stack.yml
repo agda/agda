@@ -27,14 +27,24 @@ jobs:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
       FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
       FLAGS_2: "--flag Agda:enable-cluster-counting"
+
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
+
+    - uses: actions/cache@v1
+      name: Cache dependencies
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yam.
+        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
     - name: Install dependencies
       run: |
         stack build ${ARGS} ${FLAGS_1} --only-dependencies
+
     - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
       run: |
         stack build ${ARGS} ${FLAGS_1}
@@ -42,6 +52,7 @@ jobs:
       run: |
         stack build ${ARGS} ${FLAGS_2}
     - name: Pack artifacts
+      if: github.ref == 'refs/heads/master'
       run: |
         mkdir -p upload
         mkdir -p upload/bin
@@ -50,10 +61,54 @@ jobs:
         # cp -av .stack-work/dist/x86_64-linux/**/build/size-solver/size-solver upload/bin
         cp -avr src/data upload
         cp -av .github/*.sh upload
+
     - uses: actions/upload-artifact@master
+      if: github.ref == 'refs/heads/master'
       with:
         name: agda-linux-${{ matrix.ghc-ver }}
         path: upload
+
+  mac:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1]
+
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
+      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      FLAGS_2: "--flag Agda:enable-cluster-counting"
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/cache@v1
+      name: Cache dependencies
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yam.
+        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+    - name: Install stack
+      run: |
+        brew install haskell-stack
+        stack update --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc
+
+    - name: Add text-icu path to stack configuration
+      run: |
+        printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
+
+    - name: Install dependencies
+      run: |
+        stack build ${ARGS} ${FLAGS_1} --only-dependencies
+
+    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
+      run: |
+        stack build ${ARGS} ${FLAGS_1}
+
+    - name: Build Agda with -fenable-cluster-counting
+      run: |
+        stack build ${ARGS} ${FLAGS_2}
 
   windows:
     runs-on: windows-latest
@@ -67,25 +122,38 @@ jobs:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
     steps:
     - uses: actions/checkout@v2
+
+    - uses: actions/cache@v1
+      name: Cache dependencies
+      with:
+        path: "${LOCALAPPDATA}/Programs/stack"
+        # A unique cache is used for each stack.yam.
+        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
     - name: Install stack and wget
       run: |
         choco install haskell-stack --no-progress
         choco install wget --no-progress
+
     - name: Install text-icu ${{ matrix.icu-ver }}
       shell: bash
       run: |
         wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
         stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
         stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
+
     - name: Install dependencies
       shell: bash
       run: |
         stack build ${ARGS} ${FLAGS} --only-dependencies
+
     - name: Build with -fenable-cluster-counting
       shell: bash
       run: |
         stack build ${ARGS} ${FLAGS}
+
     - name: Pack artifacts
+      if: github.ref == 'refs/heads/master'
       shell: bash
       run: |
         mkdir -p upload
@@ -96,7 +164,9 @@ jobs:
         cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
         cp -avr src/data upload
         cp -av .github/*.bat upload
+
     - uses: actions/upload-artifact@master
+      if: github.ref == 'refs/heads/master'
       with:
         name: agda-windows-${{ matrix.ghc-ver }}
         path: upload

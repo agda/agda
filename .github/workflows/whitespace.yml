@@ -12,9 +12,9 @@ jobs:
           cabal-version: '3.2'
       - name: Install fix-agda-whitespace
         run: |
-          cabal v1-update
+          cabal update
           cd src/fix-agda-whitespace/
-          cabal v1-install
+          cabal install
           cd ../..
       - name: Check the whitespace issue
         run: |
