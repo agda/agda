@@ -43,9 +43,11 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
 -- | The main function
-runAgda', runAgda :: [Backend] -> IO ()
+runAgda :: [Backend] -> IO ()
 runAgda backends = runAgda' $ builtinBackends ++ backends
 
+-- | The main function without importing built-in backends
+runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
