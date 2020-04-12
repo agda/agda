@@ -12,6 +12,7 @@
   open import Agda.Builtin.String
   open import Agda.Builtin.Word
   open import Agda.Builtin.Equality
+  open import Agda.Primitive
 
   data ⊥ : Set where
 
