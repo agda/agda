@@ -704,7 +704,10 @@ checkPrimitive i x e =
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
-        A.BuiltinPragma x e -> bindBuiltin (rangedThing x) e
+        A.BuiltinPragma rb x
+          | isUntypedBuiltin b -> return ()
+          | otherwise          -> bindBuiltin b x
+          where b = rangedThing rb
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef (rangedThing b) x
         A.RewritePragma _ qs -> addRewriteRules qs
         A.CompilePragma b x s -> do

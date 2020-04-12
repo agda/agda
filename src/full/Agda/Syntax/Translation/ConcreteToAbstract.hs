@@ -2091,8 +2091,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
       return [ A.InlinePragma b y ]
   toAbstract (C.BuiltinPragma _ rb q)
     | isUntypedBuiltin b = do
-        bindUntypedBuiltin b =<< toAbstract (ResolveQName q)
-        return []
+        q <- toAbstract $ ResolveQName q
+        bindUntypedBuiltin b q
+        return [ A.BuiltinPragma rb q ]
     | otherwise = do
         -- Andreas, 2015-02-14
         -- Some builtins cannot be given a valid Agda type,

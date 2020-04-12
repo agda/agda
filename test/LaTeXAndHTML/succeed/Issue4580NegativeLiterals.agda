@@ -1,5 +1,8 @@
+-- Andreas, 2020-04-12, issue #4580
+-- Highlighting for builtins FROMNAT, FROMNEG, FROMSTRING
 
-open import Common.Prelude
+open import Agda.Builtin.Nat
+open import Agda.Builtin.Equality
 
 record Number (A : Set) : Set where
   field fromNat : Nat → A
@@ -10,8 +13,8 @@ record Negative (A : Set) : Set where
 open Number {{...}} public
 open Negative {{...}} public
 
-{-# BUILTIN FROMNAT fromNat #-}
-{-# BUILTIN FROMNEG fromNeg #-}
+{-# BUILTIN FROMNAT fromNat #-}  -- Should be highlighted.
+{-# BUILTIN FROMNEG fromNeg #-}  -- Jump to definition should work.
 
 instance
   NumberNat : Number Nat
@@ -30,8 +33,6 @@ instance
 
 minusFive : Int
 minusFive = -5
-
-open import Common.Equality
 
 thm : -5 ≡ neg 4
 thm = refl
