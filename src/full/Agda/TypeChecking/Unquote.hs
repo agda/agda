@@ -493,7 +493,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
-             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v) ]
+             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))

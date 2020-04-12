@@ -34,3 +34,11 @@ Pragmas and options
   backend to include a JavaScript file that highlights all occurrences of
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
+
+Reflection
+----------
+
+- New operation in `TC` monad, similar to `quoteTC` but operating on types in `Setω`
+  ```agda
+  quoteωTC : ∀ {A : Setω} → A → TC Term
+  ```
