@@ -412,6 +412,9 @@ following primitive operations::
     -- Unquote a Term, returning the corresponding value.
     unquoteTC : ∀ {a} {A : Set a} → Term → TC A
 
+    -- Quote a value in Setω, returning the corresponding Term
+    quoteωTC : ∀ {A : Setω} → A → TC Term
+
     -- Create a fresh name.
     freshName : String → TC Name
 
@@ -473,6 +476,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
   {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
   {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
+  {-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
   {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
   {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
   {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
