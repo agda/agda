@@ -1,8 +1,8 @@
 
 -- | Generates data used for precise syntax highlighting.
 
-{-# OPTIONS_GHC -fwarn-unused-imports #-}
-{-# OPTIONS_GHC -fwarn-unused-binds   #-}
+-- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Semigroup import obsolete in later ghcs
+-- {-# OPTIONS_GHC -fwarn-unused-binds   #-}
 
 module Agda.Interaction.Highlighting.Generate
   ( Level(..)
@@ -26,7 +26,6 @@ import Control.Monad
 import Control.Arrow (second)
 
 import qualified Data.Foldable as Fold
-import Data.Generics.Geniplate           -- for constructing the NameKind map
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\))
@@ -34,6 +33,7 @@ import qualified Data.List as List
 import qualified Data.IntMap as IntMap
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import Data.Semigroup (Semigroup(..))
 import Data.Sequence (Seq)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text
@@ -57,7 +57,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Info ( defMacro )
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
@@ -65,11 +64,15 @@ import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
 
+import Agda.Syntax.Scope.Base     ( WithKind(..) )
+import Agda.Syntax.Abstract.Views ( KName, declaredNames )
+
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -255,8 +258,9 @@ nameKinds hlLevel decl = do
     _      -> return empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-  let syntax = foldr declToKind HMap.empty (universeBi decl)
-  return $ \ n -> unionsMaybeWith merge
+  let syntax :: NameKindMap
+      syntax = runBuilder (declaredNames decl :: NameKindBuilder) HMap.empty
+  return $ \ n -> unionsMaybeWith mergeNameKind
     [ defnToKind . theDef <$> HMap.lookup n local
     , con <$ Map.lookup n locPatSyns
     , defnToKind . theDef <$> HMap.lookup n imported
@@ -264,18 +268,6 @@ nameKinds hlLevel decl = do
     , HMap.lookup n syntax
     ]
   where
-
-  -- | The 'TCM.Axiom' constructor is used to represent various things
-  -- which are not really axioms, so when maps are merged 'Postulate's
-  -- are thrown away whenever possible. The 'declToKind' function
-  -- below can return several explanations for one qualified name; the
-  -- 'Postulate's are bogus.
-  merge Postulate k = k
-  merge _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
-  merge k         _ = k
-
-  insert = HMap.insertWith merge
-
   defnToKind :: TCM.Defn -> NameKind
   defnToKind   TCM.Axiom{}                           = Postulate
   defnToKind   TCM.DataOrRecSig{}                    = Postulate
@@ -288,38 +280,38 @@ nameKinds hlLevel decl = do
   defnToKind   TCM.Primitive{}                       = Primitive
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
-  declToKind :: A.Declaration ->
-                HashMap A.QName NameKind -> HashMap A.QName NameKind
-  declToKind (A.Axiom _ i _ _ q _)
-    | defMacro i == Common.MacroDef = insert q Macro
-    | otherwise                     = insert q Postulate
-  declToKind (A.Field _ q _)        = insert q Field
-    -- Note that the name q can be used both as a field name and as a
-    -- projection function. Highlighting of field names is taken care
-    -- of by "theRest" above, which does not use NameKinds.
-  declToKind (A.Primitive _ q _)    = insert q Primitive
-  declToKind (A.Mutual {})          = id
-  declToKind (A.Section {})         = id
-  declToKind (A.Apply {})           = id
-  declToKind (A.Import {})          = id
-  declToKind (A.Pragma {})          = id
-  declToKind (A.ScopedDecl {})      = id
-  declToKind (A.Open {})            = id
-  declToKind (A.PatternSynDef q _ _) = insert q con
-  declToKind (A.Generalize _ _ _ q _) = insert q Generalizable
-  declToKind (A.FunDef  _ q _ _)     = insert q Function
-  declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
-  declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
-  declToKind (A.DataSig _ q _ _)      = insert q Datatype
-  declToKind (A.DataDef _ q _ _ cs)   = \m ->
-                                      insert q Datatype $
-                                      foldr (\d -> insert (A.axiomName d) con)
-                                            m cs
-  declToKind (A.RecSig _ q _ _)       = insert q Record
-  declToKind (A.RecDef _ q _ _ _ c _ _ _) = insert q Record . maybe id (`insert` con) c
-
   con :: NameKind
   con = Constructor Common.Inductive
+
+-- | The 'TCM.Axiom' constructor is used to represent various things
+-- which are not really axioms, so when maps are merged 'Postulate's
+-- are thrown away whenever possible. The 'declaredNames' function
+-- below can return several explanations for one qualified name; the
+-- 'Postulate's are bogus.
+mergeNameKind :: NameKind -> NameKind -> NameKind
+mergeNameKind Postulate k = k
+mergeNameKind _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
+mergeNameKind k         _ = k
+
+-- Auxiliary types for @nameKinds@ generation
+
+type NameKindMap     = HashMap A.QName NameKind
+data NameKindBuilder = NameKindBuilder
+  { runBuilder :: NameKindMap -> NameKindMap
+  }
+
+instance Semigroup (NameKindBuilder) where
+  NameKindBuilder f <> NameKindBuilder g = NameKindBuilder $ f . g
+
+instance Monoid (NameKindBuilder) where
+  mempty = NameKindBuilder id
+  mappend = (<>)
+
+instance Singleton KName NameKindBuilder where
+  singleton (WithKind k q) = NameKindBuilder $
+    HMap.insertWith mergeNameKind q $ kindOfNameToNameKind k
+
+instance Collection KName NameKindBuilder
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declaration.
@@ -377,9 +369,9 @@ errorHighlighting'
   -> File
 errorHighlighting' r s = mconcat
   [ -- Erase previous highlighting.
-    singleton (rToR $ P.continuousPerLine r) mempty
+    H.singleton (rToR $ P.continuousPerLine r) mempty
   , -- Print new highlighting.
-    singleton (rToR r)
+    H.singleton (rToR r)
          $ parserBased { otherAspects = Set.singleton Error
                        , note         = s
                        }
@@ -389,7 +381,7 @@ errorHighlighting' r s = mconcat
 
 errorWarningHighlighting :: HasRange a => a -> File
 errorWarningHighlighting w =
-  singleton (rToR $ P.continuousPerLine $ getRange w) $
+  H.singleton (rToR $ P.continuousPerLine $ getRange w) $
     parserBased { otherAspects = Set.singleton ErrorWarning }
 -- errorWarningHighlighting w = errorHighlighting' (getRange w) ""
   -- MonadPretty not available here, so, no tooltip.
@@ -508,9 +500,9 @@ terminationErrorHighlighting :: [TerminationError] -> File
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
     m            = parserBased { otherAspects = Set.singleton TerminationProblem }
-    functionDefs = foldMap (\x -> singleton (rToR $ bindingSite x) m) $
+    functionDefs = foldMap (\x -> H.singleton (rToR $ bindingSite x) m) $
                    concatMap termErrFunctions termErrs
-    callSites    = foldMap (\r -> singleton (rToR r) m) $
+    callSites    = foldMap (\r -> H.singleton (rToR r) m) $
                    concatMap (map callInfoRange . termErrCalls) termErrs
     bindingSite  = A.nameBindingSite . A.qnameName
 
@@ -525,32 +517,32 @@ positivityErrorHighlighting q os =
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
 deadcodeHighlighting :: Range -> File
-deadcodeHighlighting r = singleton (rToR $ P.continuous r) m
+deadcodeHighlighting r = H.singleton (rToR $ P.continuous r) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
 coverageErrorHighlighting :: Range -> File
-coverageErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+coverageErrorHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
 shadowingTelHighlighting :: [Range] -> File
 shadowingTelHighlighting =
   -- we do not want to highlight the one variable in scope so we take
   -- the @init@ segment of the ranges in question
-  foldMap (\r -> singleton (rToR $ P.continuous r) m) . init
+  foldMap (\r -> H.singleton (rToR $ P.continuous r) m) . init
   where
   m = parserBased { otherAspects =
                       Set.singleton H.ShadowingInTelescope }
 
 catchallHighlighting :: Range -> File
-catchallHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+catchallHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
 confluenceErrorHighlighting :: Range -> File
-confluenceErrorHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+confluenceErrorHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
 missingDefinitionHighlighting :: Range -> File
-missingDefinitionHighlighting r = singleton (rToR $ P.continuousPerLine r) m
+missingDefinitionHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton MissingDefinition }
 
 -- | Generates and prints syntax highlighting information for unsolved

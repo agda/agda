@@ -368,6 +368,13 @@ someKindsOfNames = SomeKindsOfNames . Set.fromList
 exceptKindsOfNames :: [KindOfName] -> KindsOfNames
 exceptKindsOfNames = ExceptKindsOfNames . Set.fromList
 
+-- | Decorate something with 'KindOfName'
+
+data WithKind a = WithKind
+  { theKind     :: KindOfName
+  , kindedThing :: a
+  } deriving (Data, Show, Eq, Ord, Functor, Foldable, Traversable)
+
 -- | Where does a name come from?
 --
 --   This information is solely for reporting to the user,
