@@ -52,7 +52,6 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
@@ -3208,28 +3207,10 @@ data CallInfo = CallInfo
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
   } deriving (Data, Show)
-
--- no Eq, Ord instances: too expensive! (see issues 851, 852)
+    -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
 instance Pretty CallInfo where pretty = pretty . callInfoTarget
-instance AllNames CallInfo where allNames = singleton . callInfoTarget
-
--- UNUSED, but keep!
--- -- | Call pathes are sequences of 'CallInfo's starting from a 'callSource'.
--- data CallPath = CallPath
---   { callSource :: QName
---     -- ^ The originator of the first call.
---   , callInfos :: [CallInfo]
---     -- ^ The calls, in order from source to final target.
---   }
---   deriving (Show)
-
--- -- | 'CallPath'es can be connected, but there is no empty callpath.
--- --   Thus, they form a semigroup, but we choose to abuse 'Monoid'.
--- instance Monoid CallPath where
---   mempty = __IMPOSSIBLE__
---   mappend (CallPath src cs) (CallPath _ cs') = CallPath src $ cs ++ cs'
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
