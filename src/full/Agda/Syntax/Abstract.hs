@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
@@ -30,7 +29,6 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
-import Agda.Syntax.Geniplate
 import Agda.Syntax.Info
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -832,15 +830,11 @@ instance KillRange LetBinding where
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
 
--- See Agda.Utils.GeniPlate:
--- Does not descend into ScopeInfo and renaming maps, for instance.
-
-instanceUniverseBiT' [] [t| (Declaration, Declaration)    |]
-
 ------------------------------------------------------------------------
 -- Queries
 ------------------------------------------------------------------------
 
+-- class AllNames moved to Abstract.Views.DeclaredNames
 
 -- | The name defined by the given axiom.
 --

@@ -15,6 +15,7 @@ module Agda.Interaction.Highlighting.Precise
   , parserBased
   , singleton
   , several
+  , kindOfNameToNameKind
     -- ** Merging
   , merge
     -- ** Inspection
@@ -56,8 +57,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Position as P
-import qualified Agda.Syntax.Common as Common
+import qualified Agda.Syntax.Common   as Common
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 
 import Agda.Interaction.Highlighting.Range
 
@@ -219,6 +221,26 @@ singleton rs m = File {
 
 several :: [Ranges] -> Aspects -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
+
+-- | Conversion from classification of the scope checker.
+
+kindOfNameToNameKind :: KindOfName -> NameKind
+kindOfNameToNameKind = \case
+  -- Inductive is Constructor default, overwritten by CoInductive
+  ConName                  -> Constructor Common.Inductive
+  -- CoConName                -> Constructor Common.CoInductive
+  FldName                  -> Field
+  PatternSynName           -> Constructor Common.Inductive
+  GeneralizeName           -> Generalizable
+  DisallowedGeneralizeName -> Generalizable
+  MacroName                -> Macro
+  QuotableName             -> Function
+  DataName                 -> Datatype
+  RecName                  -> Record
+  FunName                  -> Function
+  AxiomName                -> Postulate
+  PrimName                 -> Primitive
+  OtherDefName             -> Function
 
 ------------------------------------------------------------------------
 -- Merging

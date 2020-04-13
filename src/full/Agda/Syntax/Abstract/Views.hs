@@ -8,16 +8,22 @@ import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
+import Data.Foldable (foldMap)
+import Data.Semigroup ((<>))
 import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base (emptyScopeInfo)
+import Agda.Syntax.Scope.Base (emptyScopeInfo, KindOfName(..), WithKind(..))
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
+import Agda.Utils.Singleton
+
+import Agda.Utils.Impossible
+
 
 data AppView' arg = Application Expr [NamedArg arg]
   deriving (Functor)
@@ -102,6 +108,7 @@ deepUnscopeDecl (A.RecDef i x uc ind eta c bs e ds) = [A.RecDef i x uc ind eta c
 deepUnscopeDecl d                                = [deepUnscope d]
 
 -- * Traversal
+---------------------------------------------------------------------------
 
 -- | Apply an expression rewriting to every subexpression, inside-out.
 --   See "Agda.Syntax.Internal.Generic".
@@ -394,3 +401,172 @@ instance ExprLike Declaration where
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
     where rec e = recurseExpr f e
+
+
+-- * Getting all declared names
+---------------------------------------------------------------------------
+
+type KName = WithKind QName
+
+-- | Extracts "all" names which are declared in a 'Declaration'.
+--
+-- Includes: local modules and @where@ clauses.
+-- Excludes: @open public@, @let@, @with@ function names, extended lambdas.
+
+class DeclaredNames a where
+  declaredNames :: Collection KName m => a -> m
+
+  default declaredNames
+     :: (Foldable t, DeclaredNames b, t b ~ a)
+     => Collection KName m => a -> m
+  declaredNames = foldMap declaredNames
+
+instance DeclaredNames a => DeclaredNames [a]
+instance DeclaredNames a => DeclaredNames (List1 a)
+instance DeclaredNames a => DeclaredNames (Maybe a)
+instance DeclaredNames a => DeclaredNames (Arg a)
+instance DeclaredNames a => DeclaredNames (Named name a)
+instance DeclaredNames a => DeclaredNames (FieldAssignment' a)
+
+instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (Either a b) where
+  declaredNames = either declaredNames declaredNames
+
+instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (a,b) where
+  declaredNames (a,b) = declaredNames a <> declaredNames b
+
+instance DeclaredNames KName where
+  declaredNames = singleton
+
+instance DeclaredNames Declaration where
+  declaredNames = \case
+      Axiom _ di _ _ q _           -> singleton . (`WithKind` q) $
+                                      case defMacro di of
+                                        MacroDef    -> MacroName
+                                        NotMacroDef -> AxiomName
+      Generalize _ _ _ q _         -> singleton (WithKind GeneralizeName q)
+      Field _ q _                  -> singleton (WithKind FldName q)
+      Primitive _ q _              -> singleton (WithKind PrimName q)
+      Mutual _ decls               -> declaredNames decls
+      DataSig _ q _ _              -> singleton (WithKind DataName q)
+      DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
+      RecSig _ q _ _               -> singleton (WithKind RecName q)
+      RecDef _ q _ _ _ c _ _ decls -> singleton (WithKind RecName q) <> declaredNames (WithKind ConName <$> c) <> declaredNames decls
+      PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
+      UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
+      UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
+      FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
+      ScopedDecl _ decls           -> declaredNames decls
+      Section _ _ _ decls          -> declaredNames decls
+      Pragma _ pragma              -> declaredNames pragma
+      Apply{}                      -> mempty
+      Import{}                     -> mempty
+      Open{}                       -> mempty
+    where
+    con = \case
+      Axiom _ _ _ _ q _ -> singleton $ WithKind ConName q
+      _ -> __IMPOSSIBLE__
+
+instance DeclaredNames Pragma where
+  declaredNames = \case
+    BuiltinNoDefPragma _b x -> mempty
+      -- singleton $ WithKind PrimName x  -- TODO: add KindOfName to pragma
+    BuiltinPragma{}         -> mempty
+    CompilePragma{}         -> mempty
+    RewritePragma{}         -> mempty
+    StaticPragma{}          -> mempty
+    EtaPragma{}             -> mempty
+    InjectivePragma{}       -> mempty
+    InlinePragma{}          -> mempty
+    DisplayPragma{}         -> mempty
+    OptionsPragma{}         -> mempty
+
+instance DeclaredNames Clause where
+  declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
+
+instance DeclaredNames WhereDeclarations where
+  declaredNames (WhereDecls _ ds) = declaredNames ds
+
+instance DeclaredNames RHS where
+  declaredNames = \case
+    RHS _ _                   -> mempty
+    AbsurdRHS                 -> mempty
+    WithRHS _q _es cls        -> declaredNames cls
+    RewriteRHS _qes _ rhs cls -> declaredNames rhs <> declaredNames cls
+
+-- Andreas, 2020-04-13: Migration from Agda.Syntax.Abstract.AllNames
+--
+-- Since we are not interested in names of extended lambdas, we do not
+-- traverse into expression.
+--
+-- However, we keep this code (originally Agda.Syntax.Abstract.AllNames) around
+-- should arise a need to collect extended lambda names.
+
+-- instance (DeclaredNames a, DeclaredNames b, DeclaredNames c) => DeclaredNames (a,b,c) where
+--   declaredNames (a,b,c) = declaredNames a <> declaredNames b <> declaredNames c
+
+-- instance DeclaredNames RHS where
+--   declaredNames = \case
+--     RHS e _                  -> declaredNames e
+--     AbsurdRHS{}              -> mempty
+--     WithRHS q _ cls          -> singleton (WithKind FunName q) <> declaredNames cls
+--     RewriteRHS qes _ rhs cls -> declaredNames (qes, rhs, cls)
+
+-- instance DeclaredNames ModuleName where
+--   declaredNames _ = mempty
+
+-- instance (DeclaredNames qn, DeclaredNames e) => DeclaredNames (RewriteEqn' qn p e) where
+--   declaredNames = \case
+--     Rewrite es    -> declaredNames es
+--     Invert qn pes -> declaredNames qn <> declaredNames pes
+
+-- instance DeclaredNames Expr where
+--   declaredNames = \case
+--     Var{}                 -> mempty
+--     Def{}                 -> mempty
+--     Proj{}                -> mempty
+--     Con{}                 -> mempty
+--     Lit{}                 -> mempty
+--     QuestionMark{}        -> mempty
+--     Underscore{}          -> mempty
+--     Dot _ e               -> declaredNames e
+--     App _ e1 e2           -> declaredNames e1 <> declaredNames e2
+--     WithApp _ e es        -> declaredNames e <> declaredNames es
+--     Lam _ b e             -> declaredNames b <> declaredNames e
+--     AbsurdLam{}           -> mempty
+--     ExtendedLam _ _ q cls -> singleton (WithKind FunName q) <> declaredNames cls
+--     Pi _ tel e            -> declaredNames tel <> declaredNames e
+--     Generalized s e       -> declaredNames e  -- NOT: fromList (map (WithKind GeneralizeName) $ Set.toList s) <> declaredNames e
+--     Fun _ e1 e2           -> declaredNames e1 <> declaredNames e2
+--     Set{}                 -> mempty
+--     Prop{}                -> mempty
+--     Let _ lbs e           -> declaredNames lbs <> declaredNames e
+--     ETel{}                -> __IMPOSSIBLE__
+--     Rec _ fields          -> declaredNames fields
+--     RecUpdate _ e fs      -> declaredNames e <> declaredNames fs
+--     ScopedExpr _ e        -> declaredNames e
+--     Quote{}               -> mempty
+--     QuoteTerm{}           -> mempty
+--     Unquote{}             -> mempty
+--     Tactic _ e xs         -> declaredNames e <> declaredNames xs
+--     DontCare{}            -> mempty
+--     PatternSyn{}          -> mempty
+--     Macro{}               -> mempty
+
+-- instance DeclaredNames LamBinding where
+--   declaredNames DomainFree{}       = mempty
+--   declaredNames (DomainFull binds) = declaredNames binds
+
+-- instance DeclaredNames TypedBinding where
+--   declaredNames (TBind _ t _ e) = declaredNames (t, e)
+--   declaredNames (TLet _ lbs)    = declaredNames lbs
+
+-- instance DeclaredNames LetBinding where
+--   declaredNames (LetBind _ _ _ e1 e2)   = declaredNames e1 <> declaredNames e2
+--   declaredNames (LetPatBind _ _ e)      = declaredNames e
+--   declaredNames (LetApply _ _ app _ _)  = declaredNames app
+--   declaredNames LetOpen{}               = mempty
+--   declaredNames (LetDeclaredVariable _) = mempty
+
+-- instance DeclaredNames ModuleApplication where
+--   declaredNames (SectionApp bindss _ es) = declaredNames bindss <> declaredNames es
+--   declaredNames RecordModuleInstance{}   = mempty
