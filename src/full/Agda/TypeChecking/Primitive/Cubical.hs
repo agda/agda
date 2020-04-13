@@ -1912,3 +1912,27 @@ pathTelescope tel lhs rhs = do
       s      -> do
          typeError . GenericDocError =<<
                     (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
+
+
+combineSys :: HasBuiltins m => NamesT m Term -> NamesT m Term -> [(NamesT m Term, NamesT m Term)] -> NamesT m Term
+combineSys l ty xs = snd <$> combineSys' l ty xs
+
+combineSys' :: HasBuiltins m => NamesT m Term -> NamesT m Term -> [(NamesT m Term, NamesT m Term)] -> NamesT m (Term,Term)
+combineSys' l ty xs = do
+    tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
+    tMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+    iz <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIsOneEmpty
+
+    let
+      max i j = pure tMax <@> i <@> j
+      pOr l ty phi psi u0 u1 = do
+          pure tPOr <#> l
+                    <@> phi <@> psi
+                    <#> (ilam "o" $ \ _ -> ty) <@> u0 <@> u1
+
+      -- TODO: optimize the foldr away?
+      combine [] = pure tEmpty <#> l <#> (ilam "o" $ \ _ -> ty)
+      combine [(psi,u)] = u
+      combine ((psi,u):xs) = pOr l ty psi (foldr max (pure iz) (map fst xs)) u (combine xs)
+    (,) <$> foldr max (pure iz) (map fst xs) <*> combine xs
