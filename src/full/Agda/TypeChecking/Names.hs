@@ -104,17 +104,16 @@ open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m, Subst t' b, DeBruijn b) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
+bind' :: (MonadFail m) => ArgName -> ((forall t' b. (Subst t' b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
 bind :: ( MonadFail m
-        , Subst t' b
-        , DeBruijn b
         ) =>
-        ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
+        ArgName -> ((forall t' b. (Subst t' b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
+
 
 glam :: MonadFail m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
@@ -135,7 +134,7 @@ ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
 
 
 
-data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a }
+data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving Functor
 
 instance Subst t a => Subst t (AbsN a) where
   applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
@@ -149,18 +148,14 @@ absAppN :: Subst t a => AbsN a -> [t] -> a
 absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
 
 bindN :: ( MonadFail m
-        , Subst t' b
-        , DeBruijn b
         ) =>
-        [ArgName] -> ([NamesT m b] -> NamesT m a) -> NamesT m (AbsN a)
+        [ArgName] -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b]) -> NamesT m a) -> NamesT m (AbsN a)
 bindN [] f = AbsN [] <$> f []
 bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
 
 bindNArg :: ( MonadFail m
-        , Subst t' b
-        , DeBruijn b
         ) =>
-        [Arg ArgName] -> ([NamesT m (Arg b)] -> NamesT m a) -> NamesT m (AbsN a)
+        [Arg ArgName] -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m (Arg b)]) -> NamesT m a) -> NamesT m (AbsN a)
 bindNArg [] f = AbsN [] <$> f []
 bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
 
@@ -187,23 +182,12 @@ applyN' f xs = do
 
 
 abstractN :: ( MonadFail m
-             , Subst t' b
-             , DeBruijn b
              , Abstract a
              ) =>
-             NamesT m Telescope -> ([NamesT m b] -> NamesT m a) -> NamesT m a
+             NamesT m Telescope -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b]) -> NamesT m a) -> NamesT m a
 abstractN tel f = do
   tel <- tel
   u <- bindN (teleNames tel) f
-  return $ abstract tel $ unAbsN u
-
-abstractN' :: ( MonadFail m
-             , Abstract a
-             ) =>
-             NamesT m Telescope -> (() -> NamesT m a) -> NamesT m a
-abstractN' tel f = do
-  tel <- tel
-  u <- bindN (teleNames tel) (\ xs -> let ys = pure (Var 0 [] :: Term) : xs in f ())
   return $ abstract tel $ unAbsN u
 
 

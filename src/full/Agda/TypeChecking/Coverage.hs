@@ -750,7 +750,7 @@ createMissingConIdClause f n x old_sc info@TheInfo{} = setCurrentRange f $ do
       d <- lazyAbsApp <$> delta_args_f <*> (cl primINeg <@> i)
       args <- open $ g ++ [x] ++ map unArg d
       applyN' old_t args
-    w <- (open =<<) . bind "i" $ \ i -> do
+    w <- (open =<<) $ bind "i" $ \ i -> do
       g <- lazyAbsApp <$> gamma_args_left <*> i
       x <- lazyAbsApp <$> con_phi_p_left <*> i
       d <- lazyAbsApp <$> delta_args_f <*> (cl primINeg <@> i)

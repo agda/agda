@@ -98,7 +98,7 @@ teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
 --   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
 --   where l = telToList tel
 
-teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
+teleNamedArgs :: (DeBruijn a) => Tele (Dom t) -> [NamedArg a]
 teleNamedArgs = map namedArgFromDom . teleDoms
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)

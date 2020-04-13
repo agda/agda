@@ -538,7 +538,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = li
                                    return
                                    =<< lift m
             xi1f <- open xi1f
-            fmap absBody . bind "i" $ \ i' -> do
+            fmap absBody $ bind "i" $ \ i' -> do
               let (+++) m = liftM2 (++) m
                   i = cl primINeg <@> i'
 --              replaceAt (size gamma + k) <$> (fmap defaultArg $ cl primIMax <@> phi <@> i) <*> do
