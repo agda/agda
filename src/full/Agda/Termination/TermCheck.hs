@@ -25,7 +25,6 @@ import qualified Data.List as List
 import Data.Monoid hiding ((<>))
 import qualified Data.Set as Set
 
-import Agda.Syntax.Abstract (AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
@@ -265,7 +264,9 @@ termMutual' = do
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
 terminationError :: [QName] -> [CallInfo] -> TerminationError
 terminationError names calls = TerminationError names' calls
-  where names' = names `List.intersect` toList (allNames calls)
+  where
+  names'    = filter (hasElem mentioned) names
+  mentioned = map callInfoTarget calls
 
 billToTerGraph :: a -> TerM a
 billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
