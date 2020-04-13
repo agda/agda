@@ -5,7 +5,7 @@ module Internal.Utils.Favorites ( tests ) where
 import Agda.Utils.Favorites
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Singleton
+import Agda.Utils.Singleton (singleton)
 
 import Internal.Utils.PartialOrd ( ISet(ISet) )
 
