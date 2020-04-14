@@ -16,19 +16,36 @@ jobs:
   build:
 
     runs-on: ubuntu-16.04
+
+    strategy:
+      matrix:
+        ghc-ver: ["8.10.1"]
+        cabal-ver: ["3.2"]
+
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: '8.10.1'
         cabal-version: '3.2'
-    - name: Install dependencies
+
+    - name: Resolve dependencies
       run: |
         cabal update
-        cabal install alex happy
-        cabal install --dependencies-only -fenable-cluster-counting --force-reinstalls --disable-library-profiling
-    # Testing Haddock [Issue 1773]
-    - name: Build
+        cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
+
+    - uses: actions/cache@v1
+      name: Cache dependencies
+      with:
+        path: "~/.cabal"
+        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+
+    - name: Install dependencies
       run: |
-        cabal configure -fenable-cluster-counting --enable-tests
+        cabal install alex happy
+        cabal install --dependencies-only --force-reinstalls
+
+    # Testing Haddock [Issue 1773]
+    - name: Build Haddock
+      run: |
         cabal haddock

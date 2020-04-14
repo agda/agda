@@ -58,7 +58,6 @@ jobs:
         mkdir -p upload/bin
         cp -av .stack-work/dist/x86_64-linux/**/build/agda/agda upload/bin
         cp -av .stack-work/dist/x86_64-linux/**/build/agda-mode/agda-mode upload/bin
-        # cp -av .stack-work/dist/x86_64-linux/**/build/size-solver/size-solver upload/bin
         cp -avr src/data upload
         cp -av .github/*.sh upload
 
@@ -81,13 +80,6 @@ jobs:
       FLAGS_2: "--flag Agda:enable-cluster-counting"
     steps:
     - uses: actions/checkout@v2
-
-    - uses: actions/cache@v1
-      name: Cache dependencies
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yam.
-        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Install stack
       run: |
@@ -122,13 +114,6 @@ jobs:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
     steps:
     - uses: actions/checkout@v2
-
-    - uses: actions/cache@v1
-      name: Cache dependencies
-      with:
-        path: "${LOCALAPPDATA}/Programs/stack"
-        # A unique cache is used for each stack.yam.
-        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Install stack and wget
       run: |
