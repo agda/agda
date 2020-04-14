@@ -338,6 +338,7 @@ explainWhyInScope s _ v xs ms = TCP.vcat
 
     pKind = \case
       ConName                  -> "constructor"
+      CoConName                -> "coinductive constructor"
       FldName                  -> "record field"
       PatternSynName           -> "pattern synonym"
       GeneralizeName           -> "generalizable variable"

@@ -631,7 +631,7 @@ instance ToConcrete ResolvedName C.QName where
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x      -> toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
-    ConstructorName xs   -> toConcrete (NonEmpty.head xs)
+    ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
@@ -1140,7 +1140,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
   toConcrete (RangeAndPragma r p) = case p of
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
-    A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
+    A.BuiltinNoDefPragma b _kind x -> C.BuiltinPragma r b <$> toConcrete x
     A.RewritePragma r' x      -> C.RewritePragma r r' <$> toConcrete x
     A.CompilePragma b x s -> do
       x <- toConcrete x
@@ -1532,7 +1532,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
             VarName y _                -> y ^. lensFixity
             DefinedName _ q            -> q ^. lensFixity
             FieldName (q :| _)         -> q ^. lensFixity
-            ConstructorName (q :| _)   -> q ^. lensFixity
+            ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
     doQName fx x n' args (C.nameParts $ C.unqualify x)

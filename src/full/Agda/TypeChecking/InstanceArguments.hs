@@ -22,7 +22,7 @@ import Agda.Syntax.Concrete.Name (isQualified)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookup', AllowAmbiguousNames(..))
+import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
@@ -181,7 +181,7 @@ initialInstanceCandidates t = do
 
         filterQualified :: TCM (Maybe Candidate) -> TCM (Maybe Candidate)
         filterQualified m = ifM (optQualifiedInstances <$> pragmaOptions) m $ do
-          qc <- inverseScopeLookup' AmbiguousAnything (Right q) <$> getScope
+          qc <- inverseScopeLookupName' AmbiguousAnything q <$> getScope
           let isQual = maybe True isQualified $ listToMaybe qc
           reportSDoc "tc.instance.qualified" 30 $
             if isQual then

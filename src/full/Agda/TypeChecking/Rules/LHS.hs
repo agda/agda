@@ -29,7 +29,8 @@ import qualified Data.Semigroup as Semigroup
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName, disambiguateRecordFields)
+import Agda.Interaction.Highlighting.Generate
+  ( storeDisambiguatedConstructor, storeDisambiguatedProjection, disambiguateRecordFields)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
@@ -1530,7 +1531,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           -- For highlighting, we remember which name we disambiguated to.
           -- This is safe here (fingers crossed) as we won't decide on a
           -- different projection even if we backtrack and come here again.
-          liftTCM $ storeDisambiguatedName d
+          liftTCM $ storeDisambiguatedProjection d
           return (d,a)
         other -> failure other
 
@@ -1669,7 +1670,8 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         (_, (c0,c,a) : disambs) | constraintsOk <= null disambs -> do
           -- If constructor pattern was ambiguous,
           -- remember our choice for highlighting info.
-          when (isAmbiguous ambC) $ liftTCM $ storeDisambiguatedName c0
+          when (isAmbiguous ambC) $ liftTCM $
+            storeDisambiguatedConstructor (conInductive c) c0
           return (c,a)
         other -> failure other
 

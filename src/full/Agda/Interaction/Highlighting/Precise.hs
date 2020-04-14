@@ -228,7 +228,7 @@ kindOfNameToNameKind :: KindOfName -> NameKind
 kindOfNameToNameKind = \case
   -- Inductive is Constructor default, overwritten by CoInductive
   ConName                  -> Constructor Common.Inductive
-  -- CoConName                -> Constructor Common.CoInductive
+  CoConName                -> Constructor Common.CoInductive
   FldName                  -> Field
   PatternSynName           -> Constructor Common.Inductive
   GeneralizeName           -> Generalizable

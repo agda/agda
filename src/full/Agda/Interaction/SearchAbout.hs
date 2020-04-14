@@ -68,5 +68,5 @@ findMentions norm rg nm = do
 
     anames (DefinedName _ an)     = [an]
     anames (FieldName     ans)    = toList ans
-    anames (ConstructorName ans)  = toList ans
+    anames (ConstructorName _ ans)= toList ans
     anames _                      = []

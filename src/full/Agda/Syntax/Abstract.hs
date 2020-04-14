@@ -10,7 +10,7 @@ module Agda.Syntax.Abstract
     , module Agda.Syntax.Abstract.Name
     ) where
 
-import Prelude
+import Prelude hiding (null)
 
 import Data.Bifunctor
 import qualified Data.Foldable as Fold
@@ -39,6 +39,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -94,7 +95,7 @@ data Expr
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo QName (List1 Clause)
   | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
-  | Generalized (Set.Set QName) Expr   -- ^ Like a Pi, but the ordering is not known
+  | Generalized (Set QName) Expr       -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
   | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
   | Prop ExprInfo Integer              -- ^ @Prop@, @Prop1@, @Prop2@, ...
@@ -112,9 +113,9 @@ data Expr
   deriving (Data, Show)
 
 -- | Smart constructor for Generalized
-generalized :: Set.Set QName -> Expr -> Expr
+generalized :: Set QName -> Expr -> Expr
 generalized s e
-    | Set.null s = e
+    | null s    = e
     | otherwise = Generalized s e
 
 -- | Record field assignment @f = e@.
@@ -122,13 +123,6 @@ type Assign  = FieldAssignment' Expr
 type Assigns = [Assign]
 type RecordAssign  = Either Assign ModuleName
 type RecordAssigns = [RecordAssign]
-
--- | Is a type signature a `postulate' or a function signature?
-data Axiom
-  = FunSig    -- ^ A function signature.
-  | NoFunSig  -- ^ Not a function signature, i.e., a postulate (in user input)
-              --   or another (e.g. data/record) type signature (internally).
-  deriving (Data, Eq, Ord, Show)
 
 -- | Renaming (generic).
 type Ren a = [(a, a)]
@@ -152,12 +146,12 @@ instance Pretty ScopeCopyInfo where
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
 data Declaration
-  = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
+  = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
     -- polarities to arguments.
-  | Generalize (Set.Set QName) DefInfo ArgInfo QName Expr
+  | Generalize (Set QName) DefInfo ArgInfo QName Expr
     -- ^ First argument is set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
@@ -202,7 +196,7 @@ data Pragma
   | BuiltinPragma RString ResolvedName
     -- ^ 'ResolvedName' is not 'UnknownName'.
     --   Name can be ambiguous e.g. for built-in constructors.
-  | BuiltinNoDefPragma RString QName
+  | BuiltinNoDefPragma RString KindOfName QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
   | RewritePragma Range [QName]
@@ -887,6 +881,7 @@ instance NameToExpr AbstractName where
       DisallowedGeneralizeName -> Def x
       FldName                  -> Proj ProjSystem ux
       ConName                  -> Con ux
+      CoConName                -> Con ux
       PatternSynName           -> PatternSyn ux
       MacroName                -> Macro x
       QuotableName             -> App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
@@ -905,7 +900,7 @@ instance NameToExpr ResolvedName where
     VarName x _          -> Var x
     DefinedName _ x      -> nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
-    ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
+    ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
 

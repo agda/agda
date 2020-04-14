@@ -17,7 +17,7 @@ import qualified Data.Set as Set
 import Data.Semigroup
 #endif
 
-import Agda.Syntax.Builtin (builtinsNoDef)
+import Agda.Syntax.Builtin (isBuiltinNoDef)
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
@@ -140,7 +140,7 @@ fixitiesAndPolarities doWarn ds = do
   return (fixs, pols)
 
 fixitiesAndPolarities' :: MonadFixityError m => [Declaration] -> MonadicFixPol m
-fixitiesAndPolarities' = foldMap $ \ d -> case d of
+fixitiesAndPolarities' = foldMap $ \case
   -- These declarations define polarities:
   Pragma (PolarityPragma _ x occs) -> returnPol $ Map.singleton x occs
   -- These declarations define fixities:
@@ -236,5 +236,5 @@ declaredNames d = case d of
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))
-    | rangedThing b `elem` builtinsNoDef -> declaresName x
+    | isBuiltinNoDef $ rangedThing b -> declaresName x
   Pragma{}             -> mempty

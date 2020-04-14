@@ -5,22 +5,21 @@
 -}
 module Agda.Syntax.Scope.Base where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, length )
 
-import Control.Arrow (first, second)
+import Control.Arrow (first, second, (&&&))
 import Control.Monad
 
 import Data.Either (partitionEithers)
+import Data.Foldable ( length, toList )
 import Data.Function
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.Semigroup ((<>))
+import Data.Semigroup ( Semigroup(..) )
 
 import Data.Data (Data)
 
@@ -39,6 +38,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
@@ -112,9 +112,22 @@ data ScopeInfo = ScopeInfo
       }
   deriving (Data, Show)
 
-type NameMap   = Map A.QName      (NonEmpty C.QName)
+-- | For the sake of highlighting, the '_scopeInverseName' map also stores
+--   the 'KindOfName' of an @A.QName@.
+data NameMapEntry = NameMapEntry
+  { qnameKind     :: KindOfName     -- ^ The 'anameKind'.
+  , qnameConcrete :: List1 C.QName  -- ^ Possible renderings of the abstract name.
+  }
+  deriving (Data, Show)
+
+-- | Invariant: the 'KindOfName' components should be equal
+--   whenever we have to concrete renderings of an abstract name.
+instance Semigroup NameMapEntry where
+  NameMapEntry k xs <> NameMapEntry _ ys = NameMapEntry k (xs <> ys)
+
+type NameMap   = Map A.QName      NameMapEntry
 type ModuleMap = Map A.ModuleName [C.QName]
--- type ModuleMap = Map A.ModuleName (NonEmpty C.QName)
+-- type ModuleMap = Map A.ModuleName (List1 C.QName)
 
 instance Eq ScopeInfo where
   ScopeInfo c1 m1 v1 l1 p1 _ _ _ _ _ == ScopeInfo c2 m2 v2 l2 p2 _ _ _ _ _ =
@@ -326,7 +339,8 @@ data NameOrModule = NameNotModule | ModuleNotName
 
 -- Note: order does matter in this enumeration, see 'isDefName'.
 data KindOfName
-  = ConName                  -- ^ Constructor name.
+  = ConName                  -- ^ Constructor name ('Inductive' or don't know).
+  | CoConName                -- ^ Constructor name (definitely 'CoInductive').
   | FldName                  -- ^ Record field name.
   | PatternSynName           -- ^ Name of a pattern synonym.
   | GeneralizeName           -- ^ Name to be generalized
@@ -346,6 +360,37 @@ data KindOfName
 
 isDefName :: KindOfName -> Bool
 isDefName = (>= DataName)
+
+isConName :: KindOfName -> Maybe Induction
+isConName = \case
+  ConName   -> Just Inductive
+  CoConName -> Just CoInductive
+  _ -> Nothing
+
+conKindOfName :: Induction -> KindOfName
+conKindOfName = \case
+  Inductive   -> ConName
+  CoInductive -> CoConName
+
+-- | For ambiguous constructors, we might have both alternatives of 'Induction'.
+--   In this case, we default to 'ConName'.
+conKindOfName' :: Foldable t => t Induction -> KindOfName
+conKindOfName' = conKindOfName . approxConInduction
+
+-- | For ambiguous constructors, we might have both alternatives of 'Induction'.
+--   In this case, we default to 'Inductive'.
+approxConInduction :: Foldable t => t Induction -> Induction
+approxConInduction = fromMaybe Inductive . exactConInduction
+
+exactConInduction :: Foldable t => t Induction -> Maybe Induction
+exactConInduction is = case toList is of
+  [CoInductive] -> Just CoInductive
+  [Inductive]   -> Just Inductive
+  _ -> Nothing
+
+-- | Only return @[Co]ConName@ if no ambiguity.
+exactConName :: Foldable t => t Induction -> Maybe KindOfName
+exactConName = fmap conKindOfName . exactConInduction
 
 -- | A set of 'KindOfName', for the sake of 'elemKindsOfNames'.
 data KindsOfNames
@@ -450,13 +495,13 @@ data ResolvedName
     DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
-    FieldName (NonEmpty AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
+    FieldName (List1 AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
 
   | -- | Data or record constructor name.
-    ConstructorName (NonEmpty AbstractName) -- ^ @('ConName' ==) . 'anameKind'@ for all names.
+    ConstructorName (Set Induction) (List1 AbstractName) -- ^ @isJust . 'isConName' . 'anameKind'@ for all names.
 
   | -- | Name of pattern synonym.
-    PatternSynResName (NonEmpty AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
+    PatternSynResName (List1 AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
 
   | -- | Unbound name.
     UnknownName
@@ -464,12 +509,12 @@ data ResolvedName
 
 instance Pretty ResolvedName where
   pretty = \case
-    VarName x _         -> "variable"    <+> pretty x
-    DefinedName a x     -> pretty a           <+> pretty x
-    FieldName xs        -> "field"       <+> pretty xs
-    ConstructorName xs  -> "constructor" <+> pretty xs
-    PatternSynResName x -> "pattern"     <+> pretty x
-    UnknownName         -> "<unknown name>"
+    VarName x _          -> "variable"    <+> pretty x
+    DefinedName a x      -> pretty a      <+> pretty x
+    FieldName xs         -> "field"       <+> pretty xs
+    ConstructorName _ xs -> "constructor" <+> pretty xs
+    PatternSynResName x  -> "pattern"     <+> pretty x
+    UnknownName          -> "<unknown name>"
 
 -- * Operations on name and module maps.
 
@@ -523,6 +568,16 @@ mapNameSpaceM fd fm fs ns = update ns <$> fd (nsNames ns) <*> fm (nsModules ns) 
 ------------------------------------------------------------------------
 -- * General operations on scopes
 ------------------------------------------------------------------------
+
+instance Null Scope where
+  empty = emptyScope
+  null  = __IMPOSSIBLE__
+    -- TODO: define when needed, careful about scopeNameSpaces!
+
+instance Null ScopeInfo where
+  empty = emptyScopeInfo
+  null  = __IMPOSSIBLE__
+    -- TODO: define when needed, careful about _scopeModules!
 
 -- | The empty scope.
 emptyScope :: Scope
@@ -1105,27 +1160,56 @@ isNameInScope q scope =
   billToPure [ Scoping, InverseScopeLookup ] $
   Set.member q (scope ^. scopeInScope)
 
--- | Find the concrete names that map (uniquely) to a given abstract name.
+-- | Find the concrete names that map (uniquely) to a given abstract qualified name.
 --   Sort by number of modules in the qualified name, unqualified names first.
+inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
+inverseScopeLookupName = inverseScopeLookupName' AmbiguousConProjs
 
-inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookup = inverseScopeLookup' AmbiguousConProjs
+inverseScopeLookupName' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> [C.QName]
+inverseScopeLookupName' amb q scope =
+  maybe [] (List1.toList . qnameConcrete) $ inverseScopeLookupName'' amb q scope
 
-inverseScopeLookup' :: AllowAmbiguousNames -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ] $
-  case name of
-    Left  m -> best $ filter unambiguousModule $ findModule m
-    Right q -> best $ filter unambiguousName   $ findName q
+-- | A version of 'inverseScopeLookupName' that also delivers the 'KindOfName'.
+--   Used in highlighting.
+inverseScopeLookupName'' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> Maybe NameMapEntry
+inverseScopeLookupName'' amb q scope = billToPure [ Scoping , InverseScopeLookup ] $ do
+  NameMapEntry k xs <- Map.lookup q (scope ^. scopeInverseName)
+  NameMapEntry k <$> do List1.nonEmpty $ best $ List1.filter unambiguousName xs
   where
-    findName   x = maybe [] NonEmpty.toList $ Map.lookup x (scope ^. scopeInverseName)
-    findModule x = fromMaybe [] $ Map.lookup x (scope ^. scopeInverseModule)
+    best :: [C.QName] -> [C.QName]
+    best = List.sortOn $ length . C.qnameParts
 
-    len :: C.QName -> Int
-    len (C.QName _)  = 1
-    len (C.Qual _ x) = 1 + len x
+    unique :: forall a . [a] -> Bool
+    unique []      = __IMPOSSIBLE__
+    unique [_]     = True
+    unique (_:_:_) = False
+
+    unambiguousName :: C.QName -> Bool
+    unambiguousName q = or
+      [ amb == AmbiguousAnything
+      , unique xs
+      , amb == AmbiguousConProjs && or
+          [ all (isJust . isConName) (k:ks)
+          , k `elem` [ FldName, PatternSynName ] && all (k ==) ks
+          ]
+      ]
+      where
+      xs   = scopeLookup q scope
+      k:ks = map anameKind xs
+
+-- | Find the concrete names that map (uniquely) to a given abstract module name.
+--   Sort by length, shortest first.
+inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
+inverseScopeLookupModule = inverseScopeLookupModule' AmbiguousNothing
+
+inverseScopeLookupModule' :: AllowAmbiguousNames -> A.ModuleName -> ScopeInfo -> [C.QName]
+inverseScopeLookupModule' amb m scope = billToPure [ Scoping , InverseScopeLookup ] $
+  best $ filter unambiguousModule $ findModule m
+  where
+    findModule m = fromMaybe [] $ Map.lookup m (scope ^. scopeInverseModule)
 
     best :: [C.QName] -> [C.QName]
-    best = List.sortBy (compare `on` len)
+    best = List.sortOn $ length . C.qnameParts
 
     unique :: forall a . [a] -> Bool
     unique []      = __IMPOSSIBLE__
@@ -1133,11 +1217,6 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     unique (_:_:_) = False
 
     unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
-    unambiguousName   q = amb == AmbiguousAnything
-        || unique xs
-        || amb == AmbiguousConProjs
-           && or [ all ((kind ==) . anameKind) xs | kind <- [ConName, FldName, PatternSynName] ]
-      where xs = scopeLookup q scope
 
 recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
 recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
@@ -1194,27 +1273,15 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     nameMap = Map.fromListWith (<>) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
-      q       <- anameName <$> ms
+      (q, k)  <- (anameName &&& anameKind) <$> ms
+      let ret z = return (q, NameMapEntry k $ singleton z)
       if m `elem` current
-        then return (q, singleton (C.QName x))
+        then ret $ C.QName x
         else do
           y <- findModule m
           let z = C.qualify y x
           guard $ not $ internalName z
-          return (q, singleton z)
-
--- | Find the concrete names that map (uniquely) to a given abstract qualified name.
---   Sort by length, shortest first.
-inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookupName x = inverseScopeLookup (Right x)
-
-inverseScopeLookupName' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookupName' ambCon x = inverseScopeLookup' ambCon (Right x)
-
--- | Find the concrete names that map (uniquely) to a given abstract module name.
---   Sort by length, shortest first.
-inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
-inverseScopeLookupModule x = inverseScopeLookup (Left x)
+          ret z
 
 ------------------------------------------------------------------------
 -- * Update binding site

@@ -35,7 +35,7 @@ import           Agda.Syntax.Info                    ( ModuleInfo(..) )
 import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
-import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..) )
+import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
 
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
@@ -218,7 +218,7 @@ instance Hilite A.Pragma where
   hilite = \case
     A.OptionsPragma _strings     -> mempty
     A.BuiltinPragma b x          -> singleAspect Keyword b <> hilite x
-    A.BuiltinNoDefPragma b x     -> singleAspect Keyword b <> hilite x
+    A.BuiltinNoDefPragma b k x   -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
     A.CompilePragma b x _foreign -> singleAspect Keyword b <> hilite x
     A.RewritePragma r xs         -> singleAspect Keyword r <> hilite xs
     A.StaticPragma x             -> hilite x
@@ -423,12 +423,16 @@ instance (Hilite m, Hilite n) => Hilite (ImportedName' m n) where
 -- * Highlighting of names
 ---------------------------------------------------------------------------
 
+instance Hilite DisambiguatedName where
+  hilite (DisambiguatedName k x) = hiliteQName (Just k) x
+
 instance Hilite ResolvedName where
   hilite = \case
     VarName           x _bindSrc -> hiliteBound x
     DefinedName  _acc x          -> hilite $ anameName x
     FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
-    ConstructorName   xs         -> hiliteAmbiguousQName Nothing $ A.AmbQ $ fmap anameName xs
+    ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
+      where k = kindOfNameToNameKind <$> exactConName i
     PatternSynResName xs         -> hilitePatternSynonym $ A.AmbQ $ fmap anameName xs
     UnknownName                  -> mempty
 

@@ -1,6 +1,8 @@
 -- | This module defines the names of all BUILTINs.
 module Agda.Syntax.Builtin where
 
+import Agda.Utils.List
+
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
@@ -259,6 +261,9 @@ builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 --
 --   The type of @Type@ would be @Type : Level → Setω@
 --   which is not valid Agda.
+
+isBuiltinNoDef :: String -> Bool
+isBuiltinNoDef = hasElem builtinsNoDef
 
 builtinsNoDef :: [String]
 builtinsNoDef =

@@ -79,7 +79,7 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
-  (CompressedFile, HighlightingInfo)
+  (CompressedFile, HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -197,7 +197,9 @@ data PreScopeState = PreScopeState
     -- ^ Imported partial definitions, not to be stored in the @Interface@
   }
 
-type DisambiguatedNames = IntMap A.QName
+-- | Name disambiguation for the sake of highlighting.
+data DisambiguatedName = DisambiguatedName NameKind A.QName
+type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name [C.Name]
 

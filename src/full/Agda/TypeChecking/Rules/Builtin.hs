@@ -827,7 +827,7 @@ bindBuiltin b x = do
       VarName{}            -> failure
       DefinedName _ x      -> return $ x :| []
       FieldName xs         -> return xs
-      ConstructorName xs   -> return xs
+      ConstructorName _ xs -> return xs
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
@@ -851,7 +851,7 @@ bindBuiltin b x = do
     now new b = warning $ OldBuiltin b new
 
 isUntypedBuiltin :: String -> Bool
-isUntypedBuiltin b = b `elem` [builtinFromNat, builtinFromNeg, builtinFromString]
+isUntypedBuiltin = hasElem [ builtinFromNat, builtinFromNeg, builtinFromString ]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
@@ -860,7 +860,7 @@ bindUntypedBuiltin b = \case
   FieldName (x :| _)   -> amb x
   VarName _x _bnd      -> wrong
   UnknownName          -> wrong
-  ConstructorName   xs -> err xs
+  ConstructorName _ xs -> err xs
   PatternSynResName xs -> err xs
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
@@ -957,11 +957,11 @@ bindBuiltinNoDef b q = inTopContext $ do
 
 
 builtinKindOfName :: String -> Maybe KindOfName
-builtinKindOfName b = distinguish <$> find ((b ==) . builtinName) coreBuiltins
+builtinKindOfName = distinguish <.> findBuiltinInfo
   where
   distinguish d = case builtinDesc d of
     BuiltinDataCons{}  -> ConName
-    BuiltinData{}      -> DataName
+    BuiltinData{}      -> DataName       -- Andreas, 2020-04-13: Crude.  Could be @RecName@.
     BuiltinPrim{}      -> PrimName
     BuiltinPostulate{} -> AxiomName
     BuiltinUnknown{}   -> OtherDefName

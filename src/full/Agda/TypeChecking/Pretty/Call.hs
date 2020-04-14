@@ -179,7 +179,7 @@ instance PrettyTCM Call where
 
     CheckSectionApplication _ m1 modapp -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp initCopyInfo defaultImportDir]
+      [prettyA $ A.Apply info m1 modapp initCopyInfo empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 

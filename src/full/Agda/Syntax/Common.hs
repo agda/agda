@@ -95,7 +95,8 @@ instance NFData HasEta where
 -- * Induction
 ---------------------------------------------------------------------------
 
-data Induction = Inductive | CoInductive
+-- | @Inductive < Coinductive@
+data Induction = Inductive | CoInductive  -- Keep in this order!
   deriving (Data, Eq, Ord, Show)
 
 instance Pretty Induction where

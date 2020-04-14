@@ -1017,7 +1017,7 @@ highlightExpr e =
   where
     dummy = mkName_ (NameId 0 0) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
-    decl  = A.Axiom NoFunSig info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
+    decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
 
 -- | Sorts interaction points based on their ranges.
 

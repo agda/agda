@@ -275,7 +275,7 @@ buildParsers kind exprNames = do
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames
-                       (someKindsOfNames [ConName, FldName, PatternSynName]) flat
+                       (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . head) cons
@@ -619,7 +619,7 @@ parseLHS' lhsOrPatSyn top p = do
                in  foldr seq () result `seq` result
 
     -- Classify parse results.
-    let cons = getNames (someKindsOfNames [ConName, PatternSynName])
+    let cons = getNames (someKindsOfNames [ConName, CoConName, PatternSynName])
                         (flattenedScope patP)
     let flds = getNames (someKindsOfNames [FldName])
                         (flattenedScope patP)

@@ -17,7 +17,8 @@ module Agda.Interaction.Highlighting.Generate
   , highlightWarning, warningHighlighting
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
-  , storeDisambiguatedName, disambiguateRecordFields
+  , storeDisambiguatedConstructor, storeDisambiguatedProjection
+  , disambiguateRecordFields
   ) where
 
 import Prelude hiding (null)
@@ -601,11 +602,20 @@ constraintsHighlighting cs =
 
 -- * Disambiguation of constructors and projections.
 
+storeDisambiguatedField :: A.QName -> TCM ()
+storeDisambiguatedField = storeDisambiguatedName Field
+
+storeDisambiguatedProjection :: A.QName -> TCM ()
+storeDisambiguatedProjection = storeDisambiguatedField
+
+storeDisambiguatedConstructor :: Common.Induction -> A.QName -> TCM ()
+storeDisambiguatedConstructor i = storeDisambiguatedName $ Constructor i
+
 -- | Remember a name disambiguation (during type checking).
 --   To be used later during syntax highlighting.
-storeDisambiguatedName :: A.QName -> TCM ()
-storeDisambiguatedName q = whenJust (start $ getRange q) $ \ i ->
-  stDisambiguatedNames `modifyTCLens` IntMap.insert i q
+storeDisambiguatedName :: NameKind -> A.QName -> TCM ()
+storeDisambiguatedName k q = whenJust (start $ getRange q) $ \ i ->
+  modifyTCLens stDisambiguatedNames $ IntMap.insert i $ DisambiguatedName k q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
 
@@ -616,4 +626,4 @@ disambiguateRecordFields
   -> TCM ()
 disambiguateRecordFields cxs axs = forM_ cxs $ \ cx -> do
   caseMaybe (List.find ((cx ==) . A.nameConcrete . A.qnameName) axs) (return ()) $ \ ax -> do
-    storeDisambiguatedName ax { A.qnameName = (A.qnameName ax) { A.nameConcrete = cx } }
+    storeDisambiguatedField ax{ A.qnameName = (A.qnameName ax) { A.nameConcrete = cx } }

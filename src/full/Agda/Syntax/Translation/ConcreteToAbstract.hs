@@ -570,7 +570,7 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
         -- and then we return the name
         return $ Just $ nameToExpr d
       FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
-      ConstructorName ds   -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
+      ConstructorName _ ds -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> pure Nothing
       PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
 
@@ -586,15 +586,17 @@ data APatName = VarPatName A.Name
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ prettyShow x
-    rx <- resolveName' (someKindsOfNames [ConName, PatternSynName]) ns x
+    rx <- resolveName' (someKindsOfNames [ConName, CoConName, PatternSynName]) ns x
           -- Andreas, 2013-03-21 ignore conflicting names which cannot
           -- be meant since we are in a pattern
+          -- Andreas, 2020-04-11 CoConName:
+          -- coinductive constructors will be rejected later, in the type checker
     case (rx, x) of
       (VarName y _,     C.QName x)                          -> bindPatVar x
       (FieldName d,     C.QName x)                          -> bindPatVar x
       (DefinedName _ d, C.QName x) | isDefName (anameKind d)-> bindPatVar x
       (UnknownName,     C.QName x)                          -> bindPatVar x
-      (ConstructorName ds, _)                               -> patCon ds
+      (ConstructorName _ ds, _)                             -> patCon ds
       (PatternSynResName d, _)                              -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     where
@@ -630,7 +632,7 @@ instance ToQName a => ToAbstract (OldName a) A.QName where
     case rx of
       DefinedName _ d      -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName ds   -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      ConstructorName _ ds -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (NonEmpty.head ds)
       PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
@@ -1499,7 +1501,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
              (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
             (warning $ SafeFlagPostulate x)
       -- check the postulate
-      toAbstractNiceAxiom A.NoFunSig NotMacroDef d
+      toAbstractNiceAxiom AxiomName d
 
     C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
@@ -1579,8 +1581,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
-    C.FunSig r p a i m rel _ _ x t ->
-        toAbstractNiceAxiom A.FunSig m (C.Axiom r p a i rel x t)
+    C.FunSig r p a i m rel _ _ x t -> do
+        let kind = if m == MacroDef then MacroName else FunName
+        toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
@@ -1627,7 +1630,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           let m = qnameToMName x'
           createModule (Just IsData) m
           bindModule p x m  -- make it a proper module
-          cons <- toAbstract (map (ConstrDecl m a p) cons)
+          cons <- toAbstract (map (DataConstrDecl m a p) cons)
           printScope "data" 20 $ "Checked data " ++ prettyShow x
           f <- getConcreteFixity x
           return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' uc (DataDefParams gvars pars) cons ]
@@ -1679,8 +1682,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
              setCurrentRange bad $
                typeError $ DuplicateFields dups
         bindModule p x m
+        let kind = maybe ConName (conKindOfName . rangedThing) ind
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
-        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c a p
+        cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
@@ -1854,16 +1858,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom funSig isMacro (C.Axiom r p a i info x t) = do
+      toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM [A.Declaration]
+      toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
         t' <- toAbstractCtx TopCtx t
         f  <- getConcreteFixity x
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
-        let kind | isMacro == MacroDef = MacroName
-                 | otherwise           = OtherDefName  -- could be a type signature
+        let isMacro | kind == MacroName = MacroDef
+                    | otherwise         = NotMacroDef
         bindName p kind x y
-        return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
-      toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
+        return [ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
+      toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
@@ -1967,8 +1972,9 @@ lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
   fromMaybe [] . Map.lookup x . nsModules . thingsInScope [PublicNS, PrivateNS] <$> getCurrentScope
 
-data ConstrDecl = ConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
+data DataConstrDecl = DataConstrDecl A.ModuleName IsAbstract Access C.NiceDeclaration
 
+-- | Bind a @data@ constructor.
 bindConstructorName
   :: ModuleName      -- ^ Name of @data@/@record@ module.
   -> C.Name          -- ^ Constructor name.
@@ -1995,10 +2001,10 @@ bindConstructorName m x a p = do
 
 -- | Record constructors do not live in the record module (as it is parameterized).
 --   Abstract constructors are bound privately, so that they are not exported.
-bindRecordConstructorName :: C.Name -> IsAbstract -> Access -> ScopeM A.QName
-bindRecordConstructorName x a p = do
+bindRecordConstructorName :: C.Name -> KindOfName -> IsAbstract -> Access -> ScopeM A.QName
+bindRecordConstructorName x kind a p = do
   y <- freshAbstractQName' x
-  bindName p' ConName x y
+  bindName p' kind x y
   return y
   where
     -- An abstract constructor is private (abstract constructor means
@@ -2007,8 +2013,8 @@ bindRecordConstructorName x a p = do
            AbstractDef -> PrivateAccess Inserted
            _           -> p
 
-instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl m a p d) = do
+instance ToAbstract DataConstrDecl A.Declaration where
+  toAbstract (DataConstrDecl m a p d) = do
     case d of
       C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
@@ -2019,7 +2025,7 @@ instance ToAbstract ConstrDecl A.Declaration where
         f <- getConcreteFixity x
         y <- bindConstructorName m x a p
         printScope "con" 15 "bound constructor"
-        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p a i NotMacroDef r)
+        return $ A.Axiom ConName (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
       _ -> errorNotConstrDecl d
 
@@ -2089,21 +2095,20 @@ instance ToAbstract C.Pragma [A.Pragma] where
             sINLINE ++ " used on ambiguous name " ++ prettyShow x
           _        -> genericError $ "Target of " ++ sINLINE ++ " pragma should be a function"
       return [ A.InlinePragma b y ]
-  toAbstract (C.BuiltinPragma _ rb q)
+  toAbstract (C.BuiltinPragma _ rb qx)
     | isUntypedBuiltin b = do
-        q <- toAbstract $ ResolveQName q
+        q <- toAbstract $ ResolveQName qx
         bindUntypedBuiltin b q
         return [ A.BuiltinPragma rb q ]
-    | otherwise = do
         -- Andreas, 2015-02-14
         -- Some builtins cannot be given a valid Agda type,
         -- thus, they do not come with accompanying postulate or definition.
-        if b `elem` builtinsNoDef then do
-          case q of
+    | isBuiltinNoDef b = do
+          case qx of
             C.QName x -> do
               -- The name shouldn't exist yet. If it does, we raise a warning
               -- and drop the existing definition.
-              unlessM ((UnknownName ==) <$> resolveName q) $ do
+              unlessM ((UnknownName ==) <$> resolveName qx) $ do
                 genericWarning $ P.text $
                    "BUILTIN " ++ b ++ " declares an identifier " ++
                    "(no longer expects an already defined identifier)"
@@ -2112,12 +2117,23 @@ instance ToAbstract C.Pragma [A.Pragma] where
               y <- freshAbstractQName' x
               let kind = fromMaybe __IMPOSSIBLE__ $ builtinKindOfName b
               bindName PublicAccess kind x y
-              return [ A.BuiltinNoDefPragma rb y ]
+              return [ A.BuiltinNoDefPragma rb kind y ]
             _ -> genericError $
               "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-              "but found " ++ prettyShow q
-        else do
-          q <- toAbstract $ ResolveQName q
+              "but found " ++ prettyShow qx
+    | otherwise = do
+          q0 <- toAbstract $ ResolveQName qx
+
+          -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
+          -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
+          q <- case (q0, builtinKindOfName b, qx) of
+            (DefinedName acc y, Just kind, C.QName x)
+              | anameKind y /= kind
+              , kind `elem` [ PrimName, AxiomName ] -> do
+                  rebindName acc kind x $ anameName y
+                  return $ DefinedName acc y{ anameKind = kind }
+            _ -> return q0
+
           return [ A.BuiltinPragma rb q ]
     where b = rangedThing rb
   toAbstract (C.EtaPragma _ x) = do
@@ -2143,8 +2159,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
         DefinedName _ d             -> return . (False,) $ anameName d
         FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName (d :| [])   -> return . (False,) $ anameName d
-        ConstructorName ds          -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
+        ConstructorName _ (d :| []) -> return . (False,) $ anameName d
+        ConstructorName _ ds        -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         UnknownName                 -> notInScopeError top
         PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
@@ -2473,7 +2489,7 @@ applyAPattern p0 p ps = do
       A.PatternSynP i x as -> return $ A.PatternSynP i x (as ++ ps)
       -- Dotted constructors are turned into "lazy" constructor patterns.
       A.DotP i (Ident x)   -> resolveName x >>= \case
-        ConstructorName ds -> do
+        ConstructorName _ ds -> do
           let cpi = ConPatInfo ConOCon i ConPatLazy
               c   = AmbQ (fmap anameName ds)
           return $ A.ConP cpi c ps

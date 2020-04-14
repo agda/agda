@@ -4,6 +4,8 @@
 
 module Agda.Syntax.Abstract.Views where
 
+import Prelude hiding (null)
+
 import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
@@ -16,10 +18,11 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base (emptyScopeInfo, KindOfName(..), WithKind(..))
+import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
+import Agda.Utils.Null
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -85,8 +88,8 @@ isSet _                = False
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
 unScope (ScopedExpr scope e) = unScope e
-unScope (QuestionMark i ii)  = QuestionMark (i {metaScope = emptyScopeInfo}) ii
-unScope (Underscore i)       = Underscore (i {metaScope = emptyScopeInfo})
+unScope (QuestionMark i ii)  = QuestionMark (i {metaScope = empty}) ii
+unScope (Underscore i)       = Underscore (i {metaScope = empty})
 unScope e                    = e
 
 -- | Remove 'ScopedExpr' wrappers everywhere.
@@ -450,7 +453,10 @@ instance DeclaredNames Declaration where
       DataSig _ q _ _              -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ q _ _               -> singleton (WithKind RecName q)
-      RecDef _ q _ _ _ c _ _ decls -> singleton (WithKind RecName q) <> declaredNames (WithKind ConName <$> c) <> declaredNames decls
+      RecDef _ q _ i _ c _ _ decls -> singleton (WithKind RecName q) <> kc <> declaredNames decls
+        where
+        kc = maybe mempty (singleton . WithKind k) c
+        k  = maybe ConName (conKindOfName . rangedThing) i
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
@@ -468,8 +474,7 @@ instance DeclaredNames Declaration where
 
 instance DeclaredNames Pragma where
   declaredNames = \case
-    BuiltinNoDefPragma _b x -> mempty
-      -- singleton $ WithKind PrimName x  -- TODO: add KindOfName to pragma
+    BuiltinNoDefPragma _b kind x -> singleton $ WithKind kind x
     BuiltinPragma{}         -> mempty
     CompilePragma{}         -> mempty
     RewritePragma{}         -> mempty
