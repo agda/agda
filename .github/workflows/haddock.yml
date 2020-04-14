@@ -42,8 +42,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cabal install alex happy
-        cabal install --dependencies-only --force-reinstalls
+        cabal install alex happy --overwrite-policy=always
+        cabal build --dependencies-only --force-reinstalls
 
     # Testing Haddock [Issue 1773]
     - name: Build Haddock
