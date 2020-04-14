@@ -26,17 +26,11 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Arrow (second)
 
-import qualified Data.Foldable as Fold
-import qualified Data.Map as Map
 import Data.Maybe
-import Data.List ((\\))
-import qualified Data.List as List
-import qualified Data.IntMap as IntMap
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HMap
-import Data.Semigroup (Semigroup(..))
-import Data.Sequence (Seq)
-import qualified Data.Set as Set
+import qualified Data.Foldable  as Fold
+import qualified Data.List      as List
+import qualified Data.IntMap    as IntMap
+import qualified Data.Set       as Set
 import qualified Data.Text.Lazy as Text
 
 import Agda.Interaction.Response
@@ -49,20 +43,20 @@ import qualified Agda.TypeChecking.Errors as TCM
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
-import qualified Agda.TypeChecking.Monad  as TCM
+-- import qualified Agda.TypeChecking.Monad  as TCM
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings (runPM)
 
-import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
-import qualified Agda.Syntax.Common as Common
+import qualified Agda.Syntax.Abstract      as A
+import Agda.Syntax.Concrete.Definitions    as W ( DeclarationWarning(..) )
+import qualified Agda.Syntax.Common        as Common
 import qualified Agda.Syntax.Concrete.Name as C
-import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Literal as L
-import qualified Agda.Syntax.Parser as Pa
+import qualified Agda.Syntax.Internal      as I
+import qualified Agda.Syntax.Literal       as L
+import qualified Agda.Syntax.Parser        as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
-import qualified Agda.Syntax.Position as P
+import qualified Agda.Syntax.Position      as P
 import Agda.Syntax.Position (Range, HasRange, getRange, noRange)
 
 import Agda.Syntax.Scope.Base     ( WithKind(..) )
@@ -128,7 +122,6 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
   ignoreAbstractMode $ do
     modMap <- sourceToModule
-    kinds  <- nameKinds hlLevel decl
 
     -- After the code has been type checked more information may be
     -- available for overloaded constructors, and
@@ -136,11 +129,12 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Note, however, that highlighting for overloaded constructors is
     -- included also in @nameInfo@.
     constructorInfo <- case hlLevel of
-      Full{} -> generateConstructorInfo modMap file kinds decl
+      Full{} -> generateConstructorInfo modMap file decl
       _      -> return mempty
 
     -- Main source of scope-checker generated highlighting:
-    let nameInfo = runHighlighter modMap file kinds decl
+    scope <- getScope
+    let nameInfo = runHighlighter modMap file scope decl
 
     reportSDoc "highlighting.warning" 60 $ TCM.hcat
       [ "current path = "
@@ -240,80 +234,6 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokEOF {})                    = mempty
 
 
--- | Builds a 'NameKinds' function.
-
-nameKinds :: Level
-             -- ^ This should only be @'Full'@ if
-             -- type-checking completed successfully (without any
-             -- errors).
-          -> A.Declaration
-          -> TCM NameKinds
-nameKinds hlLevel decl = do
-  imported <- useTC $ stImports . sigDefinitions
-  local    <- case hlLevel of
-    Full{} -> useTC $ stSignature . sigDefinitions
-    _      -> return HMap.empty
-  impPatSyns <- useTC stPatternSynImports
-  locPatSyns <- case hlLevel of
-    Full{} -> useTC stPatternSyns
-    _      -> return empty
-      -- Traverses the syntax tree and constructs a map from qualified
-      -- names to name kinds. TODO: Handle open public.
-  let syntax :: NameKindMap
-      syntax = runBuilder (declaredNames decl :: NameKindBuilder) HMap.empty
-  return $ \ n -> unionsMaybeWith mergeNameKind
-    [ defnToKind . theDef <$> HMap.lookup n local
-    , con <$ Map.lookup n locPatSyns
-    , defnToKind . theDef <$> HMap.lookup n imported
-    , con <$ Map.lookup n impPatSyns
-    , HMap.lookup n syntax
-    ]
-  where
-  defnToKind :: TCM.Defn -> NameKind
-  defnToKind   TCM.Axiom{}                           = Postulate
-  defnToKind   TCM.DataOrRecSig{}                    = Postulate
-  defnToKind   TCM.GeneralizableVar{}                = Generalizable
-  defnToKind d@TCM.Function{} | isProperProjection d = Field
-                            | otherwise            = Function
-  defnToKind   TCM.Datatype{}                        = Datatype
-  defnToKind   TCM.Record{}                          = Record
-  defnToKind   TCM.Constructor{ TCM.conInd = i }       = Constructor i
-  defnToKind   TCM.Primitive{}                       = Primitive
-  defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
-
-  con :: NameKind
-  con = Constructor Common.Inductive
-
--- | The 'TCM.Axiom' constructor is used to represent various things
--- which are not really axioms, so when maps are merged 'Postulate's
--- are thrown away whenever possible. The 'declaredNames' function
--- below can return several explanations for one qualified name; the
--- 'Postulate's are bogus.
-mergeNameKind :: NameKind -> NameKind -> NameKind
-mergeNameKind Postulate k = k
-mergeNameKind _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
-mergeNameKind k         _ = k
-
--- Auxiliary types for @nameKinds@ generation
-
-type NameKindMap     = HashMap A.QName NameKind
-data NameKindBuilder = NameKindBuilder
-  { runBuilder :: NameKindMap -> NameKindMap
-  }
-
-instance Semigroup (NameKindBuilder) where
-  NameKindBuilder f <> NameKindBuilder g = NameKindBuilder $ f . g
-
-instance Monoid (NameKindBuilder) where
-  mempty = NameKindBuilder id
-  mappend = (<>)
-
-instance Singleton KName NameKindBuilder where
-  singleton (WithKind k q) = NameKindBuilder $
-    HMap.insertWith mergeNameKind q $ kindOfNameToNameKind k
-
-instance Collection KName NameKindBuilder
-
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declaration.
 --
@@ -324,10 +244,9 @@ instance Collection KName NameKindBuilder
 generateConstructorInfo
   :: SourceToModule  -- ^ Maps source file paths to module names.
   -> AbsolutePath    -- ^ The module to highlight.
-  -> NameKinds
   -> A.Declaration
   -> TCM File
-generateConstructorInfo modMap file kinds decl = do
+generateConstructorInfo modMap file decl = do
 
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
@@ -344,7 +263,8 @@ generateConstructorInfo modMap file kinds decl = do
         constrs = IntMap.elems m2
 
     -- Return suitable syntax highlighting information.
-    return $ foldMap (runHighlighter modMap file kinds) constrs
+    scope <- getScope
+    return $ foldMap (runHighlighter modMap file scope) constrs
 
 printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do
@@ -510,7 +430,7 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.
 
-positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
+positivityErrorHighlighting :: Foldable t => I.QName -> t OccursWhere -> File
 positivityErrorHighlighting q os =
   several (rToR <$> getRange q : rs) m
   where
@@ -570,7 +490,7 @@ computeUnsolvedMetaWarnings = do
   let notBlocked m = not <$> isBlockedTerm m
   ms <- filterM notBlocked =<< getOpenMetas
 
-  rs <- mapM getMetaRange (ms \\ is)
+  rs <- mapM getMetaRange (ms List.\\ is)
   return $ metasHighlighting rs
 
 metasHighlighting :: [Range] -> File

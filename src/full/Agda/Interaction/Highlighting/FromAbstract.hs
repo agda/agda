@@ -4,12 +4,11 @@
 
 {-# LANGUAGE TypeFamilies #-}  -- for type equality
 
--- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Data.Semigroup is redundant in later GHC versions
-{-# OPTIONS_GHC -fwarn-unused-binds   #-}
+-- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Data.Semigroup is redundant in later GHC versions.
+-- {-# OPTIONS_GHC -fwarn-unused-binds   #-}  -- There are commented out calls to tracing functions.
 
 module Agda.Interaction.Highlighting.FromAbstract
   ( runHighlighter
-  , NameKinds
   ) where
 
 import Prelude hiding (null)
@@ -22,6 +21,8 @@ import           Data.Maybe
 import           Data.Semigroup       ( Semigroup(..) )          -- for ghc 8.0
 import           Data.Void            ( Void )
 
+import           Debug.Trace          ( trace, traceM )
+
 import           Agda.Interaction.Highlighting.Precise hiding ( singleton )
 import qualified Agda.Interaction.Highlighting.Precise as H
 import           Agda.Interaction.Highlighting.Range   ( rToR )  -- Range is ambiguous
@@ -31,12 +32,16 @@ import qualified Agda.Syntax.Abstract      as A
 import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..) )
 import qualified Agda.Syntax.Concrete.Name as C
-import           Agda.Syntax.Info                    ( ModuleInfo(..) )
+import           Agda.Syntax.Info                    ( ModuleInfo(..), defMacro )
 import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
-import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
-
+import           Agda.Syntax.Scope.Base
+  ( AbstractName(..), ResolvedName(..)
+  , ScopeInfo, KindOfName(..)
+  , NameMapEntry(..), AllowAmbiguousNames(..), inverseScopeLookupName''
+  , exactConName
+  )
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 
@@ -50,27 +55,42 @@ import qualified Agda.Utils.Maybe.Strict   as Strict
 import           Agda.Utils.Pretty
 import           Agda.Utils.Singleton
 
+import           Agda.Utils.Impossible
+
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
-runHighlighter :: Hilite a => SourceToModule -> AbsolutePath -> NameKinds -> a -> File
-runHighlighter modMap fileName kinds x = runReader (hilite x) $ HiliteEnv
-  { hleNameKinds = kinds
+runHighlighter :: Hilite a => SourceToModule -> AbsolutePath -> ScopeInfo -> a -> File
+runHighlighter modMap fileName scope x = runReader (hilite x) $ HiliteEnv
+  { hleScopeInfo = scope
   , hleModMap    = modMap
   , hleFileName  = fileName
   }
 
 -- | Environment of the highlighter.
 data HiliteEnv = HiliteEnv
-  { hleNameKinds :: NameKinds
-      -- ^ Function mapping qualified names to their kind.
+  { hleScopeInfo :: ScopeInfo
+      -- ^ To resolve qualified names to their kind.
   , hleModMap    :: SourceToModule
       -- ^ Maps source file paths to module names.
   , hleFileName  :: AbsolutePath
       -- ^ The file name of the current module. Used for consistency checking.
   }
 
+setHScope :: ScopeInfo -> HiliteM a -> HiliteM a
+setHScope scope = local $ \ env -> env { hleScopeInfo = scope }
+
 -- | A function mapping names to the kind of name they stand for.
-type NameKinds = A.QName -> Maybe NameKind
+getNameKind :: A.QName -> HiliteM (Maybe NameKind)
+getNameKind q = do
+  scope <- asks hleScopeInfo
+  let amb = AmbiguousConProjs  -- or? AmbiguousAnything
+  let mk  = inverseScopeLookupName'' amb q scope
+  -- Andreas, 2020-04-13, FAILS e.g. for test/Succeed/CubicalPrims
+  -- let failure = trace ("Highlighting: unbound A.QName: " ++ prettyShow q) __IMPOSSIBLE__
+  -- let k = qnameKind . fromMaybe failure $ inverseScopeLookupName'' amb q scope
+  -- -- traceM ("Highlighting: getNameKind " ++ prettyShow q ++ " = " ++ show k)
+  -- pure . Just $ kindOfNameToNameKind k
+  pure $ fmap (kindOfNameToNameKind . qnameKind) mk
 
 -- | Highlighting monad.
 type HiliteM = Reader HiliteEnv
@@ -93,6 +113,11 @@ class Hilite a where
   default hilite :: (Foldable t, Hilite b, t b ~ a) => a -> Hiliter
   hilite = foldMap hilite
 
+  -- | Highlight the second argument in the style of the first.
+  --   Except for 'A.QName', where it copies the 'NameKind' the style is ignored.
+  hiliteLike :: a -> a -> Hiliter
+  hiliteLike _ = hilite
+
 -- * Generic instances
 ---------------------------------------------------------------------------
 
@@ -109,6 +134,9 @@ instance (Hilite a, Hilite b) => Hilite (Either a b) where
 
 instance (Hilite a, Hilite b) => Hilite (a, b) where
   hilite (a, b) = hilite a <> hilite b
+
+instance Hilite a => Hilite (A.Scoped a) where
+  hilite (A.Scoped scope a) = setHScope scope $ hilite a
 
 -- * Major syntactic categories
 ---------------------------------------------------------------------------
@@ -190,35 +218,58 @@ instance (Hilite a, Hilite b) => Hilite (a, b) where
 -- | getQuantityAttr       | Common.Quantity             | Symbol (if range)
 
 instance Hilite A.Declaration where
-  hilite = \case
-      A.Axiom _ax _di ai _occ x e            -> hl ai <> hl x <> hl e
-      A.Generalize _names _di ai x e         -> hl ai <> hl x <> hl e
+  hilite = -- tr $
+    \case
+      A.Axiom kind _di ai _occ x e           -> hl ai <> hiliteAxiom kind x <> hl e
+      A.Generalize _names _di ai x e         -> hl ai <> hlGen x <> hl e
       A.Field _di x e                        -> hlField x <> hl e
-      A.Primitive _di x e                    -> hl x <> hl e
+      A.Primitive _di x e                    -> hlPrim x <> hl e
       A.Mutual _mi ds                        -> hl ds
       A.Section mi x tel ds                  -> hl mi <> hl x <> hl tel <> hl ds
       A.Apply mi x a _ci dir                 -> hl mi <> hl x <> hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
-      A.FunDef _di x _delayed cs             -> hl x <> hl cs
-      A.DataSig _di x tel e                  -> hl x <> hl tel <> hl e
-      A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
-      A.RecSig _di x tel e                   -> hl x <> hl tel <> hl e
-      A.RecDef _di x _uc _ind _eta y bs e ds -> hl x <> hl y <> hl bs <> hl e <> hl ds
-      A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
-      A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
-      A.UnquoteDef _di xs e                  -> hl xs <> hl e
-      A.ScopedDecl s ds                      -> hl ds
+      A.FunDef _di x _delayed cs             -> hlFun x <> hl cs
+      A.DataSig _di x tel e                  -> hlDat x <> hl tel <> hl e
+      A.DataDef _di x _uc pars cs            -> hlDat x <> hl pars <> foldMap hlConDecl cs
+      A.RecSig _di x tel e                   -> hlRec x <> hl tel <> hl e
+      A.RecDef _di x _uc ind _eta y bs e ds  -> hlRec x <> foldMap (hlCon ind) y <> hl bs <> hl e <> hl ds
+      A.PatternSynDef x xs p                 -> hlPatSyn x <> hl xs <> hl p
+      A.UnquoteDecl _mi _di xs e             -> foldMap hlFun xs <> hl e
+      A.UnquoteDef _di xs e                  -> foldMap hlFun xs <> hl e
+      A.ScopedDecl scope ds                  -> setHScope scope $ hl ds
       A.Pragma _r pragma                     -> hl pragma
     where
-    hl      a = hilite a
-    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)
+    tr f decl  = f decl
+    hl      a  = hilite a
+    -- hlAx ax di = hiliteQName $ Just $
+    --   case (defMacro di, ax) of
+    --     (MacroDef, _)   -> Macro
+    --     (_, A.FunSig  ) -> Function
+    --     (_, A.NoFunSig) -> Postulate
+    hlName     = hiliteQName . Just
+    hlGen      = hiliteQName $ Just Generalizable
+    hlPrim     = hiliteQName $ Just Primitive
+    hlFun      = hiliteQName $ Just Function
+    hlDat      = hiliteQName $ Just Datatype
+    hlRec      = hiliteQName $ Just Record
+    hlPatSyn   = hiliteQName $ Just $ Constructor Inductive
+    hlField x  = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)
+    hlCon' i   = hlName $ Constructor i
+    hlCon      = hlCon' . maybe Inductive rangedThing
+    hlConDecl  = \case
+      -- data constructors are always Inductive
+      A.Axiom ConName _di ai _occ x e -> hl ai <> hlCon' Inductive x <> hl e
+      _ -> __IMPOSSIBLE__
+
+hiliteAxiom :: KindOfName -> A.QName -> Hiliter
+hiliteAxiom = hiliteQName . Just . kindOfNameToNameKind
 
 instance Hilite A.Pragma where
   hilite = \case
     A.OptionsPragma _strings     -> mempty
     A.BuiltinPragma b x          -> singleAspect Keyword b <> hilite x
-    A.BuiltinNoDefPragma b k x   -> singleAspect Keyword b <> hiliteQName (Just $ kindOfNameToNameKind k) x
+    A.BuiltinNoDefPragma b ki x  -> singleAspect Keyword b <> hiliteAxiom ki x
     A.CompilePragma b x _foreign -> singleAspect Keyword b <> hilite x
     A.RewritePragma r xs         -> singleAspect Keyword r <> hilite xs
     A.StaticPragma x             -> hilite x
@@ -253,7 +304,7 @@ instance Hilite A.Expr where
       A.ETel _tel                -> mempty  -- Printing only construct
       A.Rec _r ass               -> hl ass
       A.RecUpdate _r e ass       -> hl e <> hl ass
-      A.ScopedExpr _ e           -> hl e
+      A.ScopedExpr scope e       -> setHScope scope $ hl e
       A.Quote _r                 -> mempty
       A.QuoteTerm _r             -> mempty
       A.Unquote _r               -> mempty
@@ -413,12 +464,17 @@ instance (Hilite m, Hilite n) => Hilite (Renaming' m n) where
     <> singleAspect Symbol rangeKwTo
          -- Currently, the "to" is already highlited by rAsTo above.
          -- TODO: remove the "to" ranges from rAsTo.
-    <> hilite to
+    <> hiliteLike from to
+         -- Copy the @NameKind@ from @from@ to @to@.
 
 instance (Hilite m, Hilite n) => Hilite (ImportedName' m n) where
   hilite = \case
     ImportedModule m -> hilite m
     ImportedName   n -> hilite n
+
+  hiliteLike = curry $ \case
+    (ImportedName x, ImportedName y) -> hiliteLike x y
+    (_,y) -> hilite y
 
 -- * Highlighting of names
 ---------------------------------------------------------------------------
@@ -438,6 +494,7 @@ instance Hilite ResolvedName where
 
 instance Hilite A.QName where
   hilite = hiliteQName Nothing
+  hiliteLike x y = getNameKind x >>= (`hiliteQName` y)
 
 instance Hilite A.AmbiguousQName where
   hilite = hiliteAmbiguousQName Nothing
@@ -463,7 +520,7 @@ hiliteQName mkind q
   | isExtendedLambdaName q = mempty
   | isAbsurdLambdaName   q = mempty
   | otherwise = do
-      kind <- ifJust mkind (pure . Just) {-else-} $ asks hleNameKinds <&> ($ q)
+      kind <- ifJust mkind (pure . Just) {-else-} $ getNameKind q
       hiliteAName q True $ nameAsp' kind
 
 -- | Takes the first 'NameKind'.  Binding site only included if unique.
@@ -473,8 +530,7 @@ hiliteAmbiguousQName
   -> Hiliter
 hiliteAmbiguousQName mkind (A.AmbQ qs) = do
   kind <- ifJust mkind (pure . Just) {-else-} $ do
-    kinds <- asks hleNameKinds
-    pure $ listToMaybe $ List1.catMaybes $ fmap kinds qs
+    unionsMaybeWith (<>) . List1.toList <$> mapM getNameKind qs
       -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
       -- than doing no highlighting if there's an ambiguity between an
       -- inductive and coinductive constructor.

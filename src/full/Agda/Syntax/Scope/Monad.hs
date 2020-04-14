@@ -655,7 +655,10 @@ applyImportDirectiveM
   :: C.QName                           -- ^ Name of the scope, only for error reporting.
   -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
   -> Scope                             -- ^ Input scope.
-  -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
+  -> ScopeM (A.ImportDirective, Scope)
+       -- ^ Scope-checked description, output scope.
+       --   The returned import direction is wrapped in an approximate 'ScopeInfo'
+       --   in which the imported names (before renaming) make sense.
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- Modules names do not come with fixities, thus, we should complain if the
@@ -721,7 +724,18 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
           ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  $ look x modulesInScope'
 
     let adir = mapImportDir namesA definedA dir
-    return (adir, scope') -- TODO Issue 1714: adir
+    -- Compute a rough ScopeInfo in which @adir@ can be highlighted.
+    dirScope <- localScope $ do
+      let (impNames, impModules) = partitionImportedNames names
+      let s = recomputeInScopeSets
+            $ mapScope_
+                (Map.filterWithKey $ const . hasElem impNames)
+                (Map.filterWithKey $ const . hasElem impModules)
+                id
+            $ restrictPrivate scope
+      modifyCurrentScope (`mergeScope` s)
+      getScope
+    return (A.Scoped dirScope adir, scope')
 
   where
     -- | Names in the @using@ directive

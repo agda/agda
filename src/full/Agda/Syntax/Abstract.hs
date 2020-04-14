@@ -145,6 +145,17 @@ instance Pretty ScopeCopyInfo where
       prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
+-- | Attach a scope to something.
+data Scoped a = Scoped ScopeInfo a
+  deriving (Data, Show, Functor, Foldable, Traversable)
+
+instance Eq a => Eq (Scoped a) where
+  Scoped _ a == Scoped _ b = a == b
+
+instance Null a => Null (Scoped a) where
+  null (Scoped _ a) = null a
+  empty = Scoped empty empty
+
 data Declaration
   = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
@@ -159,8 +170,10 @@ data Declaration
   | Section    ModuleInfo ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
+    --   It is wrapped in the scope of the module we import from.
   | Import     ModuleInfo ModuleName ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
+    --   It is wrapped in the scope of the module we import from.
   | Pragma     Range      Pragma
   | Open       ModuleInfo ModuleName ImportDirective
     -- ^ only retained for highlighting purposes
@@ -180,7 +193,8 @@ data Declaration
 
 type DefInfo = DefInfo' Expr
 
-type ImportDirective = ImportDirective' QName ModuleName
+type ImportDirective = Scoped ImportDirective0
+type ImportDirective0= ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
 type ImportedName    = ImportedName'    QName ModuleName
 
@@ -574,6 +588,9 @@ instance LensHiding TypedBinding where
   mapHiding f (TBind r t xs e)    = TBind r t ((fmap . mapHiding) f xs) e
   mapHiding f b@TLet{}            = b
 
+instance HasRange a => HasRange (Scoped a) where
+  getRange (Scoped _ a) = getRange a
+
 instance HasRange a => HasRange (Binder' a) where
   getRange (Binder p n) = fuseRange p n
 
@@ -698,6 +715,9 @@ instance SetRange (Pattern' a) where
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
+
+instance KillRange a => KillRange (Scoped a) where
+  killRange (Scoped s a) = killRange1 (Scoped s) a
 
 instance KillRange a => KillRange (Binder' a) where
   killRange (Binder a b) = killRange2 Binder a b

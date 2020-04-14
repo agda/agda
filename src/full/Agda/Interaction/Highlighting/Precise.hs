@@ -264,6 +264,22 @@ instance Semigroup NameKind where
   -- -- TODO necessary?
   -- Field    <> Function = Field
   -- Function <> Field    = Field
+  -- BREAKS Issue1062
+  -- -- @Inductive@ is the default, override by @CoInductive@.
+  -- -- Constructor i   <> Constructor i'  = Constructor $ max i i'
+
+  -- -- SEEM unnecessary
+  -- k@Constructor{} <> Function        = k
+  -- Function        <> k@Constructor{} = k
+  -- -- Primitive > Function, Postulate
+  -- Primitive       <> Function        = Primitive
+  -- Function        <> Primitive       = Primitive
+  -- Primitive       <> Postulate       = Primitive
+  -- Postulate       <> Primitive       = Primitive
+  -- -- Postulate > Function
+  -- Postulate       <> Function        = Postulate
+  -- Function        <> Postulate       = Postulate
+
   -- TODO: more overwrites?
   k1 <> k2 | k1 == k2  = k1
            | otherwise = k1 -- TODO: __IMPOSSIBLE__
