@@ -17,7 +17,7 @@ on:
     - 'Agda.cabal'
 
 jobs:
-  linux:
+  Ubuntu:
     runs-on: ubuntu-16.04
 
     strategy:
@@ -52,7 +52,7 @@ jobs:
       run: |
         stack build ${ARGS} ${FLAGS_2}
 
-  mac:
+  macOS:
     runs-on: macos-latest
 
     strategy:
@@ -87,16 +87,18 @@ jobs:
       run: |
         stack build ${ARGS} ${FLAGS_2}
 
-  windows:
+  Windows:
     runs-on: windows-latest
     strategy:
       matrix:
         ghc-ver: [8.10.1]
         icu-ver: [58.2-3]
+
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
       FLAGS: "--flag Agda:enable-cluster-counting"
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+
     steps:
     - uses: actions/checkout@v2
 
