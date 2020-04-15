@@ -1350,9 +1350,9 @@ instance ToAbstract LetDef [A.LetBinding] where
     case d of
       NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
-                genericError $ "abstract not allowed in let expressions"
+                genericError $ "`abstract` not allowed in let expressions"
               when (macro == MacroDef) $ do
-                genericError $ "Macros cannot be defined in a let expression."
+                genericError $ "Macros cannot be defined in a let expression"
               t <- toAbstract t
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
@@ -1373,23 +1373,27 @@ instance ToAbstract LetDef [A.LetBinding] where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere ca) -> do
-        mp  <- setCurrentRange p $
-                 (Right <$> parsePattern p)
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] [] NoEllipsis) rhs0 wh ca) -> do
+        noWhereInLetBinding wh
+        rhs <- letBindingMustHaveRHS rhs0
+        mp  <- setCurrentRange p0 $
+                 (Right <$> parsePattern p0)
                    `catchError`
                  (return . Left)
         case mp of
           Right p -> do
             rhs <- toAbstract rhs
-            p   <- toAbstract p
-            checkPatternLinearity p $ \ys ->
-              typeError $ RepeatedVariablesInPattern ys
-            bindVarsToBind
-            p   <- toAbstract p
-            return [ A.LetPatBind (LetRange r) p rhs ]
+            setCurrentRange p0 $ do
+              p   <- toAbstract p
+              checkValidLetPattern p
+              checkPatternLinearity p $ \ys ->
+                typeError $ RepeatedVariablesInPattern ys
+              bindVarsToBind
+              p   <- toAbstract p
+              return [ A.LetPatBind (LetRange r) p rhs ]
           -- It's not a record pattern, so it should be a prefix left-hand side
           Left err ->
-            case definedName p of
+            case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
                 [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x (C.Underscore (getRange x) Nothing)
@@ -1412,7 +1416,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
               definedName C.InstanceP{}          = Nothing
               definedName C.WithP{}              = Nothing
-              definedName C.AppP{}               = __IMPOSSIBLE__
+              definedName C.AppP{}               = Nothing -- Not impossible, see issue #4586
               definedName C.OpAppP{}             = __IMPOSSIBLE__
               definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
 
@@ -1438,17 +1442,15 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) (C.RHS rhs) NoWhere []) = do
-{-
-            p    <- parseLHS top p
-            localToAbstract (snd $ lhsArgs p) $ \args ->
--}
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) rhs0 wh []) = do
+            noWhereInLetBinding wh
+            rhs <- letBindingMustHaveRHS rhs0
             (x, args) <- do
               res <- setCurrentRange p $ parseLHS (C.QName top) p
               case res of
                 C.LHSHead x args -> return (x, args)
-                C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
-                C.LHSWith{} -> genericError $ "with-patterns not allowed in let bindings"
+                C.LHSProj{} -> genericError $ "Copatterns not allowed in let bindings"
+                C.LHSWith{} -> genericError $ "`with` patterns not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
                 bindVarsToBind
@@ -1468,11 +1470,36 @@ instance ToAbstract LetDef [A.LetBinding] where
             where i' = ExprRange (fuseRange i e)
         lambda _ _ = notAValidLetBinding d
 
---UNUSED Liang-Ting Chen 2019-07-16
---newtype Blind a = Blind { unBlind :: a }
---
---instance ToAbstract (Blind a) (Blind a) where
---  toAbstract = return
+        noWhereInLetBinding :: C.WhereClause -> ScopeM ()
+        noWhereInLetBinding = \case
+          NoWhere -> return ()
+          wh -> setCurrentRange wh $ genericError $ "`where` clauses not allowed in let bindings"
+        letBindingMustHaveRHS :: C.RHS -> ScopeM C.Expr
+        letBindingMustHaveRHS = \case
+          C.RHS e -> return e
+          C.AbsurdRHS -> genericError $ "Missing right hand side in let binding"
+
+        -- | Only record patterns allowed, but we do not exclude data constructors here.
+        --   They will fail in the type checker.
+        checkValidLetPattern :: A.Pattern' e -> ScopeM ()
+        checkValidLetPattern = \case
+            A.VarP{}             -> yes
+            A.ConP _ _ ps        -> mapM_ (checkValidLetPattern . namedArg) ps
+            A.ProjP{}            -> no
+            A.DefP{}             -> no
+            A.WildP{}            -> yes
+            A.AsP _ _ p          -> checkValidLetPattern p
+            A.DotP{}             -> no
+            A.AbsurdP{}          -> no
+            A.LitP{}             -> no
+            A.PatternSynP _ _ ps -> mapM_ (checkValidLetPattern . namedArg) ps
+            A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
+            A.EqualP{}           -> no
+            A.WithP{}            -> no
+          where
+          yes = return ()
+          no  = genericError "Not a valid let pattern"
+
 
 instance ToAbstract NiceDeclaration A.Declaration where
 
