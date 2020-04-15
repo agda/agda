@@ -15,7 +15,7 @@ on:
     - '.github/workflows/cabal.yml'
 
 jobs:
-  build:
+  linux:
 
     runs-on: ubuntu-16.04
 
@@ -32,10 +32,10 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
-    - name: Resolve dependencies
+    - name: Configure the build plan
       run: |
         cabal update
-        cabal configure
+        cabal configure -O0
 
     - uses: actions/cache@v1
       name: Cache dependencies
@@ -56,4 +56,31 @@ jobs:
 
     - name: Build Agda
       run: |
-        cabal build -O0
+        cabal build
+
+  mac:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+
+    - name: Install ghc and cabal-install
+      run: |
+        brew install ghc cabal-install
+        cabal update
+
+    - name: Add the path to icu4c to the cabal configuration
+      run: |
+        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib">> ~/.cabal/config
+        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
+
+    - name: Install dependencies
+      run: |
+        cabal configure -O0
+        cabal build --only-dependencies
+
+    - name: Build Agda
+      run: |
+        cabal build
