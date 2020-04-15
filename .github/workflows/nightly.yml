@@ -2,8 +2,8 @@ name: nightly build
 
 on:
   schedule:
-    # Run every day at 0100.
-    - cron: '0 01 * * *'
+    # Run every day at 0400.
+    - cron: '0 04 * * *'
 
 jobs:
   linux:
