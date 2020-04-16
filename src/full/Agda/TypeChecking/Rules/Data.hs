@@ -699,7 +699,7 @@ defineTranspIx d = do
       TelV ctel ctype <- telView theType
       reportSDoc "tc.data.ixs" 20 $ "transpIx:" <+> prettyTCM theType
       let
-        ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel) 
+        ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel)
         ps = telePatterns ctel []
         cpi = noConPatternInfo { conPType = Just (defaultArg interval) }
         pat :: NamedArg (Pattern' DBPatVar)
@@ -886,23 +886,35 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
       iz <- primIZero
       tHComp <- primHComp
       tINeg <- primINeg
-      
+      let max i j = cl primIMax <@> i <@> j
+      let min i j = cl primIMin <@> i <@> j
+      let neg i = cl primINeg <@> i
+      let hcomp ty sys u0 = do
+              ty <- ty
+              Just (LEl l ty) <- toLType ty
+              l <- open $ Level l
+              ty <- open $ ty
+              face <- (foldr max (pure iz) $ map fst $ sys)
+              sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
+              pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
       interval <- elInf primInterval
-      let intervalTel nm = pure $ ExtendTel (defaultDom interval) (Abs nm EmptyTel)
+      let intervalTel nm = ExtendTel (defaultDom interval) (Abs nm EmptyTel)
+
       let (parI,ixsI) = splitTelescopeAt npars telI
-      let alts = nub [Nothing,mtrX]
-      forM alts $ \ mtrX -> do
+
+      let alts = False : [ True | isJust mtrX ]
+      forM alts $ \ trXMatch -> do
       gamma <- runNamesT [] $ do
                    ixsI <- open $ AbsN (teleNames parI) ixsI
                    aTel <- open $ AbsN (teleNames prm) aTel
                    parI <- open parI
                    abstractN parI $ \ delta -> do
                    abstractN (ixsI `applyN` delta) $ \ _ -> do
-                   abstractN (intervalTel "phi") $ \ _ -> do
+                   abstractN (pure $ intervalTel "phi") $ \ _ -> do
                    let args = aTel `applyN` flip map delta (\ p -> p <@> pure iz)
-                   caseMaybe mtrX args $ \ _ -> do
+                   if not trXMatch then args else do
                    abstractN (ixsI `applyN` flip map delta (\ p -> lam "_" $ \ _ -> p <@> pure iz)) $ \ _ -> do
-                   abstractN (intervalTel "phi'") $ \ _ -> do
+                   abstractN (pure $ intervalTel "phi'") $ \ _ -> do
                    args
       res <- runNamesT [] $ do
         let aTelNames = teleNames aTel
@@ -933,17 +945,46 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
         let delta = map (fmap unArg) delta_ps
         bindNArg (teleArgNames ixsI) $ \ x_ps -> do
         let x = map (fmap unArg) x_ps
-        bindNArg (teleArgNames $ ExtendTel __DUMMY_DOM__ (Abs "phi" EmptyTel)) $ \ phi_ps -> do
+        bindNArg (teleArgNames $ intervalTel "phi") $ \ phi_ps -> do
         let [phi] = map (fmap unArg) phi_ps
         --- pattern matching args below
-        bindNArg (map (fmap (++ "'")) $ teleArgNames ixsI) $ \ x'_ps -> do
-        let x' = map (fmap unArg) x'_ps :: [NamesT TCM Term]-- _ps <- open $ teleNamedArgs $ ixsI
-        let phi'name = guard (isJust mtrX) >> (teleArgNames $ ExtendTel __DUMMY_DOM__ (Abs "phi'" EmptyTel))
+        bindNArg (guard trXMatch >> map (fmap (++ "'")) (teleArgNames ixsI)) $ \ x'_ps -> do
+        let x' | trXMatch = map (fmap unArg) x'_ps :: [NamesT TCM Term]
+               | otherwise = flip map x (\ q -> lam "i" $ \ i -> q <@> pure iz)
+        let phi'name = guard trXMatch >> (teleArgNames $ intervalTel "phi'")
         bindNArg phi'name $ \ phi'_ps -> do
-        let phi's = map (fmap unArg) phi'_ps
+        let phi's | trXMatch = map (fmap unArg) phi'_ps
+                  | otherwise = [pure io]
         bindNArg aTelArgs $ \ as0 -> do -- as0 : aTel[delta 0]
---        let vars = delta ++ x ++ [phi] ++ x' ++ [phi']
+
+        
         let aTel0 = aTel `applyN` map (<@> pure iz) delta
+
+        -- telePatterns is not context invariant, so we need an open here where the context ends in aTel0.
+        ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> (applyN bndry $ map (<@> pure iz) delta ++ map (fmap unArg) as0))
+
+        let deltaArg i = do
+              i <- i
+              xs <- sequence delta_ps
+              pure $ flip map xs (fmap (`apply` [argN i]))
+
+        let
+          origP = do
+             conp <- ConP chead noConPatternInfo <$> ps0
+             if not trXMatch then pure conp else do
+             let trX = fromMaybe __IMPOSSIBLE__ mtrX
+             x'_ps <- sequence x'_ps
+             phi'_ps <- sequence phi'_ps
+             ds <- map (fmap (unnamed . dotP)) <$> deltaArg (pure iz)
+             pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ [defaultNamedArg conp]
+          ps = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origP]
+
+        let
+          orig = patternToTerm <$> origP
+          rhsTy = dT `applyN` (delta ++ x ++ [pure io])
+
+        (,,) <$> ps <*> rhsTy <*> do
+
         let aTelI = bind "i" $ \ i -> aTel `applyN` map (<@> i) delta
 
         -- TODO catch
@@ -953,13 +994,28 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
         as01 <- (open =<<) $ bind "i" $ \ i -> do
           Right as01 <- (=<<) (lift . runExceptT) $ trFillTel <$> aTelI <*> phi <*> sequence as0 <*> i
           return as01
-
         let cas1 = applyN u $ map (<@> pure io) delta ++ as1
 
+        let base | Nothing <- mtrX = cas1
+                 | Just trX <- mtrX = do
+                     let theTel = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
+                     let theLeft = lamTel $ bind "i" $ \ i -> do
+                           as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
+                           con_ixs `applyN` (map (<@> i) delta ++ as01)
+                     theLeft <- mapM open =<< theLeft
+                     let [phi'] = phi's
+
+                     -- we could exploit phi' here to make this transp
+                     -- compute better(?) when x' is constant.
+                     let trx' = transpPathTel' theTel theLeft x phi x'
+                     let args = liftM2 (++) (deltaArg (pure io)) trx'
+                     (apply (Def trX []) <$> args) <@> (phi `min` phi') <@> cas1
+
+
+        if null boundary then base else do
+        -- path constructor correction.
+
         -- bline : Abs I ([phi] → ty)
-        let max i j = cl primIMax <@> i <@> j
-        let min i j = cl primIMin <@> i <@> j
-        let neg i = cl primINeg <@> i
         let blineFace = applyN bsysFace $ map (<@> pure io) delta ++ as1
         let bline = lam "i" $ \ i -> do
               let v0 = do
@@ -970,9 +1026,11 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
                 let theLeft = lamTel $ bind "i" $ \ i -> do
                       as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
                       con_ixs `applyN` (map (<@> i) delta ++ as01)
-                let trx' = map defaultArg <$> theLeft -- trFillIdTel' theTel theLeft x phi (phi',x') i
                 let [phi'] = phi's
-                (apply (Def trX []) <$> trx') <@> (phi `min` phi') <@> (v0 <..> o)
+                theLeft <- mapM open =<< theLeft
+                let trx' = trFillPathTel' theTel theLeft x phi x' i
+                let args = liftM2 (++) (deltaArg i) trx'
+                (apply (Def trX []) <$> args) <@> (phi `min` phi') <@> (v0 <..> o)
 
         -- transp ... (bsys[δ 0,as0]) ≡ bsys[δ 1,as1]
         let blinesqueezed = lam "i" $ \ i -> ilam "o" $ \ o -> do
@@ -982,48 +1040,12 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
                 x_f :: [NamesT TCM Term]
                 x_f = flip map x $ \ q -> lam "j" $ \ j -> q <@> (j `max` i)
               trD `applyN` delta_f `applyN` x_f `applyN` [phi `max` i, bline <@> i <..> o]
-        let base | Nothing <- mtrX = cas1
-                 | Just trX <- mtrX = do
-                     let theTel = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
-                     let theLeft = lamTel $ bind "i" $ \ i -> do
-                           as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
-                           con_ixs `applyN` (map (<@> i) delta ++ as01)
-                     let trx' = map defaultArg <$> theLeft -- transpIdTel' theTel theLeft x phi (phi',x')
-                     let [phi'] = phi's
-                     (apply (Def trX []) <$> trx') <@> (phi `min` phi') <@> cas1
-
-        -- telePatterns is not context invariant, so we need an open here where the context ends in aTel0.
-        ps0 <- (open =<<) $ (telePatterns <$> aTel0 <*> (applyN bndry $ map (<@> pure iz) delta ++ map (fmap unArg) as0))
-
-        let origP = do
-             conp <- ConP chead noConPatternInfo <$> ps0
-             caseMaybe mtrX (pure conp) $ \ trX -> do
-             x'_ps <- sequence x'_ps
-             phi'_ps <- sequence phi'_ps -- use the general phi' for this
-             pure $ DefP defaultPatternInfo trX $ x'_ps ++ phi'_ps ++ [defaultNamedArg conp]
-
-        let orig = patternToTerm <$> origP
-        let
-          ps :: NamesT TCM NAPs
-          ps = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origP]
-        let
-          hcomp ty sys u0 | null boundary = u0
-          hcomp ty sys u0 = do
-              ty <- ty
-              Just (LEl l ty) <- toLType ty
-              l <- open $ Level l
-              ty <- open $ ty
-              face <- (foldr max (pure iz) $ map fst $ sys)
-              sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
-              pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
-          rhsTy = (dT `applyN` (delta ++ x ++ [pure io]))
-        (,,) <$> ps <*> rhsTy <*>
-          hcomp
-          rhsTy
-          [(blineFace,lam "i" $ \ i -> blinesqueezed <@> (neg i))
-          ,(phi      ,lam "i" $ \ _ -> ilam "o" $ \ _ -> orig)
-          ]
-          base
+        hcomp
+           rhsTy
+           [(blineFace,lam "i" $ \ i -> blinesqueezed <@> (neg i))
+           ,(phi      ,lam "i" $ \ _ -> ilam "o" $ \ _ -> orig)
+           ]
+           base
 
       let
         (ps,rhsTy,rhs) = unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ res

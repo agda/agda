@@ -1718,7 +1718,7 @@ type LM a = NamesT (ExceptT (Closure (Abs Type)) TCM) a
 -- transporting with an extra system/partial element
 -- or composing when some of the system is known to be constant.
 transpSysTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
-          -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]
+          -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]  -- the proof of [ψ] is not in scope.
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
@@ -1736,9 +1736,10 @@ transpSysTel' flag delta us phi args = do
     bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
     bapp t u = lazyAbsApp <$> t <*> u
     doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
-                           | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> uphi <@> a
+                           | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
       where
         -- [phi -> a; us]
+        face = foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (phi : map fst us)
         uphi = lam "i" $ \ i -> ilam "o" $ \ o -> do
           let sys' = (phi , a) : map (mapSnd (`bapp` i)) us
               sys = map (mapSnd $ ilam "o" . const) sys'
@@ -1936,3 +1937,51 @@ combineSys' l ty xs = do
       combine [(psi,u)] = u
       combine ((psi,u):xs) = pOr l ty psi (foldr max (pure iz) (map fst xs)) u (combine xs)
     (,) <$> foldr max (pure iz) (map fst xs) <*> combine xs
+
+
+transpPathTel' ::
+             NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (Δ[0]) (x 0) (y 0)
+             -> NamesT TCM [Arg Term] -- Path (Δ[1]) (x 1) (y 1) [ φ ↦ q ]
+transpPathTel' theTel x y phi p = do
+ let neg j = cl primINeg <@> j
+ -- is the open overkill?
+ qs <- (open =<<) $ fmap (fmap (\ (Abs n (Arg i t)) -> Arg i (Lam defaultArgInfo $ Abs n t)) . sequenceA)
+                  $ bind "j" $ \ j -> do
+   theTel <- theTel
+   faces <- sequence $ [neg j, j]
+   us <- forM [x,y] $ \ z -> do
+           bind "i" $ \ i -> forM z (<@> i)
+   let sys = zip faces us
+   -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
+   -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
+   phi <- phi
+   p0 <- sequence $ flip map p (<@> j)
+   let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs theTel))
+   -- TODO catch?
+   Right q <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
+   pure q
+ qs
+
+trFillPathTel' ::
+               NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (Δ[0]) (x 0) (y 0)
+             -> NamesT TCM Term            -- ^ r
+             -> NamesT TCM [Arg Term] -- Path (Δ[r]) (x r) (y r) [ φ ↦ q; (r = 0) ↦ q ]
+trFillPathTel' tel x y phi p r = do
+  let max i j = cl primIMin <@> i <@> j
+  let min i j = cl primIMin <@> i <@> j
+  let neg i = cl primINeg <@> i
+  x' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM x (<@> (min r i))
+  y' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM y (<@> (min r i))
+  transpPathTel' (bind "i" $ \ i -> absApp <$> tel <*> min r i)
+                 x'
+                 y'
+                 (max phi (neg r))
+                 p
