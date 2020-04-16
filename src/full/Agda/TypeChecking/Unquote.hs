@@ -32,6 +32,7 @@ import Agda.TypeChecking.Primitive
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
 import Agda.Utils.Except
   ( mkExceptT
@@ -503,6 +504,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMApply,       uqFun3 tcApply l a u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
@@ -580,10 +582,13 @@ evalTCM v = do
       equalTerm a u v
       primUnitUnit
 
-    tcBlockOnMeta :: MetaId -> UnquoteM Term
-    tcBlockOnMeta x = do
+    tcBlockOnMeta' :: MetaId -> UnquoteM a
+    tcBlockOnMeta' x = do
       s <- gets snd
       throwError (BlockedOnMeta s x)
+
+    tcBlockOnMeta :: MetaId -> UnquoteM Term
+    tcBlockOnMeta = tcBlockOnMeta'
 
     tcCommit :: UnquoteM Term
     tcCommit = do
@@ -596,6 +601,71 @@ evalTCM v = do
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
+
+    tcApply :: R.Type -> R.Term -> [Arg R.Term] -> UnquoteM Term
+    tcApply a v args = do
+      msk <- getSigmaKit
+      case msk of
+        Nothing -> __IMPOSSIBLE__
+        Just sk -> do
+          a      <- liftTCM $ isType_ =<< toAbstract_ a
+          e      <- liftTCM $ toAbstract_ v
+          v      <- liftTCM $ checkExpr e a
+          (a, v) <- liftTCM . process =<< app a v args
+          case v of
+            -- TODO: The result is thrown away. It could be retained,
+            -- and reused when the meta-variable is instantiated.
+            MetaV m _ -> tcBlockOnMeta' m
+            _         -> liftTCM $ do
+              a <- quoteTerm a
+              v <- quoteTerm v
+              return $
+                Con (sigmaCon sk) ConOSystem
+                    [ Apply (arg a)
+                    , Apply (arg v)
+                    ]
+      where
+      arg = Arg (ArgInfo { argInfoHiding        = NotHidden
+                         , argInfoModality      = defaultModality
+                         , argInfoOrigin        = Reflected
+                         , argInfoFreeVariables = UnknownFVs
+                         })
+
+      -- This is a variant of telViewUpTo'.
+      mkTel :: Arg () -> Type -> UnquoteM TelView
+      mkTel arg a = do
+        a <- reduce a
+        case unEl a of
+          MetaV m _ -> tcBlockOnMeta' m
+          Pi a b    ->
+            absV a (absName b) <$> do
+              underAbstractionAbs a b $ \b ->
+                if visible a || sameHiding a arg then
+                  return (TelV EmptyTel b)
+                else
+                  mkTel arg b
+          _ -> liftTCM $ typeError $ GenericError
+                 "BUILTINTCMAPPLY was applied to too many arguments"
+        where
+        absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+      app :: Type -> Term -> [Arg R.Term] -> UnquoteM (Term, Term)
+      app a v []           = return (unEl a, v)
+      app a v (arg : args) = do
+        TelV tel a <- mkTel (() <$ arg) a
+        arg        <- liftTCM $ toAbstract_ arg
+        (es, tel)  <- liftTCM $
+                      checkArguments_
+                        ReallyDontExpandLast noRange [arg] tel
+        case tel of
+          ExtendTel {} -> __IMPOSSIBLE__
+          EmptyTel     -> do
+            es <- case allApplyElims es of
+                    Nothing -> __IMPOSSIBLE__
+                    Just es -> return es
+            app (applySubst (foldl (\ρ e -> unArg e :# ρ) IdS es) a)
+                (apply v es)
+                args
 
     tcDebugPrint :: Str -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint (Str s) n msg = do

@@ -269,6 +269,30 @@ postulate
   commitTC         : TC ⊤
   isMacro          : Name → TC Bool
 
+  -- Tries to apply a term to some arguments. If the application is
+  -- not well-typed, then a type error is raised.
+  --
+  -- Input:
+  -- * The type of the function to be applied.
+  -- * The function to be applied.
+  -- * A list of arguments. It is optional to include hidden/instance
+  --   arguments. Trailing hidden/instance arguments are not inserted
+  --   automatically.
+  --
+  -- Results:
+  -- * The type of the resulting value.
+  -- * The resulting value.
+  --
+  -- If it can be determined that the type is not an interated Π-type
+  -- of sufficient "length", then an error is raised. If it can not be
+  -- determined that the type is an interated Π-type of sufficient
+  -- "length" due to an uninstantiated meta-variable, then the
+  -- computation blocks on this meta-variable. Similarly, if the
+  -- result is the application of a meta-variable, then the
+  -- computation blocks on this meta-variable.
+
+  apply : Type → Term → List (Arg Term) → TC (Σ Type λ _ → Term)
+
   -- If the argument is 'true' makes the following primitives also normalise
   -- their results: inferType, checkType, quoteTC, getType, and getContext
   withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
@@ -310,6 +334,7 @@ postulate
 {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
 {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
 {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
+{-# BUILTIN AGDATCMAPPLY                      apply                      #-}
 {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}

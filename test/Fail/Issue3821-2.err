@@ -1,0 +1,3 @@
+Issue3821-2.agda:21,5-21
+Bool → Bool should be a sort, but it isn't
+when checking that the expression not has type _19

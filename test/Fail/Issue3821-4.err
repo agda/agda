@@ -1,0 +1,4 @@
+Issue3821-4.agda:17,5-23
+BUILTINTCMAPPLY was applied to too many arguments
+when checking that the expression
+unquote (apply′ (quoteTerm false) (quoteTerm false)) has type Bool
