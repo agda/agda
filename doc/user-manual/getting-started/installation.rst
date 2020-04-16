@@ -171,7 +171,7 @@ Agda and Agda standard library.
 
 
 Nix or NixOS
------
+------------
 
 Agda is part of the Nixpkgs collection that is used by
 https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
