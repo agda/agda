@@ -185,14 +185,12 @@ If you’re just interested in the library, you can also install the
 library without the executable. The Agda standard library is currently
 not installed automatically.
 
-.. _NixShellTemplate: 
-
 However, if using existing Agda libraries (including the standard library) it
-may be more convenient to use a nix expression for ``nix-shell``.  A third-party 
+may be more convenient to use a nix expression for ``nix-shell``.  A third-party
 `example repository
-<https://github.com/bbarker/LearningAgda>`_ 
-is available to create a ``nix-shell`` environment that loads 
-``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs. 
+<https://github.com/bbarker/LearningAgda>`_
+is available to create a ``nix-shell`` environment that loads
+``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs.
 
 OS X
 ----
