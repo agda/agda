@@ -180,7 +180,10 @@ applyN' f xs = do
   unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
   return $ absAppN f xs
 
+type ArgVars m = (forall t' b. (Subst t' b, DeBruijn b) => [NamesT m (Arg b)])
 
+type Vars m = (forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b])
+type Var m = (forall t' b. (Subst t' b, DeBruijn b) => NamesT m b)
 abstractN :: ( MonadFail m
              , Abstract a
              ) =>
