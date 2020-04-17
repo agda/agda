@@ -1408,11 +1408,11 @@ hardTypeError = liftTCM . typeError
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType :: (MonadTCM m, MonadDebug m, ReadTCState m)
+isDataOrRecordType :: (MonadTCM m, MonadReduce m, MonadDebug m, ReadTCState m)
                    => Type
                    -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
-isDataOrRecordType a = liftTCM (reduceB a) >>= \case
-  NotBlocked ReallyNotBlocked a -> case unEl a of
+isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
+  ReallyNotBlocked -> \ a -> case unEl a of
 
     -- Subcase: split type is a Def.
     Def d es -> liftTCM (theDef <$> getConstInfo d) >>= \case
@@ -1449,9 +1449,9 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
 
       GeneralizableVar{} -> __IMPOSSIBLE__
 
-    -- variable or metavariable: fail softly
+    -- variable: fail softly
     Var{}      -> softTypeError =<< notData
-    MetaV{}    -> softTypeError =<< notData
+    MetaV{}    -> __IMPOSSIBLE__  -- That is handled in @blocked@.
 
     -- pi or sort: fail hard
     Pi{}       -> hardTypeError =<< notData
@@ -1464,11 +1464,13 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-  -- Type is blocked on a meta or something else: fail softly
-  _ -> softTypeError =<< notData
+  -- Type is blocked on something: fail softly
+  _ -> \ _a -> blockedType
 
-  where notData = liftTCM $ SplitError . NotADatatype <$> buildClosure a
-
+  where
+  notData      = liftTCM $ SplitError . NotADatatype <$> buildClosure a0
+  blockedType  = softTypeError =<< do liftTCM $ SplitError . BlockedType <$> buildClosure a0
+  blocked _ _a = blockedType
 
 -- | Get the constructor of the given record type together with its type.
 --   Throws an error if the type is not a record type.

@@ -3226,6 +3226,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',

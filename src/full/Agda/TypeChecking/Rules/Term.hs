@@ -796,7 +796,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- over-approximating the set of metas actually blocking unification
               return $ firstMeta problem
 
-            SplitError (NotADatatype aClosure) ->
+            SplitError (BlockedType aClosure) ->
               enterClosure aClosure $ \ a -> isBlocked a
 
             -- Andrea: TODO look for blocking meta in tClosure and its Sort.
