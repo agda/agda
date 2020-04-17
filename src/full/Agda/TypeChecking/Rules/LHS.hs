@@ -10,9 +10,10 @@ module Agda.TypeChecking.Rules.LHS
 
 import Prelude hiding ( mapM, null, sequence )
 
+import Data.Function (on)
 import Data.Maybe
 
-import Control.Arrow (left)
+import Control.Arrow (left, second)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -1516,7 +1517,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             (_    , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
               [ "Ambiguous projection " <> prettyTCM d <> "."
               , "It could refer to any of"
-              , nest 2 $ vcat $ map (prettyDisamb . fst) disambs
+              , nest 2 $ vcat $ map (prettyDisambProj . fst) disambs
               ]
     _ -> __IMPOSSIBLE__
 
@@ -1631,17 +1632,17 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
     tryDisambiguate True cons d $ \case
         ([]   , []        ) -> __IMPOSSIBLE__
         (err:_, []        ) -> throwError err
-        (_    , disambs@((_c0,c,_a):_)) -> typeError . GenericDocError =<< vcat
-          [ "Ambiguous constructor " <> prettyTCM (qnameName $ conName c) <> "."
+        (_    , disambs@((c,_,_):_)) -> typeError . GenericDocError =<< vcat
+          [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
           , "It could refer to any of"
-          , nest 2 $ vcat $ map (prettyDisamb . fst3) disambs
+          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) disambs
           ]
 
   where
     tryDisambiguate constraintsOk cons d failure = do
       disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
         -- TODO: can we be more lazy, like using the ListT monad?
-      case partitionEithers $ NonEmpty.toList disambiguations of
+      case second dedupCons . partitionEithers $ NonEmpty.toList disambiguations of
         -- Andreas, 2019-10-14: The code from which I factored out 'tryDisambiguate'
         -- did allow several disambiguations in case @constraintsOk == False@.
         -- There was no comment explaining why, but "fixing" it and insisting on a
@@ -1667,7 +1668,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- but let's go with it for the sake of preserving the current behavior of Agda.
         -- Thus, only when 'constraintsOk' we require 'null disambs':
         -- (Note that in Haskell, boolean implication is '<=' rather than '=>'.)
-        (_, (c0,c,a) : disambs) | constraintsOk <= null disambs -> do
+        (_, [(c0,c,a)]) -> do
           -- If constructor pattern was ambiguous,
           -- remember our choice for highlighting info.
           when (isAmbiguous ambC) $ liftTCM $
@@ -1715,12 +1716,20 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
         return (c, con, cType)
 
-prettyDisamb :: QName -> TCM Doc
-prettyDisamb x = do
-  let d  = pretty =<< dropTopLevelModule x
-  let mr = lastMaybe $ filter (noRange /=) $ map nameBindingSite $ mnameToList $ qnameModule x
-  caseMaybe mr d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+    -- This deduplication identifies different names of the same constructor, ensuring
+    -- that the "ambiguous constructor" error does not fire for the case described
+    -- in #4130.
+    dedupCons :: forall a b. [(a, ConHead, b)] -> [(a, ConHead, b)]
+    dedupCons = List.nubBy ((==) `on` conName . snd3)
 
+prettyDisamb :: (QName -> Maybe (Range' SrcFile)) -> QName -> TCM Doc
+prettyDisamb f x = do
+  let d  = pretty =<< dropTopLevelModule x
+  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+
+prettyDisambProj, prettyDisambCons :: QName -> TCM Doc
+prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
+prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 -- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
