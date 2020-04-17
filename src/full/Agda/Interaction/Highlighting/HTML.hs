@@ -72,6 +72,16 @@ occurrenceHighlightJsFile = "highlight-hover.js"
 rstDelimiter :: String
 rstDelimiter = ".. raw:: html\n"
 
+-- | The directive inserted before rendered code blocks in org
+
+orgDelimiterStart :: String
+orgDelimiterStart = "#+BEGIN_EXPORT html\n<pre class=\"Agda\">\n"
+
+-- | The directive inserted after rendered code blocks in org
+
+orgDelimiterEnd :: String
+orgDelimiterEnd = "</pre>\n#+END_EXPORT\n"
+
 -- | Determine how to highlight the file
 
 highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
@@ -318,8 +328,16 @@ code onlyCode fileType = mconcat . if onlyCode
       go _      = __IMPOSSIBLE__
 
   mkOrg :: [TokenInfo] -> Html
-  mkOrg = mconcat . map go
+  mkOrg tokens = mconcat $ if containsCode then formatCode else formatNonCode
     where
+      containsCode = any ((/= Just Background) . aspect . trd) tokens
+
+      startDelimiter = preEscapedToHtml orgDelimiterStart
+      endDelimiter = preEscapedToHtml orgDelimiterEnd
+
+      formatCode = startDelimiter : foldr (\x -> (go x :)) [endDelimiter] tokens
+      formatNonCode = map go tokens
+
       go token@(_, s, mi) = if aspect mi == Just Background
         then preEscapedToHtml s
         else mkHtml token
