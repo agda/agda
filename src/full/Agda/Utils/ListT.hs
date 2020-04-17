@@ -146,7 +146,7 @@ instance (Applicative m, MonadIO m) => MonadIO (ListT m) where
 
 instance (Applicative m, MonadReader r m) => MonadReader r (ListT m) where
   ask     = lift ask
-  local f = ListT . local f . runListT
+  local   = mapListT . local
 
 instance (Applicative m, MonadState s m) => MonadState s (ListT m) where
   get = lift get
