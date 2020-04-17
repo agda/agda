@@ -1010,7 +1010,7 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
         let (ps,rhsTy,rhs) = unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ res
         (:[]) <$> mkClause gamma ps rhsTy rhs
 
-  fmap ((c_HComp ++ c_trX) ++) . fmap concat $ forM cnames $ \ cname -> do
+  fmap ((c_HComp ++ c_trX) ++) $ forM cnames $ \ cname -> do
     def <- getConstInfo cname
     let
       Constructor
@@ -1044,17 +1044,12 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
         reportSDoc "tc.data.transp.con" 20 $
           addContext prm $ addContext aTel $ "boundary:" <+> prettyTCM boundary
 
-        let alts = [False] --  : [ True | isJust mtrX ]
-        forM alts $ \ trXMatch -> do
         gamma <- runNamesT [] $ do
                      ixsI <- open $ AbsN (teleNames parI) ixsI
                      aTel <- open $ AbsN (teleNames prm) aTel
                      parI <- open parI
                      abstract_trD $ \ delta _ _ -> do
                      let args = aTel `applyN` flip map delta (\ p -> p <@> pure iz)
-                     if not trXMatch then args else do
-                     abstractN (ixsI `applyN` flip map delta (\ p -> lam "_" $ \ _ -> p <@> pure iz)) $ \ _ -> do
-                     abstractN (pure $ intervalTel "phi'") $ \ _ -> do
                      args
         res <- runNamesT [] $ do
           let aTelNames = teleNames aTel
@@ -1080,13 +1075,8 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
           let delta = map (fmap unArg) delta_ps
           let [phi] = map (fmap unArg) phi_ps
           --- pattern matching args below
-          bindNArg (guard trXMatch >> map (fmap (++ "'")) (teleArgNames ixsI)) $ \ x'_ps -> do
-          let x' | trXMatch = map (fmap unArg) x'_ps :: [NamesT TCM Term]
-                 | otherwise = flip map x (\ q -> lam "i" $ \ i -> q <@> pure iz)
-          let phi'name = guard trXMatch >> (teleArgNames $ intervalTel "phi'")
-          bindNArg phi'name $ \ phi'_ps -> do
-          let phi's | trXMatch = map (fmap unArg) phi'_ps
-                    | otherwise = [pure io]
+          let x' = flip map x (\ q -> lam "i" $ \ i -> q <@> pure iz)
+          let phi's = [pure io]
           bindNArg aTelArgs $ \ as0 -> do -- as0 : aTel[delta 0]
 
           let aTel0 = aTel `applyN` map (<@> pure iz) delta
@@ -1102,12 +1092,7 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
           let
             origP = do
                conp <- ConP chead noConPatternInfo <$> ps0
-               if not trXMatch then pure conp else do
-               let trX = fromMaybe __IMPOSSIBLE__ mtrX
-               x'_ps <- sequence x'_ps
-               phi'_ps <- sequence phi'_ps
-               ds <- map (fmap (unnamed . dotP)) <$> deltaArg (pure iz)
-               pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ [defaultNamedArg conp]
+               pure conp
             ps = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origP]
           let
             orig = patternToTerm <$> origP
@@ -1180,7 +1165,7 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
              base
 
         let
-          (ps,rhsTy,rhs) = unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ unAbsN $ res
+          (ps,rhsTy,rhs) = unAbsN $ unAbsN $ unAbsN $ unAbsN $ res
         mkClause gamma ps rhsTy rhs
   where
     mkClause gamma ps rhsTy rhs = do
