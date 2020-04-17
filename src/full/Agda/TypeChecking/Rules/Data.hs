@@ -969,6 +969,19 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
               pure $ flip map xs (fmap (`apply` [argN i]))
 
         let
+          origPTrX | trXMatch = do
+            let trX = fromMaybe __IMPOSSIBLE__ mtrX
+            x'_ps <- sequence x'_ps
+            phi'_ps <- sequence phi'_ps
+            ds <- map (fmap (unnamed . dotP)) <$> deltaArg (pure iz)
+            ps0@[_t] <- ps0
+            pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ ps0
+          origPHComp | not trXMatch = do
+            qHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
+            Just (LEl l t) <- toLType =<< (dT `applyN` (delta ++ x ++ [pure iz]))
+            let ds = map (argH . unnamed . dotP) [Level l, t]
+            ps0@[_hphi,_u,_u0] <- ps0
+            pure $ DefP defaultPatternInfo qHComp $ ds ++ ps0
           origP = do
              conp <- ConP chead noConPatternInfo <$> ps0
              if not trXMatch then pure conp else do
@@ -985,6 +998,41 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
 
         (,,) <$> ps <*> rhsTy <*> do
 
+        -- trD δ x φ (hcomp [hφ ↦ u] u0) ↦ rhsHComp
+        let rhsHComp | not trXMatch = do
+              let [hphi,u,u0] = map (fmap unArg) as0
+              -- TODO: should trD be transp for the datatype?
+              let baseHComp = trD `applyN` delta `applyN` x `applyN` [phi,u0]
+              let sideHComp = lam "i" $ \ i -> ilam "o" $ \ o -> do
+                     trD `applyN` delta `applyN` x `applyN` [phi,u <@> i <..> o]
+              hcomp rhsTy [(hphi, sideHComp)] baseHComp
+
+        -- trD δ x φ (trX x' φ' t) ↦ rhsTrx
+        let rhsTrX | trXMatch, Just trX <- mtrX = do
+              let [t] = map (fmap unArg) as0
+              let [phi'] = phi's
+              let telXdeltai = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
+              let reflx1 = flip map x $ \ q -> lam "i" $ \ _ -> q <@> pure io
+              let symx' = flip map x' $ \ q' -> lam "i" $ \ i -> q' <@> neg i
+              x_tr <- mapM (open . unArg) =<< transpPathTel' telXdeltai symx' reflx1 phi' x
+              let baseTrX = trD `applyN` delta `applyN` x_tr `applyN` [phi `min` phi',t]
+              let sideTrX = lam "j" $ \ j -> ilam "o" $ \ _ -> do
+                    let trD_f = trD `applyN` (flip map delta $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                                    `applyN` (flip map x_tr  $ \ p -> lam "i" $ \ i -> p <@> (i `min` neg j))
+                                    `applyN` [(phi `min` phi') `max` j,t]
+                    let x_tr_f = fmap (fmap (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo (Abs n t)) . sequence) $
+                         bind "i" $ \ i -> do
+                          j <- j
+                          map (fmap (`apply` [argN j])) <$> trFillPathTel' telXdeltai symx' reflx1 phi' x (neg i)
+                    let args = liftM2 (++) (deltaArg (pure io)) x_tr_f
+                    (apply (Def trX []) <$> args) <@> (phi' `max` neg j) <@> trD_f
+              hcomp rhsTy [(phi,sideTrX),(phi',lam "i" $ \ _ -> ilam "o" $ \ _ -> baseTrX)]
+                          baseTrX
+
+        -- if trXMatch then rhsTrX else do
+
+
+        -- Declared Constructors.
         let aTelI = bind "i" $ \ i -> aTel `applyN` map (<@> i) delta
 
         -- TODO catch
@@ -1013,7 +1061,8 @@ defineConClause trD mtrX npars nixs xTel telI sigma dT cname = do
 
 
         if null boundary then base else do
-        -- path constructor correction.
+
+        -- We have to correct the boundary for path constructors.
 
         -- bline : Abs I ([phi] → ty)
         let blineFace = applyN bsysFace $ map (<@> pure io) delta ++ as1
