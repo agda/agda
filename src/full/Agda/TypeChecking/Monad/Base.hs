@@ -15,6 +15,8 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Trans          ( MonadTrans(..), lift )
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
@@ -130,29 +132,25 @@ class Monad m => ReadTCState m where
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
-instance ReadTCState m => ReadTCState (MaybeT m) where
+  default getTCState :: (MonadTrans t, ReadTCState n, t n ~ m) => m TCState
   getTCState = lift getTCState
-  locallyTCState l = mapMaybeT . locallyTCState l
+
+  default locallyTCState
+    :: (MonadTransControl t, ReadTCState n, t n ~ m)
+    => Lens' a TCState -> (a -> a) -> m b -> m b
+  locallyTCState l = liftThrough . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
-  getTCState = lift getTCState
-  locallyTCState l f = ListT . locallyTCState l f . runListT
+  locallyTCState l = mapListT . locallyTCState l
 
-instance ReadTCState m => ReadTCState (ExceptT err m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapExceptT . locallyTCState l
+instance ReadTCState m => ReadTCState (ChangeT m)
+instance ReadTCState m => ReadTCState (ExceptT err m)
+instance ReadTCState m => ReadTCState (IdentityT m)
+instance ReadTCState m => ReadTCState (MaybeT m)
+instance ReadTCState m => ReadTCState (ReaderT r m)
+instance ReadTCState m => ReadTCState (StateT s m)
+instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
 
-instance ReadTCState m => ReadTCState (ReaderT r m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapReaderT . locallyTCState l
-
-instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapWriterT . locallyTCState l
-
-instance ReadTCState m => ReadTCState (StateT s m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -706,11 +704,11 @@ nextFresh s =
 class Monad m => MonadFresh i m where
   fresh :: m i
 
-instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  default fresh :: (MonadTrans t, MonadFresh i n, t n ~ m) => m i
   fresh = lift fresh
 
-instance MonadFresh i m => MonadFresh i (StateT s m) where
-  fresh = lift fresh
+instance MonadFresh i m => MonadFresh i (ReaderT r m)
+instance MonadFresh i m => MonadFresh i (StateT s m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
@@ -3228,6 +3226,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3699,26 +3698,20 @@ class ( Applicative m
       ) => MonadReduce m where
   liftReduce :: ReduceM a -> m a
 
-instance MonadReduce m => MonadReduce (MaybeT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ListT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ExceptT err m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ReaderT r m) where
-  liftReduce = lift . liftReduce
-
-instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (StateT w m) where
+  default liftReduce :: (MonadTrans t, MonadReduce n, t n ~ m) => ReduceM a -> m a
   liftReduce = lift . liftReduce
 
 instance MonadReduce ReduceM where
   liftReduce = id
+
+instance MonadReduce m => MonadReduce (ChangeT m)
+instance MonadReduce m => MonadReduce (ExceptT err m)
+instance MonadReduce m => MonadReduce (IdentityT m)
+instance MonadReduce m => MonadReduce (ListT m)
+instance MonadReduce m => MonadReduce (MaybeT m)
+instance MonadReduce m => MonadReduce (ReaderT r m)
+instance MonadReduce m => MonadReduce (StateT w m)
+instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
 
 ---------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
@@ -3730,37 +3723,24 @@ class Monad m => MonadTCEnv m where
   askTC   :: m TCEnv
   localTC :: (TCEnv -> TCEnv) -> m a -> m a
 
-instance MonadTCEnv m => MonadTCEnv (MaybeT m) where
-  askTC   = lift askTC
-  localTC = mapMaybeT . localTC
+  default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
+  askTC = lift askTC
+
+  default localTC
+    :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
+    =>  (TCEnv -> TCEnv) -> m a -> m a
+  localTC = liftThrough . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ChangeT m)
+instance MonadTCEnv m => MonadTCEnv (ExceptT err m)
+instance MonadTCEnv m => MonadTCEnv (IdentityT m)
+instance MonadTCEnv m => MonadTCEnv (MaybeT m)
+instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (StateT s m)
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
-  askTC   = lift askTC
   localTC = mapListT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ExceptT err m) where
-  askTC   = lift askTC
-  localTC = mapExceptT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ReaderT r m) where
-  askTC   = lift askTC
-  localTC = mapReaderT . localTC
-
-instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m) where
-  askTC   = lift askTC
-  localTC = mapWriterT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (StateT s m) where
-  askTC   = lift askTC
-  localTC = mapStateT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ChangeT m) where
-  askTC   = lift askTC
-  localTC = mapChangeT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (IdentityT m) where
-  askTC   = lift askTC
-  localTC = mapIdentityT . localTC
 
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC

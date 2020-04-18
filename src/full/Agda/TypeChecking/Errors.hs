@@ -1195,6 +1195,9 @@ instance PrettyTCM SplitError where
     NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
 
+    BlockedType t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
+
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 

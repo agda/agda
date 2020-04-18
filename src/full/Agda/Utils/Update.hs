@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Utils.Update
   ( ChangeT
@@ -22,6 +23,7 @@ import Control.Monad.Fail (MonadFail)
 
 import Control.Monad.Identity
 import Control.Monad.Trans
+import Control.Monad.Trans.Control
 -- NB: Control.Monad.Trans.Identity is already exported by Control.Monad.Identity
 -- since version mtl 2.2.2, but this needs at least ghc 8.2.2
 import Control.Monad.Trans.Identity
@@ -40,6 +42,17 @@ class Monad m => MonadChange m where
 -- | The @ChangeT@ monad transformer.
 newtype ChangeT m a = ChangeT { fromChangeT :: WriterT Any m a }
   deriving (Functor, Applicative, Monad, MonadTrans, MonadFail, MonadIO)
+
+-- This instance cannot be derived in older ghcs like 8.0
+-- because of the associated type synonym.
+-- 8.4 can derive it, but needs UndecidableInstances.
+instance MonadTransControl ChangeT where
+  type StT ChangeT a = (a, Any) -- StT (WriterT Any) a  would require UndecidableInstances
+  liftWith f = ChangeT $ liftWith $ \ runWriterT -> f $ runWriterT . fromChangeT
+  -- Andreas, 2020-04-17: these point-free variants do not seem to type check:
+  -- liftWith f = ChangeT $ liftWith $ f . (. fromChangeT)
+  -- liftWith = ChangeT . liftWith . (. (. fromChangeT))
+  restoreT = ChangeT . restoreT
 
 instance Monad m => MonadChange (ChangeT m) where
   tellDirty     = ChangeT $ tell $ Any True

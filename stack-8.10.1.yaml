@@ -16,6 +16,7 @@ extra-deps:
 - hashable-1.3.0.0
 - hashtables-1.2.3.4
 - ieee754-0.8.0
+- monad-control-1.0.2.3
 - murmur-hash-0.1.0.9
 - regex-tdfa-1.3.1.0
 - split-0.2.3.4
@@ -47,6 +48,7 @@ extra-deps:
 - network-uri-2.6.3.0
 - random-1.1
 - regex-base-0.94.0.0
+- transformers-base-0.4.5.2
 - transformers-compat-0.6.5
 - utf8-string-1.0.1.1
 - QuickCheck-2.13.2
