@@ -1327,7 +1327,12 @@ instance Reify Sort Expr where
         I.Prop a -> do
           a <- reify a
           return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
-        I.Inf       -> return $ A.Def nameOfSetOmega
+        I.Inf 0 -> do
+          I.Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+          return $ A.Def inf
+        I.Inf n -> do
+          infs <- freshName_ ("Setω+" ++ show n :: String) -- TODO: hack
+          return $ A.Var infs
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU

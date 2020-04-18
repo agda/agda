@@ -420,7 +420,7 @@ blockTermOnProblem t v pid =
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) a pid
+blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
@@ -1123,7 +1123,7 @@ checkSolutionForMeta x m v a = do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
       s <- shouldBeSort (El __DUMMY_SORT__ v)
-      traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+      traceCall (CheckMetaSolution (getRange m) x (sort (univSort s)) (Sort s)) $
         checkSort defaultAction s
 
 -- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
@@ -1514,7 +1514,7 @@ openMetasToPostulates = do
     -- codomains by Setω.
     dummyTypeToOmega t =
       case telView' t of
-        TelV tel (El _ Dummy{}) -> abstract tel topSort
+        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf 0)
         _ -> t
 
 -- | Sort metas in dependency order.

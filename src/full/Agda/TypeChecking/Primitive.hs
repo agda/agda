@@ -622,8 +622,8 @@ mkPrimLevelMax = do
 
 mkPrimSetOmega :: TCM PrimitiveImpl
 mkPrimSetOmega = do
-  let t = sort $ UnivSort Inf
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort Inf
+  let t = sort $ Inf 1
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
 
 mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl

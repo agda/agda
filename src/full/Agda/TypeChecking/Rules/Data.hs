@@ -652,7 +652,7 @@ instance Subst Term LType where
 data CType = ClosedType QName | LType LType deriving (Eq,Show)
 
 fromCType :: CType -> Type
-fromCType (ClosedType q) = El Inf (Def q [])
+fromCType (ClosedType q) = El (Inf 0) (Def q [])
 fromCType (LType t) = fromLType t
 
 toCType :: MonadReduce m => Type -> m (Maybe CType)
@@ -660,7 +660,7 @@ toCType ty = do
   sort <- reduce $ getSort ty
   case sort of
     Type l -> return $ Just $ LType (LEl l (unEl ty))
-    Inf    -> do
+    Inf 0  -> do
       t <- reduce (unEl ty)
       case t of
         Def q [] -> return $ Just $ ClosedType q

@@ -172,7 +172,7 @@ instance AbsTerm Sort where
   absTerm u s = case s of
     Type n     -> Type $ absS n
     Prop n     -> Prop $ absS n
-    Inf        -> Inf
+    Inf n      -> Inf n
     SizeUniv   -> SizeUniv
     PiSort a s -> PiSort (absS a) (absS s)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
@@ -264,7 +264,7 @@ instance EqualSy Sort where
   equalSy = curry $ \case
     (Type l    , Type l'     ) -> equalSy l l'
     (Prop l    , Prop l'     ) -> equalSy l l'
-    (Inf       , Inf         ) -> True
+    (Inf m     , Inf n       ) -> m == n
     (SizeUniv  , SizeUniv    ) -> True
     (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'

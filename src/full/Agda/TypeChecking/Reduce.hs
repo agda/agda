@@ -309,11 +309,10 @@ instance Reduce Sort where
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
         UnivSort s' -> do
           s' <- reduce' s'
-          ui <- univInf
-          caseMaybe (univSort' ui s') (return $ UnivSort s') reduce'
+          caseMaybe (univSort' s') (return $ UnivSort s') reduce'
         Prop s'    -> Prop <$> reduce' s'
         Type s'    -> Type <$> reduce' s'
-        Inf        -> return Inf
+        Inf n      -> return $ Inf n
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
@@ -904,12 +903,10 @@ instance Simplify Sort where
       case s of
         PiSort a s -> piSort <$> simplify' a <*> simplify' s
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> simplify' s
+        UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
-        Inf        -> return s
+        Inf _      -> return s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1058,12 +1055,10 @@ instance Normalise Sort where
       case s of
         PiSort a s -> piSort <$> normalise' a <*> normalise' s
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> normalise' s
+        UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
-        Inf        -> return Inf
+        Inf _      -> return s
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1272,10 +1267,8 @@ instance InstantiateFull Sort where
             Prop n     -> Prop <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
-            UnivSort s -> do
-              ui <- univInf
-              univSort ui <$> instantiateFull' s
-            Inf        -> return s
+            UnivSort s -> univSort <$> instantiateFull' s
+            Inf _      -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1421,7 +1414,7 @@ instance InstantiateFull NLPType where
 instance InstantiateFull NLPSort where
   instantiateFull' (PType x) = PType <$> instantiateFull' x
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' PInf      = return PInf
+  instantiateFull' (PInf n)  = return $ PInf n
   instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where

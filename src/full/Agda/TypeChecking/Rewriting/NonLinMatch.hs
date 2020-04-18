@@ -187,7 +187,8 @@ instance Match () NLPSort Sort where
     case (p , s) of
       (PType lp  , Type l  ) -> match r gamma k () lp l
       (PProp lp  , Prop l  ) -> match r gamma k () lp l
-      (PInf      , Inf     ) -> yes
+      (PInf np   , Inf n   )
+        | np == n            -> yes
       (PSizeUniv , SizeUniv) -> yes
 
       -- blocked cases

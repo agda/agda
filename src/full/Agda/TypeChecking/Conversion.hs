@@ -608,9 +608,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
-                        (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+              equalType (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -1195,6 +1195,8 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
+  typeInTypeEnabled <- typeInType
+  omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
   let fvsRHS = (`IntSet.member` allFreeVars s2)
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
@@ -1214,9 +1216,14 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
 
-      -- Setω is the top sort
-      (_       , Inf     ) -> yes
-      (Inf     , _       ) -> equalSort s1 s2
+      -- @Setω+ n@ is above all small sorts (spelling out all cases
+      -- for the exhaustiveness checker)
+      (Inf m   , Inf n   ) ->
+        if m <= n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
+      (Type{}  , Inf _   ) -> yes
+      (Prop{}  , Inf _   ) -> yes
+      (Inf _   , Type{}  ) -> if typeInTypeEnabled then yes else no
+      (Inf _   , Prop{}  ) -> no
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
@@ -1228,13 +1235,12 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+      (SizeUniv , Inf{}  ) -> no
 
-      -- If the first sort rigidly depends on a variable and the second
-      -- sort does not mention this variable, the second sort must be Inf.
-      (_       , _       ) | badRigid -> equalSort s2 Inf
-
-      -- This shouldn't be necessary
-      (UnivSort Inf , UnivSort Inf) -> yes
+      -- If the first sort is a small sort that rigidly depends on a
+      -- variable and the second sort does not mention this variable,
+      -- the second sort must be at least Inf.
+      (_       , _       ) | isSmallSort s1 , badRigid -> leqSort (Inf 0) s2
 
       -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1573,6 +1579,7 @@ equalSort s1 s2 = do
 
         propEnabled <- isPropEnabled
         typeInTypeEnabled <- typeInType
+        omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
         case (s1, s2) of
 
@@ -1594,12 +1601,13 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
-            (Inf        , Inf        ) -> yes
+            (Inf m      , Inf n      ) ->
+              if m == n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
 
-            -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)
-            (Type{}     , Inf        )
+            -- if --type-in-type is enabled, (Setω+ n) is equal to any Set ℓ (see #3439)
+            (Type{}     , Inf{}      )
               | typeInTypeEnabled      -> yes
-            (Inf        , Type{}     )
+            (Inf{}      , Type{}     )
               | typeInTypeEnabled      -> yes
 
             -- equating @PiSort a b@ to another sort
@@ -1656,8 +1664,8 @@ equalSort s1 s2 = do
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
             propEnabled <- isPropEnabled
-               -- @s2@ is definitely not @Inf@ or @SizeUniv@
-            if | Inf      <- s2 -> no
+               -- @s2@ is definitely not @Inf n@ or @SizeUniv@
+            if | Inf n    <- s2 -> no
                | SizeUniv <- s2 -> no
                -- If @Prop@ is not used, then @s2@ must be of the form
                -- @Set l2@
@@ -1671,11 +1679,12 @@ equalSort s1 s2 = do
                    equalSort (Type l2) s2
                -- Otherwise we postpone
                | otherwise -> synEq (Type l1) (UnivSort s2)
-          -- @Setω@ is only a successor sort if --type-in-type or
-          -- --omega-in-omega is enabled.
-          Inf -> do
+          -- @Setω+ n@ is a successor sort if n > 0, or if
+          -- --type-in-type or --omega-in-omega is enabled.
+          Inf n | n > 0 -> equalSort (Inf $ n - 1) s2
+          Inf 0 -> do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-            if | infInInf  -> equalSort Inf s2
+            if | infInInf  -> equalSort (Inf 0) s2
                | otherwise -> no
           -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
@@ -1697,9 +1706,9 @@ equalSort s1 s2 = do
           ]
         propEnabled <- isPropEnabled
            -- If @b@ is dependent, then @piSort a b@ computes to
-           -- @Setω@. Hence, if @s@ is definitely not @Setω@, then @b@
+           -- @Setω@. Hence, if @s@ is small, then @b@
            -- cannot be dependent.
-        if | definitelyNotInf s         -> do
+        if | isSmallSort s         -> do
                -- We force @b@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
                b' <- newSortMeta
@@ -1721,13 +1730,13 @@ equalSort s1 s2 = do
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
-          -- If @Setω == funSort s1 s2@, then either @s1@ or @s2@ must
-          -- be @Setω@.
-          Inf | definitelyNotInf s1 && definitelyNotInf s2 -> do
-                  typeError $ UnequalSorts s0 (FunSort s1 s2)
-              | definitelyNotInf s1 -> equalSort Inf s2
-              | definitelyNotInf s2 -> equalSort Inf s1
-              | otherwise           -> synEq s0 (FunSort s1 s2)
+          -- If @Setω+ n == funSort s1 s2@, then either @s1@ or @s2@ must
+          -- be @Setω+ n@.
+          Inf n | isSmallSort s1 && isSmallSort s2 -> do
+                    typeError $ UnequalSorts s0 (FunSort s1 s2)
+                | isSmallSort s1 -> equalSort (Inf n) s2
+                | isSmallSort s2 -> equalSort (Inf n) s1
+                | otherwise      -> synEq s0 (FunSort s1 s2)
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
           -- @SizeUniv@.
@@ -1772,19 +1781,6 @@ equalSort s1 s2 = do
       isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
       isBottomSort propEnabled _                      = False
       -- (NB: Defined but not currently used)
-
-      definitelyNotInf :: Sort -> Bool
-      definitelyNotInf = \case
-        Inf        -> False
-        Type{}     -> True
-        Prop{}     -> True
-        SizeUniv   -> True
-        PiSort{}   -> False
-        FunSort{}  -> False
-        UnivSort{} -> False
-        MetaS{}    -> False
-        DefS{}     -> False
-        DummyS{}   -> False
 
       forceType :: Sort -> m Level
       forceType (Type l) = return l

@@ -62,8 +62,7 @@ inferUnivSort
   => Sort -> m Sort
 inferUnivSort s = do
   s <- reduce s
-  ui <- univInf
-  case univSort' ui s of
+  case univSort' s of
     Just s' -> return s'
     Nothing -> do
       addConstraint $ HasBiggerSort s
@@ -169,9 +168,7 @@ sortOf t = do
         sa <- sortOf a
         sb <- mapAbstraction adom (sortOf . unEl) b
         return $ piSort (adom $> El sa a) sb
-      Sort s     -> do
-        ui <- univInf
-        return $ univSort ui s
+      Sort s     -> return $ univSort s
       Var i es   -> do
         a <- typeOfBV i
         sortOfE a (Var i) es

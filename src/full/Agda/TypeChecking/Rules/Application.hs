@@ -1196,7 +1196,7 @@ checkSetOmega cmp e t q args = do
 
 inferSetOmega :: A.Expr -> QName -> [NamedArg A.Expr] -> TCM (Term, Type)
 inferSetOmega e q args = case args of
-  [] -> return (Sort Inf , sort (UnivSort Inf))
+  [] -> return (Sort (Inf 0) , sort (Inf 1))
   arg : _ -> typeError . GenericDocError =<< fsep
       [ prettyTCM q , "cannot be applied to an argument" ]
 

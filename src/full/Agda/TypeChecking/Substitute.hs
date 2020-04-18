@@ -817,11 +817,11 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
-    Inf        -> Inf
+    Inf n      -> Inf n
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
-    UnivSort s -> coerce $ univSort Nothing $ coerce $ sub s
+    UnivSort s -> coerce $ univSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     DummyS{}   -> s
@@ -922,7 +922,7 @@ instance Subst NLPat NLPSort where
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
-    PInf      -> PInf
+    PInf n    -> PInf n
     PSizeUniv -> PSizeUniv
 
 instance Subst NLPat RewriteRule where
@@ -1429,34 +1429,37 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 ---------------------------------------------------------------------------
 
 -- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
---   known (i.e. it is not just @UnivSort s@). @univInf@ is returned
---   as the sort of @Inf@.
+--   known (i.e. it is not just @UnivSort s@).
 --
 --   Precondition: @s@ is reduced
-univSort' :: Maybe Sort -> Sort -> Maybe Sort
-univSort' univInf (Type l) = Just $ Type $ levelSuc l
-univSort' univInf (Prop l) = Just $ Type $ levelSuc l
-univSort' univInf Inf      = univInf
-univSort' univInf s        = Nothing
+univSort' :: Sort -> Maybe Sort
+univSort' (Type l) = Just $ Type $ levelSuc l
+univSort' (Prop l) = Just $ Type $ levelSuc l
+univSort' (Inf n)  = Just $ Inf  $ 1 + n
+univSort' s        = Nothing
 
-univSort :: Maybe Sort -> Sort -> Sort
-univSort univInf s = fromMaybe (UnivSort s) $ univSort' univInf s
+univSort :: Sort -> Sort
+univSort s = fromMaybe (UnivSort s) $ univSort' s
 
-univInf :: (HasOptions m) => m (Maybe Sort)
-univInf =
-  ifM ((optOmegaInOmega <$> pragmaOptions) `or2M` typeInType)
-  {-then-} (return $ Just Inf)
-  {-else-} (return Nothing)
+-- | Returns @True@ for (relatively) small sorts like @Set l@ and
+--   @Prop l@, returns @False@ for large sorts such as @Setω@ and
+--   unknown (meta) sorts.
+isSmallSort :: Sort -> Bool
+isSmallSort Type{}   = True
+isSmallSort Prop{}   = True
+isSmallSort SizeUniv = True
+isSmallSort _        = False
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
 funSort' :: Sort -> Sort -> Maybe Sort
 funSort' a b = case (a, b) of
-  (Inf           , _            ) -> Just Inf
-  (_             , Inf          ) -> Just Inf
+  (Inf m         , Inf n        ) -> Just $ Inf $ max m n
+  (Inf m         , b            ) | isSmallSort b -> Just $ Inf m
+  (a             , Inf n        ) | isSmallSort a -> Just $ Inf n
   (Type a , Type b) -> Just $ Type $ levelLub a b
   (SizeUniv      , b            ) -> Just b
-  (_             , SizeUniv     ) -> Just SizeUniv
+  (a             , SizeUniv     ) | isSmallSort a -> Just SizeUniv
   (Prop a , Type b) -> Just $ Type $ levelLub a b
   (Type a , Prop b) -> Just $ Prop $ levelLub a b
   (Prop a , Prop b) -> Just $ Prop $ levelLub a b
@@ -1471,11 +1474,14 @@ piSort' :: Dom Type -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' (getSort a) b
 piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
   Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
-  Just o -> case o of
-    StronglyRigid -> Just Inf
-    Unguarded     -> Just Inf
-    WeaklyRigid   -> Just Inf
+  Just o | isSmallSort (getSort a) , isSmallSort b -> case o of
+    StronglyRigid -> Just $ Inf 0
+    Unguarded     -> Just $ Inf 0
+    WeaklyRigid   -> Just $ Inf 0
     Flexible _    -> Nothing
+  Just o | Inf n <- getSort a , isSmallSort b -> Just $ Inf n
+  Just _ -> Nothing
+
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.
 -- piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
