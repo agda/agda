@@ -1149,11 +1149,6 @@ checkExpr' cmp e t =
             noFunctionsIntoSize t0 t'
             let s = getSort t'
                 v = unEl t'
-            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
-              vcat [ text ("reduced to omega:")
-                   , nest 2 $ "t   =" <+> prettyTCM t'
-                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
-                   ]
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
@@ -1161,11 +1156,6 @@ checkExpr' cmp e t =
             noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'
-            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
-              vcat [ text ("reduced to omega:")
-                   , nest 2 $ "t   =" <+> prettyTCM t'
-                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
-                   ]
             coerce cmp v (sort s) t
 
         A.Fun _ (Arg info a) b -> do

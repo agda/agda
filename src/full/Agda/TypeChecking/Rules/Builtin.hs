@@ -120,11 +120,11 @@ coreBuiltins =
                                                               (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                               (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                               return (sort $ varSort 1)))
-  , (builtinInterval                         |-> BuiltinData (requireCubical >> return (sort Inf)) [builtinIZero,builtinIOne])
+  , (builtinInterval                         |-> BuiltinData (requireCubical >> return (sort $ Inf 0)) [builtinIZero,builtinIOne])
   , (builtinSub                              |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-                                                                   elInf (cl primPartial <#> a <@> phi <@> bA) --> return (sort Inf)
+                                                                   elInf (cl primPartial <#> a <@> phi <@> bA) --> return (sort $ Inf 0)
                                                                   ))
   , (builtinSubIn                            |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
@@ -136,7 +136,7 @@ coreBuiltins =
   , (builtinIOne                             |-> BuiltinDataCons (elInf primInterval))
   , (builtinPartial                          |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP                         |-> BuiltinPrim "primPartialP" (const $ return ()))
-  , (builtinIsOne                            |-> builtinPostulateC (tinterval --> return (sort $ Inf)))
+  , (builtinIsOne                            |-> builtinPostulateC (tinterval --> return (sort $ Inf 0)))
   , (builtinItIsOne                          |-> builtinPostulateC (elInf $ primIsOne <@> primIOne))
   , (builtinIsOne1                           |-> builtinPostulateC (runNamesT [] $
                                                                    nPi' "i" (cl tinterval) $ \ i ->
@@ -361,7 +361,7 @@ coreBuiltins =
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMQuoteTerm                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ elV 1 (varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMUnquoteTerm                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
-  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (El Inf <$> varM 0) --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (El (Inf 0) <$> varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMBlockOnMeta                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
@@ -388,7 +388,7 @@ coreBuiltins =
         elV x a = El (varSort x) <$> a
 
         tsetL l    = return $ sort (varSort l)
-        tsetOmega  = return $ sort Inf
+        tsetOmega  = return $ sort $ Inf 0
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         tmaybe x   = el $ tMaybe (fmap unEl x)
@@ -422,7 +422,7 @@ coreBuiltins =
         tclause    = el primAgdaClause
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
-        tinterval  = El Inf <$> primInterval
+        tinterval  = El (Inf 0) <$> primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
@@ -953,7 +953,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataIxs        = 0
               , dataClause     = Nothing
               , dataCons       = []     -- Constructors are added later
-              , dataSort       = Inf
+              , dataSort       = Inf 0
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPathCons   = []
@@ -963,10 +963,10 @@ bindBuiltinNoDef b q = inTopContext $ do
       let s = case sortname of
                 "primSet"      -> mkType 0
                 "primProp"     -> mkProp 0
-                "primSetOmega" -> Inf
+                "primSetOmega" -> Inf 0
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
-      addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort Nothing s) def
+      addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort s) def
       bindBuiltinName b $ Def q []
 
     Just{}  -> __IMPOSSIBLE__

@@ -76,7 +76,7 @@ el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type
-elInf t = (El Inf <$> t)
+elInf t = (El (Inf 0) <$> t)
 
 nolam :: Term -> Term
 nolam = Lam defaultArgInfo . NoAbs "_"

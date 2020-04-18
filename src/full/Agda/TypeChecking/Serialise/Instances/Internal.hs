@@ -140,7 +140,7 @@ instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icodeN 0 Type a
   icod_ (Prop  a  ) = icodeN 1 Prop a
   icod_ SizeUniv    = icodeN 2 SizeUniv
-  icod_ Inf         = icodeN 3 Inf
+  icod_ (Inf a)     = icodeN 3 Inf a
   icod_ (PiSort a b) = icodeN 4 PiSort a b
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
@@ -154,7 +154,7 @@ instance EmbPrj I.Sort where
     valu [0, a]    = valuN Type  a
     valu [1, a]    = valuN Prop  a
     valu [2]       = valuN SizeUniv
-    valu [3]       = valuN Inf
+    valu [3, a]    = valuN Inf a
     valu [4, a, b] = valuN PiSort a b
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
@@ -251,13 +251,13 @@ instance EmbPrj NLPType where
 instance EmbPrj NLPSort where
   icod_ (PType a)   = icodeN 0 PType a
   icod_ (PProp a)   = icodeN 1 PProp a
-  icod_ PInf        = icodeN 2 PInf
+  icod_ (PInf a)    = icodeN 2 PInf a
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
     valu [1, a] = valuN PProp a
-    valu [2]    = valuN PInf
+    valu [2, a] = valuN PInf a
     valu [3]    = valuN PSizeUniv
     valu _      = malformed
 

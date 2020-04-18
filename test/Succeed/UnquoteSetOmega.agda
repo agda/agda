@@ -8,9 +8,9 @@ module UnquoteSetOmega where
 `Level : Term
 `Level = def (quote Level) []
 
--- while building the syntax of ∀ ℓ → Set ℓ (of type Setω) is harmless
+-- building the syntax of ∀ ℓ → Set ℓ (of type Setω) is harmless
 `∀ℓ→Setℓ : Term
 `∀ℓ→Setℓ = pi (vArg `Level) (abs "_" (sort (set (var 0 []))))
 
--- unquoting it is harmfull
+-- unquoting it is now also fine (since we have sort Setω+1)
 ∀ℓ→Setℓ = unquote (give `∀ℓ→Setℓ)

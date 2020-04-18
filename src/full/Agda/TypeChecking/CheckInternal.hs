@@ -400,7 +400,7 @@ checkSort action s =
   case s of
     Type l   -> Type <$> checkLevel action l
     Prop l   -> Prop <$> checkLevel action l
-    Inf      -> return Inf
+    Inf n    -> return $ Inf n
     SizeUniv -> return SizeUniv
     PiSort dom s2 -> do
       let El s1 a = unDom dom
