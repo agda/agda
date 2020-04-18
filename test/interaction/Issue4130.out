@@ -1,6 +1,0 @@
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
