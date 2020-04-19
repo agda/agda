@@ -30,7 +30,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Position (HasRange(..), noRange)
-import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
+import Agda.TypeChecking.Datatypes ( isDataOrRecordType, DataOrRecord(..) )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence

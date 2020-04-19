@@ -29,6 +29,15 @@ instance EmbPrj Scope where
 
   value = valueN Scope
 
+instance EmbPrj DataOrRecordModule where
+  icod_ IsDataModule   = icodeN' IsDataModule
+  icod_ IsRecordModule = icodeN 0 IsRecordModule
+
+  value = vcase $ \case
+    []  -> valuN IsDataModule
+    [0] -> valuN IsRecordModule
+    _   -> malformed
+
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icodeN' PublicNS
   icod_ PrivateNS       = icodeN 1 PrivateNS

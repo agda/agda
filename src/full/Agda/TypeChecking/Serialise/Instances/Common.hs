@@ -167,15 +167,6 @@ instance EmbPrj FileType where
     [3] -> valuN OrgFileType
     _   -> malformed
 
-instance EmbPrj DataOrRecord where
-  icod_ IsData   = icodeN' IsData
-  icod_ IsRecord = icodeN 0 IsRecord
-
-  value = vcase $ \case
-    []  -> valuN IsData
-    [0] -> valuN IsRecord
-    _   -> malformed
-
 instance EmbPrj AbsolutePath where
   icod_ file = do
     d <- asks absPathD

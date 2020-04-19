@@ -1655,7 +1655,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
           -- Create the module for the qualified constructors
           checkForModuleClash x -- disallow shadowing previously defined modules
           let m = qnameToMName x'
-          createModule (Just IsData) m
+          createModule (Just IsDataModule) m
           bindModule p x m  -- make it a proper module
           cons <- toAbstract (map (DataConstrDecl m a p) cons)
           printScope "data" 20 $ "Checked data " ++ prettyShow x
@@ -1689,7 +1689,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList1 $ singleton $ List1.last $ qnameToList x'
         printScope "rec" 15 "before record"
-        createModule (Just IsRecord) m
+        createModule (Just IsRecordModule) m
         -- We scope check the fields a second time, as actual fields.
         afields <- withCurrentModule m $ do
           afields <- toAbstract fields

@@ -460,8 +460,8 @@ instance PrettyTCM TypeError where
         pwords "at" ++ [prettyTCM r]
       where
         help m = caseMaybeM (isDatatypeModule m) empty $ \case
-          IsData   -> "(datatype)"
-          IsRecord -> "(record)"
+          IsDataModule   -> "(datatype)"
+          IsRecordModule -> "(record)"
 
     ModuleArityMismatch m EmptyTel args -> fsep $
       pwords "The module" ++ [prettyTCM m] ++
@@ -763,8 +763,8 @@ instance PrettyTCM TypeError where
         help :: MonadPretty m => ModuleName -> m Doc
         help m = do
           anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
-            IsData   -> return $ "(datatype module)"
-            IsRecord -> return $ "(record module)"
+            IsDataModule   -> return $ "(datatype module)"
+            IsRecordModule -> return $ "(record module)"
           sep [prettyTCM m, anno ]
 
     ClashingDefinition x y -> fsep $
