@@ -412,6 +412,7 @@ warningHighlighting w = case tcWarning w of
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
   UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty
+  UselessPatternDeclarationForRecord{} -> deadcodeHighlighting $ getRange w
   ClashesViaRenaming _ xs    -> foldMap (deadcodeHighlighting . getRange) xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?

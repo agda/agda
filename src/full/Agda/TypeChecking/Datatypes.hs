@@ -188,15 +188,15 @@ isDatatype d = do
 
 data DataOrRecord
   = IsData
-  | IsRecord
+  | IsRecord PatternOrCopattern
   deriving (Show, Eq)
 
 -- | Check if a name refers to a datatype or a record.
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
   (theDef <$> getConstInfo d) >>= \case
+    Record{ recPatternMatching } -> return $ Just $ IsRecord recPatternMatching
     Datatype{} -> return $ Just IsData
-    Record{}   -> return $ Just IsRecord
     _          -> return $ Nothing
 
 -- | Precodition: 'Term' is 'reduce'd.

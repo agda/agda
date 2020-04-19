@@ -81,6 +81,7 @@ import qualified Data.Set as Set
 import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Semigroup (Semigroup(..))
 import Data.Void
 
 import GHC.Generics (Generic)
@@ -195,6 +196,19 @@ instance Null (Range' a) where
   null Range{} = False
 
   empty = NoRange
+
+instance Semigroup a => Semigroup (Range' a) where
+  NoRange <> r = r
+  r <> NoRange = r
+  Range f is <> Range f' is' = Range (f <> f') (is <> is')
+
+instance Semigroup a => Monoid (Range' a) where
+  mempty  = empty
+  mappend = (<>)
+
+-- | To get @'Semigroup' 'Range'@, we need a semigroup instance for 'AbsolutePath'.
+instance Semigroup AbsolutePath where
+  f <> f' = if f == f' then f else __IMPOSSIBLE__
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').

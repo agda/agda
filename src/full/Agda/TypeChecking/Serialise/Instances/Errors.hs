@@ -76,6 +76,7 @@ instance EmbPrj Warning where
     NotInScopeW ns                        -> icodeN 27 NotInScopeW ns
     ClashesViaRenaming a b                -> icodeN 28 ClashesViaRenaming a b
     RecordFieldWarning a                  -> icodeN 29 RecordFieldWarning a
+    UselessPatternDeclarationForRecord a  -> icodeN 30 UselessPatternDeclarationForRecord a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -108,6 +109,7 @@ instance EmbPrj Warning where
     [27, ns]             -> valuN NotInScopeW ns
     [28, a, b]           -> valuN ClashesViaRenaming a b
     [29, a]              -> valuN RecordFieldWarning a
+    [30, a]              -> valuN UselessPatternDeclarationForRecord a
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

@@ -1,0 +1,3 @@
+Issue4560NoPatternMatchingWithoutEta.agda:18,6-13
+Pattern matching on no-eta record types is by default not allowed
+when checking that the pattern con x y has type R

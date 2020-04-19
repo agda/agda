@@ -515,10 +515,10 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta con tel e cs ->
-              pRecord x ind eta con tel (Just e) cs
-            RecordDef _ x ind eta con tel cs ->
-              pRecord x ind eta con tel Nothing cs
+            Record _ x ind eta pat con tel e cs ->
+              pRecord x ind eta pat con tel (Just e) cs
+            RecordDef _ x ind eta pat con tel cs ->
+              pRecord x ind eta pat con tel Nothing cs
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
@@ -568,17 +568,32 @@ instance Pretty Declaration where
                     , nest 2 $ vcat $ map pretty ds
                     ]
 
-pRecord :: Name -> Maybe (Ranged Induction) -> Maybe HasEta -> Maybe (Name, IsInstance) -> [LamBinding] -> Maybe Expr -> [Declaration] -> Doc
-pRecord x ind eta con tel me cs =
-  sep [ hsep  [ "record"
+pRecord
+  :: Name
+  -> Maybe (Ranged Induction)
+  -> Maybe HasEta0
+  -> Maybe Range                -- ^ Range of the 'pattern' keyword.
+  -> Maybe (Name, IsInstance)
+  -> [LamBinding]
+  -> Maybe Expr
+  -> [Declaration]
+  -> Doc
+pRecord x ind eta pat con tel me ds = vcat
+    [ sep
+      [ hsep  [ "record"
               , pretty x
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me
-      ] $$ nest 2 (vcat $ pInd ++
-                          pEta ++
-                          pCon ++
-                          map pretty cs)
+      ]
+    , nest 2 $ vcat $ concat
+      [ pInd
+      , pEta
+      , pPat
+      , pCon
+      , map pretty ds
+      ]
+    ]
   where pType (Just e) = hsep
                 [ ":"
                 , pretty e
@@ -586,10 +601,17 @@ pRecord x ind eta con tel me cs =
                 ]
         pType Nothing  =
                   "where"
-        pInd = maybeToList $ text . show . rangedThing <$> ind
+        pInd = maybeToList $ pretty . rangedThing <$> ind
         pEta = maybeToList $ eta <&> \case
-          YesEta -> "eta-equality"
-          NoEta  -> "no-eta-equality"
+          YesEta   -> "eta-equality"
+          NoEta () -> "no-eta-equality"
+        pPat = maybeToList $ "pattern" <$ pat
+        -- pEta = caseMaybe eta [] $ \case
+        --   YesEta -> [ "eta-equality" ]
+        --   NoEta  -> "no-eta-equality" : pPat
+        -- pPat = \case
+        --   PatternMatching   -> [ "pattern" ]
+        --   CopatternMatching -> []
         pCon = maybeToList $ (("constructor" <+>) . pretty) . fst <$> con
 
 instance Pretty OpenShortHand where

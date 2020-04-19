@@ -78,18 +78,73 @@ instance Pretty FileType where
 -- * Eta-equality
 ---------------------------------------------------------------------------
 
-data HasEta = NoEta | YesEta
-  deriving (Data, Show, Eq, Ord)
+-- | Does a record come with eta-equality?
+data HasEta' a
+  = YesEta
+  | NoEta a
+  deriving (Data, Show, Eq, Ord, Functor, Foldable, Traversable)
 
-instance HasRange HasEta where
+instance HasRange a => HasRange (HasEta' a) where
+  getRange = foldMap getRange
+
+instance KillRange a => KillRange (HasEta' a) where
+  killRange = fmap killRange
+
+instance NFData a => NFData (HasEta' a) where
+  rnf YesEta    = ()
+  rnf (NoEta p) = rnf p
+
+-- | Pattern and copattern matching is allowed in the presence of eta.
+--
+--   In the absence of eta, we have to choose whether we want to allow
+--   matching on the constructor or copattern matching with the projections.
+--   Having both leads to breakage of subject reduction (issue #4560).
+
+type HasEta  = HasEta' PatternOrCopattern
+type HasEta0 = HasEta' ()
+
+-- | For a record without eta, which type of matching do we allow?
+data PatternOrCopattern
+  = PatternMatching
+      -- ^ Can match on the record constructor.
+  | CopatternMatching
+      -- ^ Can copattern match using the projections. (Default.)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded)
+
+instance NFData PatternOrCopattern where
+  rnf PatternMatching   = ()
+  rnf CopatternMatching = ()
+
+instance HasRange PatternOrCopattern where
   getRange _ = noRange
 
-instance KillRange HasEta where
+instance KillRange PatternOrCopattern where
   killRange = id
 
-instance NFData HasEta where
-  rnf NoEta  = ()
-  rnf YesEta = ()
+-- | Can we pattern match on the record constructor?
+class PatternMatchingAllowed a where
+  patternMatchingAllowed :: a -> Bool
+
+instance PatternMatchingAllowed PatternOrCopattern where
+  patternMatchingAllowed = (== PatternMatching)
+
+instance PatternMatchingAllowed HasEta where
+  patternMatchingAllowed = \case
+    YesEta -> True
+    NoEta p -> patternMatchingAllowed p
+
+
+-- | Can we construct a record by copattern matching?
+class CopatternMatchingAllowed a where
+  copatternMatchingAllowed :: a -> Bool
+
+instance CopatternMatchingAllowed PatternOrCopattern where
+  copatternMatchingAllowed = (== CopatternMatching)
+
+instance CopatternMatchingAllowed HasEta where
+  copatternMatchingAllowed = \case
+    YesEta -> True
+    NoEta p -> copatternMatchingAllowed p
 
 ---------------------------------------------------------------------------
 -- * Induction
@@ -112,6 +167,9 @@ instance KillRange Induction where
 instance NFData Induction where
   rnf Inductive   = ()
   rnf CoInductive = ()
+
+instance PatternMatchingAllowed Induction where
+  patternMatchingAllowed = (== Inductive)
 
 ---------------------------------------------------------------------------
 -- * Hiding

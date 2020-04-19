@@ -3,7 +3,7 @@
 -- also before the clause compiler.
 
 record Unit : Set where
-  constructor unit
+  pattern; constructor unit
   no-eta-equality
 
 record R : Set₁ where

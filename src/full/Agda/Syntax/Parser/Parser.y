@@ -24,12 +24,14 @@ module Agda.Syntax.Parser.Parser (
     , splitOnDots  -- only used by the internal test-suite
     ) where
 
+import Prelude hiding ( null )
+
 import Control.Applicative ( (<|>) )
 import Control.Monad
 
 import Data.Bifunctor (first, second)
 import Data.Char
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>))
 import qualified Data.Traversable as T
@@ -55,6 +57,7 @@ import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -1213,10 +1216,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 $5 ds }
+         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n ind eta pat con $3 $5 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n x y z $3 ds }
+         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n ind eta pat con $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1689,35 +1692,47 @@ ArgTypeSignatures0
     | {- empty -}                         { [] }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance)), [Declaration]) }
+RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta0, Maybe Range, Maybe (Name, IsInstance)), [Declaration]) }
 RecordDeclarations
-                                  : vopen RecordDirectives close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure []) }
-                                  | vopen RecordDirectives semi Declarations1 close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure $4) }
-                                  | vopen Declarations1 close {% ((,) `fmap` verifyRecordDirectives [] <*> pure $2)  }
+    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
+    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (,$4) }
+    | vopen Declarations1 close                       { (empty, $2) }
 
 
 RecordDirectives :: { [RecordDirective] }
 RecordDirectives
-                                  : { [] }
-                                  | RecordDirectives semi RecordDirective { $3 : $1 }
-                                  | RecordDirective { [$1] }
+    : {- empty -}                           { [] }
+    | RecordDirectives semi RecordDirective { $3 : $1 }
+    | RecordDirective                       { [$1] }
 
 RecordDirective :: { RecordDirective }
 RecordDirective
-                                  : RecordConstructorName { Constructor $1 }
-                                  | RecordInduction       { Induction $1 }
-                                  | RecordEta             { Eta $1 }
+    : RecordConstructorName { Constructor $1 }
+    | RecordInduction       { Induction $1 }
+    | RecordEta             { Eta $1 }
+    | RecordPatternMatching { PatternOrCopattern $1 }
 
-RecordEta :: { Ranged HasEta }
+RecordEta :: { Ranged HasEta0 }
 RecordEta
-                                  : 'eta-equality' { Ranged (getRange $1) YesEta }
-                                  | 'no-eta-equality' { Ranged (getRange $1) NoEta }
+    : 'eta-equality'    { Ranged (getRange $1) YesEta }
+    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
+
+-- Directive 'pattern' if a decision between matching on constructor/record pattern
+-- or copattern matching is needed.
+-- Such decision is only needed for 'no-eta-equality' records.
+-- But eta could be turned off automatically, thus, we do not bundle this
+-- with the 'no-eta-equality' declaration.
+-- Nor with the 'constructor' declaration, since it applies also to
+-- the record pattern.
+RecordPatternMatching :: { Range }
+RecordPatternMatching
+    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Ranged Induction }
 RecordInduction
-   : 'inductive'   { Ranged (getRange $1) Inductive   }
-   | 'coinductive' { Ranged (getRange $1) CoInductive }
+    : 'inductive'   { Ranged (getRange $1) Inductive   }
+    | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }
@@ -1938,8 +1953,8 @@ recoverLayout xs@((i, _) : _) = go (iStart i) xs
     go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
 
     padding Pn{ posLine = l1, posCol = c1 } Pn{ posLine = l2, posCol = c2 }
-      | l1 < l2  = genericReplicate (l2 - l1) '\n' ++ genericReplicate (max 0 (c2 - c0)) ' '
-      | l1 == l2 = genericReplicate (c2 - c1) ' '
+      | l1 < l2  = List.genericReplicate (l2 - l1) '\n' ++ List.genericReplicate (max 0 (c2 - c0)) ' '
+      | l1 == l2 = List.genericReplicate (c2 - c1) ' '
 
 ensureUnqual :: QName -> Parser Name
 ensureUnqual (QName x) = return x
@@ -2098,13 +2113,13 @@ mergeImportDirectives is = do
 verifyImportDirective :: ImportDirective -> Parser ImportDirective
 verifyImportDirective i =
     case filter ((>1) . length)
-         $ group
-         $ sort xs
+         $ List.group
+         $ List.sort xs
     of
         []  -> return i
         yss -> parseErrorRange (head $ concat yss) $
                 "Repeated name" ++ s ++ " in import directive: " ++
-                concat (intersperse ", " $ map (prettyShow . head) yss)
+                concat (List.intersperse ", " $ map (prettyShow . head) yss)
             where
                 s = case yss of
                         [_] -> ""
@@ -2116,26 +2131,35 @@ verifyImportDirective i =
 
 data RecordDirective
    = Induction (Ranged Induction)
+       -- ^ Range of keyword @[co]inductive@.
    | Constructor (Name, IsInstance)
-   | Eta         (Ranged HasEta)
+   | Eta         (Ranged HasEta0)
+       -- ^ Range of @[no-]eta-equality@ keyword.
+   | PatternOrCopattern Range
+       -- ^ If declaration @pattern@ is present, give its range.
    deriving (Eq,Show)
 
-verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe HasEta, Maybe (Name, IsInstance))
-verifyRecordDirectives xs
-  | null rs = return (ltm is, ltm es, ltm cs)
-  | otherwise = parseErrorRange (head rs) $ "Repeated record directives at: \n" ++ intercalate "\n" (map prettyShow rs)
- where
-  ltm :: [a] -> Maybe a
-  ltm [] = Nothing
-  ltm (x:xs) = Just x
-  errorFromList [] = []
+-- | Check for duplicate record directives.
+verifyRecordDirectives :: [RecordDirective] -> Parser
+  ( Maybe (Ranged Induction)
+  , Maybe HasEta0
+  , Maybe Range                -- Range of 'pattern' declaration, if any.
+  , Maybe (Name, IsInstance)
+  )
+verifyRecordDirectives ds
+  | null rs   = return (listToMaybe is, listToMaybe es, listToMaybe ps, listToMaybe cs)
+      -- Here, all the lists is, es, cs, ps are at most singletons.
+  | otherwise = parseErrorRange (head rs) $ unlines $ "Repeated record directives at:" : map prettyShow rs
+  where
+  errorFromList []  = []
   errorFromList [x] = []
-  errorFromList xs = map getRange xs
-  rs = sort (concat ([errorFromList is, errorFromList es', errorFromList cs]))
-  is = [ i | Induction i <- xs ]
-  es' = [ i | Eta i <- xs ]
-  es = map rangedThing es'
-  cs = [ i | Constructor i <- xs ]
+  errorFromList xs  = map getRange xs
+  rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
+  es  = map rangedThing es'
+  is  = [ i | Induction i          <- ds ]
+  es' = [ e | Eta e                <- ds ]
+  cs  = [ c | Constructor c        <- ds ]
+  ps  = [ r | PatternOrCopattern r <- ds ]
 
 
 -- | Breaks up a string into substrings. Returns every maximal

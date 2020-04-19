@@ -159,11 +159,12 @@ checkStrictlyPositive mi qset = do
             _ -> return ()
 
         -- if we find an unguarded record, mark it as such
-        when (dr == IsRecord) $
-          case loop of
+        case dr of
+          IsData -> return ()
+          IsRecord pat -> case loop of
             Just o | o <= StrictPos -> do
               reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
-              unguardedRecord q
+              unguardedRecord q pat
               checkInduction q
             -- otherwise, if the record is recursive, mark it as well
             Just o | o <= GuardPos -> do
@@ -201,7 +202,7 @@ checkStrictlyPositive mi qset = do
       def <- theDef <$> getConstInfo q
       return $ case def of
         Datatype{dataClause = Nothing} -> Just IsData
-        Record  {recClause  = Nothing} -> Just IsRecord
+        Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
         _ -> Nothing
 
     -- Set the mutually recursive identifiers for a SCC.

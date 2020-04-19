@@ -214,8 +214,8 @@ declaredNames d = case d of
   DataDef _ _ _ cs     -> foldMap declaredNames cs
   Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
-  RecordDef _ x _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
-  Record _ x _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  RecordDef _ x _ _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
+  Record _ x _ _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x
