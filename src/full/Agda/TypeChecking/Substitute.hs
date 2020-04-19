@@ -1436,6 +1436,7 @@ univSort' :: Sort -> Maybe Sort
 univSort' (Type l) = Just $ Type $ levelSuc l
 univSort' (Prop l) = Just $ Type $ levelSuc l
 univSort' (Inf n)  = Just $ Inf  $ 1 + n
+univSort' SizeUniv = Just $ Inf 0
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
