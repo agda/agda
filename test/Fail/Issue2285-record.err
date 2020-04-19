@@ -1,5 +1,4 @@
 Failed to solve the following constraints:
   Agda.Primitive.Setω =< _4
-  Has bigger sort: _4
 Unsolved metas at the following locations:
   Issue2285-record.agda:4,8-11
