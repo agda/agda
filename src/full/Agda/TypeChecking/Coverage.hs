@@ -38,7 +38,7 @@ import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Monad
 
-import Agda.TypeChecking.Rules.LHS (checkSortOfSplitVar)
+import Agda.TypeChecking.Rules.LHS (DataOrRecord(..), checkSortOfSplitVar)
 import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.Term (unquoteTactic)
@@ -913,11 +913,11 @@ isDatatype ind at = do
           | otherwise -> do
               let (ps, is) = splitAt np args
               return (IsData, d, ps, is, cs, not $ null (dataPathCons def))
-        Record{recPars = np, recConHead = con, recInduction = i}
+        Record{recPars = np, recConHead = con, recInduction = i, recEtaEquality'}
           | i == Just CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           | otherwise ->
-              return (IsRecord, d, args, [], [conName con], False)
+              return (IsRecord i recEtaEquality', d, args, [], [conName con], False)
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -1448,7 +1448,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
     -- Jesper, 2018-05-24: If the datatype is in Prop we can
     -- only do empty splits, unless the target is in Prop too.
-    (_ : _) | dr == IsData && propArrowRel ->
+    (_ : _) | IsData <- dr, propArrowRel ->
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.

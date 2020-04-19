@@ -58,9 +58,14 @@ data Scope = Scope
       , scopeParents        :: [A.ModuleName]
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
-      , scopeDatatypeModule :: Maybe DataOrRecord
+      , scopeDatatypeModule :: Maybe DataOrRecordModule
       }
   deriving (Data, Eq, Show)
+
+data DataOrRecordModule
+  = IsDataModule
+  | IsRecordModule
+  deriving (Data, Show, Eq, Enum, Bounded)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId

@@ -1810,9 +1810,6 @@ data ProjOrigin
 instance KillRange ProjOrigin where
   killRange = id
 
-data DataOrRecord = IsData | IsRecord
-  deriving (Data, Eq, Ord, Show)
-
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
 ---------------------------------------------------------------------------

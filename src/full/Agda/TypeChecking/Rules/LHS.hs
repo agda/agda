@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.LHS
   , LHSResult(..)
   , bindAsPatterns
   , IsFlexiblePattern(..)
+  , DataOrRecord(..)
   , checkSortOfSplitVar
   ) where
 
@@ -51,7 +52,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.CheckInternal (checkInternal)
-import Agda.TypeChecking.Datatypes hiding (isDataOrRecordType)
+import Agda.TypeChecking.Datatypes hiding (DataOrRecord(..), isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Irrelevance
 -- Prevent "Ambiguous occurrence ‘DontKnow’" when loading with ghci.
@@ -661,7 +662,6 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
-          noPatternMatchingOnCodata qs0
 
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
@@ -1174,6 +1174,7 @@ checkLHS mf = updateModality checkLHS_ where
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
 
+      checkMatchingAllowed dr  -- No splitting on coinductive constructors.
       checkSortOfSplitVar dr a (Just target)
 
       -- The constructor should construct an element of this datatype
@@ -1362,29 +1363,15 @@ checkLHS mf = updateModality checkLHS_ where
           return st'
 
 
+-- | Ensures that we are not performing pattern matching on coinductive constructors.
 
-
--- | Ensures that we are not performing pattern matching on codata.
-
-noPatternMatchingOnCodata :: [NamedArg DeBruijnPattern] -> TCM ()
-noPatternMatchingOnCodata = mapM_ (check . namedArg)
-  where
-  check (VarP {})   = return ()
-  check (DotP {})   = return ()
-  check (ProjP{})   = return ()
-  check (IApplyP{}) = return ()
-  check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
-  check (DefP{})    = return () -- we assume we don't generate this for codata.
-  check (ConP con _ ps) = do
-    reportSDoc "tc.lhs.top" 40 $
-      "checking whether" <+> prettyTCM con <+> "is a coinductive constructor"
-    TelV _ t <- telView' . defType <$> do getConstInfo $ conName con
-    c <- isCoinductive t
-    case c of
-      Nothing    -> __IMPOSSIBLE__
-      Just False -> mapM_ (check . namedArg) ps
-      Just True  -> typeError $
-        GenericError "Pattern matching on coinductive types is not allowed"
+checkMatchingAllowed :: (MonadTCError m) => DataOrRecord -> m ()
+checkMatchingAllowed = \case
+  IsRecord ind _eta -> case ind of
+    Just CoInductive -> typeError $
+      GenericError "Pattern matching on coinductive types is not allowed"
+    _ -> return ()
+  IsData -> return ()
 
 -- | When working with a monad @m@ implementing @MonadTCM@ and @MonadError TCErr@,
 --   @suspendErrors f@ performs the TCM action @f@ but catches any errors and throws
@@ -1405,6 +1392,13 @@ softTypeError err = throwError =<< typeError_ err
 hardTypeError :: (MonadTCM m) => TypeError -> m a
 hardTypeError = liftTCM . typeError
 
+data DataOrRecord
+  = IsData
+  | IsRecord
+    { recordInduction   :: Maybe Induction
+    , recordEtaEquality :: EtaEquality
+    }
+
 -- | Check if the type is a data or record type and return its name,
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
@@ -1423,9 +1417,9 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)
 
-      Record{} -> do
+      Record{ recInduction, recEtaEquality' } -> do
         let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        return (IsRecord, d, pars, [])
+        return (IsRecord recInduction recEtaEquality', d, pars, [])
 
       -- Issue #2253: the data type could be abstract.
       AbstractDefn{} -> hardTypeError . GenericDocError =<< do
@@ -1753,7 +1747,7 @@ checkSortOfSplitVar dr a mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> return ()
     Prop{}
-      | IsRecord <- dr         -> return ()
+      | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
       | otherwise              -> splitOnPropError
     Inf{} | infOk -> return ()

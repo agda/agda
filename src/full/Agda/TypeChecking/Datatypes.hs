@@ -186,19 +186,22 @@ isDatatype d = do
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
 
+data DataOrRecord
+  = IsData
+  | IsRecord
+  deriving (Show, Eq)
+
 -- | Check if a name refers to a datatype or a record.
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
-  def <- getConstInfo d
-  case theDef def of
+  (theDef <$> getConstInfo d) >>= \case
     Datatype{} -> return $ Just IsData
     Record{}   -> return $ Just IsRecord
     _          -> return $ Nothing
 
 -- | Precodition: 'Term' is 'reduce'd.
 isDataOrRecord :: Term -> TCM (Maybe QName)
-isDataOrRecord v = do
-  case v of
+isDataOrRecord = \case
     Def d _ -> fmap (const d) <$> isDataOrRecordType d
     _       -> return Nothing
 

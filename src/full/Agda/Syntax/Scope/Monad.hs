@@ -78,7 +78,7 @@ printLocals v s = verboseS "scope.top" v $ do
 -- * General operations
 ---------------------------------------------------------------------------
 
-isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
+isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecordModule)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
@@ -118,7 +118,7 @@ getCurrentScope = getNamedScope =<< getCurrentModule
 
 -- | Create a new module with an empty scope.
 --   (@Just@ if it is a datatype or record module.)
-createModule :: Maybe DataOrRecord -> A.ModuleName -> ScopeM ()
+createModule :: Maybe DataOrRecordModule -> A.ModuleName -> ScopeM ()
 createModule b m = do
   reportSLn "scope.createModule" 10 $ "createModule " ++ prettyShow m
   s <- getCurrentScope
