@@ -126,7 +126,8 @@ particular, fields can be given in more than one block, interspersed
 with other declarations. Each field is a component of the
 record. Types of later fields can depend on earlier fields.
 
-The directives available are ``eta-equality``, ``no-eta-equality``
+The directives available are ``eta-equality``, ``no-eta-equality``,
+``pattern``
 (see :ref:`eta-expansion`), ``inductive`` and ``co-inductive`` (see
 :ref:`recursive-records`).
 
@@ -373,7 +374,7 @@ inside the record declaration
 Eta-expansion
 -------------
 
-The eta rule for a record type
+The eta (η) rule for a record type
 
 .. code-block:: agda
 
@@ -385,9 +386,9 @@ The eta rule for a record type
 
 states that every ``x : R`` is definitionally equal to ``record { a =
 R.a x ; b = R.b x ; c = R.c x }``. By default, all (inductive) record
-types enjoy eta-equality if the positivity checker has confirmed it is
+types enjoy η-equality if the positivity checker has confirmed it is
 safe to have it. The keywords ``eta-equality``/``no-eta-equality``
-enable/disable eta rules for the record type being declared.
+enable/disable η rules for the record type being declared.
 
 .. _recursive-records:
 
@@ -420,6 +421,24 @@ at your own risk by using the pragma ``ETA`` instead.
 
 It is possible to pattern match on inductive records, but not on
 coinductive ones.
+
+However, inductive records without η-equality do not support both matching on
+the record constructor and construction of record elements by
+copattern matching.  It has been discovered that the combination of
+both leads to loss of subject reduction, i.e., reduction does not
+preserve typing. For records without η, matching on the record
+constructor is off by default and construction by copattern matching
+is on.  If you want the converse, you can add the record directive
+``pattern``::
+
+  record HereditaryList : Set where
+    inductive
+    no-eta-equality
+    pattern
+    field sublists : List HereditaryList
+
+  pred : HereditaryList → List HereditaryList
+  pred record{ sublists = ts } = ts
 
 .. _instance-fields:
 
@@ -505,4 +524,3 @@ types. For instance we can define ``Nat`` instances for ``Eq``, ``Ord`` and
 
     NumNat : Num Nat
     fromNat {{NumNat}} n = n
-

@@ -414,12 +414,13 @@ isEtaCon c = getConstInfo' c >>= \case
 -- | Going under one of these does not count as a decrease in size for the termination checker.
 isEtaOrCoinductiveRecordConstructor :: HasConstInfo m => QName -> m Bool
 isEtaOrCoinductiveRecordConstructor c =
-  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) ->
-    return $ (Just Inductive, NoEta) /= (recInduction def, recEtaEquality def)
+  caseMaybeM (isRecordConstructor c) (return False) $ \ (_, def) -> return $
+    recEtaEquality def == YesEta || recInduction def /= Just Inductive
+      -- If in doubt about coinductivity, then yes.
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
 isInductiveRecord :: QName -> TCM Bool
-isInductiveRecord r = maybe False (\ d -> recInduction d /= Just CoInductive) <$> isRecord r
+isInductiveRecord r = maybe False ((Just CoInductive /=) . recInduction) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: (HasConstInfo m)
@@ -454,9 +455,9 @@ isGeneratedRecordConstructor c = ignoreAbstractMode $ do
 
 -- | Turn off eta for unguarded recursive records.
 --   Projections do not preserve guardedness.
-unguardedRecord :: QName -> TCM ()
-unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ \case
-  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) NoEta }
+unguardedRecord :: QName -> PatternOrCopattern -> TCM ()
+unguardedRecord q pat = modifySignature $ updateDefinition q $ updateTheDef $ \case
+  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) $ NoEta pat }
   _ -> __IMPOSSIBLE__
 
 -- | Turn on eta for inductive guarded recursive records.
@@ -468,7 +469,7 @@ recursiveRecord q = do
     r@Record{ recInduction = ind, recEtaEquality' = eta } ->
       r { recEtaEquality' = eta' }
       where
-      eta' | ok, eta == Inferred NoEta, ind /= Just CoInductive = Inferred YesEta
+      eta' | ok, Inferred NoEta{} <- eta, ind /= Just CoInductive = Inferred YesEta
            | otherwise = eta
     _ -> __IMPOSSIBLE__
 
@@ -477,7 +478,7 @@ nonRecursiveRecord :: QName -> TCM ()
 nonRecursiveRecord q = whenM etaEnabled $ do
   -- Do nothing if eta is disabled by option.
   modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = Inferred NoEta }
+    r@Record{ recInduction = ind, recEtaEquality' = Inferred (NoEta _) }
       | ind /= Just CoInductive ->
       r { recEtaEquality' = Inferred YesEta }
     r@Record{} -> r
@@ -526,8 +527,9 @@ expandRecordVar i gamma0 = do
           " since its type " <+> prettyTCM a <+>
           " is not a record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
-    if recEtaEquality def == NoEta then return Nothing else Just <$> do
+  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case recEtaEquality def of
+    NoEta{} -> return Nothing
+    YesEta  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
@@ -595,7 +597,8 @@ curryAt t n = do
       -- This might trigger another call to @etaExpandProjectedVar@ later.
       -- A more efficient version does all the eta-expansions at once here.
       (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
-      when (recEtaEquality def == NoEta) __IMPOSSIBLE__
+      if | NoEta _ <- recEtaEquality def -> __IMPOSSIBLE__
+         | otherwise -> return ()
       -- TODO: compose argInfo ai with tel.
       let tel = recTel def `apply` pars
           m   = size tel

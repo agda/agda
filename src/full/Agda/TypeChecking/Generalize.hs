@@ -778,6 +778,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recEtaEquality' = Inferred YesEta
+           , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit

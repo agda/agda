@@ -1286,8 +1286,8 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
      noUnsafePragma :: C.Declaration -> TCM C.Declaration
      noUnsafePragma = \case
        C.Pragma pr                         -> warnUnsafePragma pr
-       C.RecordDef r n ind eta ins lams ds -> C.RecordDef r n ind eta ins lams <$> mapM noUnsafePragma ds
-       C.Record r n ind eta ins lams e ds  -> C.Record r n ind eta ins lams e <$> mapM noUnsafePragma ds
+       C.RecordDef r n ind eta pat con lams ds -> C.RecordDef r n ind eta pat con lams <$> mapM noUnsafePragma ds
+       C.Record r n ind eta pat con lams e ds  -> C.Record r n ind eta pat con lams e <$> mapM noUnsafePragma ds
        C.Mutual r ds                       -> C.Mutual r <$> mapM noUnsafePragma ds
        C.Abstract r ds                     -> C.Abstract r <$> mapM noUnsafePragma ds
        C.Private r o ds                    -> C.Private r o <$> mapM noUnsafePragma ds
@@ -1666,8 +1666,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.NiceRecDef r o a _ uc x ind eta cm pars fields -> do
+    C.NiceRecDef r o a _ uc x ind eta pat cm pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
+
+      -- Andreas, 2020-04-19, issue #4560
+      -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
+      whenJust pat $ \ r -> do
+        let warn = setCurrentRange r . warning . UselessPatternDeclarationForRecord
+        if | Just (Ranged _ CoInductive) <- ind -> warn "coinductive"
+           | Just YesEta                 <- eta -> warn "eta"
+           | otherwise -> return ()
+
       (p, ax) <- resolveName (C.QName x) >>= \case
         DefinedName p ax -> do
           clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
@@ -1716,7 +1725,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
         let params = DataDefParams gvars pars
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta cm' params contel afields ]
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta pat cm' params contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $

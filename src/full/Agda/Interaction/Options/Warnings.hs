@@ -211,6 +211,7 @@ data WarningName
   | UnsolvedInteractionMetas_
   | UnsolvedMetaVariables_
   | UselessInline_
+  | UselessPatternDeclarationForRecord_
   | UselessPublic_
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
@@ -310,6 +311,7 @@ warningNameDescription = \case
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' blocks where they have no effect."
+  UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."

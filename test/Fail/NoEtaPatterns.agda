@@ -1,7 +1,7 @@
 
 record _×_ (A B : Set) : Set where
   no-eta-equality
-  constructor _,_
+  pattern; constructor _,_
   field
     fst : A
     snd : B

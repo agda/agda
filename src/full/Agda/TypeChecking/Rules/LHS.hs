@@ -911,11 +911,15 @@ checkLHS mf = updateModality checkLHS_ where
       (orig, ambProjName) <- ifJust (A.isProjP p) return $
         addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
 
-      (projName, projType) <- suspendErrors $ do
+      (projName, comatchingAllowed, recName, projType) <- suspendErrors $ do
         -- Andreas, 2018-10-18, issue #3289: postfix projections do not have hiding
         -- information for their principal argument; we do not parse @{r}.p@ and the like.
         let h = if orig == ProjPostfix then Nothing else Just $ getHiding p
         addContext tel $ disambiguateProjection h ambProjName target
+
+      unless comatchingAllowed $ do
+        hardTypeError . GenericDocError =<< do
+          liftTCM $ "Copattern matching is disabled for record" <+> prettyTCM recName
 
       -- Compute the new rest type by applying the projection type to 'self'.
       -- Note: we cannot be in a let binding.
@@ -1178,7 +1182,7 @@ checkLHS mf = updateModality checkLHS_ where
       checkSortOfSplitVar dr a (Just target)
 
       -- The constructor should construct an element of this datatype
-      (c, b) <- liftTCM $ addContext delta1 $ case ambC of
+      (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of
         Just ambC -> disambiguateConstructor ambC d pars
         Nothing   -> getRecordConstructor d pars a
 
@@ -1367,10 +1371,12 @@ checkLHS mf = updateModality checkLHS_ where
 
 checkMatchingAllowed :: (MonadTCError m) => DataOrRecord -> m ()
 checkMatchingAllowed = \case
-  IsRecord ind _eta -> case ind of
-    Just CoInductive -> typeError $
-      GenericError "Pattern matching on coinductive types is not allowed"
-    _ -> return ()
+  IsRecord ind eta
+    | Just CoInductive <- ind -> typeError $
+        GenericError "Pattern matching on coinductive types is not allowed"
+    | not $ patternMatchingAllowed eta -> typeError $
+        GenericError "Pattern matching on no-eta record types is by default not allowed"
+    | otherwise -> return ()
   IsData -> return ()
 
 -- | When working with a monad @m@ implementing @MonadTCM@ and @MonadError TCErr@,
@@ -1403,9 +1409,12 @@ data DataOrRecord
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType :: (MonadTCM m, MonadReduce m, MonadDebug m, ReadTCState m)
-                   => Type
-                   -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
+isDataOrRecordType
+  :: (MonadTCM m, MonadReduce m, MonadDebug m, ReadTCState m)
+  => Type
+  -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
+       -- ^ The 'Args' are parameters and indices.
+
 isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
   ReallyNotBlocked -> \ a -> case unEl a of
 
@@ -1490,24 +1499,28 @@ disambiguateProjection
                     --   @Nothing@ if 'Postfix' projection.
   -> AmbiguousQName -- ^ Name of the projection to be disambiguated.
   -> Arg Type       -- ^ Record type we are projecting from.
-  -> TCM (QName, Arg Type)
+  -> TCM (QName, Bool, QName, Arg Type)
+       -- ^ @Bool@ signifies whether copattern matching is allowed at
+       --   the inferred record type.
 disambiguateProjection h ambD@(AmbQ ds) b = do
   -- If the target is not a record type, that's an error.
   -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
   caseMaybeM (liftTCM $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
-    Record{ recFields = fs } -> do
+    Record{ recFields = fs, recInduction, recEtaEquality' = eta } -> do
       reportSDoc "tc.lhs.split" 20 $ sep
         [ text $ "we are of record type r  = " ++ prettyShow r
         , text   "applied to parameters vs = " <+> prettyTCM vs
         , text $ "and have fields       fs = " ++ prettyShow (map argFromDom fs)
         ]
+      let comatching = recInduction == Just CoInductive
+                    || copatternMatchingAllowed eta
       -- Try the projection candidates.
       -- First, we try to find a disambiguation that doesn't produce
       -- any new constraints.
-      tryDisambiguate False fs r vs $ \ _ ->
+      tryDisambiguate False fs r vs comatching $ \ _ ->
           -- If this fails, we try again with constraints, but we require
           -- the solution to be unique.
-          tryDisambiguate True fs r vs $ \case
+          tryDisambiguate True fs r vs comatching $ \case
             ([]   , []      ) -> __IMPOSSIBLE__
             (err:_, []      ) -> throwError err
             (_    , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
@@ -1518,7 +1531,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
     _ -> __IMPOSSIBLE__
 
   where
-    tryDisambiguate constraintsOk fs r vs failure = do
+    tryDisambiguate constraintsOk fs r vs comatching failure = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
@@ -1529,7 +1542,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           -- This is safe here (fingers crossed) as we won't decide on a
           -- different projection even if we backtrack and come here again.
           liftTCM $ storeDisambiguatedProjection d
-          return (d,a)
+          return (d, comatching, r, a)
         other -> failure other
 
     notRecord = wrongProj $ NonEmpty.head ds

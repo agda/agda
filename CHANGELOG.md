@@ -36,6 +36,45 @@ Pragmas and options
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
 
+Language
+--------
+
+* Inductive records without η-equality no longer support both matching
+  on the record constructor and construction of record elements by
+  copattern matching.  It has been discovered that the combination of
+  both leads to loss of subject reduction, i.e., reduction does not
+  preserve typing.  See issue
+  [#4560](https://github.com/agda/agda/issues/4560).
+
+  η-equality for a record can be turned off manually with directive
+  `no-eta-equality` or command-line option `--no-eta-equality`, but it
+  is also automatically turned off for some recursive records.  For
+  records without η, matching on the record constructor is now off by
+  default and construction by copattern matching is on.  If you want
+  the converse, you can add the new record directive `pattern`.
+
+  Example with record pattern:
+  ```agda
+  record N : Set where
+    inductive
+    no-eta-equality
+    pattern
+    field out : Maybe N
+
+  pred : N → Maybe N
+  pred record{ out = m } = m
+  ```
+  Example with record constructor and use of `;` instead of newline:
+  ```agda
+  record N : Set where
+    inductive; no-eta-equality
+    pattern; constructor inn
+    field out : Maybe N
+
+  pred : N → Maybe N
+  pred (inn m) = m
+  ```
+
 Reflection
 ----------
 

@@ -54,6 +54,14 @@ instance (Null a, Null b) => Null (a,b) where
   empty      = (empty, empty)
   null (a,b) = null a && null b
 
+instance (Null a, Null b, Null c) => Null (a,b,c) where
+  empty        = (empty, empty, empty)
+  null (a,b,c) = null a && null b && null c
+
+instance (Null a, Null b, Null c, Null d) => Null (a,b,c,d) where
+  empty          = (empty, empty, empty, empty)
+  null (a,b,c,d) = null a && null b && null c && null d
+
 instance Null ByteString where
   empty = ByteString.empty
   null  = ByteString.null

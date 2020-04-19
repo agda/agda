@@ -66,14 +66,15 @@ checkRecDef
   -> QName                     -- ^ Record type identifier.
   -> UniverseCheck             -- ^ Check universes?
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
-  -> Maybe HasEta              -- ^ Optional: user specified eta/no-eta
+  -> Maybe HasEta0             -- ^ Optional: user specified @[no-]eta-equality@.
+  -> Maybe Range               -- ^ Optional: user specified @pattern@.
   -> Maybe QName               -- ^ Optional: constructor name.
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
+checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) name ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
@@ -164,7 +165,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           -- Andreas, 2016-09-20, issue #2197.
           -- Eta is inferred by the positivity checker.
           -- We should turn it off until it is proven to be safe.
-          haveEta      = maybe (Inferred NoEta) Specified eta
+          haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map argFromDom fs
 
@@ -173,8 +174,8 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           -- See issue 392.
           -- Unless it's been declared coinductive or no-eta-equality (#2607).
           recordRelevance
-            | eta          == Just NoEta  = Relevant
-            | conInduction == CoInductive = Relevant
+            | Just NoEta{} <- eta         = Relevant
+            | CoInductive <- conInduction = Relevant
             | otherwise                   = minimum $ Irrelevant : map getRelevance (telToList ftel)
 
       -- Andreas, 2017-01-26, issue #2436
@@ -208,6 +209,7 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
               , recTel            = telh `abstract` ftel
               , recAbstr          = Info.defAbstract i
               , recEtaEquality'   = haveEta
+              , recPatternMatching= patCopat
               , recInduction      = indCo
                   -- We retain the original user declaration [(co)inductive]
                   -- in case the record turns out to be recursive.
@@ -334,6 +336,13 @@ checkRecDef i name uc ind eta con (A.DataDefParams gpars ps) contel fields =
           checkConfluenceOfClause (unDom f) i cl
 
       return ()
+  where
+  -- Andreas, 2020-04-19, issue #4560
+  -- If the user declared the record constructor as @pattern@,
+  -- then switch on pattern matching for no-eta-equality.
+  -- Default is no pattern matching, but definition by copatterns instead.
+  patCopat = maybe CopatternMatching (const PatternMatching) pat
+  eta      = (patCopat <$) <$> eta0
 
 
 addCompositionForRecord

@@ -388,9 +388,10 @@ data Declaration
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
+  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
+  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
+    --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
@@ -744,8 +745,8 @@ instance HasRange Declaration where
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (RecordDef r _ _ _ _ _ _) = r
-  getRange (Record r _ _ _ _ _ _ _)  = r
+  getRange (RecordDef r _ _ _ _ _ _ _) = r
+  getRange (Record r _ _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
@@ -882,8 +883,8 @@ instance KillRange Declaration where
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (RecordDef _ n mi mb mn k d) = killRange6 (RecordDef noRange) n mi mb mn k d
-  killRange (Record _ n mi mb mn k e d)  = killRange7 (Record noRange) n mi mb mn k e d
+  killRange (RecordDef _ n mi mb mp mn k d) = killRange7 (RecordDef noRange) n mi mb mp mn k d
+  killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -1096,8 +1097,8 @@ instance NFData Declaration where
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordDef _ a b c d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
-  rnf (Record _ a b c d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
+  rnf (RecordDef _ a b c _ d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c

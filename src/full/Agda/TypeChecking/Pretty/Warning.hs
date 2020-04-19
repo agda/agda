@@ -147,6 +147,9 @@ prettyWarning = \case
       , map prettyTCM xs
       ]
 
+    UselessPatternDeclarationForRecord s -> fwords $ unwords
+      [ "`pattern' attribute ignored for", s, "record" ]
+
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
     UselessInline q -> fsep $

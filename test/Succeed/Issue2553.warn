@@ -1,0 +1,38 @@
+Issue2553.agda:22,3-10
+'pattern' attribute ignored for eta record
+when scope checking the declaration
+  record R₁ _ where
+    eta-equality
+    pattern
+    constructor mkR₁
+    field p : R₀ A
+    X : Set
+    X = R₀.proj₁ p
+Issue2553.agda:32,3-10
+'pattern' attribute ignored for eta record
+when scope checking the declaration
+  record R₂ r where
+    eta-equality
+    pattern
+    field g : R₀ (R₁.X r)
+
+———— All done; warnings encountered ————————————————————————
+
+Issue2553.agda:22,3-10
+'pattern' attribute ignored for eta record
+when scope checking the declaration
+  record R₁ _ where
+    eta-equality
+    pattern
+    constructor mkR₁
+    field p : R₀ A
+    X : Set
+    X = R₀.proj₁ p
+
+Issue2553.agda:32,3-10
+'pattern' attribute ignored for eta record
+when scope checking the declaration
+  record R₂ r where
+    eta-equality
+    pattern
+    field g : R₀ (R₁.X r)

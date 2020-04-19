@@ -1875,6 +1875,12 @@ data EtaEquality
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
   deriving (Data, Show, Eq)
 
+instance PatternMatchingAllowed EtaEquality where
+  patternMatchingAllowed = patternMatchingAllowed . theEtaEquality
+
+instance CopatternMatchingAllowed EtaEquality where
+  copatternMatchingAllowed = copatternMatchingAllowed . theEtaEquality
+
 -- | Make sure we do not overwrite a user specification.
 setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
 setEtaEquality e@Specified{} _ = e
@@ -1983,6 +1989,11 @@ data Defn = Axiom -- ^ Postulate
               -- ^ Eta-expand at this record type?
               --   @False@ for unguarded recursive records and coinductive records
               --   unless the user specifies otherwise.
+            , recPatternMatching :: PatternOrCopattern
+              -- ^ In case eta-equality is off, do we allow pattern matching on the
+              --   constructor or construction by copattern matching?
+              --   Having both loses subject reduction, see issue #4560.
+              --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
             , recInduction      :: Maybe Induction
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
@@ -3035,6 +3046,9 @@ data Warning
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
     --   (See issue #4154.)
+  | UselessPatternDeclarationForRecord String
+    -- ^ The 'pattern' declaration is useless in the presence
+    --   of either @coinductive@ or @no-eta-equality@ (content of 'String').
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -3157,6 +3171,7 @@ warningName = \case
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
+  UselessPatternDeclarationForRecord{} -> UselessPatternDeclarationForRecord_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
@@ -4252,7 +4267,7 @@ instance KillRange Defn where
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h       -> killRange7 Datatype a b c d e f g h
-      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
+      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
 
