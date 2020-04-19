@@ -149,6 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataMutual     = Nothing
                   , dataPathCons   = []     -- Path constructors are added later
                   , dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
+                  , dataTransp     = Nothing -- Added later
                   }
 
             escapeContext __IMPOSSIBLE__ npars $ do
@@ -178,6 +179,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
           defaultDefn defaultArgInfo name t $
             dataDef{ dataCons = cons
                    , dataTranspIx = mtranspix
+                   , dataTransp   = transpFun
                    }
 
 
@@ -652,7 +654,7 @@ defineTranspIx d = do
         , "nixs :" <+> pretty nixs
         ]
       if nixs == 0 then return Nothing else do
-      trIx <- freshAbstractQName'_ $ "transpIx" ++ show d
+      trIx <- freshAbstractQName'_ $ "transpIx" ++ P.prettyShow (A.qnameName d)
       TelV params t' <- telViewUpTo npars t
       TelV ixs    dT <- telViewUpTo nixs t'
       -- params     ⊢ s
@@ -717,11 +719,12 @@ defineTranspIx d = do
 
       noMutualBlock $ do
         let cs = [ clause ]
-        (mst, _, cc) <- compileClauses Nothing cs
+--        we do not compile clauses as that leads to throwing missing clauses errors.
+--        (mst, _, cc) <- compileClauses Nothing cs
         let fun = emptyFunction
                   { funClauses    = cs
-                  , funCompiled   = Just cc
-                  , funSplitTree  = mst
+               --   , funCompiled   = Just cc
+               --   , funSplitTree  = mst
                   , funProjection = Nothing
                   , funMutual     = Just []
                   , funTerminates = Just True
@@ -778,14 +781,14 @@ defineTranspFun d mtrX cons = do
         , "npars:" <+> pretty npars
         , "nixs :" <+> pretty nixs
         ]
-      trD <- freshAbstractQName'_ $ "transp" ++ show d
+      trD <- freshAbstractQName'_ $ "transp" ++ P.prettyShow (A.qnameName d)
       TelV params t' <- telViewUpTo npars t
       TelV ixs    dT <- telViewUpTo nixs t'
       let tel = abstract params ixs
       mixs <- runMaybeT $ traverse (traverse (MaybeT . toLType)) ixs
       caseMaybe mixs (return Nothing) $ \ _ -> do
 
-      io <- primIOne
+      io@(Con io_c _ []) <- primIOne
       iz <- primIZero
 
       interval <- elInf primInterval
@@ -805,7 +808,26 @@ defineTranspFun d mtrX cons = do
       noMutualBlock $ do
         inTopContext $ addConstant trD $
           (defaultDefn defaultArgInfo trD theType emptyFunction)
-        cs <- defineConClause trD mtrX npars nixs ixs telI sigma dTs cons
+        let
+          ctel = abstract telI $ ExtendTel (defaultDom $ subst 0 iz dTs) (Abs "t" EmptyTel)
+          ps = telePatterns ctel []
+          cpi = noConPatternInfo { conPType = Just (defaultArg interval)
+                                 , conPFallThrough = True
+                                 }
+          pat :: NamedArg (Pattern' DBPatVar)
+          pat = defaultNamedArg $ ConP io_c cpi []
+          clause = empty
+            { clauseTel         = ctel
+            , namedClausePats   = init ps ++ [pat, last ps]
+
+            , clauseBody        = Just $ var 0
+            , clauseType        = Just $ defaultArg $ raise 1 $ subst 0 io dTs
+            , clauseRecursive   = Just False  -- non-recursive
+            , clauseUnreachable = Just False
+            }
+
+        -- TODO define phi = 1 clause
+        cs <- (clause:) <$> defineConClause trD mtrX npars nixs ixs telI sigma dTs cons
         (mst, _, cc) <- compileClauses Nothing cs
         let fun = emptyFunction
                   { funClauses    = cs
@@ -819,6 +841,10 @@ defineTranspFun d mtrX cons = do
           (defaultDefn defaultArgInfo trD theType fun)
             { defNoCompilation  = True
             }
+        reportSDoc "tc.data.transp" 20 $ sep
+          [ "compiled clauses of " <+> prettyTCM trD
+          , nest 2 $ return $ P.pretty cc
+          ]
 
       return $ Just trD
 

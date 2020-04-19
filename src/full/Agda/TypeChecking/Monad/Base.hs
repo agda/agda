@@ -1958,6 +1958,8 @@ data Defn = Axiom -- ^ Postulate
             , dataAbstr          :: IsAbstract
             , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
             , dataTranspIx       :: Maybe QName    -- ^ if indexed datatype, name of the "index transport" function.
+            , dataTransp         :: Maybe QName
+              -- ^ transport function, should be available for all datatypes in supported sorts.
             }
           | Record
             { recPars           :: Nat
@@ -4261,7 +4263,7 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
-      Datatype a b c d e f g h i     -> killRange8 Datatype a b c d e f g h i
+      Datatype a b c d e f g h i j   -> killRange8 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e

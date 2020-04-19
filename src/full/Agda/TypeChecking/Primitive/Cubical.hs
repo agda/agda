@@ -1049,9 +1049,10 @@ primTransHComp cmd ts nelims = do
                                 -> redReturn $ (Def hCompR []) `apply`
                                                (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
 
-                         | Just as <- allApplyElims es, [] <- recFields r -> compData False (recPars r) cmd l (as <$ t) sbA sphi u u0
-                     Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
-                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (not $ null $ pcons) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                         | Just as <- allApplyElims es, [] <- recFields r -> compData Nothing False (recPars r) cmd l (as <$ t) sbA sphi u u0
+                     Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
+                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
+                         compData mtrD ((not $ null $ pcons) || ixs > 0) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
                      -- postulates with no arguments do not need to transport.
                      Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
                      _          -> fallback
@@ -1279,7 +1280,7 @@ primTransHComp cmd ts nelims = do
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
-    compData False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+    compData mtrD False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
 
       let sc = famThing <$> fsc
@@ -1356,8 +1357,19 @@ primTransHComp cmd ts nelims = do
                                           (ps ++ map argN [phi,u,a0])
               Nothing        -> noRed' su
 
-    compData _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
-    compData isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+    compData mtrD _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
+    compData mtrD@Just{} isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+      let sc = famThing <$> fsc
+      let f = unArg . ignoreBlocking
+          phi :: Term
+          phi = f $ sphi
+          noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced $ a0]
+      let lam_i = Lam defaultArgInfo . Abs "i"
+      case mtrD of
+        Nothing ->  noRed
+        (Just trD) -> redReturn $ Def trD [] `apply`
+                                          (map (fmap lam_i) ps ++ map argN [phi,unArg a0])
+    compData mtrD isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
       let sc = famThing <$> fsc
       mhcompName <- getName' builtinHComp
@@ -1392,7 +1404,7 @@ primTransHComp cmd ts nelims = do
                         pure transp <#> l <@> bC <@> phi <@> (u <@> j <..> o))
                    <@> (pure transp <#> l <@> bC <@> phi <@> u0)
         _ -> noRed
-    compData _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+    compData _ _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
 
 primComp :: TCM PrimitiveImpl
 primComp = do

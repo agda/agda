@@ -956,6 +956,7 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataMutual     = Nothing
               , dataPathCons   = []
               , dataTranspIx   = Nothing -- Id has custom transp def.
+              , dataTransp     = Nothing
               }
 
     Just{}  -> __IMPOSSIBLE__
