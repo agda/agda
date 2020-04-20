@@ -2,8 +2,8 @@
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
-    -- This re-export can be removed once <GHC-8.4 is dropped.
-    , module Data.Semigroup
+    , module Data.Semigroup -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Reexport
     ) where
 
 import Prelude hiding ( null )
@@ -25,6 +25,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import qualified Agda.Syntax.Translation.AbstractToConcrete as Reexport (MonadAbsToCon)
 import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
@@ -43,6 +44,8 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Except
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
@@ -319,8 +322,8 @@ instance PrettyTCM Constraint where
               case mcands of
                 Nothing -> "No candidates yet"
                 Just cnds ->
-                  hang "Candidates" 2 $
-                    vcat [ hang (overlap c <+> prettyTCM (candidateTerm c) <+> ":") 2 $
+                  hang "Candidates" 2 $ vcat
+                    [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
                             prettyTCM (candidateType c) | c <- cnds ]
               where overlap c | candidateOverlappable c = "overlap"
                               | otherwise               = empty
@@ -369,7 +372,7 @@ instance PrettyTCM TypeCheckingProblem where
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
                                else P.parens) <$> do
             fsep $
-              map prettyTCM xs ++
+              map prettyTCM (List1.toList xs) ++
               caseMaybe mt [] (\ a -> [":", prettyTCM a])) <+>
           return CP.arrow <+>
           prettyTCM e <+>
@@ -515,3 +518,8 @@ instance PrettyTCM SplitTag where
   prettyTCM (SplitCon c)  = prettyTCM c
   prettyTCM (SplitLit l)  = prettyTCM l
   prettyTCM SplitCatchall = return underscore
+
+instance PrettyTCM Candidate where
+  prettyTCM c = case candidateKind c of
+    (GlobalCandidate q) -> prettyTCM q
+    LocalCandidate      -> prettyTCM $ candidateTerm c

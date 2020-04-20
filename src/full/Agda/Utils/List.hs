@@ -470,6 +470,25 @@ allDuplicates = concatMap (drop 1 . reverse) . Bag.groups . Bag.fromList
   -- The reverse is necessary to actually remove the *first* occurrence
   -- of each element.
 
+-- | Partition a list into first and later occurrences of elements
+--   (modulo some quotient given by a representation function).
+--
+--  Time: O(n log n).
+--
+--  Specification:
+--
+--  > nubAndDuplicatesOn f xs = (ys, xs List.\\ ys)
+--  >   where ys = nubOn f xs
+
+nubAndDuplicatesOn :: Ord b => (a -> b) -> [a] -> ([a], [a])
+nubAndDuplicatesOn f = loop Set.empty
+  where
+  loop s [] = ([], [])
+  loop s (a:as)
+    | b `Set.member` s = second (a:) $ loop s as
+    | otherwise        = first  (a:) $ loop (Set.insert b s) as
+    where b = f a
+
 -- | Efficient variant of 'nubBy' for lists, using a set to store already seen elements.
 -- O(n log n)
 --
@@ -485,11 +504,6 @@ nubOn f = loop Set.empty
     | b `Set.member` s = loop s as
     | otherwise        = a : loop (Set.insert b s) as
     where b = f a
-
--- Andreas, 2019-11-16
--- The implementation of nubOn using Set can be more than 1000-times
--- faster than the following old one using List.sort.
--- (Tested using criterion and -O on some lists of length 100.000.)
 
 -- -- | Efficient variant of 'nubBy' for finite lists (using sorting).
 -- -- O(n log n)

@@ -1,6 +1,8 @@
 -- | This module defines the names of all BUILTINs.
 module Agda.Syntax.Builtin where
 
+import Agda.Utils.List
+
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
@@ -9,6 +11,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
+  builtinMaybe, builtinNothing, builtinJust,
   builtinPath, builtinPathP, builtinInterval, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
@@ -58,7 +61,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
-  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
+  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
@@ -91,6 +94,9 @@ builtinFalse                             = "FALSE"
 builtinList                              = "LIST"
 builtinNil                               = "NIL"
 builtinCons                              = "CONS"
+builtinMaybe                             = "MAYBE"
+builtinNothing                           = "NOTHING"
+builtinJust                              = "JUST"
 builtinIO                                = "IO"
 builtinId                                = "ID"
 builtinReflId                            = "REFLID"
@@ -239,6 +245,7 @@ builtinAgdaTCMBlockOnMeta                = "AGDATCMBLOCKONMETA"
 builtinAgdaTCMCommit                     = "AGDATCMCOMMIT"
 builtinAgdaTCMQuoteTerm                  = "AGDATCMQUOTETERM"
 builtinAgdaTCMUnquoteTerm                = "AGDATCMUNQUOTETERM"
+builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
@@ -255,6 +262,9 @@ builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 --
 --   The type of @Type@ would be @Type : Level → Setω@
 --   which is not valid Agda.
+
+isBuiltinNoDef :: String -> Bool
+isBuiltinNoDef = hasElem builtinsNoDef
 
 builtinsNoDef :: [String]
 builtinsNoDef =

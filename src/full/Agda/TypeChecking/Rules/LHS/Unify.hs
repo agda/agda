@@ -126,7 +126,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
+import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List

@@ -71,10 +71,13 @@ import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -465,16 +468,12 @@ isLambda e =
 -- | If a name is defined with a fixity that differs from the default, we have
 --   to generate a fixity declaration for that name.
 withInfixDecl :: DefInfo -> C.Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withInfixDecl i x m = do
-  ds <- m
-  return $ fixDecl ++ synDecl ++ ds
- where fixDecl = [C.Infix (theFixity $ defFixity i) [x] | theFixity (defFixity i) /= noFixity]
-       synDecl = [C.Syntax x (theNotation (defFixity i))]
-
-{- UNUSED
-withInfixDecls :: [(DefInfo, C.Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
--}
+withInfixDecl i x m = ((fixDecl ++ synDecl) ++) <$> m
+  where
+  fixDecl = [ C.Infix (theFixity $ defFixity i) $ singleton x
+            | theFixity (defFixity i) /= noFixity
+            ]
+  synDecl = [ C.Syntax x $ theNotation $ defFixity i ]
 
 -- Dealing with private definitions ---------------------------------------
 
@@ -550,17 +549,21 @@ instance ToConcrete Bool Bool where
 
 instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
+    bindToConcrete []     ret = ret []
+    bindToConcrete (a:as) ret = bindToConcrete (a:|as) $ \ (c:|cs) -> ret (c:cs)
+
+instance ToConcrete a c => ToConcrete (List1 a) (List1 c) where
+    toConcrete     = mapM toConcrete
     -- Andreas, 2017-04-11, Issue #2543
     -- The naive `thread'ing does not work as we have to undo
     -- changes to the Precedence.
     -- bindToConcrete = thread bindToConcrete
-    bindToConcrete []     ret = ret []
-    bindToConcrete (a:as) ret = do
+    bindToConcrete (a :| as) ret = do
       p <- currentPrecedence  -- save precedence
       bindToConcrete a $ \ c ->
         withPrecedence' p $ -- reset precedence
           bindToConcrete as $ \ cs ->
-            ret (c : cs)
+            ret (c :| cs)
 
 instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Either c1 c2) where
     toConcrete = traverseEither toConcrete toConcrete
@@ -628,7 +631,7 @@ instance ToConcrete ResolvedName C.QName where
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x      -> toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
-    ConstructorName xs   -> toConcrete (NonEmpty.head xs)
+    ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
@@ -698,15 +701,15 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.AbsurdLam i h) =
       bracket lamBrackets $ return $ C.AbsurdLam (getRange i) h
-    toConcrete e@(A.Lam i _ _)      =
+    toConcrete e@(A.Lam i _ _) =
         tryToRecoverOpApp e   -- recover sections
-        $ case lamView e of
-            ([], e) -> toConcrete e
-            (bs, e) -> bracket lamBrackets $
-                bindToConcrete (map makeDomainFree bs) $ \ bs -> do
-                  e  <- toConcreteTop e
-                  return $ C.Lam (getRange i) bs e
+        $ List1.ifNull bs'
+            {-then-} (toConcrete e')
+            {-else-} $ \ bs -> bracket lamBrackets $
+                bindToConcrete (fmap makeDomainFree bs) $ \ bs -> do
+                  C.Lam (getRange i) bs <$> toConcreteTop e'
         where
+          (bs', e') = lamView e
           -- #3238 GA: We drop the hidden lambda abstractions which have
           -- been inserted by the machine rather than the user. This means
           -- that the result of lamView may actually be an empty list of
@@ -721,9 +724,9 @@ instance ToConcrete A.Expr C.Expr where
             (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
             _                            -> ([b], e)
           lamView (A.Lam _ (A.DomainFull (A.TBind r t xs ty)) e) =
-            case filter (not . isInsertedHidden) xs of
-              []  -> lamView e
-              xs' -> let b = A.DomainFull (A.TBind r t xs' ty) in
+            case List1.filter (not . isInsertedHidden) xs of
+              []    -> lamView e
+              x:xs' -> let b = A.DomainFull (A.TBind r t (x :| xs') ty) in
                 case lamView e of
                   (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
                   _                            -> ([b], e)
@@ -737,37 +740,37 @@ instance ToConcrete A.Expr C.Expr where
                  Instance{} -> C.InstanceP noRange (unArg np)
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
-          let removeApp (C.RawAppP r (_:es)) = return $ C.RawAppP r es
-              removeApp (C.AppP (C.IdentP _) np) = return $ namedPat np
-              removeApp (C.AppP p np) = do
-                p <- removeApp p
-                return $ C.AppP p np
-
+          let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
+              removeApp (C.RawAppP _r (_ :| ps)) = return ps
+              removeApp (C.AppP (C.IdentP _) np) = return [namedPat np]
+              removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
               -- Empty pattern list also allowed in extended lambda,
               -- thus, we might face the unapplied .extendedlambda identifier.
-              removeApp x@C.IdentP{} = return $ C.RawAppP (getRange x) []
+              removeApp x@C.IdentP{} = return []
 
               removeApp p = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
-                return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause lhs rhs wh ca) = do
-                let p = lhsOriginalPattern lhs
+                return [p] -- __IMPOSSIBLE__
+                  -- Andreas, this is actually not impossible,
+                  -- my strictification exposed this sleeping bug
+          let decl2clause (C.FunClause (C.LHS p [] [] NoEllipsis) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
-                p' <- removeApp p
-                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
-                return $ LamClause lhs{ lhsOriginalPattern = p' } rhs wh ca
+                ps <- removeApp p
+                reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
+                return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) <$> mapM decl2clause decls
-    toConcrete (A.Pi _ [] e) = toConcrete e
-    toConcrete t@(A.Pi i _ _)  = case piTel t of
-      (tel, e) ->
-        bracket piBrackets
-        $ bindToConcrete tel $ \ tel' -> do
-             e' <- toConcreteTop e
-             return $ C.Pi tel' e'
+          C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
+            -- TODO List1: can we demonstrate non-emptiness?
+
+    toConcrete (A.Pi _ tel0 e0) = do
+      let (tel, e) = piTel1 tel0 e0
+      bracket piBrackets $
+         bindToConcrete tel $ \ tel' ->
+           C.Pi tel' <$> toConcreteTop e
       where
-        piTel (A.Pi _ tel e) = first (tel ++) $ piTel e
+        piTel1 tel e = first (List1.append tel) $ piTel e
+        piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
     toConcrete (A.Generalized _ e) = C.Generalized <$> toConcrete e
@@ -830,7 +833,7 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
-makeDomainFree b@(A.DomainFull (A.TBind _ tac [x] t)) =
+makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
   case unScope t of
     A.Underscore A.MetaInfo{metaNumber = Nothing} ->
       A.DomainFree tac x
@@ -881,10 +884,10 @@ instance ToConcrete A.LamBinding C.LamBinding where
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r t xs e) ret = do
         t <- traverse toConcrete t
-        bindToConcrete (map forceNameIfHidden xs) $ \ xs -> do
+        bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
           let setTac x = x { bnameTactic = t }
-          ret $ C.TBind r (map (updateNamedArg (fmap setTac)) xs) e
+          ret $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
@@ -1114,7 +1117,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> dontFoldPatternSynonyms (toConcrete (vacuous p :: A.Pattern))
+    bindToConcrete (map (fmap A.unBind) xs) $ \ xs ->
+      singleton . C.PatternSyn (getRange x) x xs <$> do
+        dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
@@ -1135,7 +1140,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
   toConcrete (RangeAndPragma r p) = case p of
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
-    A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
+    A.BuiltinNoDefPragma b _kind x -> C.BuiltinPragma r b <$> toConcrete x
     A.RewritePragma r' x      -> C.RewritePragma r r' <$> toConcrete x
     A.CompilePragma b x s -> do
       x <- toConcrete x
@@ -1527,7 +1532,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
             VarName y _                -> y ^. lensFixity
             DefinedName _ q            -> q ^. lensFixity
             FieldName (q :| _)         -> q ^. lensFixity
-            ConstructorName (q :| _)   -> q ^. lensFixity
+            ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
     doQName fx x n' args (C.nameParts $ C.unqualify x)

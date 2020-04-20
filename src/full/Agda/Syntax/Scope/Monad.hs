@@ -51,6 +51,7 @@ import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -324,8 +325,9 @@ tryResolveName kinds names x = do
       let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
       -- Consider only names in the given set of names
       caseMaybe (nonEmpty $ filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
-        ds       | all ((ConName ==) . anameKind . fst) ds ->
-          return $ ConstructorName $ fmap (upd . fst) ds
+        ds       | let ks = fmap (isConName . anameKind . fst) ds
+                 , all isJust ks ->
+          return $ ConstructorName (Set.fromList $ List1.catMaybes ks) $ fmap (upd . fst) ds
 
         ds       | all ((FldName ==) . anameKind . fst) ds ->
           return $ FieldName $ fmap (upd . fst) ds
@@ -403,7 +405,7 @@ getNotation x ns = do
     VarName y _         -> return $ namesToNotation x y
     DefinedName _ d     -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
-    ConstructorName ds  -> return $ oneNotation ds
+    ConstructorName _ ds-> return $ oneNotation ds
     PatternSynResName n -> return $ oneNotation n
     UnknownName         -> __IMPOSSIBLE__
   where
@@ -442,10 +444,10 @@ bindName' acc kind meta x y = do
     -- In case it's not the first one, we simply remove the one that came before
     _ | isNoName x      -> success
     DefinedName _ d     -> clash $ anameName d
-    VarName z _         -> clash $ A.qualify (mnameFromList []) z
-    FieldName       ds  -> ambiguous FldName ds
-    ConstructorName ds  -> ambiguous ConName ds
-    PatternSynResName n -> ambiguous PatternSynName n
+    VarName z _         -> clash $ A.qualify_ z
+    FieldName       ds  -> ambiguous (== FldName) ds
+    ConstructorName i ds-> ambiguous (isJust . isConName) ds
+    PatternSynResName n -> ambiguous (== PatternSynName) n
     UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   modifyCurrentScope $ addNameToScope ns x y'
@@ -453,8 +455,8 @@ bindName' acc kind meta x y = do
     success = return $ AbsName y kind Defined meta
     clash   = typeError . ClashingDefinition (C.QName x)
 
-    ambiguous k ds =
-      if kind == k && all ((== k) . anameKind) ds
+    ambiguous f ds =
+      if f kind && all (f . anameKind) ds
       then success else clash $ anameName (NonEmpty.head ds)
 
 -- | Rebind a name. Use with care!
@@ -895,7 +897,7 @@ openModule kind mam cm dir = do
 
             -- No ambiguity if concrete identifier is only mapped to
             -- constructor names or only to projection names.
-            defClash (_, qs) = not $ all (== ConName) ks || all (==FldName) ks
+            defClash (_, qs) = not $ all (isJust . isConName) ks || all (==FldName) ks
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter (\ x -> defClash x) defClashes) $

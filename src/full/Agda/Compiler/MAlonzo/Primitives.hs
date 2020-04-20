@@ -63,7 +63,7 @@ checkTypeOfMain  IsMain q def ret
   | not (isMainFunction q $ theDef def) = ret
   | otherwise = do
     Def io _ <- primIO
-    ty <- normalise $ defType def
+    ty <- reduce $ defType def
     case unEl ty of
       Def d _ | d == io -> (mainAlias :) <$> ret
       _                 -> do
@@ -229,6 +229,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primCharToNatInjective" |-> return "erased"
 
   -- String functions
+  , "primStringUncons"   |-> return "Data.Text.uncons"
   , "primStringToList"   |-> return "Data.Text.unpack"
   , "primStringFromList" |-> return "Data.Text.pack"
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"

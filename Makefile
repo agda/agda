@@ -93,7 +93,6 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 else
-	@echo "===================== Installing using Cabal with test suites ============"
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
@@ -369,6 +368,11 @@ benchmark :
 benchmark-without-logs :
 	@$(call decorate, "Benchmark suite without creating logs", \
 	  $(MAKE) -C benchmark without-creating-logs)
+
+.PHONY : benchmark-summary ##
+benchmark-summary :
+	@$(call decorate, "Benchmark summary", \
+	  $(MAKE) -C benchmark summary)
 
 .PHONY : user-manual-test ##
 user-manual-test :

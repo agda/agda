@@ -33,6 +33,9 @@ without-creating-logs : all
 	@runghc Benchmark.hs $(TAG)
 	rm -r $(logDir)
 
+summary :
+	@runghc Benchmark.hs
+
 $(logDir) :
 	@mkdir -p $@
 

@@ -54,6 +54,8 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )
@@ -582,19 +584,15 @@ instance PrettyTCM TypeError where
     NotLeqSort s1 s2 -> fsep $
       [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
 
-    TooManyFields r missing xs -> fsep $
-      pwords "The record type" ++ [prettyTCM r] ++
-      pwords "does not have the fields" ++ punctuate comma (map pretty xs) ++
-      if null missing then [] else
-        pwords "but it would have the fields"  ++ punctuate comma (map pretty missing)
+    TooManyFields r missing xs -> prettyTooManyFields r missing xs
 
     DuplicateConstructors xs -> fsep $
-      pwords "Duplicate constructors" ++ punctuate comma (map pretty xs) ++
+      pwords "Duplicate" ++ constructors xs ++ punctuate comma (map pretty xs) ++
       pwords "in datatype"
+      where
+      constructors ys = P.singPlural ys [text "constructor"] [text "constructors"]
 
-    DuplicateFields xs -> fsep $
-      pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
-      pwords "in record"
+    DuplicateFields xs -> prettyDuplicateFields xs
 
     WithOnFreeVariable e v -> do
       de <- prettyA e
@@ -829,7 +827,7 @@ instance PrettyTCM TypeError where
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> "."] ++
       pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' es')
+      ) $$ nest 2 (vcat $ map pretty' $ List1.toList es')
       where
         pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es
@@ -876,7 +874,7 @@ instance PrettyTCM TypeError where
       ]
       where
         (x, _) = NonEmpty.head defs
-        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> ("at" <+> pretty r)
+        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
     UnusedVariableInPatternSynonym -> fsep $
@@ -986,7 +984,7 @@ instance PrettyTCM TypeError where
         section = qualifyFirstIdPart
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
-                           (init (C.qnameParts (notaName nota))))
+                           (List1.init (C.qnameParts (notaName nota))))
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
@@ -1196,6 +1194,9 @@ instance PrettyTCM SplitError where
   prettyTCM err = case err of
     NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
+
+    BlockedType t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]

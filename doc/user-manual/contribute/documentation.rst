@@ -27,6 +27,12 @@ Rendering documentation locally
       Note that the ``--user`` option puts the Sphinx binaries in
       ``$HOME/.local/bin``.
 
+    - ImageMagick with SVG and PNG support; check output of
+
+        .. code-block:: bash
+
+          convert -list format
+
     - LaTeX
 
     - PyDvi

@@ -32,7 +32,6 @@ import Control.Monad.State hiding (mapM_, mapM)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -69,6 +68,8 @@ import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -529,7 +530,8 @@ reifyTerm expandAnonDefs0 v0 = do
         mkPi b (Arg info a') = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
-          return $ A.Pi noExprInfo [TBind noRange tac [Arg info $ Named (domName a) $ mkBinder_ x] a'] b
+          let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
+          return $ A.Pi noExprInfo (singleton $ TBind noRange tac xs a') b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -792,7 +794,7 @@ reifyTerm expandAnonDefs0 v0 = do
                (reify . QNamed x . (`apply` pars))
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      elims (A.ExtendedLam exprNoRange dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam exprNoRange dInfo x $ List1.fromList cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
@@ -937,11 +939,12 @@ class BlankVars a where
   default blank :: (Functor f, BlankVars b, f b ~ a) => Set Name -> a -> a
   blank = fmap . blank
 
-instance BlankVars a => BlankVars (Arg a)              where
-instance BlankVars a => BlankVars (Named s a)          where
-instance BlankVars a => BlankVars [a]                  where
--- instance BlankVars a => BlankVars (A.Pattern' a)       where  -- see case EqualP !
-instance BlankVars a => BlankVars (FieldAssignment' a) where
+instance BlankVars a => BlankVars (Arg a)
+instance BlankVars a => BlankVars (Named s a)
+instance BlankVars a => BlankVars [a]
+instance BlankVars a => BlankVars (List1 a)
+instance BlankVars a => BlankVars (FieldAssignment' a)
+-- instance BlankVars a => BlankVars (A.Pattern' a)         -- see case EqualP !
 
 instance (BlankVars a, BlankVars b) => BlankVars (a, b) where
   blank bound (x, y) = (blank bound x, blank bound y)
@@ -1092,11 +1095,12 @@ instance Binder LetBinding where
   varsBoundIn LetOpen{}           = empty
   varsBoundIn LetDeclaredVariable{} = empty
 
-instance Binder a => Binder (FieldAssignment' a) where
-instance Binder a => Binder (Arg a)              where
-instance Binder a => Binder (Named x a)          where
-instance Binder a => Binder [a]                  where
-instance Binder a => Binder (Maybe a)            where
+instance Binder a => Binder (FieldAssignment' a)
+instance Binder a => Binder (Arg a)
+instance Binder a => Binder (Named x a)
+instance Binder a => Binder [a]
+instance Binder a => Binder (List1 a)
+instance Binder a => Binder (Maybe a)
 
 instance (Binder a, Binder b) => Binder (a, b) where
   varsBoundIn (x, y) = varsBoundIn x `Set.union` varsBoundIn y
@@ -1355,7 +1359,8 @@ instance Reify I.Telescope A.Telescope where
     let r    = getRange e
         name = domName arg
     tac <- traverse reify $ domTactic arg
-    return $ TBind r tac [Arg info $ Named name $ A.mkBinder_ x] e : bs
+    let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
+    return $ TBind r tac xs e : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i

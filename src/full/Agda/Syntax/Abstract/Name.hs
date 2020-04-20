@@ -7,14 +7,15 @@ module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
 
+import Prelude hiding (length)
+
 import Control.DeepSeq
 
 import Data.Data (Data)
+import Data.Foldable (length)
 import Data.Function
 import Data.Hashable (Hashable(..))
 import Data.List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Void
 
@@ -26,6 +27,8 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
@@ -77,7 +80,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: NonEmpty QName }
+newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
   deriving (Eq, Ord, Data)
 
 -- | A singleton "ambiguous" name.
@@ -86,7 +89,7 @@ unambiguous x = AmbQ (x :| [])
 
 -- | Get the first of the ambiguous names.
 headAmbQ :: AmbiguousQName -> QName
-headAmbQ (AmbQ xs) = NonEmpty.head xs
+headAmbQ (AmbQ xs) = List1.head xs
 
 -- | Is a name ambiguous.
 isAmbiguous :: AmbiguousQName -> Bool
@@ -135,9 +138,9 @@ isAnonymousModuleName (MName ms) = isNoName $ last ms
 -- Precondition: The number of module name name parts has to be at
 -- least as large as the length of the list.
 
-withRangesOf :: ModuleName -> [C.Name] -> ModuleName
+withRangesOf :: ModuleName -> List1 C.Name -> ModuleName
 MName ms `withRangesOf` ns = if m < n then __IMPOSSIBLE__ else MName $
-      zipWith setRange (replicate (m - n) noRange ++ map getRange ns) ms
+      zipWith setRange (replicate (m - n) noRange ++ map getRange (List1.toList ns)) ms
   where
     m = length ms
     n = length ns
@@ -150,6 +153,12 @@ m `withRangesOfQ` q = m `withRangesOf` C.qnameParts q
 
 mnameFromList :: [Name] -> ModuleName
 mnameFromList = MName
+
+mnameFromList1 :: List1 Name -> ModuleName
+mnameFromList1 = MName . List1.toList
+
+mnameToList1 :: ModuleName -> List1 Name
+mnameToList1 (MName ns) = List1.ifNull ns __IMPOSSIBLE__ id
 
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
@@ -170,18 +179,20 @@ instance MkName String where
   mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
 
-qnameToList :: QName -> [Name]
-qnameToList (QName m x) = mnameToList m ++ [x]
+qnameToList0 :: QName -> [Name]
+qnameToList0 = List1.toList . qnameToList
 
-qnameFromList :: [Name] -> QName
-qnameFromList [] = __IMPOSSIBLE__
-qnameFromList xs = QName (mnameFromList $ init xs) (last xs)
+qnameToList :: QName -> List1 Name
+qnameToList (QName m x) = mnameToList m `List1.snoc` x
+
+qnameFromList :: List1 Name -> QName
+qnameFromList xs = QName (mnameFromList $ List1.init xs) (List1.last xs)
 
 qnameToMName :: QName -> ModuleName
-qnameToMName = mnameFromList . qnameToList
+qnameToMName = mnameFromList1 . qnameToList
 
 mnameToQName :: ModuleName -> QName
-mnameToQName = qnameFromList . mnameToList
+mnameToQName = qnameFromList . mnameToList1
 
 showQNameId :: QName -> String
 showQNameId q = show ns ++ "@" ++ show m
@@ -209,13 +220,14 @@ mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
 
 toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
 toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = C.TopLevelModuleName (getRange ms) $ map (C.nameToRawName . nameConcrete) ms
+toTopLevelModuleName (MName ms) = List1.ifNull ms __IMPOSSIBLE__ {-else-} $ \ ms1 ->
+  C.TopLevelModuleName (getRange ms1) $ fmap (C.nameToRawName . nameConcrete) ms1
 
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 
 qualifyQ :: ModuleName -> QName -> QName
-qualifyQ m x = qnameFromList $ mnameToList m ++ qnameToList x
+qualifyQ m x = qnameFromList $ mnameToList m `List1.prepend` qnameToList x
 
 qualify :: ModuleName -> Name -> QName
 qualify = QName
@@ -246,7 +258,7 @@ isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
 isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
-isInModule q m = mnameToList m `isPrefixOf` qnameToList q
+isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
@@ -387,10 +399,10 @@ instance Pretty ModuleName where
   pretty = hcat . punctuate "." . map pretty . mnameToList
 
 instance Pretty QName where
-  pretty = hcat . punctuate "." . map pretty . qnameToList
+  pretty = hcat . punctuate "." . map pretty . qnameToList0
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (NonEmpty.toList qs)
+  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty $ List1.toList qs
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b

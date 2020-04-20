@@ -89,6 +89,7 @@ import Agda.Utils.FileName
 import Agda.Utils.List
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -513,6 +514,11 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
 
+instance KillRange Permutation where
+  killRange = id
+
+instance KillRange a => KillRange (Drop a) where
+  killRange = fmap killRange
 ------------------------------------------------------------------------
 -- Showing
 ------------------------------------------------------------------------

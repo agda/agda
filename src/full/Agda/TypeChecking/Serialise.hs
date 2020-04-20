@@ -44,7 +44,9 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
-import Data.Monoid
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup((<>))
+#endif
 
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
@@ -70,7 +72,7 @@ import Agda.Utils.Except
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200404 * 10 + 0
+currentInterfaceVersion = 20200420 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 

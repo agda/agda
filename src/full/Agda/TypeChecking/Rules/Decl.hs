@@ -24,6 +24,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
+import Agda.Syntax.Scope.Base ( KindOfName(..) )
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark (MonadBench, Phase)
@@ -176,8 +177,8 @@ checkDecl d = setCurrentRange d $ do
                                           ]
 
                                     return (blockId, Set.singleton x)
-      A.DataSig i x ps t       -> impossible $ checkSig i x ps t
-      A.RecSig i x ps t        -> none $ checkSig i x ps t
+      A.DataSig i x ps t       -> impossible $ checkSig DataName i x ps t
+      A.RecSig i x ps t        -> none $ checkSig RecName i x ps t
                                   -- A record signature is always followed by a
                                   -- record definition. Metas should not be
                                   -- frozen until after the definition has been
@@ -224,8 +225,8 @@ checkDecl d = setCurrentRange d $ do
     where
 
     -- check record or data type signature
-    checkSig i x gtel t = checkTypeSignature' (Just gtel) $
-      A.Axiom A.NoFunSig i defaultArgInfo Nothing x t
+    checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
+      A.Axiom kind i defaultArgInfo Nothing x t
 
     -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
@@ -557,16 +558,16 @@ checkGeneralize s i info x e = do
 
 
 -- | Type check an axiom.
-checkAxiom :: A.Axiom -> A.DefInfo -> ArgInfo ->
+checkAxiom :: KindOfName -> A.DefInfo -> ArgInfo ->
               Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
 checkAxiom = checkAxiom' Nothing
 
 -- | Data and record type signatures need to remember the generalized
 --   parameters for when checking the corresponding definition, so for these we
 --   pass in the parameter telescope separately.
-checkAxiom' :: Maybe A.GeneralizeTelescope -> A.Axiom -> A.DefInfo -> ArgInfo ->
+checkAxiom' :: Maybe A.GeneralizeTelescope -> KindOfName -> A.DefInfo -> ArgInfo ->
                Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
-checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
+checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaultOpenLevelsToZero $ do
   -- Andreas, 2016-07-19 issues #418 #2102:
   -- We freeze metas in type signatures of abstract definitions, to prevent
   -- leakage of implementation details.
@@ -614,7 +615,7 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
-  when (funSig == A.NoFunSig) $ do
+  when (kind == AxiomName) $ do
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
@@ -635,19 +636,25 @@ checkAxiom' gentel funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ defa
 
 
   -- Set blocking tag to MissingClauses if we still expect clauses
-  let blk = case funSig of
-        A.FunSig{}   -> NotBlocked MissingClauses   ()
-        A.NoFunSig{} -> NotBlocked ReallyNotBlocked ()
+  let blk = case kind of
+        FunName   -> NotBlocked MissingClauses   ()
+        MacroName -> NotBlocked MissingClauses   ()
+        _         -> NotBlocked ReallyNotBlocked ()
 
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
+
+  let defn = defaultDefn info x t $
+        case kind of
+          FunName   -> emptyFunction
+          MacroName -> set funMacro True emptyFunction
+          DataName  -> DataOrRecSig npars
+          RecName   -> DataOrRecSig npars
+          AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
+          _         -> __IMPOSSIBLE__
+
   addConstant x =<< do
-    useTerPragma $
-      (defaultDefn info x t $
-         case funSig of
-           A.FunSig   -> set funMacro (Info.defMacro i == MacroDef) emptyFunction
-           A.NoFunSig | isJust gentel -> DataOrRecSig npars
-           A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
+    useTerPragma $ defn
         { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
@@ -704,8 +711,11 @@ checkPrimitive i x e =
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
-        A.BuiltinPragma x e -> bindBuiltin (rangedThing x) e
-        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef (rangedThing b) x
+        A.BuiltinPragma rb x
+          | isUntypedBuiltin b -> return ()
+          | otherwise          -> bindBuiltin b x
+          where b = rangedThing rb
+        A.BuiltinNoDefPragma b _kind x -> bindBuiltinNoDef (rangedThing b) x
         A.RewritePragma _ qs -> addRewriteRules qs
         A.CompilePragma b x s -> do
           -- Check that x resides in the same module (or a child) as the pragma.

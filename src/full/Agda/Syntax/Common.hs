@@ -35,6 +35,8 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
@@ -93,7 +95,8 @@ instance NFData HasEta where
 -- * Induction
 ---------------------------------------------------------------------------
 
-data Induction = Inductive | CoInductive
+-- | @Inductive < Coinductive@
+data Induction = Inductive | CoInductive  -- Keep in this order!
   deriving (Data, Eq, Ord, Show)
 
 instance Pretty Induction where
@@ -2389,8 +2392,8 @@ instance Monoid CoverageCheck where
 --   @e@ is the type of expressions
 
 data RewriteEqn' qn p e
-  = Rewrite [(qn, e)]  -- ^ @rewrite e@
-  | Invert qn [(p, e)] -- ^ @with p <- e@
+  = Rewrite (List1 (qn, e))  -- ^ @rewrite e@
+  | Invert qn (List1 (p, e)) -- ^ @with p <- e@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
 instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
@@ -2400,8 +2403,8 @@ instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
 
 instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
   pretty = \case
-    Rewrite es   -> prefixedThings (text "rewrite") (pretty . snd <$> es)
-    Invert _ pes -> prefixedThings (text "invert") (pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e)
+    Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList $ pretty . snd <$> es
+    Invert _ pes -> prefixedThings (text "invert") $ List1.toList $ pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e
 
 instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
   getRange = \case

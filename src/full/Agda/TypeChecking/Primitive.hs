@@ -113,6 +113,9 @@ instance PrimTerm Fixity' where primTerm _ = primFixity
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimTerm (Maybe a) where
+  primTerm _ = tMaybe (primTerm (undefined :: a))
+
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 
@@ -235,6 +238,13 @@ instance ToTerm a => ToTerm [a] where
     fromA  <- toTerm
     return $ mkList . map fromA
 
+instance ToTerm a => ToTerm (Maybe a) where
+  toTerm = do
+    nothing <- primNothing
+    just    <- primJust
+    fromA   <- toTerm
+    return $ maybe nothing (apply1 just . fromA)
+
 -- From Haskell value to Agda term
 
 type FromTermFunction a = Arg Term ->
@@ -321,16 +331,14 @@ instance FromTerm Bool where
 
 instance (ToTerm a, FromTerm a) => FromTerm [a] where
   fromTerm = do
-    nil'  <- primNil
-    cons' <- primCons
-    nil   <- isCon nil'
-    cons  <- isCon cons'
+    nil   <- isCon <$> primNil
+    cons  <- isCon <$> primCons
     toA   <- fromTerm
     mkList nil cons toA <$> toTerm
     where
-      isCon (Lam _ b)  = isCon $ absBody b
-      isCon (Con c _ _)= return c
-      isCon v          = __IMPOSSIBLE__
+      isCon (Lam _ b)   = isCon $ absBody b
+      isCon (Con c _ _) = c
+      isCon v           = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do
         b <- reduceB' t
@@ -348,6 +356,31 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
                   (fmap $ \xs' -> arg $ Con c ci (map Apply [defaultArg $ fromA y, xs'])) $ \ys ->
               redReturn (y : ys)
           _ -> return $ NoReduction (reduced b)
+
+instance FromTerm a => FromTerm (Maybe a) where
+  fromTerm = do
+    nothing <- isCon <$> primNothing
+    just    <- isCon <$> primJust
+    toA     <- fromTerm
+    return $ \ t -> do
+      let arg = (<$ t)
+      b <- reduceB' t
+      let t = ignoreBlocking b
+      case unArg t of
+        Con c ci []
+          | c == nothing -> return $ YesReduction NoSimplification Nothing
+        Con c ci es
+          | c == just, Just [x] <- allApplyElims es ->
+            redBind (toA x)
+              (\ x' -> notReduced $ arg $ Con c ci [Apply (ignoreReduced x')])
+              (redReturn . Just)
+        _ -> return $ NoReduction (reduced b)
+
+    where
+      isCon (Lam _ b)   = isCon $ absBody b
+      isCon (Con c _ _) = c
+      isCon v           = __IMPOSSIBLE__
+
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
@@ -384,7 +417,7 @@ mkPrimInjective a b qn = do
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
-    eq' <- normalise' eq
+    eq' <- reduce' eq
     case eq' of
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
@@ -477,7 +510,12 @@ primEraseEquality = do
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
-    (u', v') <- normalise' (u, v)
+    -- Jesper, 2020-04-04: We reduce rather than normalise for
+    -- efficiency reasons. In general this is weaker but it is
+    -- equivalent at base types. A stronger version of
+    -- primEraseEquality (using type-directed conversion) may be
+    -- implemented using --rewriting.
+    (u', v') <- reduce' (u, v)
     if u' == v' then redReturn $ refl u else
       return $ NoReduction $ map notReduced ts
 
@@ -791,6 +829,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
   , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
   , "primShowString"            |-> mkPrimFun1 (Str . prettyShow . LitString noRange . unStr)
+  , "primStringUncons"          |-> mkPrimFun1 (fmap (fmap Str) . uncons . unStr)
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

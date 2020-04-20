@@ -5,6 +5,7 @@ import Agda.Syntax.Concrete.Name
 
 import Data.List
 
+import Internal.Helpers
 import Internal.Syntax.Common ()
 import Internal.Syntax.Position ()
 
@@ -15,7 +16,7 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 
 instance Arbitrary TopLevelModuleName where
-  arbitrary = TopLevelModuleName <$> arbitrary <*> listOf1 (listOf1 $ elements "AB")
+  arbitrary = TopLevelModuleName <$> arbitrary <*> list1Of (listOf1 $ elements "AB")
 
 instance CoArbitrary TopLevelModuleName where
   coarbitrary (TopLevelModuleName _ m) = coarbitrary m

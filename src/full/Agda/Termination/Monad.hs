@@ -16,13 +16,11 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Reader
 
-import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
 import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -450,7 +448,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
                   "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
@@ -576,7 +574,7 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 --   Performance-wise, I could not see a difference between Set and list.
 
 newtype CallPath = CallPath { callInfos :: [CallInfo] }
-  deriving (Show, Semigroup, Monoid, AllNames)
+  deriving (Show, Semigroup, Monoid)
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where

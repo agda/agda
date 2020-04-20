@@ -3,16 +3,15 @@
 -}
 module Agda.Main where
 
-import Control.Monad (void)
 import Control.Monad.State
 
 import Data.Maybe
 
 import System.Environment
-import System.Exit
 import System.Console.GetOpt
 
 import Agda.Interaction.CommandLine
+import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.Monad
@@ -31,10 +30,8 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
-import Agda.Compiler.JS.Compiler (jsBackend)
-
 import Agda.Compiler.Backend
+import Agda.Compiler.Builtin
 
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -45,13 +42,11 @@ import qualified Agda.Utils.Benchmark as UtilsBench
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
 
-builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
-
 -- | The main function
 runAgda :: [Backend] -> IO ()
 runAgda backends = runAgda' $ builtinBackends ++ backends
 
+-- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
@@ -191,7 +186,7 @@ optionError :: String -> IO ()
 optionError err = do
   prog <- getProgName
   putStrLn $ "Error: " ++ err ++ "\nRun '" ++ prog ++ " --help' for help on command line options."
-  exitFailure
+  exitAgdaWith OptionError
 
 -- | Run a TCM action in IO; catch and pretty print errors.
 runTCMPrettyErrors :: TCM () -> IO ()
@@ -204,11 +199,7 @@ runTCMPrettyErrors tcm = do
       throwError err
     case r of
       Right _ -> exitSuccess
-      Left _  -> exitFailure
+      Left _  -> exitAgdaWith TCMError
   `catchImpossible` \e -> do
     putStr $ show e
-    exitFailure
-
--- | Main
-main :: IO ()
-main = runAgda []
+    exitAgdaWith ImpossibleError

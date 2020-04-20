@@ -24,7 +24,8 @@ import Data.Either (partitionEithers)
 import Data.Void
 import qualified Data.IntSet as IntSet
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Highlighting.Generate
+  ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
@@ -139,7 +140,7 @@ checkApplication cmp hd args e t =
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      TelV tel _ <- telView =<< normalise . defType =<< instantiateDef =<< getConstInfo x
+      TelV tel _ <- telView . defType =<< instantiateDef =<< getConstInfo x
 
       tTerm <- primAgdaTerm
       tName <- primQName
@@ -879,7 +880,7 @@ disambiguateConstructor cs0 t = do
     [con] -> do
       let c = setConName (headWithDefault __IMPOSSIBLE__ cs) con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
-      storeDisambiguatedName $ conName c
+      storeDisambiguatedConstructor (conInductive c) (conName c)
       return (Right c)
     _   -> do
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
@@ -898,7 +899,7 @@ disambiguateConstructor cs0 t = do
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
                      reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedName $ conName c
+                     storeDisambiguatedConstructor (conInductive c) (conName c)
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
                    cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
@@ -995,7 +996,7 @@ inferOrCheckProjApp e o ds args mt = do
           case forMaybe fs $ \ f -> List.find (unDom f ==) (NonEmpty.toList ds) of
             [] -> refuseProjNoMatching ds
             [d] -> do
-              storeDisambiguatedName d
+              storeDisambiguatedProjection d
               -- checkHeadApplication will check the target type
               (, t, CheckedTarget Nothing) <$>
                 checkHeadApplication cmp e t (A.Proj o $ unambiguous d) args
@@ -1095,7 +1096,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
         -- the term u = d v
         -- the type tb is the type of this application
         [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
-          storeDisambiguatedName d
+          storeDisambiguatedProjection d
 
           -- Check parameters
           tfull <- typeOfConst d

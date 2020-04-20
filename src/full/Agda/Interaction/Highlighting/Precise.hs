@@ -15,6 +15,7 @@ module Agda.Interaction.Highlighting.Precise
   , parserBased
   , singleton
   , several
+  , kindOfNameToNameKind
     -- ** Merging
   , merge
     -- ** Inspection
@@ -56,14 +57,18 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Position as P
-import qualified Agda.Syntax.Common as Common
+import qualified Agda.Syntax.Common   as Common
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 
 import Agda.Interaction.Highlighting.Range
 
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.String
+
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Files
@@ -217,6 +222,26 @@ singleton rs m = File {
 several :: [Ranges] -> Aspects -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
 
+-- | Conversion from classification of the scope checker.
+
+kindOfNameToNameKind :: KindOfName -> NameKind
+kindOfNameToNameKind = \case
+  -- Inductive is Constructor default, overwritten by CoInductive
+  ConName                  -> Constructor Common.Inductive
+  CoConName                -> Constructor Common.CoInductive
+  FldName                  -> Field
+  PatternSynName           -> Constructor Common.Inductive
+  GeneralizeName           -> Generalizable
+  DisallowedGeneralizeName -> Generalizable
+  MacroName                -> Macro
+  QuotableName             -> Function
+  DataName                 -> Datatype
+  RecName                  -> Record
+  FunName                  -> Function
+  AxiomName                -> Postulate
+  PrimName                 -> Primitive
+  OtherDefName             -> Function
+
 ------------------------------------------------------------------------
 -- Merging
 
@@ -228,11 +253,37 @@ instance Monoid TokenBased where
   mempty  = TokenBased
   mappend = (<>)
 
+-- | Some 'NameKind's are more informative than others.
+instance Semigroup NameKind where
+  -- During scope-checking of record, we build a constructor
+  -- whose arguments (@Bound@ variables) are the fields.
+  -- Later, we process them as @Field@s proper.
+  Field    <> Bound    = Field
+  Bound    <> Field    = Field
+  -- -- Projections are special functions.
+  -- -- TODO necessary?
+  -- Field    <> Function = Field
+  -- Function <> Field    = Field
+  -- TODO: more overwrites?
+  k1 <> k2 | k1 == k2  = k1
+           | otherwise = k1 -- TODO: __IMPOSSIBLE__
+
+-- | @NameKind@ in @Name@ can get more precise.
+instance Semigroup Aspect where
+  Name mk1 op1 <> Name mk2 op2 = Name (unionMaybeWith (<>) mk1 mk2) op1
+    -- (op1 || op2) breaks associativity
+  a1 <> a2 | a1 == a2  = a1
+           | otherwise = a1 -- TODO: __IMPOSSIBLE__
+
+instance Semigroup DefinitionSite where
+  d1 <> d2 | d1 == d2  = d1
+           | otherwise = d1 -- TODO: __IMPOSSIBLE__
+
 -- | Merges meta information.
 
 mergeAspects :: Aspects -> Aspects -> Aspects
 mergeAspects m1 m2 = Aspects
-  { aspect       = (mplus `on` aspect) m1 m2
+  { aspect       = (unionMaybeWith (<>) `on` aspect) m1 m2
   , otherAspects = (Set.union `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
       (n1, "") -> n1
@@ -240,7 +291,7 @@ mergeAspects m1 m2 = Aspects
       (n1, n2)
         | n1 == n2  -> n1
         | otherwise -> addFinalNewLine n1 ++ "----\n" ++ n2
-  , definitionSite = (mplus `on` definitionSite) m1 m2
+  , definitionSite = (unionMaybeWith (<>) `on` definitionSite) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
 

@@ -41,6 +41,8 @@ import Agda.Utils.Except
   )
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String ( Str(Str), unStr )
@@ -107,11 +109,11 @@ isCon con tm = do t <- liftTCM tm
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
-isDef f tm = do
-  t <- liftTCM $ etaContract =<< normalise =<< tm
-  case t of
-    Def g _ -> return (f == g)
-    _       -> return False
+isDef f tm = loop <$> liftTCM tm
+  where
+    loop (Def g _) = f == g
+    loop (Lam _ b) = loop $ unAbs b
+    loop _         = False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
@@ -388,7 +390,8 @@ instance Unquote R.Term where
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
+          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x)
+          ]
           __IMPOSSIBLE__
 
       Con c _ es | Just [x, y] <- allApplyElims es ->
@@ -399,7 +402,8 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> unquoteN x <*> unquoteN y) ]
+          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList <$> unquoteN x) <*> unquoteN y)
+          ]
           __IMPOSSIBLE__
         where
           mkPi :: Dom R.Type -> R.Abs R.Type -> R.Term
@@ -489,7 +493,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
-             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v) ]
+             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))

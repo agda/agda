@@ -76,6 +76,8 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -238,11 +240,15 @@ refine force ii mr e = do
   tryRefine 10 range scope e
   where
     tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
-    tryRefine nrOfMetas r scope e = try nrOfMetas e
+    tryRefine nrOfMetas r scope = try nrOfMetas Nothing
       where
-        try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError $ stringTCErr "Cannot refine"
-        try n e = give force ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
+        try :: Int -> Maybe TCErr -> Expr -> TCM Expr
+        try 0 err e = throwError . stringTCErr $ case err of
+           Just (TypeError _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+             "Cannot refine functions with 10 or more arguments"
+           _ ->
+             "Cannot refine"
+        try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
@@ -266,9 +272,9 @@ refine force ii mr e = do
                       isX _                  = mempty
 
               lamView (A.Lam _ (DomainFree _ x) e) = Just (namedArg x, e)
-              lamView (A.Lam i (DomainFull (TBind r t (x : xs) a)) e)
-                | null xs   = Just (namedArg x, e)
-                | otherwise = Just (namedArg x, A.Lam i (DomainFull $ TBind r t xs a) e)
+              lamView (A.Lam i (DomainFull (TBind r t (x :| xs) a)) e) =
+                List1.ifNull xs {-then-} (Just (namedArg x, e)) {-else-} $ \ xs ->
+                  Just (namedArg x, A.Lam i (DomainFull $ TBind r t xs a) e)
               lamView _ = Nothing
 
               -- reduce beta-redexes where the argument is used at most once
@@ -417,7 +423,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               domType <- maybe (return underscore) reify mt
               target  <- reify target
               let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
-                  bs = mkTBind noRange (map mkN xs) domType
+                  bs = mkTBind noRange (fmap mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
             CheckArgs _ _ args t0 t1 _ -> do
@@ -434,8 +440,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (FindInstance m _b mcands) = FindInstanceOF
       <$> reify (MetaV m [])
       <*> (reify =<< getMetaType m)
-      <*> forM (fromMaybe [] mcands) (\ (Candidate tm ty _) -> do
-            (,) <$> reify tm <*> reify ty)
+      <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do
+            (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
     reify (CheckFunDef d i q cs) = do
@@ -483,7 +489,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       FindInstanceOF s t cs -> vcat
         [ "Resolve instance argument" <?> (pretty s .: t)
         , nest 2 $ "Candidate:"
-        , nest 4 $ vcat [ pretty v .: t | (v, t) <- cs ] ]
+        , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
       PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
     where
@@ -523,7 +529,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (SizeLtSat a) = SizeLtSat <$> toConcreteCtx TopCtx a
     toConcrete (FindInstanceOF s t cs) =
       FindInstanceOF <$> toConcrete s <*> toConcrete t
-                     <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
+                     <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
 
@@ -548,7 +554,6 @@ instance Pretty c => Pretty (IPBoundary' c) where
               Overapplied    -> "=" <+> pretty meta
               NotOverapplied -> mempty
     prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
-
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
@@ -843,11 +848,6 @@ metaHelperType norm ii rng s = case words s of
       flip (caseMaybe $ isName ce) (\ _ -> return ()) $ do
          reportSLn "interaction.helper" 10 $ "ce = " ++ show ce
          failure
-    isName :: C.Expr -> Maybe C.Name
-    isName = \case
-      C.Ident (C.QName x)              -> Just x
-      C.RawApp _ [C.Ident (C.QName x)] -> Just x
-      _ -> Nothing
     isVar :: A.Expr -> Maybe A.Name
     isVar = \case
       A.Var x -> Just x
@@ -1145,20 +1145,21 @@ atTopLevel m = inConcreteMode $ do
 -- | Parse a name.
 parseName :: Range -> String -> TCM C.QName
 parseName r s = do
-  m <- parseExpr r s
-  case m of
-    C.Ident m              -> return m
-    C.RawApp _ [C.Ident m] -> return m
-    _                      -> typeError $
-      GenericError $ "Not an identifier: " ++ show m ++ "."
+  e <- parseExpr r s
+  let failure = typeError $ GenericError $ "Not an identifier: " ++ show e ++ "."
+  maybe failure return $ isQName e
 
 -- | Check whether an expression is a (qualified) identifier.
 isQName :: C.Expr -> Maybe C.QName
-isQName m = do
-  case m of
-    C.Ident m              -> return m
-    C.RawApp _ [C.Ident m] -> return m
-    _ -> Nothing
+isQName = \case
+  C.Ident x                    -> return x
+  C.RawApp _ (C.Ident x :| []) -> return x
+  _ -> Nothing
+
+isName :: C.Expr -> Maybe C.Name
+isName = isQName >=> \case
+  C.QName x -> return x
+  _ -> Nothing
 
 -- | Returns the contents of the given module or record.
 

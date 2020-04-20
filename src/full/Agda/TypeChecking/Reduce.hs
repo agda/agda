@@ -214,7 +214,7 @@ instance Instantiate CompareAs where
   instantiate' AsTypes       = return AsTypes
 
 instance Instantiate Candidate where
-  instantiate' (Candidate u t ov) = Candidate <$> instantiate' u <*> instantiate' t <*> pure ov
+  instantiate' (Candidate q u t ov) = Candidate q <$> instantiate' u <*> instantiate' t <*> pure ov
 
 instance Instantiate EqualityView where
   instantiate' (OtherType t)            = OtherType
@@ -231,43 +231,58 @@ instance Instantiate EqualityView where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
+-- | Is something (an elimination of) a meta variable?
+--   Does not perform any reductions.
+
 class IsMeta a where
-  isMeta :: HasBuiltins m => a -> m (Maybe MetaId)
+  isMeta :: a -> Maybe MetaId
 
 instance IsMeta Term where
-  isMeta (MetaV m _) = return $ Just m
-  isMeta _           = return Nothing
+  isMeta (MetaV m _) = Just m
+  isMeta _           = Nothing
 
-instance IsMeta Type where
+instance IsMeta a => IsMeta (Sort' a) where
+  isMeta (MetaS m _) = Just m
+  isMeta _           = Nothing
+
+instance IsMeta a => IsMeta (Type'' t a) where
   isMeta = isMeta . unEl
 
-instance IsMeta Level where
-  isMeta = isMeta <=< reallyUnLevelView
+instance IsMeta a => IsMeta (Level' a) where
+  isMeta (Max 0 [l]) = isMeta l
+  isMeta _           = Nothing
 
-instance IsMeta Sort where
-  isMeta (MetaS m _) = return $ Just m
-  isMeta _           = return Nothing
+instance IsMeta a => IsMeta (PlusLevel' a) where
+  isMeta (Plus 0 l)  = isMeta l
+  isMeta _           = Nothing
+
+instance IsMeta a => IsMeta (LevelAtom' a) where
+  isMeta = \case
+    MetaLevel m _    -> Just m
+    BlockedLevel _ t -> isMeta t
+    NeutralLevel _ t -> isMeta t
+    UnreducedLevel t -> isMeta t
 
 instance IsMeta CompareAs where
   isMeta (AsTermsOf a) = isMeta a
-  isMeta AsSizes       = return Nothing
-  isMeta AsTypes       = return Nothing
+  isMeta AsSizes       = Nothing
+  isMeta AsTypes       = Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
 ifBlocked
-  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  :: (Reduce t, IsMeta t, MonadReduce m)
   => t -> (MetaId -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
     Blocked m t -> blocked m t
-    NotBlocked nb t -> isMeta t >>= \case
+    NotBlocked nb t -> case isMeta t of
       Just m    -> blocked m t
       Nothing   -> unblocked nb t
 
 isBlocked
-  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  :: (Reduce t, IsMeta t, MonadReduce m)
   => t -> m (Maybe MetaId)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
@@ -327,11 +342,15 @@ instance Reduce LevelAtom where
     where
       fromTm v = do
         bv <- reduceB' v
+        hasAllReductions <- (allReductions `SmallSet.isSubsetOf`) <$>
+                              asksTC envAllowedReductions
         let v = ignoreBlocking bv
         case bv of
           NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
           Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
-          NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
+          NotBlocked r _
+            | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
+            | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
 
 
 instance (Subst t a, Reduce a) => Reduce (Abs a) where
@@ -795,7 +814,7 @@ instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
 
 instance Reduce Candidate where
-  reduce' (Candidate u t ov) = Candidate <$> reduce' u <*> reduce' t <*> pure ov
+  reduce' (Candidate q u t ov) = Candidate q <$> reduce' u <*> reduce' t <*> pure ov
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
@@ -975,7 +994,7 @@ instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
 
 instance Simplify Candidate where
-  simplify' (Candidate u t ov) = Candidate <$> simplify' u <*> simplify' t <*> pure ov
+  simplify' (Candidate q u t ov) = Candidate q <$> simplify' u <*> simplify' t <*> pure ov
 
 instance Simplify EqualityView where
   simplify' (OtherType t)            = OtherType
@@ -1089,7 +1108,7 @@ instance Normalise LevelAtom where
       MetaLevel m vs   -> MetaLevel m <$> normalise' vs
       BlockedLevel m v -> BlockedLevel m <$> normalise' v
       NeutralLevel r v -> NeutralLevel r <$> normalise' v
-      UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
+      UnreducedLevel v -> UnreducedLevel <$> normalise' v
 
 instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
@@ -1160,7 +1179,7 @@ instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
 
 instance Normalise Candidate where
-  normalise' (Candidate u t ov) = Candidate <$> normalise' u <*> normalise' t <*> pure ov
+  normalise' (Candidate q u t ov) = Candidate q <$> normalise' u <*> normalise' t <*> pure ov
 
 instance Normalise EqualityView where
   normalise' (OtherType t)            = OtherType
@@ -1508,8 +1527,8 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
 
 instance InstantiateFull Candidate where
-  instantiateFull' (Candidate u t ov) =
-    Candidate <$> instantiateFull' u <*> instantiateFull' t <*> pure ov
+  instantiateFull' (Candidate q u t ov) =
+    Candidate q <$> instantiateFull' u <*> instantiateFull' t <*> pure ov
 
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType

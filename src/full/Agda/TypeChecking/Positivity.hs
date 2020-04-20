@@ -19,7 +19,6 @@ import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid (mconcat)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as DS
 import Data.Set (Set)

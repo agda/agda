@@ -1,4 +1,3 @@
-
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
@@ -135,7 +134,7 @@ jsPostModule _ _ isMain _ defs = do
   m             <- jsMod <$> curMName
   is            <- map (jsMod . fst) . iImportedModules <$> curIF
   let es = catMaybes defs
-  writeModule $ Module m (reorder es) main
+  writeModule $ Module m is (reorder es) main
   where
     main = case isMain of
       IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
@@ -246,7 +245,7 @@ curModule isMain = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
   es <- catMaybes <$> (mapM (definition kit) =<< (sortDefs <$> curDefs))
-  return $ Module m (reorder es) main
+  return $ Module m is (reorder es) main
   where
     main = case isMain of
       IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]

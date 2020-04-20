@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 
 module Agda.Syntax.Internal
@@ -19,7 +18,6 @@ import Control.DeepSeq
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
 
 import Data.Traversable

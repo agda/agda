@@ -10,9 +10,10 @@ module Agda.TypeChecking.Rules.LHS
 
 import Prelude hiding ( mapM, null, sequence )
 
+import Data.Function (on)
 import Data.Maybe
 
-import Control.Arrow (left)
+import Control.Arrow (left, second)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -24,13 +25,13 @@ import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName, disambiguateRecordFields)
+import Agda.Interaction.Highlighting.Generate
+  ( storeDisambiguatedConstructor, storeDisambiguatedProjection, disambiguateRecordFields)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
@@ -251,7 +252,7 @@ updateProblemEqs eqs = do
 
             -- In fs omitted explicit fields are replaced by underscores,
             -- and the fields are put in the correct order.
-            ps <- insertMissingFields d (const $ A.WildP patNoRange) fs cxs
+            ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs cxs
 
             -- We also need to insert missing implicit or instance fields.
             ps <- insertImplicitPatterns ExpandLast ps ctel
@@ -445,7 +446,7 @@ transferOrigins ps qs = do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
-        ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
+        ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
       ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
@@ -1203,7 +1204,7 @@ checkLHS mf = updateModality checkLHS_ where
           return $ useNamesFromPattern ps gamma
         A.RecP _ fs -> do
           axs <- map argFromDom . recordFieldNames . theDef <$> getConstInfo d
-          ps <- insertMissingFields d (const $ A.WildP patNoRange) fs axs
+          ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
           ps <- insertImplicitPatterns ExpandLast ps gamma
           return $ useNamesFromPattern ps gamma
         _ -> __IMPOSSIBLE__
@@ -1408,11 +1409,11 @@ hardTypeError = liftTCM . typeError
 --   definition, parameters, and indices. Fails softly if the type could become
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
-isDataOrRecordType :: (MonadTCM m, MonadDebug m, ReadTCState m)
+isDataOrRecordType :: (MonadTCM m, MonadReduce m, MonadDebug m, ReadTCState m)
                    => Type
                    -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
-isDataOrRecordType a = liftTCM (reduceB a) >>= \case
-  NotBlocked ReallyNotBlocked a -> case unEl a of
+isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
+  ReallyNotBlocked -> \ a -> case unEl a of
 
     -- Subcase: split type is a Def.
     Def d es -> liftTCM (theDef <$> getConstInfo d) >>= \case
@@ -1449,9 +1450,9 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
 
       GeneralizableVar{} -> __IMPOSSIBLE__
 
-    -- variable or metavariable: fail softly
+    -- variable: fail softly
     Var{}      -> softTypeError =<< notData
-    MetaV{}    -> softTypeError =<< notData
+    MetaV{}    -> __IMPOSSIBLE__  -- That is handled in @blocked@.
 
     -- pi or sort: fail hard
     Pi{}       -> hardTypeError =<< notData
@@ -1464,11 +1465,13 @@ isDataOrRecordType a = liftTCM (reduceB a) >>= \case
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-  -- Type is blocked on a meta or something else: fail softly
-  _ -> softTypeError =<< notData
+  -- Type is blocked on something: fail softly
+  _ -> \ _a -> blockedType
 
-  where notData = liftTCM $ SplitError . NotADatatype <$> buildClosure a
-
+  where
+  notData      = liftTCM $ SplitError . NotADatatype <$> buildClosure a0
+  blockedType  = softTypeError =<< do liftTCM $ SplitError . BlockedType <$> buildClosure a0
+  blocked _ _a = blockedType
 
 -- | Get the constructor of the given record type together with its type.
 --   Throws an error if the type is not a record type.
@@ -1516,7 +1519,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
             (_    , disambs@((d,a):_)) -> typeError . GenericDocError =<< vcat
               [ "Ambiguous projection " <> prettyTCM d <> "."
               , "It could refer to any of"
-              , nest 2 $ vcat $ map (prettyDisamb . fst) disambs
+              , nest 2 $ vcat $ map (prettyDisambProj . fst) disambs
               ]
     _ -> __IMPOSSIBLE__
 
@@ -1531,7 +1534,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           -- For highlighting, we remember which name we disambiguated to.
           -- This is safe here (fingers crossed) as we won't decide on a
           -- different projection even if we backtrack and come here again.
-          liftTCM $ storeDisambiguatedName d
+          liftTCM $ storeDisambiguatedProjection d
           return (d,a)
         other -> failure other
 
@@ -1629,49 +1632,27 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
   -- if that fails, try again allowing constraint generation.
   tryDisambiguate False cons d $ \ _ ->
     tryDisambiguate True cons d $ \case
-        ([]   , []        ) -> __IMPOSSIBLE__
-        (err:_, []        ) -> throwError err
-        (_    , disambs@((_c0,c,_a):_)) -> typeError . GenericDocError =<< vcat
-          [ "Ambiguous constructor " <> prettyTCM (qnameName $ conName c) <> "."
+        ([]   , []                 ) -> __IMPOSSIBLE__
+        (err:_, []                 ) -> throwError err
+        (_    , disambs@((c,_,_):_)) -> typeError . GenericDocError =<< vcat
+          [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
           , "It could refer to any of"
-          , nest 2 $ vcat $ map (prettyDisamb . fst3) disambs
+          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) disambs
           ]
 
   where
     tryDisambiguate constraintsOk cons d failure = do
       disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
-        -- TODO: can we be more lazy, like using the ListT monad?
-      case partitionEithers $ NonEmpty.toList disambiguations of
-        -- Andreas, 2019-10-14: The code from which I factored out 'tryDisambiguate'
-        -- did allow several disambiguations in case @constraintsOk == False@.
-        -- There was no comment explaining why, but "fixing" it and insisting on a
-        -- single disambiguation triggers this error in the std-lib
-        -- (version 4fca6541edbf5951cff5048b61235fe87d376d84):
-        --
-        --   Data/List/Relation/Unary/All/Properties.agda:462,15-17
-        --   Ambiguous constructor []₁.
-        --   It could refer to any of
-        --     _._.Pointwise.[] (introduced at Data/List/Relation/Binary/Pointwise.agda:40,6-15)
-        --     [] (introduced at Data/List/Relation/Binary/Pointwise.agda:40,6-15)
-        --   when checking that the pattern [] has type x ≋ y
-        --
-        -- There are problems with this error message (reported as issue #4130):
-        --
-        --   * the constructor [] is printed as []₁
-        --   * the two (identical) locations point to the definition of data type Pointwise
-        --     - not to the constructor []
-        --     - not offering a clue which imports generated the ambiguity
-        --
-        -- (These should be fixed at some point.)
-        -- It is not entirely clear to me that the ambiguity is safe to ignore,
-        -- but let's go with it for the sake of preserving the current behavior of Agda.
-        -- Thus, only when 'constraintsOk' we require 'null disambs':
-        -- (Note that in Haskell, boolean implication is '<=' rather than '=>'.)
-        (_, (c0,c,a) : disambs) | constraintsOk <= null disambs -> do
-          -- If constructor pattern was ambiguous,
-          -- remember our choice for highlighting info.
-          when (isAmbiguous ambC) $ liftTCM $ storeDisambiguatedName c0
+      -- TODO: can we be more lazy, like using the ListT monad?
+      case second dedupCons . partitionEithers $ NonEmpty.toList disambiguations of
+        (_, [(c0,c,a)]) -> do
+          -- If there are multiple candidates for the constructor pattern, exactly one of
+          -- which type checks, remember our choice for highlighting info.
+          when (isAmbiguous ambC) $ liftTCM $
+            storeDisambiguatedConstructor (conInductive c) c0
           return (c,a)
+        -- Either no candidate constructor in 'cs' type checks, or multiple candidates
+        -- type check.
         other -> failure other
 
     abstractConstructor c = softTypeError $
@@ -1714,12 +1695,23 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
         return (c, con, cType)
 
-prettyDisamb :: QName -> TCM Doc
-prettyDisamb x = do
-  let d  = pretty =<< dropTopLevelModule x
-  let mr = lastMaybe $ filter (noRange /=) $ map nameBindingSite $ mnameToList $ qnameModule x
-  caseMaybe mr d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+    -- This deduplication identifies different names of the same constructor, ensuring
+    -- that the "ambiguous constructor" error does not fire for the case described
+    -- in #4130.
+    dedupCons :: forall a b. [(a, ConHead, b)] -> [(a, ConHead, b)]
+    dedupCons = List.nubBy ((==) `on` conName . snd3)
 
+prettyDisamb :: (QName -> Maybe (Range' SrcFile)) -> QName -> TCM Doc
+prettyDisamb f x = do
+  let d  = pretty =<< dropTopLevelModule x
+  caseMaybe (f x) d $ \ r -> d <+> ("(introduced at " <> prettyTCM r <> ")")
+
+-- | For Ambiguous Projection errors, print the last range in 'qnameModule'.
+--   For Ambiguous Constructor errors, print the range in 'qnameName'. This fixes the bad
+--   error message in #4130.
+prettyDisambProj, prettyDisambCons :: QName -> TCM Doc
+prettyDisambProj = prettyDisamb $ lastMaybe . filter (noRange /=) . map nameBindingSite . mnameToList . qnameModule
+prettyDisambCons = prettyDisamb $ Just . nameBindingSite . qnameName
 
 -- | @checkConstructorParameters c d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)

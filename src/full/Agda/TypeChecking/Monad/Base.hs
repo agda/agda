@@ -15,6 +15,8 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Trans          ( MonadTrans(..), lift )
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
@@ -29,14 +31,13 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data, toConstr)
+import Data.Data (Data)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
@@ -53,7 +54,6 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
@@ -81,7 +81,7 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
-  (CompressedFile, HighlightingInfo)
+  (CompressedFile, HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -97,6 +97,8 @@ import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -130,29 +132,25 @@ class Monad m => ReadTCState m where
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
-instance ReadTCState m => ReadTCState (MaybeT m) where
+  default getTCState :: (MonadTrans t, ReadTCState n, t n ~ m) => m TCState
   getTCState = lift getTCState
-  locallyTCState l = mapMaybeT . locallyTCState l
+
+  default locallyTCState
+    :: (MonadTransControl t, ReadTCState n, t n ~ m)
+    => Lens' a TCState -> (a -> a) -> m b -> m b
+  locallyTCState l = liftThrough . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
-  getTCState = lift getTCState
-  locallyTCState l f = ListT . locallyTCState l f . runListT
+  locallyTCState l = mapListT . locallyTCState l
 
-instance ReadTCState m => ReadTCState (ExceptT err m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapExceptT . locallyTCState l
+instance ReadTCState m => ReadTCState (ChangeT m)
+instance ReadTCState m => ReadTCState (ExceptT err m)
+instance ReadTCState m => ReadTCState (IdentityT m)
+instance ReadTCState m => ReadTCState (MaybeT m)
+instance ReadTCState m => ReadTCState (ReaderT r m)
+instance ReadTCState m => ReadTCState (StateT s m)
+instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
 
-instance ReadTCState m => ReadTCState (ReaderT r m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapReaderT . locallyTCState l
-
-instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapWriterT . locallyTCState l
-
-instance ReadTCState m => ReadTCState (StateT s m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -197,7 +195,9 @@ data PreScopeState = PreScopeState
     -- ^ Imported partial definitions, not to be stored in the @Interface@
   }
 
-type DisambiguatedNames = IntMap A.QName
+-- | Name disambiguation for the sake of highlighting.
+data DisambiguatedName = DisambiguatedName NameKind A.QName
+type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name [C.Name]
 
@@ -704,11 +704,11 @@ nextFresh s =
 class Monad m => MonadFresh i m where
   fresh :: m i
 
-instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  default fresh :: (MonadTrans t, MonadFresh i n, t n ~ m) => m i
   fresh = lift fresh
 
-instance MonadFresh i m => MonadFresh i (StateT s m) where
-  fresh = lift fresh
+instance MonadFresh i m => MonadFresh i (ReaderT r m)
+instance MonadFresh i m => MonadFresh i (StateT s m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
@@ -1265,7 +1265,7 @@ data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (NonEmpty QName) A.Args Type Int Term Type
-  | CheckLambda Comparison (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
+  | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
     --   has already been checked.
@@ -2985,17 +2985,23 @@ isDontExpandLast ExpandLast           = False
 isDontExpandLast DontExpandLast       = True
 isDontExpandLast ReallyDontExpandLast = True
 
+data CandidateKind
+  = LocalCandidate
+  | GlobalCandidate QName
+  deriving (Show, Data)
+
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
 --   of the wrong type, hence the need for the type.
-data Candidate  = Candidate { candidateTerm :: Term
+data Candidate  = Candidate { candidateKind :: CandidateKind
+                            , candidateTerm :: Term
                             , candidateType :: Type
                             , candidateOverlappable :: Bool
                             }
   deriving (Show, Data)
 
 instance Free Candidate where
-  freeVars' (Candidate t u _) = freeVars' (t, u)
+  freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
@@ -3093,8 +3099,21 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | RecordFieldWarning RecordFieldWarning
   deriving (Show , Data)
 
+data RecordFieldWarning
+  = DuplicateFieldsWarning [(C.Name, Range)]
+      -- ^ Each redundant field comes with a range of associated dead code.
+  | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
+      -- ^ Record type, fields not supplied by user, non-fields but supplied.
+      --   The redundant fields come with a range of associated dead code.
+  deriving (Show, Data)
+
+recordFieldWarningToError :: RecordFieldWarning -> TypeError
+recordFieldWarningToError = \case
+  DuplicateFieldsWarning    xrs -> DuplicateFields    $ map fst xrs
+  TooManyFieldsWarning q ys xrs -> TooManyFields q ys $ map fst xrs
 
 warningName :: Warning -> WarningName
 warningName = \case
@@ -3148,6 +3167,10 @@ warningName = \case
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
   PragmaCompileErased{}        -> PragmaCompileErased_
+  -- record field warnings
+  RecordFieldWarning w -> case w of
+    DuplicateFieldsWarning{}   -> DuplicateFieldsWarning_
+    TooManyFieldsWarning{}     -> TooManyFieldsWarning_
 
 data TCWarning
   = TCWarning
@@ -3187,28 +3210,10 @@ data CallInfo = CallInfo
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
   } deriving (Data, Show)
-
--- no Eq, Ord instances: too expensive! (see issues 851, 852)
+    -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
 instance Pretty CallInfo where pretty = pretty . callInfoTarget
-instance AllNames CallInfo where allNames = singleton . callInfoTarget
-
--- UNUSED, but keep!
--- -- | Call pathes are sequences of 'CallInfo's starting from a 'callSource'.
--- data CallPath = CallPath
---   { callSource :: QName
---     -- ^ The originator of the first call.
---   , callInfos :: [CallInfo]
---     -- ^ The calls, in order from source to final target.
---   }
---   deriving (Show)
-
--- -- | 'CallPath'es can be connected, but there is no empty callpath.
--- --   Thus, they form a semigroup, but we choose to abuse 'Monoid'.
--- instance Monoid CallPath where
---   mempty = __IMPOSSIBLE__
---   mappend (CallPath src cs) (CallPath _ cs') = CallPath src $ cs ++ cs'
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
@@ -3224,6 +3229,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3385,7 +3391,7 @@ data TypeError
         | IllegalPatternInTelescope C.Binder
         | NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
         | TooManyFields QName [C.Name] [C.Name]
-          -- ^ Record type, fields not supplied by user, non-fields not supplied.
+          -- ^ Record type, fields not supplied by user, non-fields but supplied.
         | DuplicateFields [C.Name]
         | DuplicateConstructors [C.Name]
         | WithOnFreeVariable A.Expr Term
@@ -3452,8 +3458,8 @@ data TypeError
         | CannotResolveAmbiguousPatternSynonym (NonEmpty (A.QName, A.PatternSynDefn))
         | UnusedVariableInPatternSynonym
     -- Operator errors
-        | NoParseForApplication [C.Expr]
-        | AmbiguousParseForApplication [C.Expr] [C.Expr]
+        | NoParseForApplication (List1 C.Expr)
+        | AmbiguousParseForApplication (List1 C.Expr) (List1 C.Expr)
         | NoParseForLHS LHSOrPatSyn [C.Pattern] C.Pattern
             -- ^ The list contains patterns that failed to be interpreted.
             --   If it is non-empty, the first entry could be printed as error hint.
@@ -3695,26 +3701,20 @@ class ( Applicative m
       ) => MonadReduce m where
   liftReduce :: ReduceM a -> m a
 
-instance MonadReduce m => MonadReduce (MaybeT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ListT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ExceptT err m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ReaderT r m) where
-  liftReduce = lift . liftReduce
-
-instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (StateT w m) where
+  default liftReduce :: (MonadTrans t, MonadReduce n, t n ~ m) => ReduceM a -> m a
   liftReduce = lift . liftReduce
 
 instance MonadReduce ReduceM where
   liftReduce = id
+
+instance MonadReduce m => MonadReduce (ChangeT m)
+instance MonadReduce m => MonadReduce (ExceptT err m)
+instance MonadReduce m => MonadReduce (IdentityT m)
+instance MonadReduce m => MonadReduce (ListT m)
+instance MonadReduce m => MonadReduce (MaybeT m)
+instance MonadReduce m => MonadReduce (ReaderT r m)
+instance MonadReduce m => MonadReduce (StateT w m)
+instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
 
 ---------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
@@ -3726,37 +3726,24 @@ class Monad m => MonadTCEnv m where
   askTC   :: m TCEnv
   localTC :: (TCEnv -> TCEnv) -> m a -> m a
 
-instance MonadTCEnv m => MonadTCEnv (MaybeT m) where
-  askTC   = lift askTC
-  localTC = mapMaybeT . localTC
+  default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
+  askTC = lift askTC
+
+  default localTC
+    :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
+    =>  (TCEnv -> TCEnv) -> m a -> m a
+  localTC = liftThrough . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ChangeT m)
+instance MonadTCEnv m => MonadTCEnv (ExceptT err m)
+instance MonadTCEnv m => MonadTCEnv (IdentityT m)
+instance MonadTCEnv m => MonadTCEnv (MaybeT m)
+instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (StateT s m)
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
-  askTC   = lift askTC
   localTC = mapListT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ExceptT err m) where
-  askTC   = lift askTC
-  localTC = mapExceptT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ReaderT r m) where
-  askTC   = lift askTC
-  localTC = mapReaderT . localTC
-
-instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m) where
-  askTC   = lift askTC
-  localTC = mapWriterT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (StateT s m) where
-  askTC   = lift askTC
-  localTC = mapStateT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ChangeT m) where
-  askTC   = lift askTC
-  localTC = mapChangeT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (IdentityT m) where
-  askTC   = lift askTC
-  localTC = mapIdentityT . localTC
 
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC
@@ -4016,6 +4003,10 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT
   mappend = (<>)
   mconcat = mconcat <.> sequence
 
+instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
+  empty = return empty
+  null  = __IMPOSSIBLE__
+
 -- | Interaction monad.
 
 type IM = TCMT (Haskeline.InputT IO)
@@ -4086,18 +4077,18 @@ patternViolation = throwError PatternErr
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = liftTCM $ typeError $ InternalError s
 
-genericError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-             => String -> m a
+-- | The constraints needed for 'typeError' and similar.
+type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+
+genericError :: MonadTCError m => String -> m a
 genericError = typeError . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
-genericDocError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-                => Doc -> m a
+genericDocError :: MonadTCError m => Doc -> m a
 genericDocError = typeError . GenericDocError
 
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
-typeError :: (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
-          => TypeError -> m a
+typeError :: MonadTCError m => TypeError -> m a
 typeError err = throwError =<< typeError_ err
 
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}

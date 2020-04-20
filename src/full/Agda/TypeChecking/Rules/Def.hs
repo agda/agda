@@ -59,6 +59,8 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -66,6 +68,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -103,8 +106,7 @@ checkFunDef delayed i name cs = do
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
-  t' <- normalise t
-  TelV tel tr <- telView t'
+  TelV tel tr <- telView t
 
   let telList = telToList tel
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
@@ -783,19 +785,23 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     checkWithRHS x aux t lhsResult vtys cs
 
   -- Rewrite case: f xs (rewrite / invert) a | b | c | ...
-  rewriteEqnsRHS :: [A.RewriteEqn] -> [A.ProblemEq] -> A.RHS -> A.WhereDeclarations -> TCM (Maybe Term, WithFunctionProblem)
+  rewriteEqnsRHS
+    :: [A.RewriteEqn]
+    -> [A.ProblemEq]
+    -> A.RHS
+    -> A.WhereDeclarations
+    -> TCM (Maybe Term, WithFunctionProblem)
+
   rewriteEqnsRHS [] strippedPats rhs wh = checkWhere wh $ handleRHS rhs
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
   rewriteEqnsRHS (r:rs) strippedPats rhs wh = case r of
-    Rewrite ((qname, eq) : qes) ->
-      rewriteEqnRHS qname eq (case qes of { [] -> rs; _ -> Rewrite qes : rs })
-    Invert _     []  -> __IMPOSSIBLE__
-    Invert qname pes -> invertEqnRHS qname pes rs
-    -- Invariant: these lists are non-empty
-    Rewrite [] -> __IMPOSSIBLE__
+    Rewrite ((qname, eq) :| qes) ->
+      rewriteEqnRHS qname eq $
+        List1.ifNull qes {-then-} rs {-else-} $ \ qes -> Rewrite qes : rs
+    Invert qname pes -> invertEqnRHS qname (List1.toList pes) rs
 
     where
 
@@ -828,8 +834,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       checkWithRHS x qname t lhsResult vtys [cl]
 
     -- @rewrite@ clauses
-    rewriteEqnRHS :: QName -> A.Expr
-                  -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    rewriteEqnRHS
+      :: QName
+      -> A.Expr
+      -> [A.RewriteEqn]
+      -> TCM (Maybe Term, WithFunctionProblem)
     rewriteEqnRHS qname eq rs = do
 
       -- Action for skipping this rewrite.
@@ -1031,11 +1040,13 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Add the type of the auxiliary function to the signature
 
+  -- Jesper, 2020-04-05: Currently variable generalization inserts
+  -- dummy terms, we have to reduce projections to get rid of them.
+  -- (see also #1332).
+  let reds = SmallSet.fromList [ProjectionReductions]
+  delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
+
   -- Generate the type of the with function
-  delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
-                             -- but module application is sloppy.
-                             -- We normalise to get rid of Def's coming
-                             -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vtys delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]

@@ -74,6 +74,7 @@ coreBuiltins =
   , (builtinArgInfo                          |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool                             |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                              |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinMaybe                            |-> BuiltinData (tset --> tset) [builtinNothing, builtinJust])
   , (builtinSigma                            |-> BuiltinData (runNamesT [] $
                                                               hPi' "la" (el $ cl primLevel) $ \ a ->
                                                               hPi' "lb" (el $ cl primLevel) $ \ b ->
@@ -259,6 +260,8 @@ coreBuiltins =
   , (builtinRewrite                          |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
   , (builtinNil                              |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
+  , (builtinNothing                          |-> BuiltinDataCons (hPi "A" tset (el (tMaybe v0))))
+  , (builtinJust                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (tMaybe v0))))
   , (builtinZero                             |-> BuiltinDataCons tnat)
   , (builtinSuc                              |-> BuiltinDataCons (tnat --> tnat))
   , (builtinTrue                             |-> BuiltinDataCons tbool)
@@ -353,6 +356,7 @@ coreBuiltins =
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMQuoteTerm                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ elV 1 (varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMUnquoteTerm                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
+  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (El Inf <$> varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMBlockOnMeta                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
@@ -379,8 +383,10 @@ coreBuiltins =
         elV x a = El (varSort x) <$> a
 
         tsetL l    = return $ sort (varSort l)
+        tsetOmega  = return $ sort Inf
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
+        tmaybe x   = el $ tMaybe (fmap unEl x)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
@@ -539,9 +545,7 @@ coreBuiltins =
 --   Returns the name of the data/record type.
 inductiveCheck :: String -> Int -> Term -> TCM (QName, Definition)
 inductiveCheck b n t = do
-  t <- etaContract =<< normalise t
-  case t of
-    Def q _ -> do
+  caseMaybeM (headSymbol t) no $ \q -> do
       def <- getConstInfo q
       let yes = return (q, def)
       case theDef def of
@@ -550,8 +554,13 @@ inductiveCheck b n t = do
           | otherwise      -> no
         Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> yes
         _ -> no
-    _ -> no
   where
+  headSymbol :: Term -> TCM (Maybe QName)
+  headSymbol t = reduce t >>= \case
+    Def q _ -> return $ Just q
+    Lam _ b -> headSymbol $ lazyAbsApp b __DUMMY_TERM__
+    _       -> return Nothing
+
   no
     | n == 1 = typeError $ GenericError $ unwords
         [ "The builtin", b
@@ -722,6 +731,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
            | s == builtinUnit     -> bindBuiltinUnit     v
            | s == builtinSigma    -> bindBuiltinSigma    v
            | s == builtinList     -> bindBuiltinData s   v
+           | s == builtinMaybe    -> bindBuiltinData s   v
            | otherwise            -> bindBuiltinName s   v
 
       BuiltinDataCons t -> do
@@ -828,7 +838,7 @@ bindBuiltin b x = do
       VarName{}            -> failure
       DefinedName _ x      -> return $ x :| []
       FieldName xs         -> return xs
-      ConstructorName xs   -> return xs
+      ConstructorName _ xs -> return xs
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
@@ -852,7 +862,7 @@ bindBuiltin b x = do
     now new b = warning $ OldBuiltin b new
 
 isUntypedBuiltin :: String -> Bool
-isUntypedBuiltin b = b `elem` [builtinFromNat, builtinFromNeg, builtinFromString]
+isUntypedBuiltin = hasElem [ builtinFromNat, builtinFromNeg, builtinFromString ]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
@@ -861,7 +871,7 @@ bindUntypedBuiltin b = \case
   FieldName (x :| _)   -> amb x
   VarName _x _bnd      -> wrong
   UnknownName          -> wrong
-  ConstructorName   xs -> err xs
+  ConstructorName _ xs -> err xs
   PatternSynResName xs -> err xs
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
@@ -964,11 +974,11 @@ bindBuiltinNoDef b q = inTopContext $ do
 
 
 builtinKindOfName :: String -> Maybe KindOfName
-builtinKindOfName b = distinguish <$> find ((b ==) . builtinName) coreBuiltins
+builtinKindOfName = distinguish <.> findBuiltinInfo
   where
   distinguish d = case builtinDesc d of
     BuiltinDataCons{}  -> ConName
-    BuiltinData{}      -> DataName
+    BuiltinData{}      -> DataName       -- Andreas, 2020-04-13: Crude.  Could be @RecName@.
     BuiltinPrim{}      -> PrimName
     BuiltinPostulate{} -> AxiomName
     BuiltinUnknown{}   -> OtherDefName

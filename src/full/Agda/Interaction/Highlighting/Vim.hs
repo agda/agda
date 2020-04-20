@@ -6,6 +6,7 @@ import Control.Monad.Trans
 import Data.Function ( on )
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Maybe
 
 import System.FilePath
 
@@ -67,9 +68,9 @@ matches cons icons defs idefs flds iflds =
 toVim :: NamesInScope -> String
 toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
     where
-        cons = [ x | (x, def:_) <- Map.toList ns, anameKind def == ConName ]
-        defs = [ x | (x, def:_) <- Map.toList ns, isDefName (anameKind def)]
-        flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName ]
+        cons = [ x | (x, con:_) <- Map.toList ns, isJust $ isConName $ anameKind con ]
+        defs = [ x | (x, def:_) <- Map.toList ns, isDefName (anameKind def) ]
+        flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName  ]
 
         mcons = map show cons
         mdefs = map show defs

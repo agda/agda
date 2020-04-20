@@ -46,6 +46,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 import Agda.Utils.Except
 import Agda.Utils.Either
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1678,7 +1680,7 @@ bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA $ List1.toList xs)
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
@@ -1787,7 +1789,7 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  (pars, ixs) <- normalise $ splitAt nofPars vs
+                  let (pars, ixs) = splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars
                   return PointCons
