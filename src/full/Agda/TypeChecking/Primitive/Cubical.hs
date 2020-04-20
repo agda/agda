@@ -6,6 +6,8 @@ import Prelude hiding (null, (!!))
 
 import Control.Monad
 import Control.Monad.Trans ( lift )
+import Control.Exception
+import Data.Typeable
 
 import Data.Either ( partitionEithers )
 import Data.Map (Map)
@@ -31,6 +33,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
+import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 
@@ -1951,6 +1954,16 @@ combineSys' l ty xs = do
     (,) <$> foldr max (pure iz) (map fst xs) <*> combine xs
 
 
+data TranspError = CannotTransp {errorType :: (Closure (Abs Type)) }
+
+instance Exception TranspError
+instance Show TranspError where
+  show _ = "TranspError"
+
+tryTranspError :: TCM a -> TCM (Either (Closure (Abs Type)) a)
+tryTranspError (TCM m) = TCM $ \ s env -> do
+  mapLeft errorType <$> (try (m s env))
+
 transpPathTel' ::
              NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
              -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
@@ -1974,8 +1987,8 @@ transpPathTel' theTel x y phi p = do
    p0 <- sequence $ flip map p (<@> j)
    let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs theTel))
    -- TODO catch?
-   Right q <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
-   pure q
+   eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
+   either (lift . lift . throw . CannotTransp) pure eq
  qs
 
 trFillPathTel' ::

@@ -89,11 +89,11 @@ module IntervalEquations where
   test-n8 : ∀ {i} → P (i ∧ i1) ≡ P i
   test-n8 = refl
 
-reflId : ∀ {l} {A : Set l} {x : A} → Id x x
-reflId = conid i1 refl
+reflId' : ∀ {l} {A : Set l} {x : A} → Id x x
+reflId' = conid i1 refl
 
 J-comp : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} {P : ∀ y → Id x y → Set ℓ'} →
-         (d : P x reflId) → J P d reflId ≡ d
+         (d : P x reflId') → J P d reflId' ≡ d
 J-comp _ = refl
 
 outPartial : ∀ {ℓ} {A : Set ℓ} → Partial i1 A → A

@@ -8,6 +8,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
+import Control.Exception as E
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -43,6 +44,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Except
+import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -171,7 +173,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         mtranspix <- inTopContext $ defineTranspIx name
-        transpFun <- inTopContext $ defineTranspFun name mtranspix cons
+        transpFun <- inTopContext $ defineTranspFun name mtranspix cons (dataPathCons dataDef)
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
@@ -761,11 +763,13 @@ defineTranspIx d = do
         s = sub tel
         ys = map (fmap (abstract t) . applySubst s) xs
 
+
 defineTranspFun :: QName -- ^ datatype
                 -> Maybe QName -- ^ transpX "constructor"
                 -> [QName]     -- ^ constructor names
+                -> [QName]     -- ^ path cons
                 -> TCM (Maybe QName) -- transp function for the datatype.
-defineTranspFun d mtrX cons = do
+defineTranspFun d mtrX cons pathCons = do
   def <- getConstInfo d
   case theDef def of
     Datatype { dataPars = npars
@@ -784,6 +788,7 @@ defineTranspFun d mtrX cons = do
       trD <- freshAbstractQName'_ $ "transp" ++ P.prettyShow (A.qnameName d)
       TelV params t' <- telViewUpTo npars t
       TelV ixs    dT <- telViewUpTo nixs t'
+
       let tel = abstract params ixs
       mixs <- runMaybeT $ traverse (traverse (MaybeT . toLType)) ixs
       caseMaybe mixs (return Nothing) $ \ _ -> do
@@ -825,9 +830,11 @@ defineTranspFun d mtrX cons = do
             , clauseRecursive   = Just False  -- non-recursive
             , clauseUnreachable = Just False
             }
-
-        -- TODO define phi = 1 clause
-        cs <- (clause:) <$> defineConClause trD mtrX npars nixs ixs telI sigma dTs cons
+        let debugNoTransp cl = enterClosure cl $ \ t -> do
+              reportSDoc "tc.data.transp" 20 $ addContext ("i" :: String, __DUMMY_DOM__) $
+                "could not transp" <+> prettyTCM (absBody t)
+        ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
+        caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
         let fun = emptyFunction
                   { funClauses    = cs
@@ -842,11 +849,11 @@ defineTranspFun d mtrX cons = do
             { defNoCompilation  = True
             }
         reportSDoc "tc.data.transp" 20 $ sep
-          [ "compiled clauses of " <+> prettyTCM trD
+          [ "transp: compiled clauses of " <+> prettyTCM trD
           , nest 2 $ return $ P.pretty cc
           ]
 
-      return $ Just trD
+        return $ Just trD
 
 
     Datatype {} -> return Nothing
@@ -865,17 +872,19 @@ defineTranspFun d mtrX cons = do
         s = sub tel
         ys = map (fmap (abstract t) . applySubst s) xs
 
+
 defineConClause :: QName -- ^ trD
+                -> Bool  -- ^ HIT
                 -> Maybe QName -- ^ trX
                 -> Nat  -- ^ npars = size Δ
                 -> Nat  -- ^ nixs = size X
-                -> Telescope -- ^ Δ ⊢ X 
+                -> Telescope -- ^ Δ ⊢ X
                 -> Telescope -- ^ (Δ.X)^I
                 -> Substitution -- ^ (Δ.X)^I, i : I ⊢ σ : Δ.X
                 -> Type       -- ^ (Δ.X)^I, i : I ⊢ D[δ i,x i] -- datatype
                 -> [QName]      -- ^ Constructors
                 -> TCM [Clause]
-defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
+defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
   unless (isNothing mtrX == (nixs == 0)) $ __IMPOSSIBLE__
 
@@ -923,7 +932,8 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
   -- [δ : Δ^I, x : X^I, i : I] ⊢ D (δ i) (x i)
   let dT = pure $ AbsN (teleNames parI ++ teleNames ixsI ++ ["i"]) dT'
 
-  c_HComp <- do
+  let hcompComputes = not $ isHIT || nixs > 0
+  c_HComp <- if hcompComputes then return [] else do
       reportSDoc "tc.data.transp.con" 20 $ "======================="
       reportSDoc "tc.data.transp.con" 20 $ "hcomp"
       qHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
@@ -1093,7 +1103,8 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
               bs <- bndry `applyN` ts
               xs <- mapM (\(phi,u) -> (,) <$> open phi <*> open u) $ do
                 (i,(l,r)) <- bs
-                [(tINeg `apply` [argN i],l),(i,r)]
+                let pElem t = Lam (setRelevance Irrelevant defaultArgInfo) $ NoAbs "o" t
+                [(tINeg `apply` [argN i],pElem l),(i,pElem r)]
               combineSys' l ty xs
             (,) <$> open (fst <$> p) <*> open (snd <$> p)
           bind_trD $ \ delta_ps x_ps phi_ps -> do
@@ -1129,13 +1140,15 @@ defineConClause trD' mtrX npars nixs xTel' telI sigma dT' cnames = do
           -- Declared Constructors.
           let aTelI = bind "i" $ \ i -> aTel `applyN` map (<@> i) delta
 
-          -- TODO catch
-          Right as1 <- (=<<) (lift . runExceptT) $ transpTel <$> aTelI <*> phi <*> sequence as0
+          eas1 <- (=<<) (lift . runExceptT) $ transpTel <$> aTelI <*> phi <*> sequence as0
+
+          caseEitherM (pure eas1) (lift . lift . E.throw . CannotTransp) $ \ as1 -> do
+
           as1 <- mapM (open . unArg) as1
 
           as01 <- (open =<<) $ bind "i" $ \ i -> do
-            Right as01 <- (=<<) (lift . runExceptT) $ trFillTel <$> aTelI <*> phi <*> sequence as0 <*> i
-            return as01
+            eas01 <- (=<<) (lift . runExceptT) $ trFillTel <$> aTelI <*> phi <*> sequence as0 <*> i
+            caseEitherM (pure eas01) (lift . lift . E.throw . CannotTransp) pure
           let cas1 = applyN u $ map (<@> pure io) delta ++ as1
 
           let base | Nothing <- mtrX = cas1
@@ -1252,7 +1265,7 @@ data CType = ClosedType QName | LType LType deriving (Eq,Show)
 
 instance P.Pretty CType where
   pretty = P.pretty . fromCType
-  
+
 fromCType :: CType -> Type
 fromCType (ClosedType q) = El Inf (Def q [])
 fromCType (LType t) = fromLType t
