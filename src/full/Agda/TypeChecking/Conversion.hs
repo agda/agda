@@ -1390,7 +1390,6 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
         isMetaLevel _ = False
 
--- | Precondition: levels are 'normalise'd.
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
@@ -1470,15 +1469,11 @@ equalLevel a b = do
           sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
 
         -- meta == any
-        (SinglePlus (Plus k (MetaLevel x as)) :| [] , bs)
-          | any (isThisMeta x) bs -> postpone
-        (as , SinglePlus (Plus k (MetaLevel x bs)) :| [])
-          | any (isThisMeta x) as -> postpone
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
           -- there is only a potential choice when k == l
-          | k == l -> if
-              | y < x     -> meta x as' $ atomicLevel $ MetaLevel y bs'
-              | otherwise -> meta y bs' $ atomicLevel $ MetaLevel x as'
+          | k == l -> do
+              lvl <- levelType
+              equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , _)
           | Just b' <- subLevel k b -> meta x as' b'
         (_ , SinglePlus (Plus l (MetaLevel y bs')) :| [])
@@ -1544,9 +1539,6 @@ equalLevel a b = do
           Plus _ (NeutralLevel _ v) -> isJust $ firstMeta v
           Plus _ (UnreducedLevel v) -> isJust $ firstMeta v
         hasMeta (SingleClosed _) = False
-
-        isThisMeta x (SinglePlus (Plus _ (MetaLevel y _))) = x == y
-        isThisMeta _ _                                     = False
 
         removeSubsumed a b =
           let as = NonEmpty.toList $ levelMaxView a
