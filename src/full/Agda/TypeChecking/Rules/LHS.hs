@@ -1764,14 +1764,13 @@ checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCSta
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
                     => DataOrRecord -> a -> Maybe ty -> m ()
 checkSortOfSplitVar dr a mtarget = do
-  infOk <- optOmegaInOmega <$> pragmaOptions
   liftTCM (reduce $ getSort a) >>= \case
     Type{} -> return ()
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
       | otherwise              -> splitOnPropError
-    Inf{} | infOk -> return ()
+    Inf{} -> return ()
     _      -> softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
