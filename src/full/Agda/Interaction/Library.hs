@@ -195,8 +195,11 @@ findProjectConfig
   :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
   -> IO (Maybe (FilePath, [FilePath])) -- ^ Actual root and @.agda-lib@ files for this project
 findProjectConfig root = do
-  libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-  case libs of
+  candidates <- getDirectoryContents root
+  libs       <- flip filterM candidates $ \ file ->
+    and2M (pure $ takeExtension file == ".agda-lib")
+          (doesFileExist file)
+  case map (root </>) libs of
     []    -> do
       up <- canonicalizePath $ root </> ".."
       if up == root then return Nothing else findProjectConfig up
