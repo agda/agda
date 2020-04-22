@@ -427,11 +427,11 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
 instance EmbPrj a => EmbPrj (HasEta' a) where
   icod_ YesEta    = icodeN' YesEta
-  icod_ (NoEta a) = icodeN 1 NoEta a
+  icod_ (NoEta a) = icodeN' NoEta a
 
   value = vcase valu where
     valu []  = valuN YesEta
-    valu [1, a] = valuN NoEta a
+    valu [a] = valuN NoEta a
     valu _   = malformed
 
 instance EmbPrj PatternOrCopattern

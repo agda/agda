@@ -3048,7 +3048,8 @@ data Warning
     --   (See issue #4154.)
   | UselessPatternDeclarationForRecord String
     -- ^ The 'pattern' declaration is useless in the presence
-    --   of either @coinductive@ or @no-eta-equality@ (content of 'String').
+    --   of either @coinductive@ or @eta-equality@.
+    --   Content of 'String' is "coinductive" or "eta", resp.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
