@@ -654,7 +654,11 @@ assign dir x args v target = do
   -- with full unfolding.
   v <- instantiate v
   reportSDoc "tc.meta.assign" 45 $
-    "MetaVars.assign: assigning to " <+> prettyTCM v
+    "MetaVars.assign: assigning meta " <+> prettyTCM (MetaV x []) <+>
+    " with args " <+> prettyList_ (map (prettyTCM . unArg) args) <+>
+    " to " <+> prettyTCM v
+  reportSDoc "tc.meta.assign" 45 $
+    "MetaVars.assign: type of meta: " <+> prettyTCM t
 
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
