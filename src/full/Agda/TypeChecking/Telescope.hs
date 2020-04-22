@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
@@ -577,19 +578,22 @@ ifNotPiOrPathType t no yes = do
 -- | A safe variant of 'piApply'.
 
 class PiApplyM a where
+  piApplyM' :: MonadReduce m => m Empty -> Type -> a -> m Type
+
   piApplyM :: MonadReduce m => Type -> a -> m Type
+  piApplyM = piApplyM' __IMPOSSIBLE__
 
 instance PiApplyM Term where
-  piApplyM t v = ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b -> return $ absApp b v
+  piApplyM' err t v = ifNotPiType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
 
 instance PiApplyM a => PiApplyM (Arg a) where
-  piApplyM t = piApplyM t . unArg
+  piApplyM' err t = piApplyM' err t . unArg
 
 instance PiApplyM a => PiApplyM (Named n a) where
-  piApplyM t = piApplyM t . namedThing
+  piApplyM' err t = piApplyM' err t . namedThing
 
 instance PiApplyM a => PiApplyM [a] where
-  piApplyM t = foldl (\ mt v -> mt >>= (`piApplyM` v)) (return t)
+  piApplyM' err t = foldl (\ mt v -> mt >>= \t -> (piApplyM' err t v)) (return t)
 
 
 -- | Compute type arity
