@@ -667,6 +667,27 @@ assign dir x args v target = do
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
 
+  -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
+  -- we equate the sort of the solution with the sort of the
+  -- metavariable, in order to solve metavariables in sorts.
+  -- Jesper, 2020-04-22: We do this before any of the other steps
+  -- because comparing the sorts might lead to some metavariables
+  -- being solved, which can help with pruning (see #4615).
+  whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
+         (optCumulativity <$> pragmaOptions)) $ piApplyM' patternViolation t args >>= \case
+    El _ (Sort s) -> do
+      cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
+        case mvJudgement mvar of
+          HasType{ jComparison = cmp } -> return cmp
+          IsSort{} -> __IMPOSSIBLE__
+      s' <- sortOf v
+      reportSDoc "tc.meta.assign" 40 $
+        "Instantiating sort" <+> prettyTCM s <+>
+        "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+      traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+        compareSort cmp s' s
+    _ -> return ()
+
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
@@ -1041,25 +1062,6 @@ assignMeta' m x t n ids v = do
     -- then we give up. (Issue 903)
     when (size tel' < n)
        patternViolation -- WAS: __IMPOSSIBLE__
-
-    -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
-    -- we equate the sort of the solution with the sort of the
-    -- metavariable, in order to solve metavariables in sorts.
-    whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
-           (optCumulativity <$> pragmaOptions)) $ case unEl a of
-      Sort s -> addContext tel' $ do
-        m <- lookupMeta x
-        cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-          case mvJudgement m of
-            HasType{ jComparison = cmp } -> return cmp
-            IsSort{} -> __IMPOSSIBLE__
-        s' <- sortOf v'
-        reportSDoc "tc.meta.assign" 40 $
-          "Instantiating sort" <+> prettyTCM s <+>
-          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v'
-        traceCall (CheckMetaSolution (getRange m) x a v') $
-          compareSort cmp s' s
-      _ -> return ()
 
     -- Perform the assignment (and wake constraints).
 
