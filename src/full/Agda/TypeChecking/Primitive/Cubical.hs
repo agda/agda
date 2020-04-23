@@ -1964,6 +1964,32 @@ tryTranspError :: TCM a -> TCM (Either (Closure (Abs Type)) a)
 tryTranspError (TCM m) = TCM $ \ s env -> do
   mapLeft errorType <$> (try (m s env))
 
+transpPathPTel' ::
+             NamesT TCM (Abs (Abs Telescope)) -- ^ j.i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[0,i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[1,i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : PathP (λ j → Δ[j,0]) (x 0) (y 0)
+             -> NamesT TCM [Arg Term] -- PathP (λ j → Δ[j,0]) (x 1) (y 1) [ φ ↦ q ]
+transpPathPTel' theTel x y phi p = do
+ let neg j = cl primINeg <@> j
+ -- is the open overkill?
+ qs <- (open =<<) $ fmap (fmap (\ (Abs n (Arg i t)) -> Arg i (Lam defaultArgInfo $ Abs n t)) . sequenceA)
+                  $ bind "j" $ \ j -> do
+   theTel <- absApp <$> theTel <*> j
+   faces <- sequence $ [neg j, j]
+   us <- forM [x,y] $ \ z -> do
+           bind "i" $ \ i -> forM z (<@> i)
+   let sys = zip faces us
+   -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
+   -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
+   phi <- phi
+   p0 <- sequence $ flip map p (<@> j)
+   let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs $ theTel))
+   eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
+   either (lift . lift . throw . CannotTransp) pure eq
+ qs
+
 transpPathTel' ::
              NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
              -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
@@ -1986,7 +2012,6 @@ transpPathTel' theTel x y phi p = do
    phi <- phi
    p0 <- sequence $ flip map p (<@> j)
    let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs theTel))
-   -- TODO catch?
    eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
    either (lift . lift . throw . CannotTransp) pure eq
  qs
@@ -2006,6 +2031,26 @@ trFillPathTel' tel x y phi p r = do
   x' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM x (<@> (min r i))
   y' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM y (<@> (min r i))
   transpPathTel' (bind "i" $ \ i -> absApp <$> tel <*> min r i)
+                 x'
+                 y'
+                 (max phi (neg r))
+                 p
+
+trFillPathPTel' ::
+               NamesT TCM (Abs (Abs Telescope)) -- ^ j.i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[0,i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[1,i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (\ j -> Δ[j,0]) (x 0) (y 0)
+             -> NamesT TCM Term            -- ^ r
+             -> NamesT TCM [Arg Term] -- Path (\ j → Δ[j,r]) (x r) (y r) [ φ ↦ q; (r = 0) ↦ q ]
+trFillPathPTel' tel x y phi p r = do
+  let max i j = cl primIMin <@> i <@> j
+  let min i j = cl primIMin <@> i <@> j
+  let neg i = cl primINeg <@> i
+  x' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM x (<@> (min r i))
+  y' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM y (<@> (min r i))
+  transpPathPTel' (bind "j" $ \ j -> bind "i" $ \ i -> absApp <$> (absApp <$> tel <*> j) <*> min r i)
                  x'
                  y'
                  (max phi (neg r))

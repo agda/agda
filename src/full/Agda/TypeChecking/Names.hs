@@ -196,3 +196,6 @@ abstractN tel f = do
 
 lamTel :: Monad m => NamesT m (Abs [Term]) -> NamesT m ([Term])
 lamTel t = map (Lam defaultArgInfo) . sequenceA <$> t
+
+appTel :: Monad m => NamesT m [Term] -> NamesT m Term -> NamesT m [Term]
+appTel = liftM2 (\ fs x -> map (`apply` [Arg defaultArgInfo x]) fs)

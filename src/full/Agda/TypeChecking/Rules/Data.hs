@@ -1114,8 +1114,6 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let delta = map (fmap unArg) delta_ps
           let [phi] = map (fmap unArg) phi_ps
           --- pattern matching args below
-          let x' = flip map x (\ q -> lam "i" $ \ i -> q <@> pure iz)
-          let phi's = [pure io]
           bindNArg aTelArgs $ \ as0 -> do -- as0 : aTel[delta 0]
 
           let aTel0 = aTel `applyN` map (<@> pure iz) delta
@@ -1151,22 +1149,28 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           as01 <- (open =<<) $ bind "i" $ \ i -> do
             eas01 <- (=<<) (lift . runExceptT) $ trFillTel <$> aTelI <*> phi <*> sequence as0 <*> i
             caseEitherM (pure eas01) (lift . lift . E.throw . CannotTransp) pure
+
+          let argApp a t = liftM2 (\ a t -> fmap (`apply` [argN t]) a) a t
+          let
+            argLam :: MonadFail m => String -> (Var m -> NamesT m (Arg Term)) -> NamesT m (Arg Term)
+            argLam n f = (\ (Abs n (Arg i t)) -> Arg i $ Lam defaultArgInfo $ Abs n t) <$> bind "n" f
           let cas1 = applyN u $ map (<@> pure io) delta ++ as1
 
           let base | Nothing <- mtrX = cas1
                    | Just trX <- mtrX = do
-                       let theTel = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
+                       let theTel = bind "j" $ \ j -> bind "i" $ \ i -> applyN xTel (map (<@> max i j) delta)
                        let theLeft = lamTel $ bind "i" $ \ i -> do
                              as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
                              con_ixs `applyN` (map (<@> i) delta ++ as01)
                        theLeft <- mapM open =<< theLeft
-                       let [phi'] = phi's
+                       theRight <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> do
+                         con_ixs `applyN` (map (<@> pure io) delta ++ as1)
 
-                       -- we could exploit phi' here to make this transp
-                       -- compute better(?) when x' is constant.
-                       let trx' = transpPathTel' theTel theLeft x phi x'
-                       let args = liftM2 (++) (deltaArg (pure io)) trx'
-                       (apply (Def trX []) <$> args) <@> (phi `min` phi') <@> cas1
+                       trx' <- transpPathPTel' theTel x theRight phi theLeft
+                       let args = liftM2 (++) (deltaArg (pure io)) (forM trx' \ q' -> do
+                                                                       q' <- open q'
+                                                                       argLam "i" $ \ i -> q' `argApp` neg i)
+                       (apply (Def trX []) <$> args) <@> phi <@> cas1
 
 
           if null boundary then base else do
@@ -1175,32 +1179,39 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
           -- bline : Abs I ([phi] → ty)
           let blineFace = applyN bsysFace $ map (<@> pure io) delta ++ as1
-          let bline = lam "i" $ \ i -> do
+          let bline = do
+                let theTel = bind "j" $ \ j -> bind "i" $ \ i -> applyN xTel (map (<@> max i j) delta)
+                let theLeft = lamTel $ bind "i" $ \ i -> do
+                      as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
+                      con_ixs `applyN` (map (<@> i) delta ++ as01)
+                theLeft <- mapM open =<< theLeft
+                theRight <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> do
+                  con_ixs `applyN` (map (<@> pure io) delta ++ as1)
+                let q2_f = bind "i" $ \ i -> map unArg <$> trFillPathPTel' theTel x theRight phi theLeft i
+
+                lam "i" $ \ i -> do
                 let v0 = do
                      as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
                      applyN bsys $ map (<@> i) delta ++ as01
-                caseMaybe mtrX v0 $ \ trX -> ilam "o" $ \ o -> do
-                  let theTel = bind "i" $ \ i -> applyN xTel (map (<@> i) delta)
-                  let theLeft = lamTel $ bind "i" $ \ i -> do
-                        as01 <- mapM (open . unArg) =<< (absApp <$> as01 <*> i)
-                        con_ixs `applyN` (map (<@> i) delta ++ as01)
-                  let [phi'] = phi's
-                  theLeft <- mapM open =<< theLeft
-                  let trx' = trFillPathTel' theTel theLeft x phi x' i
-                  let args = liftM2 (++) (deltaArg i) trx'
-                  (apply (Def trX []) <$> args) <@> (phi `min` phi') <@> (v0 <..> o)
+                let squeezedv0 = ilam "o" $ \ o -> do
+                      let
+                        delta_f :: [NamesT TCM Term]
+                        delta_f = flip map delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
+                      x_f <- (mapM open =<<) $ lamTel $ bind "j" $ \ j ->
+                                 (absApp <$> q2_f <*> j) `appTel` i
+                      trD `applyN` delta_f `applyN` x_f `applyN` [phi `max` i, v0 <..> o]
 
-          -- transp ... (bsys[δ 0,as0]) ≡ bsys[δ 1,as1]
-          let blinesqueezed = lam "i" $ \ i -> ilam "o" $ \ o -> do
-                let
-                  delta_f :: [NamesT TCM Term]
-                  delta_f = flip map delta $ \ p -> lam "j" $ \ j -> p <@> (j `max` i)
-                  x_f :: [NamesT TCM Term]
-                  x_f = flip map x $ \ q -> lam "j" $ \ j -> q <@> (j `max` i)
-                trD `applyN` delta_f `applyN` x_f `applyN` [phi `max` i, bline <@> i <..> o]
+                caseMaybe mtrX squeezedv0 $ \ trX -> ilam "o" $ \ o -> do
+                  q2 <- transpPathPTel' theTel x theRight phi theLeft
+                  let args = liftM2 (++) (deltaArg (pure io))
+                                         (forM q2 $ \ q' -> do
+                                            q' <- open q'
+                                            argLam "j" $ \ j -> q' `argApp` (neg j `min` i))
+
+                  (apply (Def trX []) <$> args) <@> (neg i `max` phi) <@> (squeezedv0 <..> o)
           hcomp
              rhsTy
-             [(blineFace,lam "i" $ \ i -> blinesqueezed <@> (neg i))
+             [(blineFace,lam "i" $ \ i -> bline <@> (neg i))
              ,(phi      ,lam "i" $ \ _ -> ilam "o" $ \ _ -> orig)
              ]
              base
