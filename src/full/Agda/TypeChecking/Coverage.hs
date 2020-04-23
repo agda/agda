@@ -475,7 +475,14 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
-          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (createMissingConIdClause f n x sc . snd . snd)
+          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (\ (t,(_newSc,i)) -> do
+                                                                           reflId <- getBuiltinName' builtinReflId
+                                                                           if | SplitCon c <- t, Just c == reflId
+                                                                              ->
+                                                                                createMissingConIdClause f n x sc i
+                                                                              | otherwise
+                                                                              -> return Nothing
+                                                                         )
           results <- mapM ((cover f cs) . snd) scs
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
@@ -608,13 +615,16 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- Γ,(φ : I),(p : u ≡ v) | (i : I) ⊢ leftInv[i] = γ[ileftInv[i]],φ[ileftInv[i]],p[iLeftInv[i]] :  Γ,(φ : I),(p : u ≡ v)
     irho = infoRho
 -}
-createMissingConIdClause :: QName
-                         -> Arg Nat
-                         -> BlockingVar
-                         -> SplitClause
-                         -> IInfo
+
+-- | If given @TheInfo{}@ then assumes "x : Id u v" and
+--   returns both a @SplittingDone@ for conId, and the @Clause@ that covers it.
+createMissingConIdClause :: QName         -- ^ function being defined
+                         -> Arg Nat       -- ^ @covSplitArg@ index
+                         -> BlockingVar   -- ^ @x@ variable being split on.
+                         -> SplitClause   -- ^ clause before split
+                         -> IInfo         -- ^ info from unification
                          -> TCM (Maybe ((SplitTag,SplitTree),Clause))
-createMissingConIdClause f n x old_sc info@TheInfo{} = setCurrentRange f $ do
+createMissingConIdClause f _n x old_sc info@TheInfo{} = setCurrentRange f $ do
   let
     -- iΓ'
     itel = infoTel
@@ -1420,17 +1430,17 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
       throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
     Unifies (delta1',rho0,eqs,tauInv) -> do
 
-      mid <- getName' builtinId
-      let unifyInfo | Just d == mid -- here because we only handle Id for now.
-                    , not $ null $ conIxs
+      let unifyInfo | True -- moved the check higher up: Just d == mid -- here because we only handle Id for now.
+                    , not $ null $ conIxs -- no point propagating this info if trivial?
                     , Right (tau,leftInv) <- tauInv
-                    -- TODO report error if Illegal.
+                    -- we report warning below if Left Illegal.
             = TheInfo delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
                     | otherwise
             = NoInfo
 
-      when (Just d == mid && isLeft tauInv) $
-        lift $ genericWarning =<< text "No equiv while spitting on Id"
+      when (isLeft tauInv) $
+        -- TODO better error msg.
+        lift $ genericWarning =<< text "No equiv while splitting on indexed family"
 
       debugSubst "rho0" rho0
 
