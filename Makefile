@@ -60,7 +60,11 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
+ifeq ("$(shell ghc --info | grep 'target word size' | cut -d\" -f4)","4")
+GHC_OPTS           = "+RTS -M1.5G -RTS"
+else
 GHC_OPTS           = "+RTS -M3G -RTS"
+endif
 CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
