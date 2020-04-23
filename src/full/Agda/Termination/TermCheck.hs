@@ -242,7 +242,19 @@ termMutual' = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   r <- billToTerGraph $ Term.terminates calls1
-  r <- case r of
+  r <-
+       -- Andrea: 22/04/2020.
+       -- With cubical we will always have a clause where the dot
+       -- patterns are instead replaced with a variable, so they
+       -- cannot be relied on for termination.
+       -- See issue #4606 for a counterexample involving HITs.
+       --
+       -- Without the presence of HITs I conjecture that dot patterns
+       -- could be turned into actual splits, because no-confusion
+       -- would make the other cases impossible, so I do not disable
+       -- this for --without-K entirely.
+       ifM (optCubical <$> pragmaOptions) (return r) {- else -} $
+       case r of
          r@Right{} -> return r
          Left{}    -> do
            -- Try again, but include the dot patterns this time.
