@@ -231,7 +231,8 @@ instance Hilite A.Expr where
   hilite = \case
       A.Var x                    -> hl $ A.BindName x        -- bound variable like binder
       A.Def q                    -> hiliteQName Nothing q
-      A.Proj _o qs               -> hiliteProjection qs
+      A.Proj _o qs               -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
+                                      -- Names from @open R r@ should not be highlighted as projections
       A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
       A.PatternSyn qs            -> hilitePatternSynonym qs
       A.Macro q                  -> hiliteQName (Just Macro) q

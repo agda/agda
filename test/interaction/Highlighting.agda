@@ -122,3 +122,20 @@ module Issue3432 where
 open Issue3432 using (con′; d′)
   -- These pattern synonyms should be highlighted
   -- in inductive constructor color.
+
+module Issue4604 where
+
+  record RR : Set₁ where
+    field
+      A : Set
+
+  postulate
+    rr : RR
+
+  open RR rr
+
+  rr₁ : RR
+  rr₁ = record { A = A }  -- Second A should /not/ be highlighted as projection.
+
+  rr₂ : RR
+  rr₂ = record { A = RR.A rr }  -- All other As should have field/projection color.
