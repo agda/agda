@@ -153,6 +153,7 @@ data WarningName
   | EmptyPrimitive_
   | EmptyPrivate_
   | EmptyRewritePragma_
+  | EmptyWhere_
   | InvalidCatchallPragma_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
@@ -290,6 +291,7 @@ warningNameDescription = \case
   EmptyPrimitive_                  -> "Empty `primitive' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
+  EmptyWhere_                      -> "Empty `where' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."

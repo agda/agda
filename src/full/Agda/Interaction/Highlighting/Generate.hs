@@ -409,6 +409,7 @@ warningHighlighting w = case tcWarning w of
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
   EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
+  EmptyWhere{}               -> deadcodeHighlighting $ getRange w
   IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
   UselessPublic{}            -> deadcodeHighlighting $ getRange w
   UselessInline{}            -> mempty

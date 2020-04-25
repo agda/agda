@@ -316,16 +316,23 @@ data RHS' e
   | RHS e
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
-
+-- | @where@ block following a clause.
 type WhereClause = WhereClause' [Declaration]
+
+-- The generalization @WhereClause'@ is for the sake of Concrete.Generic.
 data WhereClause' decls
-  = NoWhere               -- ^ No @where@ clauses.
-  | AnyWhere decls        -- ^ Ordinary @where@.
-  | SomeWhere Name Access decls
-    -- ^ Named where: @module M where@.
-    --   The 'Access' flag applies to the 'Name' (not the module contents!)
-    --   and is propagated from the parent function.
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  = NoWhere
+      -- ^ No @where@ clauses.
+  | AnyWhere Range decls
+      -- ^ Ordinary @where@.  'Range' of the @where@ keyword.
+      --   List of declarations can be empty.
+  | SomeWhere Range Name Access decls
+      -- ^ Named where: @module M where ds@.
+      --   'Range' of the keywords @module@ and @where@.
+      --   The 'Access' flag applies to the 'Name' (not the module contents!)
+      --   and is propagated from the parent function.
+      --   List of declarations can be empty.
+  deriving (Data, Eq, Functor, Foldable, Traversable)
 
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
@@ -722,9 +729,9 @@ instance HasRange BoundName where
   getRange = getRange . boundName
 
 instance HasRange WhereClause where
-  getRange  NoWhere         = noRange
-  getRange (AnyWhere ds)    = getRange ds
-  getRange (SomeWhere _ _ ds) = getRange ds
+  getRange  NoWhere             = noRange
+  getRange (AnyWhere r ds)      = getRange (r, ds)
+  getRange (SomeWhere r x _ ds) = getRange (r, x, ds)
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
@@ -1015,9 +1022,9 @@ instance KillRange TypedBinding where
   killRange (TLet r ds)   = killRange2 TLet r ds
 
 instance KillRange WhereClause where
-  killRange NoWhere         = NoWhere
-  killRange (AnyWhere d)    = killRange1 AnyWhere d
-  killRange (SomeWhere n a d) = killRange3 SomeWhere n a d
+  killRange NoWhere             = NoWhere
+  killRange (AnyWhere r d)      = killRange1 (AnyWhere noRange) d
+  killRange (SomeWhere r n a d) = killRange3 (SomeWhere noRange) n a d
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -1175,9 +1182,9 @@ instance NFData ModuleAssignment where
   rnf (ModuleAssignment a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (WhereClause' a) where
-  rnf NoWhere         = ()
-  rnf (AnyWhere a)    = rnf a
-  rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf NoWhere             = ()
+  rnf (AnyWhere _ a)      = rnf a
+  rnf (SomeWhere _ a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData LamClause where
   rnf (LamClause a b c) = rnf (a, b, c)

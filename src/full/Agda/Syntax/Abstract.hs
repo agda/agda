@@ -345,6 +345,8 @@ data Clause' lhs = Clause
 
 data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
+      -- #2897: we need to restrict named where modules in refined contexts,
+      --        so remember whether it was named here
   , whereDecls  :: [Declaration]
   } deriving (Data, Show, Eq)
 

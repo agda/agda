@@ -1112,10 +1112,11 @@ HoleContent
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
 WhereClause
-    : {- empty -}                      { NoWhere         }
-    | 'where' Declarations0            { AnyWhere $2     }
-    | 'module' Id 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
-    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
+    : {- empty -}                               { NoWhere }
+    |                     'where' Declarations0 { AnyWhere  (getRange $1) $2 }
+    | 'module' Id         'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
+    | 'module' Underscore 'where' Declarations0 { SomeWhere (getRange ($1,$3)) $2 PublicAccess $4 }
+  -- Note: The access modifier is a dummy, it is computed in the nicifier.
 
 ExprWhere :: { ExprWhere }
 ExprWhere : Expr WhereClause { ExprWhere $1 $2 }

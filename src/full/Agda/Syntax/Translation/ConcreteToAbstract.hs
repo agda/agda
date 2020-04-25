@@ -2254,57 +2254,66 @@ instance ToAbstract C.Clause A.Clause where
     eqs <- mapM (toAbstractCtx TopCtx) eqs
     vars2 <- getLocalVars
     let vars = dropEnd (length vars1) vars2 ++ vars0
-    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-    let (whname, whds) = case wh of
-          NoWhere        -> (Nothing, [])
-          -- Andreas, 2016-07-17 issues #2081 and #2101
-          -- where-declarations are automatically private.
-          -- This allows their type signature to be checked InAbstractMode.
-          AnyWhere ds    -> (Nothing, [C.Private noRange Inserted ds])
-          -- Named where-modules do not default to private.
-          SomeWhere m a ds -> (Just (m, a), ds)
+    let wcs' = map (setLocalVars vars $>) wcs
 
-    let isTerminationPragma :: C.Declaration -> Bool
-        isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
-        isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
-        isTerminationPragma _                                       = False
-
+    -- Handle rewrite equations first.
     if not (null eqs)
       then do
-        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whname whds)
+        rhs <- toAbstractCtx TopCtx $ RightHandSide eqs with wcs' rhs wh
+        rhs <- toAbstract rhs
         return $ A.Clause lhs' [] rhs A.noWhereDecls catchall
       else do
-        -- ASR (16 November 2015) Issue 1137: We ban termination
-        -- pragmas inside `where` clause.
-        when (any isTerminationPragma whds) $
-             genericError "Termination pragmas are not allowed inside where clauses"
-
         -- the right hand side is checked with the module of the local definitions opened
-        (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
-                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs Nothing [])
+        (rhs, ds) <- whereToAbstract (getRange wh) wh $
+                       toAbstractCtx TopCtx $ RightHandSide [] with wcs' rhs NoWhere
         rhs <- toAbstract rhs
-                 -- #2897: we need to restrict named where modules in refined contexts,
-                 --        so remember whether it was named here
         return $ A.Clause lhs' [] rhs ds catchall
 
+
 whereToAbstract
-  :: Range                            -- ^ The range of the @where@-block.
-  -> Maybe (C.Name, Access)           -- ^ The name of the @where@ module (if any).
-  -> [C.Declaration]                  -- ^ The contents of the @where@ module.
+  :: Range                            -- ^ The range of the @where@ block.
+  -> C.WhereClause                    -- ^ The @where@ block.
   -> ScopeM a                         -- ^ The scope-checking task to be run in the context of the @where@ module.
   -> ScopeM (a, A.WhereDeclarations)  -- ^ Additionally return the scope-checked contents of the @where@ module.
-whereToAbstract _ whname []   inner = (, A.noWhereDecls) <$> inner
-whereToAbstract r whname whds inner = do
+whereToAbstract r wh inner = do
+  case wh of
+    NoWhere       -> ret
+    AnyWhere _ [] -> warnEmptyWhere
+    AnyWhere _ ds -> do
+      -- Andreas, 2016-07-17 issues #2081 and #2101
+      -- where-declarations are automatically private.
+      -- This allows their type signature to be checked InAbstractMode.
+      whereToAbstract1 r Nothing (singleton $ C.Private noRange Inserted ds) inner
+    SomeWhere _ m a ds0 -> List1.ifNull ds0 warnEmptyWhere {-else-} $ \ ds -> do
+      -- Named where-modules do not default to private.
+      whereToAbstract1 r (Just (m, a)) ds inner
+  where
+  ret = (,A.noWhereDecls) <$> inner
+  warnEmptyWhere = do
+    setCurrentRange r $ warning EmptyWhere
+    ret
+
+whereToAbstract1
+  :: Range                            -- ^ The range of the @where@-block.
+  -> Maybe (C.Name, Access)           -- ^ The name of the @where@ module (if any).
+  -> List1 C.Declaration              -- ^ The contents of the @where@ module.
+  -> ScopeM a                         -- ^ The scope-checking task to be run in the context of the @where@ module.
+  -> ScopeM (a, A.WhereDeclarations)  -- ^ Additionally return the scope-checked contents of the @where@ module.
+whereToAbstract1 r whname whds inner = do
+  -- ASR (16 November 2015) Issue 1137: We ban termination
+  -- pragmas inside `where` clause.
+  when (any isTerminationPragma whds) $
+    genericError "Termination pragmas are not allowed inside where clauses"
+
   -- Create a fresh concrete name if there isn't (a proper) one.
   (m, acc) <- do
     case whname of
       Just (m, acc) | not (isNoName m) -> return (m, acc)
       _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess Inserted)
            -- unnamed where's are private
-  let tel = []
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
-  (scope, ds) <- scopeCheckModule r (C.QName m) am tel $ toAbstract whds
+  (scope, ds) <- scopeCheckModule r (C.QName m) am [] $ toAbstract $ List1.toList whds
   setScope scope
   x <- inner
   setCurrentModule old
@@ -2317,18 +2326,22 @@ whereToAbstract r whname whds inner = do
       defaultImportDir { publicOpen = Just noRange }
   return (x, A.WhereDecls (am <$ whname) ds)
 
+isTerminationPragma :: C.Declaration -> Bool
+isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
+isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
+isTerminationPragma _                                       = False
+
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]
-    -- ^ @rewrite e | with p <- e@ (many)
+      -- ^ @rewrite e | with p <- e@ (many)
   , _rhsWithExpr   :: [WithHiding C.WithExpr]
-    -- ^ @with e@ (many)
+      -- ^ @with e@ (many)
   , _rhsSubclauses :: [ScopeM C.Clause]
-    -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+      -- ^ The subclauses spawned by a @with@.
+      -- Monadic because we need to reset the local vars before checking these clauses.
   , _rhs           :: C.RHS
-  , _rhsWhereName  :: Maybe (C.Name, Access)
-    -- ^ The name of the @where@ module (if any).
-  , _rhsWhereDecls :: [C.Declaration]
-    -- ^ The contents of the @where@ module.
+  , _rhsWhere      :: WhereClause
+      -- ^ @where@ module.
   }
 
 data AbstractRHS
@@ -2388,20 +2401,23 @@ instance ToAbstract AbstractRHS A.RHS where
     A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide eqs@(_:_) es cs rhs whname wh) = do
-    (rhs, ds) <- whereToAbstract (getRange wh) whname wh $
-                  toAbstract (RightHandSide [] es cs rhs Nothing [])
+  toAbstract (RightHandSide eqs@(_:_) es cs rhs wh)               = do
+    (rhs, ds) <- whereToAbstract (getRange wh) wh $
+                   toAbstract (RightHandSide [] es cs rhs NoWhere)
     return $ RewriteRHS' eqs rhs ds
-  toAbstract (RightHandSide [] [] (_ : _) _ _ _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _ _) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs _ [])          = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS _ [])  = do
+  toAbstract (RightHandSide [] [] (_ : _) _ _)                    = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _)             = typeError BothWithAndRHS
+  toAbstract (RightHandSide [] [] [] rhs         NoWhere)         = toAbstract rhs
+  toAbstract (RightHandSide [] es cs C.AbsurdRHS NoWhere)         = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
   -- TODO: some of these might be possible
-  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS _ (_ : _)) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] (C.RHS _) _ (_ : _))       = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] [] [] C.AbsurdRHS _ (_ : _))     = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     [] C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     [] C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     [] C.RHS{}      AnyWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     [] C.RHS{}     SomeWhere{}) = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'

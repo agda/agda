@@ -408,10 +408,10 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (AnyWhere ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere m a ds) =
+  pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
+  pretty (SomeWhere _ m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
              [ "module", pretty m, "where" ]
          , nest 2 (vcat $ map pretty ds)

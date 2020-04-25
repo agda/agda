@@ -1776,9 +1776,9 @@ instance MakeAbstract Clause where
 
 -- | Contents of a @where@ clause are abstract if the parent is.
 instance MakeAbstract WhereClause where
-  mkAbstract  NoWhere           = return $ NoWhere
-  mkAbstract (AnyWhere ds)      = dirty $ AnyWhere [Abstract noRange ds]
-  mkAbstract (SomeWhere m a ds) = dirty $ SomeWhere m a [Abstract noRange ds]
+  mkAbstract  NoWhere             = return $ NoWhere
+  mkAbstract (AnyWhere r ds)      = dirty $ AnyWhere r [Abstract noRange ds]
+  mkAbstract (SomeWhere r m a ds) = dirty $ SomeWhere r m a [Abstract noRange ds]
 
 -- | Make a declaration private.
 --
@@ -1838,15 +1838,16 @@ instance MakePrivate Clause where
     Clause x catchall lhs rhs <$> mkPrivate o wh <*> mkPrivate o with
 
 instance MakePrivate WhereClause where
-  mkPrivate o  NoWhere         = return $ NoWhere
-  -- @where@-declarations are protected behind an anonymous module,
-  -- thus, they are effectively private by default.
-  mkPrivate o (AnyWhere ds)    = return $ AnyWhere ds
-  -- Andreas, 2016-07-08
-  -- A @where@-module is private if the parent function is private.
-  -- The contents of this module are not private, unless declared so!
-  -- Thus, we do not recurse into the @ds@ (could not anyway).
-  mkPrivate o (SomeWhere m a ds) = mkPrivate o a <&> \ a' -> SomeWhere m a' ds
+  mkPrivate o = \case
+    d@NoWhere    -> return d
+    -- @where@-declarations are protected behind an anonymous module,
+    -- thus, they are effectively private by default.
+    d@AnyWhere{} -> return d
+    -- Andreas, 2016-07-08
+    -- A @where@-module is private if the parent function is private.
+    -- The contents of this module are not private, unless declared so!
+    -- Thus, we do not recurse into the @ds@ (could not anyway).
+    SomeWhere r m a ds -> mkPrivate o a <&> \ a' -> SomeWhere r m a' ds
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.

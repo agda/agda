@@ -931,10 +931,10 @@ instance ToConcrete A.WhereDeclarations WhereClause where
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
-    let wh' = (if isNoName cm then AnyWhere else SomeWhere cm PublicAccess) $ ds'
+    let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
   bindToConcrete (A.WhereDecls _ ds) ret =
-    ret . AnyWhere =<< declsToConcrete ds
+    ret . AnyWhere noRange =<< declsToConcrete ds
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
 mergeSigAndDef (C.RecordSig _ x bs e : C.RecordDef r y ind eta pat c _ fs : ds)

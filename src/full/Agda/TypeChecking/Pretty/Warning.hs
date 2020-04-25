@@ -138,6 +138,8 @@ prettyWarning = \case
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
+
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
 
