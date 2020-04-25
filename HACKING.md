@@ -422,6 +422,13 @@ Emacs mode
 Faster compilation of Agda
 ==========================
 
+Since: April 2020.
+
+* `make type-check` just type-checks the Agda source, generating no code.
+  Can be 7 times faster as `make quicker-install-bin` (max 40s vs. max 5min).
+  Once all type errors are fixed, switch to `quicker-install-bin` or `install-bin`
+  for testing.
+
 Since: July 2019.
 
 * `make quicker-install-bin` compiles Agda will all optimizations turned off (`-O0`).

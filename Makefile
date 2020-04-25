@@ -126,6 +126,20 @@ else
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 endif
 
+# Type check the Agda source only (-fno-code).
+# Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
+
+.PHONY: type-check
+type-check:
+	@echo "================= Type checking using Cabal with -fno-code ==============="
+	time cabal build --builddir=$(BUILD_DIR)-no-code \
+	  --ghc-options=-fno-code \
+	  --ghc-options=-fwrite-interface \
+	  2>&1 \
+	  | sed -e '/.*dist.*build.*: No such file or directory/d' \
+	        -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+
+
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
 install-prof-bin : ensure-hash-is-correct
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
