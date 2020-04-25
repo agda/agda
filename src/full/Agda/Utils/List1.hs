@@ -59,6 +59,10 @@ ifNull :: [a] -> b -> (List1 a -> b) -> b
 ifNull []       b _ = b
 ifNull (a : as) _ f = f $ a :| as
 
+ifNotNull :: [a] -> (List1 a -> b) -> b -> b
+ifNotNull []       _ b = b
+ifNotNull (a : as) f _ = f $ a :| as
+
 unlessNull :: Null m => [a] -> (List1 a -> m) -> m
 unlessNull []       _ = empty
 unlessNull (x : xs) f = f $ x :| xs
