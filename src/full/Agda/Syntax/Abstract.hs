@@ -156,7 +156,7 @@ data Declaration
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-  | Section    ModuleInfo ModuleName GeneralizeTelescope [Declaration]
+  | Section    Range ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
@@ -347,11 +347,15 @@ data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
       -- #2897: we need to restrict named where modules in refined contexts,
       --        so remember whether it was named here
-  , whereDecls  :: [Declaration]
+  , whereDecls  :: Maybe Declaration
+      -- ^ The declaration is a 'Section'.
   } deriving (Data, Show, Eq)
 
+instance Null WhereDeclarations where
+  empty = WhereDecls empty empty
+
 noWhereDecls :: WhereDeclarations
-noWhereDecls = WhereDecls Nothing []
+noWhereDecls = empty
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS

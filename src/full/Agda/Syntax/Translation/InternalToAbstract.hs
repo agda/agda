@@ -957,12 +957,13 @@ instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs strippedPats rhs (A.WhereDecls _ []) ca) =
-    let bound' = varsBoundIn lhs `Set.union` bound
-    in  A.Clause (blank bound' lhs)
+  blank bound (A.Clause lhs strippedPats rhs wh ca)
+    | null wh =
+        A.Clause (blank bound' lhs)
                  (blank bound' strippedPats)
                  (blank bound' rhs) noWhereDecls ca
-  blank bound (A.Clause lhs strippedPats rhs _ ca) = __IMPOSSIBLE__
+    | otherwise = __IMPOSSIBLE__
+    where bound' = varsBoundIn lhs `Set.union` bound
 
 instance BlankVars A.LHS where
   blank bound (A.LHS i core) = A.LHS i $ blank bound core

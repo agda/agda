@@ -196,7 +196,7 @@ instance Hilite A.Declaration where
       A.Field _di x e                        -> hlField x <> hl e
       A.Primitive _di x e                    -> hl x <> hl e
       A.Mutual _mi ds                        -> hl ds
-      A.Section mi x tel ds                  -> hl mi <> hl x <> hl tel <> hl ds
+      A.Section _r x tel ds                  -> hl x <> hl tel <> hl ds
       A.Apply mi x a _ci dir                 -> hl mi <> hl x <> hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir

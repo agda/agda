@@ -1008,7 +1008,8 @@ scopeCheckNiceModule
   -> C.Name
   -> C.Telescope
   -> ScopeM [A.Declaration]
-  -> ScopeM [A.Declaration]
+  -> ScopeM A.Declaration
+       -- ^ The returned declaration is an 'A.Section'.
 scopeCheckNiceModule r p name tel checkDs
   | telHasOpenStmsOrModuleMacros tel = do
       -- Andreas, 2013-12-10:
@@ -1019,13 +1020,14 @@ scopeCheckNiceModule r p name tel checkDs
       -- identifiers in the parent scope of the current module.
       -- But open statements in the module telescope should
       -- only affect the current module!
-      scopeCheckNiceModule noRange p noName_ [] $
+      scopeCheckNiceModule noRange p noName_ [] $ singleton <$>
         scopeCheckNiceModule_
 
   | otherwise = do
         scopeCheckNiceModule_
   where
     -- The actual workhorse:
+    scopeCheckNiceModule_ :: ScopeM A.Declaration
     scopeCheckNiceModule_ = do
 
       -- Check whether we are dealing with an anonymous module.
@@ -1038,7 +1040,7 @@ scopeCheckNiceModule r p name tel checkDs
 
       -- Check and bind the module, using the supplied check for its contents.
       aname <- toAbstract (NewModuleName name)
-      ds <- snd <$> do
+      d <- snd <$> do
         scopeCheckModule r (C.QName name) aname tel checkDs
       bindModule p' name aname
 
@@ -1048,7 +1050,7 @@ scopeCheckNiceModule r p name tel checkDs
        void $ -- We can discard the returned default A.ImportDirective.
         openModule TopOpenModule (Just aname) (C.QName name) $
           defaultImportDir { publicOpen = boolToMaybe (p == PublicAccess) noRange }
-      return ds
+      return d
 
 -- | Check whether a telescope has open declarations or module macros.
 telHasOpenStmsOrModuleMacros :: C.Telescope -> Bool
@@ -1113,12 +1115,13 @@ instance EnsureNoLetStms a => EnsureNoLetStms [a] where
 
 -- | Returns the scope inside the checked module.
 scopeCheckModule
-  :: Range
+  :: Range                   -- ^ The range of the module.
   -> C.QName                 -- ^ The concrete name of the module.
   -> A.ModuleName            -- ^ The abstract name of the module.
   -> C.Telescope             -- ^ The module telescope.
   -> ScopeM [A.Declaration]  -- ^ The code for checking the module contents.
-  -> ScopeM (ScopeInfo, [A.Declaration])
+  -> ScopeM (ScopeInfo, A.Declaration)
+       -- ^ The returned declaration is an 'A.Section'.
 scopeCheckModule r x qm tel checkDs = do
   printScope "module" 20 $ "checking module " ++ prettyShow x
   -- Andreas, 2013-12-10: Telescope does not live in the new module
@@ -1133,13 +1136,11 @@ scopeCheckModule r x qm tel checkDs = do
       printScope "module" 20 $ "inside module " ++ prettyShow x
       ds    <- checkDs
       scope <- getScope
-      return (scope, [ A.Section info (qm `withRangesOfQ` x) tel ds ])
+      return (scope, A.Section r (qm `withRangesOfQ` x) tel ds)
 
   -- Binding is done by the caller
   printScope "module" 20 $ "after module " ++ prettyShow x
   return res
-  where
-    info = ModuleInfo r noRange Nothing Nothing Nothing
 
 -- | Temporary data type to scope check a file.
 data TopLevel a = TopLevel
@@ -1225,11 +1226,11 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           am           <- toAbstract (NewModuleQName m)
           -- Scope check the declarations outside
           outsideDecls <- toAbstract outsideDecls
-          (insideScope, insideDecls) <- scopeCheckModule r m am tel $
+          (insideScope, insideDecl) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
           let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           setScope scope
-          return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
+          return $ TopLevelInfo (outsideDecls ++ [ insideDecl ]) scope
 
         -- We already inserted the missing top-level module, see
         -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',
@@ -1732,13 +1733,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
         [ text $ "scope checking NiceModule " ++ prettyShow x
         ]
 
-      adecls <- traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
+      adecl <- traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
         scopeCheckNiceModule r p name tel $ toAbstract ds
 
       reportSDoc "scope.decl" 70 $ vcat $
-        text ( "scope checked NiceModule " ++ prettyShow x
-             ) : map (nest 2 . prettyA) adecls
-      return adecls
+        [ text $ "scope checked NiceModule " ++ prettyShow x
+        , nest 2 $ prettyA adecl
+        ]
+      return [ adecl ]
 
     NiceModule _ _ _ m@C.Qual{} _ _ ->
       genericError $ "Local modules cannot have qualified names"
@@ -2313,7 +2315,7 @@ whereToAbstract1 r whname whds inner = do
            -- unnamed where's are private
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
-  (scope, ds) <- scopeCheckModule r (C.QName m) am [] $ toAbstract $ List1.toList whds
+  (scope, d) <- scopeCheckModule r (C.QName m) am [] $ toAbstract $ List1.toList whds
   setScope scope
   x <- inner
   setCurrentModule old
@@ -2324,7 +2326,7 @@ whereToAbstract1 r whname whds inner = do
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule TopOpenModule (Just am) (C.QName m) $
       defaultImportDir { publicOpen = Just noRange }
-  return (x, A.WhereDecls (am <$ whname) ds)
+  return (x, A.WhereDecls (am <$ whname) $ singleton d)
 
 isTerminationPragma :: C.Declaration -> Bool
 isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds

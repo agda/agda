@@ -78,23 +78,18 @@ import Agda.Utils.Impossible
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
 checkDeclCached d@A.ScopedDecl{} = checkDecl d
-checkDeclCached d@(A.Section minfo mname (A.GeneralizeTel _ tbinds) _) = do
+checkDeclCached d@(A.Section _ mname (A.GeneralizeTel _ tbinds) _) = do
   e <- readFromCachedLog  -- Can ignore the set of generalizable vars (they occur in the telescope)
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
-    Just (EnterSection minfo' mname' tbinds', _)
-      | killRange minfo == killRange minfo' && mname == mname' && tbinds == tbinds' -> do
-        return ()
-    _ -> do
-      cleanCachedLog
-  writeToCurrentLog $ EnterSection minfo mname tbinds
+    Just (EnterSection mname' tbinds', _)
+      | mname == mname' && tbinds == tbinds' -> return ()
+    _ -> cleanCachedLog
+  writeToCurrentLog $ EnterSection mname tbinds
   checkDecl d
-  e' <- readFromCachedLog
-  case e' of
-    Just (LeaveSection mname', _) | mname == mname' -> do
-      return ()
-    _ -> do
-      cleanCachedLog
+  readFromCachedLog >>= \case
+    Just (LeaveSection mname', _) | mname == mname' -> return ()
+    _ -> cleanCachedLog
   writeToCurrentLog $ LeaveSection mname
 
 checkDeclCached d = do
@@ -153,7 +148,7 @@ checkDecl d = setCurrentRange d $ do
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
-      A.Section i x tel ds     -> meta $ checkSection i x tel ds
+      A.Section _r x tel ds    -> meta $ checkSection x tel ds
       A.Apply i x modapp ci _adir -> meta $ checkSectionApplication i x modapp ci
       A.Import i x _adir       -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
@@ -794,8 +789,8 @@ checkTypeSignature' _ _ =
 
 -- | Type check a module.
 
-checkSection :: Info.ModuleInfo -> ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
-checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
+checkSection :: ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
+checkSection x tel ds = newSection x tel $ mapM_ checkDeclCached ds
 
 
 -- | Helper for 'checkSectionApplication'.

@@ -127,7 +127,8 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) (A.WhereDecls _ []) _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
+      | null wh     = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -1105,10 +1106,10 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
   ensureNoNamedWhereInRefinedContext whmod
   loop ds
   where
-    loop ds = case ds of
-      [] -> ret
-      [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> newSection m tel $ do
+    loop = \case
+      Nothing -> ret
+      -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
+      Just (A.Section _ m tel ds) -> newSection m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
