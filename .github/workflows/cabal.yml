@@ -7,12 +7,14 @@ on:
     - 'Agda.cabal'
     - 'cabal.project'
     - '.github/workflows/cabal.yml'
+    - 'Setup.hs'
   pull_request:
     paths:
     - 'src/**'
     - 'Agda.cabal'
     - 'cabal.project'
     - '.github/workflows/cabal.yml'
+    - 'Setup.hs'
 
 jobs:
   linux:

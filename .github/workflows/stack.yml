@@ -8,6 +8,7 @@ on:
     - '.github/*'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
+    - 'Setup.hs'
   pull_request:
     paths:
     - 'src/**'
@@ -15,6 +16,7 @@ on:
     - '.github/*'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
+    - 'Setup.hs'
 
 jobs:
   Ubuntu:
