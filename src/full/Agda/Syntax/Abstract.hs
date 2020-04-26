@@ -15,7 +15,10 @@ import Prelude hiding (null)
 import Data.Bifunctor
 import qualified Data.Foldable as Fold
 import Data.Function (on)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
@@ -125,7 +128,7 @@ type RecordAssign  = Either Assign ModuleName
 type RecordAssigns = [RecordAssign]
 
 -- | Renaming (generic).
-type Ren a = [(a, a)]
+type Ren a = Map a (NonEmpty a)
 
 data ScopeCopyInfo = ScopeCopyInfo
   { renModules :: Ren ModuleName
@@ -134,15 +137,17 @@ data ScopeCopyInfo = ScopeCopyInfo
 
 initCopyInfo :: ScopeCopyInfo
 initCopyInfo = ScopeCopyInfo
-  { renModules = []
-  , renNames   = []
+  { renModules = mempty
+  , renNames   = mempty
   }
 
 instance Pretty ScopeCopyInfo where
   pretty i = vcat [ prRen "renModules =" (renModules i)
                   , prRen "renNames   =" (renNames i) ]
     where
-      prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
+      prRen s r = sep [ text s, nest 2 $ vcat (map pr xs) ]
+        where
+          xs = Map.toList r >>= (\(k, vs) -> map (k,) (NonEmpty.toList vs))
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
 data Declaration
