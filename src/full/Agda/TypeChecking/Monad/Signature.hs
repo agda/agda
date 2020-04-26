@@ -21,6 +21,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
+import qualified Data.Semigroup as S
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
@@ -311,10 +312,10 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     closeConstructors rd = do
         ds <- nubOn id . catMaybes <$> traverse constructorData (Map.keys rd)
         cs <- nubOn id . concat    <$> traverse dataConstructors (Map.keys rd)
-        new <- Map.unionsWith (<>) <$> traverse rename (ds ++ cs)
+        new <- Map.unionsWith (S.<>) <$> traverse rename (ds ++ cs)
         reportSDoc "tc.mod.apply.complete" 30 $
           "also copying: " <+> pretty new
-        return $ Map.unionWith (<>) new rd
+        return $ Map.unionWith (S.<>) new rd
       where
         rename :: QName -> TCM (Ren QName)
         rename x

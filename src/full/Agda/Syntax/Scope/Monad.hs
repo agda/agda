@@ -22,6 +22,7 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Foldable (all)
+import qualified Data.Semigroup as S
 import Data.Traversable hiding (for)
 
 import Agda.Interaction.Options
@@ -55,7 +56,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
@@ -540,7 +541,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (<>) x (pure y) (memoNames i) }
+        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (S.<>) x (pure y) (memoNames i) }
         addMod  x y rec = modify $ \ i -> i { memoModules = Map.insert x (y, rec) (memoModules i) }
 
         -- Querying the memo structure.
