@@ -9,16 +9,18 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Identity
 
+import Data.Foldable (for_)
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
+import Data.Semigroup ((<>))
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
@@ -56,6 +58,7 @@ import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -307,19 +310,18 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     -- and if a constructor is copied its datatype needs to be.
     closeConstructors :: Ren QName -> TCM (Ren QName)
     closeConstructors rd = do
-        ds <- nubOn id . catMaybes <$> mapM (constructorData  . fst) rd
-        cs <- nubOn id . concat    <$> mapM (dataConstructors . fst) rd
-        new <- concat <$> mapM rename (ds ++ cs)
+        ds <- nubOn id . catMaybes <$> traverse constructorData (Map.keys rd)
+        cs <- nubOn id . concat    <$> traverse dataConstructors (Map.keys rd)
+        new <- Map.unionsWith (<>) <$> traverse rename (ds ++ cs)
         reportSDoc "tc.mod.apply.complete" 30 $
           "also copying: " <+> pretty new
-        return $ new ++ rd
+        return $ Map.unionWith (<>) new rd
       where
         rename :: QName -> TCM (Ren QName)
-        rename x =
-          case lookup x rd of
-            Nothing -> do y <- freshName_ (show $ qnameName x)
-                          return [(x, qnameFromList $ singleton y)]
-            Just{}  -> return []
+        rename x
+          | x `Map.member` rd = pure mempty
+          | otherwise =
+              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (show $ qnameName x)
 
         constructorData :: QName -> TCM (Maybe QName)
         constructorData x = do
@@ -338,7 +340,7 @@ applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo 
 applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
   do
     noCopyList <- catMaybes <$> mapM getName' constrainedPrims
-    forM_ (map fst rd) $ \ q -> do
+    for_ (Map.keys rd) $ \ q ->
       when (q `elem` noCopyList) $ typeError (TriedToCopyConstrainedPrim q)
 
   reportSDoc "tc.mod.apply" 10 $ vcat
@@ -348,9 +350,9 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     , "old  =" <+> pretty old
     , "ts   =" <+> pretty ts
     ]
-  mapM_ (copyDef ts) rd
-  mapM_ (copySec ts) rm
-  computePolarity (map snd rd)
+  _ <- Map.traverseWithKey (traverse . copyDef ts) rd
+  _ <- Map.traverseWithKey (traverse . copySec ts) rm
+  computePolarity (Map.elems rd >>= List1.toList)
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -360,15 +362,18 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     -- I guess it would make sense to mark non-imported names
     -- as such (out-of-scope) and let splitting fail if it would
     -- produce out-of-scope constructors.
-    copyName x = fromMaybe x $ lookup x rd
+    --
+    -- Taking 'List1.head' because 'Module.Data.cons' and 'Module.cons' are
+    -- equivalent valid names and either can be used.
+    copyName x = maybe x List1.head (Map.lookup x rd)
 
     argsToUse x = do
       let m = commonParentModule old x
       reportSDoc "tc.mod.apply" 80 $ "Common prefix: " <+> pretty m
       size <$> lookupSection m
 
-    copyDef :: Args -> (QName, QName) -> TCM ()
-    copyDef ts (x, y) = do
+    copyDef :: Args -> QName -> QName -> TCM ()
+    copyDef ts x y = do
       def <- getConstInfo x
       np  <- argsToUse (qnameModule x)
       -- Issue #3083: We need to use the hiding from the telescope of the
@@ -522,9 +527,9 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       tel = Ξ.(Θ.Δ)[ts]
 
     calls
-      1. copySec ts (Top.A.M, C.M)
-      2. copySec ts (Top.B.N, C.N)
-      3. copySec ts (Top.B.N.O, C.N.O)
+      1. copySec ts Top.A.M C.M
+      2. copySec ts Top.B.N C.N
+      3. copySec ts Top.B.N.O C.N.O
     with
       old = Top.B
 
@@ -537,8 +542,8 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
       new section C.M
         tel =  Θ₂.Γ.Φ[ts']
     -}
-    copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
-    copySec ts (x, y) = do
+    copySec :: Args -> ModuleName -> ModuleName -> TCM ()
+    copySec ts x y = do
       totalArgs <- argsToUse x
       tel       <- lookupSection x
       let sectionTel =  apply tel $ take totalArgs ts

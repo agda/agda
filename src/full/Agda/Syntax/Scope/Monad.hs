@@ -9,7 +9,7 @@ import Prelude hiding (mapM, any, all, null)
 
 import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
-import Control.Monad.Writer hiding (mapM, forM)
+import Control.Monad.Writer hiding (mapM, forM, (<>))
 import Control.Monad.State hiding (mapM, forM)
 
 import Data.Either ( partitionEithers )
@@ -492,7 +492,7 @@ type WSM = StateT ScopeMemo ScopeM
 
 data ScopeMemo = ScopeMemo
   { memoNames   :: A.Ren A.QName
-  , memoModules :: [(ModuleName, (ModuleName, Bool))]
+  , memoModules :: Map ModuleName (ModuleName, Bool)
     -- ^ Bool: did we copy recursively? We need to track this because we don't
     --   copy recursively when creating new modules for reexported functions
     --   (issue1985), but we might need to copy recursively later.
@@ -501,13 +501,13 @@ data ScopeMemo = ScopeMemo
 memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
 memoToScopeInfo (ScopeMemo names mods) =
   ScopeCopyInfo { renNames   = names
-                , renModules = [ (x, y) | (x, (y, _)) <- mods ] }
+                , renModules = Map.map (pure . fst) mods }
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo [] [])
+copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo mempty mempty)
   where
     copy :: A.ModuleName -> Scope -> WSM Scope
     copy new s = do
@@ -540,12 +540,12 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y     = modify $ \ i -> i { memoNames   = (x, y)        : memoNames   i }
-        addMod  x y rec = modify $ \ i -> i { memoModules = (x, (y, rec)) : filter ((/= x) . fst) (memoModules i) }
+        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (<>) x (pure y) (memoNames i) }
+        addMod  x y rec = modify $ \ i -> i { memoModules = Map.insert x (y, rec) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = gets (lookup x . memoNames) -- NB:: Defined but not used
-        findMod  x = gets (lookup x . memoModules)
+        findName x = gets (Map.lookup x . memoNames) -- NB:: Defined but not used
+        findMod  x = gets (Map.lookup x . memoModules)
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
