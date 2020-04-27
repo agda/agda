@@ -9,19 +9,18 @@ import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Identity
 
 import Data.Foldable (for_)
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import qualified Data.Semigroup as S
+import Data.Semigroup ((<>))
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
@@ -59,6 +58,7 @@ import Agda.Utils.Except ( ExceptT )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -312,10 +312,10 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
     closeConstructors rd = do
         ds <- nubOn id . catMaybes <$> traverse constructorData (Map.keys rd)
         cs <- nubOn id . concat    <$> traverse dataConstructors (Map.keys rd)
-        new <- Map.unionsWith (S.<>) <$> traverse rename (ds ++ cs)
+        new <- Map.unionsWith (<>) <$> traverse rename (ds ++ cs)
         reportSDoc "tc.mod.apply.complete" 30 $
           "also copying: " <+> pretty new
-        return $ Map.unionWith (S.<>) new rd
+        return $ Map.unionWith (<>) new rd
       where
         rename :: QName -> TCM (Ren QName)
         rename x
@@ -324,13 +324,13 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
               Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (show $ qnameName x)
 
         constructorData :: QName -> TCM (Maybe QName)
-        constructorData x =
+        constructorData x = do
           (theDef <$> getConstInfo x) <&> \case
             Constructor{ conData = d } -> Just d
             _                          -> Nothing
 
         dataConstructors :: QName -> TCM [QName]
-        dataConstructors x =
+        dataConstructors x = do
           (theDef <$> getConstInfo x) <&> \case
             Datatype{ dataCons = cs } -> cs
             Record{ recConHead = h }  -> [conName h]
@@ -352,7 +352,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     ]
   _ <- Map.traverseWithKey (traverse . copyDef ts) rd
   _ <- Map.traverseWithKey (traverse . copySec ts) rm
-  computePolarity (Map.elems rd >>= NonEmpty.toList)
+  computePolarity (Map.elems rd >>= List1.toList)
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -362,7 +362,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
     -- I guess it would make sense to mark non-imported names
     -- as such (out-of-scope) and let splitting fail if it would
     -- produce out-of-scope constructors.
-    copyName x = maybe x NonEmpty.head (Map.lookup x rd)
+    --
+    -- Taking 'List1.head' because 'Module.Data.cons' and 'Module.cons' are
+    -- equivalent valid names and either can be used.
+    copyName x = maybe x List1.head (Map.lookup x rd)
 
     argsToUse x = do
       let m = commonParentModule old x

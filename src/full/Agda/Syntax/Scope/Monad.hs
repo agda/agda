@@ -9,7 +9,7 @@ import Prelude hiding (mapM, any, all, null)
 
 import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
-import Control.Monad.Writer hiding (mapM, forM)
+import Control.Monad.Writer hiding (mapM, forM, (<>))
 import Control.Monad.State hiding (mapM, forM)
 
 import Data.Either ( partitionEithers )
@@ -22,7 +22,6 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Foldable (all)
-import qualified Data.Semigroup as S
 import Data.Traversable hiding (for)
 
 import Agda.Interaction.Options
@@ -541,7 +540,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (S.<>) x (pure y) (memoNames i) }
+        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (<>) x (pure y) (memoNames i) }
         addMod  x y rec = modify $ \ i -> i { memoModules = Map.insert x (y, rec) (memoModules i) }
 
         -- Querying the memo structure.
