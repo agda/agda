@@ -315,7 +315,9 @@ coreBuiltins =
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinSetOmega                         |-> BuiltinPrim "primSetOmega" (const $ return ()))
+  , (builtinSet                              |-> BuiltinSort "primSet")
+  , (builtinProp                             |-> BuiltinSort "primProp")
+  , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
@@ -781,6 +783,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
           _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
 
+      BuiltinSort{} -> __IMPOSSIBLE__ -- always a "BuiltinNoDef"
+
       BuiltinPostulate rel t -> do
         t' <- t
         v <- applyRelevanceToContext rel $ checkExpr e t'
@@ -953,6 +957,16 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataPathCons   = []
               }
 
+    Just (BuiltinSort sortname) -> do
+      let s = case sortname of
+                "primSet"      -> mkType 0
+                "primProp"     -> mkProp 0
+                "primSetOmega" -> Inf
+                _              -> __IMPOSSIBLE__
+          def = PrimitiveSort sortname s
+      addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort Nothing s) def
+      bindBuiltinName b $ Def q []
+
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
 
@@ -965,4 +979,5 @@ builtinKindOfName = distinguish <.> findBuiltinInfo
     BuiltinData{}      -> DataName       -- Andreas, 2020-04-13: Crude.  Could be @RecName@.
     BuiltinPrim{}      -> PrimName
     BuiltinPostulate{} -> AxiomName
+    BuiltinSort{}      -> PrimName
     BuiltinUnknown{}   -> OtherDefName
