@@ -65,6 +65,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
+import Agda.Interaction.Options.IORefs
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
@@ -78,6 +79,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Suffix
 
 import Agda.Utils.Impossible
 
@@ -635,11 +637,19 @@ instance ToConcrete ResolvedName C.QName where
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
+addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
+addSuffixConcrete A.NoSuffix = id
+addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
+  where
+    suffix = case subscriptAllowed of
+      UnicodeOk -> Subscript $ fromInteger i
+      AsciiOnly -> Index $ fromInteger i
+
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x)             = Ident <$> toConcrete x
+    toConcrete (Def' x suffix)     = Ident . addSuffixConcrete suffix <$> toConcrete x
     toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = Ident <$> toConcrete x

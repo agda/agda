@@ -100,6 +100,12 @@ getUnambiguous :: AmbiguousQName -> Maybe QName
 getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
 
+-- | A name suffix
+data Suffix
+  = NoSuffix
+  | Suffix Integer
+  deriving (Data, Show, Eq, Ord)
+
 -- | Check whether we are a projection pattern.
 class IsProjP a where
   isProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
