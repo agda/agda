@@ -475,7 +475,7 @@ instance LensFixity AbstractName where
   lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
+lensAnameName :: Lens' A.QName AbstractName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
 
 instance Eq AbstractModule where
@@ -485,7 +485,7 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 -- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Functor m => (A.ModuleName -> m A.ModuleName) -> AbstractModule -> m AbstractModule
+lensAmodName :: Lens' A.ModuleName AbstractModule
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 
