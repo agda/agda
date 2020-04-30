@@ -427,6 +427,25 @@ coinductionKit' = do
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = tryMaybe coinductionKit'
 
+-- | Sort primitives.
+
+data SortKit = SortKit
+  { nameOfSet      :: QName
+  , nameOfProp     :: QName
+  , nameOfSetOmega :: QName
+  }
+
+sortKit :: HasBuiltins m => m SortKit
+sortKit = do
+  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSetOmega = setomega
+    }
+
 
 ------------------------------------------------------------------------
 -- * Path equality
