@@ -1,3 +1,0 @@
-Issue4534a.agda:7,5-14
-Can only quote defined names, but encountered Set
-when checking that the expression quote Set has type Name
