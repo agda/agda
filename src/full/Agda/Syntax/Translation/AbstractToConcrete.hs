@@ -242,6 +242,9 @@ instance ReadTCState AbsToCon where
 instance MonadStConcreteNames AbsToCon where
   runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ unAbsToCon . runStateT m
 
+instance HasBuiltins AbsToCon where
+  getBuiltinThing x = AbsToCon $ getBuiltinThing x
+
 instance HasOptions AbsToCon where
   pragmaOptions = AbsToCon pragmaOptions
   commandLineOptions = AbsToCon commandLineOptions
