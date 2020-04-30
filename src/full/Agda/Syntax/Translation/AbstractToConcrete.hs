@@ -631,7 +631,7 @@ instance ToConcrete AbstractName C.QName where
 instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
-    DefinedName _ x      -> toConcrete x
+    DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
     ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
@@ -1540,7 +1540,7 @@ recoverOpApp bracket isLam opApp view e = case view e of
     -- concrete name we choose! Make sure to resolve ambiguities with n'.
     fx <- resolveName_ x [n'] <&> \ case
             VarName y _                -> y ^. lensFixity
-            DefinedName _ q            -> q ^. lensFixity
+            DefinedName _ q _          -> q ^. lensFixity
             FieldName (q :| _)         -> q ^. lensFixity
             ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity

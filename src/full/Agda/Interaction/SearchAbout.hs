@@ -66,7 +66,7 @@ findMentions norm rg nm = do
       && last str == '"' = Left $ filter (/= '"') str
       | otherwise        = Right str
 
-    anames (DefinedName _ an)     = [an]
+    anames (DefinedName _ an _)   = [an]
     anames (FieldName     ans)    = toList ans
     anames (ConstructorName _ ans)= toList ans
     anames _                      = []

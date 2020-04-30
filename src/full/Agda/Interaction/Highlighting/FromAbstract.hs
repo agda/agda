@@ -430,7 +430,7 @@ instance Hilite DisambiguatedName where
 instance Hilite ResolvedName where
   hilite = \case
     VarName           x _bindSrc -> hiliteBound x
-    DefinedName  _acc x          -> hilite $ anameName x
+    DefinedName  _acc x _suffix  -> hilite $ anameName x
     FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
     ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
       where k = kindOfNameToNameKind <$> exactConName i

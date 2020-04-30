@@ -916,11 +916,15 @@ instance NameToExpr AbstractName where
 instance NameToExpr ResolvedName where
   nameToExpr = \case
     VarName x _          -> Var x
-    DefinedName _ x      -> nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
+    DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
+    where
+      withSuffix NoSuffix   e       = e
+      withSuffix s@Suffix{} (Def x) = Def' x s
+      withSuffix _          _       = __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App defaultAppInfo_)

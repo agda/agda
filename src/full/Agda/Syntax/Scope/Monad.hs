@@ -408,7 +408,7 @@ getNotation x ns = do
   r <- resolveName' allKindsOfNames (Just ns) x
   case r of
     VarName y _         -> return $ namesToNotation x y
-    DefinedName _ d     -> return $ notation d
+    DefinedName _ d _   -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
     ConstructorName _ ds-> return $ oneNotation ds
     PatternSynResName n -> return $ oneNotation n
@@ -453,7 +453,7 @@ bindName'' acc kind meta x y = do
         -- Binding an anonymous declaration always succeeds.
         -- In case it's not the first one, we simply remove the one that came before
         _ | isNoName x      -> success
-        DefinedName _ d     -> clash $ anameName d
+        DefinedName _ d _   -> clash $ anameName d
         VarName z _         -> clash $ A.qualify_ z
         FieldName       ds  -> ambiguous (== FldName) ds
         ConstructorName i ds-> ambiguous (isJust . isConName) ds

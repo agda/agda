@@ -554,7 +554,7 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
     reportSLn "scope.name" 10 $ "resolved " ++ prettyShow x ++ ": " ++ prettyShow qx
     case qx of
       VarName x' _         -> return $ Just $ A.Var x'
-      DefinedName _ d      -> do
+      DefinedName _ d suffix -> do
         -- In case we find a defined name, we start by checking whether there's
         -- a warning attached to it
         reportSDoc "scope.warning" 50 $ text $ "Checking usage of " ++ prettyShow d
@@ -574,11 +574,15 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
               text "Cannot use generalized variable from let-opened module:" <+> prettyTCM (anameName d)
           _ -> return ()
         -- and then we return the name
-        return $ Just $ nameToExpr d
+        return $ withSuffix suffix $ nameToExpr d
       FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
       ConstructorName _ ds -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> pure Nothing
       PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
+    where
+      withSuffix NoSuffix   e         = Just e
+      withSuffix s@Suffix{} (A.Def x) = Just $ A.Def' x s
+      withSuffix _          _         = Nothing
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
@@ -598,12 +602,12 @@ instance ToAbstract PatName APatName where
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
     case (rx, x) of
-      (VarName y _,     C.QName x)                          -> bindPatVar x
-      (FieldName d,     C.QName x)                          -> bindPatVar x
-      (DefinedName _ d, C.QName x) | isDefName (anameKind d)-> bindPatVar x
-      (UnknownName,     C.QName x)                          -> bindPatVar x
-      (ConstructorName _ ds, _)                             -> patCon ds
-      (PatternSynResName d, _)                              -> patSyn d
+      (VarName y _,       C.QName x)                           -> bindPatVar x
+      (FieldName d,       C.QName x)                           -> bindPatVar x
+      (DefinedName _ d _, C.QName x) | isDefName (anameKind d) -> bindPatVar x
+      (UnknownName,       C.QName x)                           -> bindPatVar x
+      (ConstructorName _ ds, _)                                -> patCon ds
+      (PatternSynResName d, _)                                 -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     where
       bindPatVar = VarPatName <.> bindPatternVariable
@@ -639,7 +643,8 @@ instance ToQName a => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (toQName x)
     case rx of
-      DefinedName _ d      -> return $ anameName d
+      DefinedName _ d NoSuffix -> return $ anameName d
+      DefinedName _ d Suffix{} -> notInScopeError (toQName x)
       -- We can get the cases below for DISPLAY pragmas
       ConstructorName _ ds -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (NonEmpty.head ds)
@@ -1625,7 +1630,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                 -- the data type name is bound to an Axiom, then the error may be caused by
                 -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
                 -- (which removes the type signature) and suggest it as a possible fix.
-                DefinedName p ax | anameKind ax == AxiomName -> do
+                DefinedName p ax NoSuffix | anameKind ax == AxiomName -> do
                   let suggestion = NiceDataDef r Inserted a pc uc x ls []
                   typeError $ ClashingDefinition cn an (Just suggestion)
                 _ -> typeError err
@@ -1659,7 +1664,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceDataDef r o a _ uc x pars cons -> do
         reportSLn "scope.data.def" 20 ("checking " ++ show o ++ " DataDef for " ++ prettyShow x)
         (p, ax) <- resolveName (C.QName x) >>= \case
-          DefinedName p ax -> do
+          DefinedName p ax NoSuffix -> do
             clashUnless x DataName ax  -- Andreas 2019-07-07, issue #3892
             livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
             clashIfModuleAlreadyDefinedInCurrentModule x ax
@@ -1703,7 +1708,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
            | otherwise -> return ()
 
       (p, ax) <- resolveName (C.QName x) >>= \case
-        DefinedName p ax -> do
+        DefinedName p ax NoSuffix -> do
           clashUnless x RecName ax  -- Andreas 2019-07-07, issue #3892
           livesInCurrentModule ax  -- Andreas, 2017-12-04, issue #2862
           clashIfModuleAlreadyDefinedInCurrentModule x ax
@@ -2203,11 +2208,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
           -- Andreas, 2020-04-12, pr #4574.  For highlighting purposes:
           -- Rebind 'BuiltinPrim' as 'PrimName' and similar.
           q <- case (q0, builtinKindOfName b, qx) of
-            (DefinedName acc y, Just kind, C.QName x)
+            (DefinedName acc y suffix, Just kind, C.QName x)
               | anameKind y /= kind
               , kind `elem` [ PrimName, AxiomName ] -> do
                   rebindName acc kind x $ anameName y
-                  return $ DefinedName acc y{ anameKind = kind }
+                  return $ DefinedName acc y{ anameKind = kind } suffix
             _ -> return q0
 
           return [ A.BuiltinPragma rb q ]
@@ -2232,7 +2237,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
         VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
-        DefinedName _ d             -> return . (False,) $ anameName d
+        DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
+        DefinedName _ d Suffix{}    -> genericError $ "Invalid pattern " ++ prettyShow top
         FieldName     (d :| [])     -> return . (False,) $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         ConstructorName _ (d :| []) -> return . (False,) $ anameName d
