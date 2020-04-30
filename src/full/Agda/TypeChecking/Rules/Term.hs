@@ -108,6 +108,7 @@ isType_ e = traceCall (IsType_ e) $ do
     , nest 2 $ "returns" <?> prettyTCM a
     ]) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
+  SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
@@ -130,16 +131,28 @@ isType_ e = traceCall (IsType_ e) $ do
       noFunctionsIntoSize t' t'
       return t'
 
-    -- Setᵢ
+    -- Setᵢ (old version, don't remove yet)
     A.Set _ n -> do
       return $ sort (mkType n)
 
-    -- Propᵢ
+    -- Propᵢ (old version, don't remove yet)
     A.Prop _ n -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       return $ sort (mkProp n)
 
-    -- Set ℓ
+    -- Setᵢ (new version)
+    A.Def' x suffix | x == nameOfSet -> case suffix of
+      NoSuffix -> return $ sort (mkType 0)
+      Suffix i -> return $ sort (mkType i)
+
+    -- Propᵢ (new version)
+    A.Def' x suffix | x == nameOfProp -> do
+      unlessM isPropEnabled $ typeError NeedOptionProp
+      case suffix of
+        NoSuffix -> return $ sort (mkProp 0)
+        Suffix i -> return $ sort (mkProp i)
+
+    -- Set ℓ (old version, don't remove yet)
     A.App i s arg
       | visible arg,
         A.Set _ 0 <- unScope s -> do
@@ -150,10 +163,33 @@ isType_ e = traceCall (IsType_ e) $ do
       applyRelevanceToContext NonStrict $
         sort . Type <$> checkLevel arg
 
-    -- Prop ℓ
+    -- Prop ℓ (old version, don't remove yet)
     A.App i s arg
       | visible arg,
         A.Prop _ 0 <- unScope s -> do
+      unlessM isPropEnabled $ typeError NeedOptionProp
+      unlessM hasUniversePolymorphism $ genericError
+        "Use --universe-polymorphism to enable level arguments to Prop"
+      applyRelevanceToContext NonStrict $
+        sort . Prop <$> checkLevel arg
+
+    -- Set ℓ (new version)
+    A.App i s arg
+      | visible arg,
+        A.Def x <- unScope s,
+        x == nameOfSet -> do
+      unlessM hasUniversePolymorphism $ genericError
+        "Use --universe-polymorphism to enable level arguments to Set"
+      -- allow NonStrict variables when checking level
+      --   Set : (NonStrict) Level -> Set\omega
+      applyRelevanceToContext NonStrict $
+        sort . Type <$> checkLevel arg
+
+    -- Prop ℓ (new version)
+    A.App i s arg
+      | visible arg,
+        A.Def x <- unScope s,
+        x == nameOfProp -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       unlessM hasUniversePolymorphism $ genericError
         "Use --universe-polymorphism to enable level arguments to Prop"
