@@ -276,7 +276,8 @@ inferHead e = do
 
       return (applyE u, unDom a)
 
-    A.Def x -> inferHeadDef ProjPrefix x
+    A.Def x  -> inferHeadDef ProjPrefix x
+    A.Def'{} -> __IMPOSSIBLE__ -- handled in checkHeadApplication and inferApplication
 
     A.Proj o ambP | Just d <- getUnambiguous ambP -> inferHeadDef o d
     A.Proj{} -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections

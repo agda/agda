@@ -136,7 +136,7 @@ instance ExprLike Expr where
     let recurse e = recurseExpr f e
     case e0 of
       Var{}                   -> pure e0
-      Def{}                   -> pure e0
+      Def'{}                  -> pure e0
       Proj{}                  -> pure e0
       Con{}                   -> pure e0
       Lit{}                   -> pure e0
@@ -169,7 +169,7 @@ instance ExprLike Expr where
   foldExpr f e =
     case e of
       Var{}                -> m
-      Def{}                -> m
+      Def'{}               -> m
       Proj{}               -> m
       Con{}                -> m
       PatternSyn{}         -> m
@@ -206,7 +206,7 @@ instance ExprLike Expr where
     let trav e = traverseExpr f e
     case e of
       Var{}                   -> f e
-      Def{}                   -> f e
+      Def'{}                  -> f e
       Proj{}                  -> f e
       Con{}                   -> f e
       Lit{}                   -> f e

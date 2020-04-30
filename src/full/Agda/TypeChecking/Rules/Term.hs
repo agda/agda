@@ -1526,7 +1526,7 @@ inferExpr' exh e = traceCall (InferExpr e) $ do
 
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True
-defOrVar A.Def{} = True
+defOrVar A.Def'{} = True
 defOrVar A.Proj{} = True
 defOrVar (A.ScopedExpr _ e) = defOrVar e
 defOrVar _     = False

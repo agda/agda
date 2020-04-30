@@ -74,7 +74,8 @@ type Args = [NamedArg Expr]
 -- | Expressions after scope checking (operators parsed, names resolved).
 data Expr
   = Var  Name                          -- ^ Bound variable.
-  | Def  QName                         -- ^ Constant: axiom, function, data or record type.
+  | Def'  QName Suffix                 -- ^ Constant: axiom, function, data or record type,
+                                       --   with a possible suffix.
   | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
@@ -112,6 +113,10 @@ data Expr
                                        -- ^ @tactic e x1 .. xn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show)
+
+-- | Pattern synonym for regular Def
+pattern Def :: QName -> Expr
+pattern Def x = Def' x NoSuffix
 
 -- | Smart constructor for Generalized
 generalized :: Set QName -> Expr -> Expr
@@ -597,7 +602,7 @@ instance HasRange TypedBinding where
 
 instance HasRange Expr where
     getRange (Var x)               = getRange x
-    getRange (Def x)               = getRange x
+    getRange (Def' x _)            = getRange x
     getRange (Proj _ x)            = getRange x
     getRange (Con x)               = getRange x
     getRange (Lit l)               = getRange l
@@ -728,7 +733,7 @@ instance KillRange TypedBinding where
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
-  killRange (Def x)                = killRange1 Def x
+  killRange (Def' x v)             = killRange2 Def' x v
   killRange (Proj o x)             = killRange1 (Proj o) x
   killRange (Con x)                = killRange1 Con x
   killRange (Lit l)                = killRange1 Lit l
@@ -757,6 +762,9 @@ instance KillRange Expr where
   killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
   killRange (Macro x)              = killRange1 Macro x
+
+instance KillRange Suffix where
+  killRange = id
 
 instance KillRange Declaration where
   killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
@@ -984,7 +992,7 @@ instance SubstExpr Assign where
 instance SubstExpr Expr where
   substExpr s e = case e of
     Var n                 -> fromMaybe e (lookup n s)
-    Def _                 -> e
+    Def' _ _              -> e
     Proj{}                -> e
     Con _                 -> e
     Lit _                 -> e

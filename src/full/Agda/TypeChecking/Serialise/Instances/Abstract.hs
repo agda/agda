@@ -105,6 +105,15 @@ instance EmbPrj NameMetadata where
     valu [a] = valuN GeneralizedVarsMetadata a
     valu _   = malformed
 
+instance EmbPrj A.Suffix where
+  icod_ A.NoSuffix   = icodeN' A.NoSuffix
+  icod_ (A.Suffix a) = icodeN' A.Suffix a
+
+  value = vcase valu where
+    valu []  = valuN A.NoSuffix
+    valu [a] = valuN A.Suffix a
+    valu _   = malformed
+
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b
 

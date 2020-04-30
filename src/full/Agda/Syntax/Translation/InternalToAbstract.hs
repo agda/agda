@@ -993,7 +993,7 @@ instance BlankVars A.Expr where
     A.ScopedExpr i e       -> A.ScopedExpr i $ blank bound e
     A.Var x                -> if x `Set.member` bound then e
                               else A.Underscore emptyMetaInfo  -- Here is the action!
-    A.Def _                -> e
+    A.Def' _ _             -> e
     A.Proj{}               -> e
     A.Con _                -> e
     A.Lit _                -> e
