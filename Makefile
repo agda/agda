@@ -132,7 +132,7 @@ endif
 .PHONY: type-check
 type-check:
 	@echo "================= Type checking using Cabal with -fno-code ==============="
-	time cabal v1-build --builddir=$(BUILD_DIR)-no-code \
+	time cabal $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
 	  --ghc-options=-fno-code \
 	  --ghc-options=-fwrite-interface \
 	  2>&1 \
