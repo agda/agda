@@ -41,6 +41,7 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move t
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , SortKit(..) , sortKit )
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
@@ -56,6 +57,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Suffix as C
 
 import Agda.Utils.Impossible
 
@@ -308,7 +310,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, MonadError (NonEmpty A.QName) m)
+  :: (ReadTCState m, HasBuiltins m, MonadError (NonEmpty A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -329,21 +331,29 @@ tryResolveName kinds names x = do
       -- Consider only names of one of the given kinds
       let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
       -- Consider only names in the given set of names
-      caseMaybe (nonEmpty $ filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
-        ds       | let ks = fmap (isConName . anameKind . fst) ds
+      case (nonEmpty $ filtKind $ filterNames fst $ scopeLookup' x scope) of
+        Just ds  | let ks = fmap (isConName . anameKind . fst) ds
                  , all isJust ks ->
           return $ ConstructorName (Set.fromList $ List1.catMaybes ks) $ fmap (upd . fst) ds
 
-        ds       | all ((FldName ==) . anameKind . fst) ds ->
+        Just ds  | all ((FldName ==) . anameKind . fst) ds ->
           return $ FieldName $ fmap (upd . fst) ds
 
-        ds       | all ((PatternSynName ==) . anameKind . fst) ds ->
+        Just ds  | all ((PatternSynName ==) . anameKind . fst) ds ->
           return $ PatternSynResName $ fmap (upd . fst) ds
 
-        (d, a) :| [] ->
-          return $ DefinedName a $ upd d
+        Just ((d, a) :| []) ->
+          return $ DefinedName a (upd d) A.NoSuffix
 
-        ds -> throwError $ fmap (anameName . fst) ds
+        Just ds -> throwError $ fmap (anameName . fst) ds
+
+        Nothing  | (suffix, base) <- (C.lensQNameName . nameSuffix) (,C.NoSuffix) x
+                 , (d, a) : []    <- filtKind $ filterNames fst $ scopeLookup' base scope
+                 , Just asuffix   <- fromConcreteSuffix suffix ->
+          ifNotM (canHaveSuffix $ anameName d) (return UnknownName) $
+            return $ DefinedName a (upd d) asuffix
+
+        Nothing  | otherwise -> return UnknownName
   where
   -- @names@ intended semantics: a filter on names.
   -- @Nothing@: don't filter out anything.
@@ -357,6 +367,18 @@ tryResolveName kinds names x = do
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
     d { anameName = A.QName (setRange (getRange x) qm) (qn { nameConcrete = x }) }
+  fromConcreteSuffix = \case
+    C.NoSuffix    -> Nothing
+    C.Prime{}     -> Nothing
+    C.Index i     -> Just $ A.Suffix $ toInteger i
+    C.Subscript i -> Just $ A.Suffix $ toInteger i
+
+-- | Test if a given abstract name can appear with a suffix. Currently
+--   only true for the names of builtin sorts @Set@ and @Prop@.
+canHaveSuffix :: HasBuiltins m => A.QName -> m Bool
+canHaveSuffix x = do
+  SortKit{..} <- sortKit
+  return $ x == nameOfSet || x == nameOfProp
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
