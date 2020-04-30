@@ -1317,18 +1317,19 @@ instance Reify Sort Expr where
     reifyWhen = reifyWhenE
     reify s = do
       s <- instantiateFull s
+      SortKit{..} <- sortKit
       case s of
-        I.Type (I.ClosedLevel n) -> return $ A.Set noExprInfo n
+        I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
+        I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
         I.Type a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Set noExprInfo 0) (defaultNamedArg a)
-        I.Prop (I.ClosedLevel n) -> return $ A.Prop noExprInfo n
+          return $ A.App defaultAppInfo_ (A.Def nameOfSet) (defaultNamedArg a)
+        I.Prop (I.ClosedLevel 0) -> return $ A.Def' nameOfProp A.NoSuffix
+        I.Prop (I.ClosedLevel n) -> return $ A.Def' nameOfProp (A.Suffix n)
         I.Prop a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
-        I.Inf       -> do
-          I.Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
-          return $ A.Def inf
+          return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
+        I.Inf       -> return $ A.Def nameOfSetOmega
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
