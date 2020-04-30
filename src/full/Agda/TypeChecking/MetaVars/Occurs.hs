@@ -498,6 +498,7 @@ instance Occurs Defn where
   metaOccurs m Record{ recConHead = c }     = metaOccursQName m $ conName c
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
+  metaOccurs m PrimitiveSort{}              = __IMPOSSIBLE__
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
   metaOccurs m GeneralizableVar{}           = __IMPOSSIBLE__
 

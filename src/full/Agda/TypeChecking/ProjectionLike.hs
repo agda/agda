@@ -185,6 +185,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
     GeneralizableVar{} -> False
     Function{}    -> False
     Primitive{}   -> False
+    PrimitiveSort{} -> False
     Constructor{} -> __IMPOSSIBLE__
     AbstractDefn d -> eligible d
       -- Andreas, 2017-08-14, issue #2682:
@@ -326,6 +327,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     Constructor{}  -> reportSLn "tc.proj.like" 30 $ "  not a function, but Constructor"
     Datatype{}     -> reportSLn "tc.proj.like" 30 $ "  not a function, but Datatype"
     Primitive{}    -> reportSLn "tc.proj.like" 30 $ "  not a function, but Primitive"
+    PrimitiveSort{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but PrimitiveSort"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
     -- | If the user wrote a record expression as rhs,

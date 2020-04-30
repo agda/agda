@@ -324,6 +324,8 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
                  fb axiomErr
       Primitive{ primName = s } -> fb <$> primBody s
 
+      PrimitiveSort{ primName = s } -> return []
+
       Function{} -> function pragma $ functionViaTreeless q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }

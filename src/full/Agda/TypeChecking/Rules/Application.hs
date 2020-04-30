@@ -632,6 +632,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Constructor{}             -> __IMPOSSIBLE__
                     GeneralizableVar{}        -> __IMPOSSIBLE__
                     Primitive{}               -> False
+                    PrimitiveSort{}           -> False
                   isRigid _           = return False
               rigid <- isRigid tgt
               -- Andreas, 2019-03-28, issue #3248:

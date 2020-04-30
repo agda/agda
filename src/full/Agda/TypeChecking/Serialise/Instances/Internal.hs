@@ -357,8 +357,9 @@ instance EmbPrj Defn where
   icod_ (Record      a b c d e f g h i j k l)           = icodeN 3 Record a b c d e f g h i j k l
   icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
+  icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
-  icod_ GeneralizableVar                                = icodeN 6 GeneralizableVar
+  icod_ GeneralizableVar                                = icodeN 7 GeneralizableVar
   icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
@@ -368,7 +369,8 @@ instance EmbPrj Defn where
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
-    valu [6]                                        = valuN GeneralizableVar
+    valu [6, a, b]                                  = valuN PrimitiveSort a b
+    valu [7]                                        = valuN GeneralizableVar
     valu _                                          = malformed
 
 instance EmbPrj LazySplit where

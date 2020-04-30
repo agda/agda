@@ -365,6 +365,7 @@ noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) 
           GeneralizableVar{} -> __IMPOSSIBLE__
           -- TODO: in the future some stuck primitives might allow constructors
           Primitive   {} -> return ()
+          PrimitiveSort{} -> return ()
       Var   {} -> return ()
       Pi    {} -> return ()
       Sort  {} -> return ()
@@ -1450,6 +1451,8 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
       -- Issue #3620: Some primitives are types too.
       -- Not data though, at least currently 11/03/2018.
       Primitive{}   -> hardTypeError =<< notData
+
+      PrimitiveSort{} -> hardTypeError =<< notData
 
       GeneralizableVar{} -> __IMPOSSIBLE__
 

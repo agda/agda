@@ -73,6 +73,7 @@ instance NamesIn Defn where
       -- Don't need recTel since those will be reachable from the constructor
     Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }        -> namesIn (c, d, kit, fs)
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
+    PrimitiveSort{} -> Set.empty
     AbstractDefn{} -> __IMPOSSIBLE__
 
 instance NamesIn Clause where

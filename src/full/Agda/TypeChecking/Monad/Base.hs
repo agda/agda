@@ -2026,6 +2026,10 @@ data Defn = Axiom -- ^ Postulate
               --   @'Just' something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
+          | PrimitiveSort
+            { primName :: String
+            , primSort :: Sort
+            }
     deriving (Data, Show)
 
 instance Pretty Definition where
@@ -2102,6 +2106,11 @@ instance Pretty Defn where
       , "primName     =" <?> pshow primName
       , "primClauses  =" <?> pshow primClauses
       , "primCompiled =" <?> pshow primCompiled ] <?> "}"
+  pretty PrimitiveSort{..} =
+    "PrimitiveSort {" <?> vcat
+      [ "primName =" <?> pshow primName
+      , "primSort =" <?> pshow primSort
+      ] <?> "}"
 
 
 -- | Is the record type recursive?
@@ -2334,6 +2343,7 @@ defAbstract d = case theDef d of
     Record{recAbstr = a}      -> a
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
+    PrimitiveSort{}           -> ConcreteDef
 
 defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
@@ -2346,6 +2356,7 @@ defForced d = case theDef d of
     Datatype{}                  -> []
     Record{}                    -> []
     Primitive{}                 -> []
+    PrimitiveSort{}             -> []
 
 ---------------------------------------------------------------------------
 -- ** Injectivity
@@ -4271,6 +4282,7 @@ instance KillRange Defn where
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
+      PrimitiveSort a b              -> killRange2 PrimitiveSort a b
 
 instance KillRange MutualId where
   killRange = id

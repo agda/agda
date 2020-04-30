@@ -280,6 +280,7 @@ quotingKit = do
           Primitive{primClauses = cs} | not $ null cs ->
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Primitive{}   -> pure agdaDefinitionPrimitive
+          PrimitiveSort{} -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
