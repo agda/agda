@@ -254,6 +254,7 @@ checkStrictlyPositive mi qset = do
         GeneralizableVar{} -> False
         AbstractDefn{}     -> False
         Primitive{}        -> False
+        PrimitiveSort{}    -> False
         Constructor{}      -> False
         Function{}         -> True
         Datatype{}         -> True
@@ -584,6 +585,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Axiom{}            -> mempty
     DataOrRecSig{}     -> mempty
     Primitive{}        -> mempty
+    PrimitiveSort{}    -> mempty
     GeneralizableVar{} -> mempty
     AbstractDefn{}     -> __IMPOSSIBLE__
 

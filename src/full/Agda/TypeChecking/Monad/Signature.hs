@@ -1047,6 +1047,7 @@ makeAbstract d =
     -- to see whether the abstract thing is a record type or not.
     makeAbs d@Record{}    = Just $ AbstractDefn d
     makeAbs Primitive{}   = __IMPOSSIBLE__
+    makeAbs PrimitiveSort{} = __IMPOSSIBLE__
     makeAbs AbstractDefn{}= __IMPOSSIBLE__
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
@@ -1129,6 +1130,7 @@ droppedPars d = case theDef d of
     Record     {recPars = _} -> 0  -- not dropped
     Constructor{conPars = n} -> n
     Primitive{}              -> 0
+    PrimitiveSort{}          -> 0
     AbstractDefn{}           -> __IMPOSSIBLE__
 
 -- | Is it the name of a record projection?

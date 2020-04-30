@@ -40,6 +40,7 @@ isMainFunction q = \case
     Record{}                            -> no
     Constructor{}                       -> no
     Primitive{}                         -> no
+    PrimitiveSort{}                     -> no
   where
   perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
   no      = False

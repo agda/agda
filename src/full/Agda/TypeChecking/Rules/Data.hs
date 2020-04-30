@@ -1238,6 +1238,7 @@ isCoinductive t = do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
+        PrimitiveSort{} -> __IMPOSSIBLE__
         AbstractDefn{} -> __IMPOSSIBLE__
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__

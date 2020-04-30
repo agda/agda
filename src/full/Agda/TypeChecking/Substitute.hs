@@ -358,6 +358,7 @@ instance Apply Defn where
       d { conPars = np - size args }
     Primitive{ primClauses = cs } ->
       d { primClauses = apply cs args }
+    PrimitiveSort{} -> d
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -691,6 +692,7 @@ instance Abstract Defn where
       d { conPars = np + size tel }
     Primitive{ primClauses = cs } ->
       d { primClauses = abstract tel cs }
+    PrimitiveSort{} -> d
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts

@@ -104,6 +104,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
             if Set.member f fs then no else yes
         Function{}    -> no
         Primitive{}   -> no
+        PrimitiveSort{} -> no
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
@@ -241,6 +242,7 @@ checkOverapplication es = updateHeads overapplied
         Constructor{conSrcCon = ConHead{ conFields = fs }}
                        -> null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
+        PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
 
 

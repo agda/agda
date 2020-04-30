@@ -352,6 +352,7 @@ definition' kit q d t ls = do
       plainJS $ "agdaRTS." ++ p
     Primitive{} | Just e <- defJSDef d -> plainJS e
     Primitive{} | otherwise -> ret Undefined
+    PrimitiveSort{} -> return Nothing
 
     Datatype{} -> do
         computeErasedConstructorArgs q

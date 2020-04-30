@@ -564,6 +564,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
+    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
     _  -> do
       if (RecursiveReductions `SmallSet.member` allowed) ||
          (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
@@ -1464,6 +1465,7 @@ instance InstantiateFull Defn where
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
         return $ d { primClauses = cs }
+      PrimitiveSort{} -> return d
 
 instance InstantiateFull ExtLamInfo where
   instantiateFull' e@(ExtLamInfo { extLamSys = sys}) = do

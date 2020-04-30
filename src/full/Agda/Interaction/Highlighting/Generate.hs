@@ -279,6 +279,7 @@ nameKinds hlLevel decl = do
   defnToKind   TCM.Record{}                          = Record
   defnToKind   TCM.Constructor{ TCM.conInd = i }       = Constructor i
   defnToKind   TCM.Primitive{}                       = Primitive
+  defnToKind   TCM.PrimitiveSort{}                   = Primitive
   defnToKind   TCM.AbstractDefn{}                    = __IMPOSSIBLE__
 
   con :: NameKind
