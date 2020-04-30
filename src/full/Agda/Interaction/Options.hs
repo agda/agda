@@ -196,6 +196,9 @@ data PragmaOptions = PragmaOptions
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
      -- ^ Can we split on a (x :{flat} A) argument?
+  , optAutoImportPrimitive       :: Bool
+     -- ^ Should every top-level module start with an implicit statement
+     --   @open import Agda.Primitive using (Set; Prop)@?
   }
   deriving (Show, Eq)
 
@@ -306,6 +309,7 @@ defaultPragmaOptions = PragmaOptions
   , optCallByName                = False
   , optConfluenceCheck           = False
   , optFlatSplit                 = True
+  , optAutoImportPrimitive       = True
   }
 
 -- | The default termination depth.
@@ -456,6 +460,7 @@ restartOptions =
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
   , (B . optConfluenceCheck, "--confluence-check")
+  , (B . not . optAutoImportPrimitive, "--no-auto-import-primitive")
   ]
 
 -- to make all restart options have the same type
@@ -861,6 +866,8 @@ withCompilerFlag fp o = case optWithCompiler o of
  Nothing -> pure o { optWithCompiler = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
 
+noAutoImportPrimitiveFlag :: Flag PragmaOptions
+noAutoImportPrimitiveFlag o = return $ o { optAutoImportPrimitive = False }
 
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
@@ -1084,6 +1091,8 @@ pragmaOptions =
                     "disable reduction using the Agda Abstract Machine"
     , Option []     ["call-by-name"] (NoArg callByNameFlag)
                     "use call-by-name evaluation instead of call-by-need"
+    , Option []     ["no-auto-import-primitive"] (NoArg noAutoImportPrimitiveFlag)
+                    "disable the implicit import of Agda.Primitive at the start of each top-level module"
     ]
 
 -- | Pragma options of previous versions of Agda.
