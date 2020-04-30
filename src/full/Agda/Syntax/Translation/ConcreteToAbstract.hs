@@ -1238,6 +1238,18 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
+          noImplicitPrimitive <- not . optAutoImportPrimitive <$> pragmaOptions
+          -- Add implicit `open import Agda.Primitive using (Set; Prop)`
+          let mkName x            = C.Name noRange InScope [Id x]
+              agdaPrimitiveName   = Qual (mkName "Agda") $ C.QName $ mkName "Primitive"
+              agdaSetName         = mkName "Set"
+              agdaPropName        = mkName "Prop"
+              usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
+              directives          = ImportDirective noRange usingDirective [] [] Nothing
+              importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
+          primitiveImport <- if noImplicitPrimitive
+                             then return []
+                             else toAbstract importAgdaPrimitive
           -- Scope check the declarations outside
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecl) <- scopeCheckModule r m am tel $
@@ -1247,7 +1259,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
           let scope = insideScope
           setScope scope
-          return $ TopLevelInfo (outsideDecls ++ [ insideDecl ]) scope
+          return $ TopLevelInfo (primitiveImport ++ outsideDecls ++ [ insideDecl ]) scope
 
         -- We already inserted the missing top-level module, see
         -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',

@@ -1,6 +1,6 @@
 -- The Agda primitives (preloaded).
 
-{-# OPTIONS --without-K --no-subtyping #-}
+{-# OPTIONS --without-K --no-subtyping --no-auto-import-primitive #-}
 
 module Agda.Primitive where
 
@@ -9,6 +9,10 @@ module Agda.Primitive where
 ------------------------------------------------------------------------
 
 infixl 6 _⊔_
+
+{-# BUILTIN SET Set #-}
+{-# BUILTIN PROP Prop #-}
+{-# BUILTIN SETOMEGA Setω #-}
 
 -- Level is the first thing we need to define.
 -- The other postulates can only be checked if built-in Level is known.
@@ -29,5 +33,3 @@ postulate
 {-# BUILTIN LEVELZERO lzero #-}
 {-# BUILTIN LEVELSUC  lsuc  #-}
 {-# BUILTIN LEVELMAX  _⊔_   #-}
-
-{-# BUILTIN SETOMEGA Setω #-}
