@@ -595,7 +595,7 @@ bindPostulatedName builtin x m = do
           "The argument to BUILTIN " ++ builtin ++
           " must be a postulated name"
   getName = \case
-    DefinedName _ d -> return $ anameName d
+    DefinedName _ d NoSuffix -> return $ anameName d
     _ -> err
 
 addHaskellPragma :: QName -> String -> TCM ()
@@ -830,7 +830,8 @@ bindBuiltin b x = do
     -- Get the non-empty list of AbstractName for x
     xs <- case x of
       VarName{}            -> failure
-      DefinedName _ x      -> return $ x :| []
+      DefinedName _ x NoSuffix -> return $ x :| []
+      DefinedName _ x Suffix{} -> failure
       FieldName xs         -> return xs
       ConstructorName _ xs -> return xs
       PatternSynResName xs -> failure
@@ -860,7 +861,8 @@ isUntypedBuiltin = hasElem [ builtinFromNat, builtinFromNeg, builtinFromString ]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
-  DefinedName _ x      -> bind x
+  DefinedName _ x NoSuffix -> bind x
+  DefinedName _ x Suffix{} -> wrong
   FieldName (x :| [])  -> bind x
   FieldName (x :| _)   -> amb x
   VarName _x _bnd      -> wrong

@@ -497,7 +497,7 @@ data ResolvedName
     }
 
   | -- | Function, data/record type, postulate.
-    DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName Access AbstractName A.Suffix -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
     FieldName (List1 AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
@@ -515,11 +515,15 @@ data ResolvedName
 instance Pretty ResolvedName where
   pretty = \case
     VarName x _          -> "variable"    <+> pretty x
-    DefinedName a x      -> pretty a      <+> pretty x
+    DefinedName a x s    -> pretty a      <+> (pretty x <> pretty s)
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs
     PatternSynResName x  -> "pattern"     <+> pretty x
     UnknownName          -> "<unknown name>"
+
+instance Pretty A.Suffix where
+  pretty NoSuffix   = mempty
+  pretty (Suffix i) = text (show i)
 
 -- * Operations on name and module maps.
 
