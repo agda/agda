@@ -130,14 +130,12 @@ import Agda.Utils.Impossible
     'postulate'               { TokKeyword KwPostulate $$ }
     'primitive'               { TokKeyword KwPrimitive $$ }
     'private'                 { TokKeyword KwPrivate $$ }
-    'Prop'                    { TokKeyword KwProp $$ }
     'public'                  { TokKeyword KwPublic $$ }
     'quote'                   { TokKeyword KwQuote $$ }
     'quoteTerm'               { TokKeyword KwQuoteTerm $$ }
     'record'                  { TokKeyword KwRecord $$ }
     'renaming'                { TokKeyword KwRenaming $$ }
     'rewrite'                 { TokKeyword KwRewrite $$ }
-    'Set'                     { TokKeyword KwSet $$ }
     'syntax'                  { TokKeyword KwSyntax $$ }
     'tactic'                  { TokKeyword KwTactic $$ }
     'to'                      { TokKeyword KwTo $$ }
@@ -173,8 +171,6 @@ import Agda.Utils.Impossible
     'STATIC'                  { TokKeyword KwSTATIC $$ }
     'TERMINATING'             { TokKeyword KwTERMINATING $$ }
 
-    setN                      { TokSetN $$ }
-    propN                     { TokPropN $$ }
     tex                       { TokTeX $$ }
     comment                   { TokComment $$ }
 
@@ -260,14 +256,12 @@ Token
     | 'postulate'               { TokKeyword KwPostulate $1 }
     | 'primitive'               { TokKeyword KwPrimitive $1 }
     | 'private'                 { TokKeyword KwPrivate $1 }
-    | 'Prop'                    { TokKeyword KwProp $1 }
     | 'public'                  { TokKeyword KwPublic $1 }
     | 'quote'                   { TokKeyword KwQuote $1 }
     | 'quoteTerm'               { TokKeyword KwQuoteTerm $1 }
     | 'record'                  { TokKeyword KwRecord $1 }
     | 'renaming'                { TokKeyword KwRenaming $1 }
     | 'rewrite'                 { TokKeyword KwRewrite $1 }
-    | 'Set'                     { TokKeyword KwSet $1 }
     | 'syntax'                  { TokKeyword KwSyntax $1 }
     | 'tactic'                  { TokKeyword KwTactic $1 }
     | 'to'                      { TokKeyword KwTo $1 }
@@ -304,8 +298,6 @@ Token
     | 'WARNING_ON_IMPORT'       { TokKeyword KwWARNING_ON_IMPORT $1 }
     | 'WARNING_ON_USAGE'        { TokKeyword KwWARNING_ON_USAGE $1 }
 
-    | setN                      { TokSetN $1 }
-    | propN                     { TokPropN $1 }
     | tex                       { TokTeX $1 }
     | comment                   { TokComment $1 }
 
@@ -702,13 +694,9 @@ Expr3NoCurly :: { Expr }
 Expr3NoCurly
     : '?'                               { QuestionMark (getRange $1) Nothing }
     | '_'                               { Underscore (getRange $1) Nothing }
-    | 'Prop'                            { Prop (getRange $1) }
-    | 'Set'                             { Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | setN                              { SetN (getRange (fst $1)) (snd $1) }
-    | propN                             { PropN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
@@ -1882,8 +1870,6 @@ mkName (i, s) = do
                 SymDotDot            -> __IMPOSSIBLE__ -- "a modality"
                 SymEndComment        -> "the end-of-comment brace"
               TokString{}   -> __IMPOSSIBLE__
-              TokSetN{}     -> "a type universe"
-              TokPropN{}    -> "a prop universe"
               TokTeX{}      -> __IMPOSSIBLE__  -- used by the LaTeX backend only
               TokMarkup{}   -> __IMPOSSIBLE__  -- ditto
               TokComment{}  -> __IMPOSSIBLE__

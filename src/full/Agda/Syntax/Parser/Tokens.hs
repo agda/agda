@@ -14,7 +14,7 @@ data Keyword
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
-        | KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
+        | KwForall | KwRecord | KwConstructor | KwField
         | KwInductive | KwCoInductive
         | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
@@ -67,8 +67,6 @@ data Token
         | TokSymbol Symbol Interval
           -- Other tokens
         | TokString (Interval, String)  -- arbitrary string, used in pragmas
-        | TokSetN (Interval, Integer)
-        | TokPropN (Interval, Integer)
         | TokTeX (Interval, String)
         | TokMarkup (Interval, String)
         | TokComment (Interval, String)
@@ -84,8 +82,6 @@ instance HasRange Token where
   getRange (TokLiteral lit)    = getRange lit
   getRange (TokSymbol _ i)     = getRange i
   getRange (TokString (i, _))  = getRange i
-  getRange (TokSetN (i, _))    = getRange i
-  getRange (TokPropN (i, _))   = getRange i
   getRange (TokTeX (i, _))     = getRange i
   getRange (TokMarkup (i, _))  = getRange i
   getRange (TokComment (i, _)) = getRange i
