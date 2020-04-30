@@ -2534,6 +2534,7 @@ data BuiltinDescriptor
   = BuiltinData (TCM Type) [String]
   | BuiltinDataCons (TCM Type)
   | BuiltinPrim String (Term -> TCM ())
+  | BuiltinSort String
   | BuiltinPostulate Relevance (TCM Type)
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
     -- ^ Builtin of any kind.
