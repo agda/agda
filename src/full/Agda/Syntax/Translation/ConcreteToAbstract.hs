@@ -612,10 +612,13 @@ instance ToAbstract PatName APatName where
 --   (which could have been bound before due to non-linearity).
 bindPatternVariable :: C.Name -> ScopeM A.Name
 bindPatternVariable x = do
-  reportSLn "scope.pat" 10 $ "it was a var: " ++ prettyShow x
   y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
-    Just (LocalVar y _ _) -> return $ setRange (getRange x) y
-    Nothing -> freshAbstractName_ x
+    Just (LocalVar y _ _) -> do
+      reportSLn "scope.pat" 10 $ "it was a old var: " ++ prettyShow x
+      return $ setRange (getRange x) y
+    Nothing -> do
+      reportSLn "scope.pat" 10 $ "it was a new var: " ++ prettyShow x
+      freshAbstractName_ x
   addVarToBind x $ LocalVar y PatternBound []
   return y
 
@@ -2625,12 +2628,22 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
+
     toAbstract p0@(C.AsP r x p) = do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!
         -- x <- toAbstract (NewName PatternBound x)
-        x <- bindPatternVariable x
-        p <- toAbstract p
-        return $ A.AsP (PatRange r) (A.mkBindName x) p
+        -- Andreas, 2020-05-01, issue #4631: as-variables should not shadow constructors.
+        -- x <- bindPatternVariable x
+      toAbstract (PatName (C.QName x) Nothing) >>= \case
+        VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract p
+        ConPatName{}        -> ignoreAsPat False
+        PatternSynPatName{} -> ignoreAsPat True
+      where
+      -- An @-bound name which shadows a constructor is illegal and becomes dead code.
+      ignoreAsPat b = do
+        setCurrentRange x $ warning $ AsPatternShadowsConstructorOrPatternSynonym b
+        toAbstract p
+
     toAbstract p0@(C.EqualP r es)  = return $ A.EqualP (PatRange r) es
 
     -- We have to do dot patterns at the end since they can

@@ -175,6 +175,7 @@ data WarningName
   | UselessPrivate_
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
+  | AsPatternShadowsConstructorOrPatternSynonym_
   | CantGeneralizeOverSorts_
   | ClashesViaRenaming_                -- issue #4154
   | CoverageIssue_
@@ -316,6 +317,7 @@ warningNameDescription = \case
   UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
+  AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
   ClashesViaRenaming_              -> "Clashes introduced by `renaming'."  -- issue #4154
   CoverageIssue_                   -> "Failed coverage checks."

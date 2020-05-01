@@ -449,6 +449,8 @@ warningHighlighting w = case tcWarning w of
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
   PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
   NotInScopeW{}              -> deadcodeHighlighting $ getRange w
+  AsPatternShadowsConstructorOrPatternSynonym{}
+                             -> deadcodeHighlighting $ getRange w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
   NicifierIssue w           -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of

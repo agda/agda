@@ -300,6 +300,11 @@ prettyWarning = \case
         par ds  = parens $ vcat ds
         s = P.prettyShow x
 
+    AsPatternShadowsConstructorOrPatternSynonym patsyn -> fsep $ concat
+      [ pwords "Name bound in @-pattern ignored because it shadows"
+      , if patsyn then pwords "pattern synonym" else [ "constructor" ]
+      ]
+
     RecordFieldWarning w -> prettyRecordFieldWarning w
 
 prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc

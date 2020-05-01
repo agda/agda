@@ -3113,6 +3113,10 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | AsPatternShadowsConstructorOrPatternSynonym Bool
+    -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
+    --   or pattern synonym name (@True@),
+    --   because this can be confusing to read.
   | RecordFieldWarning RecordFieldWarning
   deriving (Show , Data)
 
@@ -3135,9 +3139,10 @@ warningName = \case
   NicifierIssue dw             -> declarationWarningName dw
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw
-  -- typechecking errors
-  CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
+  AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
+  -- scope- and type-checking errors
   AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
