@@ -287,9 +287,10 @@ isSolvedProblem problem = null (problem ^. problemRestPats) &&
 -- | Check if a problem consists only of variable patterns.
 --   (Includes the 'problemRest').
 problemAllVariables :: Problem a -> Bool
-problemAllVariables problem =
-    all (isSolved . snd . asView) $
-      map namedArg (problem ^. problemRestPats) ++ problemInPats problem
+problemAllVariables problem = and
+    [ all (isSolved . snd . asView . namedArg) $ problem ^. problemRestPats
+    , all isSolved $ problemInPats problem  -- No AsP here.
+    ]
   where
     -- need further splitting:
     isSolved A.ConP{}        = False
@@ -317,7 +318,7 @@ problemAllVariables problem =
 
 noShadowingOfConstructors :: ProblemEq -> TCM ()
 noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
-  case snd $ asView p of
+  case p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
    A.DotP        {} -> return ()
@@ -326,7 +327,7 @@ noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) 
    A.RecP        {} -> __IMPOSSIBLE__
    A.ProjP       {} -> __IMPOSSIBLE__
    A.DefP        {} -> __IMPOSSIBLE__
-   A.AsP         {} -> __IMPOSSIBLE__ -- removed by asView
+   A.AsP         {} -> __IMPOSSIBLE__ -- removed by updateProblemEq
    A.LitP        {} -> __IMPOSSIBLE__
    A.PatternSynP {} -> __IMPOSSIBLE__
    A.WithP       {} -> __IMPOSSIBLE__
@@ -774,12 +775,12 @@ checkLeftHandSide call f ps a withSub' strippedPats =
   -- after we have introduced variables, we can add the patterns stripped by
   -- with-desugaring to the state.
   let withSub = fromMaybe __IMPOSSIBLE__ withSub'
-  withEqs <- updateProblemEqs $ applySubst withSub strippedPats
+  let withEqs = applySubst withSub strippedPats
   -- Jesper, 2017-05-13: re-check the stripped patterns here!
   inTopContext $ addContext (st0 ^. lhsTel) $
     forM_ withEqs recheckStrippedWithPattern
 
-  let st = over (lhsProblem . problemEqs) (++ withEqs) st0
+  st <- (lhsProblem . problemEqs) (updateProblemEqs . (++ withEqs)) st0
 
   -- doing the splits:
   (result, block) <- unsafeInTopContext $ runWriterT $ (`runReaderT` (size cxt)) $ checkLHS f st
@@ -790,7 +791,7 @@ splitStrategy :: [ProblemEq] -> [ProblemEq]
 splitStrategy = filter shouldSplit
   where
     shouldSplit :: ProblemEq -> Bool
-    shouldSplit (ProblemEq p v a) = case snd $ asView p of
+    shouldSplit (ProblemEq p v a) = case p of
       A.LitP{}    -> True
       A.RecP{}    -> True
       A.ConP{}    -> True
@@ -803,7 +804,7 @@ splitStrategy = filter shouldSplit
 
       A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
-      A.AsP{}         -> __IMPOSSIBLE__
+      A.AsP{}         -> __IMPOSSIBLE__  -- removed by updateProblemEqs
       A.PatternSynP{} -> __IMPOSSIBLE__
       A.WithP{}       -> __IMPOSSIBLE__
 
@@ -879,7 +880,7 @@ checkLHS mf = updateModality checkLHS_ where
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- liftTCM $ expandLitPattern p
-      case snd $ asView p of
+      case p of
         (A.LitP l)        -> splitLit delta1 dom adelta2 l
         p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
         p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
@@ -891,7 +892,7 @@ checkLHS mf = updateModality checkLHS_ where
         A.AbsurdP{}     -> __IMPOSSIBLE__
         A.ProjP{}       -> __IMPOSSIBLE__
         A.DefP{}        -> __IMPOSSIBLE__
-        A.AsP{}         -> __IMPOSSIBLE__
+        A.AsP{}         -> __IMPOSSIBLE__  -- removed by updateProblemEqs
         A.PatternSynP{} -> __IMPOSSIBLE__
         A.WithP{}       -> __IMPOSSIBLE__
 

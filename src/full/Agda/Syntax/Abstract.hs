@@ -326,6 +326,7 @@ noDataDefParams = DataDefParams Set.empty []
 --      emptiness of the type will be checked after splitting is complete.
 data ProblemEq = ProblemEq
   { problemInPat :: Pattern
+      -- ^ Invariant: not an 'AsP'.
   , problemInst  :: I.Term
   , problemType  :: I.Dom I.Type
   } deriving (Data, Show)
