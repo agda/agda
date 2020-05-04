@@ -105,7 +105,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
             fs <- mutualNames <$> lookupMutualBlock mb
             if Set.member f fs then no else yes
         Function{}    -> no
-        Primitive{}   -> no
+        Primitive{primName} | primName == builtinHComp -> yes -- TODO onlf if it's a HIT or indexed fam.
+                            | otherwise -> no
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
