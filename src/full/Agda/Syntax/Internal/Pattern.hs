@@ -340,3 +340,10 @@ instance PatternVarModalities (Pattern' x) x where
       LitP{}      -> []
       ProjP{}     -> []
       IApplyP _ _ _ x -> [(x, defaultModality)]
+
+
+hasDefP :: [NamedArg DeBruijnPattern] -> Bool
+hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
+                  case x of
+                    DefP{} -> Any True
+                    _      -> Any False

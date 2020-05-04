@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -29,6 +30,7 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
@@ -404,6 +406,7 @@ instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
+    if hasDefP ps then return mempty else do
     (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
       withExtendedOccEnv' items $
         occurrences $ clauseBody cl
