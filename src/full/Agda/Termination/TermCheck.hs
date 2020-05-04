@@ -459,11 +459,6 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
         _ -> return empty
   where
-    hasDefP :: [NamedArg DeBruijnPattern] -> Bool
-    hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
-                  case x of
-                    DefP{} -> Any True
-                    _      -> Any False
 
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.

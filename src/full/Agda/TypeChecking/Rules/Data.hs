@@ -697,7 +697,7 @@ defineTranspIx d = do
         reportSDoc "tc.data.ixs" 20 $ "rect':" <+> pretty (sub ixs)
         reportSDoc "tc.data.ixs" 20 $ "rect':" <+> pretty rect'
 
-      theType <- (abstract params <$>) . (abstract deltaI <$>) $ runNamesT [] $ do
+      theType <- (abstract (setHiding Hidden <$> params) <$>) . (abstract deltaI <$>) $ runNamesT [] $ do
                   rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
                                                                  pure rect')
                   nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
@@ -753,17 +753,7 @@ defineTranspIx d = do
   where
 
     -- Γ, Δ^I, i : I |- sub (Γ ⊢ Δ) : Γ, Δ
-    sub tel = prependS __IMPOSSIBLE__ (map Just [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]) (raiseS (size tel + 1))
-    -- given I type, and Γ ⊢ Δ telescope, build Δ^I such that
-    -- Γ ⊢ (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    expTelescope :: Type -> Telescope -> Telescope
-    expTelescope int tel = unflattenTel names ys
-      where
-        xs = flattenTel tel
-        names = teleNames tel
-        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-        s = sub tel
-        ys = map (fmap (abstract t) . applySubst s) xs
+    sub tel = expS $ size tel
 
 
 defineTranspFun :: QName -- ^ datatype
@@ -862,18 +852,7 @@ defineTranspFun d mtrX cons pathCons = do
     _           -> __IMPOSSIBLE__
   where
     -- Γ, Δ^I, i : I |- sub (Γ ⊢ Δ) : Γ, Δ
-    sub tel = prependS __IMPOSSIBLE__ (map Just [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]) (raiseS (size tel + 1))
-    -- given I type, and Γ ⊢ Δ telescope, build Δ^I such that
-    -- Γ ⊢ (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    expTelescope :: Type -> Telescope -> Telescope
-    expTelescope int tel = unflattenTel names ys
-      where
-        xs = flattenTel tel
-        names = teleNames tel
-        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-        s = sub tel
-        ys = map (fmap (abstract t) . applySubst s) xs
-
+    sub tel = expS (size tel)
 
 defineConClause :: QName -- ^ trD
                 -> Bool  -- ^ HIT
@@ -941,7 +920,6 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
       qHComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
       hcomp_ty <- defType <$> getConstInfo qHComp
       gamma <- runNamesT [] $ do
-               let aTel = undefined
                ixsI <- open $ AbsN (teleNames parI) ixsI
                parI <- open parI
                abstract_trD $ \ delta x _ -> do
@@ -1010,10 +988,9 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
           let
             origPTrX = do
-              let trX = fromMaybe __IMPOSSIBLE__ mtrX
               x'_ps <- sequence x'_ps
               phi'_ps <- sequence phi'_ps
-              ds <- map (fmap (unnamed . dotP)) <$> deltaArg (pure iz)
+              ds <- map (setHiding Hidden . fmap (unnamed . dotP)) <$> deltaArg (pure iz)
               ps0@[_t] <- sequence as0
               pure $ DefP defaultPatternInfo trX $ ds ++ x'_ps ++ phi'_ps ++ ps0
             psTrX = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origPTrX]
@@ -1037,7 +1014,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                            bind "i" $ \ i -> do
                             j <- j
                             map (fmap (`apply` [argN j])) <$> trFillPathTel' telXdeltai symx' reflx1 phi' x (neg i)
-                      let args = liftM2 (++) (deltaArg (pure io)) x_tr_f
+                      let args = liftM2 (++) (map (setHiding Hidden) <$> deltaArg (pure io)) x_tr_f
                       (apply (Def trX []) <$> args) <@> (phi' `max` neg j) <@> trD_f
                 hcomp rhsTy [(phi,sideTrX),(phi',lam "i" $ \ _ -> ilam "o" $ \ _ -> baseTrX)]
                             baseTrX
@@ -1167,7 +1144,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                          con_ixs `applyN` (map (<@> pure io) delta ++ as1)
 
                        trx' <- transpPathPTel' theTel x theRight phi theLeft
-                       let args = liftM2 (++) (deltaArg (pure io)) (forM trx' \ q' -> do
+                       let args = liftM2 (++) (map (setHiding Hidden) <$> deltaArg (pure io)) (forM trx' \ q' -> do
                                                                        q' <- open q'
                                                                        argLam "i" $ \ i -> q' `argApp` neg i)
                        (apply (Def trX []) <$> args) <@> phi <@> cas1
@@ -1203,7 +1180,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
                 caseMaybe mtrX squeezedv0 $ \ trX -> ilam "o" $ \ o -> do
                   q2 <- transpPathPTel' theTel x theRight phi theLeft
-                  let args = liftM2 (++) (deltaArg (pure io))
+                  let args = liftM2 (++) (map (setHiding Hidden) <$> deltaArg (pure io))
                                          (forM q2 $ \ q' -> do
                                             q' <- open q'
                                             argLam "j" $ \ j -> q' `argApp` (neg j `min` i))
@@ -1247,57 +1224,6 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
       reportSDoc "tc.data.transp.con" 30 $
         addContext gamma $ "c:" <+> pretty c
       return c
-
--- * Special cases of Type
------------------------------------------------------------
-
--- | A @Type@ with sort @Type l@
---   Such a type supports both hcomp and transp.
-data LType = LEl Level Term deriving (Eq,Show)
-
-fromLType :: LType -> Type
-fromLType (LEl l t) = El (Type l) t
-
-lTypeLevel :: LType -> Level
-lTypeLevel (LEl l t) = l
-
-toLType :: MonadReduce m => Type -> m (Maybe LType)
-toLType ty = do
-  sort <- reduce $ getSort ty
-  case sort of
-    Type l -> return $ Just $ LEl l (unEl ty)
-    _      -> return $ Nothing
-
-instance Subst Term LType where
-  applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
-
--- | A @Type@ that either has sort @Type l@ or is a closed definition in Set\omega.
---   Such a type supports some version of transp.
---   In particular we want to allow the Interval as a @ClosedType@.
-data CType = ClosedType QName | LType LType deriving (Eq,Show)
-
-instance P.Pretty CType where
-  pretty = P.pretty . fromCType
-
-fromCType :: CType -> Type
-fromCType (ClosedType q) = El Inf (Def q [])
-fromCType (LType t) = fromLType t
-
-toCType :: MonadReduce m => Type -> m (Maybe CType)
-toCType ty = do
-  sort <- reduce $ getSort ty
-  case sort of
-    Type l -> return $ Just $ LType (LEl l (unEl ty))
-    Inf    -> do
-      t <- reduce (unEl ty)
-      case t of
-        Def q [] -> return $ Just $ ClosedType q
-        _        -> return $ Nothing
-    _      -> return $ Nothing
-
-instance Subst Term CType where
-  applySubst rho t@ClosedType{} = t
-  applySubst rho (LType t) = LType $ applySubst rho t
 
 
 defineTranspOrHCompForFields
@@ -1480,17 +1406,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
     -- (params : Δ^I), i : I |- T[params i]
     rect' = sub params `applySubst` rect
     -- Δ^I, i : I |- sub Δ : Δ
-    sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
-    -- given I type, and Δ telescope, build Δ^I such that
-    -- (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    expTelescope :: Type -> Telescope -> Telescope
-    expTelescope int tel = unflattenTel names ys
-      where
-        xs = flattenTel tel
-        names = teleNames tel
-        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-        s = sub tel
-        ys = map (fmap (abstract t) . applySubst s) xs
+    sub tel = expS $ size tel
 
 -- invariant: resulting tel Γ is such that Γ = (δ : Δ), (φ : I), (u : ...), (a0 : R δ))
 --            where u and a0 have types matching the arguments of primHComp.

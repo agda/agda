@@ -187,11 +187,21 @@ type Var m = (forall t' b. (Subst t' b, DeBruijn b) => NamesT m b)
 abstractN :: ( MonadFail m
              , Abstract a
              ) =>
-             NamesT m Telescope -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b]) -> NamesT m a) -> NamesT m a
+             NamesT m Telescope -> (Vars m -> NamesT m a) -> NamesT m a
 abstractN tel f = do
   tel <- tel
   u <- bindN (teleNames tel) f
   return $ abstract tel $ unAbsN u
+
+abstractT :: ( MonadFail m
+             , Abstract a
+             ) =>
+             String -> NamesT m Type -> (Var m -> NamesT m a) -> NamesT m a
+abstractT n ty f = do
+  u <- bind n f
+  ty <- ty
+  let tel = ExtendTel (defaultDom ty) $ Abs n EmptyTel
+  return $ abstract tel $ unAbs u
 
 
 lamTel :: Monad m => NamesT m (Abs [Term]) -> NamesT m ([Term])

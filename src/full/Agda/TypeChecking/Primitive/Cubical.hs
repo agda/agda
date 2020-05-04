@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Trans ( lift )
 import Control.Exception
 import Data.Typeable
+import Data.String
 
 import Data.Either ( partitionEithers )
 import Data.Map (Map)
@@ -21,6 +22,7 @@ import Agda.Interaction.Options ( optCubical )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive.Base
@@ -42,6 +44,9 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
+import Agda.Utils.Size
+import qualified Agda.Utils.Pretty as P
+
 
 requireCubical :: TCM ()
 requireCubical = do
@@ -426,6 +431,10 @@ data FamilyOrNot a
   = IsFam { famThing :: a }
   | IsNot { famThing :: a }
   deriving (Eq,Show,Functor,Foldable,Traversable)
+
+familyOrNot :: IsString p => FamilyOrNot a -> p
+familyOrNot (IsFam x) = "IsFam"
+familyOrNot (IsNot x) = "IsNot"
 
 instance Reduce a => Reduce (FamilyOrNot a) where
   reduceB' x = traverse id <$> traverse reduceB' x
@@ -1054,7 +1063,7 @@ primTransHComp cmd ts nelims = do
 
                          | Just as <- allApplyElims es, [] <- recFields r -> compData Nothing False (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
-                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
+                       | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
                          compData mtrD ((not $ null $ pcons) || ixs > 0) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
                      -- postulates with no arguments do not need to transport.
                      Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
@@ -1360,7 +1369,7 @@ primTransHComp cmd ts nelims = do
                                           (ps ++ map argN [phi,u,a0])
               Nothing        -> noRed' su
 
-    compData mtrD _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
+    compData mtrD        _     0     DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
     compData mtrD@Just{} isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let sc = famThing <$> fsc
       let f = unArg . ignoreBlocking
@@ -1407,7 +1416,23 @@ primTransHComp cmd ts nelims = do
                         pure transp <#> l <@> bC <@> phi <@> (u <@> j <..> o))
                    <@> (pure transp <#> l <@> bC <@> phi <@> u0)
         _ -> noRed
-    compData _ _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+    compData mtrX isHITorIx nargs cmd l t sbA sphi u u0 = do
+      () <- reportSDoc "impossible" 10 $ "compData" <+> (nest 2 . vcat)
+       [ "mtrX:       " <+> pretty mtrX
+       , "isHITorIx:  " <+> pretty isHITorIx
+       , "nargs:      " <+> pretty nargs
+       , "cmd:        " <+> text (show cmd)
+       , "l:          " <+> familyOrNot l
+       , "t:          " <+> familyOrNot t <+> pretty (famThing t)
+       , "sbA:          " <+> familyOrNot (ignoreBlocking $ sbA)
+       , "sphi:       " <+> pretty (ignoreBlocking sphi)
+       , "isJust u:   " <+> pretty (isJust u)
+       , "u0:         " <+> pretty u0
+       ]
+      __IMPOSSIBLE__
+
+--    compData _ _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+
 
 primComp :: TCM PrimitiveImpl
 primComp = do
@@ -2055,3 +2080,139 @@ trFillPathPTel' tel x y phi p r = do
                  y'
                  (max phi (neg r))
                  p
+
+
+
+-- given Γ ⊢ I type, and Γ ⊢ Δ telescope, build Δ^I such that
+-- Γ ⊢ (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
+expTelescope :: Type -> Telescope -> Telescope
+expTelescope int tel = unflattenTel names ys
+  where
+    stel = size tel
+    xs = flattenTel tel
+    names = teleNames tel
+    t = ExtendTel (defaultDom $ raise stel int) (Abs "i" EmptyTel)
+    s = expS stel
+    ys = map (fmap (abstract t) . applySubst s) xs
+
+
+-- | Γ, Δ^I, i : I |- expS |Δ| : Γ, Δ
+expS :: Nat -> Substitution
+expS stel = prependS __IMPOSSIBLE__ (map Just [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..stel] ]) (raiseS (stel + 1))
+
+
+-- * Special cases of Type
+-----------------------------------------------------------
+
+-- | A @Type@ with sort @Type l@
+--   Such a type supports both hcomp and transp.
+data LType = LEl Level Term deriving (Eq,Show)
+
+fromLType :: LType -> Type
+fromLType (LEl l t) = El (Type l) t
+
+lTypeLevel :: LType -> Level
+lTypeLevel (LEl l t) = l
+
+toLType :: MonadReduce m => Type -> m (Maybe LType)
+toLType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LEl l (unEl ty)
+    _      -> return $ Nothing
+
+instance Subst Term LType where
+  applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
+
+-- | A @Type@ that either has sort @Type l@ or is a closed definition in Set\omega.
+--   Such a type supports some version of transp.
+--   In particular we want to allow the Interval as a @ClosedType@.
+data CType = ClosedType QName | LType LType deriving (Eq,Show)
+
+instance P.Pretty CType where
+  pretty = P.pretty . fromCType
+
+fromCType :: CType -> Type
+fromCType (ClosedType q) = El Inf (Def q [])
+fromCType (LType t) = fromLType t
+
+toCType :: MonadReduce m => Type -> m (Maybe CType)
+toCType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LType (LEl l (unEl ty))
+    Inf    -> do
+      t <- reduce (unEl ty)
+      case t of
+        Def q [] -> return $ Just $ ClosedType q
+        _        -> return $ Nothing
+    _      -> return $ Nothing
+
+instance Subst Term CType where
+  applySubst rho t@ClosedType{} = t
+  applySubst rho (LType t) = LType $ applySubst rho t
+
+hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>
+               NamesT m Type
+               -> [(NamesT m Term, NamesT m Term)]
+               -> NamesT m Term
+               -> NamesT m Term
+hcomp ty sys u0 = do
+  iz <- primIZero
+  tHComp <- primHComp
+  let max i j = cl primIMax <@> i <@> j
+  ty <- ty
+  Just (LEl l ty) <- toLType ty
+  l <- open $ Level l
+  ty <- open $ ty
+  face <- (foldr max (pure iz) $ map fst $ sys)
+  sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
+  pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
+
+transpSys :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>
+               NamesT m (Abs Type) -- ty
+               -> [(NamesT m Term, NamesT m Term)] -- sys
+               -> NamesT m Term -- φ
+               -> NamesT m Term
+               -> NamesT m Term
+transpSys ty sys phi u = do
+  let max i j = cl primIMax <@> i <@> j
+  iz <- primIZero
+  tTransp <- primTrans
+  tComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
+  l_ty <- bind "i" $ \ i -> do
+      ty <- absApp <$> ty <*> i
+      Just (LEl l ty) <- toLType ty
+      return (l,ty)
+  l <- open $ Lam defaultArgInfo . fmap (Level . fst) $ l_ty
+  ty <- open $ Lam defaultArgInfo . fmap snd $ l_ty
+
+  if null sys then pure tTransp <#> l <@> ty <@> phi <@> u else do
+
+  let face = max phi (foldr max (pure iz) $ map fst $ sys)
+  sys <- (open =<<) $ lam "i'" $ \ i -> do
+    let base = (phi, ilam "o" $ \ _ -> u)
+    combineSys l ty $ base : [(phi, u <@> i) | (phi,u) <- sys]
+
+  pure tComp <#> l <@> ty <#> face <@> sys <@> u
+
+
+debugClause :: String -> Clause -> TCM ()
+debugClause s c = do
+      reportSDoc s 20 $
+        "gamma:" <+> prettyTCM gamma
+      reportSDoc s 20 $ addContext gamma $
+        "ps   :" <+> prettyTCM (patternsToElims ps)
+      reportSDoc s 20 $ addContext gamma $
+        "type :" <+> maybe "nothing" prettyTCM rhsTy
+      reportSDoc s 20 $ addContext gamma $
+        "body :" <+> maybe "nothing" prettyTCM rhs
+
+      reportSDoc s 30 $
+        addContext gamma $ "c:" <+> pretty c
+  where
+    gamma = clauseTel c
+    ps = namedClausePats c
+    rhsTy = clauseType c
+    rhs = clauseBody c
+    
