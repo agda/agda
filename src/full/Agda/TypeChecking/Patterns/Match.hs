@@ -240,7 +240,6 @@ matchPattern p u = case (p, u) of
  where
     -- Default: not an eta record constructor.
   fallback c ps v = do
-    isMatchable <- isMatchable'
     let f (Con c' ci' vs) | c == c' = Just (Con c' ci',vs)
         f _                         = Nothing
     fallback' f ps v
@@ -256,6 +255,8 @@ matchPattern p u = case (p, u) of
                 -> Just t
         t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
                 -> Just t
+        -- TODO this covers the transpIx functions, but it's a hack.
+        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses} <- r -> Just t
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.
