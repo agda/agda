@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonomorphismRestriction #-} -- TODO remove
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -475,14 +476,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
             snoc cs <$> createMissingHCompClause f n x sc newSc
-          (mtrees,cs) <- fmap (cs ++) . unzip . catMaybes <$> forM scs' (\ (t,(_newSc,i)) -> do
-                                                                           reflId <- getBuiltinName' builtinReflId
-                                                                           if | SplitCon c <- t, Just c == reflId
-                                                                              ->
-                                                                                createMissingConIdClause f n x sc i
-                                                                              | otherwise
-                                                                              -> return Nothing
-                                                                         )
+          (mtrees,cs) <- fmap (cs ++) <$> createMissingIndexedClauses f n x sc scs'
           results <- mapM ((cover f cs) . snd) scs
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
@@ -603,18 +597,522 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
-{- NOPARAM
-    -- iΓ'
-    itel = infoTel
-    -- iΓ' ⊢ iρ : Γ(l : Level)(A : Set l)(x y : A)
-    --
-    -- Δ = Γ(l' : Level)(A' : Set l)(x' y' : A),φ,(l' ≡ l)(A' ≡ A)(x' ≡ u)(p : y' ≡ v) ⊢ iτ : iΓ'
-    -- iΓ' ⊢ ρ = γ[iρ] : Γ
-    -- Γ,(φ : I),(p : u ≡ v) ⊢ τ = iτ[l' = l,A' = A,x' = u, y' = v,φ,refl,refl,refl,p] : iΓ'
-    -- Δ, (i : I) ⊢ ileftInv[i] : Δ
-    -- Γ,(φ : I),(p : u ≡ v) | (i : I) ⊢ leftInv[i] = γ[ileftInv[i]],φ[ileftInv[i]],p[iLeftInv[i]] :  Γ,(φ : I),(p : u ≡ v)
-    irho = infoRho
--}
+
+createMissingIndexedClauses :: QName
+                            -> Arg Nat
+                            -> BlockingVar
+                            -> SplitClause
+                            -> [(SplitTag,(SplitClause,IInfo))]
+                            -> TCM ([(SplitTag,SplitTree)],[Clause])
+createMissingIndexedClauses f n x old_sc scs = do
+  reflId <- getName' builtinReflId
+  let infos = [(c,i) | (SplitCon c, (_,TheInfo i)) <- scs ]
+  case scs of
+    [(SplitCon c,(_newSc,i@TheInfo{}))] | Just c == reflId -> unzip . maybeToList <$> createMissingConIdClause f n x old_sc i
+    xs | not $ null infos -> do
+         reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
+         reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
+
+         unless (size xs == size infos + 1) $ __IMPOSSIBLE__
+         Constructor{conData} <- theDef <$> getConstInfo (fst (head infos))
+         Datatype{dataPars = pars, dataIxs = nixs, dataTranspIx} <- theDef <$> getConstInfo conData
+         hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
+         trX <- fromMaybe __IMPOSSIBLE__ <$> pure dataTranspIx
+         trX_cl <- createMissingTrXTrXClause trX f n x old_sc
+         hcomp_cl <- createMissingTrXHCompClause trX f n x old_sc
+         (trees,cls) <- fmap unzip . forM infos $ \ (c,i) -> do
+           cl <- createMissingTrXConClause trX f n x old_sc c i
+           return $ ((SplitCon c , SplittingDone (size $ clauseTel cl)) , cl)
+         let extra | False = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl)
+                                           , (SplitCon hcomp, SplittingDone $ size $ clauseTel hcomp_cl)
+                                           ]
+                   | True = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl) ]
+             extraCl | False = [trX_cl, hcomp_cl]
+                     | True = [trX_cl]
+         let tree = (SplitCon trX,) $ SplitAt ((+(pars+nixs+1)) <$> n) StrictSplit $
+                                           trees
+                                        ++ extra
+         reportSDoc "tc.cover.indexed" 20 $
+           "tree:" <+> pretty tree
+         let clauses = extraCl ++ cls
+         addClauses f clauses
+         return $ ([tree],clauses)
+--         return $ ([],[])
+    xs | otherwise -> return ([],[])
+
+createMissingTrXTrXClause :: QName -- ^ trX
+                            -> QName -- ^ f defined
+                            -> Arg Nat
+                            -> BlockingVar
+                            -> SplitClause
+                            -> TCM Clause
+createMissingTrXTrXClause q_trX f n x old_sc = do
+  let
+   old_tel = scTel old_sc
+   old_ps = fromSplitPatterns $ scPats old_sc
+   old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+      
+  reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
+  reportSDoc "tc.cover.trx.trx" 20 $ nest 2 $ vcat $
+    [ "old_tel:" <+> prettyTCM old_tel
+    , "old_ps :" <+> addContext old_tel (prettyTCM $ patternsToElims old_ps)
+    , "old_t  :" <+> addContext old_tel (prettyTCM old_t)
+    ]
+
+  -- old_tel = Γ1, (x : D η v), Δ
+  -- α = boundary(old_ps)
+  -- Γ1, (x : D η v), Δ ⊢ f old_ps : old_t [ α ↦ (f old_ps)[α] ]
+
+  -- α' = boundary(old_ps[x = pat])
+  -- Γ1, φ : I, p : Path X(η) _ v, ψ : I, q : Path X(η) _ (p i0), x0 : D η (q i0) ⊢ pat := trX p φ (trX q ψ x0) : D η v
+
+  -- Ξ = Γ1, φ : I, p : Path X(η) _ v, ψ : I, q : Path X(η) _ (p i0), x0 : D η (q i0), Δ[x = pat]
+
+  -- Ξ ⊢ w1 := f old_ps[γ1,x = pat,δ] : old_t[γ1,x = pat,δ] -- the case we are defining. can only be used if specialized.
+
+  -- Ξ ⊢ rhs : old_t[γ1,x = pat,δ] [ α' ↦ w1[α']
+                                -- , φ  ↦ w1[φ = i1, p = refl]
+                                -- , ψ  ↦ w1[ψ = i1, q = refl]
+                                -- ]
+  -- Ξ ⊢ q2 := tr (i. Path X(η) (q i0) (p i)) φ q : Path X(η) (q i0) (p i1)
+  -- Ξ ⊢ pat_rec[0] = pat : D η v
+  -- Ξ ⊢ pat_rec[1] = trX q2 (φ ∧ ψ) x0 : D η v
+  -- Ξ ⊢ pat-rec[i] := trX (\ j → q (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
+
+  -- Ξ ⊢ δ_f[1] = tr (i. Δ[γ1,x = pat_rec[i]]) (φ ∧ ψ) δ
+  -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
+  -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
+
+  interval <- elInf primInterval
+  iz <- primIZero
+  let neg i = cl primINeg <@> i
+  let min i j = cl primIMin <@> i <@> j
+  let max i j = cl primIMax <@> i <@> j
+  let
+    old_tel = scTel old_sc
+    old_ps = pure $ AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
+    old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+  -- old_tel = Γ(x: D η v)Δ
+  -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
+    (gamma1x,delta') = splitTelescopeAt (size old_tel - blockingVarNo x) old_tel
+    delta = pure $ AbsN (teleNames gamma1x) $ delta'
+    gamma1_size = (size gamma1x - 1)
+    (gamma1,ExtendTel dType' _) = splitTelescopeAt gamma1_size gamma1x
+
+  let
+    gamma1ArgNames = teleArgNames gamma1
+    deltaArgNames = teleArgNames delta'
+  (params,xTel,dT) <- addContext gamma1 $ do
+    Right (IsData, d, ps, _is, _cs, _) <- runExceptT $ isDatatype Inductive dType'
+    def <- getConstInfo d
+    let dTy = defType def
+    let Datatype{dataSort = s} = theDef def
+    TelV tel _ <- telView dTy
+    let params = AbsN (teleNames gamma1) ps
+        xTel = AbsN (teleNames gamma1) (tel `apply` ps)
+
+    dT <- runNamesT [] $ do
+          s <- open $ AbsN (teleNames tel) s
+          bindNArg (teleArgNames gamma1) $ \ g1 -> do
+          bindNArg (teleArgNames $ unAbsN xTel) $ \ x -> do
+          params <- pure params `applyN` (fmap unArg <$> g1)
+          x      <- sequence x
+          s <- s `applyN` (map (pure . unArg) $ params ++ x)
+          pure $ El s $ Def d [] `apply` (params ++ x)
+    return $ (params, xTel,dT)
+
+  let
+    xTelI = pure $ expTelescope interval <$> xTel
+    xTelIArgNames = teleArgNames (unAbsN xTel) -- same names
+
+  -- Γ1, φ, p, ψ, q, x0 ⊢ pat := trX p φ (trX q ψ x0)
+  let trX' = bindNArg gamma1ArgNames $ \ g1 -> do
+             bindNArg ([defaultArg "phi"] ++ xTelIArgNames) $ \ phi_p -> do
+             bindNArg [defaultArg "x0"] $ \ x0 -> do
+             param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
+               pure params `applyN` (fmap unArg <$> g1)
+             (phi:p) <- sequence phi_p
+             x0 <- sequence x0
+             pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi] ++ x0
+      trX = (fmap . fmap . fmap) patternToTerm <$> trX'
+  let pat' =
+            bindN (map unArg gamma1ArgNames) $ \ g1 -> do
+            bindN (map unArg $ ([defaultArg "phi"] ++ xTelIArgNames)) $ \ phi_p -> do
+            bindN (map unArg $ ([defaultArg "psi"] ++ xTelIArgNames)) $ \ psi_q -> do
+            bindN (map unArg $ [defaultArg "x0"]) $ \ x0 -> do
+            -- (phi:p) <- sequence phi_p
+            -- (psi:q) <- sequence psi_q
+            -- x0 <- sequence x0
+            let trX = trX' `applyN` g1
+            trX `applyN` phi_p `applyN` [trX `applyN` psi_q `applyN` x0]
+          --  pure $ trX $ p ++ [phi, defaultArg $ unnamed $ trX $ q ++ [psi] ++ x0]
+      pat = (fmap . fmap . fmap . fmap) patternToTerm <$> pat'
+  let deltaPat g1 phi p psi q x0 =
+        delta `applyN` (g1 ++ [pat `applyN` g1 `applyN` (phi:p) `applyN` (psi:q) `applyN` [x0]])
+  -- Ξ
+  cTel <- runNamesT [] $
+    abstractN (pure gamma1) $ \ g1 -> do
+    abstractT "φ" (pure interval) $ \ phi -> do
+    abstractN (xTelI `applyN` g1) $ \ p -> do
+    abstractT "ψ" (pure interval) $ \ psi -> do
+    abstractN (xTelI `applyN` g1) $ \ q -> do
+    abstractT "x0" (pure dT `applyN` g1 `applyN` (flip map q $ \ f -> f <@> pure iz)) $ \ x0 -> do
+    deltaPat g1 phi p psi q x0
+
+  ps_ty_rhs <- runNamesT [] $ do
+    bindN (map unArg gamma1ArgNames) $ \ g1 -> do
+    bind "φ" $ \ phi -> do
+    bindN (map unArg xTelIArgNames) $ \ p -> do
+    bind "ψ" $ \ psi -> do
+    bindN (map unArg xTelIArgNames) $ \ q -> do
+    bind "x0" $ \ x0 -> do
+    bindN (map unArg deltaArgNames) $ \ d -> do
+    let
+      ps :: NamesT TCM NAPs
+      ps = old_ps `applyN` (g1
+                          ++ [pat' `applyN` g1 `applyN` (phi:p) `applyN` (psi:q) `applyN` [x0]]
+                          ++ d)
+
+      rhsTy = old_ty `applyN` (g1
+                          ++ [pat `applyN` g1 `applyN` (phi:p) `applyN` (psi:q) `applyN` [x0]]
+                          ++ d)
+
+    -- Ξ ⊢ q2 := tr (i. Path X(η) (q i0) (p i)) φ q : Path X(η) (q i0) (p i1)
+    xTel <- (open =<<) $ pure xTel `applyN` g1
+    q0 <- (mapM open =<<) $ lamTel $ bind "i" $ \ _ -> sequence q `appTel` pure iz
+    let q2 = map unArg <$> transpPathTel' (bind "i" $ \ _ -> xTel) q0 p phi q
+    let q2_f = bind "i" $ \ i -> map unArg <$> trFillPathTel' (bind "i" $ \ _ -> xTel) q0 p phi q i
+
+    -- Ξ ⊢ pat_rec[0] = pat : D η v
+    -- Ξ ⊢ pat_rec[1] = trX q2 (φ ∧ ψ) x0 : D η v
+    -- Ξ ⊢ pat-rec[i] := trX (\ j → q (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
+    let pat_rec = bind "i" $ \ i -> do
+          q_conn <- (mapM open =<<) $ lamTel $ bind "i" $ \ j -> sequence q `appTel` max i j
+          q2_f' <- (mapM open =<<) $ absApp <$> q2_f <*> i
+          trX `applyN` g1 `applyN` (max i phi:q_conn)
+              `applyN` [trX `applyN` g1 `applyN` (min psi (max phi (neg i)):q2_f') `applyN` [x0]]
+    -- Ξ ⊢ δ_f[1] = tr (i. Δ[γ1,x = pat_rec[i]]) (φ ∧ ψ) δ
+
+    d_f <- (open =<<) $ bind "i" $ \ i -> do
+      tel <- bind "i" $ \ i -> delta `applyN` (g1 ++ [absApp <$> pat_rec <*> i])
+      face <- min phi psi
+      i <- i
+      d <- map defaultArg <$> sequence d
+      Right d_f <- lift $ runExceptT $ trFillTel tel face d i
+      pure $ map unArg d_f
+    w <- (open =<<) $ bind "i" $ \ i -> do
+      args' <- (mapM open =<<) $ do
+        x <- absApp <$> pat_rec <*> neg i
+        ys <- absApp <$> d_f <*> neg i
+        pure $ x:ys
+      fmap (Def f) $ (fmap patternsToElims <$> old_ps) `applyN` (g1 ++ args')
+    -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
+    sys <- do
+      sides <- do
+        neg <- primINeg
+        io <- primIOne
+        vs <- iApplyVars <$> ps
+        tm <- w
+        xs <- forM vs $ \ v ->
+            -- have to reduce these under the appropriate substitutions, otherwise non-normalizing(?)
+              fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
+        vs <- map (fromMaybe __IMPOSSIBLE__ . deBruijnView :: Term -> Int) <$> sequence [phi,psi]
+        ys <- forM vs $ \ v -> do
+                fmap (var v,) . reduce $ (inplaceS v io `applySubst` tm)
+        return $ concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs ++ ys
+        
+      forM sides $ \ (psi,u') -> do
+        u' <- open u'
+        u <- lam "i" $ \ i -> ilam "o" $ \ o -> absApp <$> u' <*> i
+        (,) <$> open psi <*> open u
+    -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
+    let ty = bind "i" $ \ i -> do
+               d_fn <- (mapM open =<<) $ absApp <$> d_f <*> neg i
+               fmap unDom $ old_ty `applyN`
+                 (g1 ++ [absApp <$> pat_rec <*> neg i] ++ d_fn)
+    w0 <- open =<< {- reduce =<< -} (absApp <$> w <*> pure iz)
+    let rhs = transpSys ty sys (min phi psi) w0
+
+    (,,) <$> ps <*> rhsTy <*> rhs
+  let (ps,ty,rhs) = unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
+  reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
+  let c = Clause { clauseTel = cTel
+                  , namedClausePats = ps
+                  , clauseBody = Just rhs
+                  , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
+                  , clauseLHSRange = noRange
+                  , clauseFullRange = noRange
+                  , clauseCatchall = False
+                  , clauseRecursive = Just True
+                  , clauseUnreachable = Just False
+                  , clauseEllipsis = NoEllipsis
+                  }
+  debugClause "tc.cover.trx.trx" c
+  return $ c
+createMissingTrXHCompClause :: QName
+                            -> QName
+                            -> Arg Nat
+                            -> BlockingVar
+                            -> SplitClause
+                            -> TCM Clause
+createMissingTrXHCompClause trX f n x old_sc = do
+  let
+   old_tel = scTel old_sc
+   old_ps = fromSplitPatterns $ scPats old_sc
+   old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+      
+  reportSDoc "tc.cover.trx.hcomp" 20 $ "trX-hcomp clause for" <+> prettyTCM f
+  reportSDoc "tc.cover.trx.hcomp" 20 $ nest 2 $ vcat $
+    [ "old_tel:" <+> prettyTCM old_tel
+    , "old_ps :" <+> addContext old_tel (prettyTCM $ patternsToElims old_ps)
+    , "old_t  :" <+> addContext old_tel (prettyTCM old_t)
+    ]
+
+  -- old_tel = Γ1, (x : D η v), Δ
+  -- α = boundary(old_ps)
+  -- Γ1, (x : D η v), Δ ⊢ f old_ps : old_t [ α ↦ (f old_ps)[α] ]
+
+  -- α' = boundary(old_ps[x = pat])
+  -- Γ1, φ : I, p : Path X(η) _ v, ψ : I, u : I -> [ψ] → D η (p i0), u0 : D η (p i0) ⊢ pat := trX p φ (hcomp ψ u u0) : D η v
+
+  -- Ξ = Γ1, φ : I, p : Path X(η) _ v, ψ : I, u : ..., u0 : D η (p i0), Δ[x = pat]
+
+  -- Ξ ⊢ w1 := f old_ps[γ1,x = pat,δ] : old_t[γ1,x = pat,δ] -- the case we are defining. can only be used if specialized.
+
+  -- Ξ ⊢ rhs : old_t[γ1,x = pat,δ] [ α' ↦ w1[α']
+                                -- , φ  ↦ w1[φ = i1, p = refl]   = f old_ps[γ1,x = hcomp ψ u u0    ,δ]
+                                -- , ψ  ↦ w1[ψ = i1]             = f old_ps[γ1,x = trX p φ (u i1 _),δ]
+                                -- ]
+
+  -- Ξ ⊢ q2 := tr (i. Path X(η) (q i0) (p i)) φ q : Path X(η) (q i0) (p i1)
+  -- Ξ ⊢ pat_rec[0] = pat : D η v
+  -- Ξ ⊢ pat_rec[1] = trX q2 (φ ∧ ψ) x0 : D η v
+  -- Ξ ⊢ pat-rec[i] := trX (\ j → q (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
+
+  -- Ξ ⊢ δ_f[1] = tr (i. Δ[γ1,x = pat_rec[i]]) (φ ∧ ψ) δ : Δ[γ1,x = pat_rec[1]]
+  -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
+  -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
+  return $ undefined
+createMissingTrXConClause :: QName -- trX
+                            -> QName -- f defined
+                            -> Arg Nat
+                            -> BlockingVar
+                            -> SplitClause
+                            -> QName -- constructor name
+                            -> UnifyEquiv
+                            -> TCM Clause
+createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau leftInv) = do
+  reportSDoc "tc.cover.trxcon" 20 $ "trX-con clause for" <+> prettyTCM f <+> "with con" <+> prettyTCM c
+  reportSDoc "tc.cover.trxcon" 20 $ nest 2 $ vcat $
+    [ "gamma" <+> prettyTCM gamma
+    , "gamma'" <+> prettyTCM gamma'
+    , "xTel" <+> addContext gamma (prettyTCM xTel)
+    , "u"  <+> addContext gamma (prettyTCM u)
+    , "v"  <+> addContext gamma (prettyTCM v)
+    , "rho" <+> addContext gamma' (prettyTCM rho)
+    ]
+
+  Constructor{conSrcCon = chead} <- theDef <$> getConstInfo c
+
+  -- = TheInfo $ UE delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
+
+  -- η : Params_D ⊢ c : (a : Args(η)) → D η (ξ(η,a))
+
+  -- scTel old_sc = Γ1, (x : D η v), Δ
+  -- Γ1, (x : D η v), Δ ⊢ f old_ps : old_t [α(γ1,x,δ) ↦ e(γ1,x,δ)]
+
+  -- Γ = Γ1, a : Args(η)
+  -- Γ ⊢ u = ξ(η,a)
+  -- Γ ⊢ c a : D η u
+
+  -- Γ' ⊢ ρ : Γ
+
+  -- Γ' ⊢ u[ρ] = v[ρ] : X(η)[ρ]
+
+  -- Γ' ⊢ c a[ρ] : (D η v)[ρ]
+
+  -- Γ' ⊢ ρx := ρ,x = c a[ρ] : Γ,(x : D η v)
+
+  -- Γ',Δ[ρx] ⊢ old_t[ρx]
+  -- Γ',Δ[ρx] ⊢ f old_ps[ρx] : old_t[ρx] [α[ρx] ↦ e[γ1,x,δ][ρx]]
+
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ τ : Γ'
+
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ [ρx][τ] = [ρ[τ], x = c a[ρ[τ]]] : Γ,(x : D η v)
+
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ leftInv : ρ[τ],i1,refl ≡ idS : Γ,(φ : I),(p : Path X(η) u v)
+
+  -- Γ,(φ : I),(p : Path X(η) u v)| (i : I) ⊢ leftInv i : Γ,(φ : I),(p : Path X(η) u v)
+
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ leftInv i0 = ρ[τ],i1,refl : Γ,(φ : I),(p : Path X(η) u v)
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ leftInv i1 = γ   ,φ ,p    : Γ,(φ : I),(p : Path X(η) u v)
+  --                                 leftInv[φ = i1][i] = idS
+
+  -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ] ⊢ τ' = liftS |Δ[ρx]| τ : Γ',Δ[ρx]
+
+  -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ] ⊢
+  --            w = f old_ps[γ1[ρ[τ]],x = c a[ρ[τ]],δ] : old_t[ρx][τ'] = old_t[γ1[ρ[τ]],x = c a[ρ[τ]],δ]
+  
+  -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ], α(γ1,x,δ)[ρx][τ'] ⊢ w = e(γ1,x,δ)[ρx][τ']
+  
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ pat := trX p φ (c a) : D η v
+
+
+  -- Ξ = Γ,(φ : I),(p : Path X(η) u v),(δ : Δ[x = pat])
+  
+  -- Ξ ⊢ δ_f[1] = trTel (i. Δ[γ1[leftInv (~ i)], pat[leftInv (~i)]]) φ δ : Δ[ρ[τ], x = c a[ρ[τ]]]
+
+  -- Ξ ⊢ w[δ_f[1]] : old_t[γ1[ρ[τ]],x = c a[ρ[τ]],δ_f[1]]
+  -- Ξ, α(γ1,x,δ)[ρx][τ'][δ = δ_f[1]] ⊢ w[δ_f[1]] = e(γ1,x,δ)[ρx][τ'][δ_f[1]]
+
+  -- Ξ, α(γ1[ρ[τ]],c a[ρ[τ]],δ_f[1]) ⊢ w[δ_f[1]] = e(γ1[ρ[τ]],c a[ρ[τ]],δ_f[1])
+
+  -- Ξ ⊢ ?rhs : old_t[γ1,x = pat,δ] [α(γ1,pat,δ) ↦ e(γ1,pat,δ)
+  --                               ,φ           ↦ w
+  --                               ]
+  
+  -- ?rhs := transp (i. old_t[γ1[leftInv i],x = pat[leftInv i], δ_f[~i]]) φ (w[δ_f[1]])
+
+  -- we shall consider α(γ1,pat,δ) = α(γ1[ρ[τ]],c a[ρ[τ]],δ_f[1])
+  -- also rather than (p : Path X(η) u v) we'll have (p : I -> X(η)), same as the type of trX.
+
+  iz <- primIZero
+  interval <- elInf primInterval
+  let
+      old_tel = scTel old_sc
+      old_ps = pure $ AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
+      old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+  -- old_tel = Γ(x: D η v)Δ
+  -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
+      (gamma1x,delta') = splitTelescopeAt (size old_tel - blockingVarNo x) old_tel
+  let
+    gammaArgNames = teleArgNames gamma
+    deltaArgNames = teleArgNames delta'
+  let
+    xTelI = pure $ AbsN (teleNames gamma) $ expTelescope interval xTel
+    delta = pure $ AbsN (teleNames gamma1x) $ delta'
+    gamma1_size = (size gamma1x - 1)
+    (gamma1,ExtendTel dType' _) = splitTelescopeAt gamma1_size gamma1x
+  params <- addContext gamma1 $ do
+    Right (IsData, _d, ps, _is, _cs, _) <- runExceptT $ isDatatype Inductive dType'
+    return $ AbsN (teleNames gamma1) ps
+  -- Γ, φ , p ⊢ pat := trX p φ (c a)
+  let pat' =
+            bindNArg gammaArgNames $ \ g1_args -> do
+            bindNArg ([defaultArg "phi"] ++ teleArgNames xTel) $ \ phi_p -> do
+            let (g1,args) = splitAt gamma1_size g1_args
+            (phi:p) <- sequence phi_p
+            args <- sequence args
+            let cargs = defaultArg $ unnamed $ ConP chead noConPatternInfo args
+            param_args <- fmap (map (setHiding Hidden . fmap (unnamed . dotP))) $
+              pure params `applyN` take gamma1_size (fmap unArg <$> g1_args)
+            pure $ DefP defaultPatternInfo q_trX $ param_args ++ p ++ [phi,cargs]
+      pat = (fmap . fmap) patternToTerm <$> pat'
+      pat_left' = (fmap . fmap) (Abs "i" . (applySubst leftInv)) <$> pat
+      g1_left' = bindN (map unArg gammaArgNames) $ \ g1_args -> do
+                bindN (map unArg $ [defaultArg "phi"] ++ teleArgNames xTel) $ \ phi_p -> do
+                g1 <- sequence $ take gamma1_size g1_args :: NamesT TCM [Term]
+                pure $ Abs "i" (applySubst leftInv g1)
+        
+  gamma <- return $ pure gamma
+  let deltaPat g1_args phi p =
+        delta `applyN` (take gamma1_size g1_args ++ [pat `applyN` g1_args `applyN` (phi:p)])
+  let neg i = cl primINeg <@> i
+  -- Ξ
+  cTel <- runNamesT [] $
+    abstractN gamma $ \ g1_args -> do
+    abstractT "φ" (pure interval) $ \ phi -> do
+    abstractN (xTelI `applyN` g1_args) $ \ p -> do
+    deltaPat g1_args phi p
+  ps_ty_rhs <- runNamesT [] $ do
+    bindN (map unArg gammaArgNames) $ \ g1_args -> do
+    bind "phi" $ \ phi -> do
+    bindN (teleNames xTel) $ \ p -> do
+    bindN (map unArg $ deltaArgNames) $ \ d -> do
+    let
+      g1_left = g1_left' `applyN` g1_args `applyN` (phi:p)
+      pat_left = pat_left' `applyN` g1_args `applyN` (phi:p)
+      g1 :: Vars TCM
+      g1 = take gamma1_size g1_args
+
+      args :: Vars TCM
+      args = drop gamma1_size g1_args
+
+      ps :: NamesT TCM NAPs
+      ps = old_ps `applyN` (g1 ++ [pat' `applyN` g1_args `applyN` (phi:p)] ++ d)
+
+      rhsTy = old_ty `applyN` (g1 ++ [pat `applyN` g1_args `applyN` (phi:p)] ++ d)
+
+    -- (i. Δ[γ1[leftInv (~ i)], pat[leftInv (~i)]])
+    delta_f <- (open =<<) $ bind "i" $ \ i -> do
+      let ni = neg i
+      dargs <- (mapM open =<<) $ do
+        xs <- absApp <$> g1_left <*> ni
+        y <- absApp <$> pat_left <*> ni
+        return $ xs ++ [y]
+      delta `applyN` dargs
+
+    --  trFillTel (i. Δ[γ1[leftInv (~ i)], pat[leftInv (~i)]]) φ δ
+    d_f <- (open =<<) $ bind "i" $ \ i -> do
+      delta_f <- delta_f
+      phi <- phi
+      d <- map defaultArg <$> sequence d
+      i <- i
+      Right d_f <- lift $ runExceptT $ trFillTel delta_f phi d i
+      pure $ map unArg d_f
+
+    -- w = Def f (old_ps[g1_left[i],pat_left[i],d_f[~ i]])
+    w <- (open =<<) $ bind "i" $ \ i -> do
+      psargs <- (mapM open =<<) $ do
+        xs <- absApp <$> g1_left <*> i
+        y <- absApp <$> pat_left <*> i
+        zs <- absApp <$> d_f <*> neg i
+        return $ xs ++ [y] ++ zs
+      ps <- (fmap patternsToElims <$> old_ps) `applyN` psargs
+      pure $ Def f ps
+
+
+    -- (i. old_t[γ1[leftInv i],x = pat[leftInv i], δ_f[~i]])
+    ty <- (open =<<) $ bind "i" $ \ i -> do
+      tyargs <- (mapM open =<<) $ do
+        xs <- absApp <$> g1_left <*> i
+        y <- absApp <$> pat_left <*> i
+        zs <- absApp <$> d_f <*> neg i
+        return $ xs ++ [y] ++ zs
+      fmap unDom $ old_ty `applyN` tyargs
+
+    sys <- do
+      sides <- do
+        neg <- primINeg
+        io <- primIOne
+        vs <- iApplyVars <$> ps
+        tm <- w
+        xs <- forM vs $ \ v ->
+            -- have to reduce these under the appropriate substitutions, otherwise non-normalizing(?)
+              fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
+        return $ concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs
+      forM sides $ \ (psi,u') -> do
+        u' <- open u'
+        u <- lam "i" $ \ i -> ilam "o" $ \ o -> absApp <$> u' <*> i
+        (,) <$> open psi <*> open u
+
+    let rhs = transpSys ty sys phi (absApp <$> w <*> pure iz)
+
+    (,,) <$> ps <*> rhsTy <*> rhs
+
+  let (ps,ty,rhs) = unAbsN $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
+  return $ Clause { clauseTel = cTel
+                  , namedClausePats = ps
+                  , clauseBody = Just rhs
+                  , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
+                  , clauseLHSRange = noRange
+                  , clauseFullRange = noRange
+                  , clauseCatchall = False
+                  , clauseRecursive = Just True
+                  , clauseUnreachable = Just False
+                  , clauseEllipsis = NoEllipsis
+                  }
+
 
 -- | If given @TheInfo{}@ then assumes "x : Id u v" and
 --   returns both a @SplittingDone@ for conId, and the @Clause@ that covers it.
@@ -624,7 +1122,7 @@ createMissingConIdClause :: QName         -- ^ function being defined
                          -> SplitClause   -- ^ clause before split
                          -> IInfo         -- ^ info from unification
                          -> TCM (Maybe ((SplitTag,SplitTree),Clause))
-createMissingConIdClause f _n x old_sc info@TheInfo{} = setCurrentRange f $ do
+createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
   let
     -- iΓ'
     itel = infoTel
@@ -689,7 +1187,7 @@ createMissingConIdClause f _n x old_sc info@TheInfo{} = setCurrentRange f $ do
       let x = DefP defaultPatternInfo conId $ params ++ [phi,p]
       args <- open $ map namedArg g ++ [x] ++ map namedArg d
       applyN' old_ps' args
-  -- tel = Γ',Δ[ρ,x = refl],Δ₂
+  -- tel = Γ',Δ[ρ,x = refl]
   -- Γ' ⊢ ρ : Γ
   -- Γ' ⊢ u[ρ] = v[ρ] : A[ρ]
 
@@ -1320,8 +1818,8 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
       return $ Just . (SplitCon hCompName,) $ SClause delta' ps' rho cps' Nothing -- target fixed later
 
 
-data IInfo = NoInfo
-           | TheInfo { infoTel :: Telescope           -- Γ'
+data UnifyEquiv = UE { infoTel0 :: Telescope          -- Γ0
+                     , infoTel :: Telescope           -- Γ'
                      , infoEqTel :: Telescope         -- Γ0 ⊢ Δ
                      , infoEqLHS :: [Term]            -- Γ0 ⊢ us : Δ
                      , infoEqRHS :: [Term]            -- Γ0 ⊢ vs : Δ
@@ -1333,7 +1831,9 @@ data IInfo = NoInfo
                      -- leftInv[i=0] = ρ[τ],i1s,refls
                      -- leftInv[i=1] = idS
                      }
-       deriving (Show)
+                  deriving Show
+
+data IInfo = TheInfo UnifyEquiv | NoInfo deriving Show
 
 -- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
@@ -1434,7 +1934,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
                     , not $ null $ conIxs -- no point propagating this info if trivial?
                     , Right (tau,leftInv) <- tauInv
                     -- we report warning below if Left Illegal.
-            = TheInfo delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
+            = TheInfo $ UE delta1Gamma delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv
                     | otherwise
             = NoInfo
 
@@ -1662,12 +2162,12 @@ split' checkEmpty ind allowPartialCover inserttrailing
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if isHIT && inserttrailing == DoInsertTrailing
+        hcompsc <- if (isHIT || size ixs > 0) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         return ( dr
                , not (null ixs) -- Is "d" indexed?
-               , catMaybes (mns ++ [fmap (fmap (,NoInfo)) hcompsc])
+               , catMaybes (mns ++ [fmap (fmap (,NoInfo)) hcompsc | not $ null $ catMaybes mns])
                )
 
       computeLitNeighborhoods = do
