@@ -118,13 +118,13 @@ following (with the goal types shown in the holes)
 
       proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
       proof p []       = {! P [] !}
-      proof p (x ∷ xs) = {! P (filter p xs | p x) !}
+      proof p (x ∷ xs) = {! P (filter p (x ∷ xs) | p x) !}
 
 ..
   ::
     module ellipsis-proof where
 
-In the cons case we have to prove that ``P`` holds for ``filter p xs | p x``.
+In the cons case we have to prove that ``P`` holds for ``filter p (x ∷ xs) | p x``.
 This is the syntax for a stuck with-abstraction---\ ``filter`` cannot reduce
 since we don't know the value of ``p x``. This syntax is used for printing, but
 is not accepted as valid Agda code. Now if we with-abstract over ``p x``, but
@@ -133,7 +133,7 @@ don't pattern match on the result we get::
       proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
       proof p [] = p-nil
       proof p (x ∷ xs) with p x
-      ...                 | r   = {! P (filter p xs | r) !}
+      ...                 | r   = {! P (filter p (x ∷ xs) | r) !}
 
 ..
   ::
@@ -157,8 +157,8 @@ works just as well if we have an argument whose type contains ``filter p xs``.
       proof₂ : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs) → Q
       proof₂ p [] _ = q-nil
       proof₂ p (x ∷ xs) H with p x
-      ...                    | true  = {! H : P (filter p xs) !}
-      ...                    | false = {! H : P (x ∷ filter p xs) !}
+      ...                    | true  = {! H : P (x ∷ filter p xs) !}
+      ...                    | false = {! H : P (filter p xs) !}
 
 The generalisation is not limited to scrutinees in other with-abstractions. All
 occurrences of the term in the goal type and argument types will be
@@ -429,7 +429,7 @@ of a vector whose length is neither 0 nor 1:
     second : ∀ {n} {pr : NotNull (pred n)} → Vec A n → A
     second vs with (_ ∷ v ∷ _) ← vs = v
 
-Remember example of :ref:`simultaneous
+Remember the example of :ref:`simultaneous
 abstraction <simultaneous-abstraction>` from above. A simultaneous
 rewrite / pattern-matching ``with`` is to be understood as being nested.
 That is to say that the type refinements introduced by the first
