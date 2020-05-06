@@ -1370,17 +1370,14 @@ primTransHComp cmd ts nelims = do
               Nothing        -> noRed' su
 
     compData mtrD        _     0     DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
-    compData mtrD@Just{} isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+    compData (Just trD) isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let sc = famThing <$> fsc
       let f = unArg . ignoreBlocking
           phi :: Term
           phi = f $ sphi
-          noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced $ a0]
       let lam_i = Lam defaultArgInfo . Abs "i"
-      case mtrD of
-        Nothing ->  noRed
-        (Just trD) -> redReturn $ Def trD [] `apply`
-                                          (map (fmap lam_i) ps ++ map argN [phi,unArg a0])
+      redReturn $ Def trD [] `apply` (map (fmap lam_i) ps ++ map argN [phi,unArg a0])
+
     compData mtrD isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
       let sc = famThing <$> fsc
