@@ -106,6 +106,16 @@ and give it less precedence than
   e-⇒ : false and’ true ⇒ false  ≡  false
   e-⇒ = refl
 
+Fixities can be changed when importing with a ``renaming`` directive::
+
+  open M using (_∙_)
+  open M renaming (_∙_ to infixl 10 _*_)
+
+This code brings two instances of the operator ``_∙_`` in scope:
+
+* the first named ``_∙_`` and with its original fixity
+* the second named ``_*_`` and with the fixity changed to act like a
+  left associative operator of precedence 10.
 
 Associativity
 =============
