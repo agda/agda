@@ -3453,7 +3453,7 @@ data TypeError
         | NoSuchModule C.QName
         | AmbiguousName C.QName (NonEmpty A.QName)
         | AmbiguousModule C.QName (NonEmpty A.ModuleName)
-        | ClashingDefinition C.QName A.QName
+        | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName

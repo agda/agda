@@ -13,6 +13,7 @@ import Control.Monad.Writer hiding (mapM, forM, (<>))
 import Control.Monad.State hiding (mapM, forM)
 
 import Data.Either ( partitionEithers )
+import Data.Foldable (all, traverse_)
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -21,7 +22,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (all)
 import Data.Traversable hiding (for)
 
 import Agda.Interaction.Options
@@ -436,24 +436,30 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = bindName' acc kind NoMetadata x y
 
 bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
-bindName' acc kind meta x y = do
+bindName' acc kind meta x y = whenJustM (bindName'' acc kind meta x y) typeError
+
+-- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
+bindName'' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM (Maybe TypeError)
+bindName'' acc kind meta x y = do
   when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
-  y' <- case r of
-    -- Binding an anonymous declaration always succeeds.
-    -- In case it's not the first one, we simply remove the one that came before
-    _ | isNoName x      -> success
-    DefinedName _ d     -> clash $ anameName d
-    VarName z _         -> clash $ A.qualify_ z
-    FieldName       ds  -> ambiguous (== FldName) ds
-    ConstructorName i ds-> ambiguous (isJust . isConName) ds
-    PatternSynResName n -> ambiguous (== PatternSynName) n
-    UnknownName         -> success
+  let y' :: Either TypeError AbstractName
+      y' = case r of
+        -- Binding an anonymous declaration always succeeds.
+        -- In case it's not the first one, we simply remove the one that came before
+        _ | isNoName x      -> success
+        DefinedName _ d     -> clash $ anameName d
+        VarName z _         -> clash $ A.qualify_ z
+        FieldName       ds  -> ambiguous (== FldName) ds
+        ConstructorName i ds-> ambiguous (isJust . isConName) ds
+        PatternSynResName n -> ambiguous (== PatternSynName) n
+        UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  modifyCurrentScope $ addNameToScope ns x y'
+  traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  pure $ either Just (const Nothing) y'
   where
-    success = return $ AbsName y kind Defined meta
-    clash   = typeError . ClashingDefinition (C.QName x)
+    success = Right $ AbsName y kind Defined meta
+    clash n = Left $ ClashingDefinition (C.QName x) n Nothing
 
     ambiguous f ds =
       if f kind && all (f . anameKind) ds
@@ -901,7 +907,7 @@ openModule kind mam cm dir = do
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter (\ x -> defClash x) defClashes) $
-          \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) $ anameName q
+          \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do
           caseMaybe (last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do
