@@ -11,6 +11,9 @@
 
   infix 4 _≡_
 
+  module M where
+    postulate _∙_ : Bool → Bool → Bool
+
 .. _mixfix-operators:
 
 ****************
