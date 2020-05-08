@@ -207,7 +207,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c ci vs -> apps (A.Con (unambiguous (conName c))) =<< reify vs
+    DCon c ci vs -> recOrCon (conName c) ci =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
@@ -1214,6 +1214,7 @@ tryRecPFromConP p = do
   let fallback = return p
   case p of
     A.ConP ci c ps -> do
+        reportSLn "reify.pat" 60 $ "tryRecPFromConP " ++ prettyShow c
         caseMaybeM (isRecordConstructor $ headAmbQ c) fallback $ \ (r, def) -> do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
@@ -1226,15 +1227,35 @@ tryRecPFromConP p = do
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
+-- | If the record constructor is generated or the user wrote a record expression,
+--   turn constructor expression into record expression.
+--   Otherwise, keep constructor expression.
+recOrCon :: MonadReify m => QName -> ConOrigin -> [Arg Expr] -> m A.Expr
+recOrCon c co es = do
+  reportSLn "reify.expr" 60 $ "recOrCon " ++ prettyShow c
+  caseMaybeM (isRecordConstructor c) fallback $ \ (r, def) -> do
+    -- If the record constructor is generated or the user wrote a record expression,
+    -- print record expression.
+    -- Otherwise, print constructor expression.
+    if recNamedCon def && co /= ConORec then fallback else do
+      fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+      unless (length fs == length es) __IMPOSSIBLE__
+      return $ A.Rec empty $ zipWith mkFA fs es
+  where
+  fallback = apps (A.Con (unambiguous c)) es
+  mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
+
 instance Reify (QNamed I.Clause) A.Clause where
   reify (QNamed f cl) = reify (NamedClause f True cl)
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSLn "reify.clause" 60 $ "reifying NamedClause"
-      ++ "\n  f      = " ++ prettyShow f
-      ++ "\n  toDrop = " ++ show toDrop
-      ++ "\n  cl     = " ++ show cl
+    reportSLn "reify.clause" 60 $ unlines
+      [ "reifying NamedClause"
+      , "  f      = " ++ prettyShow f
+      , "  toDrop = " ++ show toDrop
+      , "  cl     = " ++ show cl
+      ]
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []

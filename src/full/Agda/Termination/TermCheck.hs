@@ -815,7 +815,7 @@ function g es0 = do
          -- otherwise its free variables with be prepended to the call
          -- in the error message.
          doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure $
-           Def g $ reverse $ dropWhile ((Inserted ==) . getOrigin) $ reverse es0
+           Def g $ List.dropWhileEnd ((Inserted ==) . getOrigin) es0
            -- Andreas, 2018-07-22, issue #3136
            -- Dropping only inserted arguments at the end, since
            -- dropping arguments in the middle might make the printer crash.
