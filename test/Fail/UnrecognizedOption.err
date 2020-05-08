@@ -1,3 +1,4 @@
+UnrecognizedOption.agda:3,1-9,6
 Unrecognized options: --dont-termination-check (did you mean
 --no-termination-check ?) --not-termination-check (did you mean
 --no-termination-check ?) --without-k (did you mean --without-K ?)

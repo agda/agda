@@ -368,13 +368,16 @@ getInterface' x isMain msi =
              (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
      -- We remember but reset the pragma options locally
      -- For the main interface, we also remember the pragmas from the file
-     when (includeStateChanges isMain) $ do
-       pragmas <- concreteOptionsToOptionPragmas
-                    (fst $ maybe __IMPOSSIBLE__ siModule msi)
-       mapM_ setOptionsFromPragma pragmas
-     currentOptions <- useTC stPragmaOptions
-     -- Now reset the options
-     setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
+     let mpragmas = fst . siModule <$> msi
+     -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
+     currentOptions <- setCurrentRange mpragmas $ do
+       when (includeStateChanges isMain) $ do
+         let pragmas = fromMaybe __IMPOSSIBLE__ mpragmas
+         mapM_ setOptionsFromPragma =<< concreteOptionsToOptionPragmas pragmas
+       currentOptions <- useTC stPragmaOptions
+       -- Now reset the options
+       setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
+       return currentOptions
 
      alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
       file <- findFile x  -- requires source to exist
