@@ -260,6 +260,58 @@ Level) → Set n`` belongs to ``Setω`` which is not of this form. The
 only type constructor that can be applied to expressions of kind
 ``Setω`` is ``→``.
 
+univSort, piSort and funSort
+----------------------------
+
+Under universe polymorphism, levels can be arbitrary terms, e.g., a
+level that contains free variables. Sometimes, we will have to check
+that some expression has a valid type without knowing what sort it has.
+
+Agda’s internal representation of sorts implements a constructor (sort
+metavariable) representing an unknown sort. The constraint solver can
+compute these sort metavariables, just like it does when computing
+regular term metavariables.
+
+But this sort metavariable need other constructors to solve function
+types. The constructor ``funSort`` computes the sort of a function type
+even if the sort of the domain and the sort of the codomain are still
+unknown.
+
+Example: the sort of the function type ``∀ {A} → A → A`` with normal form
+``{A : _5} → A → A`` evaluates to ``funSort (univSort _5) (funSort _5 _5)``
+where:
+
+* ``_5`` is a metavariable that represents the sort of ``A``.
+* ``funSort _5 _5)`` is the sort of ``A → A``
+* ``univSort _5`` is the sort where the sort of ``A`` lives, ie. the
+  successor level of ``_5``.
+
+Note that ``funSort`` can admit just two arguments, so it will be iterated
+when the function type has multiple arguments. E.g. the function type
+``∀ {A} → A → A → A`` evaluates to
+``funSort (univSort _5) (funSort _5 (funSort _5 _5))``
+
+Similarly, ``PiSort s1 s2`` is a constructor that computes the sort of
+a Π-type given the sort ``s1`` of its domain and the sort ``s2`` of its
+codomain as arguments.
+
+These constructors do not represent new sorts but instead, they compute
+to the right sort once their arguments are known.
+
+More examples:
+
+* ``piSort Level (\l. Set l)`` evaluates to ``Setω``
+* ``piSort (Set l) (\_. Set l')`` evaluates to ``Set (l ⊔ l')``
+* ``univSort (Set l)`` evaluates to ``Set (lsuc l)``
+* The function type ``∀ {A} → ∀ {B} → B → A → B`` with normal form
+  ``{A : _9} {B : _7} → B → A → B`` evaluates to
+  ``piSort (univSort _9) (λ A → funSort (univSort _7)
+  (funSort _7 (funSort _9 _7)))``
+
+Note that ``funSort``, ``PiSort`` and ``UnivSort`` are not always
+well-defined. Eg. ``Setω`` does not have a ``UnivSort`` (successor
+sort) since there is currently no next sort to ``Setω``.
+
 Pragmas and options
 -------------------
 
