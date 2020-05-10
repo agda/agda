@@ -651,7 +651,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
    old_tel = scTel old_sc
    old_ps = fromSplitPatterns $ scPats old_sc
    old_t = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
-      
+
   reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
   reportSDoc "tc.cover.trx.trx" 20 $ nest 2 $ vcat $
     [ "old_tel:" <+> prettyTCM old_tel
@@ -659,6 +659,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     , "old_t  :" <+> addContext old_tel (prettyTCM old_t)
     ]
 
+  -- TODO: redo comments, the strategy changed.
   -- old_tel = Γ1, (x : D η v), Δ
   -- α = boundary(old_ps)
   -- Γ1, (x : D η v), Δ ⊢ f old_ps : old_t [ α ↦ (f old_ps)[α] ]
@@ -677,7 +678,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
   -- Ξ ⊢ q2 := tr (i. Path X(η) (q i0) (p i)) φ q : Path X(η) (q i0) (p i1)
   -- Ξ ⊢ pat_rec[0] = pat : D η v
   -- Ξ ⊢ pat_rec[1] = trX q2 (φ ∧ ψ) x0 : D η v
-  -- Ξ ⊢ pat-rec[i] := trX (\ j → q (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
+  -- Ξ ⊢ pat-rec[i] := trX (\ j → p (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
 
   -- Ξ ⊢ δ_f[1] = tr (i. Δ[γ1,x = pat_rec[i]]) (φ ∧ ψ) δ
   -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
@@ -685,12 +686,25 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
 
   interval <- elInf primInterval
   iz <- primIZero
-  let neg i = cl primINeg <@> i
+  io <- primIOne
+  tHComp <- primHComp
+  tNeg <- primINeg
+  let neg i = pure tNeg <@> i
   let min i j = cl primIMin <@> i <@> j
   let max i j = cl primIMax <@> i <@> j
+  let hcomp ty sys u0 = do
+          ty <- ty
+          Just (LEl l ty) <- toLType ty
+          l <- open $ Level l
+          ty <- open $ ty
+          face <- (foldr max (pure iz) $ map fst $ sys)
+          sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
+          pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
+
   let
     old_tel = scTel old_sc
-    old_ps = pure $ AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
+    old_ps' = AbsN (teleNames old_tel) $ fromSplitPatterns $ scPats old_sc
+    old_ps = pure $ old_ps'
     old_ty = pure $ AbsN (teleNames old_tel) $ fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
   -- old_tel = Γ(x: D η v)Δ
   -- Γ1, (x : D η v)  ⊢ delta = (δ : Δ)
@@ -699,6 +713,13 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     gamma1_size = (size gamma1x - 1)
     (gamma1,ExtendTel dType' _) = splitTelescopeAt gamma1_size gamma1x
 
+  old_sides <- forM old_ps' $ \ ps -> do
+    let vs = iApplyVars ps
+    let tm = Def f $ patternsToElims ps
+    xs <- forM vs $ \ v ->
+        -- have to reduce these under the appropriate substitutions, otherwise non-normalizing(?)
+          fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
+    return $ concatMap (\(v,(l,r)) -> [(tNeg `apply` [argN v],l),(v,r)]) xs
   let
     gamma1ArgNames = teleArgNames gamma1
     deltaArgNames = teleArgNames delta'
@@ -777,62 +798,95 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
                           ++ [pat `applyN` g1 `applyN` (phi:p) `applyN` (psi:q) `applyN` [x0]]
                           ++ d)
 
-    -- Ξ ⊢ q2 := tr (i. Path X(η) (q i0) (p i)) φ q : Path X(η) (q i0) (p i1)
     xTel <- (open =<<) $ pure xTel `applyN` g1
-    q0 <- (mapM open =<<) $ lamTel $ bind "i" $ \ _ -> sequence q `appTel` pure iz
-    let q2 = map unArg <$> transpPathTel' (bind "i" $ \ _ -> xTel) q0 p phi q
-    let q2_f = bind "i" $ \ i -> map unArg <$> trFillPathTel' (bind "i" $ \ _ -> xTel) q0 p phi q i
-
+    q4_f <- (open =<<) $ bind "i" $ \ i -> lamTel $ bind "j" $ \ j -> do
+      ty <- bind "i" $ \ _ -> xTel
+      face <- max phi $ max (neg j) (neg i)
+      base <- map defaultArg <$> appTel (sequence q) j
+      u  <- liftM2 (,) (max j psi) $ bind "h" $ \ h -> do
+              appTel (sequence p) (min j (min h i))
+      Right xs <- lift $ runExceptT $ transpSysTel' False ty [u] face base
+      pure $ map unArg xs
     -- Ξ ⊢ pat_rec[0] = pat : D η v
-    -- Ξ ⊢ pat_rec[1] = trX q2 (φ ∧ ψ) x0 : D η v
-    -- Ξ ⊢ pat-rec[i] := trX (\ j → q (i ∨ j)) (i ∨ φ) (trX (q2_f i) (ψ ∧ (φ ∨ ~ i)) t)
-    let pat_rec = bind "i" $ \ i -> do
-          q_conn <- (mapM open =<<) $ lamTel $ bind "i" $ \ j -> sequence q `appTel` max i j
-          q2_f' <- (mapM open =<<) $ absApp <$> q2_f <*> i
-          trX `applyN` g1 `applyN` (max i phi:q_conn)
-              `applyN` [trX `applyN` g1 `applyN` (min psi (max phi (neg i)):q2_f') `applyN` [x0]]
+    -- Ξ ⊢ pat_rec[1] = trX q4 (φ ∧ ψ) x0 : D η v
+    -- Ξ ⊢ pat-rec[i] := trX (\ j → p (i ∨ j)) (i ∨ φ) (trX (q4_f i) (ψ ∧ (φ ∨ ~ i)) t)
+    pat_rec <- (open =<<) $ bind "i" $ \ i -> do
+          p_conn <- (mapM open =<<) $ lamTel $ bind "i" $ \ j -> sequence p `appTel` max i j
+          q4_f' <- (mapM open =<<) $ absApp <$> q4_f <*> i
+          trX `applyN` g1 `applyN` (max i phi:p_conn)
+              `applyN` [trX `applyN` g1 `applyN` (min psi (max phi (neg i)):q4_f') `applyN` [x0]]
+
+    let mkBndry args = do
+            args1 <- (mapM open =<<) $ (absApp <$> args <*> pure io)
+            -- faces ought to be constant on "j"
+            faces <- pure (fmap (map fst) old_sides) `applyN` args1
+            us <- forM (sequence (fmap (map snd) old_sides)) $ \ u -> do
+                  lam "j" $ \ j -> ilam "o" $ \ _ -> do
+                    args <- (mapM open =<<) $ (absApp <$> args <*> j)
+                    pure u `applyN` args
+            forM (zip faces us) $ \ (phi,u) -> liftM2 (,) (open phi) (open u)
+    let mkComp pr = bind "i" $ \ i -> do
+          d_f <- (open =<<) $ bind "j" $ \ j -> do
+            tel <- bind "j" $ \ j -> delta `applyN` (g1 ++ [pr `applyN` [i,j]])
+            face <- min phi psi `max` (min i (max phi psi))
+            j <- j
+            d <- map defaultArg <$> sequence d
+            Right d_f <- lift $ runExceptT $ trFillTel tel face d j
+            pure $ map unArg d_f
+          let args = bind "j" $ \ j -> do
+                g1 <- sequence g1
+                x <- pr `applyN` [i,neg j]
+                ys <- absApp <$> d_f <*> neg j
+                pure $ g1 ++ x:ys
+          ty <- (open =<<) $ bind "j" $ \ j -> do
+               args <- (mapM open =<<) $ absApp <$> args <*> j
+               fmap unDom $ old_ty `applyN` args
+          let face = max i (min phi psi)
+          base <- (open =<<) $ do
+            args' <- (mapM open =<<) $ absApp <$> args <*> pure iz
+            fmap (Def f) $ (fmap patternsToElims <$> old_ps) `applyN` args'
+          sys <- mkBndry args
+          transpSys ty sys face base
+
     -- Ξ ⊢ δ_f[1] = tr (i. Δ[γ1,x = pat_rec[i]]) (φ ∧ ψ) δ
-
-    d_f <- (open =<<) $ bind "i" $ \ i -> do
-      tel <- bind "i" $ \ i -> delta `applyN` (g1 ++ [absApp <$> pat_rec <*> i])
-      face <- min phi psi
-      i <- i
-      d <- map defaultArg <$> sequence d
-      Right d_f <- lift $ runExceptT $ trFillTel tel face d i
-      pure $ map unArg d_f
-    w <- (open =<<) $ bind "i" $ \ i -> do
-      args' <- (mapM open =<<) $ do
-        x <- absApp <$> pat_rec <*> neg i
-        ys <- absApp <$> d_f <*> neg i
-        pure $ x:ys
-      fmap (Def f) $ (fmap patternsToElims <$> old_ps) `applyN` (g1 ++ args')
     -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
-    sys <- do
-      sides <- do
-        neg <- primINeg
-        io <- primIOne
-        vs <- iApplyVars <$> ps
-        tm <- w
-        xs <- forM vs $ \ v ->
-            -- have to reduce these under the appropriate substitutions, otherwise non-normalizing(?)
-              fmap (var v,) . reduce $ (inplaceS v iz `applySubst` tm, inplaceS v io `applySubst` tm)
-        vs <- map (fromMaybe __IMPOSSIBLE__ . deBruijnView :: Term -> Int) <$> sequence [phi,psi]
-        ys <- forM vs $ \ v -> do
-                fmap (var v,) . reduce $ (inplaceS v io `applySubst` tm)
-        return $ concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs ++ ys
-        
-      forM sides $ \ (psi,u') -> do
-        u' <- open u'
-        u <- lam "i" $ \ i -> ilam "o" $ \ o -> absApp <$> u' <*> i
-        (,) <$> open psi <*> open u
     -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
-    let ty = bind "i" $ \ i -> do
-               d_fn <- (mapM open =<<) $ absApp <$> d_f <*> neg i
-               fmap unDom $ old_ty `applyN`
-                 (g1 ++ [absApp <$> pat_rec <*> neg i] ++ d_fn)
-    w0 <- open =<< {- reduce =<< -} (absApp <$> w <*> pure iz)
-    let rhs = transpSys ty sys (min phi psi) w0
+    syspsi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ _ -> do
+      c <- mkComp $ bindN ["i","j"] $ \ ij -> do
+        let i = ij List.!! 0
+            j = ij List.!! 1
+        Abs n (data_ty,lines) <- bind "k" $ \ k -> do
+          let phi_k = max phi (neg k)
+          let p_k = flip map p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
+          data_ty <- pure dT `applyN` g1 `applyN` (flip map p $ \ p -> p <@> k)
+          line1 <- trX `applyN` g1 `applyN` (phi_k:p_k) `applyN` [x0]
 
+          line2 <- trX `applyN` g1
+                       `applyN` (max phi_k j      : (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (max h j)))
+                       `applyN`
+                  [trX `applyN` g1
+                       `applyN` (max phi_k (neg j): (flip map p_k $ \ p -> lam "h" $ \ h -> p <@> (min h j)))
+                       `applyN` [x0]]
+          pure (data_ty,[line1,line2])
+        data_ty <- open $ Abs n data_ty
+        [line1,line2] <- mapM (open . Abs n) lines
+        let sys = [(neg i, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line2 <*> k)
+                  ,(neg j `max` j `max` i `max` phi, lam "k" $ \ k -> ilam "o" $ \ _ -> absApp <$> line1 <*> k)
+                  ]
+        transpSys data_ty sys (pure iz) x0
+      absApp <$> pure c <*> i
+    sysphi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ o -> do
+      c <- mkComp $ bindN ["i","j"] $ \ ij -> do
+        let i = ij List.!! 0
+            j = ij List.!! 1
+        trX `applyN` g1 `applyN` (psi:q) `applyN` [x0]
+      absApp <$> pure c <*> i
+    syse <- mkBndry $ bind "j" $ \ _ -> sequence $ g1 ++ [absApp <$> pat_rec <*> pure iz] ++ d
+    let sys = syse ++ [(phi,sysphi)] ++ [(psi,syspsi)]
+    w0 <- (open =<<) $ do
+      let w = mkComp (bindN ["i","j"] $ \ ij -> absApp <$> pat_rec <*> (ij List.!! 1))
+      absApp <$> w <*> pure iz
+    let rhs = hcomp (unDom <$> rhsTy) sys w0
     (,,) <$> ps <*> rhsTy <*> rhs
   let (ps,ty,rhs) = unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
   reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f

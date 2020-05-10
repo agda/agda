@@ -134,7 +134,7 @@ ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
 
 
 
-data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving Functor
+data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving (Functor,Foldable,Traversable)
 
 instance Subst t a => Subst t (AbsN a) where
   applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
@@ -209,3 +209,4 @@ lamTel t = map (Lam defaultArgInfo) . sequenceA <$> t
 
 appTel :: Monad m => NamesT m [Term] -> NamesT m Term -> NamesT m [Term]
 appTel = liftM2 (\ fs x -> map (`apply` [Arg defaultArgInfo x]) fs)
+
