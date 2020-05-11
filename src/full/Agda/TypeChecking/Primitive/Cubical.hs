@@ -2193,7 +2193,6 @@ transpSys ty sys phi u = do
 
   pure tComp <#> l <@> ty <#> face <@> sys <@> u
 
-
 debugClause :: String -> Clause -> TCM ()
 debugClause s c = do
       reportSDoc s 20 $
@@ -2212,4 +2211,4 @@ debugClause s c = do
     ps = namedClausePats c
     rhsTy = clauseType c
     rhs = clauseBody c
-    
+
