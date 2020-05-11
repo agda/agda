@@ -26,6 +26,7 @@ import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -767,10 +768,16 @@ instance PrettyTCM TypeError where
             IsRecordModule -> return $ "(record module)"
           sep [prettyTCM m, anno ]
 
-    ClashingDefinition x y -> fsep $
+    ClashingDefinition x y suggestion -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> "."] ++
       pwords "Previous definition at"
-      ++ [prettyTCM $ nameBindingSite $ qnameName y]
+      ++ [prettyTCM $ nameBindingSite $ qnameName y] ++
+      caseMaybe suggestion [] (\d ->
+        [  "Perhaps you meant to write "
+        $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
+        $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+        $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
+        ])
 
     ClashingModule m1 m2 -> fsep $
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]

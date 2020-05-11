@@ -1599,7 +1599,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
         return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r p a _pc _uc x ls t -> do
+    C.NiceDataSig r p a pc uc x ls t -> do
         reportSLn "scope.data.sig" 20 ("checking DataSig for " ++ prettyShow x)
         ensureNoLetStms ls
         withLocalVars $ do
@@ -1608,7 +1608,19 @@ instance ToAbstract NiceDeclaration A.Declaration where
           t'  <- toAbstract $ C.Generalized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
-          bindName' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
+          whenJust mErr $ \case
+            err@(ClashingDefinition cn an _) -> do
+              resolveName (C.QName x) >>= \case
+                -- #4435: if a data type signature causes a ClashingDefinition error, and if
+                -- the data type name is bound to an Axiom, then the error may be caused by
+                -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
+                -- (which removes the type signature) and suggest it as a possible fix.
+                DefinedName p ax | anameKind ax == AxiomName -> do
+                  let suggestion = NiceDataDef r Inserted a pc uc x ls []
+                  typeError $ ClashingDefinition cn an (Just suggestion)
+                _ -> typeError err
+            otherErr -> typeError otherErr
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
@@ -1998,7 +2010,7 @@ instance LivesInCurrentModule A.QName where
 --   report a 'ClashingDefinition' for the 'C.Name'.
 clashUnless :: C.Name -> KindOfName -> AbstractName -> ScopeM ()
 clashUnless x k ax = unless (anameKind ax == k) $
-  typeError $ ClashingDefinition (C.QName x) (anameName ax)
+  typeError $ ClashingDefinition (C.QName x) (anameName ax) Nothing
 
 -- | If a (data/record) module with the given name is already present in the current module,
 --   we take this as evidence that a data/record with that name is already defined.
@@ -2007,7 +2019,7 @@ clashIfModuleAlreadyDefinedInCurrentModule x ax = do
   datRecMods <- catMaybes <$> do
     mapM (isDatatypeModule . amodName) =<< lookupModuleInCurrentModule x
   unlessNull datRecMods $ const $
-    typeError $ ClashingDefinition (C.QName x) (anameName ax)
+    typeError $ ClashingDefinition (C.QName x) (anameName ax) Nothing
 
 lookupModuleInCurrentModule :: C.Name -> ScopeM [AbstractModule]
 lookupModuleInCurrentModule x =
