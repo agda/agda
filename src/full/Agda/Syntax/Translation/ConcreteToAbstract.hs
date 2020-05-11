@@ -1609,22 +1609,18 @@ instance ToAbstract NiceDeclaration A.Declaration where
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
           mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
-          warnings <- useTC stTCWarnings
-          let hasLoneSigWarning = List.any pred warnings
-                where
-                  pred w = case tcWarning w of
-                    NicifierIssue (MissingDefinitions ms) ->
-                      x `elem` map fst ms
-                    _ -> False
           whenJust mErr $ \case
-            ClashingDefinition cn an _ | hasLoneSigWarning -> do
-              -- #4435: if a data type signature causes a ClashingDefinition error, and if
-              -- there is a lone signature warning on the same name, then the error may be
-              -- caused by the illegal type signature. Convert the NiceDataSig into a NiceDataDef
-              -- (which removes the type signature) and suggest it as a possible fix.
-              let suggestion = NiceDataDef r Inserted a pc uc x ls []
-              typeError $ ClashingDefinition cn an (Just suggestion)
-            err -> typeError err
+            err@(ClashingDefinition cn an _) -> do
+              resolveName (C.QName x) >>= \case
+                -- #4435: if a data type signature causes a ClashingDefinition error, and if
+                -- the data type name is bound to an Axiom, then the error may be caused by
+                -- the illegal type signature. Convert the NiceDataSig into a NiceDataDef
+                -- (which removes the type signature) and suggest it as a possible fix.
+                DefinedName p ax | anameKind ax == AxiomName -> do
+                  let suggestion = NiceDataDef r Inserted a pc uc x ls []
+                  typeError $ ClashingDefinition cn an (Just suggestion)
+                _ -> typeError err
+            otherErr -> typeError otherErr
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures

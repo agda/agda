@@ -773,9 +773,10 @@ instance PrettyTCM TypeError where
       pwords "Previous definition at"
       ++ [prettyTCM $ nameBindingSite $ qnameName y] ++
       caseMaybe suggestion [] (\d ->
-        [  ("Possible fix: remove the type signature of" <+> pretty x)
-        <> ", namely,"
+        [  "Perhaps you meant to write "
         $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
+        $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+        $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
         ])
 
     ClashingModule m1 m2 -> fsep $

@@ -1,4 +1,4 @@
-module Issue4435 where
+module Issue4435-1 where
 
 record ⊤ : Set where
 
