@@ -438,7 +438,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = li
 
           [u,v] <- mapM (open . raiseFrom gamma . unArg) [u,v]
           -- φ
-          let phi = raiseFrom gamma_phis $ var 0 -- $ neqs - k - 1
+          let phi = raiseFrom gamma_phis $ var 0
           -- working_tel ⊢ γ₁,x,γ₂,φ,eqs
           let all_args = teleArgs working_tel
           -- Γ₁,x : A,Γ₂

@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE BlockArguments #-}
 
 module Agda.TypeChecking.Rules.Data where
 
@@ -825,6 +824,7 @@ defineTranspFun d mtrX cons pathCons = do
         let debugNoTransp cl = enterClosure cl $ \ t -> do
               reportSDoc "tc.data.transp" 20 $ addContext ("i" :: String, __DUMMY_DOM__) $
                 "could not transp" <+> prettyTCM (absBody t)
+        -- TODO: if no params nor indexes trD phi u0 = u0.  
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
@@ -1144,7 +1144,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                          con_ixs `applyN` (map (<@> pure io) delta ++ as1)
 
                        trx' <- transpPathPTel' theTel x theRight phi theLeft
-                       let args = liftM2 (++) (map (setHiding Hidden) <$> deltaArg (pure io)) (forM trx' \ q' -> do
+                       let args = liftM2 (++) (map (setHiding Hidden) <$> deltaArg (pure io)) (forM trx' $ \ q' -> do
                                                                        q' <- open q'
                                                                        argLam "i" $ \ i -> q' `argApp` neg i)
                        (apply (Def trX []) <$> args) <@> phi <@> cas1
