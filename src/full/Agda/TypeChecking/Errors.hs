@@ -904,19 +904,20 @@ instance PrettyTCM TypeError where
       pwords "Could not parse the pattern synonym" ++ [pretty p]
 -}
 
-    AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
-      pwords "Don't know how to parse" ++ [pretty_p <> "."] ++
-      pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' ps)
+    AmbiguousParseForLHS lhsOrPatSyn p ps -> do
+      d <- pretty p
+      vcat $
+        [ fsep $
+            pwords "Don't know how to parse" ++ [pure d <> "."] ++
+            pwords "Could mean any one of:"
+        ]
+          ++
+        map (nest 2 . pretty' d) ps
       where
-        pretty_p :: MonadPretty m => m Doc
-        pretty_p = pretty p
-
-        pretty' :: MonadPretty m => C.Pattern -> m Doc
-        pretty' p' = do
-          p1 <- pretty_p
-          p2 <- pretty p'
-          pretty $ if show p1 == show p2 then unambiguousP p' else p'
+        pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
+        pretty' d1 p' = do
+          d2 <- pretty p'
+          if show d1 == show d2 then pretty $ unambiguousP p' else return d2
 
         -- the entire pattern is shown, not just the ambiguous part,
         -- so we need to dig in order to find the OpAppP's.

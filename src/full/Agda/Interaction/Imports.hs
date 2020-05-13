@@ -784,7 +784,7 @@ writeInterface file i = let fp = filePath file in do
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
     reportSLn "import.iface.write" 50 $
-      "Writing interface file with hash" ++ show (iFullHash i) ++ "."
+      "Writing interface file with hash " ++ show (iFullHash i) ++ "."
     i' <- encodeFile fp i
     reportSLn "import.iface.write" 5 "Wrote interface file."
     i <-

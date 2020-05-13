@@ -499,10 +499,7 @@ interpret (Cmd_load m argv) =
   cmd_load' m argv True Imp.TypeCheck $ \_ -> interpret Cmd_metas
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv (backend `elem` [LaTeX, QuickLaTeX])
-            (if backend == QuickLaTeX
-             then Imp.ScopeCheck
-             else Imp.TypeCheck) $ \(i, mw) -> do
+  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
     mw' <- lift $ Imp.applyFlagsToMaybeWarnings mw
     case mw' of
       Imp.NoWarnings -> do
@@ -513,6 +510,9 @@ interpret (Cmd_compile backend file argv) =
           OtherBackend b           -> callBackend b IsMain  i
         display_info . Info_CompilationOk =<< lift getWarningsAndNonFatalErrors
       Imp.SomeWarnings w -> display_info $ Info_Error $ Info_CompilationError w
+  where
+  allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
+  mode          = if backend == QuickLaTeX then Imp.ScopeCheck else Imp.TypeCheck
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
