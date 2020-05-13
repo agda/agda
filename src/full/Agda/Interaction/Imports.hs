@@ -52,7 +52,8 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.BasicOps (getGoals, showGoals)
+import Agda.Interaction.Base     ( InteractionMode(..) )
+import Agda.Interaction.BasicOps ( getGoals, showGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise  ( compress )
@@ -105,7 +106,9 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
 
 data Mode
   = ScopeCheck
-  | TypeCheck
+  | TypeCheck InteractionMode
+      -- ^ Depending on the 'InteractionMode' private declaration may be retained
+      --   in the interface.
   deriving (Eq, Show)
 
 -- | Are we loading the interface for the user-loaded file
@@ -231,9 +234,19 @@ alreadyVisited :: C.TopLevelModuleName ->
                   PragmaOptions ->
                   TCM (Interface, MaybeWarnings) ->
                   TCM (Interface, MaybeWarnings)
-alreadyVisited x isMain currentOptions getIface = do
-    mm <- getVisitedModule x
-    case mm of
+alreadyVisited x isMain currentOptions getIface =
+  case isMain of
+
+    -- Andreas, 2020-05-13, issue 4647:
+    -- For top-level interaction commands, we may not able to reuse
+    -- the existing interface, since it does not contain the private
+    -- declarations.  Thus, we always recheck.
+    MainInterface (TypeCheck TopLevelInteraction) -> fallback
+
+    _ -> getVisitedModule x >>= \case
+
+        -- Case: already visited.
+        --
         -- A module with warnings should never be allowed to be
         -- imported from another module.
         Just (ModuleInfo i hasWarn isPrim) | not hasWarn -> do
@@ -248,7 +261,13 @@ alreadyVisited x isMain currentOptions getIface = do
           if optsCompat then return (i , NoWarnings) else do
             wt <- getMaybeWarnings' isMain ErrorWarnings
             return (i, wt)
-        _ -> do
+
+        -- Case: Not visited already.
+        --
+        _ -> fallback
+
+  where
+  fallback = do
           reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
           r@(i, wt) <- getIface
           reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
@@ -412,7 +431,8 @@ getInterface' x isMain msi =
         -- -- which is no longer serialized.
         -- let maySkip = isMain == NotMainInterface
         -- Andreas, 2015-07-13: Serialize iInsideScope again.
-        let maySkip = True
+        -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
+        let maySkip = isMain /= MainInterface (TypeCheck TopLevelInteraction)
 
         if uptodate && maySkip
           then getStoredInterface x file isMain msi
@@ -778,10 +798,12 @@ writeInterface file i = let fp = filePath file in do
     -- i <- return $
     --   i { iInsideScope  = emptyScopeInfo
     --     }
-    -- Andreas, 2016-02-02 this causes issue #1804, so don't do it:
-    -- i <- return $
-    --   i { iInsideScope  = removePrivates $ iInsideScope i
-    --     }
+    -- [Old: Andreas, 2016-02-02 this causes issue #1804, so don't do it:]
+    -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
+    -- only when we actually write the interface.
+    i <- return $
+      i { iInsideScope  = removePrivates $ iInsideScope i
+        }
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash i) ++ "."
     i' <- encodeFile fp i
@@ -801,7 +823,9 @@ writeInterface file i = let fp = filePath file in do
     throwError e
 
 removePrivates :: ScopeInfo -> ScopeInfo
-removePrivates = over scopeModules $ fmap restrictPrivate
+removePrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
+  where
+  m = scope ^. scopeCurrent
 
 concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
 concreteOptionsToOptionPragmas p = do
@@ -1009,6 +1033,9 @@ createInterface file mname isMain msi =
         return i
       (_, MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
+        return i
+      (_, MainInterface (TypeCheck TopLevelInteraction)) -> do
+        reportSLn "import.iface.create" 7 "We are in top-level interaction mode and want to retain private declarations, skipping writing interface file."
         return i
       _ -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."

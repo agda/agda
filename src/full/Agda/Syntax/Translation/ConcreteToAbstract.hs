@@ -1236,7 +1236,10 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecl) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
+          -- Andreas, 2020-05-13, issue #1804, #4647
+          -- Do not eagerly remove private definitions, only when serializing
+          -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
+          let scope = insideScope
           setScope scope
           return $ TopLevelInfo (outsideDecls ++ [ insideDecl ]) scope
 

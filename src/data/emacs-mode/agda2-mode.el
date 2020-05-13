@@ -1193,7 +1193,7 @@ The form of the result depends on the prefix argument:
             (`(fromgoal ,want)
              `(agda2-goal-cmd (concat ,cmd " " ,eval) nil ,want))
             (`(global ,prompt)
-             `(agda2-go nil nil 'busy t
+             `(agda2-go nil t 'busy t
                         (concat ,cmd " "
                                 ,eval " "
                                 (if ,prompt
@@ -1269,7 +1269,7 @@ top-level scope."
 (defun agda2-why-in-scope-toplevel (name)
   "Explain why something is in scope at the top level."
   (interactive "MName: ")
-  (agda2-go nil nil 'busy t
+  (agda2-go nil t 'busy t
             "Cmd_why_in_scope_toplevel"
             (agda2-string-quote name)))
 
@@ -1426,7 +1426,7 @@ computation."
                      (cond ((equal arg nil) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
                             (" UseShowInstance")) " ")))
-    (agda2-go nil nil 'busy t
+    (agda2-go nil t 'busy t
               (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
