@@ -75,7 +75,7 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: SourceFile -> TCM AbsolutePath
+toIFile :: (HasOptions m, MonadIO m) => SourceFile -> m AbsolutePath
 toIFile (SourceFile src) = do
   let fp = filePath src
   mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
@@ -172,8 +172,9 @@ findFile'' dirs m modFile =
 -- Raises 'Nothing' if the the interface file cannot be found.
 
 findInterfaceFile'
-  :: SourceFile                 -- ^ Path to the source file
-  -> TCM (Maybe InterfaceFile)  -- ^ Maybe path to the interface file
+  :: (HasOptions m, MonadIO m)
+  => SourceFile                 -- ^ Path to the source file
+  -> m (Maybe InterfaceFile)    -- ^ Maybe path to the interface file
 findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 
 -- | Finds the interface file corresponding to a given top-level

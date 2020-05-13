@@ -236,12 +236,11 @@ alreadyVisited x isMain currentOptions getIface = do
     case mm of
         -- A module with warnings should never be allowed to be
         -- imported from another module.
-        Just mi | not (miWarnings mi) -> do
+        Just (ModuleInfo i hasWarn isPrim) | not hasWarn -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-          let i = miInterface mi
           -- Check that imported options are compatible with current ones,
           -- but give primitive modules a pass
-          optsCompat <- if miPrimitive mi then return True else
+          optsCompat <- if isPrim then return True else
             ifM (asksTC envCheckOptionConsistency)
             {-then-} (checkOptionsCompatible currentOptions (iOptionsUsed i)
                                              (iModuleName i))
@@ -398,7 +397,7 @@ getInterface' x isMain msi =
         ifaceH  <- case cached of
             Nothing -> do
               mifile <- toIFile file
-              fmap fst <$> getInterfaceFileHashes mifile
+              liftIO $ fmap fst <$> getInterfaceFileHashes mifile
             Just i  -> return $ Just $ iSourceHash i
         let unchanged = Just sourceH == ifaceH
         return $ unchanged && (not ignore || isJust cached)
@@ -499,7 +498,7 @@ isCached x file = do
   mi <- MaybeT $ getDecodedModule x
 
   -- Check that the interface file exists and return its hash.
-  h  <- MaybeT $ fmap snd <$> getInterfaceFileHashes' ifile
+  h  <- MaybeT $ liftIO $ fmap snd <$> getInterfaceFileHashes' ifile
 
   -- Make sure the hashes match.
   guard $ iFullHash mi == h
@@ -529,7 +528,7 @@ getStoredInterface x file isMain msi = do
   -- read and decode it. Otherwise use the stored version.
   ifile <- toIFile file
   let ifp = filePath ifile
-  h <- fmap snd <$> getInterfaceFileHashes ifile
+  h <- liftIO $ fmap snd <$> getInterfaceFileHashes ifile
   mm <- getDecodedModule x
   (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
     Just mi ->
@@ -1178,17 +1177,17 @@ buildInterface source fileType topLevel pragmas = do
 -- | Returns (iSourceHash, iFullHash)
 --   We do not need to check that the file exist because we only
 --   accept @InterfaceFile@ as an input and not arbitrary @AbsolutePath@!
-getInterfaceFileHashes :: AbsolutePath -> TCM (Maybe (Hash, Hash))
+getInterfaceFileHashes :: AbsolutePath -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes fp = runMaybeT $ do
-  mifile <- MaybeT $ liftIO $ mkInterfaceFile fp
+  mifile <- MaybeT $ mkInterfaceFile fp
   MaybeT $ getInterfaceFileHashes' mifile
 
-getInterfaceFileHashes' :: InterfaceFile -> TCM (Maybe (Hash, Hash))
+getInterfaceFileHashes' :: InterfaceFile -> IO (Maybe (Hash, Hash))
 getInterfaceFileHashes' fp = do
   let ifile = filePath $ intFilePath fp
-  (s, close) <- liftIO $ readBinaryFile' ifile
+  (s, close) <- readBinaryFile' ifile
   let hs = decodeHashes s
-  liftIO $ maybe 0 (uncurry (+)) hs `seq` close
+  maybe 0 (uncurry (+)) hs `seq` close
   return hs
 
 moduleHash :: ModuleName -> TCM Hash
