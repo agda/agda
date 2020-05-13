@@ -9,6 +9,9 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Exception as E
 
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Fail (MonadFail)
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List (nub)
