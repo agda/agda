@@ -24,7 +24,7 @@ import Agda.Utils.Lens
 eliminateDeadCode :: DisplayForms -> Signature -> TCM (DisplayForms, Signature)
 eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
-  public <- Set.map anameName . publicNames <$> getScope
+  public <- Set.mapMonotonic anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
   -- the pragmas not being checked. Simple solution: don't eliminate these.
@@ -48,4 +48,3 @@ reachableFrom names psyns defs = follow names (Set.toList names)
                 case HMap.lookup x defs of
                   Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
                   Just d  -> namesIn d
-
