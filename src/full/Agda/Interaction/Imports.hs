@@ -851,6 +851,13 @@ createInterface file mname isMain msi =
     options <- concreteOptionsToOptionPragmas pragmas
     mapM_ setOptionsFromPragma options
 
+    verboseS "import.iface.create" 15 $ do
+      nestingLevel      <- asksTC envModuleNestingLevel
+      highlightingLevel <- asksTC envHighlightingLevel
+      reportSLn "import.iface.create" 15 $ unlines
+        [ "  nesting      level: " ++ show nestingLevel
+        , "  highlighting level: " ++ show highlightingLevel
+        ]
 
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
