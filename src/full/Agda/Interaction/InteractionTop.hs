@@ -24,13 +24,14 @@ import qualified Data.Char as Char
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Maybe
 
 import System.Directory
 import System.FilePath
 
-import Agda.TypeChecking.Monad as TM
+import Agda.TypeChecking.Monad as TCM
   hiding (initState, setCommandLineOptions)
-import qualified Agda.TypeChecking.Monad as TM
+import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
@@ -57,8 +58,8 @@ import Agda.Interaction.SearchAbout
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
-import Agda.Interaction.BasicOps hiding (whyInScope)
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
+import Agda.Interaction.Imports  ( Mode(..) )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -282,7 +283,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- Raises an error if the given file is not the one currently
     -- loaded.
     cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (fst <$> cf)) $
+    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $
         lift $ typeError $ GenericError "Error: First load the file."
 
     withCurrentFile $ interpret cmd
@@ -290,7 +291,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just currentAbs == (fst <$> cf')) $
+          Just currentAbs == (currentFilePath <$> cf')) $
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
@@ -490,7 +491,9 @@ updateInteractionPointsAfter Cmd_exit{}                          = False
 interpret :: Interaction -> CommandM ()
 
 interpret (Cmd_load m argv) =
-  cmd_load' m argv True Imp.TypeCheck $ \_ -> interpret Cmd_metas
+  cmd_load' m argv True mode $ \_ -> interpret Cmd_metas
+  where
+  mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
@@ -502,24 +505,25 @@ interpret (Cmd_compile backend file argv) =
           QuickLaTeX               -> LaTeX.generateLaTeX i
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
-        display_info . Info_CompilationOk =<< lift getWarningsAndNonFatalErrors
+        display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
       Imp.SomeWarnings w -> display_info $ Info_Error $ Info_CompilationError w
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
-  mode          = if backend == QuickLaTeX then Imp.ScopeCheck else Imp.TypeCheck
+  mode | QuickLaTeX <- backend = Imp.ScopeCheck
+       | otherwise             = Imp.TypeCheck RegularInteraction  -- reset InteractionMode
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
 
 interpret Cmd_metas = do
   ms <- lift B.getGoals
-  display_info . Info_AllGoalsWarnings ms =<< lift getWarningsAndNonFatalErrors
+  display_info . Info_AllGoalsWarnings ms =<< lift B.getWarningsAndNonFatalErrors
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
-  liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
+  atTopLevel $ showModuleContents norm noRange s
 
 interpret (Cmd_search_about_toplevel norm s) =
-  liftCommandMT B.atTopLevel $ searchAbout norm noRange s
+  atTopLevel $ searchAbout norm noRange s
 
 interpret (Cmd_solveAll norm)        = solveInstantiatedGoals norm Nothing
 interpret (Cmd_solveOne norm ii _ _) = solveInstantiatedGoals norm' (Just ii)
@@ -538,12 +542,12 @@ interpret (Cmd_infer_toplevel norm s) = do
   display_info $ Info_InferredType state time expr
 
 interpret (Cmd_compute_toplevel cmode s) = do
-  (time, expr) <- parseAndDoAtToplevel action (computeWrapInput cmode s)
+  (time, expr) <- parseAndDoAtToplevel action (B.computeWrapInput cmode s)
   state <- get
   display_info $ Info_NormalForm state cmode time expr
     where
     action = allowNonTerminatingReductions
-           . (if computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
+           . (if B.computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
            . B.evalInCurrent
 -- interpret (Cmd_compute_toplevel cmode s) =
 --   parseAndDoAtToplevel action Info_NormalForm $ computeWrapInput cmode s
@@ -706,7 +710,7 @@ interpret Cmd_autoAll = do
     modifyTheInteractionPoints (List.\\ concat solved)
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context ii =<< liftLocalState (getResponseContext norm ii)
+  display_info . Info_Context ii =<< liftLocalState (B.getResponseContext norm ii)
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
@@ -727,7 +731,7 @@ interpret (Cmd_elaborate_give norm ii rng s) = do
     term <- case goal of
       OfType _ ty -> checkExpr expr =<< isType_ ty
       _           -> __IMPOSSIBLE__
-    nf <- normalForm norm term
+    nf <- B.normalForm norm term
     txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
     return $ show txt
   give_gen WithoutForce ii rng have ElaborateGive
@@ -755,14 +759,14 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
     term <- case goal of
       OfType _ ty -> checkExpr expr =<< isType_ ty
       _           -> __IMPOSSIBLE__
-    normalForm norm term
+    B.normalForm norm term
   cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
 
 interpret (Cmd_why_in_scope_toplevel s) =
-  liftCommandMT B.atTopLevel $ whyInScope s
+  atTopLevel $ whyInScope s
 
 interpret (Cmd_why_in_scope ii _range s) =
   liftCommandMT (B.withInteractionId ii) $ whyInScope s
@@ -812,8 +816,8 @@ interpret (Cmd_make_case ii rng s) = do
 
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
-    e <- B.parseExprIn ii rng (computeWrapInput cmode s)
-    B.withInteractionId ii $ applyWhen (computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
+    e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
+    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
@@ -846,17 +850,32 @@ solveInstantiatedGoals norm mii = do
 -- encountered then the command @cmd r@ is executed, where @r@ is the
 -- result of 'Imp.typeCheckMain'.
 
-cmd_load' :: FilePath -> [String]
-          -> Bool      -- ^ Allow unsolved meta-variables?
-          -> Imp.Mode  -- ^ Full type-checking, or only
-                       --   scope-checking?
-          -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
-          -> CommandM ()
+cmd_load'
+  :: FilePath  -- ^ File to load into interaction.
+  -> [String]  -- ^ Arguments to Agda for loading this file
+  -> Bool      -- ^ Allow unsolved meta-variables?
+  -> Imp.Mode  -- ^ Full type-checking, or only scope-checking?
+               --   Providing 'TypeCheck RegularInteraction' here
+               --   will reset 'InteractionMode' accordingly.
+               --   Otherwise, only if different file from last time.
+  -> ((Interface, Imp.MaybeWarnings) -> CommandM a)
+               -- ^ Continuation after successful loading.
+  -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
-    f <- liftIO $ SourceFile <$> absolute file
-    ex <- liftIO $ doesFileExist $ filePath (srcFilePath f)
+    fp <- liftIO $ absolute file
+    let f = SourceFile fp
+    ex <- liftIO $ doesFileExist $ filePath fp
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
+
+    -- When switching to a new file, or @mode@ indicates such a reset,
+    -- fall back to RegularInteraction.
+    mode <- gets theCurrentFile >>= \case
+      Just CurrentFile{ currentFilePath = fp' }
+        | mode /= TypeCheck RegularInteraction
+        , fp == fp'
+        -> pure mode  -- keep InteractionMode
+      _ -> regularMode mode <$ setInteractionMode RegularInteraction  -- reset
 
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
@@ -866,7 +885,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift (Imp.sourceInfo f)
+    si <- lift $ Imp.sourceInfo f
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -877,8 +896,8 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot (srcFilePath f) (Imp.siModuleName si)
-        lift $ TM.setCommandLineOptions' root $ mapPragmaOptions update opts
+            root     = projectRoot fp $ Imp.siModuleName si
+        lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
     -- Reset the state, preserving options and decoded modules. Note
@@ -903,16 +922,54 @@ cmd_load' file argv unsolvedOK mode cmd = do
     when (t == t') $ do
       is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
-                         , theCurrentFile       = Just (srcFilePath f, t)
+                         , theCurrentFile       = Just $ CurrentFile fp argv t
                          }
 
     cmd ok
 
+  where
+  -- Update import mode to RegularInteraction.
+  regularMode = \case
+    TypeCheck _ -> TypeCheck RegularInteraction
+    ScopeCheck  -> ScopeCheck
+
 -- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
-  mfile <- gets (fmap fst . theCurrentFile)
+  mfile <- gets $ fmap currentFilePath . theCurrentFile
   localTC (\ e -> e { envCurrentPath = mfile }) m
+
+-- | Top-level commands switch to 'TopLevelInteraction' mode if necessary.
+atTopLevel :: CommandM a -> CommandM a
+atTopLevel cmd = do
+  gets interactionMode >>= \case
+    TopLevelInteraction -> continue  -- Already in the correct mode.
+    RegularInteraction  -> continue `handleNotInScope` do
+      -- Have to switch mode.
+      setInteractionMode TopLevelInteraction
+      CurrentFile file argv _stamp <- gets $ fromMaybe __IMPOSSIBLE__ . theCurrentFile
+      cmd_load' (filePath file) argv allowUnsolved mode $ \ _ -> continue
+  where
+  continue      = liftCommandMT B.atTopLevel cmd
+  allowUnsolved = True
+  mode          = Imp.TypeCheck TopLevelInteraction
+
+setInteractionMode :: InteractionMode -> CommandM ()
+setInteractionMode mode = modify $ \ st -> st { interactionMode = mode }
+
+-- | Handle a 'NotInScope' error, reraise other errors.
+handleNotInScope :: CommandM a -> CommandM a -> CommandM a
+handleNotInScope cmd handler = do
+  cmd `catchError` \case
+    TypeError _s (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
+      reportSLn "interaction.top" 60 $ "Handling `Not in scope` error"
+      handler
+    err -> do
+      reportSLn "interaction.top" 60 $ show err
+      throwError err
+
+---------------------------------------------------------------------------
+-- Giving, refining.
 
 data GiveRefine = Give | Refine | Intro | ElaborateGive
   deriving (Eq, Show)
@@ -1029,7 +1086,7 @@ sortInteractionPoints is =
 cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
                              String -> CommandM ()
 cmd_goal_type_context_and aux norm ii _ _ = do
-  ctx <- lift $ getResponseContext norm ii
+  ctx <- lift $ B.getResponseContext norm ii
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
   boundary <- lift $ B.getIPBoundary norm ii
   display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
@@ -1047,16 +1104,15 @@ showModuleContents norm rng s = do
 
 searchAbout :: Rewrite -> Range -> String -> CommandM ()
 searchAbout norm rg names = do
-  let trimmedNames = trim names
-  unless (null trimmedNames) $ do
-    hits <- lift $ B.atTopLevel $ findMentions norm rg trimmedNames
+  unlessNull (trim names) $ \ trimmedNames -> do
+    hits <- lift $ findMentions norm rg trimmedNames
     display_info $ Info_SearchAbout hits trimmedNames
 
 -- | Explain why something is in scope.
 
 whyInScope :: String -> CommandM ()
 whyInScope s = do
-  Just (file, _) <- gets theCurrentFile
+  Just (CurrentFile file _ _) <- gets theCurrentFile
   let cwd = takeDirectory (filePath file)
   (v, xs, ms) <- liftLocalState (B.whyInScope s)
   display_info $ Info_WhyInScope s cwd v xs ms
@@ -1065,7 +1121,7 @@ whyInScope s = do
 
 setCommandLineOpts :: CommandLineOptions -> CommandM ()
 setCommandLineOpts opts = do
-    lift $ TM.setCommandLineOptions opts
+    lift $ TCM.setCommandLineOptions opts
     displayStatus
 
 
@@ -1083,7 +1139,7 @@ status = do
   -- have changed, and uses a time stamp to check for changes.
   checked  <- lift $ case cf of
     Nothing     -> return False
-    Just (f, t) -> do
+    Just (CurrentFile f _ t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
       if t == t'
         then
@@ -1127,7 +1183,7 @@ parseAndDoAtToplevel
 parseAndDoAtToplevel cmd s = do
   localStateCommandM $ do
     e <- lift $ runPM $ parse exprParser s
-    maybeTimed $ lift $ B.atTopLevel $ do
+    maybeTimed $ atTopLevel $ lift $
       cmd =<< concreteToAbstract_ e
 
 maybeTimed :: CommandM a -> CommandM (Maybe CPUTime, a)

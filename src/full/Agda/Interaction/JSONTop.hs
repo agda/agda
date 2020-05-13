@@ -10,7 +10,7 @@ import qualified Data.Text as T
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
-  (CommandState(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
+  (CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.EmacsTop
 import Agda.Interaction.JSON
@@ -62,6 +62,10 @@ instance ToJSON CommandState where
     , "currentFile"       .= theCurrentFile commandState
     -- more?
     ]
+
+instance EncodeTCM CurrentFile where
+instance ToJSON CurrentFile where
+  toJSON (CurrentFile path _ time) = toJSON (path, time)  -- backwards compat.
 
 instance EncodeTCM ResponseContextEntry where
   encodeTCM entry = obj

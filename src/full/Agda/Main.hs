@@ -11,6 +11,7 @@ import Data.Maybe
 import System.Environment
 import System.Console.GetOpt
 
+import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -123,7 +124,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
         if not hasFile then return Nothing else do
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
-                     else Imp.TypeCheck
+                     else Imp.TypeCheck RegularInteraction
 
           file    <- SourceFile <$> getInputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
