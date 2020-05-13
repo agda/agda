@@ -827,7 +827,7 @@ defineTranspFun d mtrX cons pathCons = do
         let debugNoTransp cl = enterClosure cl $ \ t -> do
               reportSDoc "tc.data.transp" 20 $ addContext ("i" :: String, __DUMMY_DOM__) $
                 "could not transp" <+> prettyTCM (absBody t)
-        -- TODO: if no params nor indexes trD phi u0 = u0.  
+        -- TODO: if no params nor indexes trD phi u0 = u0.
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs

@@ -583,7 +583,7 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = li
         working_tel <- abstract gamma_phis <$>
           pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
         let raiseFrom tel x = (size working_tel - size tel) + x
-        let phi = var $ raiseFrom gamma_phis 0 -- $ neqs - k - 1
+        let phi = var $ raiseFrom gamma_phis 0
 
         caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
           addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
