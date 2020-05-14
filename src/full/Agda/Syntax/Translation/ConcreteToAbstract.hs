@@ -340,7 +340,13 @@ checkModuleMacro apply kind r p x modapp open dir = do
     -- Andreas, 2014-09-02: @openModule@ might shadow some locals!
     adir <- case open of
       DontOpen -> return adir'
-      DoOpen   -> openModule kind (Just m0) (C.QName x) openDir
+      DoOpen   -> do
+        adir'' <- openModule kind (Just m0) (C.QName x) openDir
+        -- Andreas, 2020-05-14, issue #4656
+        -- Keep the more meaningful import directive for highlighting
+        -- (the other one is a defaultImportDir).
+        return $ if isNoName x then adir' else adir''
+
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ "after open   : m0 =" <+> prettyA m0
 
