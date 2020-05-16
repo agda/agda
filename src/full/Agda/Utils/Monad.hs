@@ -230,11 +230,3 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
-
--- Read -------------------------------------------------------------------
-
-readM :: (Error e, MonadError e m, Read a) => String -> m a
-readM s = case reads s of
-            [(x,"")]    -> return x
-            _           ->
-              throwError $ strMsg $ "readM: parse error string " ++ s

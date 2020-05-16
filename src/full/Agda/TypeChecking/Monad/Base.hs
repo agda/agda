@@ -3529,9 +3529,6 @@ data TCErr
       --   Raised for pattern violations during unification ('assignV')
       --   but also in other situations where we want to backtrack.
 
-instance Error TCErr where
-  strMsg = Exception noRange . text . strMsg
-
 instance Show TCErr where
   show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
   show (Exception r d)     = show r ++ ": " ++ render d

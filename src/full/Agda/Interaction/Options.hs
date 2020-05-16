@@ -48,6 +48,7 @@ import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
 import System.Directory         ( doesFileExist, doesDirectoryExist )
 
 import Text.EditDistance
+import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..) )
 
@@ -66,7 +67,7 @@ import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
-import Agda.Utils.Monad         ( ifM, readM )
+import Agda.Utils.Monad         ( ifM )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -828,7 +829,7 @@ verboseFlag s o =
     parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
       []  -> usage
       ss  -> do
-        n <- readM (last ss) `catchError` \_ -> usage
+        n <- maybe usage return $ readMaybe (last ss)
         return (init ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
@@ -839,7 +840,7 @@ warningModeFlag s o = case warningModeUpdate s of
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
-    do k <- readM s `catchError` \_ -> usage
+    do k <- maybe usage return $ readMaybe s
        when (k < 1) $ usage -- or: turn termination checking off for 0
        return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
@@ -857,9 +858,9 @@ withCompilerFlag fp o = case optWithCompiler o of
 
 
 integerArgument :: String -> String -> OptM Int
-integerArgument flag s =
-    readM s `catchError` \_ ->
-        throwError $ "option '" ++ flag ++ "' requires an integer argument"
+integerArgument flag s = maybe usage return $ readMaybe s
+  where
+  usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
