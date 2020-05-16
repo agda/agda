@@ -1451,7 +1451,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] NoEllipsis) rhs0 wh []) = do
+        letToAbstract (C.Clause top _catchall (C.LHS p [] [] NoEllipsis) rhs0 wh []) = do
             noWhereInLetBinding wh
             rhs <- letBindingMustHaveRHS rhs0
             (x, args) <- do
