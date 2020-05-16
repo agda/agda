@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.Term where
 
 import Prelude hiding ( null )
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Maybe
@@ -66,8 +67,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
-import Agda.Utils.Except
-  (MonadError(catchError, throwError))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

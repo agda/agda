@@ -3,6 +3,7 @@
 -}
 module Agda.Main where
 
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Maybe
@@ -33,13 +34,12 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Backend
 import Agda.Compiler.Builtin
 
-import Agda.Utils.Monad
-import Agda.Utils.String
-
 import Agda.VersionCommit
 
+import Agda.Utils.Monad
+import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+
 import Agda.Utils.Impossible
 
 -- | The main function

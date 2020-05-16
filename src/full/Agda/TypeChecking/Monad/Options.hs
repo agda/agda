@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Options where
 
 import Prelude hiding (mapM)
 
+import Control.Monad.Except
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Writer
 
@@ -22,7 +23,6 @@ import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
-import Agda.Utils.Except
 
 import Agda.Utils.Impossible
 

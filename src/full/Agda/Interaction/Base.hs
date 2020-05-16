@@ -5,6 +5,7 @@ module Agda.Interaction.Base where
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
+import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.State
 
@@ -24,8 +25,6 @@ import           Agda.Syntax.Scope.Base       (ScopeInfo)
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
-import           Agda.Utils.Except            (ExceptT, MonadError (throwError),
-                                               runExceptT)
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
 import           Agda.Utils.Time              (ClockTime)
 

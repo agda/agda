@@ -4,6 +4,7 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Agda.Syntax.Literal
@@ -18,7 +19,6 @@ import Agda.Syntax.Internal (Dom,Dom'(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
-import Agda.Utils.Except
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))

@@ -7,6 +7,7 @@ module Agda.TypeChecking.InstanceArguments
   , postponeInstanceConstraints
   ) where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
@@ -40,7 +41,6 @@ import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

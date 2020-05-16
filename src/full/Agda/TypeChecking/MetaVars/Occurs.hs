@@ -17,6 +17,7 @@
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Foldable (traverse_)
@@ -47,13 +48,6 @@ import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
-
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe

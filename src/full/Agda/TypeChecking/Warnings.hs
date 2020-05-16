@@ -14,15 +14,16 @@ module Agda.TypeChecking.Warnings
   , runPM
   ) where
 
+import Control.Monad ( forM, unless )
+import Control.Monad.Except
+import Control.Monad.Reader ( ReaderT )
+import Control.Monad.State ( StateT )
+import Control.Monad.Trans ( lift )
+
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
 import Data.Semigroup ( Semigroup, (<>) )
-
-import Control.Monad ( forM, unless )
-import Control.Monad.Reader ( ReaderT )
-import Control.Monad.State ( StateT )
-import Control.Monad.Trans ( lift )
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Caching
@@ -39,7 +40,6 @@ import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightWarning)
 
 import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Except
 
 class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
   -- | Render the warning

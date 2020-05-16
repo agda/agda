@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -26,7 +27,6 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Empty
-import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -180,10 +180,10 @@ instance MonadAddContext m => MonadAddContext (MaybeT m) where
   withFreshName r x = MaybeT . withFreshName r x . (runMaybeT .)
 
 instance MonadAddContext m => MonadAddContext (ExceptT e m) where
-  addCtx x a = mkExceptT . addCtx x a . runExceptT
-  addLetBinding' x u a = mkExceptT . addLetBinding' x u a . runExceptT
-  updateContext sub f = mkExceptT . updateContext sub f . runExceptT
-  withFreshName r x = mkExceptT . withFreshName r x . (runExceptT .)
+  addCtx x a = ExceptT . addCtx x a . runExceptT
+  addLetBinding' x u a = ExceptT . addLetBinding' x u a . runExceptT
+  updateContext sub f = ExceptT . updateContext sub f . runExceptT
+  withFreshName r x = ExceptT . withFreshName r x . (runExceptT .)
 
 instance MonadAddContext m => MonadAddContext (ReaderT r m) where
   addCtx x a = ReaderT . (addCtx x a .) . runReaderT

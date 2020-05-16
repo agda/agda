@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Data where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
@@ -39,7 +40,6 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1

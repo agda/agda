@@ -9,6 +9,7 @@ module Agda.TypeChecking.Pretty
 import Prelude hiding ( null )
 
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -41,7 +42,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List1 ( List1, pattern (:|) )

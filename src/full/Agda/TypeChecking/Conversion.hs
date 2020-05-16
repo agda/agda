@@ -4,6 +4,7 @@ module Agda.TypeChecking.Conversion where
 
 import Control.Arrow (second)
 import Control.Monad
+import Control.Monad.Except
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
@@ -47,7 +48,6 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Maybe

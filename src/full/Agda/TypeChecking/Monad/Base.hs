@@ -7,11 +7,13 @@ module Agda.TypeChecking.Monad.Base where
 
 import Prelude hiding (null)
 
+import Control.Applicative hiding (empty)
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -19,7 +21,6 @@ import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
-import Control.Applicative hiding (empty)
 
 import Data.Array (Ix)
 import Data.Function
@@ -85,12 +86,6 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , ExceptT
-  , MonadError(catchError, throwError)
-  , mapExceptT
-  )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash

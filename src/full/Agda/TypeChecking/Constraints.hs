@@ -5,6 +5,7 @@ module Agda.TypeChecking.Constraints where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -28,7 +29,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 
-import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

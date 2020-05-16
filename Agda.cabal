@@ -543,7 +543,6 @@ library
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment
-                    Agda.Utils.Except
                     Agda.Utils.Either
                     Agda.Utils.Fail
                     Agda.Utils.Favorites

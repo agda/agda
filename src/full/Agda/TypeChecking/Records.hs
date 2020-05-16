@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Records where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
@@ -32,7 +33,6 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.List
 import Agda.Utils.Maybe

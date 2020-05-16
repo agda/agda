@@ -12,6 +12,8 @@ module Agda.TypeChecking.Rules.Builtin
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
+
 import Data.List (find, sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Function (on)
@@ -43,7 +45,6 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe

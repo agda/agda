@@ -14,6 +14,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
 import qualified Control.Exception as E
+import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State hiding (state)
@@ -65,13 +66,6 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Compiler.Backend
 
 import Agda.Auto.Auto as Auto
-
-import Agda.Utils.Except
-  ( ExceptT
-  , mkExceptT
-  , MonadError(catchError)
-  , runExceptT
-  )
 
 import Agda.Utils.Either
 import Agda.Utils.FileName
@@ -641,7 +635,7 @@ interpret (Cmd_highlight ii rng s) = do
         Left err -> display_info $ Info_Error err
         Right _ -> return ()
     try :: Info_Error -> TCM a -> ExceptT Info_Error TCM a
-    try err m = mkExceptT $ do
+    try err m = ExceptT $ do
       (mapLeft (const err) <$> freshTCM m) `catchError` \ _ -> return (Left err)
       -- freshTCM to avoid scope checking creating new interaction points
 

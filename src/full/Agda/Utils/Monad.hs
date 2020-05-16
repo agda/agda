@@ -8,9 +8,7 @@ module Agda.Utils.Monad
     where
 
 import Control.Applicative  (liftA2)
-import Control.Monad hiding (mapM, forM)
-
-
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Traversable as Trav hiding (for, sequence)
@@ -18,11 +16,6 @@ import Data.Foldable as Fold
 import Data.Maybe
 
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , MonadError(catchError, throwError)
-  )
-
 import Agda.Utils.Null (ifNotNullM)
 
 import Agda.Utils.Impossible

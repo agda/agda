@@ -4,6 +4,8 @@
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
+import Control.Monad.Except
+
 import Data.Function
 import qualified Data.HashMap.Strict as HMap
 
@@ -19,7 +21,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Except
 
 import Agda.Utils.Impossible
 

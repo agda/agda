@@ -18,6 +18,8 @@ module Agda.TypeChecking.Errors
 
 import Prelude hiding ( null )
 
+import Control.Monad.Except
+
 import Data.Function
 import Data.List (sortBy, dropWhileEnd)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -51,7 +53,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function

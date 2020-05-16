@@ -6,6 +6,7 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe

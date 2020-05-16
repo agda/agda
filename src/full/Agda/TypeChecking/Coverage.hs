@@ -18,6 +18,7 @@ module Agda.TypeChecking.Coverage
 import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 
 import Data.Foldable (for_)
@@ -62,11 +63,6 @@ import Agda.TypeChecking.Warnings
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError (throwError, catchError)
-  , runExceptT
-  )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe

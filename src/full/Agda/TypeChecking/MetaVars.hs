@@ -5,6 +5,7 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function
@@ -44,11 +45,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError, catchError)
-  , runExceptT
-  )
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List

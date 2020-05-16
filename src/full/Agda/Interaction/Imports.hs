@@ -8,6 +8,7 @@ module Agda.Interaction.Imports where
 import Prelude hiding (null)
 
 import Control.Arrow
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -61,7 +62,6 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List

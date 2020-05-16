@@ -4,9 +4,10 @@ module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding ( mapM, null )
 
-import Control.Arrow (first,second)
+import Control.Monad.Except
 import Control.Monad.State hiding (forM, mapM)
 
+import Data.Bifunctor
 import Data.Function
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -55,7 +56,6 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

@@ -16,6 +16,7 @@ module Agda.Syntax.Notation where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 
 import qualified Data.List as List
 import Data.Maybe
@@ -28,7 +29,6 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1

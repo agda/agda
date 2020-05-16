@@ -5,7 +5,8 @@ module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
 import Prelude hiding (mapM)
 
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Except hiding ( mapM )
+import Control.Monad.Reader hiding ( mapM )
 import Control.Monad.State.Strict (gets, modify)
 
 
@@ -46,17 +47,12 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Empty (Empty)
+import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
-
-
-import Agda.Utils.Except
-
-import Agda.Utils.Empty (Empty)
-import qualified Agda.Utils.Empty as Empty
-
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible

@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Level.Solve where
 
 import Control.Monad
+import Control.Monad.Except
 
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
@@ -19,7 +20,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 

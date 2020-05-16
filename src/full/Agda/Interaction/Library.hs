@@ -32,13 +32,16 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
+import Control.Monad.Except
 import Control.Monad.Writer
+
 import Data.Char
 import Data.Data ( Data )
 import Data.Either
 import Data.Bifunctor ( first )
 import Data.Function
 import qualified Data.List as List
+
 import System.Directory
 import System.FilePath
 import System.Environment
@@ -48,7 +51,6 @@ import Agda.Interaction.Library.Parse
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
-import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
 import Agda.Utils.Maybe

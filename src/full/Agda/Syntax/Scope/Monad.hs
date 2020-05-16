@@ -9,6 +9,7 @@ import Prelude hiding (mapM, any, all, null)
 
 import Control.Arrow ((***))
 import Control.Monad hiding (mapM, forM)
+import Control.Monad.Except
 import Control.Monad.Writer hiding (mapM, forM, (<>))
 import Control.Monad.State hiding (mapM, forM)
 
@@ -47,7 +48,6 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning )
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

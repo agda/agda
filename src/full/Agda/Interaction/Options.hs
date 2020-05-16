@@ -34,6 +34,7 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when, void  )
+import Control.Monad.Except
 import Control.Monad.Trans
 
 import Data.IORef
@@ -56,12 +57,6 @@ import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
-
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )

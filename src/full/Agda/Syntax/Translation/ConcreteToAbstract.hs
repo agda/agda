@@ -23,6 +23,7 @@ import Prelude hiding ( mapM, null )
 
 import Control.Applicative
 import Control.Arrow (second)
+import Control.Monad.Except
 import Control.Monad.Reader hiding (mapM)
 
 import Data.Foldable (traverse_)
@@ -82,7 +83,6 @@ import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Lens

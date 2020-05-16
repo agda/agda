@@ -21,6 +21,7 @@ module Agda.Interaction.FindFile
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
@@ -43,7 +44,6 @@ import Agda.TypeChecking.Warnings (runPM)
 import Agda.Version ( version )
 
 import Agda.Utils.Applicative ( (?$>) )
-import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )

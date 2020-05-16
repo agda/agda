@@ -20,6 +20,7 @@ module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules , checkCo
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function ( on )
@@ -50,7 +51,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.ListT

@@ -51,6 +51,7 @@ module Agda.TypeChecking.SizedTypes.Solve where
 import Prelude hiding (null)
 
 import Control.Monad hiding (forM, forM_)
+import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 
 import Data.Either
@@ -85,7 +86,6 @@ import Agda.TypeChecking.SizedTypes.Utils
 import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
 
 import Agda.Utils.Cluster
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens

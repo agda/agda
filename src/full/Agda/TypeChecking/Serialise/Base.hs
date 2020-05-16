@@ -9,6 +9,7 @@ module Agda.TypeChecking.Serialise.Base where
 import Control.Exception (evaluate)
 
 import Control.Monad.Catch (catchAll)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
@@ -34,7 +35,6 @@ import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pointer
-import Agda.Utils.Except (ExceptT, throwError)
 import Agda.Utils.TypeLevel
 
 -- | Constructor tag (maybe omitted) and argument indices.

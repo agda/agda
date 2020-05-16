@@ -12,6 +12,7 @@ import Prelude hiding ( null )
 
 import Control.Applicative ((<|>))
 import Control.Arrow (first)
+import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
@@ -59,7 +60,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List

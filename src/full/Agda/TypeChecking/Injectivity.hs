@@ -43,6 +43,7 @@ module Agda.TypeChecking.Injectivity where
 import Prelude hiding (mapM)
 
 import Control.Applicative
+import Control.Monad.Except
 import Control.Monad.Fail
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
@@ -69,7 +70,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe

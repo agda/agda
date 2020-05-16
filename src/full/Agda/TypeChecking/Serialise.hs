@@ -30,6 +30,7 @@ import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 
@@ -64,8 +65,6 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Hash
 import Agda.Utils.IORef
-
-import Agda.Utils.Except
 
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on

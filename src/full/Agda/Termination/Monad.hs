@@ -14,6 +14,7 @@ import Control.Applicative hiding (empty)
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Semigroup ( Semigroup(..) )
@@ -38,7 +39,6 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens

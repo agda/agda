@@ -16,6 +16,7 @@ import Data.Maybe
 
 import Control.Arrow (left, second)
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
@@ -75,7 +76,6 @@ import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.Data
 
-import Agda.Utils.Except (MonadError(..), ExceptT, runExceptT)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens

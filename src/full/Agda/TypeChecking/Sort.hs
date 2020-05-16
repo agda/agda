@@ -22,6 +22,7 @@
 module Agda.TypeChecking.Sort where
 
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Functor
 import Data.Maybe
@@ -49,7 +50,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 import Agda.Utils.Monad
