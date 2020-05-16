@@ -11,10 +11,8 @@
 
 module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
-import Prelude hiding (mapM)
-
 import Control.Arrow ((***))
-import Control.Monad.State hiding (mapM)
+import Control.Monad.State
 
 import Agda.Interaction.Options (optSyntacticEquality)
 

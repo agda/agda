@@ -2,16 +2,15 @@
 
 module Agda.Interaction.MakeCase where
 
-import Prelude hiding (mapM, mapM_, null)
+import Prelude hiding (null)
 
-import Control.Monad hiding (mapM, mapM_, forM)
+import Control.Monad
 
 import Data.Either
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
-import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Info

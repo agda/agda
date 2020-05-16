@@ -19,15 +19,14 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , PatName, APatName
     ) where
 
-import Prelude hiding ( mapM, null )
+import Prelude hiding ( null )
 
 import Control.Applicative
-import Control.Arrow (second)
 import Control.Monad.Except
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Reader
 
+import Data.Bifunctor
 import Data.Foldable (traverse_)
-import Data.Traversable (mapM)
 import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.List as List

@@ -9,7 +9,7 @@ module Agda.TypeChecking.Rules.LHS
   , checkSortOfSplitVar
   ) where
 
-import Prelude hiding ( mapM, null, sequence )
+import Prelude hiding ( null )
 
 import Data.Function (on)
 import Data.Maybe

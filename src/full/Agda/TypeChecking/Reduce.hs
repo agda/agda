@@ -4,8 +4,7 @@
 
 module Agda.TypeChecking.Reduce where
 
-import Prelude hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)

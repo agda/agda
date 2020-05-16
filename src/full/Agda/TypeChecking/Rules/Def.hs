@@ -2,10 +2,10 @@
 
 module Agda.TypeChecking.Rules.Def where
 
-import Prelude hiding ( mapM, null )
+import Prelude hiding ( null )
 
 import Control.Monad.Except
-import Control.Monad.State hiding (forM, mapM)
+import Control.Monad.State
 
 import Data.Bifunctor
 import Data.Function
@@ -13,7 +13,6 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options

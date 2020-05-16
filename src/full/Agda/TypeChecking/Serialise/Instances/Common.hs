@@ -3,10 +3,8 @@
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Prelude hiding (mapM)
-
-import Control.Monad.Except hiding ( mapM )
-import Control.Monad.Reader hiding ( mapM )
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State.Strict (gets, modify)
 
 
@@ -28,7 +26,6 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
-import Data.Traversable ( mapM )
 import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap

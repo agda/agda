@@ -1,7 +1,7 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
+import Control.Monad.Reader
 
 import qualified Data.List as List
 import Data.Map (Map)

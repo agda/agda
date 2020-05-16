@@ -9,10 +9,10 @@ module Agda.Syntax.Internal
     , MetaId(..)
     ) where
 
-import Prelude hiding (foldr, mapM, null)
+import Prelude hiding (null)
 import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
-import Control.Monad.Identity hiding (mapM)
+import Control.Monad.Identity
 import Control.DeepSeq
 
 import Data.Function

@@ -23,11 +23,11 @@ module Agda.Syntax.Translation.InternalToAbstract
   , reifyDisplayFormP
   ) where
 
-import Prelude hiding (mapM_, mapM, null)
+import Prelude hiding (null)
 
 import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
-import Control.Monad.State hiding (mapM_, mapM)
+import Control.Monad.State
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -35,7 +35,6 @@ import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position

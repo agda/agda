@@ -5,13 +5,13 @@
 
 module Agda.Syntax.Scope.Monad where
 
-import Prelude hiding (mapM, any, all, null)
+import Prelude hiding (null)
 
 import Control.Arrow ((***))
-import Control.Monad hiding (mapM, forM)
+import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Writer hiding (mapM, forM, (<>))
-import Control.Monad.State hiding (mapM, forM)
+import Control.Monad.Writer hiding ((<>))
+import Control.Monad.State
 
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)

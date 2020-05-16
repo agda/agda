@@ -1,10 +1,8 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Prelude hiding (mapM)
-
 import Control.Monad.Except
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Reader
 import Control.Monad.Writer
 
 import Data.Maybe
