@@ -99,6 +99,7 @@ data CommandLineOptions = Options
   , optShowVersion           :: Bool
   , optShowHelp              :: Maybe Help
   , optInteractive           :: Bool
+      -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
   , optJSONInteraction       :: Bool
   , optOptimSmashing         :: Bool
@@ -387,9 +388,10 @@ checkOpts opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
-unsafePragmaOptions :: PragmaOptions -> [String]
-unsafePragmaOptions opts =
-  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+unsafePragmaOptions :: CommandLineOptions -> PragmaOptions -> [String]
+unsafePragmaOptions clo opts =
+  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts
+                                                 , not $ optInteractive clo          ] ++
   [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
