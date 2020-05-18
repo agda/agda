@@ -88,6 +88,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1812,31 +1813,37 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- name will be exactly the same as the name generated when checking
       -- the imported module.
       (m, i) <- withCurrentModule noModuleName $ withTopLevelModule x $ do
-        m <- toAbstract $ NewModuleQName x
+        m <- toAbstract $ NewModuleQName x  -- (No longer erases the contents of @m@.)
         printScope "import" 10 "before import:"
         (m, i) <- scopeCheckImport m
-        printScope "import" 10 $ "scope checked import: " ++ show i
+        printScope "import" 10 $ "scope checked import: " ++ prettyShow i
         -- We don't want the top scope of the imported module (things happening
         -- before the module declaration)
         return (m, Map.delete noModuleName i)
 
-      -- Merge the imported scopes with the current scopes
-      modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
-
       -- Bind the desired module name to the right abstract name.
-      case as of
-        Nothing -> bindQModule (PrivateAccess Inserted) x m
-        Just y -> (unless . isNoName) (asName y) $
-          bindModule (PrivateAccess Inserted) (asName y) m
+      (name, theAsSymbol, theAsName) <- case as of
 
-      printScope "import" 10 "merged imported sig:"
+         Just a | let y = asName a, not (isNoName y) -> do
+           bindModule (PrivateAccess Inserted) y m
+           return (C.QName y, asRange a, Just y)
+
+         _ -> do
+           -- Don't bind if @import ... as _@ with "no name"
+           whenNothing as $ bindQModule (PrivateAccess Inserted) x m
+           return (x, noRange, Nothing)
 
       -- Open if specified, otherwise apply import directives
-      let (name, theAsSymbol, theAsName) = case as of
-            Just a | (not . isNoName) (asName a) -> (C.QName (asName a), asRange a, Just (asName a))
-            _                                    -> (x,                  noRange,   Nothing)
       adir <- case open of
+
+        -- With @open@ import directives apply to the opening.
+        -- The module is thus present in its qualified form without restrictions.
         DoOpen   -> do
+
+          -- Merge the imported scopes with the current scopes.
+          -- This might override a previous import of @m@, but monotonously (add stuff).
+          modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
+
           -- Andreas, 2019-05-29, issue #3818.
           -- Pass the resolved name to open instead triggering another resolution.
           -- This helps in situations like
@@ -1864,8 +1871,16 @@ instance ToAbstract NiceDeclaration A.Declaration where
           -- the information that @M@ is external is lost here.
           (_minfo, _m, adir) <- checkOpen r (Just m) name dir
           return adir
+
         -- If not opening, import directives are applied to the original scope.
-        DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
+        DontOpen -> do
+          (adir, i') <- Map.adjustM' (applyImportDirectiveM x dir) m i
+          -- Andreas, 2020-05-18, issue #3933
+          -- We merge the new imports without deleting old imports, to be monotone.
+          modifyScopes $ \ ms -> Map.unionWith mergeScope ms i'
+          return adir
+
+      printScope "import" 10 "merged imported sig:"
       let minfo = ModuleInfo
             { minfoRange     = r
             , minfoAsName    = theAsName

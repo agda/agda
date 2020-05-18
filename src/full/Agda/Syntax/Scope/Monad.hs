@@ -117,6 +117,8 @@ getCurrentScope :: ScopeM Scope
 getCurrentScope = getNamedScope =<< getCurrentModule
 
 -- | Create a new module with an empty scope.
+--   If the module is not new (e.g. duplicate @import@),
+--   don't erase its contents.
 --   (@Just@ if it is a datatype or record module.)
 createModule :: Maybe DataOrRecordModule -> A.ModuleName -> ScopeM ()
 createModule b m = do
@@ -128,7 +130,10 @@ createModule b m = do
                       , scopeDatatypeModule = b }
   -- Andreas, 2015-07-02: internal error if module is not new.
   -- Ulf, 2016-02-15: It's not new if multiple imports (#1770).
-  modifyScopes $ Map.insertWith const m sm
+  -- Andreas, 2020-05-18, issue #3933:
+  -- If it is not new (but apparently did not clash),
+  -- we do not erase its contents for reasons of monotonicity.
+  modifyScopes $ Map.insertWith mergeScope m sm
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
@@ -644,6 +649,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 ---------------------------------------------------------------------------
 
 -- | Warn about useless fixity declarations in @renaming@ directives.
+--   Monadic for the sake of error reporting.
 checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
 checkNoFixityInRenamingModule ren = do
   whenJust (nonEmpty $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
@@ -657,6 +663,8 @@ checkNoFixityInRenamingModule ren = do
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
+--
+--   Monadic for the sake of error reporting.
 applyImportDirectiveM
   :: C.QName                           -- ^ Name of the scope, only for error reporting.
   -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
@@ -664,8 +672,8 @@ applyImportDirectiveM
   -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
 applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
-    -- Modules names do not come with fixities, thus, we should complain if the
-    -- user supplied fixity annotations to renaming-module clauses.
+    -- Module names do not come with fixities, thus, we should complain if the
+    -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
 
     -- We start by checking that all of the names talked about in the import
@@ -736,8 +744,9 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
       Using  xs     -> xs
       UseEverything -> []
 
-    -- If both @using@ and @hiding@ directive are present,
+    -- | If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
+    -- Monadic for the sake of error reporting.
     sanityCheck notMentioned = \case
       dir@(ImportDirective{ using = Using{}, hiding = ys }) -> do
           let useless = \case
