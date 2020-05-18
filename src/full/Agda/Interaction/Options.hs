@@ -166,6 +166,10 @@ data PragmaOptions = PragmaOptions
   , optKeepPatternVariables      :: Bool
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
+  , optTopLevelInteractionNoPrivate :: Bool
+     -- ^ If @True@, disable reloading mechanism introduced in issue #4647
+     --   that brings private declarations in main module into scope
+     --   to remedy not-in-scope errors in top-level interaction commands.
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
@@ -283,6 +287,7 @@ defaultPragmaOptions = PragmaOptions
   , optCubical                   = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
+  , optTopLevelInteractionNoPrivate = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optQualifiedInstances        = True
@@ -741,6 +746,9 @@ postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 keepPatternVariablesFlag :: Flag PragmaOptions
 keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
+topLevelInteractionNoPrivateFlag :: Flag PragmaOptions
+topLevelInteractionNoPrivateFlag o = return $ o { optTopLevelInteractionNoPrivate = True }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -1028,6 +1036,8 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
                     "don't replace variables with dot patterns during case splitting"
+    , Option []     ["top-level-interaction-no-private"] (NoArg topLevelInteractionNoPrivateFlag)
+                    "in top-level interaction commands, don't reload file to bring private declarations into scope"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
