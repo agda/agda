@@ -1,5 +1,6 @@
-{-# OPTIONS_GHC -fno-cse #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
+{-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Interaction.InteractionTop
@@ -942,6 +943,8 @@ withCurrentFile m = do
 -- | Top-level commands switch to 'TopLevelInteraction' mode if necessary.
 atTopLevel :: CommandM a -> CommandM a
 atTopLevel cmd = do
+  -- Don't switch if --top-level-interaction-no-private.
+  ifM (optTopLevelInteractionNoPrivate <$> pragmaOptions) continue $ {-else-} do
   gets interactionMode >>= \case
     TopLevelInteraction -> continue  -- Already in the correct mode.
     RegularInteraction  -> continue `handleNotInScope` do
