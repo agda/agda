@@ -45,18 +45,17 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow (first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
+import Data.Bifunctor
+import Data.Data (Data)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
-
-import Data.Data (Data)
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pattern
@@ -639,11 +638,15 @@ data NiceEnv = NiceEnv
     -- ^ Coverage pragma waiting for a definition.
   , niceWarn :: NiceWarnings
     -- ^ Stack of warnings. Head is last warning.
+  , _nameId  :: NameId
+    -- ^ We distinguish different 'NoName's (anonymous definitions) by a unique 'NameId'.
   }
 
 data LoneSig = LoneSig
   { loneSigRange :: Range
   , loneSigName  :: Name
+      -- ^ If 'isNoName', this name can have a different 'NameId'
+      --   than the key of 'LoneSigs' pointing to it.
   , loneSigKind  :: DataRecOrFun
   }
 
@@ -654,6 +657,11 @@ type LoneSigs     = Map Name LoneSig
      --   user gives a second definition of the same name.
      --   This causes then problems in 'replaceSigs' which might
      --   replace the wrong signature.
+     --
+     --   Another reason is that we want to distinguish different
+     --   occurrences of 'NoName' in a mutual block (issue #4157).
+     --   The 'NoName' in the codomain will have a unique 'NameId'.
+
 type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
@@ -668,7 +676,17 @@ initNiceEnv = NiceEnv
   , _catchall = False
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
+  , _nameId   = NameId 1 1   -- The module id is bogus.
   }
+
+lensNameId :: Lens' NameId NiceEnv
+lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
+
+nextNameId :: Nice NameId
+nextNameId = do
+  i <- use lensNameId
+  lensNameId %= succ
+  return i
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
 
@@ -678,13 +696,20 @@ loneSigs :: Lens' LoneSigs NiceEnv
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
+--   Return the name (which is made unique if 'isNoName').
 
-addLoneSig :: Range -> Name -> DataRecOrFun -> Nice ()
-addLoneSig r x k = loneSigs %== \ s -> do
-   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x k) s
-   case mr of
-     Nothing -> return s'
-     Just{}  -> throwError $ DuplicateDefinition x
+addLoneSig :: Range -> Name -> DataRecOrFun -> Nice Name
+addLoneSig r x k = do
+  -- Andreas, 2020-05-19, issue #4157, make '_' unique.
+  x' <- if not $ isNoName x then return x else do
+    i <- nextNameId
+    return x{ nameId = i }
+  loneSigs %== \ s -> do
+    let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
+    case mr of
+      Nothing -> return s'
+      Just{}  -> throwError $ DuplicateDefinition x
+  return x'
 
 -- | Remove a lone signature from the state.
 
@@ -712,10 +737,10 @@ checkLoneSigs xs = do
   unless (Map.null xs) $ niceWarning $ MissingDefinitions $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
--- | Get names of lone function signatures.
+-- | Get names of lone function signatures, plus their unique names.
 
-loneFuns :: LoneSigs -> [Name]
-loneFuns = map fst . filter (isFunName . loneSigKind . snd) . Map.toList
+loneFuns :: LoneSigs -> [(Name,Name)]
+loneFuns = map (second loneSigName) . filter (isFunName . loneSigKind . snd) . Map.toList
 
 -- | Create a 'LoneSigs' map from an association list.
 
@@ -901,7 +926,7 @@ niceDeclarations fixs ds = do
         OtherDecl    -> (d :) <$> inferMutualBlocks ds
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSigDecl r k x  -> do
-          addLoneSig r x k
+          _ <- addLoneSig r x k
           let tcccpc = ([terminationCheck k], [coverageCheck k], [positivityCheck k])
           ((tcs, ccs, pcs), (nds0, ds1)) <- untilAllDefined tcccpc ds
           -- If we still have lone signatures without any accompanying definition,
@@ -928,7 +953,7 @@ niceDeclarations fixs ds = do
               []     -> return (tcccpc, ([], ds))
               d : ds -> case declKind d of
                 LoneSigDecl r k x -> do
-                  addLoneSig r x k
+                  _ <- addLoneSig r x k
                   let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
                   cons d (untilAllDefined tcccpc' ds)
                 LoneDefs k xs -> do
@@ -962,8 +987,8 @@ niceDeclarations fixs ds = do
           covCheck  <- use coverageCheckPragma
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig r x $ FunName termCheck covCheck
-          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t] , ds)
+          x' <- addLoneSig r x $ FunName termCheck covCheck
+          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)
 
         -- Should not show up: all FieldSig are part of a Field block
         FieldSig{} -> __IMPOSSIBLE__
@@ -983,8 +1008,8 @@ niceDeclarations fixs ds = do
           xs <- loneFuns <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
-          case [ (x, (fits, rest))
-               | x <- xs
+          case [ (x, (x', fits, rest))
+               | (x, x') <- xs
                , let (fits, rest) =
                       -- Anonymous declarations only have 1 clause each!
                       if isNoName x then ([d], ds)
@@ -1006,11 +1031,12 @@ niceDeclarations fixs ds = do
                 return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 
             -- case: clauses match exactly one of the sigs
-            [(x,(fits,rest))] -> do
+            [(x,(x',fits,rest))] -> do
+               -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis fits
-               cs  <- mkClauses x ds False
-               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x cs] , rest)
+               cs  <- mkClauses x' ds False
+               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
             xf:xfs -> throwError $ AmbiguousFunClauses lhs $ List1.reverse $ fmap fst $ xf :| xfs
@@ -1022,7 +1048,7 @@ niceDeclarations fixs ds = do
         DataSig r x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig r x $ DataName pc uc
+          _ <- addLoneSig r x $ DataName pc uc
           (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
 
         Data r x tel t cs -> do
@@ -1050,7 +1076,7 @@ niceDeclarations fixs ds = do
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig r x $ RecName pc uc
+          _ <- addLoneSig r x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
         Record r x i e p c tel t cs   -> do
@@ -1130,7 +1156,7 @@ niceDeclarations fixs ds = do
           return ([NiceUnquoteDecl r PublicAccess ConcreteDef NotInstanceDef tc cc xs e] , ds)
 
         UnquoteDef r xs e -> do
-          sigs <- loneFuns <$> use loneSigs
+          sigs <- map fst . loneFuns <$> use loneSigs
           List1.ifNotNull (filter (`notElem` sigs) xs)
             {-then-} (throwError . UnquoteDefRequiresSignature)
             {-else-} $ do
