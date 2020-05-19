@@ -282,7 +282,7 @@ Example: the sort of the function type ``∀ {A} → A → A`` with normal form
 where:
 
 * ``_5`` is a metavariable that represents the sort of ``A``.
-* ``funSort _5 _5)`` is the sort of ``A → A``
+* ``funSort _5 _5`` is the sort of ``A → A``
 * ``univSort _5`` is the sort where the sort of ``A`` lives, ie. the
   successor level of ``_5``.
 
@@ -300,8 +300,8 @@ to the right sort once their arguments are known.
 
 More examples:
 
-* ``piSort Level (\l. Set l)`` evaluates to ``Setω``
-* ``piSort (Set l) (\_. Set l')`` evaluates to ``Set (l ⊔ l')``
+* ``piSort Level (λ → Set l)`` evaluates to ``Setω``
+* ``piSort (Set l) (λ → Set l')`` evaluates to ``Set (l ⊔ l')``
 * ``univSort (Set l)`` evaluates to ``Set (lsuc l)``
 * The function type ``∀ {A} → ∀ {B} → B → A → B`` with normal form
   ``{A : _9} {B : _7} → B → A → B`` evaluates to
