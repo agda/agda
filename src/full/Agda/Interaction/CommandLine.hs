@@ -177,7 +177,7 @@ showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ print scope
+  liftIO $ putStrLn $ prettyShow scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
