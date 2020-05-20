@@ -36,10 +36,27 @@ metavariable) representing an unknown sort. The constraint solver can
 compute these sort metavariables, just like it does when computing
 regular term metavariables.
 
-But this sort metavariable need other constructors to solve function
+But this sort metavariable needs other constructors to solve function
 types. The constructor ``funSort`` computes the sort of a function type
 even if the sort of the domain and the sort of the codomain are still
-unknown. Here is how ``funSort`` behaves with all possible sorts:
+unknown.
+
+To understand how ``funSort`` works in general, let us assume the following
+scenario:
+
+* ``sA`` and ``sB`` are two (possibly different) sorts.
+* ``A : sA``, meaning that ``A`` is a type that has sort ``sA``.
+* ``B : sB``, meaning that ``B`` is a (possibly different) type that has
+  sort ``sB``.
+
+Under these conditions, we can build the function type
+``A → B : funSort sA sB``. This type signature means that the function type
+``A → B`` has a (possibly unknown) but well-defined sort ``funSort sA sB``,
+specified in terms of the sorts of its domain and codomain.
+
+If ``sA`` and ``sB`` happen to be known, then ``funSort sA sB`` can be computed
+to a sort value. We list below all the possible computations that ``funSort``
+can perform:
 
 .. code-block::
 
@@ -55,7 +72,7 @@ Example: the sort of the function type ``∀ {A} → A → A`` with normal form
 where:
 
 * ``_5`` is a metavariable that represents the sort of ``A``.
-* ``funSort _5 _5`` is the sort of ``A → A``
+* ``funSort _5 _5`` is the sort of ``A → A``.
 
 Note that ``funSort`` can admit just two arguments, so it will be iterated
 when the function type has multiple arguments. E.g. the function type
@@ -65,13 +82,18 @@ when the function type has multiple arguments. E.g. the function type
 univSort
 --------
 
-`univSort`` returns the successor sort of a given sort.
+``univSort`` returns the successor sort of a given sort.
+
+Example: the sort of the function type ``∀ {A} → A`` with normal form
+``{A : _5} → A`` evaluates to ``funSort (univSort _5) _5`` where:
 
 * ``univSort _5`` is the sort where the sort of ``A`` lives, ie. the
   successor level of ``_5``.
 
-``univSort`` appled to ``Setω`` is well-defined only if the option
+Note that ``univSort`` appled to ``Setω`` is well-defined only if the option
 ``--omega-in-omega`` is enabled in the agda file.
+
+We list below all the possible computations that ``univSort`` can perform:
 
 .. code-block::
 
@@ -85,6 +107,22 @@ PiSort
 Similarly, ``PiSort s1 s2`` is a constructor that computes the sort of
 a Π-type given the sort ``s1`` of its domain and the sort ``s2`` of its
 codomain as arguments.
+
+To understand how ``PiSort`` works in general, we set the following scenario:
+
+* ``sA`` and ``sB`` are two (possibly different) sorts.
+* ``A : sA``, meaning that ``A`` is a type that has sort ``sA``.
+* ``x : A``, meaning that ``x`` has type ``A``.
+* ``B : sB``, meaning that B is a type (possibly different than ``A``) that
+  has sort sB.
+
+Under these conditions, we can build the dependent function type
+``(x : A) → B : PiSort sA (λ x → sB)``. This type signature means that the
+dependent function type ``(x : A) → B`` has a (possibly unknown) but
+well-defined sort ``PiSort sA sB``, specified in terms of the element
+``x : A`` and the sorts of its domain and codomain.
+
+We list below all the possible computations that ``PiSort`` can perform:
 
 .. code-block::
 
