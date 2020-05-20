@@ -10,10 +10,10 @@ Sort System
 
 .. _intro-sorts:
 
-Agda's sorts system
+Agda's sort system
 -------------------
 
-The implementation of Agda’s sorts system is closely based on the theory
+The implementation of Agda’s sort system is closely based on the theory
 of pure type systems. Sorts (aka universes) are types whose members
 themselves are again types. The fundamental sort in Agda is named ``Set``
 and it denotes the universe of small types.
@@ -27,6 +27,11 @@ inconsistency.
 Under universe polymorphism, levels can be arbitrary terms, e.g., a
 level that contains free variables. Sometimes, we will have to check
 that some expression has a valid type without knowing what sort it has.
+
+.. note::
+   ``funSort``, ``univSort`` and ``piSort`` are *internal* constructors
+   that may be printed when evaluating a term. The user can not enter them,
+   nor introduce them in agda code.
 
 funSort
 -------
@@ -143,8 +148,8 @@ More examples:
   (funSort _7 (funSort _9 _7)))``
 
 Note that ``funSort`` and ``piSort`` are total functions on sort. But
-``UnivSort`` is not always well-defined. Eg. without adding the
-``--omega-in-omega`` option, ``Setω`` does not have a ``UnivSort``
+``univSort`` is not always well-defined. Eg. without adding the
+``--omega-in-omega`` option, ``Setω`` does not have a ``univSort``
 (successor sort) since there is currently no next sort to ``Setω``.
 Any uses of ``univSort`` will lead to a 'has bigger sort' constraint that
 ensures the argument is not ``Setω``.
