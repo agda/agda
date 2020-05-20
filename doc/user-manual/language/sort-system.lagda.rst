@@ -101,28 +101,28 @@ We list below all the possible computations that ``univSort`` can perform:
   univSort (Prop a) = Set (lsuc a)
   univSort Setω     = Setω                      (only if --omega-in-omega is enabled)
 
-PiSort
+piSort
 ------
 
-Similarly, ``PiSort s1 s2`` is a constructor that computes the sort of
+Similarly, ``piSort s1 s2`` is a constructor that computes the sort of
 a Π-type given the sort ``s1`` of its domain and the sort ``s2`` of its
 codomain as arguments.
 
-To understand how ``PiSort`` works in general, we set the following scenario:
+To understand how ``piSort`` works in general, we set the following scenario:
 
 * ``sA`` and ``sB`` are two (possibly different) sorts.
 * ``A : sA``, meaning that ``A`` is a type that has sort ``sA``.
 * ``x : A``, meaning that ``x`` has type ``A``.
-* ``B : sB``, meaning that B is a type (possibly different than ``A``) that
-  has sort sB.
+* ``B : sB``, meaning that ``B`` is a type (possibly different than ``A``) that
+  has sort ``sB``.
 
 Under these conditions, we can build the dependent function type
-``(x : A) → B : PiSort sA (λ x → sB)``. This type signature means that the
+``(x : A) → B : piSort sA (λ x → sB)``. This type signature means that the
 dependent function type ``(x : A) → B`` has a (possibly unknown) but
-well-defined sort ``PiSort sA sB``, specified in terms of the element
+well-defined sort ``piSort sA sB``, specified in terms of the element
 ``x : A`` and the sorts of its domain and codomain.
 
-We list below all the possible computations that ``PiSort`` can perform:
+We list below all the possible computations that ``piSort`` can perform:
 
 .. code-block::
 
@@ -142,7 +142,7 @@ More examples:
   ``piSort (univSort _9) (λ A → funSort (univSort _7)
   (funSort _7 (funSort _9 _7)))``
 
-Note that ``funSort`` and ``PiSort`` are total functions on sort. But
+Note that ``funSort`` and ``piSort`` are total functions on sort. But
 ``UnivSort`` is not always well-defined. Eg. without adding the
 ``--omega-in-omega`` option, ``Setω`` does not have a ``UnivSort``
 (successor sort) since there is currently no next sort to ``Setω``.
