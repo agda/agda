@@ -538,10 +538,10 @@ instance PrettyTCM TypeError where
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
         | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
-      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El (Inf 0) t
-      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El (Inf 0) s
-      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El (Inf 0) t
-      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El (Inf 0) s
+      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
+      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
+      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
+      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
         fsep $ concat $
