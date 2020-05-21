@@ -182,11 +182,11 @@ recordConstructorType decls =
 
     buildType :: [C.NiceDeclaration] -> ScopeM A.Expr
       -- TODO: Telescope instead of Expr in abstract RecDef
-    buildType ds = List1.ifNull ds (return dummy) $ \ ds -> do
+    buildType ds = do
+      dummy <- A.Def . fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+      List1.ifNull ds (return dummy) $ \ ds -> do
         tel <- mapM makeBinding ds
         return $ A.Pi (ExprRange (getRange ds)) tel dummy
-      where
-      dummy = A.Set exprNoRange 0
 
     makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBinding
     makeBinding d = do
@@ -885,12 +885,6 @@ instance ToAbstract C.Expr A.Expr where
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
           return $ A.Pi info tel e
-
-  -- Sorts
-      C.Set _    -> return $ A.Set (ExprRange $ getRange e) 0
-      C.SetN _ n -> return $ A.Set (ExprRange $ getRange e) n
-      C.Prop _   -> return $ A.Prop (ExprRange $ getRange e) 0
-      C.PropN _ n -> return $ A.Prop (ExprRange $ getRange e) n
 
   -- Let
       e0@(C.Let _ ds (Just e)) ->

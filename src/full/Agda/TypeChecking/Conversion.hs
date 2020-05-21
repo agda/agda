@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -1076,7 +1075,7 @@ coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type 
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)
-    let dbglvl = if isSet a1 && isSet a2 then 50 else 10
+    let dbglvl = 30
     reportSDoc "tc.conv.coerce" dbglvl $
       "coerce" <+> vcat
         [ "term      v  =" <+> prettyTCM v

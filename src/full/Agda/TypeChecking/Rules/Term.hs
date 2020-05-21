@@ -131,49 +131,19 @@ isType_ e = traceCall (IsType_ e) $ do
       noFunctionsIntoSize t' t'
       return t'
 
-    -- Setᵢ (old version, don't remove yet)
-    A.Set _ n -> do
-      return $ sort (mkType n)
-
-    -- Propᵢ (old version, don't remove yet)
-    A.Prop _ n -> do
-      unlessM isPropEnabled $ typeError NeedOptionProp
-      return $ sort (mkProp n)
-
-    -- Setᵢ (new version)
+    -- Setᵢ
     A.Def' x suffix | x == nameOfSet -> case suffix of
       NoSuffix -> return $ sort (mkType 0)
       Suffix i -> return $ sort (mkType i)
 
-    -- Propᵢ (new version)
+    -- Propᵢ
     A.Def' x suffix | x == nameOfProp -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       case suffix of
         NoSuffix -> return $ sort (mkProp 0)
         Suffix i -> return $ sort (mkProp i)
 
-    -- Set ℓ (old version, don't remove yet)
-    A.App i s arg
-      | visible arg,
-        A.Set _ 0 <- unScope s -> do
-      unlessM hasUniversePolymorphism $ genericError
-        "Use --universe-polymorphism to enable level arguments to Set"
-      -- allow NonStrict variables when checking level
-      --   Set : (NonStrict) Level -> Set\omega
-      applyRelevanceToContext NonStrict $
-        sort . Type <$> checkLevel arg
-
-    -- Prop ℓ (old version, don't remove yet)
-    A.App i s arg
-      | visible arg,
-        A.Prop _ 0 <- unScope s -> do
-      unlessM isPropEnabled $ typeError NeedOptionProp
-      unlessM hasUniversePolymorphism $ genericError
-        "Use --universe-polymorphism to enable level arguments to Prop"
-      applyRelevanceToContext NonStrict $
-        sort . Prop <$> checkLevel arg
-
-    -- Set ℓ (new version)
+    -- Set ℓ
     A.App i s arg
       | visible arg,
         A.Def x <- unScope s,
@@ -185,7 +155,7 @@ isType_ e = traceCall (IsType_ e) $ do
       applyRelevanceToContext NonStrict $
         sort . Type <$> checkLevel arg
 
-    -- Prop ℓ (new version)
+    -- Prop ℓ
     A.App i s arg
       | visible arg,
         A.Def x <- unScope s,
@@ -1143,33 +1113,6 @@ checkExpr' cmp e t =
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
-        -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s arg@(Arg ai l)
-          | A.Set _ 0 <- unScope s, visible ai ->
-          ifNotM hasUniversePolymorphism
-              (genericError "Use --universe-polymorphism to enable level arguments to Set")
-          $ {- else -} do
-            -- allow NonStrict variables when checking level
-            --   Set : (NonStrict) Level -> Set\omega
-            n <- applyRelevanceToContext NonStrict $ checkLevel arg
-            -- check that Set (l+1) <= t
-            reportSDoc "tc.univ.poly" 10 $
-              "checking Set " <+> prettyTCM n <+>
-              "against" <+> prettyTCM t
-            coerce cmp (Sort $ Type n) (sort $ Type $ levelSuc n) t
-
-        -- check |- Prop l : t  (requires universe polymorphism)
-        A.App i s arg@(Arg ai l)
-          | A.Prop _ 0 <- unScope s, visible ai ->
-          ifNotM hasUniversePolymorphism
-              (genericError "Use --universe-polymorphism to enable level arguments to Prop")
-          $ {- else -} do
-            n <- applyRelevanceToContext NonStrict $ checkLevel arg
-            reportSDoc "tc.univ.poly" 10 $
-              "checking Prop " <+> prettyTCM n <+>
-              "against" <+> prettyTCM t
-            coerce cmp (Sort $ Prop n) (sort $ Type $ levelSuc n) t
-
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           x <- quotedName $ namedThing e
@@ -1233,11 +1176,6 @@ checkExpr' cmp e t =
             let v = Pi adom (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce cmp v (sort s) t
-        A.Set _ n    -> do
-          coerce cmp (Sort $ mkType n) (sort $ mkType $ n + 1) t
-        A.Prop _ n   -> do
-          unlessM isPropEnabled $ typeError NeedOptionProp
-          coerce cmp (Sort $ mkProp n) (sort $ mkType $ n + 1) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
 
@@ -1327,8 +1265,6 @@ checkExpr' cmp e t =
       A.Lit{}        -> True
       A.Pi{}         -> True
       A.Fun{}        -> True
-      A.Set{}        -> True
-      A.Prop{}       -> True
       A.Rec{}        -> True
       A.RecUpdate{}  -> True
       A.ScopedExpr{} -> __IMPOSSIBLE__
