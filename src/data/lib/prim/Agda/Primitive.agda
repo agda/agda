@@ -10,7 +10,7 @@ module Agda.Primitive where
 
 infixl 6 _⊔_
 
-{-# BUILTIN SET Set #-}
+{-# BUILTIN TYPE Set #-}
 {-# BUILTIN PROP Prop #-}
 {-# BUILTIN SETOMEGA Setω #-}
 
