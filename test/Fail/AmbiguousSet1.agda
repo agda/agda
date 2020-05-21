@@ -1,4 +1,4 @@
-{-# OPTIONS --no-auto-import-primitive --prop #-}
+{-# OPTIONS --no-import-sorts --prop #-}
 
 open import Agda.Primitive renaming (Set to Set; Prop to Set₁)
 

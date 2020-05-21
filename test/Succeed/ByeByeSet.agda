@@ -2,7 +2,7 @@
 -- 'Agda.Primitive'. It is imported by default but this can be
 -- disabled with a flag:
 
-{-# OPTIONS --no-auto-import-primitive #-}
+{-# OPTIONS --no-import-sorts #-}
 
 -- By importing Agda.Primitive explicitly we can rename 'Set' to
 -- something else:

@@ -1238,7 +1238,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
-          noImplicitPrimitive <- not . optAutoImportPrimitive <$> pragmaOptions
+          noImportSorts <- not . optImportSorts <$> pragmaOptions
           -- Add implicit `open import Agda.Primitive using (Set; Prop)`
           let mkName x            = C.Name noRange InScope [Id x]
               agdaPrimitiveName   = Qual (mkName "Agda") $ C.QName $ mkName "Primitive"
@@ -1247,7 +1247,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
               usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
               directives          = ImportDirective noRange usingDirective [] [] Nothing
               importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
-          primitiveImport <- if noImplicitPrimitive
+          primitiveImport <- if noImportSorts
                              then return []
                              else toAbstract importAgdaPrimitive
           -- Scope check the declarations outside

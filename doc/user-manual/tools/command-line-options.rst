@@ -454,7 +454,7 @@ Other features
 
      Default: ``--no-subtyping``
 
-.. option:: --no-auto-import-primitive
+.. option:: --no-import-sorts
 
      .. versionadded:: 2.6.2
 
