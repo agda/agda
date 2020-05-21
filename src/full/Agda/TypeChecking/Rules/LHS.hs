@@ -1770,7 +1770,7 @@ checkSortOfSplitVar dr a mtarget = do
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
       | otherwise              -> splitOnPropError
-    Inf{} -> return ()
+    Inf{} -> return () -- see #4109
     _      -> softTypeError =<< do
       liftTCM $ GenericDocError <$> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
