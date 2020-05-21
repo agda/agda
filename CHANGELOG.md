@@ -36,6 +36,10 @@ Pragmas and options
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
 
+* New option `--no-auto-import-primitive` disables the implicit `open
+  import Agda.Primitive using (Set; Prop)` at the top of each file
+  (see below).
+
 Language
 --------
 
@@ -74,6 +78,27 @@ Language
   pred : N → Maybe N
   pred (inn m) = m
   ```
+
+* `Set` and `Prop` are no longer keywords but are now primitives
+  defined in the module `Agda.Primitive`. They can be renamed when
+  importing this module, for example:
+
+  ```agda
+  open import Agda.Primitive renaming (Set to Type)
+
+  test : Type₁
+  test = Type
+  ```
+
+  To preserve backwards compatibility, each top-level Agda module now
+  starts with an implicit statement:
+
+  ```agda
+  open import Agda.Primitive using (Set; Prop)
+  ```
+
+  This implicit import can be disabled with the
+  `--no-auto-import-primitive` flag.
 
 Reflection
 ----------
