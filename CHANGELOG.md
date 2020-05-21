@@ -36,7 +36,7 @@ Pragmas and options
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
 
-* New option `--no-auto-import-primitive` disables the implicit `open
+* New option `--no-import-sorts` disables the implicit `open
   import Agda.Primitive using (Set; Prop)` at the top of each file
   (see below).
 
@@ -98,7 +98,7 @@ Language
   ```
 
   This implicit import can be disabled with the
-  `--no-auto-import-primitive` flag.
+  `--no-import-sorts` flag.
 
 Reflection
 ----------

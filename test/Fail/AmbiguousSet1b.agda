@@ -1,4 +1,4 @@
-{-# OPTIONS --no-auto-import-primitive #-}
+{-# OPTIONS --no-import-sorts #-}
 
 open import Agda.Primitive using (Prop)
 

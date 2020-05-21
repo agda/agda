@@ -196,7 +196,7 @@ data PragmaOptions = PragmaOptions
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
      -- ^ Can we split on a (x :{flat} A) argument?
-  , optAutoImportPrimitive       :: Bool
+  , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
   }
@@ -309,7 +309,7 @@ defaultPragmaOptions = PragmaOptions
   , optCallByName                = False
   , optConfluenceCheck           = False
   , optFlatSplit                 = True
-  , optAutoImportPrimitive       = True
+  , optImportSorts               = True
   }
 
 -- | The default termination depth.
@@ -460,7 +460,7 @@ restartOptions =
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
   , (B . optConfluenceCheck, "--confluence-check")
-  , (B . not . optAutoImportPrimitive, "--no-auto-import-primitive")
+  , (B . not . optImportSorts, "--no-import-sorts")
   ]
 
 -- to make all restart options have the same type
@@ -866,8 +866,8 @@ withCompilerFlag fp o = case optWithCompiler o of
  Nothing -> pure o { optWithCompiler = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
 
-noAutoImportPrimitiveFlag :: Flag PragmaOptions
-noAutoImportPrimitiveFlag o = return $ o { optAutoImportPrimitive = False }
+noImportSorts :: Flag PragmaOptions
+noImportSorts o = return $ o { optImportSorts = False }
 
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
@@ -1091,8 +1091,8 @@ pragmaOptions =
                     "disable reduction using the Agda Abstract Machine"
     , Option []     ["call-by-name"] (NoArg callByNameFlag)
                     "use call-by-name evaluation instead of call-by-need"
-    , Option []     ["no-auto-import-primitive"] (NoArg noAutoImportPrimitiveFlag)
-                    "disable the implicit import of Agda.Primitive at the start of each top-level module"
+    , Option []     ["no-import-sorts"] (NoArg noImportSorts)
+                    "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     ]
 
 -- | Pragma options of previous versions of Agda.
