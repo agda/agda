@@ -51,7 +51,7 @@ snoc as a = prepend as $ a :| []
 -- | Concatenate one or more non-empty lists.
 
 concat :: List1 (List1 a) -> List1 a
-concat = foldr1 (Semigroup.<>)
+concat = Semigroup.sconcat
 
 -- * Recovering non-emptyness.
 
