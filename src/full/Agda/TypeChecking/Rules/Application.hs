@@ -226,7 +226,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
     A.Def' x s | x == nameOfSet      -> inferSet e x s args
     A.Def' x s | x == nameOfProp     -> inferProp e x s args
-    A.Def  x   | x == nameOfSetOmega -> inferSetOmega e x args
+    A.Def' x s | x == nameOfSetOmega -> inferSetOmega e x s args
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
@@ -457,7 +457,7 @@ checkHeadApplication cmp e t hd args = do
   case hd of
     A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
     A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
-    A.Def  c   | c == nameOfSetOmega -> checkSetOmega cmp e t c args
+    A.Def' c s | c == nameOfSetOmega -> checkSetOmega cmp e t c s args
 
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -1189,16 +1189,20 @@ inferSetOrProp mkSort e q suffix args = case args of
   arg : _ -> typeError . GenericDocError =<< fsep
     [ prettyTCM q , "cannot be applied to more than one argument" ]
 
-checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
-checkSetOmega cmp e t q args = do
-  (v, t0) <- inferSetOmega e q args
+checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSetOmega cmp e t q s args = do
+  (v, t0) <- inferSetOmega e q s args
   coerce cmp v t0 t
 
-inferSetOmega :: A.Expr -> QName -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOmega e q args = case args of
-  [] -> return (Sort (Inf 0) , sort (Inf 1))
-  arg : _ -> typeError . GenericDocError =<< fsep
-      [ prettyTCM q , "cannot be applied to an argument" ]
+inferSetOmega :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSetOmega e q suffix args = do
+  let n = case suffix of
+            NoSuffix -> 0
+            Suffix n -> n
+  case args of
+    [] -> return (Sort (Inf n) , sort (Inf $ 1 + n))
+    arg : _ -> typeError . GenericDocError =<< fsep
+        [ prettyTCM q , "cannot be applied to an argument" ]
 
 -----------------------------------------------------------------------------
 -- * Coinduction

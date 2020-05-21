@@ -143,6 +143,11 @@ isType_ e = traceCall (IsType_ e) $ do
         NoSuffix -> return $ sort (mkProp 0)
         Suffix i -> return $ sort (mkProp i)
 
+    -- Setωᵢ
+    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
+      NoSuffix -> return $ sort (Inf 0)
+      Suffix i -> return $ sort (Inf i)
+
     -- Set ℓ
     A.App i s arg
       | visible arg,
