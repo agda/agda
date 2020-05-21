@@ -78,13 +78,6 @@ asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = first (unBind x :) $ asView p
 asView p             = ([], p)
 
--- | Check whether we are dealing with a universe.
-isSet :: Expr -> Bool
-isSet (ScopedExpr _ e) = isSet e
-isSet (App _ e _)      = isSet e
-isSet (Set{})          = True
-isSet _                = False
-
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
 unScope (ScopedExpr scope e) = unScope e
@@ -151,8 +144,6 @@ instance ExprLike Expr where
       Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
       Generalized  s e        -> Generalized s <$> recurse e
       Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
-      Set{}                   -> pure e0
-      Prop{}                  -> pure e0
       Let ei bs e             -> Let ei <$> recurse bs <*> recurse e
       ETel tel                -> ETel <$> recurse tel
       Rec ei bs               -> Rec ei <$> recurse bs
@@ -186,8 +177,6 @@ instance ExprLike Expr where
       Pi _ tel e           -> m `mappend` fold tel `mappend` fold e
       Generalized _ e      -> m `mappend` fold e
       Fun _ e e'           -> m `mappend` fold e `mappend` fold e'
-      Set{}                -> m
-      Prop{}               -> m
       Let _ bs e           -> m `mappend` fold bs `mappend` fold e
       ETel tel             -> m `mappend` fold tel
       Rec _ as             -> m `mappend` fold as
@@ -221,8 +210,6 @@ instance ExprLike Expr where
       Pi ei tel e             -> f =<< Pi ei <$> trav tel <*> trav e
       Generalized s e         -> f =<< Generalized s <$> trav e
       Fun ei arg e            -> f =<< Fun ei <$> trav arg <*> trav e
-      Set{}                   -> f e
-      Prop{}                  -> f e
       Let ei bs e             -> f =<< Let ei <$> trav bs <*> trav e
       ETel tel                -> f =<< ETel <$> trav tel
       Rec ei bs               -> f =<< Rec ei <$> trav bs

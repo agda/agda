@@ -7,6 +7,8 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.Maybe
+
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
@@ -19,6 +21,7 @@ import Agda.Syntax.Internal (Dom,Dom'(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
+import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -37,6 +40,7 @@ type MonadReflectedToAbstract m =
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
   )
 
@@ -65,6 +69,7 @@ toAbstract_ ::
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
   ) => r -> m a
 toAbstract_ = withShowAllArguments . toAbstractWithoutImplicit
@@ -77,6 +82,7 @@ toAbstractWithoutImplicit ::
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
   ) => r -> m a
 toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
@@ -155,13 +161,16 @@ mkDef f =
       (return $ A.Macro f)
       (return $ A.Def f)
 
-mkSet :: Expr -> Expr
-mkSet e = App (setOrigin Reflected defaultAppInfo_) (A.Set exprNoRange 0) $ defaultNamedArg e
+mkApp :: Expr -> Expr -> Expr
+mkApp e1 e2 = App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
 
 instance ToAbstract Sort Expr where
-  toAbstract (SetS x) = mkSet <$> toAbstract x
-  toAbstract (LitS x) = return $ A.Set exprNoRange x
-  toAbstract UnknownS = return $ mkSet $ Underscore emptyMetaInfo
+  toAbstract s = do
+    setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+    case s of
+      SetS x -> mkApp (A.Def setName) <$> toAbstract x
+      LitS x -> return $ A.Def' setName $ A.Suffix x
+      UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
 
 instance ToAbstract R.Pattern (Names, A.Pattern) where
   toAbstract pat = case pat of

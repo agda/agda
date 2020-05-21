@@ -148,10 +148,6 @@ data Expr
   | ExtendedLam Range (List1 LamClause)        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-  | Set Range                                  -- ^ ex: @Set@
-  | Prop Range                                 -- ^ ex: @Prop@
-  | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
-  | PropN Range Integer                        -- ^ ex: @Prop0, Prop1, ..@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
@@ -684,10 +680,6 @@ instance HasRange Expr where
       ExtendedLam r _    -> r
       Fun r _ _          -> r
       Pi b e             -> fuseRange b e
-      Set r              -> r
-      Prop r             -> r
-      SetN r _           -> r
-      PropN r _          -> r
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
@@ -926,10 +918,6 @@ instance KillRange Expr where
   killRange (ExtendedLam _ lrw)  = killRange1 (ExtendedLam noRange) lrw
   killRange (Fun _ e1 e2)        = killRange2 (Fun noRange) e1 e2
   killRange (Pi t e)             = killRange2 Pi t e
-  killRange (Set _)              = Set noRange
-  killRange (Prop _)             = Prop noRange
-  killRange (SetN _ n)           = SetN noRange n
-  killRange (PropN _ n)          = PropN noRange n
   killRange (Rec _ ne)           = killRange1 (Rec noRange) ne
   killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
@@ -1047,10 +1035,6 @@ instance NFData Expr where
   rnf (ExtendedLam _ a)  = rnf a
   rnf (Fun _ a b)        = rnf a `seq` rnf b
   rnf (Pi a b)           = rnf a `seq` rnf b
-  rnf (Set _)            = ()
-  rnf (Prop _)           = ()
-  rnf (SetN _ a)         = rnf a
-  rnf (PropN _ a)        = rnf a
   rnf (Rec _ a)          = rnf a
   rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
   rnf (Let _ a b)        = rnf a `seq` rnf b

@@ -248,8 +248,6 @@ instance Hilite A.Expr where
       A.Pi _r tel b              -> hl tel <> hl b
       A.Generalized _qs e        -> hl e
       A.Fun _r a b               -> hl a <> hl b
-      A.Set _r k                 -> mempty
-      A.Prop _r k                -> mempty
       A.Let _r bs e              -> hl bs <> hl e
       A.ETel _tel                -> mempty  -- Printing only construct
       A.Rec _r ass               -> hl ass

@@ -264,10 +264,6 @@ instance Pretty Expr where
                 sep [ pretty (Tel $ smashTel $ List1.toList tel) <+> arrow
                     , pretty e
                     ]
-            Set _   -> "Set"
-            Prop _  -> "Prop"
-            SetN _ n    -> "Set" <> text (showIndex n)
-            PropN _ n   -> "Prop" <> text (showIndex n)
             Let _ ds me  ->
                 sep [ "let" <+> vcat (map pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
