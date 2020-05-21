@@ -1239,8 +1239,8 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
-      -- the second sort must be at least Inf.
-      (_       , _       ) | isSmallSort s1 , badRigid -> leqSort (Inf 0) s2
+      -- the second sort must be at least @Setω@.
+      (_       , _       ) | isSmallSort s1 == Just True , badRigid -> leqSort (Inf 0) s2
 
       -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1708,7 +1708,7 @@ equalSort s1 s2 = do
            -- If @b@ is dependent, then @piSort a b@ computes to
            -- @Setω@. Hence, if @s@ is small, then @b@
            -- cannot be dependent.
-        if | isSmallSort s         -> do
+        if | isSmallSort s == Just True -> do
                -- We force @b@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
                b' <- newSortMeta
@@ -1732,11 +1732,11 @@ equalSort s1 s2 = do
         case s0 of
           -- If @Setω+ n == funSort s1 s2@, then either @s1@ or @s2@ must
           -- be @Setω+ n@.
-          Inf n | isSmallSort s1 && isSmallSort s2 -> do
+          Inf n | isSmallSort s1 == Just True && isSmallSort s2 == Just True -> do
                     typeError $ UnequalSorts s0 (FunSort s1 s2)
-                | isSmallSort s1 -> equalSort (Inf n) s2
-                | isSmallSort s2 -> equalSort (Inf n) s1
-                | otherwise      -> synEq s0 (FunSort s1 s2)
+                | isSmallSort s1 == Just True -> equalSort (Inf n) s2
+                | isSmallSort s2 == Just True -> equalSort (Inf n) s1
+                | otherwise                   -> synEq s0 (FunSort s1 s2)
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
           -- @SizeUniv@.
