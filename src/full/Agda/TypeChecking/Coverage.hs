@@ -2205,7 +2205,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
                     | otherwise
             = NoInfo
 
-      when (isLeft tauInv) $
+      when (isLeft tauInv) $ do
+        whenM (optCubical <$> pragmaOptions) $ do
         -- TODO better error msg.
         lift $ genericWarning =<< text "No equiv while splitting on indexed family"
 
