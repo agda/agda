@@ -2406,6 +2406,8 @@ data Call
   = CheckClause Type A.SpineClause
   | CheckLHS A.SpineLHS
   | CheckPattern A.Pattern Telescope Type
+  | CheckPatternLinearityType C.Name
+  | CheckPatternLinearityValue C.Name
   | CheckLetBinding A.LetBinding
   | InferExpr A.Expr
   | CheckExprCall Comparison A.Expr Type
@@ -2442,6 +2444,8 @@ instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
     pretty CheckLHS{}                = "CheckLHS"
     pretty CheckPattern{}            = "CheckPattern"
+    pretty CheckPatternLinearityType{}  = "CheckPatternLinearityType"
+    pretty CheckPatternLinearityValue{} = "CheckPatternLinearityValue"
     pretty InferExpr{}               = "InferExpr"
     pretty CheckExprCall{}           = "CheckExprCall"
     pretty CheckLetBinding{}         = "CheckLetBinding"
@@ -2477,6 +2481,8 @@ instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
     getRange (CheckLHS lhs)                  = getRange lhs
     getRange (CheckPattern p _ _)            = getRange p
+    getRange (CheckPatternLinearityType x)   = getRange x
+    getRange (CheckPatternLinearityValue x)  = getRange x
     getRange (InferExpr e)                   = getRange e
     getRange (CheckExprCall _ e _)           = getRange e
     getRange (CheckLetBinding b)             = getRange b

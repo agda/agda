@@ -501,7 +501,7 @@ checkPatternLinearity eqs = do
   reportSDoc "tc.lhs.linear" 30 $ "Checking linearity of pattern variables"
   check Map.empty eqs
   where
-    check :: Map A.BindName Term -> [ProblemEq] -> TCM [ProblemEq]
+    check :: Map A.BindName (Term, Type) -> [ProblemEq] -> TCM [ProblemEq]
     check _ [] = return []
     check vars (eq@(ProblemEq p u a) : eqs) = do
       reportSDoc "tc.lhs.linear" 40 $ sep
@@ -509,18 +509,23 @@ checkPatternLinearity eqs = do
         , prettyA p
         , " equal to term "
         , prettyTCM u
+        , " of type "
+        , prettyTCM a
         ]
       case p of
         A.VarP x -> do
+          let y = A.unBind x
           reportSLn "tc.lhs.linear" 60 $
-            let y = A.unBind x
-            in "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
+            "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
           case Map.lookup x vars of
-            Just v -> do
-              noConstraints $ equalTerm (unDom a) u v
+            Just (v , b) -> do
+              traceCall (CheckPatternLinearityType $ A.nameConcrete y) $
+                noConstraints $ equalType (unDom a) b
+              traceCall (CheckPatternLinearityValue $ A.nameConcrete y) $
+                noConstraints $ equalTerm (unDom a) u v
               check vars eqs
             Nothing -> (eq:) <$> do
-              check (Map.insert x u vars) eqs
+              check (Map.insert x (u,unDom a) vars) eqs
         A.AsP _ x p ->
           check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
         A.WildP{}       -> continue

@@ -1,4 +1,4 @@
-Issue3147.agda:12,10-11
-x != suc x of type Nat
+Issue4631.agda:10,12-13
+R0 != R1
 when checking that all occurrences of pattern variable x have the
-same value
+same type
