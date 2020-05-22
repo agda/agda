@@ -100,6 +100,15 @@ Language
   This implicit import can be disabled with the
   `--no-import-sorts` flag.
 
+* Agda now has support for sorts `Setωᵢ` (alternative syntax: `Setωi`)
+  for natural numbers `i`, where `Setω₀ = Setω`. These sorts form a
+  second hierarchy `Setωᵢ : Setωᵢ₊₁` similar to the standard hierarchy
+  of `Setᵢ`, but do not support universe polymorphism. It should not
+  be necessary to refer to these sorts during normal usage of Agda,
+  but they might be useful for defining reflection-based macros (see
+  [#2119](https://github.com/agda/agda/issues/2119) and
+  [#4585](https://github.com/agda/agda/issues/4585)).
+
 Reflection
 ----------
 
