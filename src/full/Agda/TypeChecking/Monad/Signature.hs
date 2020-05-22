@@ -84,7 +84,9 @@ addConstant q d = do
                     Nothing -> fallback
                     Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
               _ -> tel
-  let d' = abstract tel' $ d { defName = q }
+  -- Andrea: for Pfenning-Davis modalities global constants are always available.
+  --         We do check at application site that any implicit module parameters are still usable.
+  let d' = mapArgInfo (setCohesion topCohesion) $ abstract tel' $ d { defName = q }
   reportSDoc "tc.signature" 60 $ "lambda-lifted definition =" <?> pretty d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
@@ -992,6 +994,7 @@ inFreshModuleIfFreeParams k = do
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
+--   Andrea: The Pfenning-Davis modality of an instantated def is meaningless.
 {-# SPECIALIZE instantiateDef :: Definition -> TCM Definition #-}
 instantiateDef
   :: ( Functor m, HasConstInfo m, HasOptions m

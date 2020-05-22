@@ -1943,6 +1943,11 @@ data Defn = Axiom -- ^ Postulate
             , funWith           :: Maybe QName
               -- ^ Is this a generated with-function? If yes, then what's the
               --   name of the parent function.
+            , funDeclaredModality :: Maybe Modality
+              -- ^ Pfenning-Davis modalities do not apply to global
+              -- constants (they are always topModality), but they do apply to the body (and type) of
+              -- functions, so we keep track here of how the function was declared.
+              -- Initialized by checkAxiom.
             }
           | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
@@ -4283,8 +4288,8 @@ instance KillRange Defn where
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
-      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
-        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
+      Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with mod ->
+        killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with mod
       Datatype a b c d e f g h       -> killRange7 Datatype a b c d e f g h
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
