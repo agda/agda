@@ -287,7 +287,7 @@ type Telescope = Tele (Dom Type)
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf Integer      -- ^ @Setω+ n@.
+  | Inf Integer      -- ^ @Setωᵢ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
@@ -1488,7 +1488,7 @@ instance Pretty Sort where
       Prop (ClosedLevel n) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
       Inf 0 -> "Setω"
-      Inf n -> text $ "Setω+" ++ show n
+      Inf n -> text $ "Setω" ++ show n
       SizeUniv -> "SizeUniv"
       PiSort a b -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))

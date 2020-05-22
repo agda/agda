@@ -1216,7 +1216,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
 
-      -- @Setω+ n@ is above all small sorts (spelling out all cases
+      -- @Setωᵢ@ is above all small sorts (spelling out all cases
       -- for the exhaustiveness checker)
       (Inf m   , Inf n   ) ->
         if m <= n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
@@ -1604,7 +1604,7 @@ equalSort s1 s2 = do
             (Inf m      , Inf n      ) ->
               if m == n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
 
-            -- if --type-in-type is enabled, (Setω+ n) is equal to any Set ℓ (see #3439)
+            -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
             (Type{}     , Inf{}      )
               | typeInTypeEnabled      -> yes
             (Inf{}      , Type{}     )
@@ -1679,7 +1679,7 @@ equalSort s1 s2 = do
                    equalSort (Type l2) s2
                -- Otherwise we postpone
                | otherwise -> synEq (Type l1) (UnivSort s2)
-          -- @Setω+ n@ is a successor sort if n > 0, or if
+          -- @Setωᵢ@ is a successor sort if n > 0, or if
           -- --type-in-type or --omega-in-omega is enabled.
           Inf n | n > 0 -> equalSort (Inf $ n - 1) s2
           Inf 0 -> do
@@ -1730,8 +1730,8 @@ equalSort s1 s2 = do
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
-          -- If @Setω+ n == funSort s1 s2@, then either @s1@ or @s2@ must
-          -- be @Setω+ n@.
+          -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
+          -- be @Setωᵢ@.
           Inf n | isSmallSort s1 == Just True && isSmallSort s2 == Just True -> do
                     typeError $ UnequalSorts s0 (FunSort s1 s2)
                 | isSmallSort s1 == Just True -> equalSort (Inf n) s2
