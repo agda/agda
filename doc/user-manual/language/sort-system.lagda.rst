@@ -33,6 +33,8 @@ that some expression has a valid type without knowing what sort it has.
    that may be printed when evaluating a term. The user can not enter them,
    nor introduce them in agda code.
 
+.. _funSort:
+
 funSort
 -------
 
@@ -84,6 +86,8 @@ when the function type has multiple arguments. E.g. the function type
 ``∀ {A} → A → A → A`` evaluates to
 ``funSort (univSort _5) (funSort _5 (funSort _5 _5))``
 
+.. _univSort:
+
 univSort
 --------
 
@@ -105,6 +109,8 @@ We list below all the possible computations that ``univSort`` can perform:
   univSort (Set a)  = Set (lsuc a)
   univSort (Prop a) = Set (lsuc a)
   univSort Setω     = Setω                      (only if --omega-in-omega is enabled)
+
+.. _piSort:
 
 piSort
 ------
@@ -153,6 +159,8 @@ Note that ``funSort`` and ``piSort`` are total functions on sort. But
 (successor sort) since there is currently no next sort to ``Setω``.
 Any uses of ``univSort`` will lead to a 'has bigger sort' constraint that
 ensures the argument is not ``Setω``.
+
+.. _set-omega-plus-n:
 
 Sorts ``Setωᵢ``
 ---------------
