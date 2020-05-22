@@ -12,5 +12,5 @@ module UnquoteSetOmega where
 `∀ℓ→Setℓ : Term
 `∀ℓ→Setℓ = pi (vArg `Level) (abs "_" (sort (set (var 0 []))))
 
--- unquoting it is now also fine (since we have sort Setω+1)
+-- unquoting it is now also fine (since we have sort Setω₁)
 ∀ℓ→Setℓ = unquote (give `∀ℓ→Setℓ)

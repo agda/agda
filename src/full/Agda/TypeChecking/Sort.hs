@@ -65,7 +65,7 @@ inferUnivSort s = do
   case univSort' s of
     Just s' -> return s'
     Nothing -> do
-      -- Jesper, 2020-04-19: With the addition of Setω+i and the PTS
+      -- Jesper, 2020-04-19: With the addition of Setωᵢ and the PTS
       -- rule SizeUniv : Setω, every sort (with no metas) now has a
       -- bigger sort, so we do not need to add a constraint.
       -- addConstraint $ HasBiggerSort s
