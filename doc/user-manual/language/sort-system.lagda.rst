@@ -153,3 +153,33 @@ Note that ``funSort`` and ``piSort`` are total functions on sort. But
 (successor sort) since there is currently no next sort to ``Setω``.
 Any uses of ``univSort`` will lead to a 'has bigger sort' constraint that
 ensures the argument is not ``Setω``.
+
+Sorts ``Setωᵢ``
+---------------
+
+Agda implements sorts of the form ``Setωᵢ``, where ``i`` is a natural number
+``i : Nat``. These sorts constitute a second hierarchy ``Setωᵢ : Setωᵢ₊₁``
+where each sort has the type of its successor. This mechanism is similar to
+the one implemented in the standard hierarchy ``Setᵢ : Setᵢ₊₁`` that we
+introduced in the section :ref:`Universe Levels <universe-levels>`.
+
+But, unlike the standard hierarchy of universes ``Setᵢ``, this second
+hierarchy ``Setωᵢ`` does not support universe polymorphism. This means that
+it is not possible to quantify over *all* Setω+n at once. For example, the
+expression ``∀ {i} (A : Setω i) → A → A`` would not be a well-formed agda
+term.
+
+You can also refer to these sorts with the alternative syntax ``Setωi``.
+That means that you can also write ``Setω1``, ``Setω2``, etc., instead
+of ``Setω₁``, ``Setω₂``. To enter the subscript ``₁`` in the Emacs mode,
+type "``\_1``".
+
+The sort formerly known as ``Setω`` becomes now just an abbreviation for
+``Setω₀``. Now it is allowed, for instance, to declare a datatype in ``Setω``.
+This means that ``Setω`` before the implementation of this hierarchy,
+``Setω`` used to be a term, and there was no bigger sort that it in Agda.
+Now a type can be assigned to it, in this case, ``Setω₁``.
+
+Concerning other applications,  It should not be necessary to refer to these
+sorts during normal usage of Agda, but they might be useful for defining
+:ref:`reflection-based macros <macros>`.
