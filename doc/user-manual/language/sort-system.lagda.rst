@@ -165,19 +165,27 @@ ensures the argument is not ``Setω``.
 Sorts ``Setωᵢ``
 ---------------
 
+Agda implements sorts of the form ``Setωᵢ``, being ``i`` any natural number,
+i.e. ``0``, ``1``, ``2``, ``3``, ...
+
 .. note::
-   Recall that the data type ``Nat`` is bound by default to a special
-   representation as Haskell integers (Agda's natural number concept).
-   For more information, see the section :ref:`Built-ins <built-ins>`.
+   In particular, ``i`` can *not* be an arbitrary expression of type ``Nat``;
+   therefore, ``Setωi`` cannot depend on any variables. This is an intentional
+   design decision. Allowing it would require a new universe ``Set2ω``, which
+   would then naturally lead to ``Set2ω+1``, and so on. Restricting ``i`` to
+   just literal natural numbers avoids such an undesired circumstance.
 
-Agda implements sorts of the form ``Setωᵢ``, where ``i`` can be any
-expression of type ``Nat`` (in particular also the decimal representations
-of the natural numbers, i.e. 0, 1, 2, 3, ...).
+The constructors ``funSort``, ``univSort``, and ``piSort`` that we saw in
+the previous sections also work for ``Setωi``, but with this restriction
+in mind. For example, ``piSort s` (λ x -> Setωi)`` will always reduce to
+``funSort s Setωi`` since there is no way for the ``i`` to depend on the
+variable ``x``.
 
-These sorts constitute a second hierarchy ``Setωᵢ : Setωᵢ₊₁``
-where each sort has the type of its successor. This mechanism is similar to
-the one implemented in the standard hierarchy ``Setᵢ : Setᵢ₊₁`` that we
-introduced in the section :ref:`Universe Levels <universe-levels>`.
+The family of sorts ``Setωᵢ`` (aka ``Setω+n``) constitute a second hierarchy
+``Setωᵢ : Setωᵢ₊₁`` where each sort has the type of its successor. This
+mechanism is similar to the one implemented in the standard hierarchy
+``Setᵢ : Setᵢ₊₁`` that we introduced in the section
+:ref:`Universe Levels <universe-levels>`.
 
 But, unlike the standard hierarchy of universes ``Setᵢ``, this second
 hierarchy ``Setωᵢ`` does not support universe polymorphism. This means that
@@ -186,9 +194,9 @@ expression ``∀ {i} (A : Setω i) → A → A`` would not be a well-formed agda
 term.
 
 You can also refer to these sorts with the alternative syntax ``Setωi``.
-That means that you can also write ``Setω1``, ``Setω2``, etc., instead
-of ``Setω₁``, ``Setω₂``. To enter the subscript ``₁`` in the Emacs mode,
-type "``\_1``".
+That means that you can also write ``Setω0``, ``Setω1``, ``Setω2``, etc.,
+instead of ``Setω₀``, ``Setω₁``, ``Setω₂``. To enter the subscript ``₁`` in
+the Emacs mode, type "``\_1``".
 
 The sort formerly known as ``Setω`` becomes now just an abbreviation for
 ``Setω₀``. Now it is allowed, for instance, to declare a datatype in ``Setω``.

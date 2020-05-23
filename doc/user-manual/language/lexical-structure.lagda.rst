@@ -43,7 +43,7 @@ keywords
   ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
   ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`
   ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
-  ``renaming`` ``rewrite`` ``Set`` ``Setω`` ``syntax`` ``tactic``
+  ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
   :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>` ``using``
   :ref:`variable <generalization-of-declared-variables>`
@@ -52,11 +52,6 @@ keywords
   The ``Set`` keyword can appear with a natural number suffix, optionally
   subscripted (see :ref:`universe-levels`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
-
-  The ``Setω`` keyword can appear with a number suffix like ``Set``, and
-  also subscripted. See :ref:`set-omega-plus-n`) for details. For instance
-  ``Setω19`` and ``Setω₁₉`` are examples of keywords.
-
 
 .. _names:
 
