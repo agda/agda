@@ -1,6 +1,6 @@
 ..
   ::
-  module sort.system where
+  module language.sort-system where
 
 .. _sort-system:
 
@@ -165,8 +165,16 @@ ensures the argument is not ``Setω``.
 Sorts ``Setωᵢ``
 ---------------
 
-Agda implements sorts of the form ``Setωᵢ``, where ``i`` is a natural number
-``i : Nat``. These sorts constitute a second hierarchy ``Setωᵢ : Setωᵢ₊₁``
+.. note::
+   Recall that the data type ``Nat`` is bound by default to a special
+   representation as Haskell integers (Agda's natural number concept).
+   For more information, see the section :ref:`Built-ins <built-ins>`.
+
+Agda implements sorts of the form ``Setωᵢ``, where ``i`` can be any
+expression of type ``Nat`` (in particular also the decimal representations
+of the natural numbers, i.e. 0, 1, 2, 3, ...).
+
+These sorts constitute a second hierarchy ``Setωᵢ : Setωᵢ₊₁``
 where each sort has the type of its successor. This mechanism is similar to
 the one implemented in the standard hierarchy ``Setᵢ : Setᵢ₊₁`` that we
 introduced in the section :ref:`Universe Levels <universe-levels>`.
