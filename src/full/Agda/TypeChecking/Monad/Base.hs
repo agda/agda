@@ -2143,6 +2143,7 @@ emptyFunction = Function
   , funExtLam      = Nothing
   , funWith        = Nothing
   , funCovering    = []
+  , funDeclaredModality = Nothing
   }
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
