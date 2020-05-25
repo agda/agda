@@ -410,7 +410,12 @@ checkRelevance' x def = do
 checkQuantity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkQuantity' x def = do
   case getQuantity def of
-    Quantityω{} -> return Nothing -- Abundant definitions can be used in any context.
+    dq@Quantityω{} -> do
+      reportSDoc "tc.irr" 50 $ vcat
+        [ "declaration quantity =" <+> text (show dq)
+        -- , "context     quantity =" <+> text (show q)
+        ]
+      return Nothing -- Abundant definitions can be used in any context.
     dq -> do
       q <- asksTC getQuantity
       reportSDoc "tc.irr" 50 $ vcat
@@ -785,10 +790,15 @@ checkConstructorApplication cmp org t c args = do
       , "c    =" <+> prettyTCM c
       , "args =" <+> prettyTCM args
     ] ]
+
+  cdef  <- getConInfo c
+
+  checkModality (conName c) cdef
+
   let paramsGiven = checkForParams args
   if paramsGiven then fallback else do
     reportSDoc "tc.term.con" 50 $ "checkConstructorApplication: no parameters explicitly supplied, continuing..."
-    cdef  <- getConInfo c
+
     let Constructor{conData = d, conPars = npars} = theDef cdef
     reportSDoc "tc.term.con" 50 $ nest 2 $ "d    =" <+> prettyTCM d
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d

@@ -211,7 +211,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         case getQuantity ai of
           Quantityω{} -> return ()
-          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
@@ -268,7 +268,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           addConstant c $
-            defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
+            defaultDefn ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con
