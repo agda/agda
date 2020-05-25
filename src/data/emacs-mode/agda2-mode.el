@@ -1321,14 +1321,14 @@ top-level scope."
   "Shows all the top-level names in the given module.
 Along with their types."
   "Cmd_show_module_contents"
-  "Module name")
+  "Module name (empty for current module)")
 
 (agda2-maybe-normalised-toplevel
   agda2-module-contents-toplevel
   "Shows all the top-level names in the given module.
 Along with their types."
   "Cmd_show_module_contents_toplevel"
-  "Module name"
+  "Module name (empty for top-level module)"
 )
 
 (agda2-maybe-normalised-toplevel
