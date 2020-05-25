@@ -1358,9 +1358,21 @@ checkLHS mf = updateModality checkLHS_ where
           let eqs' = applyPatSubst rho $ problem ^. problemEqs
               problem' = set problemEqs eqs' problem
 
+          -- Propagate quantity to result type
+          cq <- getQuantity <$> getConstInfo (conName c)
+          let target'' = mapQuantity updResMod target'
+                where
+                  -- either sets to Quantity0 or is the identity.
+                  updResMod q =
+                    case cq of
+                     Quantity0{} -> cq <> q
+                                 -- zero-out, preserves origin
+                     Quantity1{} -> __IMPOSSIBLE__
+                     Quantityω{} -> q
+
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
-          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target' psplit
+          st' <- liftTCM $ updateLHSState $ LHSState delta' ip' problem' target'' psplit
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ "new problem from rest"
