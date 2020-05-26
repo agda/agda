@@ -430,15 +430,16 @@ FAW_PATH = src/fix-whitespace
 FAW_BIN  = $(FAW_PATH)/dist/build/fix-whitespace/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
-fix-whitespace : build-fix-agda-whitespace
+fix-whitespace : build-fix-whitespace
 	$(FAW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
 check-whitespace : build-fix-whitespace
 	$(FAW_BIN) --check
 
-.PHONY : build-fix-whitespace ## Build fix-agda-whitespace.
+.PHONY : build-fix-whitespace ## Build fix-whitespace.
 build-fix-whitespace :
+	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-whitespace
 	mkdir -p $(FAW_PATH)/dist/build/fix-whitespace/
