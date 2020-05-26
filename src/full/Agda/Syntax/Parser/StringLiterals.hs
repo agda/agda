@@ -6,7 +6,7 @@ module Agda.Syntax.Parser.StringLiterals
     ) where
 
 import Data.Char
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad

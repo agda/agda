@@ -6,8 +6,8 @@ module Internal.TypeChecking.Generators where
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import Agda.Syntax.Position

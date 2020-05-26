@@ -11,7 +11,7 @@ import Data.IORef
 import Data.Maybe
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete

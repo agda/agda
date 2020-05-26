@@ -62,7 +62,7 @@ import Data.List hiding (null)
 import Data.Set (Set)
 
 import Data.Data (Data)
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common

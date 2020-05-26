@@ -8,7 +8,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup ( Semigroup )
 
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 
 import Agda.Syntax.Common ( Nat )
 

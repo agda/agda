@@ -9,7 +9,7 @@ import Data.Set ( Set, null, insert, difference, delete )
 import Data.Map ( fromList )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( splitFileName, (</>) )

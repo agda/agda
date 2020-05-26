@@ -9,8 +9,8 @@ import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
 import Data.Maybe (fromMaybe)
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import Agda.Syntax.Common

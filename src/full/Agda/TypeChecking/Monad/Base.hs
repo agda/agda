@@ -40,8 +40,9 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Data (Data)
 import Data.String
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 import Data.IORef
 
@@ -888,7 +889,7 @@ data ForeignCode = ForeignCode Range String
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
-  , iSource          :: Text
+  , iSource          :: TL.Text
     -- ^ The source code. The source code is stored so that the HTML
     -- and LaTeX backends can generate their output without having to
     -- re-read the (possibly out of date) source code.
@@ -938,7 +939,7 @@ instance Pretty Interface where
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
-      , "source:"              $$  nest 2 (text $ T.unpack source)
+      , "source:"              $$  nest 2 (text $ TL.unpack source)
       , "file type:"           <+> (pretty . show) fileT
       , "imported modules:"    <+> (pretty . show) importedM
       , "module name:"         <+> pretty moduleN

@@ -20,8 +20,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options

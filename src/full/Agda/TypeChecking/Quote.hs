@@ -5,7 +5,7 @@ import Control.Arrow ((&&&))
 import Control.Monad
 
 import Data.Maybe (fromMaybe)
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common

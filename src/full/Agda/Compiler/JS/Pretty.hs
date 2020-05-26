@@ -7,7 +7,7 @@ import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
 import Data.Map ( Map, toAscList, empty, null )
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import Data.Map ( Map, toAscList )
 
 import Agda.Syntax.Common ( Nat )
@@ -242,7 +242,7 @@ block n e = mparens (doNest e) $ pretty n e
     doNest _ = False
 
 modname :: GlobalId -> Doc
-modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\"
+modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
 
 exports :: (Nat, Bool) -> Set [MemberId] -> [Export] -> Doc
 exports n lss [] = ""

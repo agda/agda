@@ -47,8 +47,8 @@ import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Semigroup ((<>))
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef

@@ -7,8 +7,8 @@ import Data.Char
 import Data.Word
 
 import Data.Data (Data)
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 

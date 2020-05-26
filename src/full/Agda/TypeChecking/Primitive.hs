@@ -15,8 +15,8 @@ import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import qualified Agda.Interaction.Options.Lenses as Lens

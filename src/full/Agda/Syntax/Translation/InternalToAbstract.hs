@@ -35,7 +35,7 @@ import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import Data.Traversable (mapM)
 
 import Agda.Syntax.Literal

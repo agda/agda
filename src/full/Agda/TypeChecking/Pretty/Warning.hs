@@ -8,7 +8,7 @@ import Data.Function
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.List as List
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors

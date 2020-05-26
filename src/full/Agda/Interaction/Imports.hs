@@ -21,8 +21,9 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HMap
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
@@ -80,7 +81,7 @@ import Agda.Utils.Impossible
 -- | Some information about the source code.
 
 data SourceInfo = SourceInfo
-  { siSource     :: Text                  -- ^ Source code.
+  { siSource     :: TL.Text               -- ^ Source code.
   , siFileType   :: FileType              -- ^ Source file type
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
@@ -92,7 +93,7 @@ sourceInfo :: SourceFile -> TCM SourceInfo
 sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
-                           parseFile moduleParser f $ T.unpack source
+                           parseFile moduleParser f $ TL.unpack source
   moduleName            <- moduleName f parsedMod
   return SourceInfo
     { siSource     = source
@@ -152,7 +153,12 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iPatternSyns i) (iDisplayForms i) (iUserWarnings i) (iPartialDefs i) warns
+    addImportedThings sig bi
+      (iPatternSyns i)
+      (iDisplayForms i)
+      (iUserWarnings i)
+      (iPartialDefs i)
+      warns
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -869,7 +875,7 @@ createInterface file mname isMain msi =
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         (srcFilePath file) (T.unpack source)
+                         (srcFilePath file) (TL.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
     options <- concreteOptionsToOptionPragmas pragmas
@@ -1139,7 +1145,7 @@ constructIScope i = billToPure [ Deserialization ] $
 -- have been successfully type checked.
 
 buildInterface
-  :: Text
+  :: TL.Text
      -- ^ Source code.
   -> FileType
      -- ^ Agda file? Literate Agda file?

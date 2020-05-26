@@ -2,7 +2,7 @@
 
 module Agda.Utils.Haskell.Syntax where
 
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 
 -- * Modules
 

@@ -5,7 +5,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
