@@ -918,8 +918,8 @@ isDatatype ind at = do
     _ -> throw NotADatatype
 
 -- | Update the target type of the split clause after a case split.
-fixTargetType :: SplitClause -> Dom Type -> TCM SplitClause
-fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
+fixTargetType :: SplitTag -> SplitClause -> Dom Type -> TCM SplitClause
+fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
     reportSDoc "tc.cover.target" 20 $ sep
       [ "split clause telescope: " <+> prettyTCM sctel
       ]
@@ -930,7 +930,20 @@ fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
       [ "target type before substitution:" <+> pretty target
       , "             after substitution:" <+> pretty (applySplitPSubst sigma target)
       ]
-    return $ sc { scTarget = Just $ applySplitPSubst sigma target }
+
+    -- We update the target quantity to 0 for erased constructors.
+    f <- do
+      case tag of
+        SplitCon c -> do
+          q <- getQuantity <$> getConstInfo c
+          case q of
+            Quantity0{} -> return (q <>)
+            Quantity1{} -> return id
+            Quantityω{} -> return id
+        SplitLit{} -> return id
+        SplitCatchall{} -> return id
+
+    return $ sc { scTarget = Just $ mapQuantity f $ applySplitPSubst sigma target }
 
 
 -- | Add more patterns to split clause if the target type is a function type.
@@ -1407,7 +1420,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         else computeNeighborhoods
 
   ns <- case target of
-    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType sc a
+    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType con sc a
     Nothing -> return ns
 
   ns <- case inserttrailing of
