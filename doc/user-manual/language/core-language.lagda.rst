@@ -39,7 +39,7 @@ Grammar
 At its core, Agda is a dependently typed lambda calculus. The grammar of terms
 is as follows:
 
-.. code-block:: haskell
+.. code-block::
 
   a ::= x                       -- variable
       | λ x → a                 -- abstraction
@@ -69,7 +69,7 @@ of interpretation:
 
 The full pipeline from an *.agda file towards an executable is:
 
-.. code-block:: txt
+.. code-block::
 
   *.agda file
      ==[ parser (Lexer.x + Parser.y) ]==>
