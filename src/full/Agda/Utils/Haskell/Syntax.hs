@@ -83,6 +83,7 @@ data Exp = Var QName
          | Con QName
          | Lit Literal
          | InfixApp Exp QOp Exp
+         | Ann Exp Type
          | App Exp Exp
          | Lambda [Pat] Exp
          | Let Binds Exp

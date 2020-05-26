@@ -704,7 +704,8 @@ hslit l = case l of LitNat    _ x -> HS.Int    x
                     LitMeta{}     -> __IMPOSSIBLE__
 
 litString :: Text -> HS.Exp
-litString s = HS.Lit (HS.String s)
+litString s = HS.Ann (HS.Lit (HS.String s))
+                     (HS.TyCon (HS.Qual (HS.ModuleName "Data.Text") (HS.Ident "Text")))
 
 litqname :: QName -> HS.Exp
 litqname x =
@@ -816,6 +817,7 @@ writeModule (HS.Module m ps imp ds) = do
         , "NoMonomorphismRestriction"
         , "RankNTypes"
         , "PatternSynonyms"
+        , "OverloadedStrings"
         ]
 
 
