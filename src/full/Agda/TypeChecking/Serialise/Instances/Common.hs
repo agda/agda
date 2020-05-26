@@ -1,4 +1,3 @@
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
@@ -25,7 +24,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text.Lazy (Text)
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
 import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -58,9 +58,13 @@ instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
-instance EmbPrj Text where
-  icod_   = icodeX textD textC
-  value i = (! i) `fmap` gets textE
+instance EmbPrj TL.Text where
+  icod_   = icodeX lTextD lTextC
+  value i = (! i) `fmap` gets lTextE
+
+instance EmbPrj T.Text where
+  icod_   = icodeX sTextD sTextC
+  value i = (! i) `fmap` gets sTextE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger

@@ -160,6 +160,11 @@ instance Pretty HS.Exp where
       HS.InfixApp a qop b -> mparens (pr > 0) $
         sep [ prettyPrec 1 a
             , pretty qop <+> prettyPrec 1 b ]
+      HS.Ann e ty -> mparens (pr > 0) $
+        sep [ prettyPrec 1 e
+            , "::"
+            , prettyPrec 1 ty
+            ]
       HS.App{} -> mparens (pr > 9) $
         sep [ prettyPrec 9 f
             , nest 2 $ fsep $ map (prettyPrec 10) es ]

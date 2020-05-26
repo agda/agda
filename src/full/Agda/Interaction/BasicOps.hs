@@ -20,6 +20,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
@@ -343,7 +345,7 @@ computeWrapInput _               s = s
 showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
-    A.Lit (LitString _ s) -> pure (text s)
+    A.Lit (LitString _ s) -> pure (text $ T.unpack s)
     _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
@@ -383,7 +385,7 @@ reifyElimToExpr e = case e of
     I.Apply v -> appl "apply" <$> reify v
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
-    appl :: String -> Arg Expr -> Expr
+    appl :: Text -> Arg Expr -> Expr
     appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where

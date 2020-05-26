@@ -47,6 +47,8 @@ import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Semigroup ((<>))
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
@@ -212,7 +214,7 @@ compactDef bEnv def rewr = do
           -- Strings
           -- "primStringToList"     -- We don't have the list builtins (but could have, TODO)
           -- "primStringFromList"   -- and they are not literals
-          "primStringAppend"           -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> string (b ++ a)
+          "primStringAppend"           -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> text (b <> a)
           "primStringEquality"         -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> bool (b == a)
           "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
@@ -243,7 +245,8 @@ compactDef bEnv def rewr = do
           nat    a = Lit . LitNat    noRange $! a
           word   a = Lit . LitWord64 noRange $! a
           float  a = Lit . LitFloat  noRange $! a
-          string a = Lit . LitString noRange $! a
+          text   a = Lit . LitString noRange $! a
+          string a = text (T.pack a)
           char   a = Lit . LitChar   noRange $! a
 
           -- Remember reverse order!
@@ -762,8 +765,8 @@ buildEnv xs spine = go xs spine emptyEnv
         IApply x y r : sp -> go xs sp (r `extendEnv` env)
         _            -> __IMPOSSIBLE__
 
-unusedPointerString :: String
-unusedPointerString = show (withFileAndLine Impossible)
+unusedPointerString :: Text
+unusedPointerString = T.pack (show (withFileAndLine Impossible))
 
 unusedPointer :: Pointer s
 unusedPointer = Pure (Closure (Value $ notBlocked ())

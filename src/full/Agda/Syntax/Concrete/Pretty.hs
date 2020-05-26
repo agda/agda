@@ -9,8 +9,9 @@ import Prelude hiding ( null )
 
 import Data.IORef
 import Data.Maybe
-import qualified Data.Strict.Maybe as Strict
 import qualified Data.Semigroup as Semigroup
+import qualified Data.Strict.Maybe as Strict
+import qualified Data.Text as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
@@ -643,8 +644,8 @@ instance Pretty Pragma where
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
     pretty (NoCoverageCheckPragma _) = "NON_COVERING"
-    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text str ]
-    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text str ]
+    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text (T.unpack str) ]
+    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text (T.unpack str) ]
     pretty (CatchallPragma _) = "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = "DISPLAY" <+> sep [ pretty lhs <+> "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = "NO_POSITIVITY_CHECK"

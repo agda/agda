@@ -62,6 +62,7 @@ import Data.List hiding (null)
 import Data.Set (Set)
 
 import Data.Data (Data)
+import Data.Text (Text)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -446,9 +447,9 @@ data Pragma
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
-  | WarningOnUsage            Range QName String
+  | WarningOnUsage            Range QName Text
     -- ^ Applies to the named function
-  | WarningOnImport           Range String
+  | WarningOnImport           Range Text
     -- ^ Applies to the current module
   | InjectivePragma           Range QName
     -- ^ Mark a definition as injective for the pattern matching unifier.
