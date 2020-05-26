@@ -41,6 +41,7 @@ Language Reference
    runtime-irrelevance
    safe-agda
    sized-types
+   sort-system
    syntactic-sugar
    syntax-declarations
    telescopes
