@@ -255,7 +255,8 @@ applyModalityToContextFunBody thing cont = do
     ifM (optIrrelevantProjections <$> pragmaOptions)
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
-               $ applyCohesionToContext (getCohesion m)
+      -- Andrea: pfenning-davis modalities are already applied to the context by this point.
+      --         $ applyCohesionToContext (getCohesion m)
                $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing

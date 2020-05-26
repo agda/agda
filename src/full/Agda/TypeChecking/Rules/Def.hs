@@ -81,7 +81,10 @@ checkFunDef delayed i name cs = do
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $
           NotBlocked MissingClauses ()
         -- Get the type and relevance of the function
-        def <- instantiateDef =<< getConstInfo name
+        def' <- getConstInfo name
+        let c = getCohesion $ fromMaybe __IMPOSSIBLE__ $ funDeclaredModality $ theDef def'
+        applyCohesionToContext c $ do
+        def <- instantiateDef def'
         let t    = defType def
         let info = getArgInfo def
         case isAlias cs t of
