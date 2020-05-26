@@ -1,0 +1,3 @@
+Issue4586LetPatternDot.agda:5,12-16
+Not a valid let pattern
+when scope checking let .Set = Set in Set

@@ -1,9 +1,8 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Prelude hiding (mapM)
-
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.Writer
 
 import Data.Maybe
@@ -22,7 +21,6 @@ import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
-import Agda.Utils.Except
 
 import Agda.Utils.Impossible
 
@@ -32,8 +30,7 @@ setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
   stPragmaOptions `modifyTCLens` Lens.mapSafeMode (Lens.getSafeMode opts ||)
   clo <- commandLineOptions
-  let unsafe = unsafePragmaOptions opts
---  when (Lens.getSafeMode clo && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
+  let unsafe = unsafePragmaOptions clo opts
   when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
   ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
   case ok of

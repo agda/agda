@@ -6,6 +6,7 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -186,7 +186,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primSetOmega,
+    primSet, primProp, primSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -213,7 +213,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
-    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
+    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
@@ -299,6 +299,8 @@ primLevel                             = getBuiltin builtinLevel
 primLevelZero                         = getBuiltin builtinLevelZero
 primLevelSuc                          = getBuiltin builtinLevelSuc
 primLevelMax                          = getBuiltin builtinLevelMax
+primSet                               = getBuiltin builtinSet
+primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
@@ -391,6 +393,7 @@ primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
 primAgdaTCMQuoteTerm                  = getBuiltin builtinAgdaTCMQuoteTerm
+primAgdaTCMQuoteOmegaTerm             = getBuiltin builtinAgdaTCMQuoteOmegaTerm
 primAgdaTCMUnquoteTerm                = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
@@ -423,6 +426,25 @@ coinductionKit' = do
 
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = tryMaybe coinductionKit'
+
+-- | Sort primitives.
+
+data SortKit = SortKit
+  { nameOfSet      :: QName
+  , nameOfProp     :: QName
+  , nameOfSetOmega :: QName
+  }
+
+sortKit :: HasBuiltins m => m SortKit
+sortKit = do
+  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSetOmega = setomega
+    }
 
 
 ------------------------------------------------------------------------

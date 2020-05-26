@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.CheckInternal where
 
+import Control.Monad.Except
 import qualified Control.Monad.Fail as Fail
 
 import qualified Data.Kind as Hs
@@ -9,7 +10,6 @@ import qualified Data.Kind as Hs
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
-import Agda.Utils.Except ( MonadError )
 
 type MonadCheckInternal m =
   ( MonadReduce m

@@ -13,6 +13,7 @@ open import Agda.Builtin.Char
 open import Agda.Builtin.Float
 open import Agda.Builtin.Int
 open import Agda.Builtin.Sigma
+open import Agda.Primitive
 
 -- Names --
 
@@ -254,6 +255,7 @@ postulate
   catchTC          : ∀ {a} {A : Set a} → TC A → TC A → TC A
   quoteTC          : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC        : ∀ {a} {A : Set a} → Term → TC A
+  quoteωTC         : ∀ {A : Setω} → A → TC Term
   getContext       : TC (List (Arg Type))
   extendContext    : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
   inContext        : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
@@ -296,6 +298,7 @@ postulate
 {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
 {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
 {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
+{-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
 {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
 {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
 {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}

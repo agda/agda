@@ -70,7 +70,6 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 
 
@@ -548,7 +547,7 @@ instance Free Sort where
     case s of
       Type a     -> freeVars' a
       Prop a     -> freeVars' a
-      Inf        -> mempty
+      Inf _      -> mempty
       SizeUniv   -> mempty
       PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
                     underFlexRig WeaklyRigid (freeVars' (getSort a, s))

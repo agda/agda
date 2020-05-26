@@ -24,6 +24,7 @@ module Agda.TypeChecking.Names where
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -36,7 +37,6 @@ import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
-import Agda.Utils.Except
 import Agda.Utils.Fail (Fail, runFail_)
 
 instance HasBuiltins m => HasBuiltins (NamesT m) where

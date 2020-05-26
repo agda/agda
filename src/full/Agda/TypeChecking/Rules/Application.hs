@@ -12,6 +12,7 @@ import Prelude hiding ( null )
 
 import Control.Applicative ((<|>))
 import Control.Arrow (first)
+import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
@@ -24,7 +25,8 @@ import Data.Either (partitionEithers)
 import Data.Void
 import qualified Data.IntSet as IntSet
 
-import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
+import Agda.Interaction.Highlighting.Generate
+  ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
@@ -58,10 +60,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
+import Agda.Utils.List hiding (Suffix)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -139,7 +140,7 @@ checkApplication cmp hd args e t =
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      TelV tel _ <- telView =<< normalise . defType =<< instantiateDef =<< getConstInfo x
+      TelV tel _ <- telView . defType =<< instantiateDef =<< getConstInfo x
 
       tTerm <- primAgdaTerm
       tName <- primQName
@@ -219,9 +220,13 @@ inferApplication exh hd args e | not (defOrVar hd) = do
   t <- workOnTypes $ newTypeMeta_
   v <- checkExpr' CmpEq e t
   return (v, t)
-inferApplication exh hd args e = postponeInstanceConstraints $
+inferApplication exh hd args e = postponeInstanceConstraints $ do
+  SortKit{..} <- sortKit
   case unScope hd of
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
+    A.Def' x s | x == nameOfSet      -> inferSet e x s args
+    A.Def' x s | x == nameOfProp     -> inferProp e x s args
+    A.Def' x s | x == nameOfSetOmega -> inferSetOmega e x s args
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
@@ -275,7 +280,8 @@ inferHead e = do
 
       return (applyE u, unDom a)
 
-    A.Def x -> inferHeadDef ProjPrefix x
+    A.Def x  -> inferHeadDef ProjPrefix x
+    A.Def'{} -> __IMPOSSIBLE__ -- handled in checkHeadApplication and inferApplication
 
     A.Proj o ambP | Just d <- getUnambiguous ambP -> inferHeadDef o d
     A.Proj{} -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
@@ -439,6 +445,7 @@ checkModality x def = justToError $ checkModality' x def
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: Comparison -> A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication cmp e t hd args = do
+  SortKit{..} <- sortKit
   sharp <- fmap nameOfSharp <$> coinductionKit
   conId  <- getNameOfConstrained builtinConId
   pOr    <- getNameOfConstrained builtinPOr
@@ -448,6 +455,10 @@ checkHeadApplication cmp e t hd args = do
   mglue  <- getNameOfConstrained builtin_glue
   mglueU  <- getNameOfConstrained builtin_glueU
   case hd of
+    A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
+    A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
+    A.Def' c s | c == nameOfSetOmega -> checkSetOmega cmp e t c s args
+
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
     A.Def c | Just c == sharp -> checkSharpApplication e t c args
@@ -631,6 +642,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Constructor{}             -> __IMPOSSIBLE__
                     GeneralizableVar{}        -> __IMPOSSIBLE__
                     Primitive{}               -> False
+                    PrimitiveSort{}           -> False
                   isRigid _           = return False
               rigid <- isRigid tgt
               -- Andreas, 2019-03-28, issue #3248:
@@ -879,7 +891,7 @@ disambiguateConstructor cs0 t = do
     [con] -> do
       let c = setConName (headWithDefault __IMPOSSIBLE__ cs) con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
-      storeDisambiguatedName $ conName c
+      storeDisambiguatedConstructor (conInductive c) (conName c)
       return (Right c)
     _   -> do
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
@@ -898,7 +910,7 @@ disambiguateConstructor cs0 t = do
                  case [ c | (d', c) <- dcs, d == d' ] of
                    [c] -> do
                      reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedName $ conName c
+                     storeDisambiguatedConstructor (conInductive c) (conName c)
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
                    cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
@@ -995,7 +1007,7 @@ inferOrCheckProjApp e o ds args mt = do
           case forMaybe fs $ \ f -> List.find (unDom f ==) (NonEmpty.toList ds) of
             [] -> refuseProjNoMatching ds
             [d] -> do
-              storeDisambiguatedName d
+              storeDisambiguatedProjection d
               -- checkHeadApplication will check the target type
               (, t, CheckedTarget Nothing) <$>
                 checkHeadApplication cmp e t (A.Proj o $ unambiguous d) args
@@ -1095,7 +1107,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
         -- the term u = d v
         -- the type tb is the type of this application
         [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
-          storeDisambiguatedName d
+          storeDisambiguatedProjection d
 
           -- Check parameters
           tfull <- typeOfConst d
@@ -1127,6 +1139,70 @@ refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonEmpty 
 refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
 refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
 refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"
+
+-----------------------------------------------------------------------------
+-- * Sorts
+-----------------------------------------------------------------------------
+
+checkSet
+  :: Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSet = checkSetOrProp Type
+
+checkProp
+  :: Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkProp cmp e t q s args = do
+  unlessM isPropEnabled $ typeError NeedOptionProp
+  checkSetOrProp Prop cmp e t q s args
+
+checkSetOrProp
+  :: (Level -> Sort) -> Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSetOrProp mkSort cmp e t q suffix args = do
+  (v, t0) <- inferSetOrProp mkSort e q suffix args
+  coerce cmp v t0 t
+
+inferSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSet = inferSetOrProp Type
+
+inferProp :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferProp e q s args = do
+  unlessM isPropEnabled $ typeError NeedOptionProp
+  inferSetOrProp Prop e q s args
+
+inferSetOrProp
+  :: (Level -> Sort) -> A.Expr
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSetOrProp mkSort e q suffix args = case args of
+  [] -> do
+    let n = case suffix of
+              NoSuffix -> 0
+              Suffix n -> n
+    return (Sort (mkSort $ ClosedLevel n) , sort (Type $ ClosedLevel $ n + 1))
+  [arg] -> do
+    unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ mkSort $ ClosedLevel 0
+    unlessM hasUniversePolymorphism $ genericError
+      "Use --universe-polymorphism to enable level arguments to Set"
+    l <- applyRelevanceToContext NonStrict $ checkLevel arg
+    return (Sort $ mkSort l , sort (Type $ levelSuc l))
+  arg : _ -> typeError . GenericDocError =<< fsep
+    [ prettyTCM q , "cannot be applied to more than one argument" ]
+
+checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSetOmega cmp e t q s args = do
+  (v, t0) <- inferSetOmega e q s args
+  coerce cmp v t0 t
+
+inferSetOmega :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSetOmega e q suffix args = do
+  let n = case suffix of
+            NoSuffix -> 0
+            Suffix n -> n
+  case args of
+    [] -> return (Sort (Inf n) , sort (Inf $ 1 + n))
+    arg : _ -> typeError . GenericDocError =<< fsep
+        [ prettyTCM q , "cannot be applied to an argument" ]
 
 -----------------------------------------------------------------------------
 -- * Coinduction

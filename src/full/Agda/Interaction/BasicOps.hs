@@ -8,6 +8,7 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow (first)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
@@ -74,7 +75,6 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Termination.TermCheck (termMutual)
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -86,6 +86,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.String
 
 import Agda.Utils.Impossible
 
@@ -1178,6 +1179,7 @@ moduleContents
      --   names paired up with corresponding types.
 
 moduleContents norm rng s = traceCall ModuleContents $ do
+  if null (trim s) then getModuleContents norm Nothing else do
   e <- parseExpr rng s
   case isQName e of
     -- If the expression is not a single identifier, it is not a module name
@@ -1187,7 +1189,7 @@ moduleContents norm rng s = traceCall ModuleContents $ do
     -- as a record name.
     Just x  -> do
       ms :: [AbstractModule] <- scopeLookup x <$> getScope
-      if null ms then getRecordContents norm e else getModuleContents norm x
+      if null ms then getRecordContents norm e else getModuleContents norm $ Just x
 
 -- | Returns the contents of the given record identifier.
 
@@ -1224,14 +1226,18 @@ getRecordContents norm ce = do
 -- | Returns the contents of the given module.
 
 getModuleContents
-  :: Rewrite  -- ^ Amount of normalization in types.
-  -> C.QName  -- ^ Module name.
+  :: Rewrite
+       -- ^ Amount of normalization in types.
+  -> Maybe C.QName
+       -- ^ Module name, @Nothing@ if top-level module.
   -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
-              -- ^ Module names,
-              --   context extension,
-              --   names paired up with corresponding types.
-getModuleContents norm m = do
-  modScope <- getNamedScope . amodName =<< resolveModule m
+       -- ^ Module names,
+       --   context extension,
+       --   names paired up with corresponding types.
+getModuleContents norm mm = do
+  modScope <- case mm of
+    Nothing -> getCurrentScope
+    Just m  -> getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
       modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
@@ -1248,6 +1254,8 @@ whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
+  ifNull ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )
+    {-then-} (notInScopeError x)  -- Andreas, 2020-05-15, issue #4647 throw error to trigger TopLevelInteraction
+    {-else-} return

@@ -2,8 +2,7 @@
 module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
-
-
+import Control.Monad.Except
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -16,8 +15,6 @@ import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Except
-
 
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)

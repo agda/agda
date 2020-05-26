@@ -1,15 +1,34 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Map where
 
+import Data.Functor.Compose
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 
+import Agda.Utils.Functor
+import Agda.Utils.Impossible
+
+-- * Monadic map operations
+---------------------------------------------------------------------------
+
+-- | Update monadically the value at one position (must exist!).
+adjustM :: (Functor f, Ord k) => (v -> f v) -> k -> Map k v -> f (Map k v)
+#if MIN_VERSION_containers(0,5,8)
+adjustM f = Map.alterF $ \case
+  Nothing -> __IMPOSSIBLE__
+  Just v  -> Just <$> f v
+#else
+adjustM f k m =
+  f (Map.findWithDefault __IMPOSSIBLE__ k m) <&> \ v -> Map.insert k v m
+#endif
+
+-- | Wrapper for 'adjustM' for convenience.
+adjustM' :: (Functor f, Ord k) => (v -> f (a, v)) -> k -> Map k v -> f (a, Map k v)
+adjustM' f k = getCompose . adjustM (Compose . f) k
 
 -- UNUSED Liang-Ting Chen (05-07-2019)
--- -- * Monadic map operations
--- ---------------------------------------------------------------------------
---
 -- data EitherOrBoth a b = L a | B a b | R b
 --
 -- -- | Not very efficient (goes via a list), but it'll do.

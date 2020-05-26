@@ -2,30 +2,27 @@
 --
 --   For 'TermSize' see "Agda.Syntax.Internal".
 
+{-# LANGUAGE TypeFamilies #-}  -- for type equality ~
+
 module Agda.Utils.Size
   ( Sized(..)
   , SizedThing(..)
   , sizeThing
   ) where
 
-import Prelude hiding (null)
+import Prelude hiding (null, length)
 
+import Data.Foldable       (Foldable, length)
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HashSet
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
+import Data.HashSet        (HashSet)
+import Data.IntMap         (IntMap)
+import Data.IntSet         (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import qualified Data.List as List
+import Data.Map            (Map)
+import Data.Set            (Set)
+import Data.Sequence       (Seq)
 
+import Agda.Utils.List1    (List1)
 import Agda.Utils.Null
 
 -- | The size of a collection (i.e., its length).
@@ -33,30 +30,18 @@ import Agda.Utils.Null
 class Sized a where
   size :: a -> Int
 
-instance Sized [a] where
-  size = List.genericLength
+  default size :: (Foldable t, t b ~ a) => a -> Int
+  size = length
 
-instance Sized (IntMap a) where
-  size = IntMap.size
-
-instance Sized IntSet where
-  size = IntSet.size
-
-instance Sized (Map k a) where
-  size = Map.size
-
-instance Sized (Set a) where
-  size = Set.size
-
-instance Sized (HashMap k a) where
-  size = HashMap.size
-
-instance Sized (HashSet a) where
-  size = HashSet.size
-
-instance Sized (Seq a) where
-  size = Seq.length
-
+instance Sized [a]
+instance Sized (Set a)
+instance Sized (HashMap k a)
+instance Sized (HashSet a)
+instance Sized (IntMap a)
+instance Sized (List1 a)
+instance Sized (Map k a)
+instance Sized (Seq a)
+instance Sized IntSet where size = IntSet.size
 
 -- | Thing decorated with its size.
 --   The thing should fit into main memory, thus, the size is an @Int@.

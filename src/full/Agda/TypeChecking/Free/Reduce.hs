@@ -154,6 +154,6 @@ instance ForceNotFree Sort where
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
     DefS d es  -> DefS d   <$> forceNotFree' es
-    Inf        -> return s
+    Inf _      -> return s
     SizeUniv   -> return s
     DummyS{}   -> return s

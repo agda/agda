@@ -252,10 +252,18 @@ specify where it is the identity function.
 There is an additional side condition to be satisfied for ``transp A r
 a`` to type-check, which is that ``A`` has to be *constant* on
 ``r``. This means that ``A`` should be a constant function whenever
-the constraint ``r = i1`` is satisfied.  This side condition is
-vacuously true when ``r`` is ``i0``, so there is nothing to check when
-writing ``transp A i0 a``. However when ``r`` is equal to ``i1`` the
-``transp`` function will compute as the identity function.
+the constraint ``r = i1`` is satisfied.  For example:
+
+* If ``r`` is ``i0`` then ``A`` can be anything, since this side
+  condition is vacuously true.
+
+* If ``r`` is ``i1`` then ``A`` must be a constant function.
+
+* If ``r`` is some in-scope variable ``i`` then ``A`` only needs to be
+  a constant function when substituting ``i1`` for ``i``.
+
+When ``r`` is equal to ``i1`` the ``transp`` function will compute as
+the identity function.
 
 .. code-block:: agda
 

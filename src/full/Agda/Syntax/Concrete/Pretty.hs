@@ -265,10 +265,6 @@ instance Pretty Expr where
                 sep [ pretty (Tel $ smashTel $ List1.toList tel) <+> arrow
                     , pretty e
                     ]
-            Set _   -> "Set"
-            Prop _  -> "Prop"
-            SetN _ n    -> "Set" <> text (showIndex n)
-            PropN _ n   -> "Prop" <> text (showIndex n)
             Let _ ds me  ->
                 sep [ "let" <+> vcat (map pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
@@ -409,10 +405,10 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (AnyWhere ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere m a ds) =
+  pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
+  pretty (SomeWhere _ m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
              [ "module", pretty m, "where" ]
          , nest 2 (vcat $ map pretty ds)
@@ -516,10 +512,10 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta con tel e cs ->
-              pRecord x ind eta con tel (Just e) cs
-            RecordDef _ x ind eta con tel cs ->
-              pRecord x ind eta con tel Nothing cs
+            Record _ x ind eta pat con tel e cs ->
+              pRecord x ind eta pat con tel (Just e) cs
+            RecordDef _ x ind eta pat con tel cs ->
+              pRecord x ind eta pat con tel Nothing cs
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
@@ -569,17 +565,32 @@ instance Pretty Declaration where
                     , nest 2 $ vcat $ map pretty ds
                     ]
 
-pRecord :: Name -> Maybe (Ranged Induction) -> Maybe HasEta -> Maybe (Name, IsInstance) -> [LamBinding] -> Maybe Expr -> [Declaration] -> Doc
-pRecord x ind eta con tel me cs =
-  sep [ hsep  [ "record"
+pRecord
+  :: Name
+  -> Maybe (Ranged Induction)
+  -> Maybe HasEta0
+  -> Maybe Range                -- ^ Range of the 'pattern' keyword.
+  -> Maybe (Name, IsInstance)
+  -> [LamBinding]
+  -> Maybe Expr
+  -> [Declaration]
+  -> Doc
+pRecord x ind eta pat con tel me ds = vcat
+    [ sep
+      [ hsep  [ "record"
               , pretty x
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me
-      ] $$ nest 2 (vcat $ pInd ++
-                          pEta ++
-                          pCon ++
-                          map pretty cs)
+      ]
+    , nest 2 $ vcat $ concat
+      [ pInd
+      , pEta
+      , pPat
+      , pCon
+      , map pretty ds
+      ]
+    ]
   where pType (Just e) = hsep
                 [ ":"
                 , pretty e
@@ -587,10 +598,17 @@ pRecord x ind eta con tel me cs =
                 ]
         pType Nothing  =
                   "where"
-        pInd = maybeToList $ text . show . rangedThing <$> ind
+        pInd = maybeToList $ pretty . rangedThing <$> ind
         pEta = maybeToList $ eta <&> \case
-          YesEta -> "eta-equality"
-          NoEta  -> "no-eta-equality"
+          YesEta   -> "eta-equality"
+          NoEta () -> "no-eta-equality"
+        pPat = maybeToList $ "pattern" <$ pat
+        -- pEta = caseMaybe eta [] $ \case
+        --   YesEta -> [ "eta-equality" ]
+        --   NoEta  -> "no-eta-equality" : pPat
+        -- pPat = \case
+        --   PatternMatching   -> [ "pattern" ]
+        --   CopatternMatching -> []
         pCon = maybeToList $ (("constructor" <+>) . pretty) . fst <$> con
 
 instance Pretty OpenShortHand where
@@ -704,7 +722,7 @@ prettyOpApp :: forall a .
 prettyOpApp q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
-    ms = init (qnameParts q)
+    ms = List1.init (qnameParts q)
     -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
            Name _ _ xs    -> xs

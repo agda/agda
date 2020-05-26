@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-} -- for type equality ~
+{-# LANGUAGE TypeApplications #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -24,7 +25,10 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -125,7 +129,7 @@ instance Underscore QName where
 
 data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
-  , moduleNameParts :: [String]
+  , moduleNameParts :: List1 String
   }
   deriving (Show, Data)
 
@@ -252,19 +256,41 @@ firstNonTakenName taken x =
   then firstNonTakenName taken (nextName x)
   else x
 
+-- | Lens for accessing and modifying the suffix of a name.
+--   The suffix of a @NoName@ is always @NoSuffix@, and should not be
+--   changed.
+nameSuffix :: Lens' Suffix Name
+nameSuffix (f :: Suffix -> f Suffix) n = case n of
+  NoName{} -> f NoSuffix <&> \case
+    NoSuffix    -> n
+    Prime{}     -> __IMPOSSIBLE__
+    Index{}     -> __IMPOSSIBLE__
+    Subscript{} -> __IMPOSSIBLE__
+  Name{ nameNameParts = ps } -> loop ps $ \ps' -> n { nameNameParts = ps' }
+    where
+      loop :: [NamePart] -> ([NamePart] -> Name) -> f Name
+      loop [Id s] mkName =
+        let (root, suffix) = suffixView s
+        in  (\suffix' -> mkName [ Id $ addSuffix root suffix' ]) <$> f suffix
+      loop [Id s, Hole] mkName =
+        let (root, suffix) = suffixView s
+        in  (\suffix' -> mkName [ Id (addSuffix root suffix') , Hole ]) <$> f suffix
+      loop (p : ps) mkName = loop ps $ mkName . (p :)
+      loop [] mkName = __IMPOSSIBLE__
+
+-- | Split a name into a base name plus a suffix.
+nameSuffixView :: Name -> (Suffix, Name)
+nameSuffixView = nameSuffix (,NoSuffix)
+
+-- | Replaces the suffix of a name. Unless the suffix is @NoSuffix@,
+--   the name should not be @NoName@.
+setNameSuffix :: Suffix -> Name -> Name
+setNameSuffix = set nameSuffix
+
 -- | Get a raw version of the name with all suffixes removed. For
---   instance, @nameRoot "x₁₂₃" = "x"@. The name must not be a
---   'NoName'.
+--   instance, @nameRoot "x₁₂₃" = "x"@.
 nameRoot :: Name -> RawName
-nameRoot NoName{} = __IMPOSSIBLE__
-nameRoot x@Name{ nameNameParts = ps } =
-    nameToRawName $ x{ nameNameParts = root ps }
-  where
-    root [Id s] = [Id $ strRoot s]
-    root [Id s, Hole] = [Id $ strRoot s , Hole]
-    root (p : ps) = p : root ps
-    root [] = __IMPOSSIBLE__
-    strRoot = fst . suffixView
+nameRoot x = nameToRawName $ snd $ nameSuffixView x
 
 sameRoot :: Name -> Name -> Bool
 sameRoot = (==) `on` nameRoot
@@ -272,6 +298,11 @@ sameRoot = (==) `on` nameRoot
 ------------------------------------------------------------------------
 -- * Operations on qualified names
 ------------------------------------------------------------------------
+
+-- | Lens for the unqualified part of a QName
+lensQNameName :: Lens' Name QName
+lensQNameName f (QName n)  = QName <$> f n
+lensQNameName f (Qual m n) = Qual m <$> lensQNameName f n
 
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
@@ -288,9 +319,9 @@ unqualify q = unqualify' q `withRangeOf` q
   unqualify' (Qual _ x) = unqualify' x
 
 -- | @qnameParts A.B.x = [A, B, x]@
-qnameParts :: QName -> [Name]
-qnameParts (Qual x q) = x : qnameParts q
-qnameParts (QName x)  = [x]
+qnameParts :: QName -> List1 Name
+qnameParts (Qual x q) = x <| qnameParts q
+qnameParts (QName x)  = singleton x
 
 -- | Is the name (un)qualified?
 
@@ -310,27 +341,15 @@ isUnqualified (QName n) = Just n
 -- name is assumed to represent a top-level module name.
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName q = TopLevelModuleName (getRange q) $ map prettyShow $ qnameParts q
-
--- UNUSED
--- -- | Turns a top level module into a qualified name with 'noRange'.
-
--- fromTopLevelModuleName :: TopLevelModuleName -> QName
--- fromTopLevelModuleName (TopLevelModuleName _ [])     = __IMPOSSIBLE__
--- fromTopLevelModuleName (TopLevelModuleName _ (x:xs)) = loop x xs
---   where
---   loop x []       = QName (mk x)
---   loop x (y : ys) = Qual  (mk x) $ loop y ys
---   mk :: String -> Name
---   mk x = Name noRange [Id x]
+toTopLevelModuleName q = TopLevelModuleName (getRange q) $
+  fmap nameToRawName $ qnameParts q
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
 
 moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
-moduleNameToFileName (TopLevelModuleName _ []) ext = __IMPOSSIBLE__
 moduleNameToFileName (TopLevelModuleName _ ms) ext =
-  joinPath (init ms) </> last ms <.> ext
+  joinPath (List1.init ms) </> List1.last ms <.> ext
 
 -- | Finds the current project's \"root\" directory, given a project
 -- file and the corresponding top-level module name.
@@ -428,7 +447,7 @@ instance Pretty QName where
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." ms
+  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." $ List1.toList ms
 
 ------------------------------------------------------------------------
 -- * Range instances

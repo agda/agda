@@ -20,7 +20,6 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative ( Alternative((<|>)))
 import Control.Arrow (second)
-import Control.Monad
 import Control.Monad.Except (throwError)
 
 import Data.Either (partitionEithers)
@@ -276,7 +275,7 @@ buildParsers kind exprNames = do
         (non, fix) = List.partition nonfix (filter (and . partsPresent) ops)
 
         cons       = getDefinedNames
-                       (someKindsOfNames [ConName, FldName, PatternSynName]) flat
+                       (someKindsOfNames [ConName, CoConName, FldName, PatternSynName]) flat
         conNames   = Set.fromList $
                        filter (flip Set.member namesInExpr) $
                        map (notaName . head) cons
@@ -620,7 +619,7 @@ parseLHS' lhsOrPatSyn top p = do
                in  foldr seq () result `seq` result
 
     -- Classify parse results.
-    let cons = getNames (someKindsOfNames [ConName, PatternSynName])
+    let cons = getNames (someKindsOfNames [ConName, CoConName, PatternSynName])
                         (flattenedScope patP)
     let flds = getNames (someKindsOfNames [FldName])
                         (flattenedScope patP)
@@ -789,7 +788,7 @@ appView = loop []
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
-  nubOn id $ filter (not . null) $ map (init . qnameParts) qs
+  nubOn id $ filter (not . null) $ map (List1.init . qnameParts) qs
 
 -- | Parse a list of expressions into an application.
 parseApplication :: List1 Expr -> ScopeM Expr

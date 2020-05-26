@@ -7,17 +7,20 @@ module Agda.TypeChecking.Monad.Base where
 
 import Prelude hiding (null)
 
+import Control.Applicative hiding (empty)
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Trans          ( MonadTrans(..), lift )
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
-import Control.Applicative hiding (empty)
 
 import Data.Array (Ix)
 import Data.Function
@@ -29,14 +32,13 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data, toConstr)
+import Data.Data (Data)
 import Data.String
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
@@ -53,7 +55,6 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
@@ -81,16 +82,10 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
-  (CompressedFile, HighlightingInfo)
+  (CompressedFile, HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , ExceptT
-  , MonadError(catchError, throwError)
-  , mapExceptT
-  )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
@@ -132,29 +127,25 @@ class Monad m => ReadTCState m where
   withTCState :: (TCState -> TCState) -> m a -> m a
   withTCState = locallyTCState id
 
-instance ReadTCState m => ReadTCState (MaybeT m) where
+  default getTCState :: (MonadTrans t, ReadTCState n, t n ~ m) => m TCState
   getTCState = lift getTCState
-  locallyTCState l = mapMaybeT . locallyTCState l
+
+  default locallyTCState
+    :: (MonadTransControl t, ReadTCState n, t n ~ m)
+    => Lens' a TCState -> (a -> a) -> m b -> m b
+  locallyTCState l = liftThrough . locallyTCState l
 
 instance ReadTCState m => ReadTCState (ListT m) where
-  getTCState = lift getTCState
-  locallyTCState l f = ListT . locallyTCState l f . runListT
+  locallyTCState l = mapListT . locallyTCState l
 
-instance ReadTCState m => ReadTCState (ExceptT err m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapExceptT . locallyTCState l
+instance ReadTCState m => ReadTCState (ChangeT m)
+instance ReadTCState m => ReadTCState (ExceptT err m)
+instance ReadTCState m => ReadTCState (IdentityT m)
+instance ReadTCState m => ReadTCState (MaybeT m)
+instance ReadTCState m => ReadTCState (ReaderT r m)
+instance ReadTCState m => ReadTCState (StateT s m)
+instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m)
 
-instance ReadTCState m => ReadTCState (ReaderT r m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapReaderT . locallyTCState l
-
-instance (Monoid w, ReadTCState m) => ReadTCState (WriterT w m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapWriterT . locallyTCState l
-
-instance ReadTCState m => ReadTCState (StateT s m) where
-  getTCState = lift getTCState
-  locallyTCState l = mapStateT . locallyTCState l
 
 instance Show TCState where
   show _ = "TCSt{}"
@@ -199,7 +190,9 @@ data PreScopeState = PreScopeState
     -- ^ Imported partial definitions, not to be stored in the @Interface@
   }
 
-type DisambiguatedNames = IntMap A.QName
+-- | Name disambiguation for the sake of highlighting.
+data DisambiguatedName = DisambiguatedName NameKind A.QName
+type DisambiguatedNames = IntMap DisambiguatedName
 
 type ConcreteNames = Map Name [C.Name]
 
@@ -324,7 +317,7 @@ type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
 --
 --   * 'LeaveSection', leaving the main module.
 data TypeCheckAction
-  = EnterSection !Info.ModuleInfo !ModuleName !A.Telescope
+  = EnterSection !ModuleName !A.Telescope
   | LeaveSection !ModuleName
   | Decl !A.Declaration
     -- ^ Never a Section or ScopeDecl
@@ -706,11 +699,11 @@ nextFresh s =
 class Monad m => MonadFresh i m where
   fresh :: m i
 
-instance MonadFresh i m => MonadFresh i (ReaderT r m) where
+  default fresh :: (MonadTrans t, MonadFresh i n, t n ~ m) => m i
   fresh = lift fresh
 
-instance MonadFresh i m => MonadFresh i (StateT s m) where
-  fresh = lift fresh
+instance MonadFresh i m => MonadFresh i (ReaderT r m)
+instance MonadFresh i m => MonadFresh i (StateT s m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
@@ -1611,7 +1604,7 @@ data NLPType = NLPType
 data NLPSort
   = PType NLPat
   | PProp NLPat
-  | PInf
+  | PInf Integer
   | PSizeUniv
   deriving (Data, Show)
 
@@ -1877,6 +1870,12 @@ data EtaEquality
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
   deriving (Data, Show, Eq)
 
+instance PatternMatchingAllowed EtaEquality where
+  patternMatchingAllowed = patternMatchingAllowed . theEtaEquality
+
+instance CopatternMatchingAllowed EtaEquality where
+  copatternMatchingAllowed = copatternMatchingAllowed . theEtaEquality
+
 -- | Make sure we do not overwrite a user specification.
 setEtaEquality :: EtaEquality -> HasEta -> EtaEquality
 setEtaEquality e@Specified{} _ = e
@@ -1985,6 +1984,11 @@ data Defn = Axiom -- ^ Postulate
               -- ^ Eta-expand at this record type?
               --   @False@ for unguarded recursive records and coinductive records
               --   unless the user specifies otherwise.
+            , recPatternMatching :: PatternOrCopattern
+              -- ^ In case eta-equality is off, do we allow pattern matching on the
+              --   constructor or construction by copattern matching?
+              --   Having both loses subject reduction, see issue #4560.
+              --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
             , recInduction      :: Maybe Induction
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
@@ -2022,6 +2026,10 @@ data Defn = Axiom -- ^ Postulate
               --   @'Just' something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
+          | PrimitiveSort
+            { primName :: String
+            , primSort :: Sort
+            }
     deriving (Data, Show)
 
 instance Pretty Definition where
@@ -2098,6 +2106,11 @@ instance Pretty Defn where
       , "primName     =" <?> pshow primName
       , "primClauses  =" <?> pshow primClauses
       , "primCompiled =" <?> pshow primCompiled ] <?> "}"
+  pretty PrimitiveSort{..} =
+    "PrimitiveSort {" <?> vcat
+      [ "primName =" <?> pshow primName
+      , "primSort =" <?> pshow primSort
+      ] <?> "}"
 
 
 -- | Is the record type recursive?
@@ -2330,6 +2343,7 @@ defAbstract d = case theDef d of
     Record{recAbstr = a}      -> a
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
+    PrimitiveSort{}           -> ConcreteDef
 
 defForced :: Definition -> [IsForced]
 defForced d = case theDef d of
@@ -2342,6 +2356,7 @@ defForced d = case theDef d of
     Datatype{}                  -> []
     Record{}                    -> []
     Primitive{}                 -> []
+    PrimitiveSort{}             -> []
 
 ---------------------------------------------------------------------------
 -- ** Injectivity
@@ -2391,6 +2406,8 @@ data Call
   = CheckClause Type A.SpineClause
   | CheckLHS A.SpineLHS
   | CheckPattern A.Pattern Telescope Type
+  | CheckPatternLinearityType C.Name
+  | CheckPatternLinearityValue C.Name
   | CheckLetBinding A.LetBinding
   | InferExpr A.Expr
   | CheckExprCall Comparison A.Expr Type
@@ -2427,6 +2444,8 @@ instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
     pretty CheckLHS{}                = "CheckLHS"
     pretty CheckPattern{}            = "CheckPattern"
+    pretty CheckPatternLinearityType{}  = "CheckPatternLinearityType"
+    pretty CheckPatternLinearityValue{} = "CheckPatternLinearityValue"
     pretty InferExpr{}               = "InferExpr"
     pretty CheckExprCall{}           = "CheckExprCall"
     pretty CheckLetBinding{}         = "CheckLetBinding"
@@ -2462,6 +2481,8 @@ instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
     getRange (CheckLHS lhs)                  = getRange lhs
     getRange (CheckPattern p _ _)            = getRange p
+    getRange (CheckPatternLinearityType x)   = getRange x
+    getRange (CheckPatternLinearityValue x)  = getRange x
     getRange (InferExpr e)                   = getRange e
     getRange (CheckExprCall _ e _)           = getRange e
     getRange (CheckLetBinding b)             = getRange b
@@ -2519,6 +2540,7 @@ data BuiltinDescriptor
   = BuiltinData (TCM Type) [String]
   | BuiltinDataCons (TCM Type)
   | BuiltinPrim String (Term -> TCM ())
+  | BuiltinSort String
   | BuiltinPostulate Relevance (TCM Type)
   | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
     -- ^ Builtin of any kind.
@@ -3029,6 +3051,8 @@ data Warning
     -- ^ In `OldBuiltin old new`, the BUILTIN old has been replaced by new
   | EmptyRewritePragma
     -- ^ If the user wrote just @{-\# REWRITE \#-}@.
+  | EmptyWhere
+    -- ^ An empty @where@ block is dead code.
   | IllformedAsClause String
     -- ^ If the user wrote something other than an unqualified name
     --   in the @as@ clause of an @import@ statement.
@@ -3037,6 +3061,10 @@ data Warning
     -- ^ If a `renaming' import directive introduces a name or module name clash
     --   in the exported names of a module.
     --   (See issue #4154.)
+  | UselessPatternDeclarationForRecord String
+    -- ^ The 'pattern' declaration is useless in the presence
+    --   of either @coinductive@ or @eta-equality@.
+    --   Content of 'String' is "coinductive" or "eta", resp.
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
@@ -3098,6 +3126,10 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | AsPatternShadowsConstructorOrPatternSynonym Bool
+    -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
+    --   or pattern synonym name (@True@),
+    --   because this can be confusing to read.
   | RecordFieldWarning RecordFieldWarning
   deriving (Show , Data)
 
@@ -3120,13 +3152,15 @@ warningName = \case
   NicifierIssue dw             -> declarationWarningName dw
   ParseWarning pw              -> parseWarningName pw
   LibraryWarning lw            -> libraryWarningName lw
-  -- typechecking errors
-  CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
+  AsPatternShadowsConstructorOrPatternSynonym{} -> AsPatternShadowsConstructorOrPatternSynonym_
+  -- scope- and type-checking errors
   AbsurdPatternRequiresNoRHS{} -> AbsurdPatternRequiresNoRHS_
+  CantGeneralizeOverSorts{}    -> CantGeneralizeOverSorts_
   CoverageIssue{}              -> CoverageIssue_
   CoverageNoExactSplit{}       -> CoverageNoExactSplit_
   DeprecationWarning{}         -> DeprecationWarning_
   EmptyRewritePragma           -> EmptyRewritePragma_
+  EmptyWhere                   -> EmptyWhere_
   IllformedAsClause{}          -> IllformedAsClause_
   WrongInstanceDeclaration{}   -> WrongInstanceDeclaration_
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
@@ -3159,6 +3193,7 @@ warningName = \case
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
+  UselessPatternDeclarationForRecord{} -> UselessPatternDeclarationForRecord_
   ClashesViaRenaming{}         -> ClashesViaRenaming_
   UserWarning{}                -> UserWarning_
   InfectiveImport{}            -> InfectiveImport_
@@ -3209,28 +3244,10 @@ data CallInfo = CallInfo
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
   } deriving (Data, Show)
-
--- no Eq, Ord instances: too expensive! (see issues 851, 852)
+    -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
 instance Pretty CallInfo where pretty = pretty . callInfoTarget
-instance AllNames CallInfo where allNames = singleton . callInfoTarget
-
--- UNUSED, but keep!
--- -- | Call pathes are sequences of 'CallInfo's starting from a 'callSource'.
--- data CallPath = CallPath
---   { callSource :: QName
---     -- ^ The originator of the first call.
---   , callInfos :: [CallInfo]
---     -- ^ The calls, in order from source to final target.
---   }
---   deriving (Show)
-
--- -- | 'CallPath'es can be connected, but there is no empty callpath.
--- --   Thus, they form a semigroup, but we choose to abuse 'Monoid'.
--- instance Monoid CallPath where
---   mempty = __IMPOSSIBLE__
---   mappend (CallPath src cs) (CallPath _ cs') = CallPath src $ cs ++ cs'
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
@@ -3246,6 +3263,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3448,7 +3466,7 @@ data TypeError
         | NoSuchModule C.QName
         | AmbiguousName C.QName (NonEmpty A.QName)
         | AmbiguousModule C.QName (NonEmpty A.ModuleName)
-        | ClashingDefinition C.QName A.QName
+        | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName
         | ClashingImport C.Name A.QName
         | ClashingModuleImport C.Name A.ModuleName
@@ -3523,9 +3541,6 @@ data TCErr
       -- ^ The exception which is usually caught.
       --   Raised for pattern violations during unification ('assignV')
       --   but also in other situations where we want to backtrack.
-
-instance Error TCErr where
-  strMsg = Exception noRange . text . strMsg
 
 instance Show TCErr where
   show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
@@ -3717,26 +3732,20 @@ class ( Applicative m
       ) => MonadReduce m where
   liftReduce :: ReduceM a -> m a
 
-instance MonadReduce m => MonadReduce (MaybeT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ListT m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ExceptT err m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (ReaderT r m) where
-  liftReduce = lift . liftReduce
-
-instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m) where
-  liftReduce = lift . liftReduce
-
-instance MonadReduce m => MonadReduce (StateT w m) where
+  default liftReduce :: (MonadTrans t, MonadReduce n, t n ~ m) => ReduceM a -> m a
   liftReduce = lift . liftReduce
 
 instance MonadReduce ReduceM where
   liftReduce = id
+
+instance MonadReduce m => MonadReduce (ChangeT m)
+instance MonadReduce m => MonadReduce (ExceptT err m)
+instance MonadReduce m => MonadReduce (IdentityT m)
+instance MonadReduce m => MonadReduce (ListT m)
+instance MonadReduce m => MonadReduce (MaybeT m)
+instance MonadReduce m => MonadReduce (ReaderT r m)
+instance MonadReduce m => MonadReduce (StateT w m)
+instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
 
 ---------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
@@ -3748,37 +3757,24 @@ class Monad m => MonadTCEnv m where
   askTC   :: m TCEnv
   localTC :: (TCEnv -> TCEnv) -> m a -> m a
 
-instance MonadTCEnv m => MonadTCEnv (MaybeT m) where
-  askTC   = lift askTC
-  localTC = mapMaybeT . localTC
+  default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
+  askTC = lift askTC
+
+  default localTC
+    :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
+    =>  (TCEnv -> TCEnv) -> m a -> m a
+  localTC = liftThrough . localTC
+
+instance MonadTCEnv m => MonadTCEnv (ChangeT m)
+instance MonadTCEnv m => MonadTCEnv (ExceptT err m)
+instance MonadTCEnv m => MonadTCEnv (IdentityT m)
+instance MonadTCEnv m => MonadTCEnv (MaybeT m)
+instance MonadTCEnv m => MonadTCEnv (ReaderT r m)
+instance MonadTCEnv m => MonadTCEnv (StateT s m)
+instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m)
 
 instance MonadTCEnv m => MonadTCEnv (ListT m) where
-  askTC   = lift askTC
   localTC = mapListT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ExceptT err m) where
-  askTC   = lift askTC
-  localTC = mapExceptT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ReaderT r m) where
-  askTC   = lift askTC
-  localTC = mapReaderT . localTC
-
-instance (Monoid w, MonadTCEnv m) => MonadTCEnv (WriterT w m) where
-  askTC   = lift askTC
-  localTC = mapWriterT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (StateT s m) where
-  askTC   = lift askTC
-  localTC = mapStateT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (ChangeT m) where
-  askTC   = lift askTC
-  localTC = mapChangeT . localTC
-
-instance MonadTCEnv m => MonadTCEnv (IdentityT m) where
-  askTC   = lift askTC
-  localTC = mapIdentityT . localTC
 
 asksTC :: MonadTCEnv m => (TCEnv -> a) -> m a
 asksTC f = f <$> askTC
@@ -4254,7 +4250,7 @@ instance KillRange NLPType where
 instance KillRange NLPSort where
   killRange (PType l) = killRange1 PType l
   killRange (PProp l) = killRange1 PProp l
-  killRange PInf      = PInf
+  killRange (PInf n)  = PInf n
   killRange PSizeUniv = PSizeUniv
 
 instance KillRange RewriteRule where
@@ -4290,9 +4286,10 @@ instance KillRange Defn where
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
       Datatype a b c d e f g h       -> killRange7 Datatype a b c d e f g h
-      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
+      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
+      PrimitiveSort a b              -> killRange2 PrimitiveSort a b
 
 instance KillRange MutualId where
   killRange = id

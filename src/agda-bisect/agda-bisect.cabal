@@ -9,11 +9,12 @@ tested-with: GHC == 8.0.2
              GHC == 8.4.4
              GHC == 8.6.5
              GHC == 8.8.3
+             GHC == 8.10.1
 
 executable agda-bisect
   main-is:          Bisect.hs
   build-depends:      ansi-wl-pprint >= 0.6.7.3 && < 0.7
-                    , base >= 4.9.0.0 && < 4.14
+                    , base >= 4.9.0.0 && < 4.15
                     , directory >= 1.2.6.2 && < 1.4
                     , filepath == 1.4.*
                     , optparse-applicative >= 0.13 && < 0.16

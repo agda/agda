@@ -1,10 +1,13 @@
 
 module Agda.Interaction.CommandLine where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import qualified Data.List as List
 import Data.Maybe
+
+import Text.Read (readMaybe)
 
 import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
@@ -29,7 +32,6 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
@@ -175,7 +177,7 @@ showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ print scope
+  liftIO $ putStrLn $ prettyShow scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
@@ -295,3 +297,11 @@ help cs = putStr $ unlines $
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where
         explain (x,_) = ":" ++ x
+
+-- Read -------------------------------------------------------------------
+
+readM :: Read a => String -> TCM a
+readM s = maybe err return $ readMaybe s
+  where
+  err    = throwError $ strMsg $ "Cannot parse: " ++ s
+  strMsg = Exception noRange . text

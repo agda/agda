@@ -2,17 +2,17 @@
 
 module Agda.TypeChecking.Rules.Def where
 
-import Prelude hiding ( mapM, null )
+import Prelude hiding ( null )
 
-import Control.Arrow (first,second)
-import Control.Monad.State hiding (forM, mapM)
+import Control.Monad.Except
+import Control.Monad.State
 
+import Data.Bifunctor
 import Data.Function
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
@@ -55,7 +55,6 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -68,6 +67,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -105,8 +105,7 @@ checkFunDef delayed i name cs = do
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
-  t' <- normalise t
-  TelV tel tr <- telView t'
+  TelV tel tr <- telView t
 
   let telList = telToList tel
       resType = abstract (telFromList (drop (length telList - 1) telList)) tr
@@ -127,7 +126,8 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) (A.WhereDecls _ []) _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
+      | null wh     = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -1040,11 +1040,13 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Add the type of the auxiliary function to the signature
 
+  -- Jesper, 2020-04-05: Currently variable generalization inserts
+  -- dummy terms, we have to reduce projections to get rid of them.
+  -- (see also #1332).
+  let reds = SmallSet.fromList [ProjectionReductions]
+  delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
+
   -- Generate the type of the with function
-  delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
-                             -- but module application is sloppy.
-                             -- We normalise to get rid of Def's coming
-                             -- from module applications.
   (withFunType, n) <- withFunctionType delta1 vtys delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
@@ -1103,10 +1105,10 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
   ensureNoNamedWhereInRefinedContext whmod
   loop ds
   where
-    loop ds = case ds of
-      [] -> ret
-      [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> newSection m tel $ do
+    loop = \case
+      Nothing -> ret
+      -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
+      Just (A.Section _ m tel ds) -> newSection m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret

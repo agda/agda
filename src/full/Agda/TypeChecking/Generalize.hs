@@ -8,6 +8,8 @@ import Prelude hiding (null)
 
 import Control.Arrow (first)
 import Control.Monad
+import Control.Monad.Except
+
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
@@ -41,7 +43,6 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))
 import Agda.Utils.Benchmark
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List   (hasElem)
@@ -778,6 +779,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recEtaEquality' = Inferred YesEta
+           , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit

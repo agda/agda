@@ -3,6 +3,7 @@
 
 module Agda.Utils.Singleton where
 
+import Data.Semigroup (Semigroup(..))
 import Data.Monoid (Endo(..))
 
 import Data.Hashable (Hashable)
@@ -23,6 +24,35 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+-- | A create-only possibly empty collection is a monoid with the possibility
+--   to inject elements.
+
+class (Semigroup coll, Monoid coll, Singleton el coll) => Collection el coll
+    | coll -> el where
+  fromList :: [el] -> coll
+  fromList = mconcat . map singleton
+
+instance Collection a       [a]           where fromList = id
+instance Collection a       ([a] -> [a])  where fromList = (++)
+instance Collection a       (Endo [a])    where fromList = Endo . fromList
+instance Collection a       (Seq a)       where fromList = Seq.fromList
+instance Collection Int     IntSet        where fromList = IntSet.fromList
+instance Collection (Int,a) (IntMap a)    where fromList = IntMap.fromList
+
+instance Ord a =>
+         Collection a       (Set a)       where fromList = Set.fromList
+
+instance Ord k =>
+         Collection (k, a)  (Map k a)     where fromList = Map.fromList
+
+instance (Eq a, Hashable a) =>
+         Collection a       (HashSet a)   where fromList = HashSet.fromList
+
+instance (Eq k, Hashable k) =>
+         Collection (k, a)  (HashMap k a) where fromList = HashMap.fromList
+
+-- | Overloaded @singleton@ constructor for collections.
 
 class Singleton el coll | coll -> el where
   singleton :: el -> coll

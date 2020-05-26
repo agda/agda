@@ -45,18 +45,17 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
 import Control.Monad.Except
 import Control.Monad.State
 
+import Data.Bifunctor
+import Data.Data (Data)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
-
-import Data.Data (Data)
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Pattern
@@ -138,8 +137,9 @@ data NiceDeclaration
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
-  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name (Maybe (Ranged Induction)) (Maybe HasEta)
-           (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
+  | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name (Maybe (Ranged Induction)) (Maybe HasEta0)
+      (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
+      -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [Arg Name] Pattern
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
@@ -166,19 +166,20 @@ data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
 
 -- | The exception type.
 data DeclarationException
-        = MultipleEllipses Pattern
-        | InvalidName Name
-        | DuplicateDefinition Name
-        | MissingWithClauses Name LHS
-        | WrongDefinition Name DataRecOrFun DataRecOrFun
-        | DeclarationPanic String
-        | WrongContentBlock KindOfBlock Range
-        | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
-        | InvalidMeasureMutual Range
-          -- ^ In a mutual block, all or none need a MEASURE pragma.
-          --   Range is of mutual block.
-        | UnquoteDefRequiresSignature [Name]
-        | BadMacroDef NiceDeclaration
+  = MultipleEllipses Pattern
+  | InvalidName Name
+  | DuplicateDefinition Name
+  | MissingWithClauses Name LHS
+  | WrongDefinition Name DataRecOrFun DataRecOrFun
+  | DeclarationPanic String
+  | WrongContentBlock KindOfBlock Range
+  | AmbiguousFunClauses LHS (List1 Name)
+      -- ^ In a mutual block, a clause could belong to any of the ≥2 type signatures ('Name').
+  | InvalidMeasureMutual Range
+      -- ^ In a mutual block, all or none need a MEASURE pragma.
+      --   Range is of mutual block.
+  | UnquoteDefRequiresSignature (List1 Name)
+  | BadMacroDef NiceDeclaration
     deriving (Data, Show)
 
 
@@ -364,7 +365,7 @@ instance HasRange NiceDeclaration where
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
-  getRange (NiceRecDef r _ _ _ _ _ _ _ _ _ _)  = r
+  getRange (NiceRecDef r _ _ _ _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _)    = r
   getRange (NiceDataSig r _ _ _ _ _ _ _)   = r
   getRange (NicePatternSyn r _ _ _ _)      = r
@@ -390,7 +391,7 @@ instance Pretty NiceDeclaration where
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
-    NiceRecDef _ _ _ _ _ x _ _ _ _ _   -> text "record" <+> pretty x <+> text "where"
+    NiceRecDef _ _ _ _ _ x _ _ _ _ _ _ -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
     NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
@@ -415,7 +416,7 @@ instance Pretty DeclarationException where
     [ fsep $
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
         pwords "it could belong to any of:"
-    , vcat $ map (pretty . PrintRange) xs
+    , vcat $ map (pretty . PrintRange) $ List1.toList xs
     ]
   pretty (WrongContentBlock b _)      = fsep . pwords $
     case b of
@@ -425,7 +426,7 @@ instance Pretty DeclarationException where
   pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   pretty (UnquoteDefRequiresSignature xs) = fsep $
-    pwords "Missing type signatures for unquoteDef" ++ map pretty xs
+    pwords "Missing type signatures for unquoteDef" ++ map pretty (List1.toList xs)
   pretty (BadMacroDef nd) = fsep $
     text (declName nd) : pwords "are not allowed in macro blocks"
   pretty (DeclarationPanic s) = text s
@@ -504,7 +505,7 @@ declName NiceDataSig{}       = "Data types"
 declName NiceFunClause{}     = "Functions without a type signature"
 declName FunSig{}            = "Type signatures"
 declName FunDef{}            = "Function definitions"
-declName NiceRecDef{}            = "Records"
+declName NiceRecDef{}        = "Records"
 declName NiceDataDef{}       = "Data types"
 
 {--------------------------------------------------------------------------
@@ -563,12 +564,12 @@ coverageCheck _ = YesCoverageCheck
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
-positivityCheck _               = YesPositivityCheck
+positivityCheck (FunName _ _)   = YesPositivityCheck
 
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
 universeCheck (RecName _ uc)  = uc
-universeCheck _               = YesUniverseCheck
+universeCheck (FunName _ _)   = YesUniverseCheck
 
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
@@ -637,11 +638,15 @@ data NiceEnv = NiceEnv
     -- ^ Coverage pragma waiting for a definition.
   , niceWarn :: NiceWarnings
     -- ^ Stack of warnings. Head is last warning.
+  , _nameId  :: NameId
+    -- ^ We distinguish different 'NoName's (anonymous definitions) by a unique 'NameId'.
   }
 
 data LoneSig = LoneSig
   { loneSigRange :: Range
   , loneSigName  :: Name
+      -- ^ If 'isNoName', this name can have a different 'NameId'
+      --   than the key of 'LoneSigs' pointing to it.
   , loneSigKind  :: DataRecOrFun
   }
 
@@ -652,6 +657,11 @@ type LoneSigs     = Map Name LoneSig
      --   user gives a second definition of the same name.
      --   This causes then problems in 'replaceSigs' which might
      --   replace the wrong signature.
+     --
+     --   Another reason is that we want to distinguish different
+     --   occurrences of 'NoName' in a mutual block (issue #4157).
+     --   The 'NoName' in the codomain will have a unique 'NameId'.
+
 type NiceWarnings = [DeclarationWarning]
      -- ^ Stack of warnings. Head is last warning.
 
@@ -666,7 +676,17 @@ initNiceEnv = NiceEnv
   , _catchall = False
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
+  , _nameId   = NameId 1 1   -- The module id is bogus.
   }
+
+lensNameId :: Lens' NameId NiceEnv
+lensNameId f e = f (_nameId e) <&> \ i -> e { _nameId = i }
+
+nextNameId :: Nice NameId
+nextNameId = do
+  i <- use lensNameId
+  lensNameId %= succ
+  return i
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
 
@@ -676,13 +696,20 @@ loneSigs :: Lens' LoneSigs NiceEnv
 loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
+--   Return the name (which is made unique if 'isNoName').
 
-addLoneSig :: Range -> Name -> DataRecOrFun -> Nice ()
-addLoneSig r x k = loneSigs %== \ s -> do
-   let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x k) s
-   case mr of
-     Nothing -> return s'
-     Just{}  -> throwError $ DuplicateDefinition x
+addLoneSig :: Range -> Name -> DataRecOrFun -> Nice Name
+addLoneSig r x k = do
+  -- Andreas, 2020-05-19, issue #4157, make '_' unique.
+  x' <- if not $ isNoName x then return x else do
+    i <- nextNameId
+    return x{ nameId = i }
+  loneSigs %== \ s -> do
+    let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
+    case mr of
+      Nothing -> return s'
+      Just{}  -> throwError $ DuplicateDefinition x
+  return x'
 
 -- | Remove a lone signature from the state.
 
@@ -710,10 +737,10 @@ checkLoneSigs xs = do
   unless (Map.null xs) $ niceWarning $ MissingDefinitions $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
--- | Get names of lone function signatures.
+-- | Get names of lone function signatures, plus their unique names.
 
-loneFuns :: LoneSigs -> [Name]
-loneFuns = map fst . filter (isFunName . loneSigKind . snd) . Map.toList
+loneFuns :: LoneSigs -> [(Name,Name)]
+loneFuns = map (second loneSigName) . filter (isFunName . loneSigKind . snd) . Map.toList
 
 -- | Create a 'LoneSigs' map from an association list.
 
@@ -813,7 +840,7 @@ declKind (NiceRecSig r _ _ pc uc x pars _)  = LoneSigDecl r (RecName pc uc) x
 declKind (NiceDataSig r _ _ pc uc x pars _) = LoneSigDecl r (DataName pc uc) x
 declKind (FunDef r _ abs ins tc cc x _)     = LoneDefs (FunName tc cc) [x]
 declKind (NiceDataDef _ _ _ pc uc x pars _) = LoneDefs (DataName pc uc) [x]
-declKind (NiceRecDef _ _ _ pc uc x _ _ _ pars _)= LoneDefs (RecName pc uc) [x]
+declKind (NiceRecDef _ _ _ pc uc x _ _ _ _ pars _)= LoneDefs (RecName pc uc) [x]
 declKind (NiceUnquoteDef _ _ _ tc cc xs _)  = LoneDefs (FunName tc cc) xs
 declKind Axiom{}                            = OtherDecl
 declKind NiceField{}                        = OtherDecl
@@ -899,7 +926,7 @@ niceDeclarations fixs ds = do
         OtherDecl    -> (d :) <$> inferMutualBlocks ds
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSigDecl r k x  -> do
-          addLoneSig r x k
+          _ <- addLoneSig r x k
           let tcccpc = ([terminationCheck k], [coverageCheck k], [positivityCheck k])
           ((tcs, ccs, pcs), (nds0, ds1)) <- untilAllDefined tcccpc ds
           -- If we still have lone signatures without any accompanying definition,
@@ -926,7 +953,7 @@ niceDeclarations fixs ds = do
               []     -> return (tcccpc, ([], ds))
               d : ds -> case declKind d of
                 LoneSigDecl r k x -> do
-                  addLoneSig r x k
+                  _ <- addLoneSig r x k
                   let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
                   cons d (untilAllDefined tcccpc' ds)
                 LoneDefs k xs -> do
@@ -960,8 +987,8 @@ niceDeclarations fixs ds = do
           covCheck  <- use coverageCheckPragma
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
-          addLoneSig r x $ FunName termCheck covCheck
-          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t] , ds)
+          x' <- addLoneSig r x $ FunName termCheck covCheck
+          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)
 
         -- Should not show up: all FieldSig are part of a Field block
         FieldSig{} -> __IMPOSSIBLE__
@@ -981,8 +1008,8 @@ niceDeclarations fixs ds = do
           xs <- loneFuns <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
-          case [ (x, (fits, rest))
-               | x <- xs
+          case [ (x, (x', fits, rest))
+               | (x, x') <- xs
                , let (fits, rest) =
                       -- Anonymous declarations only have 1 clause each!
                       if isNoName x then ([d], ds)
@@ -1004,14 +1031,15 @@ niceDeclarations fixs ds = do
                 return ([NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck covCheck catchall d] , ds)
 
             -- case: clauses match exactly one of the sigs
-            [(x,(fits,rest))] -> do
+            [(x,(x',fits,rest))] -> do
+               -- The x'@NoName{} is the unique version of x@NoName{}.
                removeLoneSig x
                ds  <- expandEllipsis fits
-               cs  <- mkClauses x ds False
-               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x cs] , rest)
+               cs  <- mkClauses x' ds False
+               return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
-            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l
+            xf:xfs -> throwError $ AmbiguousFunClauses lhs $ List1.reverse $ fmap fst $ xf :| xfs
                  -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
         Field r [] -> justWarning $ EmptyField r
@@ -1020,9 +1048,8 @@ niceDeclarations fixs ds = do
         DataSig r x tel t -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig r x $ DataName pc uc
-          (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
-              <*> return ds
+          _ <- addLoneSig r x $ DataName pc uc
+          (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x (Just (tel, t)) Nothing
 
         Data r x tel t cs -> do
           pc <- use positivityCheckPragma
@@ -1033,8 +1060,7 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (DataName pc uc) x (Just t)
-          (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
-              <*> return ds
+          (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
 
         DataDef r x tel cs -> do
           pc <- use positivityCheckPragma
@@ -1045,16 +1071,15 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (DataName pc uc) x Nothing
-          (,) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
-              <*> return ds
+          (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
 
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma
-          addLoneSig r x $ RecName pc uc
+          _ <- addLoneSig r x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
-        Record r x i e c tel t cs   -> do
+        Record r x i e p c tel t cs   -> do
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1063,11 +1088,10 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc) x (Just t)
-          (,) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e c tel cs) NiceRecSig
-                    return r x ((tel,) <$> mt) (Just (tel, cs))
-              <*> return ds
+          (,ds) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e p c tel cs) NiceRecSig
+                      return r x ((tel,) <$> mt) (Just (tel, cs))
 
-        RecordDef r x i e c tel cs   -> do
+        RecordDef r x i e p c tel cs   -> do
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1076,9 +1100,8 @@ niceDeclarations fixs ds = do
           uc <- use universeCheckPragma
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc) x Nothing
-          (,) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e c tel cs) NiceRecSig
-                    return r x ((tel,) <$> mt) (Just (tel, cs))
-              <*> return ds
+          (,ds) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e p c tel cs) NiceRecSig
+                      return r x ((tel,) <$> mt) (Just (tel, cs))
 
         Mutual r ds' -> do
           -- The lone signatures encountered so far are not in scope
@@ -1133,13 +1156,12 @@ niceDeclarations fixs ds = do
           return ([NiceUnquoteDecl r PublicAccess ConcreteDef NotInstanceDef tc cc xs e] , ds)
 
         UnquoteDef r xs e -> do
-          sigs <- loneFuns <$> use loneSigs
-          let missing = filter (`notElem` sigs) xs
-          if null missing
-            then do
+          sigs <- map fst . loneFuns <$> use loneSigs
+          List1.ifNotNull (filter (`notElem` sigs) xs)
+            {-then-} (throwError . UnquoteDefRequiresSignature)
+            {-else-} $ do
               mapM_ removeLoneSig xs
               return ([NiceUnquoteDef r PublicAccess ConcreteDef TerminationCheck YesCoverageCheck xs e] , ds)
-            else throwError $ UnquoteDefRequiresSignature missing
 
         Pragma p -> nicePragma p ds
 
@@ -1258,7 +1280,7 @@ niceDeclarations fixs ds = do
 
     -- Pragma that attaches to the following declaration.
     isAttachedPragma :: Pragma -> Bool
-    isAttachedPragma p = case p of
+    isAttachedPragma = \case
       TerminationCheckPragma{}  -> True
       CatchallPragma{}          -> True
       NoPositivityCheckPragma{} -> True
@@ -1636,8 +1658,6 @@ niceDeclarations fixs ds = do
         covCheck NicePatternSyn{}    = YesCoverageCheck
         covCheck NiceGeneralize{}    = YesCoverageCheck
 
-
-
         -- ASR (26 December 2015): Do not positivity check a mutual
         -- block if any of its inner declarations comes with a
         -- NO_POSITIVITY_CHECK pragma. See Issue 1614.
@@ -1646,7 +1666,7 @@ niceDeclarations fixs ds = do
         positivityCheckOldMutual (NiceDataSig _ _ _ pc _ _ _ _) = pc
         positivityCheckOldMutual (NiceMutual _ _ _ pc _)        = pc
         positivityCheckOldMutual (NiceRecSig _ _ _ pc _ _ _ _)  = pc
-        positivityCheckOldMutual (NiceRecDef _ _ _ pc _ _ _ _ _ _ _) = pc
+        positivityCheckOldMutual (NiceRecDef _ _ _ pc _ _ _ _ _ _ _ _) = pc
         positivityCheckOldMutual _                              = YesPositivityCheck
 
         -- A mutual block cannot have a measure,
@@ -1730,12 +1750,11 @@ niceDeclarations fixs ds = do
 
 class MakeAbstract a where
   mkAbstract :: UpdaterT Nice a
+
   default mkAbstract :: (Traversable f, MakeAbstract a', a ~ f a') => UpdaterT Nice a
   mkAbstract = traverse mkAbstract
 
-instance MakeAbstract a => MakeAbstract [a] where
-  -- Default definition kicks in here!
-  -- But note that we still have to declare the instance!
+instance MakeAbstract a => MakeAbstract [a]
 
 -- Leads to overlap with 'WhereClause':
 -- instance (Traversable f, MakeAbstract a) => MakeAbstract (f a) where
@@ -1751,7 +1770,7 @@ instance MakeAbstract NiceDeclaration where
       NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract ds
       FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract a <*> mkAbstract cs
       NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract a <*> mkAbstract cs
-      NiceRecDef r o a pc uc x i e c ps cs -> (\ a -> NiceRecDef r o a pc uc x i e c ps) <$> mkAbstract a <*> return cs
+      NiceRecDef r o a pc uc x i e p c ps cs -> (\ a -> NiceRecDef r o a pc uc x i e p c ps cs) <$> mkAbstract a
       NiceFunClause r p a tc cc catchall d  -> (\ a -> NiceFunClause r p a tc cc catchall d) <$> mkAbstract a
       -- The following declarations have an @InAbstract@ field
       -- but are not really definitions, so we do count them into
@@ -1783,9 +1802,9 @@ instance MakeAbstract Clause where
 
 -- | Contents of a @where@ clause are abstract if the parent is.
 instance MakeAbstract WhereClause where
-  mkAbstract  NoWhere           = return $ NoWhere
-  mkAbstract (AnyWhere ds)      = dirty $ AnyWhere [Abstract noRange ds]
-  mkAbstract (SomeWhere m a ds) = dirty $ SomeWhere m a [Abstract noRange ds]
+  mkAbstract  NoWhere             = return $ NoWhere
+  mkAbstract (AnyWhere r ds)      = dirty $ AnyWhere r [Abstract noRange ds]
+  mkAbstract (SomeWhere r m a ds) = dirty $ SomeWhere r m a [Abstract noRange ds]
 
 -- | Make a declaration private.
 --
@@ -1798,12 +1817,11 @@ instance MakeAbstract WhereClause where
 
 class MakePrivate a where
   mkPrivate :: Origin -> UpdaterT Nice a
+
   default mkPrivate :: (Traversable f, MakePrivate a', a ~ f a') => Origin -> UpdaterT Nice a
   mkPrivate o = traverse $ mkPrivate o
 
-instance MakePrivate a => MakePrivate [a] where
-  -- Default definition kicks in here!
-  -- But note that we still have to declare the instance!
+instance MakePrivate a => MakePrivate [a]
 
 -- Leads to overlap with 'WhereClause':
 -- instance (Traversable f, MakePrivate a) => MakePrivate (f a) where
@@ -1846,15 +1864,16 @@ instance MakePrivate Clause where
     Clause x catchall lhs rhs <$> mkPrivate o wh <*> mkPrivate o with
 
 instance MakePrivate WhereClause where
-  mkPrivate o  NoWhere         = return $ NoWhere
-  -- @where@-declarations are protected behind an anonymous module,
-  -- thus, they are effectively private by default.
-  mkPrivate o (AnyWhere ds)    = return $ AnyWhere ds
-  -- Andreas, 2016-07-08
-  -- A @where@-module is private if the parent function is private.
-  -- The contents of this module are not private, unless declared so!
-  -- Thus, we do not recurse into the @ds@ (could not anyway).
-  mkPrivate o (SomeWhere m a ds) = mkPrivate o a <&> \ a' -> SomeWhere m a' ds
+  mkPrivate o = \case
+    d@NoWhere    -> return d
+    -- @where@-declarations are protected behind an anonymous module,
+    -- thus, they are effectively private by default.
+    d@AnyWhere{} -> return d
+    -- Andreas, 2016-07-08
+    -- A @where@-module is private if the parent function is private.
+    -- The contents of this module are not private, unless declared so!
+    -- Thus, we do not recurse into the @ds@ (could not anyway).
+    SomeWhere r m a ds -> mkPrivate o a <&> \ a' -> SomeWhere r m a' ds
 
 -- The following function is (at the time of writing) only used three
 -- times: for building Lets, and for printing error messages.
@@ -1878,7 +1897,7 @@ notSoNiceDeclarations = \case
     FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel Nothing x e]
     FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
-    NiceRecDef r _ _ _ _ x i e c bs ds -> [RecordDef r x i e c bs ds]
+    NiceRecDef r _ _ _ _ x i e p c bs ds -> [RecordDef r x i e p c bs ds]
     NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
@@ -1905,7 +1924,7 @@ niceHasAbstract = \case
     FunSig{}                      -> Nothing
     FunDef _ _ a _ _ _ _ _        -> Just a
     NiceDataDef _ _ a _ _ _ _ _   -> Just a
-    NiceRecDef _ _ a _ _ _ _ _ _ _ _ -> Just a
+    NiceRecDef _ _ a _ _ _ _ _ _ _ _ _ -> Just a
     NicePatternSyn{}              -> Nothing
     NiceGeneralize{}              -> Nothing
     NiceUnquoteDecl _ _ a _ _ _ _ _ -> Just a

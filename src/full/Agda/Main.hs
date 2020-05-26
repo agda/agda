@@ -3,7 +3,7 @@
 -}
 module Agda.Main where
 
-import Control.Monad (void)
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Maybe
@@ -11,6 +11,7 @@ import Data.Maybe
 import System.Environment
 import System.Console.GetOpt
 
+import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -31,27 +32,22 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Pretty
 
-import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
-import Agda.Compiler.JS.Compiler (jsBackend)
-
 import Agda.Compiler.Backend
-
-import Agda.Utils.Monad
-import Agda.Utils.String
+import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
+import Agda.Utils.Monad
+import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.Impossible
 
-builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
+import Agda.Utils.Impossible
 
 -- | The main function
 runAgda :: [Backend] -> IO ()
 runAgda backends = runAgda' $ builtinBackends ++ backends
 
+-- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
@@ -128,7 +124,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
         if not hasFile then return Nothing else do
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
-                     else Imp.TypeCheck
+                     else Imp.TypeCheck RegularInteraction
 
           file    <- SourceFile <$> getInputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
@@ -208,7 +204,3 @@ runTCMPrettyErrors tcm = do
   `catchImpossible` \e -> do
     putStr $ show e
     exitAgdaWith ImpossibleError
-
--- | Main
-main :: IO ()
-main = runAgda []

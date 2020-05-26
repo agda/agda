@@ -146,6 +146,7 @@ compactDef bEnv def rewr = do
       DataOrRecSig{}                 -> pure CAxiom
       AbstractDefn{}                 -> pure CAxiom
       GeneralizableVar{}             -> __IMPOSSIBLE__
+      PrimitiveSort{}                -> pure COther -- TODO
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
           -- "primShowInteger" -- integers are not literals

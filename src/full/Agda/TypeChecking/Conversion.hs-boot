@@ -1,12 +1,12 @@
 
 module Agda.TypeChecking.Conversion where
 
+import Control.Monad.Except ( MonadError )
 import qualified Control.Monad.Fail as Fail
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
-import Agda.Utils.Except ( MonadError )
 
 type MonadConversion m =
   ( MonadReduce m

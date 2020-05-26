@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Data where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
@@ -39,7 +40,6 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Utils.Except
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -652,7 +652,7 @@ instance Subst Term LType where
 data CType = ClosedType QName | LType LType deriving (Eq,Show)
 
 fromCType :: CType -> Type
-fromCType (ClosedType q) = El Inf (Def q [])
+fromCType (ClosedType q) = El (Inf 0) (Def q [])
 fromCType (LType t) = fromLType t
 
 toCType :: MonadReduce m => Type -> m (Maybe CType)
@@ -660,7 +660,7 @@ toCType ty = do
   sort <- reduce $ getSort ty
   case sort of
     Type l -> return $ Just $ LType (LEl l (unEl ty))
-    Inf    -> do
+    Inf 0  -> do
       t <- reduce (unEl ty)
       case t of
         Def q [] -> return $ Just $ ClosedType q
@@ -1165,7 +1165,7 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  (pars, ixs) <- normalise $ splitAt nofPars vs
+                  let (pars, ixs) = splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars
                   return PointCons
@@ -1238,6 +1238,7 @@ isCoinductive t = do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
+        PrimitiveSort{} -> __IMPOSSIBLE__
         AbstractDefn{} -> __IMPOSSIBLE__
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__

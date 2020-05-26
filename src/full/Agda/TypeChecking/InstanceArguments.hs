@@ -7,6 +7,7 @@ module Agda.TypeChecking.InstanceArguments
   , postponeInstanceConstraints
   ) where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
@@ -22,7 +23,7 @@ import Agda.Syntax.Concrete.Name (isQualified)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.MetaVars
-import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookup', AllowAmbiguousNames(..))
+import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName', AllowAmbiguousNames(..))
 
 import Agda.TypeChecking.Errors () --instance only
 import Agda.TypeChecking.Implicit (implicitArgs)
@@ -40,7 +41,6 @@ import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -119,7 +119,7 @@ initialInstanceCandidates t = do
               m <- currentModule
               -- Are we inside the record module? If so it's safe and desirable
               -- to eta-expand once (issue #2320).
-              if qnameToList r `List.isPrefixOf` mnameToList m
+              if qnameToList0 r `List.isPrefixOf` mnameToList m
                 then return (Just (r, vs))
                 else return Nothing
         r -> return r
@@ -181,8 +181,14 @@ initialInstanceCandidates t = do
 
         filterQualified :: TCM (Maybe Candidate) -> TCM (Maybe Candidate)
         filterQualified m = ifM (optQualifiedInstances <$> pragmaOptions) m $ do
-          qc <- inverseScopeLookup' AmbiguousAnything (Right q) <$> getScope
-          let isQual = maybe False isQualified $ listToMaybe qc
+          qc <- inverseScopeLookupName' AmbiguousAnything q <$> getScope
+          let isQual = maybe True isQualified $ listToMaybe qc
+          reportSDoc "tc.instance.qualified" 30 $
+            if isQual then
+              "dropping qualified instance" <+> prettyTCM q
+            else
+              "keeping instance" <+> prettyTCM q <+>
+              "since it is in scope as" <+> prettyTCM qc
           if isQual then return Nothing else m
 
 

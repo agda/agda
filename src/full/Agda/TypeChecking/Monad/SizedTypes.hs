@@ -5,6 +5,8 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
+import Control.Monad.Except
+
 import qualified Data.Foldable as Fold
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
@@ -18,7 +20,6 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

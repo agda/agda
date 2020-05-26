@@ -454,6 +454,13 @@ Other features
 
      Default: ``--no-subtyping``
 
+.. option:: --no-import-sorts
+
+     .. versionadded:: 2.6.2
+
+     Disable the implicit statement `open import Agda.Primitive using
+     (Set; Prop)` at the start of each top-level Agda module.
+
 .. _warnings:
 
 Warnings

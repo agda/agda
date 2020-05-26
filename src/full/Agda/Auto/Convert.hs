@@ -1,7 +1,9 @@
 
 module Agda.Auto.Convert where
 
+import Control.Monad.Except
 import Control.Monad.State
+
 import Data.Bifunctor (first)
 import Data.IORef
 import Data.Maybe (catMaybes)
@@ -42,7 +44,6 @@ import Agda.Auto.Syntax hiding (getConst)
 import Agda.Auto.CaseSplit hiding (lift)
 
 import Agda.Utils.Either
-import Agda.Utils.Except      ( ExceptT , MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.Monad       ( forMaybeMM )
 import Agda.Utils.Permutation ( Permutation(Perm), permute, takeP, compactP )
@@ -121,6 +122,7 @@ tomy imi icns typs = do
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses
       -- MB.Primitive {MB.primClauses = []} -> throwError $ strMsg "Auto: Primitive functions are not supported" -- Andreas, 2013-06-17 breaks interaction/AutoMisc
       MB.Primitive {MB.primClauses = clauses} -> clausesToDef clauses
+      MB.PrimitiveSort{} -> __IMPOSSIBLE__
       MB.Datatype {MB.dataCons = cons} -> do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])

@@ -1,0 +1,4 @@
+Issue4560NoCopatternMatchingWithoutEta.agda:25,5-9
+Copattern matching is disabled for record R
+when checking the clause left hand side
+bar .R.X

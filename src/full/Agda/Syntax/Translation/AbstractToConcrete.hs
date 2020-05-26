@@ -27,6 +27,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
 import Prelude hiding (null)
 
 import Control.Arrow (first)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -64,10 +65,10 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
+import Agda.Interaction.Options.IORefs
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -78,6 +79,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Suffix
 
 import Agda.Utils.Impossible
 
@@ -239,6 +241,9 @@ instance ReadTCState AbsToCon where
 
 instance MonadStConcreteNames AbsToCon where
   runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ unAbsToCon . runStateT m
+
+instance HasBuiltins AbsToCon where
+  getBuiltinThing x = AbsToCon $ getBuiltinThing x
 
 instance HasOptions AbsToCon where
   pragmaOptions = AbsToCon pragmaOptions
@@ -629,17 +634,25 @@ instance ToConcrete AbstractName C.QName where
 instance ToConcrete ResolvedName C.QName where
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
-    DefinedName _ x      -> toConcrete x
+    DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
-    ConstructorName xs   -> toConcrete (NonEmpty.head xs)
+    ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
+
+addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
+addSuffixConcrete A.NoSuffix = id
+addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
+  where
+    suffix = case subscriptAllowed of
+      UnicodeOk -> Subscript $ fromInteger i
+      AsciiOnly -> Index $ fromInteger i
 
 -- Expression instance ----------------------------------------------------
 
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def x)             = Ident <$> toConcrete x
+    toConcrete (Def' x suffix)     = Ident . addSuffixConcrete suffix <$> toConcrete x
     toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = Ident <$> toConcrete x
@@ -794,11 +807,6 @@ instance ToConcrete A.Expr C.Expr where
                                           Instance{} -> InstanceArg (getRange e) (unnamed e)
                                           NotHidden  -> e
 
-    toConcrete (A.Set i 0)  = return $ C.Set (getRange i)
-    toConcrete (A.Set i n)  = return $ C.SetN (getRange i) n
-    toConcrete (A.Prop i 0) = return $ C.Prop (getRange i)
-    toConcrete (A.Prop i n) = return $ C.PropN (getRange i) n
-
     toConcrete (A.Let i ds e) =
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
@@ -925,20 +933,20 @@ instance ToConcrete A.LetBinding [C.Declaration] where
       ret []
 
 instance ToConcrete A.WhereDeclarations WhereClause where
-  bindToConcrete (A.WhereDecls _ []) ret = ret C.NoWhere
-  bindToConcrete (A.WhereDecls (Just am) [A.Section _ _ _ ds]) ret = do
+  bindToConcrete (A.WhereDecls _ Nothing) ret = ret C.NoWhere
+  bindToConcrete (A.WhereDecls (Just am) (Just (A.Section _ _ _ ds))) ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
-    let wh' = (if isNoName cm then AnyWhere else SomeWhere cm PublicAccess) $ ds'
+    let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
-  bindToConcrete (A.WhereDecls _ ds) ret =
-    ret . AnyWhere =<< declsToConcrete ds
+  bindToConcrete (A.WhereDecls _ (Just d)) ret =
+    ret . AnyWhere noRange =<< toConcrete d
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
-mergeSigAndDef (C.RecordSig _ x bs e : C.RecordDef r y ind eta c _ fs : ds)
-  | x == y = C.Record r y ind eta c bs e fs : mergeSigAndDef ds
+mergeSigAndDef (C.RecordSig _ x bs e : C.RecordDef r y ind eta pat c _ fs : ds)
+  | x == y = C.Record r y ind eta pat c bs e fs : mergeSigAndDef ds
 mergeSigAndDef (C.DataSig _ x bs e : C.DataDef r y _ cs : ds)
   | x == y = C.Data r y bs e cs : mergeSigAndDef ds
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
@@ -972,7 +980,7 @@ instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declar
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
-      wh <- declsToConcrete (A.whereDecls wh)
+      wh <- maybe (return []) toConcrete $ A.whereDecls wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs') __IMPOSSIBLE__
       eqs <- toConcrete xeqs
@@ -1079,11 +1087,11 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
 
-  toConcrete (A.RecDef  i x uc ind eta c bs t cs) =
+  toConcrete (A.RecDef  i x uc ind eta pat c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.RecordDef (getRange i) x' ind eta Nothing tel' cs' ]
+      return [ C.RecordDef (getRange i) x' ind eta pat Nothing tel' cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
@@ -1117,7 +1125,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> dontFoldPatternSynonyms (toConcrete (vacuous p :: A.Pattern))
+    bindToConcrete (map (fmap A.unBind) xs) $ \ xs ->
+      singleton . C.PatternSyn (getRange x) x xs <$> do
+        dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x
@@ -1138,7 +1148,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
   toConcrete (RangeAndPragma r p) = case p of
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
-    A.BuiltinNoDefPragma b x  -> C.BuiltinPragma r b <$> toConcrete x
+    A.BuiltinNoDefPragma b _kind x -> C.BuiltinPragma r b <$> toConcrete x
     A.RewritePragma r' x      -> C.RewritePragma r r' <$> toConcrete x
     A.CompilePragma b x s -> do
       x <- toConcrete x
@@ -1528,9 +1538,9 @@ recoverOpApp bracket isLam opApp view e = case view e of
     -- concrete name we choose! Make sure to resolve ambiguities with n'.
     fx <- resolveName_ x [n'] <&> \ case
             VarName y _                -> y ^. lensFixity
-            DefinedName _ q            -> q ^. lensFixity
+            DefinedName _ q _          -> q ^. lensFixity
             FieldName (q :| _)         -> q ^. lensFixity
-            ConstructorName (q :| _)   -> q ^. lensFixity
+            ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
     doQName fx x n' args (C.nameParts $ C.unqualify x)

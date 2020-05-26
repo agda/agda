@@ -2,16 +2,15 @@
 
 module Agda.Interaction.MakeCase where
 
-import Prelude hiding (mapM, mapM_, null)
+import Prelude hiding (null)
 
-import Control.Monad hiding (mapM, mapM_, forM)
+import Control.Monad
 
 import Data.Either
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
-import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -318,7 +317,12 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return cov
     checkClauseIsClean ipCl
-    (f, casectxt,) <$> mapM (makeAbstractClause f rhs ell) scs
+    (f, casectxt,) <$> do
+      -- Andreas, 2020-05-18, issue #4536
+      -- When result splitting yields no clauses, replace rhs by @record{}@.
+      if null scs then
+        return [ A.spineToLhs $ absCl{ A.clauseRHS = makeRHSEmptyRecord rhs } ]
+      else mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
@@ -429,6 +433,15 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       Arg (setOrigin CaseSplit ai) $ Named n $ VarP (PatternInfo PatOSplit []) $ SplitPatVar x i ls
   mkVis np = np
 
+-- | If a copattern split yields no clauses, we must be at an empty record type.
+--   In this case, replace the rhs by @record{}@
+makeRHSEmptyRecord :: A.RHS -> A.RHS
+makeRHSEmptyRecord = \case
+  A.RHS{}            -> A.RHS{ rhsExpr = A.Rec empty empty, rhsConcrete = Nothing }
+  rhs@A.RewriteRHS{} -> rhs{ A.rewriteRHS = makeRHSEmptyRecord $ A.rewriteRHS rhs }
+  A.AbsurdRHS        -> __IMPOSSIBLE__
+  A.WithRHS{}        -> __IMPOSSIBLE__
+
 -- | Make clause with no rhs (because of absurd match).
 
 makeAbsurdClause :: QName -> ExpandedEllipsis -> SplitClause -> TCM A.Clause
@@ -449,9 +462,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
     let c = Clause noRange noRange tel ps Nothing (argFromDom <$> t) False Nothing Nothing ell
-    -- Normalise the dot patterns
-    ps <- addContext tel $ normalise $ namedClausePats c
-    reportSDoc "interaction.case" 60 $ "normalized patterns: " <+> prettyTCMPatternList ps
+    let ps = namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 

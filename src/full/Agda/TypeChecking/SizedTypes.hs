@@ -4,6 +4,7 @@ module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.Writer
 
 import qualified Data.Foldable as Fold
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.Maybe

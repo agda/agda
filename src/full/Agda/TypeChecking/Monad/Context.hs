@@ -1,8 +1,11 @@
+{-# LANGUAGE TypeFamilies #-}  -- for type equality ~
 
 module Agda.TypeChecking.Monad.Context where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -26,7 +29,6 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Empty
-import Agda.Utils.Except
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -163,6 +165,29 @@ class MonadTCEnv m => MonadAddContext m where
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
+  default addCtx
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Name -> Dom Type -> m a -> m a
+  addCtx x a = liftThrough $ addCtx x a
+
+  default addLetBinding'
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Name -> Term -> Dom Type -> m a -> m a
+  addLetBinding' x u a = liftThrough $ addLetBinding' x u a
+
+  default updateContext
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Substitution -> (Context -> Context) -> m a -> m a
+  updateContext sub f = liftThrough $ updateContext sub f
+
+  default withFreshName
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Range -> ArgName -> (Name -> m a) -> m a
+  withFreshName r x cont = do
+    st <- liftWith $ \ run -> do
+      withFreshName r x $ run . cont
+    restoreT $ return st
+
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret = do
@@ -173,41 +198,17 @@ defaultAddCtx x a ret = do
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
-instance MonadAddContext m => MonadAddContext (MaybeT m) where
-  addCtx x a = MaybeT . addCtx x a . runMaybeT
-  addLetBinding' x u a = MaybeT . addLetBinding' x u a . runMaybeT
-  updateContext sub f = MaybeT . updateContext sub f . runMaybeT
-  withFreshName r x = MaybeT . withFreshName r x . (runMaybeT .)
-
-instance MonadAddContext m => MonadAddContext (ExceptT e m) where
-  addCtx x a = mkExceptT . addCtx x a . runExceptT
-  addLetBinding' x u a = mkExceptT . addLetBinding' x u a . runExceptT
-  updateContext sub f = mkExceptT . updateContext sub f . runExceptT
-  withFreshName r x = mkExceptT . withFreshName r x . (runExceptT .)
-
-instance MonadAddContext m => MonadAddContext (ReaderT r m) where
-  addCtx x a = ReaderT . (addCtx x a .) . runReaderT
-  addLetBinding' x u a = ReaderT . (addLetBinding' x u a .) . runReaderT
-  updateContext sub f = ReaderT . (updateContext sub f .) . runReaderT
-  withFreshName r x ret = ReaderT $ \env -> withFreshName r x $ \n -> runReaderT (ret n) env
-
-instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m) where
-  addCtx x a = WriterT . addCtx x a . runWriterT
-  addLetBinding' x u a = WriterT . addLetBinding' x u a . runWriterT
-  updateContext sub f = WriterT . updateContext sub f . runWriterT
-  withFreshName r x = WriterT . withFreshName r x . (runWriterT .)
-
-instance MonadAddContext m => MonadAddContext (StateT r m) where
-  addCtx x a = StateT . (addCtx x a .) . runStateT
-  addLetBinding' x u a = StateT . (addLetBinding' x u a .) . runStateT
-  updateContext sub f = StateT . (updateContext sub f .) . runStateT
-  withFreshName r x ret = StateT $ \s -> withFreshName r x $ \n -> runStateT (ret n) s
+instance MonadAddContext m => MonadAddContext (MaybeT m)
+instance MonadAddContext m => MonadAddContext (ExceptT e m)
+instance MonadAddContext m => MonadAddContext (ReaderT r m)
+instance MonadAddContext m => MonadAddContext (StateT r m)
+instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
-  addCtx x a = liftListT $ addCtx x a
-  addLetBinding' x u a = liftListT $ addLetBinding' x u a
-  updateContext sub f = liftListT $ updateContext sub f
-  withFreshName r x ret = ListT $ withFreshName r x $ \n -> runListT (ret n)
+  addCtx x a             = liftListT $ addCtx x a
+  addLetBinding' x u a   = liftListT $ addLetBinding' x u a
+  updateContext sub f    = liftListT $ updateContext sub f
+  withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
 
 -- | Run the given TCM action, and register the given variable as
 --   being shadowed by all the names with the same root that are added

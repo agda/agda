@@ -57,10 +57,14 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
+ifeq ("$(shell ghc --info | grep 'target word size' | cut -d\" -f4)","4")
+GHC_OPTS           = "+RTS -M1.5G -RTS"
+else
+GHC_OPTS           = "+RTS -M3G -RTS"
+endif
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-GHC_OPTS           = "+RTS -M3G -RTS"
 CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
@@ -93,7 +97,6 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
 else
-	@echo "===================== Installing using Cabal with test suites ============"
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
@@ -122,6 +125,20 @@ else
 	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 endif
+
+# Type check the Agda source only (-fno-code).
+# Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
+
+.PHONY: type-check
+type-check:
+	@echo "================= Type checking using Cabal with -fno-code ==============="
+	time cabal $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
+	  --ghc-options=-fno-code \
+	  --ghc-options=-fwrite-interface \
+	  2>&1 \
+	  | sed -e '/.*dist.*build.*: No such file or directory/d' \
+	        -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
 install-prof-bin : ensure-hash-is-correct
@@ -325,6 +342,7 @@ std-lib-test :
 
 .PHONY : cubical-test ##
 cubical-test :
+	-rm -r cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
                   AGDA_EXEC=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
@@ -369,6 +387,11 @@ benchmark :
 benchmark-without-logs :
 	@$(call decorate, "Benchmark suite without creating logs", \
 	  $(MAKE) -C benchmark without-creating-logs)
+
+.PHONY : benchmark-summary ##
+benchmark-summary :
+	@$(call decorate, "Benchmark summary", \
+	  $(MAKE) -C benchmark summary)
 
 .PHONY : user-manual-test ##
 user-manual-test :

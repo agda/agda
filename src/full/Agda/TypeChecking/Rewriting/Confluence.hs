@@ -20,6 +20,7 @@ module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules , checkCo
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function ( on )
@@ -50,7 +51,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -557,7 +557,7 @@ instance AllHoles Sort where
   allHoles _ = \case
     Type l       -> fmap Type <$> allHoles_ l
     Prop l       -> fmap Prop <$> allHoles_ l
-    Inf          -> empty
+    Inf n        -> empty
     SizeUniv     -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
@@ -639,7 +639,7 @@ instance MetasToVars Sort where
   metasToVars = \case
     Type l     -> Type     <$> metasToVars l
     Prop l     -> Prop     <$> metasToVars l
-    Inf        -> pure Inf
+    Inf n      -> pure $ Inf n
     SizeUniv   -> pure SizeUniv
     PiSort s t -> PiSort   <$> metasToVars s <*> metasToVars t
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t

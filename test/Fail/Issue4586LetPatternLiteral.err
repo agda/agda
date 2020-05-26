@@ -1,0 +1,3 @@
+Issue4586LetPatternLiteral.agda:7,12-14
+Not a valid let pattern
+when scope checking let 13 = Set in Set

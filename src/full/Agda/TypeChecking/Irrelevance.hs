@@ -322,7 +322,7 @@ instance UsableRelevance Sort where
   usableRel rel s = case s of
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
-    Inf    -> return True
+    Inf n  -> return True
     SizeUniv -> return True
     PiSort a s -> usableRel rel (a,s)
     FunSort s1 s2 -> usableRel rel (s1,s2)

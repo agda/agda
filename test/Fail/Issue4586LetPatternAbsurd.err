@@ -1,0 +1,3 @@
+Issue4586LetPatternAbsurd.agda:5,12-14
+Not a valid let pattern
+when scope checking let () = Set in Set

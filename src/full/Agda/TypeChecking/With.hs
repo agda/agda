@@ -439,7 +439,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
            "parent pattern is constructor " <+> prettyTCM c
          (a, b) <- mustBePi t
          -- The type of the current pattern is a datatype.
-         Def d es <- liftTCM $ normalise (unEl $ unDom a)
+         Def d es <- liftTCM $ reduce (unEl $ unDom a)
          let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
          -- Get the original constructor and field names.
          c <- either __IMPOSSIBLE__ (`withRangeOf` c) <$> do liftTCM $ getConForm $ conName c

@@ -30,6 +30,7 @@ import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 
@@ -44,7 +45,9 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
-import Data.Monoid
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup((<>))
+#endif
 
 import qualified Codec.Compression.GZip as G
 import qualified Codec.Compression.Zlib.Internal as Z
@@ -63,14 +66,12 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Hash
 import Agda.Utils.IORef
 
-import Agda.Utils.Except
-
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200325 * 10 + 0
+currentInterfaceVersion = 20200501 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 

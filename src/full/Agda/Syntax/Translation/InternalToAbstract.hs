@@ -23,16 +23,15 @@ module Agda.Syntax.Translation.InternalToAbstract
   , reifyDisplayFormP
   ) where
 
-import Prelude hiding (mapM_, mapM, null)
+import Prelude hiding (null)
 
 import Control.Applicative (liftA2)
 import Control.Arrow ((&&&))
-import Control.Monad.State hiding (mapM_, mapM)
+import Control.Monad.State
 
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -209,7 +208,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c ci vs -> apps (A.Con (unambiguous (conName c))) =<< reify vs
+    DCon c ci vs -> recOrCon (conName c) ci =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
@@ -959,12 +958,13 @@ instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs strippedPats rhs (A.WhereDecls _ []) ca) =
-    let bound' = varsBoundIn lhs `Set.union` bound
-    in  A.Clause (blank bound' lhs)
+  blank bound (A.Clause lhs strippedPats rhs wh ca)
+    | null wh =
+        A.Clause (blank bound' lhs)
                  (blank bound' strippedPats)
                  (blank bound' rhs) noWhereDecls ca
-  blank bound (A.Clause lhs strippedPats rhs _ ca) = __IMPOSSIBLE__
+    | otherwise = __IMPOSSIBLE__
+    where bound' = varsBoundIn lhs `Set.union` bound
 
 instance BlankVars A.LHS where
   blank bound (A.LHS i core) = A.LHS i $ blank bound core
@@ -995,7 +995,7 @@ instance BlankVars A.Expr where
     A.ScopedExpr i e       -> A.ScopedExpr i $ blank bound e
     A.Var x                -> if x `Set.member` bound then e
                               else A.Underscore emptyMetaInfo  -- Here is the action!
-    A.Def _                -> e
+    A.Def' _ _             -> e
     A.Proj{}               -> e
     A.Con _                -> e
     A.Lit _                -> e
@@ -1012,8 +1012,6 @@ instance BlankVars A.Expr where
                               in  uncurry (A.Pi i) $ blank bound' (tel, e)
     A.Generalized {}       -> __IMPOSSIBLE__
     A.Fun i a b            -> uncurry (A.Fun i) $ blank bound (a, b)
-    A.Set _ _              -> e
-    A.Prop _ _             -> e
     A.Let _ _ _            -> __IMPOSSIBLE__
     A.Rec i es             -> A.Rec i $ blank bound es
     A.RecUpdate i e es     -> uncurry (A.RecUpdate i) $ blank bound (e, es)
@@ -1215,6 +1213,7 @@ tryRecPFromConP p = do
   let fallback = return p
   case p of
     A.ConP ci c ps -> do
+        reportSLn "reify.pat" 60 $ "tryRecPFromConP " ++ prettyShow c
         caseMaybeM (isRecordConstructor $ headAmbQ c) fallback $ \ (r, def) -> do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
@@ -1227,15 +1226,35 @@ tryRecPFromConP p = do
           mkFA ax nap = FieldAssignment (unDom ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
+-- | If the record constructor is generated or the user wrote a record expression,
+--   turn constructor expression into record expression.
+--   Otherwise, keep constructor expression.
+recOrCon :: MonadReify m => QName -> ConOrigin -> [Arg Expr] -> m A.Expr
+recOrCon c co es = do
+  reportSLn "reify.expr" 60 $ "recOrCon " ++ prettyShow c
+  caseMaybeM (isRecordConstructor c) fallback $ \ (r, def) -> do
+    -- If the record constructor is generated or the user wrote a record expression,
+    -- print record expression.
+    -- Otherwise, print constructor expression.
+    if recNamedCon def && co /= ConORec then fallback else do
+      fs <- fromMaybe __IMPOSSIBLE__ <$> getRecordFieldNames_ r
+      unless (length fs == length es) __IMPOSSIBLE__
+      return $ A.Rec empty $ zipWith mkFA fs es
+  where
+  fallback = apps (A.Con (unambiguous c)) es
+  mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
+
 instance Reify (QNamed I.Clause) A.Clause where
   reify (QNamed f cl) = reify (NamedClause f True cl)
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSLn "reify.clause" 60 $ "reifying NamedClause"
-      ++ "\n  f      = " ++ prettyShow f
-      ++ "\n  toDrop = " ++ show toDrop
-      ++ "\n  cl     = " ++ show cl
+    reportSLn "reify.clause" 60 $ unlines
+      [ "reifying NamedClause"
+      , "  f      = " ++ prettyShow f
+      , "  toDrop = " ++ show toDrop
+      , "  cl     = " ++ show cl
+      ]
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
     lhs <- uncurry (SpineLHS $ empty { lhsEllipsis = ell }) <$> reifyDisplayFormP f ps []
@@ -1298,18 +1317,20 @@ instance Reify Sort Expr where
     reifyWhen = reifyWhenE
     reify s = do
       s <- instantiateFull s
+      SortKit{..} <- sortKit
       case s of
-        I.Type (I.ClosedLevel n) -> return $ A.Set noExprInfo n
+        I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
+        I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
         I.Type a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Set noExprInfo 0) (defaultNamedArg a)
-        I.Prop (I.ClosedLevel n) -> return $ A.Prop noExprInfo n
+          return $ A.App defaultAppInfo_ (A.Def nameOfSet) (defaultNamedArg a)
+        I.Prop (I.ClosedLevel 0) -> return $ A.Def' nameOfProp A.NoSuffix
+        I.Prop (I.ClosedLevel n) -> return $ A.Def' nameOfProp (A.Suffix n)
         I.Prop a -> do
           a <- reify a
-          return $ A.App defaultAppInfo_ (A.Prop noExprInfo 0) (defaultNamedArg a)
-        I.Inf       -> do
-          I.Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
-          return $ A.Def inf
+          return $ A.App defaultAppInfo_ (A.Def nameOfProp) (defaultNamedArg a)
+        I.Inf 0 -> return $ A.Def' nameOfSetOmega A.NoSuffix
+        I.Inf n -> return $ A.Def' nameOfSetOmega (A.Suffix n)
         I.SizeUniv  -> do
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU

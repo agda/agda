@@ -29,6 +29,15 @@ instance EmbPrj Scope where
 
   value = valueN Scope
 
+instance EmbPrj DataOrRecordModule where
+  icod_ IsDataModule   = icodeN' IsDataModule
+  icod_ IsRecordModule = icodeN 0 IsRecordModule
+
+  value = vcase $ \case
+    []  -> valuN IsDataModule
+    [0] -> valuN IsRecordModule
+    _   -> malformed
+
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icodeN' PublicNS
   icod_ PrivateNS       = icodeN 1 PrivateNS
@@ -94,6 +103,15 @@ instance EmbPrj NameMetadata where
   value = vcase valu where
     valu []  = valuN NoMetadata
     valu [a] = valuN GeneralizedVarsMetadata a
+    valu _   = malformed
+
+instance EmbPrj A.Suffix where
+  icod_ A.NoSuffix   = icodeN' A.NoSuffix
+  icod_ (A.Suffix a) = icodeN' A.Suffix a
+
+  value = vcase valu where
+    valu []  = valuN A.NoSuffix
+    valu [a] = valuN A.Suffix a
     valu _   = malformed
 
 instance EmbPrj AbstractModule where

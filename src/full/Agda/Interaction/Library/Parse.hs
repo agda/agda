@@ -33,6 +33,7 @@ module Agda.Interaction.Library.Parse
   ) where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import Data.Data
@@ -42,7 +43,6 @@ import System.FilePath
 import Agda.Interaction.Library.Base
 
 import Agda.Utils.Applicative
-import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.Lens
 import Agda.Utils.List   ( duplicates )

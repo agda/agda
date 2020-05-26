@@ -64,7 +64,7 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
-import Data.Monoid
+import Data.Monoid -- for (<>) in GHC 8.0.2
 
 import Agda.Interaction.Options
 

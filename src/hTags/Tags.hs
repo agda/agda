@@ -12,7 +12,12 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+#if MIN_VERSION_ghc(8,10,1)
+import GHC.Hs
+#else
 import HsSyn
+#endif
+
 import SrcLoc
 import RdrName
 import OccName
@@ -170,7 +175,12 @@ tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsModule pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsModule pass) where
 #else
 instance TagName name => HasTags (HsModule name) where
 #endif
@@ -179,17 +189,25 @@ instance TagName name => HasTags (HsModule name) where
                } = tags decls -- TODO: filter exports
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsDecl pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsDecl pass) where
 #else
 instance TagName name => HasTags (HsDecl name) where
 #endif
   tags d = case d of
+#if MIN_VERSION_ghc(8,10,1)
+    KindSigD{}    -> missingImp "KindSigD"
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     TyClD _ d     -> tags d
     ValD _ d      -> tags d
     SigD _ d      -> tags d
     ForD _ d      -> tags d
-    XHsDecl _     -> []
+    XHsDecl _     -> missingImp "XHsDecl"
 #else
     TyClD d       -> tags d
     ValD d        -> tags d
@@ -208,7 +226,6 @@ instance TagName name => HasTags (HsDecl name) where
 #if !MIN_VERSION_ghc(8,6,1)
     VectD{}       -> []
 #endif
-
 
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => HasTags (FamilyDecl pass) where
@@ -270,7 +287,12 @@ instance HasTags (HsType name) where
   tags _ = []
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsBind pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsBind pass) where
 #else
 instance TagName name => HasTags (HsBind name) where
 #endif
@@ -292,7 +314,12 @@ instance TagName name => HasTags (HsBind name) where
 
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (Pat pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (Pat pass) where
 #else
 instance TagName name => HasTags (Pat name) where
 #endif

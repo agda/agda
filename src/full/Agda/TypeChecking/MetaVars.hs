@@ -5,6 +5,7 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function
@@ -44,11 +45,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError, catchError)
-  , runExceptT
-  )
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -424,7 +420,7 @@ blockTermOnProblem t v pid =
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) a pid
+blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
@@ -654,7 +650,11 @@ assign dir x args v target = do
   -- with full unfolding.
   v <- instantiate v
   reportSDoc "tc.meta.assign" 45 $
-    "MetaVars.assign: assigning to " <+> prettyTCM v
+    "MetaVars.assign: assigning meta " <+> prettyTCM (MetaV x []) <+>
+    " with args " <+> prettyList_ (map (prettyTCM . unArg) args) <+>
+    " to " <+> prettyTCM v
+  reportSDoc "tc.meta.assign" 45 $
+    "MetaVars.assign: type of meta: " <+> prettyTCM t
 
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
@@ -662,6 +662,27 @@ assign dir x args v target = do
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
+
+  -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
+  -- we equate the sort of the solution with the sort of the
+  -- metavariable, in order to solve metavariables in sorts.
+  -- Jesper, 2020-04-22: We do this before any of the other steps
+  -- because comparing the sorts might lead to some metavariables
+  -- being solved, which can help with pruning (see #4615).
+  whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
+         (optCumulativity <$> pragmaOptions)) $ piApplyM' patternViolation t args >>= \case
+    El _ (Sort s) -> do
+      cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
+        case mvJudgement mvar of
+          HasType{ jComparison = cmp } -> return cmp
+          IsSort{} -> __IMPOSSIBLE__
+      s' <- sortOf v
+      reportSDoc "tc.meta.assign" 40 $
+        "Instantiating sort" <+> prettyTCM s <+>
+        "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+      traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+        compareSort cmp s' s
+    _ -> return ()
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
@@ -1038,25 +1059,6 @@ assignMeta' m x t n ids v = do
     when (size tel' < n)
        patternViolation -- WAS: __IMPOSSIBLE__
 
-    -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
-    -- we equate the sort of the solution with the sort of the
-    -- metavariable, in order to solve metavariables in sorts.
-    whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
-           (optCumulativity <$> pragmaOptions)) $ case unEl a of
-      Sort s -> addContext tel' $ do
-        m <- lookupMeta x
-        cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-          case mvJudgement m of
-            HasType{ jComparison = cmp } -> return cmp
-            IsSort{} -> __IMPOSSIBLE__
-        s' <- sortOf v'
-        reportSDoc "tc.meta.assign" 40 $
-          "Instantiating sort" <+> prettyTCM s <+>
-          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v'
-        traceCall (CheckMetaSolution (getRange m) x a v') $
-          compareSort cmp s' s
-      _ -> return ()
-
     -- Perform the assignment (and wake constraints).
 
     let vsol = abstract tel' v'
@@ -1121,7 +1123,7 @@ checkSolutionForMeta x m v a = do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
       s <- shouldBeSort (El __DUMMY_SORT__ v)
-      traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+      traceCall (CheckMetaSolution (getRange m) x (sort (univSort s)) (Sort s)) $
         checkSort defaultAction s
 
 -- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
@@ -1512,7 +1514,7 @@ openMetasToPostulates = do
     -- codomains by Setω.
     dummyTypeToOmega t =
       case telView' t of
-        TelV tel (El _ Dummy{}) -> abstract tel topSort
+        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf 0)
         _ -> t
 
 -- | Sort metas in dependency order.

@@ -4,8 +4,7 @@
 
 module Agda.TypeChecking.Reduce where
 
-import Prelude hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
@@ -231,43 +230,58 @@ instance Instantiate EqualityView where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
+-- | Is something (an elimination of) a meta variable?
+--   Does not perform any reductions.
+
 class IsMeta a where
-  isMeta :: HasBuiltins m => a -> m (Maybe MetaId)
+  isMeta :: a -> Maybe MetaId
 
 instance IsMeta Term where
-  isMeta (MetaV m _) = return $ Just m
-  isMeta _           = return Nothing
+  isMeta (MetaV m _) = Just m
+  isMeta _           = Nothing
 
-instance IsMeta Type where
+instance IsMeta a => IsMeta (Sort' a) where
+  isMeta (MetaS m _) = Just m
+  isMeta _           = Nothing
+
+instance IsMeta a => IsMeta (Type'' t a) where
   isMeta = isMeta . unEl
 
-instance IsMeta Level where
-  isMeta = isMeta <=< reallyUnLevelView
+instance IsMeta a => IsMeta (Level' a) where
+  isMeta (Max 0 [l]) = isMeta l
+  isMeta _           = Nothing
 
-instance IsMeta Sort where
-  isMeta (MetaS m _) = return $ Just m
-  isMeta _           = return Nothing
+instance IsMeta a => IsMeta (PlusLevel' a) where
+  isMeta (Plus 0 l)  = isMeta l
+  isMeta _           = Nothing
+
+instance IsMeta a => IsMeta (LevelAtom' a) where
+  isMeta = \case
+    MetaLevel m _    -> Just m
+    BlockedLevel _ t -> isMeta t
+    NeutralLevel _ t -> isMeta t
+    UnreducedLevel t -> isMeta t
 
 instance IsMeta CompareAs where
   isMeta (AsTermsOf a) = isMeta a
-  isMeta AsSizes       = return Nothing
-  isMeta AsTypes       = return Nothing
+  isMeta AsSizes       = Nothing
+  isMeta AsTypes       = Nothing
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
 ifBlocked
-  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  :: (Reduce t, IsMeta t, MonadReduce m)
   => t -> (MetaId -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
     Blocked m t -> blocked m t
-    NotBlocked nb t -> isMeta t >>= \case
+    NotBlocked nb t -> case isMeta t of
       Just m    -> blocked m t
       Nothing   -> unblocked nb t
 
 isBlocked
-  :: (Reduce t, IsMeta t, MonadReduce m, HasBuiltins m)
+  :: (Reduce t, IsMeta t, MonadReduce m)
   => t -> m (Maybe MetaId)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
@@ -295,11 +309,10 @@ instance Reduce Sort where
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
         UnivSort s' -> do
           s' <- reduce' s'
-          ui <- univInf
-          caseMaybe (univSort' ui s') (return $ UnivSort s') reduce'
+          caseMaybe (univSort' s') (return $ UnivSort s') reduce'
         Prop s'    -> Prop <$> reduce' s'
         Type s'    -> Type <$> reduce' s'
-        Inf        -> return Inf
+        Inf n      -> return $ Inf n
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
@@ -327,11 +340,15 @@ instance Reduce LevelAtom where
     where
       fromTm v = do
         bv <- reduceB' v
+        hasAllReductions <- (allReductions `SmallSet.isSubsetOf`) <$>
+                              asksTC envAllowedReductions
         let v = ignoreBlocking bv
         case bv of
           NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
           Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
-          NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
+          NotBlocked r _
+            | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
+            | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
 
 
 instance (Subst t a, Reduce a) => Reduce (Abs a) where
@@ -546,6 +563,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
+    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
     _  -> do
       if (RecursiveReductions `SmallSet.member` allowed) ||
          (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
@@ -885,12 +903,10 @@ instance Simplify Sort where
       case s of
         PiSort a s -> piSort <$> simplify' a <*> simplify' s
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> simplify' s
+        UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
-        Inf        -> return s
+        Inf _      -> return s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1039,12 +1055,10 @@ instance Normalise Sort where
       case s of
         PiSort a s -> piSort <$> normalise' a <*> normalise' s
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> normalise' s
+        UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
-        Inf        -> return Inf
+        Inf _      -> return s
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1089,7 +1103,7 @@ instance Normalise LevelAtom where
       MetaLevel m vs   -> MetaLevel m <$> normalise' vs
       BlockedLevel m v -> BlockedLevel m <$> normalise' v
       NeutralLevel r v -> NeutralLevel r <$> normalise' v
-      UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
+      UnreducedLevel v -> UnreducedLevel <$> normalise' v
 
 instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
@@ -1253,10 +1267,8 @@ instance InstantiateFull Sort where
             Prop n     -> Prop <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
-            UnivSort s -> do
-              ui <- univInf
-              univSort ui <$> instantiateFull' s
-            Inf        -> return s
+            UnivSort s -> univSort <$> instantiateFull' s
+            Inf _      -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1402,7 +1414,7 @@ instance InstantiateFull NLPType where
 instance InstantiateFull NLPSort where
   instantiateFull' (PType x) = PType <$> instantiateFull' x
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' PInf      = return PInf
+  instantiateFull' (PInf n)  = return $ PInf n
   instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where
@@ -1446,6 +1458,7 @@ instance InstantiateFull Defn where
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
         return $ d { primClauses = cs }
+      PrimitiveSort{} -> return d
 
 instance InstantiateFull ExtLamInfo where
   instantiateFull' e@(ExtLamInfo { extLamSys = sys}) = do

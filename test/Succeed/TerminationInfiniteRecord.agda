@@ -3,7 +3,7 @@
 module TerminationInfiniteRecord where
 
 record Empty : Set where
-  inductive
+  inductive; pattern
   constructor empty
   field
     fromEmpty : Empty

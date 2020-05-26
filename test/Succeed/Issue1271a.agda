@@ -44,7 +44,7 @@ module Data where
 module Record where
 
   record μId : Set where
-    inductive
+    inductive; pattern
     constructor In
     field       Out : μId
   open μId

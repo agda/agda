@@ -11,10 +11,8 @@
 
 module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
-import Prelude hiding (mapM)
-
 import Control.Arrow ((***))
-import Control.Monad.State hiding (mapM)
+import Control.Monad.State
 
 import Agda.Interaction.Options (optSyntacticEquality)
 
@@ -143,7 +141,7 @@ instance SynEq Sort where
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
-      (Inf     , Inf       ) -> pure2 s
+      (Inf m   , Inf n     ) | m == n -> pure2 s
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

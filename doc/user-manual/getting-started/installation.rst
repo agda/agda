@@ -59,9 +59,7 @@ files.
 If you use `Nix-style Local Builds
 <https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
 by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
-following error when compiling with the GHC backend:
-
-.. code-block::
+following error when compiling with the GHC backend::
 
   Compilation error:
 
@@ -71,7 +69,7 @@ following error when compiling with the GHC backend:
 
 This is because packages are sandboxed in ``$HOME/.cabal/store``
 and you have to explicitly register required packaged in a `GHC environment
-<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html?highlight=environment#package-environments>`_.
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
 This can be done by running the following command:
 
 .. code-block:: bash
@@ -115,7 +113,7 @@ The following prebuilt packages are available:
 
 * `Agda standard library <https://www.archlinux.org/packages/community/x86_64/agda-stdlib/>`_
 
-However, due to significant packaging bugs [such as this](https://bugs.archlinux.org/task/61904?project=5&string=agda), you might want to use alternative installation methods.
+However, due to significant packaging bugs such as `this <https://bugs.archlinux.org/task/61904?project=5&string=agda>`_, you might want to use alternative installation methods.
 
 Debian / Ubuntu
 ---------------
@@ -172,8 +170,8 @@ Packages are available from `FreshPorts
 Agda and Agda standard library.
 
 
-NixOS
------
+Nix or NixOS
+------------
 
 Agda is part of the Nixpkgs collection that is used by
 https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
@@ -186,6 +184,13 @@ type:
 If you’re just interested in the library, you can also install the
 library without the executable. The Agda standard library is currently
 not installed automatically.
+
+However, if using existing Agda libraries (including the standard library) it
+may be more convenient to use a nix expression for ``nix-shell``.  A third-party
+`example repository
+<https://github.com/bbarker/LearningAgda>`_
+is available to create a ``nix-shell`` environment that loads
+``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs.
 
 OS X
 ----

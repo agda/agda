@@ -43,12 +43,16 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
+
 import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
+import qualified Agda.Interaction.Options as O
+
 import Agda.TypeChecking.Monad (TCM, Interface(..))
 import qualified Agda.TypeChecking.Monad as TCM
-import qualified Agda.Interaction.Options as O
+
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
+import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
 
@@ -649,7 +653,7 @@ generateLaTeX i = do
 
  where
   modToFile :: TopLevelModuleName -> FilePath
-  modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
+  modToFile m = List.intercalate [pathSeparator] (List1.toList $ moduleNameParts m) <.> "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =

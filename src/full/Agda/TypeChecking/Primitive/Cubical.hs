@@ -5,6 +5,7 @@ module Agda.TypeChecking.Primitive.Cubical where
 import Prelude hiding (null, (!!))
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 
 import Data.Either ( partitionEithers )
@@ -28,7 +29,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
@@ -265,7 +265,7 @@ primPartial' = do
        hPi' "a" (el $ cl primLevel) (\ a ->
         nPi' "φ" (elInf (cl primInterval)) $ \ _ ->
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
-        return (sort $ Inf))
+        return (sort $ Inf 0))
   isOne <- primIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
@@ -283,7 +283,7 @@ primPartialP' = do
        hPi' "a" (el $ cl primLevel) (\ a ->
         nPi' "φ" (elInf (cl primInterval)) $ \ phi ->
         nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-        return (sort $ Inf))
+        return (sort $ Inf 0))
   let toFinitePi :: Type -> Term
       toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
       toFinitePi _               = __IMPOSSIBLE__
@@ -1712,7 +1712,7 @@ transpTel delta phi args = do
             b' <- open b'
             axi <- open axi
             gTransp (Just l) b' phi axi
-          Inf    ->
+          Inf n  ->
             if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) then noTranspError b' else return axi
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
@@ -1726,7 +1726,7 @@ transpTel delta phi args = do
       -- Γ ⊢ b : t[1], Γ,i ⊢ b : t[i]
       (b,bf) <- runNamesT [] $ do
         l <- case s of
-               Inf -> return Nothing
+               Inf n -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)

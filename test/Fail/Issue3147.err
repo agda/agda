@@ -1,4 +1,4 @@
-Issue3147.agda:12,1-12
+Issue3147.agda:12,10-11
 x != suc x of type Nat
-when checking the clause left hand side
-f x@(suc x)
+when checking that all occurrences of pattern variable x have the
+same value

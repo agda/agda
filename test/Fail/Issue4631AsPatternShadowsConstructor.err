@@ -1,0 +1,7 @@
+Issue4631AsPatternShadowsConstructor.agda:8,6-10
+Name bound in @-pattern ignored because it shadows constructor
+when scope checking the left-hand side test true@_ in the
+definition of test
+Issue4631AsPatternShadowsConstructor.agda:8,15-19
+Bool !=< Set
+when checking that the expression true has type Set

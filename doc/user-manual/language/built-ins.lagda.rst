@@ -629,6 +629,30 @@ object::
 
 With this definition ``eqString "foo" "foo"`` computes to ``just refl``.
 
+
+Sorts
+-----
+
+The primitive sorts used in Agda's type system (`Set`, `Prop`, and
+`Setω`) are declared using ``BUILTIN`` pragmas in the
+``Agda.Primitive`` module. These pragmas should not be used directly
+in other modules, but it is possible to rename these builtin sorts
+when importing ``Agda.Primitive``.
+
+..
+  This code cannot be typechecked because the identifiers are already bound
+  in Agda.Primitive and are auto-imported.
+
+.. code-block:: agda
+
+  {-# BUILTIN TYPE Set #-}
+  {-# BUILTIN PROP Prop #-}
+  {-# BUILTIN SETOMEGA Setω #-}
+
+The primitive sorts `Set` and `Prop` are automatically imported at the
+top of every top-level Agda module, unless the
+``--no-import-sorts`` flag is enabled.
+
 Universe levels
 ---------------
 

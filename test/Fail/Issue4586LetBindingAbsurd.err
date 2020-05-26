@@ -1,0 +1,3 @@
+Issue4586LetBindingAbsurd.agda:5,12-16
+Missing right hand side in let binding
+when scope checking let f () in Set

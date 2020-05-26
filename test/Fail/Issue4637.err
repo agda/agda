@@ -1,0 +1,8 @@
+Issue4637.agda:13,1-16,41
+Termination checking failed for the following functions:
+  test
+Problematic calls:
+  test r | bar r
+  Issue4637.with-14 r (record { foo = x }) | bar x
+  test x
+    (at Issue4637.agda:16,35-39)

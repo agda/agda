@@ -4,6 +4,7 @@ module Agda.TypeChecking.Conversion where
 
 import Control.Arrow (second)
 import Control.Monad
+import Control.Monad.Except
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
@@ -15,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -47,7 +47,6 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -609,9 +608,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
-                        (El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+              equalType (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -1076,7 +1075,7 @@ coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type 
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)
-    let dbglvl = if isSet a1 && isSet a2 then 50 else 10
+    let dbglvl = 30
     reportSDoc "tc.conv.coerce" dbglvl $
       "coerce" <+> vcat
         [ "term      v  =" <+> prettyTCM v
@@ -1196,6 +1195,8 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
+  typeInTypeEnabled <- typeInType
+  omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
   let fvsRHS = (`IntSet.member` allFreeVars s2)
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
@@ -1215,9 +1216,14 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
 
-      -- Setω is the top sort
-      (_       , Inf     ) -> yes
-      (Inf     , _       ) -> equalSort s1 s2
+      -- @Setωᵢ@ is above all small sorts (spelling out all cases
+      -- for the exhaustiveness checker)
+      (Inf m   , Inf n   ) ->
+        if m <= n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
+      (Type{}  , Inf _   ) -> yes
+      (Prop{}  , Inf _   ) -> yes
+      (Inf _   , Type{}  ) -> if typeInTypeEnabled then yes else no
+      (Inf _   , Prop{}  ) -> no
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
@@ -1229,13 +1235,12 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+      (SizeUniv , Inf{}  ) -> no
 
-      -- If the first sort rigidly depends on a variable and the second
-      -- sort does not mention this variable, the second sort must be Inf.
-      (_       , _       ) | badRigid -> equalSort s2 Inf
-
-      -- This shouldn't be necessary
-      (UnivSort Inf , UnivSort Inf) -> yes
+      -- If the first sort is a small sort that rigidly depends on a
+      -- variable and the second sort does not mention this variable,
+      -- the second sort must be at least @Setω@.
+      (_       , _       ) | isSmallSort s1 == Just True , badRigid -> leqSort (Inf 0) s2
 
       -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1261,26 +1266,18 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
     __IMPOSSIBLE__
 
 leqLevel :: MonadConversion m => Level -> Level -> m ()
-leqLevel a b = do
-  reportSDoc "tc.conv.nat" 30 $
-    "compareLevel" <+>
-      sep [ prettyTCM a <+> "=<"
-          , prettyTCM b ]
-  -- Andreas, 2015-12-28 Issue 1757
-  -- We normalize both sides to make the syntactic equality check (==) stronger.
-  -- See case for `same term` below.
-  a <- normalise a
-  b <- normalise b
-  leqView a b
-  where
-    -- Andreas, 2016-09-28
-    -- If we have to postpone a constraint, then its simplified form!
-    leqView :: MonadConversion m => Level -> Level -> m ()
-    leqView a b = catchConstraint (LevelCmp CmpLeq a b) $ do
+leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.level" 30 $
-        "compareLevelView" <+>
-          sep [ pretty a <+> "=<"
-              , pretty b ]
+        "compareLevel" <+>
+          sep [ prettyTCM a <+> "=<"
+              , prettyTCM b ]
+
+      (a, b) <- reduce (a, b)
+      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+      reportSDoc "tc.conv.level" 60 $
+        "checkSyntacticEquality returns" <+> prettyTCM equal
+      unless equal $ do
+
       cumulativity <- optCumulativity <$> pragmaOptions
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
@@ -1288,10 +1285,8 @@ leqLevel a b = do
               , "=<"
               , prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ levelMaxView b)
               ]
-      wrap $ case (levelMaxView a, levelMaxView b) of
 
-        -- same term
-        _ | a == b -> ok
+      wrap $ case (levelMaxView a, levelMaxView b) of
 
         -- 0 ≤ any
         (SingleClosed 0 :| [] , _) -> ok
@@ -1313,20 +1308,20 @@ leqLevel a b = do
 
         -- ⊔ as ≤ single
         (as@(_:|_:_), b :| []) ->
-          sequence_ [ leqView (unSingleLevel a') (unSingleLevel b) | a' <- NonEmpty.toList as ]
+          sequence_ [ leqLevel (unSingleLevel a') (unSingleLevel b) | a' <- NonEmpty.toList as ]
 
         -- reduce constants
         (as, bs)
           | let minN = min (fst $ levelPlusView a) (fst $ levelPlusView b)
                 a'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN a
                 b'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN b
-          , minN > 0 -> leqView a' b'
+          , minN > 0 -> leqLevel a' b'
 
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
           | (subsumed@(_:_) , as') <- List.partition isSubsumed (NonEmpty.toList as)
-          -> leqView (unSingleLevels as') b
+          -> leqLevel (unSingleLevels as') b
           where
             isSubsumed a = any (`subsumes` a) (NonEmpty.toList bs)
 
@@ -1400,15 +1395,8 @@ leqLevel a b = do
         isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
         isMetaLevel _ = False
 
-equalLevel :: MonadConversion m => Level -> Level -> m ()
+equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
-  -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
-  (a, b) <- normalise (a, b)
-  equalLevel' a b
-
--- | Precondition: levels are 'normalise'd.
-equalLevel' :: forall m. MonadConversion m => Level -> Level -> m ()
-equalLevel' a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
   -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
   -- THAT's actually UNSOUND when metas are instantiated, because
@@ -1426,6 +1414,12 @@ equalLevel' a b = do
                               ]
                ]
         ]
+
+  (a, b) <- reduce (a, b)
+  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+  reportSDoc "tc.conv.level" 60 $
+    "checkSyntacticEquality returns" <+> prettyTCM equal
+  unless equal $ do
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
@@ -1460,9 +1454,6 @@ equalLevel' a b = do
 
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
-        -- equal levels
-        _ | a == b -> ok
-
         -- closed == closed
         (SingleClosed m :| [], SingleClosed n :| [])
           | m == n    -> ok
@@ -1478,20 +1469,16 @@ equalLevel' a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
-          sequence_ [ equalLevel' (ClosedLevel 0) (unSingleLevel b') | b' <- NonEmpty.toList bs ]
+          sequence_ [ equalLevel (ClosedLevel 0) (unSingleLevel b') | b' <- NonEmpty.toList bs ]
         (as@(_:|_:_) , SingleClosed 0 :| []) ->
-          sequence_ [ equalLevel' (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
+          sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
 
         -- meta == any
-        (SinglePlus (Plus k (MetaLevel x as)) :| [] , bs)
-          | any (isThisMeta x) bs -> postpone
-        (as , SinglePlus (Plus k (MetaLevel x bs)) :| [])
-          | any (isThisMeta x) as -> postpone
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
           -- there is only a potential choice when k == l
-          | k == l -> if
-              | y < x     -> meta x as' $ atomicLevel $ MetaLevel y bs'
-              | otherwise -> meta y bs' $ atomicLevel $ MetaLevel x as'
+          | k == l -> do
+              lvl <- levelType
+              equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , _)
           | Just b' <- subLevel k b -> meta x as' b'
         (_ , SinglePlus (Plus l (MetaLevel y bs')) :| [])
@@ -1558,9 +1545,6 @@ equalLevel' a b = do
           Plus _ (UnreducedLevel v) -> isJust $ firstMeta v
         hasMeta (SingleClosed _) = False
 
-        isThisMeta x (SinglePlus (Plus _ (MetaLevel y _))) = x == y
-        isThisMeta _ _                                     = False
-
         removeSubsumed a b =
           let as = NonEmpty.toList $ levelMaxView a
               bs = NonEmpty.toList $ levelMaxView b
@@ -1595,6 +1579,7 @@ equalSort s1 s2 = do
 
         propEnabled <- isPropEnabled
         typeInTypeEnabled <- typeInType
+        omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
         case (s1, s2) of
 
@@ -1616,12 +1601,13 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
-            (Inf        , Inf        ) -> yes
+            (Inf m      , Inf n      ) ->
+              if m == n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
 
-            -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)
-            (Type{}     , Inf        )
+            -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
+            (Type{}     , Inf{}      )
               | typeInTypeEnabled      -> yes
-            (Inf        , Type{}     )
+            (Inf{}      , Type{}     )
               | typeInTypeEnabled      -> yes
 
             -- equating @PiSort a b@ to another sort
@@ -1678,8 +1664,8 @@ equalSort s1 s2 = do
           -- @Prop l2@ where @l1 == lsuc l2@.
           Type l1 -> do
             propEnabled <- isPropEnabled
-               -- @s2@ is definitely not @Inf@ or @SizeUniv@
-            if | Inf      <- s2 -> no
+               -- @s2@ is definitely not @Inf n@ or @SizeUniv@
+            if | Inf n    <- s2 -> no
                | SizeUniv <- s2 -> no
                -- If @Prop@ is not used, then @s2@ must be of the form
                -- @Set l2@
@@ -1693,11 +1679,12 @@ equalSort s1 s2 = do
                    equalSort (Type l2) s2
                -- Otherwise we postpone
                | otherwise -> synEq (Type l1) (UnivSort s2)
-          -- @Setω@ is only a successor sort if --type-in-type or
-          -- --omega-in-omega is enabled.
-          Inf -> do
+          -- @Setωᵢ@ is a successor sort if n > 0, or if
+          -- --type-in-type or --omega-in-omega is enabled.
+          Inf n | n > 0 -> equalSort (Inf $ n - 1) s2
+          Inf 0 -> do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-            if | infInInf  -> equalSort Inf s2
+            if | infInInf  -> equalSort (Inf 0) s2
                | otherwise -> no
           -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
@@ -1719,9 +1706,9 @@ equalSort s1 s2 = do
           ]
         propEnabled <- isPropEnabled
            -- If @b@ is dependent, then @piSort a b@ computes to
-           -- @Setω@. Hence, if @s@ is definitely not @Setω@, then @b@
+           -- @Setω@. Hence, if @s@ is small, then @b@
            -- cannot be dependent.
-        if | definitelyNotInf s         -> do
+        if | isSmallSort s == Just True -> do
                -- We force @b@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
                b' <- newSortMeta
@@ -1743,13 +1730,13 @@ equalSort s1 s2 = do
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
         case s0 of
-          -- If @Setω == funSort s1 s2@, then either @s1@ or @s2@ must
-          -- be @Setω@.
-          Inf | definitelyNotInf s1 && definitelyNotInf s2 -> do
-                  typeError $ UnequalSorts s0 (FunSort s1 s2)
-              | definitelyNotInf s1 -> equalSort Inf s2
-              | definitelyNotInf s2 -> equalSort Inf s1
-              | otherwise           -> synEq s0 (FunSort s1 s2)
+          -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
+          -- be @Setωᵢ@.
+          Inf n | isSmallSort s1 == Just True && isSmallSort s2 == Just True -> do
+                    typeError $ UnequalSorts s0 (FunSort s1 s2)
+                | isSmallSort s1 == Just True -> equalSort (Inf n) s2
+                | isSmallSort s2 == Just True -> equalSort (Inf n) s1
+                | otherwise                   -> synEq s0 (FunSort s1 s2)
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
           -- @SizeUniv@.
@@ -1794,19 +1781,6 @@ equalSort s1 s2 = do
       isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
       isBottomSort propEnabled _                      = False
       -- (NB: Defined but not currently used)
-
-      definitelyNotInf :: Sort -> Bool
-      definitelyNotInf = \case
-        Inf        -> False
-        Type{}     -> True
-        Prop{}     -> True
-        SizeUniv   -> True
-        PiSort{}   -> False
-        FunSort{}  -> False
-        UnivSort{} -> False
-        MetaS{}    -> False
-        DefS{}     -> False
-        DummyS{}   -> False
 
       forceType :: Sort -> m Level
       forceType (Type l) = return l

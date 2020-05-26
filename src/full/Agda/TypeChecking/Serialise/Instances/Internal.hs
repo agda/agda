@@ -140,7 +140,7 @@ instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icodeN 0 Type a
   icod_ (Prop  a  ) = icodeN 1 Prop a
   icod_ SizeUniv    = icodeN 2 SizeUniv
-  icod_ Inf         = icodeN 3 Inf
+  icod_ (Inf a)     = icodeN 3 Inf a
   icod_ (PiSort a b) = icodeN 4 PiSort a b
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
@@ -154,7 +154,7 @@ instance EmbPrj I.Sort where
     valu [0, a]    = valuN Type  a
     valu [1, a]    = valuN Prop  a
     valu [2]       = valuN SizeUniv
-    valu [3]       = valuN Inf
+    valu [3, a]    = valuN Inf a
     valu [4, a, b] = valuN PiSort a b
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
@@ -251,13 +251,13 @@ instance EmbPrj NLPType where
 instance EmbPrj NLPSort where
   icod_ (PType a)   = icodeN 0 PType a
   icod_ (PProp a)   = icodeN 1 PProp a
-  icod_ PInf        = icodeN 2 PInf
+  icod_ (PInf a)    = icodeN 2 PInf a
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
     valu [1, a] = valuN PProp a
-    valu [2]    = valuN PInf
+    valu [2, a] = valuN PInf a
     valu [3]    = valuN PSizeUniv
     valu _      = malformed
 
@@ -354,21 +354,23 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t []    c d e f g h i j k)   =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
   icod_ (Datatype    a b c d e f g h)                   = icodeN 2 Datatype a b c d e f g h
-  icod_ (Record      a b c d e f g h i j k)             = icodeN 3 Record a b c d e f g h i j k
+  icod_ (Record      a b c d e f g h i j k l)           = icodeN 3 Record a b c d e f g h i j k l
   icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
+  icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
   icod_ AbstractDefn{}                                  = __IMPOSSIBLE__
-  icod_ GeneralizableVar                                = icodeN 6 GeneralizableVar
+  icod_ GeneralizableVar                                = icodeN 7 GeneralizableVar
   icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
     valu [0]                                        = valuN Axiom
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h]                = valuN Datatype a b c d e f g h
-    valu [3, a, b, c, d, e, f, g, h, i, j, k]       = valuN Record  a b c d e f g h i j k
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
-    valu [6]                                        = valuN GeneralizableVar
+    valu [6, a, b]                                  = valuN PrimitiveSort a b
+    valu [7]                                        = valuN GeneralizableVar
     valu _                                          = malformed
 
 instance EmbPrj LazySplit where

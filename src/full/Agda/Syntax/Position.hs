@@ -81,6 +81,7 @@ import qualified Data.Set as Set
 import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Semigroup (Semigroup(..))
 import Data.Void
 
 import GHC.Generics (Generic)
@@ -89,6 +90,7 @@ import Agda.Utils.FileName
 import Agda.Utils.List
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -194,6 +196,19 @@ instance Null (Range' a) where
   null Range{} = False
 
   empty = NoRange
+
+instance Semigroup a => Semigroup (Range' a) where
+  NoRange <> r = r
+  r <> NoRange = r
+  Range f is <> Range f' is' = Range (f <> f') (is <> is')
+
+instance Semigroup a => Monoid (Range' a) where
+  mempty  = empty
+  mappend = (<>)
+
+-- | To get @'Semigroup' 'Range'@, we need a semigroup instance for 'AbsolutePath'.
+instance Semigroup AbsolutePath where
+  f <> f' = if f == f' then f else __IMPOSSIBLE__
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
@@ -513,6 +528,11 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
 
+instance KillRange Permutation where
+  killRange = id
+
+instance KillRange a => KillRange (Drop a) where
+  killRange = fmap killRange
 ------------------------------------------------------------------------
 -- Showing
 ------------------------------------------------------------------------

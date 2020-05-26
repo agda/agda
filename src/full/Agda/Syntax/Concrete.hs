@@ -149,10 +149,6 @@ data Expr
   | ExtendedLam Range (List1 LamClause)        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-  | Set Range                                  -- ^ ex: @Set@
-  | Prop Range                                 -- ^ ex: @Prop@
-  | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
-  | PropN Range Integer                        -- ^ ex: @Prop0, Prop1, ..@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
@@ -317,16 +313,23 @@ data RHS' e
   | RHS e
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
-
+-- | @where@ block following a clause.
 type WhereClause = WhereClause' [Declaration]
+
+-- The generalization @WhereClause'@ is for the sake of Concrete.Generic.
 data WhereClause' decls
-  = NoWhere               -- ^ No @where@ clauses.
-  | AnyWhere decls        -- ^ Ordinary @where@.
-  | SomeWhere Name Access decls
-    -- ^ Named where: @module M where@.
-    --   The 'Access' flag applies to the 'Name' (not the module contents!)
-    --   and is propagated from the parent function.
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  = NoWhere
+      -- ^ No @where@ clauses.
+  | AnyWhere Range decls
+      -- ^ Ordinary @where@.  'Range' of the @where@ keyword.
+      --   List of declarations can be empty.
+  | SomeWhere Range Name Access decls
+      -- ^ Named where: @module M where ds@.
+      --   'Range' of the keywords @module@ and @where@.
+      --   The 'Access' flag applies to the 'Name' (not the module contents!)
+      --   and is propagated from the parent function.
+      --   List of declarations can be empty.
+  deriving (Data, Eq, Functor, Foldable, Traversable)
 
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
@@ -389,9 +392,10 @@ data Declaration
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
+  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
+  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
+    --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
@@ -677,10 +681,6 @@ instance HasRange Expr where
       ExtendedLam r _    -> r
       Fun r _ _          -> r
       Pi b e             -> fuseRange b e
-      Set r              -> r
-      Prop r             -> r
-      SetN r _           -> r
-      PropN r _          -> r
       Let r _ _          -> r
       Paren r _          -> r
       IdiomBrackets r _  -> r
@@ -722,9 +722,9 @@ instance HasRange BoundName where
   getRange = getRange . boundName
 
 instance HasRange WhereClause where
-  getRange  NoWhere         = noRange
-  getRange (AnyWhere ds)    = getRange ds
-  getRange (SomeWhere _ _ ds) = getRange ds
+  getRange  NoWhere             = noRange
+  getRange (AnyWhere r ds)      = getRange (r, ds)
+  getRange (SomeWhere r x _ ds) = getRange (r, x, ds)
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
@@ -745,8 +745,8 @@ instance HasRange Declaration where
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (RecordDef r _ _ _ _ _ _) = r
-  getRange (Record r _ _ _ _ _ _ _)  = r
+  getRange (RecordDef r _ _ _ _ _ _ _) = r
+  getRange (Record r _ _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
@@ -883,8 +883,8 @@ instance KillRange Declaration where
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (RecordDef _ n mi mb mn k d) = killRange6 (RecordDef noRange) n mi mb mn k d
-  killRange (Record _ n mi mb mn k e d)  = killRange7 (Record noRange) n mi mb mn k e d
+  killRange (RecordDef _ n mi mb mp mn k d) = killRange7 (RecordDef noRange) n mi mb mp mn k d
+  killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -919,10 +919,6 @@ instance KillRange Expr where
   killRange (ExtendedLam _ lrw)  = killRange1 (ExtendedLam noRange) lrw
   killRange (Fun _ e1 e2)        = killRange2 (Fun noRange) e1 e2
   killRange (Pi t e)             = killRange2 Pi t e
-  killRange (Set _)              = Set noRange
-  killRange (Prop _)             = Prop noRange
-  killRange (SetN _ n)           = SetN noRange n
-  killRange (PropN _ n)          = PropN noRange n
   killRange (Rec _ ne)           = killRange1 (Rec noRange) ne
   killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
@@ -1015,9 +1011,9 @@ instance KillRange TypedBinding where
   killRange (TLet r ds)   = killRange2 TLet r ds
 
 instance KillRange WhereClause where
-  killRange NoWhere         = NoWhere
-  killRange (AnyWhere d)    = killRange1 AnyWhere d
-  killRange (SomeWhere n a d) = killRange3 SomeWhere n a d
+  killRange NoWhere             = NoWhere
+  killRange (AnyWhere r d)      = killRange1 (AnyWhere noRange) d
+  killRange (SomeWhere r n a d) = killRange3 (SomeWhere noRange) n a d
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -1040,10 +1036,6 @@ instance NFData Expr where
   rnf (ExtendedLam _ a)  = rnf a
   rnf (Fun _ a b)        = rnf a `seq` rnf b
   rnf (Pi a b)           = rnf a `seq` rnf b
-  rnf (Set _)            = ()
-  rnf (Prop _)           = ()
-  rnf (SetN _ a)         = rnf a
-  rnf (PropN _ a)        = rnf a
   rnf (Rec _ a)          = rnf a
   rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
   rnf (Let _ a b)        = rnf a `seq` rnf b
@@ -1097,8 +1089,8 @@ instance NFData Declaration where
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordDef _ a b c d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
-  rnf (Record _ a b c d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
+  rnf (RecordDef _ a b c _ d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
@@ -1175,9 +1167,9 @@ instance NFData ModuleAssignment where
   rnf (ModuleAssignment a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (WhereClause' a) where
-  rnf NoWhere         = ()
-  rnf (AnyWhere a)    = rnf a
-  rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf NoWhere             = ()
+  rnf (AnyWhere _ a)      = rnf a
+  rnf (SomeWhere _ a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData LamClause where
   rnf (LamClause a b c) = rnf (a, b, c)

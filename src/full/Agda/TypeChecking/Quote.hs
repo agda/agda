@@ -149,7 +149,7 @@ quotingKit = do
       quoteSort :: Sort -> ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t
       quoteSort Prop{}   = pure unsupportedSort
-      quoteSort Inf      = pure unsupportedSort
+      quoteSort Inf{}    = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
@@ -281,6 +281,7 @@ quotingKit = do
           Primitive{primClauses = cs} | not $ null cs ->
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Primitive{}   -> pure agdaDefinitionPrimitive
+          PrimitiveSort{} -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 

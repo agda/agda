@@ -121,10 +121,6 @@ instance ExprLike Expr where
      ExtendedLam r cs   -> f $ ExtendedLam r          $ mapE cs
      Fun r a b          -> f $ Fun r     (mapE <$> a) $ mapE b
      Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
-     Set{}              -> f $ e0
-     Prop{}             -> f $ e0
-     SetN{}             -> f $ e0
-     PropN{}            -> f $ e0
      Rec r es           -> f $ Rec r                  $ mapE es
      RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
      Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e
@@ -220,8 +216,8 @@ instance ExprLike Declaration where
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
-     RecordDef r n ind eta c tel ds -> RecordDef r n ind eta c (mapE tel) $ mapE ds
-     Record r n ind eta c tel e ds  -> Record r n ind eta c (mapE tel) (mapE e) $ mapE ds
+     RecordDef r n ind eta pat c tel ds -> RecordDef r n ind eta pat c (mapE tel) $ mapE ds
+     Record r n ind eta pat c tel e ds  -> Record r n ind eta pat c (mapE tel) (mapE e) $ mapE ds
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e

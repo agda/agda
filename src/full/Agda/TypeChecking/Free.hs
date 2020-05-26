@@ -61,17 +61,11 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-
-
-
-import Data.Monoid ( Monoid, mempty, mappend)
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-
-
 
 import qualified Agda.Benchmarking as Bench
 

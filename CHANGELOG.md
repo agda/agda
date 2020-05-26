@@ -4,8 +4,9 @@ Release notes for Agda version 2.6.2
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.8.3
-  [Issue [#4476](https://github.com/agda/agda/issues/4476)].
+* Added support for GHC 8.10.1
+  [Issue [#4242](https://github.com/agda/agda/issues/4242)] and GHC
+  8.8.3 [Issue [#4476](https://github.com/agda/agda/issues/4476)].
 
 Command-line interaction
 ------------------------
@@ -34,3 +35,265 @@ Pragmas and options
   backend to include a JavaScript file that highlights all occurrences of
   the mouse-hovered symbol (see
   [#4535](https://github.com/agda/agda/pull/4535)).
+
+* New option `--no-import-sorts` disables the implicit `open
+  import Agda.Primitive using (Set; Prop)` at the top of each file
+  (see below).
+
+Language
+--------
+
+* Inductive records without η-equality no longer support both matching
+  on the record constructor and construction of record elements by
+  copattern matching.  It has been discovered that the combination of
+  both leads to loss of subject reduction, i.e., reduction does not
+  preserve typing.  See issue
+  [#4560](https://github.com/agda/agda/issues/4560).
+
+  η-equality for a record can be turned off manually with directive
+  `no-eta-equality` or command-line option `--no-eta-equality`, but it
+  is also automatically turned off for some recursive records.  For
+  records without η, matching on the record constructor is now off by
+  default and construction by copattern matching is on.  If you want
+  the converse, you can add the new record directive `pattern`.
+
+  Example with record pattern:
+  ```agda
+  record N : Set where
+    inductive
+    no-eta-equality
+    pattern
+    field out : Maybe N
+
+  pred : N → Maybe N
+  pred record{ out = m } = m
+  ```
+  Example with record constructor and use of `;` instead of newline:
+  ```agda
+  record N : Set where
+    inductive; no-eta-equality
+    pattern; constructor inn
+    field out : Maybe N
+
+  pred : N → Maybe N
+  pred (inn m) = m
+  ```
+
+* `Set` and `Prop` are no longer keywords but are now primitives
+  defined in the module `Agda.Primitive`. They can be renamed when
+  importing this module, for example:
+
+  ```agda
+  open import Agda.Primitive renaming (Set to Type)
+
+  test : Type₁
+  test = Type
+  ```
+
+  To preserve backwards compatibility, each top-level Agda module now
+  starts with an implicit statement:
+
+  ```agda
+  open import Agda.Primitive using (Set; Prop)
+  ```
+
+  This implicit import can be disabled with the
+  `--no-import-sorts` flag.
+
+* Agda now has support for sorts `Setωᵢ` (alternative syntax: `Setωi`)
+  for natural numbers `i`, where `Setω₀ = Setω`. These sorts form a
+  second hierarchy `Setωᵢ : Setωᵢ₊₁` similar to the standard hierarchy
+  of `Setᵢ`, but do not support universe polymorphism. It should not
+  be necessary to refer to these sorts during normal usage of Agda,
+  but they might be useful for defining reflection-based macros (see
+  [#2119](https://github.com/agda/agda/issues/2119) and
+  [#4585](https://github.com/agda/agda/issues/4585)).
+
+Reflection
+----------
+
+- New operation in `TC` monad, similar to `quoteTC` but operating on types in `Setω`
+  ```agda
+  quoteωTC : ∀ {A : Setω} → A → TC Term
+  ```
+
+JS backend
+----------
+
+- Smaller local variable names in the generated JS code.
+
+  Previously: `x0`, `x1`, `x2`, ...
+
+  Now: `a`, `b`, `c`, ..., `z`, `a0`, `b0`, ..., `z0`, `a1`, `b1`, ...
+
+- Improved indentation of generated JS code.
+
+- More compact rendering of generated JS functions.
+
+  Previously:
+  ```js
+  exports["N"]["suc"] = function (x0) {
+      return function (x1) {
+        return x1["suc"](x0);
+      };
+    };
+  ```
+
+  Now:
+  ```js
+  exports["N"]["suc"] = a => b => b["suc"](a);
+  ```
+
+- Irrelevant arguments are now erased in the generated JS code.
+
+  Example Agda code:
+  ```agda
+  flip : {A B C : Set} -> (B -> A -> C) -> A -> B -> C
+  flip f a b = f b a
+  ```
+
+  Previously generated JS code:
+  ```js
+  exports["flip"] = function (x0) {
+      return function (x1) {
+        return function (x2) {
+          return function (x3) {
+            return function (x4) {
+              return function (x5) {
+                return x3(x5)(x4);
+              };
+            };
+          };
+        };
+      };
+    };
+  ```
+
+  JS code generated now:
+  ```js
+  exports["flip"] = a => b => c => a(c)(b);
+  ```
+
+- Record fields are not stored separately (the fields are stored only in the constructor)
+  in the generated JS code.
+
+  Example Agda code:
+  ```agda
+  record Sigma (A : Set) (B : A -> Set) : Set where
+    field
+      fst : A
+      snd : B fst
+  ```
+
+  Previously generated JS code (look at the `"fst"` and `"snd"` fields in the
+  return value of `exports["Sigma"]["record"]`:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = function (x0) {
+      return x0["record"]({
+        "record": function (x1, x2) {
+          return x1;
+        }
+      });
+    };
+  exports["Sigma"]["snd"] = function (x0) {
+      return x0["record"]({
+        "record": function (x1, x2) {
+          return x2;
+        }
+      });
+    };
+  exports["Sigma"]["record"] = function (x0) {
+      return function (x1) {
+        return {
+          "fst": x0,
+          "record": function (x2) {
+            return x2["record"](x0, x1);
+          },
+          "snd": x1
+        };
+      };
+    };
+  ```
+
+  JS code generated now:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a["record"]({"record": (b,c) => b});
+  exports["Sigma"]["snd"] = a => a["record"]({"record": (b,c) => c});
+  exports["Sigma"]["record"] = a => b => ({"record": c => c["record"](a,b)});
+  ```
+
+- `--js-optimize` flag has been added to the `agda` compiler.
+
+  With `--js-optimize`, `agda` does not wrap records in JS objects.
+
+  Example Agda code:
+  ```agda
+  record Sigma (A : Set) (B : A -> Set) : Set where
+    field
+      fst : A
+      snd : B fst
+  ```
+
+  JS code generated without the `--js-optimize` flag:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a["record"]({"record": (b,c) => b});
+  exports["Sigma"]["snd"] = a => a["record"]({"record": (b,c) => c});
+  exports["Sigma"]["record"] = a => b => ({"record": c => c["record"](a,b)});
+  ```
+
+  JS code generated with the `--js-optimize` flag:
+  ```js
+  exports["Sigma"] = {};
+  exports["Sigma"]["fst"] = a => a((b,c) => b);
+  exports["Sigma"]["snd"] = a => a((b,c) => c);
+  exports["Sigma"]["record"] = a => b => c => c(a,b);
+  ```
+
+  With `--js-optimize`, `agda` uses JS arrays instead of JS objects.
+  This is possible because constructor names are not relevant during the evaluation.
+
+  Example Agda code:
+  ```agda
+  data Bool : Set where
+    false : Bool
+    true  : Bool
+
+  not : Bool -> Bool
+  not false = true
+  not true  = false
+  ```
+
+  JS code generated without the `--js-optimize` flag:
+  ```js
+  exports["Bool"] = {};
+  exports["Bool"]["false"] = a => a["false"]();
+  exports["Bool"]["true"] = a => a["true"]();
+  exports["not"] = a => a({
+      "false": () => exports["Bool"]["true"],
+      "true": () => exports["Bool"]["false"]
+    });
+  ```
+
+  JS code generated with the `--js-optimize` flag:
+  ```js
+  exports["Bool"] = {};
+  exports["Bool"]["false"] = a => a[0/* false */]();
+  exports["Bool"]["true"] = a => a[1/* true */]();
+  exports["not"] = a => a([
+      /* false */() => exports["Bool"]["true"],
+      /* true */() => exports["Bool"]["false"]
+    ]);
+  ```
+
+  Note that comments are added to generated JS code to help human readers.
+
+  Erased branches are replaced by `null` in the generated array.
+  If more than the half of branches are erased, the array is compressed to
+  be a object like `{3: ..., 13: ...}`.
+
+- `--js-minify` flag has been added to the `agda` compiler.
+
+  With `--js-minify`, `agda` discards comments and whitespace in the generated JS code.

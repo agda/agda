@@ -153,6 +153,7 @@ data WarningName
   | EmptyPrimitive_
   | EmptyPrivate_
   | EmptyRewritePragma_
+  | EmptyWhere_
   | InvalidCatchallPragma_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
@@ -174,6 +175,7 @@ data WarningName
   | UselessPrivate_
   -- Scope and Type Checking Warnings
   | AbsurdPatternRequiresNoRHS_
+  | AsPatternShadowsConstructorOrPatternSynonym_
   | CantGeneralizeOverSorts_
   | ClashesViaRenaming_                -- issue #4154
   | CoverageIssue_
@@ -211,6 +213,7 @@ data WarningName
   | UnsolvedInteractionMetas_
   | UnsolvedMetaVariables_
   | UselessInline_
+  | UselessPatternDeclarationForRecord_
   | UselessPublic_
   | UserWarning_
   | WithoutKFlagPrimEraseEquality_
@@ -289,6 +292,7 @@ warningNameDescription = \case
   EmptyPrimitive_                  -> "Empty `primitive' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
+  EmptyWhere_                      -> "Empty `where' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
@@ -310,8 +314,10 @@ warningNameDescription = \case
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
   UselessPublic_                   -> "`public' blocks where they have no effect."
+  UselessPatternDeclarationForRecord_ -> "`pattern' attributes where they have no effect."
   -- Scope and Type Checking Warnings
   AbsurdPatternRequiresNoRHS_      -> "A clause with an absurd pattern does not need a Right Hand Side."
+  AsPatternShadowsConstructorOrPatternSynonym_ -> "@-patterns that shadow constructors or pattern synonyms."
   CantGeneralizeOverSorts_         -> "Attempt to generalize over sort metas in 'variable' declaration."
   ClashesViaRenaming_              -> "Clashes introduced by `renaming'."  -- issue #4154
   CoverageIssue_                   -> "Failed coverage checks."

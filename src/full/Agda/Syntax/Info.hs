@@ -73,7 +73,7 @@ instance KillRange ExprInfo where
 data AppInfo = AppInfo
   { appRange  :: Range
   , appOrigin :: Origin
-  , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
+  , appParens :: ParenPreference -- ^ Do we prefer a lambda argument with or without parens?
   }
   deriving (Data, Show, Eq, Ord)
 

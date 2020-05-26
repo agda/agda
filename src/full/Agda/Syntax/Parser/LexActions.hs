@@ -96,14 +96,6 @@ postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
 postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
 postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
-postToken (TokId (r, s))
-  | set == "Set" && all isSub n = TokSetN (r, readSubscript n)
-  where
-    (set, n)      = splitAt 3 s
-postToken (TokId (r, s))
-  | prop == "Prop" && all isSub n = TokPropN (r, readSubscript n)
-  where
-    (prop, n)     = splitAt 4 s
 postToken t = t
 
 {--------------------------------------------------------------------------

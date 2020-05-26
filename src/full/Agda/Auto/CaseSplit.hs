@@ -5,6 +5,7 @@ module Agda.Auto.CaseSplit where
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (elemIndex)
+-- Import of <> needed for 8.2.2, but redundant in 8.8.3
 import Data.Monoid ((<>), Sum(..))
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap

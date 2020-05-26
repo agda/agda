@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -14,7 +15,6 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -36,7 +36,6 @@ import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

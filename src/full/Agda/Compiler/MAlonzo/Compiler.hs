@@ -1,7 +1,7 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
+import Control.Monad.Reader
 
 import qualified Data.List as List
 import Data.Map (Map)
@@ -254,7 +254,6 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
           else do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
-            ty   <- normalise ty
             sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
 
           -- Check that the function isn't INLINE (since that will make this
@@ -326,6 +325,8 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         return $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
                  fb axiomErr
       Primitive{ primName = s } -> fb <$> primBody s
+
+      PrimitiveSort{ primName = s } -> return []
 
       Function{} -> function pragma $ functionViaTreeless q
 

@@ -2,8 +2,9 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow (first, second)
-import Control.Monad.State
+import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
@@ -35,12 +36,6 @@ import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 
-import Agda.Utils.Except
-  ( mkExceptT
-  , MonadError(catchError, throwError)
-  , ExceptT
-  , runExceptT
-  )
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -76,7 +71,7 @@ unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
 unpackUnquoteM m cxt s = runExceptT $ runWriterT $ runStateT (runReaderT m cxt) s
 
 packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
-packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ mkExceptT $ f cxt s
+packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptT $ f cxt s
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
@@ -111,11 +106,11 @@ isCon con tm = do t <- liftTCM tm
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
-isDef f tm = do
-  t <- liftTCM $ etaContract =<< normalise =<< tm
-  case t of
-    Def g _ -> return (f == g)
-    _       -> return False
+isDef f tm = loop <$> liftTCM tm
+  where
+    loop (Def g _) = f == g
+    loop (Lam _ b) = loop $ unAbs b
+    loop _         = False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
@@ -495,7 +490,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
-             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v) ]
+             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))

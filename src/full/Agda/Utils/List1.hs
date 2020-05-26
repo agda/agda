@@ -43,15 +43,15 @@ append (x :| xs) ys = x :| mappend xs ys
 prepend :: [a] -> List1 a -> List1 a
 prepend as bs = foldr (<|) bs as
 
+-- | More precise type for @snoc@.
+
+snoc :: [a] -> a -> List1 a
+snoc as a = prepend as $ a :| []
+
 -- | Concatenate one or more non-empty lists.
 
 concat :: List1 (List1 a) -> List1 a
-concat = foldr1 (Semigroup.<>)
-
--- | Like 'List1.filter'.
-
-mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
-mapMaybe f = Maybe.mapMaybe f . List1.toList
+concat = Semigroup.sconcat
 
 -- * Recovering non-emptyness.
 
@@ -59,6 +59,28 @@ ifNull :: [a] -> b -> (List1 a -> b) -> b
 ifNull []       b _ = b
 ifNull (a : as) _ f = f $ a :| as
 
+ifNotNull :: [a] -> (List1 a -> b) -> b -> b
+ifNotNull []       _ b = b
+ifNotNull (a : as) f _ = f $ a :| as
+
 unlessNull :: Null m => [a] -> (List1 a -> m) -> m
 unlessNull []       _ = empty
 unlessNull (x : xs) f = f $ x :| xs
+
+-- * List functions with no special behavior for non-empty lists.
+
+-- | Checks if all the elements in the list are equal. Assumes that
+--   the 'Eq' instance stands for an equivalence relation.
+--   O(n).
+allEqual :: Eq a => List1 a -> Bool
+allEqual (x :| xs) = all (== x) xs
+
+-- | Like 'Maybe.catMaybes'.
+
+catMaybes :: List1 (Maybe a) -> [a]
+catMaybes =  Maybe.catMaybes . List1.toList
+
+-- | Like 'List1.filter'.
+
+mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
+mapMaybe f = Maybe.mapMaybe f . List1.toList

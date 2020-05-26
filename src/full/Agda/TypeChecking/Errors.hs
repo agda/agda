@@ -18,6 +18,9 @@ module Agda.TypeChecking.Errors
 
 import Prelude hiding ( null )
 
+import Control.Monad.Except
+
+import qualified Data.CaseInsensitive as CaseInsens
 import Data.Function
 import Data.List (sortBy, dropWhileEnd)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -26,6 +29,7 @@ import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Definitions (notSoNiceDeclarations)
 import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -50,7 +54,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
@@ -460,8 +463,8 @@ instance PrettyTCM TypeError where
         pwords "at" ++ [prettyTCM r]
       where
         help m = caseMaybeM (isDatatypeModule m) empty $ \case
-          IsData   -> "(datatype)"
-          IsRecord -> "(record)"
+          IsDataModule   -> "(datatype)"
+          IsRecordModule -> "(record)"
 
     ModuleArityMismatch m EmptyTel args -> fsep $
       pwords "The module" ++ [prettyTCM m] ++
@@ -536,10 +539,10 @@ instance PrettyTCM TypeError where
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
         | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
-      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
-      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El Inf s
-      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El Inf t
-      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El Inf s
+      (Sort MetaS{} , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
+      (s            , Sort MetaS{} ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
+      (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
+      (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
       (_            , _            ) -> do
         (d1, d2, d) <- prettyInEqual s t
         fsep $ concat $
@@ -698,12 +701,23 @@ instance PrettyTCM TypeError where
              pwords "in any of the following locations:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
-    OverlappingProjects f m1 m2 ->
-      fsep ( pwords "The file" ++ [text (filePath f)] ++
+    OverlappingProjects f m1 m2
+      | canon d1 == canon d2 -> fsep $ concat
+          [ pwords "Case mismatch when accessing file"
+          , [ text $ filePath f ]
+          , pwords "through module name"
+          , [ pure d2 ]
+          ]
+      | otherwise -> fsep
+           ( pwords "The file" ++ [text (filePath f)] ++
              pwords "can be accessed via several project roots. Both" ++
-             [pretty m1] ++ pwords "and" ++ [pretty m2] ++
+             [ pure d1 ] ++ pwords "and" ++ [ pure d2 ] ++
              pwords "point to this file."
            )
+      where
+      canon = CaseInsens.mk . P.render
+      d1 = P.pretty m1
+      d2 = P.pretty m2
 
     AmbiguousTopLevelModuleName x files ->
       fsep ( pwords "Ambiguous module name. The module name" ++
@@ -763,14 +777,20 @@ instance PrettyTCM TypeError where
         help :: MonadPretty m => ModuleName -> m Doc
         help m = do
           anno <- caseMaybeM (isDatatypeModule m) (return empty) $ \case
-            IsData   -> return $ "(datatype module)"
-            IsRecord -> return $ "(record module)"
+            IsDataModule   -> return $ "(datatype module)"
+            IsRecordModule -> return $ "(record module)"
           sep [prettyTCM m, anno ]
 
-    ClashingDefinition x y -> fsep $
+    ClashingDefinition x y suggestion -> fsep $
       pwords "Multiple definitions of" ++ [pretty x <> "."] ++
       pwords "Previous definition at"
-      ++ [prettyTCM $ nameBindingSite $ qnameName y]
+      ++ [prettyTCM $ nameBindingSite $ qnameName y] ++
+      caseMaybe suggestion [] (\d ->
+        [  "Perhaps you meant to write "
+        $$ nest 2 ("'" <> pretty (notSoNiceDeclarations d) <> "'")
+        $$ ("at" <+> (pretty . envRange =<< askTC)) <> "?"
+        $$ "In data definitions separate from data declaration, the ':' and type must be omitted."
+        ])
 
     ClashingModule m1 m2 -> fsep $
       pwords "The modules" ++ [prettyTCM m1, "and", prettyTCM m2]
@@ -874,7 +894,7 @@ instance PrettyTCM TypeError where
       ]
       where
         (x, _) = NonEmpty.head defs
-        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x xs p) <?> ("at" <+> pretty r)
+        prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 
     UnusedVariableInPatternSynonym -> fsep $
@@ -897,19 +917,20 @@ instance PrettyTCM TypeError where
       pwords "Could not parse the pattern synonym" ++ [pretty p]
 -}
 
-    AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
-      pwords "Don't know how to parse" ++ [pretty_p <> "."] ++
-      pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' ps)
+    AmbiguousParseForLHS lhsOrPatSyn p ps -> do
+      d <- pretty p
+      vcat $
+        [ fsep $
+            pwords "Don't know how to parse" ++ [pure d <> "."] ++
+            pwords "Could mean any one of:"
+        ]
+          ++
+        map (nest 2 . pretty' d) ps
       where
-        pretty_p :: MonadPretty m => m Doc
-        pretty_p = pretty p
-
-        pretty' :: MonadPretty m => C.Pattern -> m Doc
-        pretty' p' = do
-          p1 <- pretty_p
-          p2 <- pretty p'
-          pretty $ if show p1 == show p2 then unambiguousP p' else p'
+        pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
+        pretty' d1 p' = do
+          d2 <- pretty p'
+          if show d1 == show d2 then pretty $ unambiguousP p' else return d2
 
         -- the entire pattern is shown, not just the ambiguous part,
         -- so we need to dig in order to find the OpAppP's.
@@ -984,7 +1005,7 @@ instance PrettyTCM TypeError where
         section = qualifyFirstIdPart
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
-                           (init (C.qnameParts (notaName nota))))
+                           (List1.init (C.qnameParts (notaName nota))))
                     (trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
@@ -1194,6 +1215,9 @@ instance PrettyTCM SplitError where
   prettyTCM err = case err of
     NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
+
+    BlockedType t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]

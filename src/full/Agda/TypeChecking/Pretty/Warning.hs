@@ -139,6 +139,8 @@ prettyWarning = \case
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
+
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
 
@@ -147,6 +149,9 @@ prettyWarning = \case
       , pwords "clashes introduced by `renaming':"
       , map prettyTCM xs
       ]
+
+    UselessPatternDeclarationForRecord s -> fwords $ unwords
+      [ "`pattern' attribute ignored for", s, "record" ]
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
@@ -295,6 +300,11 @@ prettyWarning = \case
         par [d] = parens d
         par ds  = parens $ vcat ds
         s = P.prettyShow x
+
+    AsPatternShadowsConstructorOrPatternSynonym patsyn -> fsep $ concat
+      [ pwords "Name bound in @-pattern ignored because it shadows"
+      , if patsyn then pwords "pattern synonym" else [ "constructor" ]
+      ]
 
     RecordFieldWarning w -> prettyRecordFieldWarning w
 

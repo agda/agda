@@ -90,8 +90,8 @@ checkEmptyType range t = do
 
     -- If t is a record type, see if any of the field types is empty
     Right (r, pars, def) -> do
-      if recEtaEquality def == NoEta then return $ Left Fail else do
-        void <$> do checkEmptyTel range $ recTel def `apply` pars
+      if | NoEta{} <- recEtaEquality def -> return $ Left Fail
+         | otherwise -> void <$> do checkEmptyTel range $ recTel def `apply` pars
 
 -- | Check whether one of the types in the given telescope is constructor-less
 --   and if yes, return its index in the telescope (0 = leftmost).

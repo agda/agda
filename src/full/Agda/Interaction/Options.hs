@@ -34,6 +34,7 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when, void  )
+import Control.Monad.Except
 import Control.Monad.Trans
 
 import Data.IORef
@@ -48,6 +49,7 @@ import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
 import System.Directory         ( doesFileExist, doesDirectoryExist )
 
 import Text.EditDistance
+import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..) )
 
@@ -56,17 +58,11 @@ import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
-import Agda.Utils.Monad         ( ifM, readM )
+import Agda.Utils.Monad         ( ifM )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -103,6 +99,7 @@ data CommandLineOptions = Options
   , optShowVersion           :: Bool
   , optShowHelp              :: Maybe Help
   , optInteractive           :: Bool
+      -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
   , optJSONInteraction       :: Bool
   , optOptimSmashing         :: Bool
@@ -169,6 +166,10 @@ data PragmaOptions = PragmaOptions
   , optKeepPatternVariables      :: Bool
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
+  , optTopLevelInteractionNoPrivate :: Bool
+     -- ^ If @True@, disable reloading mechanism introduced in issue #4647
+     --   that brings private declarations in main module into scope
+     --   to remedy not-in-scope errors in top-level interaction commands.
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
@@ -195,6 +196,9 @@ data PragmaOptions = PragmaOptions
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
      -- ^ Can we split on a (x :{flat} A) argument?
+  , optImportSorts               :: Bool
+     -- ^ Should every top-level module start with an implicit statement
+     --   @open import Agda.Primitive using (Set; Prop)@?
   }
   deriving (Show, Eq)
 
@@ -286,6 +290,7 @@ defaultPragmaOptions = PragmaOptions
   , optCubical                   = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
+  , optTopLevelInteractionNoPrivate = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optQualifiedInstances        = True
@@ -304,6 +309,7 @@ defaultPragmaOptions = PragmaOptions
   , optCallByName                = False
   , optConfluenceCheck           = False
   , optFlatSplit                 = True
+  , optImportSorts               = True
   }
 
 -- | The default termination depth.
@@ -391,9 +397,10 @@ checkOpts opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 
-unsafePragmaOptions :: PragmaOptions -> [String]
-unsafePragmaOptions opts =
-  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+unsafePragmaOptions :: CommandLineOptions -> PragmaOptions -> [String]
+unsafePragmaOptions clo opts =
+  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts
+                                                 , not $ optInteractive clo          ] ++
   [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
@@ -453,6 +460,7 @@ restartOptions =
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
   , (B . optConfluenceCheck, "--confluence-check")
+  , (B . not . optImportSorts, "--no-import-sorts")
   ]
 
 -- to make all restart options have the same type
@@ -743,6 +751,9 @@ postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 keepPatternVariablesFlag :: Flag PragmaOptions
 keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
+topLevelInteractionNoPrivateFlag :: Flag PragmaOptions
+topLevelInteractionNoPrivateFlag o = return $ o { optTopLevelInteractionNoPrivate = True }
+
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -828,7 +839,7 @@ verboseFlag s o =
     parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
       []  -> usage
       ss  -> do
-        n <- readM (last ss) `catchError` \_ -> usage
+        n <- maybe usage return $ readMaybe (last ss)
         return (init ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
@@ -839,7 +850,7 @@ warningModeFlag s o = case warningModeUpdate s of
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
-    do k <- readM s `catchError` \_ -> usage
+    do k <- maybe usage return $ readMaybe s
        when (k < 1) $ usage -- or: turn termination checking off for 0
        return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
@@ -855,11 +866,13 @@ withCompilerFlag fp o = case optWithCompiler o of
  Nothing -> pure o { optWithCompiler = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
 
+noImportSorts :: Flag PragmaOptions
+noImportSorts o = return $ o { optImportSorts = False }
 
 integerArgument :: String -> String -> OptM Int
-integerArgument flag s =
-    readM s `catchError` \_ ->
-        throwError $ "option '" ++ flag ++ "' requires an integer argument"
+integerArgument flag s = maybe usage return $ readMaybe s
+  where
+  usage = throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
@@ -1030,6 +1043,8 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
                     "don't replace variables with dot patterns during case splitting"
+    , Option []     ["top-level-interaction-no-private"] (NoArg topLevelInteractionNoPrivateFlag)
+                    "in top-level interaction commands, don't reload file to bring private declarations into scope"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
@@ -1076,6 +1091,8 @@ pragmaOptions =
                     "disable reduction using the Agda Abstract Machine"
     , Option []     ["call-by-name"] (NoArg callByNameFlag)
                     "use call-by-name evaluation instead of call-by-need"
+    , Option []     ["no-import-sorts"] (NoArg noImportSorts)
+                    "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     ]
 
 -- | Pragma options of previous versions of Agda.

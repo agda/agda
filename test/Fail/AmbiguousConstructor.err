@@ -1,0 +1,6 @@
+AmbiguousConstructor.agda:20,5-7
+Ambiguous constructor c2.
+It could refer to any of
+  Foo.D.c0 (introduced at AmbiguousConstructor.agda:5,5-7)
+  Foo.D.c1 (introduced at AmbiguousConstructor.agda:6,5-7)
+when checking that the pattern c2 has type D

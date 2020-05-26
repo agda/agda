@@ -4,11 +4,11 @@ module Agda.TypeChecking.Rules.Term where
 
 import Prelude hiding ( null )
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Either (partitionEithers, lefts)
-import Data.Monoid (mappend)
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -67,8 +67,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef', useTerPragma)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 
-import Agda.Utils.Except
-  (MonadError(catchError, throwError))
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -110,6 +108,7 @@ isType_ e = traceCall (IsType_ e) $ do
     , nest 2 $ "returns" <?> prettyTCM a
     ]) $ do
   let fallback = isType' CmpEq e =<< do workOnTypes $ newSortMeta
+  SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
       a <- setArgInfo info . defaultDom <$> isType_ t
@@ -133,18 +132,27 @@ isType_ e = traceCall (IsType_ e) $ do
       return t'
 
     -- Setᵢ
-    A.Set _ n -> do
-      return $ sort (mkType n)
+    A.Def' x suffix | x == nameOfSet -> case suffix of
+      NoSuffix -> return $ sort (mkType 0)
+      Suffix i -> return $ sort (mkType i)
 
     -- Propᵢ
-    A.Prop _ n -> do
+    A.Def' x suffix | x == nameOfProp -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
-      return $ sort (mkProp n)
+      case suffix of
+        NoSuffix -> return $ sort (mkProp 0)
+        Suffix i -> return $ sort (mkProp i)
+
+    -- Setωᵢ
+    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
+      NoSuffix -> return $ sort (Inf 0)
+      Suffix i -> return $ sort (Inf i)
 
     -- Set ℓ
     A.App i s arg
       | visible arg,
-        A.Set _ 0 <- unScope s -> do
+        A.Def x <- unScope s,
+        x == nameOfSet -> do
       unlessM hasUniversePolymorphism $ genericError
         "Use --universe-polymorphism to enable level arguments to Set"
       -- allow NonStrict variables when checking level
@@ -155,7 +163,8 @@ isType_ e = traceCall (IsType_ e) $ do
     -- Prop ℓ
     A.App i s arg
       | visible arg,
-        A.Prop _ 0 <- unScope s -> do
+        A.Def x <- unScope s,
+        x == nameOfProp -> do
       unlessM isPropEnabled $ typeError NeedOptionProp
       unlessM hasUniversePolymorphism $ genericError
         "Use --universe-polymorphism to enable level arguments to Prop"
@@ -797,7 +806,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- over-approximating the set of metas actually blocking unification
               return $ firstMeta problem
 
-            SplitError (NotADatatype aClosure) ->
+            SplitError (BlockedType aClosure) ->
               enterClosure aClosure $ \ a -> isBlocked a
 
             -- Andrea: TODO look for blocking meta in tClosure and its Sort.
@@ -1109,33 +1118,6 @@ checkExpr' cmp e t =
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
-        -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s arg@(Arg ai l)
-          | A.Set _ 0 <- unScope s, visible ai ->
-          ifNotM hasUniversePolymorphism
-              (genericError "Use --universe-polymorphism to enable level arguments to Set")
-          $ {- else -} do
-            -- allow NonStrict variables when checking level
-            --   Set : (NonStrict) Level -> Set\omega
-            n <- applyRelevanceToContext NonStrict $ checkLevel arg
-            -- check that Set (l+1) <= t
-            reportSDoc "tc.univ.poly" 10 $
-              "checking Set " <+> prettyTCM n <+>
-              "against" <+> prettyTCM t
-            coerce cmp (Sort $ Type n) (sort $ Type $ levelSuc n) t
-
-        -- check |- Prop l : t  (requires universe polymorphism)
-        A.App i s arg@(Arg ai l)
-          | A.Prop _ 0 <- unScope s, visible ai ->
-          ifNotM hasUniversePolymorphism
-              (genericError "Use --universe-polymorphism to enable level arguments to Prop")
-          $ {- else -} do
-            n <- applyRelevanceToContext NonStrict $ checkLevel arg
-            reportSDoc "tc.univ.poly" 10 $
-              "checking Prop " <+> prettyTCM n <+>
-              "against" <+> prettyTCM t
-            coerce cmp (Sort $ Prop n) (sort $ Type $ levelSuc n) t
-
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           x <- quotedName $ namedThing e
@@ -1172,11 +1154,6 @@ checkExpr' cmp e t =
             noFunctionsIntoSize t0 t'
             let s = getSort t'
                 v = unEl t'
-            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
-              vcat [ text ("reduced to omega:")
-                   , nest 2 $ "t   =" <+> prettyTCM t'
-                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
-                   ]
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
@@ -1184,11 +1161,6 @@ checkExpr' cmp e t =
             noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'
-            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
-              vcat [ text ("reduced to omega:")
-                   , nest 2 $ "t   =" <+> prettyTCM t'
-                   , nest 2 $ "cxt =" <+> (prettyTCM =<< getContextTelescope)
-                   ]
             coerce cmp v (sort s) t
 
         A.Fun _ (Arg info a) b -> do
@@ -1199,11 +1171,6 @@ checkExpr' cmp e t =
             let v = Pi adom (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce cmp v (sort s) t
-        A.Set _ n    -> do
-          coerce cmp (Sort $ mkType n) (sort $ mkType $ n + 1) t
-        A.Prop _ n   -> do
-          unlessM isPropEnabled $ typeError NeedOptionProp
-          coerce cmp (Sort $ mkProp n) (sort $ mkType $ n + 1) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
 
@@ -1293,8 +1260,6 @@ checkExpr' cmp e t =
       A.Lit{}        -> True
       A.Pi{}         -> True
       A.Fun{}        -> True
-      A.Set{}        -> True
-      A.Prop{}       -> True
       A.Rec{}        -> True
       A.RecUpdate{}  -> True
       A.ScopedExpr{} -> __IMPOSSIBLE__
@@ -1528,7 +1493,7 @@ inferExpr' exh e = traceCall (InferExpr e) $ do
 
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True
-defOrVar A.Def{} = True
+defOrVar A.Def'{} = True
 defOrVar A.Proj{} = True
 defOrVar (A.ScopedExpr _ e) = defOrVar e
 defOrVar _     = False

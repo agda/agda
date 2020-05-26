@@ -1,6 +1,4 @@
-Issue1015OnlyRecord.agda:13,1-14,24
-Termination checking failed for the following functions:
-  inh
-Problematic calls:
-  inh j
-    (at Issue1015OnlyRecord.agda:14,19-22)
+Issue1015OnlyRecord.agda:14,1-16
+Copattern matching is disabled for record R
+when checking the clause left hand side
+force (inh i) j

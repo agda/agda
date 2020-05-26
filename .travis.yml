@@ -4,11 +4,10 @@
 # NB: don't set `language: haskell` here.
 language: c
 
-# Request Ubuntu Trusty (14.04 LTS).
-dist: trusty
+os: linux
 
-# Explicitly request sudo-enabled virtual environments [Issue #1992].
-sudo: required
+# Request Ubuntu Xenial (16.04 LTS).
+dist: xenial
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
@@ -17,7 +16,7 @@ sudo: required
 
 branches:
   only:
-    - imports
+    - monoid
     - master
     - future
     - maint-2.4
@@ -53,7 +52,7 @@ jobs:
   include:
     - stage: compilation
       env:
-        GHC_VER=8.8.3
+        GHC_VER=8.10.1
       cache:
         directories:
           - $HOME/.stack
@@ -90,12 +89,12 @@ jobs:
       stage: main
       name: "Bug, successful, and failing tests"
       env:
-        GHC_VER=8.8.3
+        GHC_VER=8.10.1
       addons:
         apt:
           packages:
-            - ghc-8.8.3
-            - cabal-install-3.0
+            - ghc-8.10.1
+            - cabal-install-3.2
             - texlive-binaries
             - librsvg2-bin
           sources:
@@ -151,7 +150,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-interaction
     - <<: *main-job
-      name: "Compiler tests, benchmark, and other test suites"
+      name: "Compiler tests, benchmark summary, and other test suites"
       git:
         submodules: true
       script:
@@ -165,6 +164,7 @@ jobs:
         - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
         - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
         - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
+        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-summary
         - travis_retry cabal v1-update
         - ${MAKE_CMD} TAGS
         # Build & install size-solver
@@ -178,7 +178,7 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.3 CABAL_VER=3.0
+      env: GHC_VER=8.10.1 CABAL_VER=3.2
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
@@ -210,6 +210,7 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
         - make BUILD_DIR=$BUILD_DIR benchmark-without-logs
+        - make BUILD_DIR=$BUILD_DIR benchmark-summary
 
         ##################################################################################
         # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
@@ -225,6 +226,8 @@ jobs:
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
 
+    - <<: *complete-job
+      env: GHC_VER=8.8.3 CABAL_VER=3.2
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
     - <<: *complete-job

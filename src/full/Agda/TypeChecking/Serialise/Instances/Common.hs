@@ -2,9 +2,8 @@
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Prelude hiding (mapM)
-
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State.Strict (gets, modify)
 
 
@@ -26,7 +25,6 @@ import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text.Lazy (Text)
-import Data.Traversable ( mapM )
 import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -45,17 +43,12 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Empty (Empty)
+import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
-
-
-import Agda.Utils.Except
-
-import Agda.Utils.Empty (Empty)
-import qualified Agda.Utils.Empty as Empty
-
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -152,11 +145,11 @@ instance EmbPrj Bool where
     valu _   = malformed
 
 instance EmbPrj FileType where
-  icod_ AgdaFileType = icodeN' IsData
-  icod_ MdFileType   = icodeN 0 IsRecord
-  icod_ RstFileType  = icodeN 1 IsRecord
-  icod_ TexFileType  = icodeN 2 IsRecord
-  icod_ OrgFileType  = icodeN 3 IsRecord
+  icod_ AgdaFileType = icodeN'  AgdaFileType
+  icod_ MdFileType   = icodeN 0 MdFileType
+  icod_ RstFileType  = icodeN 1 RstFileType
+  icod_ TexFileType  = icodeN 2 TexFileType
+  icod_ OrgFileType  = icodeN 3 OrgFileType
 
   value = vcase $ \case
     []  -> valuN AgdaFileType
@@ -164,15 +157,6 @@ instance EmbPrj FileType where
     [1] -> valuN RstFileType
     [2] -> valuN TexFileType
     [3] -> valuN OrgFileType
-    _   -> malformed
-
-instance EmbPrj DataOrRecord where
-  icod_ IsData   = icodeN' IsData
-  icod_ IsRecord = icodeN 0 IsRecord
-
-  value = vcase $ \case
-    []  -> valuN IsData
-    [0] -> valuN IsRecord
     _   -> malformed
 
 instance EmbPrj AbsolutePath where
@@ -433,14 +417,16 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
   value = valueN Arg
 
-instance EmbPrj HasEta where
-  icod_ YesEta = icodeN' YesEta
-  icod_ NoEta  = icodeN 1 NoEta
+instance EmbPrj a => EmbPrj (HasEta' a) where
+  icod_ YesEta    = icodeN' YesEta
+  icod_ (NoEta a) = icodeN' NoEta a
 
   value = vcase valu where
     valu []  = valuN YesEta
-    valu [1] = valuN NoEta
+    valu [a] = valuN NoEta a
     valu _   = malformed
+
+instance EmbPrj PatternOrCopattern
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive
