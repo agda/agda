@@ -1368,7 +1368,7 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     (,,) <$> ps <*> rhsTy <*> rhs
 
   let (ps,ty,rhs) = unAbsN $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
-  return $ Clause { clauseTel = cTel
+  let cl = Clause { clauseTel = cTel
                   , namedClausePats = ps
                   , clauseBody = Just rhs
                   , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
@@ -1380,6 +1380,8 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
                   , clauseEllipsis = NoEllipsis
                   }
 
+  debugClause "tc.cover.trxcon" cl
+  return cl
 
 -- | If given @TheInfo{}@ then assumes "x : Id u v" and
 --   returns both a @SplittingDone@ for conId, and the @Clause@ that covers it.

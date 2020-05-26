@@ -660,7 +660,7 @@ defineTranspIx d = do
         , "nixs :" <+> pretty nixs
         ]
       if nixs == 0 then return Nothing else do
-      trIx <- freshAbstractQName'_ $ "transpIx" ++ P.prettyShow (A.qnameName d)
+      trIx <- freshAbstractQName'_ $ "transpX-" ++ P.prettyShow (A.qnameName d)
       TelV params t' <- telViewUpTo npars t
       TelV ixs    dT <- telViewUpTo nixs t'
       -- params     ⊢ s
