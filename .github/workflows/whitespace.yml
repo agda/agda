@@ -4,20 +4,32 @@ on: [push, pull_request]
 jobs:
   check:
     runs-on: ubuntu-16.04
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1]
+
     steps:
       - uses: actions/checkout@v2
 
       - uses: actions/setup-haskell@v1.1
         with:
-          ghc-version: '8.10.1'
-          cabal-version: '3.2'
+          ghc-version: ${{ matrix.ghc-ver }}
+
+      - uses: actions/cache@v1
+        name: Cache dependencies
+        with:
+          path: "~/.stack"
+          key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+
       - name: Install fix-whitespace
         run: |
           cabal update
           git submodule update --init src/fix-whitespace
           cd src/fix-whitespace/
-          cabal install
+          stack --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc install
           cd ../..
       - name: Check the whitespace issue
         run: |
-          $HOME/.cabal/bin/fix-whitespace --check
+          $HOME/.local/bin/fix-whitespace --check
