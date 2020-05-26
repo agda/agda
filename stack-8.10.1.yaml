@@ -7,6 +7,7 @@ extra-deps:
 - bifunctors-5.5.7
 - blaze-html-0.9.1.2
 - boxes-0.1.5
+- case-insensitive-1.2.1.0
 - data-hash-0.2.0.1
 - edit-distance-0.2.2.1
 - equivalence-0.3.5

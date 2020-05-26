@@ -20,6 +20,7 @@ import Prelude hiding ( null )
 
 import Control.Monad.Except
 
+import qualified Data.CaseInsensitive as CaseInsens
 import Data.Function
 import Data.List (sortBy, dropWhileEnd)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -700,12 +701,23 @@ instance PrettyTCM TypeError where
              pwords "in any of the following locations:"
            ) $$ nest 2 (vcat $ map (text . filePath) files)
 
-    OverlappingProjects f m1 m2 ->
-      fsep ( pwords "The file" ++ [text (filePath f)] ++
+    OverlappingProjects f m1 m2
+      | canon d1 == canon d2 -> fsep $ concat
+          [ pwords "Case mismatch when accessing file"
+          , [ text $ filePath f ]
+          , pwords "through module name"
+          , [ pure d2 ]
+          ]
+      | otherwise -> fsep
+           ( pwords "The file" ++ [text (filePath f)] ++
              pwords "can be accessed via several project roots. Both" ++
-             [pretty m1] ++ pwords "and" ++ [pretty m2] ++
+             [ pure d1 ] ++ pwords "and" ++ [ pure d2 ] ++
              pwords "point to this file."
            )
+      where
+      canon = CaseInsens.mk . P.render
+      d1 = P.pretty m1
+      d2 = P.pretty m2
 
     AmbiguousTopLevelModuleName x files ->
       fsep ( pwords "Ambiguous module name. The module name" ++
