@@ -3,12 +3,16 @@
 #
 # The extended glob pattern can be used to specify file/direcotory names.
 # For details, see http://hackage.haskell.org/package/filemanip-0.3.6.3/docs/System-FilePath-GlobPattern.html
-# Every matched directory is not included unless it is matched by included-dirs.
+#
+# By default, fix-whitespace checks every directory under the current working directory
+#
+#
+# Every directory matched by excluded-dirs is excluded unless it is included by included-dirs.
 included-dirs:
-  - src/full/Agda/Compiler/MAlonzo
+  - src/full/Agda/Compiler/MAlonzo # Without this line it will be excluded.
 
 excluded-dirs:
-  - "**MAlonzo" # matches every MAlonzo in any directory
+  - "**MAlonzo" # matches every MAlonzo in any directory including the src/full/Agda/Compiler/MAlonzo
   - "**dist*"   # matches every dist* in any directory
   - .stack-work
   - _darcs
