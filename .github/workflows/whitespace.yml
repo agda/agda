@@ -10,12 +10,12 @@ jobs:
         with:
           ghc-version: '8.10.1'
           cabal-version: '3.2'
-      - name: Install fix-agda-whitespace
+      - name: Install fix-whitespace
         run: |
           cabal update
-          cd src/fix-agda-whitespace/
+          cd src/fix-whitespace/
           cabal install
           cd ../..
       - name: Check the whitespace issue
         run: |
-          $HOME/.cabal/bin/fix-agda-whitespace --check
+          $HOME/.cabal/bin/fix-whitespace --check
