@@ -1159,8 +1159,7 @@ niceDeclarations fixs ds = do
         Infix _ _  -> return ([], ds)
         Syntax _ _ -> return ([], ds)
 
-        PatternSyn r n as p -> do
-          return ([NicePatternB r [NicePatternSyn r PublicAccess n as p]] , ds)
+        PatternSyn r n as p -> __IMPOSSIBLE__
         Open r x is         -> return ([NiceOpen r x is] , ds)
         Import r x as op is -> return ([NiceImport r x as op is] , ds)
 
