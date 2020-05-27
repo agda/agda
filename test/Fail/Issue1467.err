@@ -1,4 +1,12 @@
-Issue1467.agda:25,14-19
-(D → D) × D != D → D of type Set
-when checking that the expression bar H has type
-P (foo (λ A → (A → A) × A))
+Failed to solve the following constraints:
+  foo _24 = foo _24 : _24 D
+  _24 D = D → D : Set
+  foo _24 d
+    = fst (foo (λ A → (A → A) × A)) (snd (foo (λ A → (A → A) × A)))
+    : D
+  _24 D =< D → D
+Unsolved metas at the following locations:
+  Issue1467.agda:24,11-12
+  Issue1467.agda:25,6-11
+  Issue1467.agda:25,14-19
+  Issue1467.agda:25,3-20

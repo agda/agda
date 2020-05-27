@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  tt = _b_38
+  tt = _b_35
     : (λ { true → ⊤ ; false → ⊥ }) (test true (c (_b_21 (n = true))))
   ⊥ =< (λ { true → ⊤ ; false → ⊥ })
        (test false (c (_b_21 (n = false))))

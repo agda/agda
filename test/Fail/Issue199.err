@@ -3,5 +3,5 @@ I'm not sure if there should be a case for the constructor p,
 because I get stuck when trying to solve the following unification
 problems (inferred index ≟ expected index):
   {D} ≟ {_T_13}
-  d ≟ _15
-when checking that the pattern p _ has type P _15
+  d ≟ _14
+when checking that the pattern p _ has type P _14

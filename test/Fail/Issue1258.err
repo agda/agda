@@ -1,4 +1,5 @@
 Failed to solve the following constraints:
+  Alpha = false : Foo Alpha
   Foo _15 = Bool : Set
   Bool =< Foo _15
 Unsolved metas at the following locations:
