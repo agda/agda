@@ -1302,15 +1302,17 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
 
 -- Pattern synonyms.
 PatternSyn :: { Declaration }
-PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
-  p <- exprToPattern $5
-  return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
-  }
+PatternSyn : 'pattern' Declarations0 { PatternSyn (fuseRange $1 $2) $2 }
 
-PatternSynArgs :: { [Arg Name] }
-PatternSynArgs
-  : {- empty -} { [] }
-  | LamBinds    {% patternSynArgs (List1.toList $1) }
+-- PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
+--   p <- exprToPattern $5
+--   return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
+--   }
+
+-- PatternSynArgs :: { [Arg Name] }
+-- PatternSynArgs
+--   : {- empty -} { [] }
+--   | LamBinds    {% patternSynArgs (List1.toList $1) }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
@@ -2230,16 +2232,16 @@ maybeNamed e =
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
-patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
-patternSynArgs = mapM pSynArg
-  where
-    pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
-    pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
-    pSynArg (Right (DomainFree x))
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden]
-         = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+-- patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
+-- patternSynArgs = mapM pSynArg
+--   where
+--     pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
+--     pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
+--     pSynArg (Right (DomainFree x))
+--       | let h = getHiding x, h `notElem` [Hidden, NotHidden]
+--          = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
+--       | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
+--       | otherwise          = return $ fmap (boundName . binderName . namedThing) x
 
 mkLamClause
   :: Bool   -- ^ Catch-all?

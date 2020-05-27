@@ -397,7 +397,7 @@ data Declaration
     --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
-  | PatternSyn  Range Name [Arg Name] Pattern
+  | PatternSyn  Range [Declaration]
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]

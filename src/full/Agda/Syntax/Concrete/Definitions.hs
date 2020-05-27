@@ -192,6 +192,7 @@ data DeclarationWarning
   | EmptyInstance Range   -- ^ Empty @instance@  block
   | EmptyMacro Range      -- ^ Empty @macro@     block.
   | EmptyMutual Range     -- ^ Empty @mutual@    block.
+  | EmptyPattern Range    -- ^ Empty @pattern@   block.
   | EmptyPostulate Range  -- ^ Empty @postulate@ block.
   | EmptyPrivate Range    -- ^ Empty @private@   block.
   | EmptyPrimitive Range  -- ^ Empty @primitive@ block.
@@ -244,6 +245,7 @@ declarationWarningName = \case
   EmptyMacro{}                      -> EmptyMacro_
   EmptyMutual{}                     -> EmptyMutual_
   EmptyPrivate{}                    -> EmptyPrivate_
+  EmptyPattern{}                    -> EmptyPattern_
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyPrimitive{}                  -> EmptyPrimitive_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
@@ -277,6 +279,7 @@ unsafeDeclarationWarning = \case
   EmptyMacro{}                      -> False
   EmptyMutual{}                     -> False
   EmptyPrivate{}                    -> False
+  EmptyPattern{}                    -> False
   EmptyPostulate{}                  -> False
   EmptyPrimitive{}                  -> False
   InvalidCatchallPragma{}           -> False
@@ -306,6 +309,7 @@ data KindOfBlock
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
+  | PatternBlock    -- ^ @pattern@
   deriving (Data, Eq, Ord, Show)
 
 
@@ -337,6 +341,7 @@ instance HasRange DeclarationWarning where
   getRange (EmptyPrivate r)                     = r
   getRange (EmptyInstance r)                    = r
   getRange (EmptyMacro r)                       = r
+  getRange (EmptyPattern r)                     = r
   getRange (EmptyPostulate r)                   = r
   getRange (EmptyGeneralize r)                  = r
   getRange (EmptyPrimitive r)                   = r
@@ -460,6 +465,7 @@ instance Pretty DeclarationWarning where
   pretty (EmptyPrivate   _)  = fsep $ pwords "Empty private block."
   pretty (EmptyInstance  _)  = fsep $ pwords "Empty instance block."
   pretty (EmptyMacro     _)  = fsep $ pwords "Empty macro block."
+  pretty (EmptyPattern   _)  = fsep $ pwords "Empty pattern block."
   pretty (EmptyPostulate _)  = fsep $ pwords "Empty postulate block."
   pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
   pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
@@ -1127,6 +1133,10 @@ niceDeclarations fixs ds = do
         Macro r ds' ->
           (,ds) <$> (macroBlock r =<< nice ds')
 
+        Pattern r [] -> justWarning $ EmptyPattern r
+        Pattern r ds' ->
+          (,ds) <$> (patternBlock r =<< nice ds')
+
         Postulate r []  -> justWarning $ EmptyPostulate r
         Postulate _ ds' ->
           (,ds) <$> niceAxioms PostulateBlock ds'
@@ -1739,6 +1749,24 @@ niceDeclarations fixs ds = do
         FunSig r p a i _ rel tc cc x e -> return $ FunSig r p a i MacroDef rel tc cc x e
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
+
+    -- Check:
+    -- LHS is just variables
+    -- RHS is a pattern
+    patternBlock :: Range -> [NiceDeclaration] -> Nice [NiceDeclaration]
+    patternBlock r (NiceFunClause r p a tc cc catchall (FunClause (LHS pat [] [] NoEllipsis) rhs NoWhere _) : ds) =  -- Untyped
+        args <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
+          (IdentP (QName n)) -> n
+          _ -> throwError $ WrongContentBlock PatternBlock $ getRange p
+          -- TODO: find better error
+        ds' <- patternBlock r ds
+        return (NicePatternSyn r p name pats rhs : ds')
+    patternBlock r (FunSig{} : FunDef{} : ds) =  -- Typed
+        patternBlock r ds
+        -- TODO: don't ignore
+    patternBlock r [] = return []
+    patternBlock r (d : _) =
+        throwError $ WrongContentBlock PatternBlock $ getRange d
 
 -- | Make a declaration abstract.
 --
