@@ -31,6 +31,7 @@
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
+    , NicePatternSyn(..)
     , NiceConstructor, NiceTypeSignature
     , Clause(..)
     , DeclarationException(..)

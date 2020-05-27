@@ -230,7 +230,7 @@ recordConstructorType decls =
         C.FunDef{}            -> failure
         C.NiceDataDef{}       -> failure
         C.NiceRecDef{}        -> failure
-        C.NicePatternSyn{}    -> failure
+        C.NicePatternB{}      -> failure
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
@@ -1918,7 +1918,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternSyn r a n as p -> do
+    NicePatternB r ps -> fmap join $ forM ps $ \ (NicePatternSyn r a n as p) -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
