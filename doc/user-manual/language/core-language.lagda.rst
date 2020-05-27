@@ -13,20 +13,20 @@ file. A declaration introduces a new identifier and gives its type and
 definition. It is possible to declare:
 
 * :ref:`datatypes <data-types>`
+* :ref:`record types <record-types>` (including
+  :ref:`coinductive records <copatterns-coinductive-records>`)
 * :ref:`function definitions <function-definitions>`
   (including :ref:`mixfix operators <mixfix-operators>` and
   :ref:`abstract definitions <abstract-definitions>`)
+* :ref:`modules <module-basics>`
 * local definitions :ref:`let <let-expressions>` and
   :ref:`where <where-blocks>`
-* :ref:`record types <record-types>` (including
-  :ref:`coinductive records <copatterns-coinductive-records>`)
-* :ref:`modules <module-basics>`
 * :ref:`postulates <postulates>`
 * :ref:`variables <generalization-of-declared-variables>`
-* :ref:`pragmas <pragmas>`
+* :ref:`pattern-synonyms <pattern-synonyms>`
+* :ref:`precedence <precedence>` (fixity)
+* :ref:`pragmas <pragmas>`, and
 * :ref:`program options <command-line-options>`
-* :ref:`pattern-synonyms <pattern-synonyms>`, and
-* :ref:`precedence <precedence>` (fixity).
 
 Declarations have a signature part and a definition part. These can appear
 separately in the program. Names must be declared before they are used, but
@@ -43,9 +43,12 @@ is as follows:
 
   a ::= x                       -- variable
       | λ x → a                 -- abstraction
+      | ?                       -- literal
+      | def ?                   -- definition
       | a a                     -- application
       | (x : a) → a             -- function space
-      | Set[n]                  -- universe
+      | Set[n]                  -- universe with polymorphism
+      | Setω[n]                 -- universe without polymorphism
       | (a)                     -- grouping
 
 
@@ -142,7 +145,7 @@ This is the final stage of syntax before being handed off to one of the
 backends. Terms are well-scoped and well-typed.
 
 The internal syntax ``Agda.Syntax.Internal`` uses the following haskell
-datatype to represent a ``Term``.
+datatype to represent the grammar of a ``Term`` presented above.
 
 .. code-block:: haskell
 
@@ -158,17 +161,6 @@ datatype to represent a ``Term``.
           | Sort Sort
           | Level Level
           | MetaV {-# UNPACK #-} !MetaId Elims
-          | DontCare Term
-            -- ^ Irrelevant stuff in relevant position, but created
-            --   in an irrelevant context.  Basically, an internal
-            --   version of the irrelevance axiom @.irrAx : .A -> A@.
-          | Dummy String Elims
-            -- ^ A (part of a) term or type which is only used for internal purposes.
-            --   Replaces the @Sort Prop@ hack.
-            --   The @String@ typically describes the location where we create this dummy,
-            --   but can contain other information as well.
-            --   The second field accumulates eliminations in case we
-            --   apply a dummy term to more of them.
 
 Treeless Syntax
 ---------------
