@@ -220,6 +220,7 @@ instance ExprLike Declaration where
      Record r n ind eta pat c tel e ds  -> Record r n ind eta pat c (mapE tel) (mapE e) $ mapE ds
      e@Infix{}                 -> e
      e@Syntax{}                -> e
+     e@PatternB{}          -> e
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds

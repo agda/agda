@@ -518,6 +518,7 @@ instance Pretty Declaration where
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
+            PatternB _ ds -> namedBlock "pattern" ds
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds

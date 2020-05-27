@@ -1137,7 +1137,7 @@ Declaration
     | Module        { [$1] }
     | Pragma        { [$1] }
     | Syntax        { [$1] }
-    | PatternSyn    { [$1] }
+    | PatternB  { [$1] }
     | UnquoteDecl   { [$1] }
 
 
@@ -1301,18 +1301,8 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
 }
 
 -- Pattern synonyms.
-PatternSyn :: { Declaration }
-PatternSyn : 'pattern' Declarations0 { PatternSyn (fuseRange $1 $2) $2 }
-
--- PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
---   p <- exprToPattern $5
---   return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
---   }
-
--- PatternSynArgs :: { [Arg Name] }
--- PatternSynArgs
---   : {- empty -} { [] }
---   | LamBinds    {% patternSynArgs (List1.toList $1) }
+PatternB :: { Declaration }
+PatternB : 'pattern' Declarations0 { PatternB (fuseRange $1 $2) $2 }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }

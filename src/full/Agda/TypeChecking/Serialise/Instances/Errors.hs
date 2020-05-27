@@ -156,6 +156,7 @@ instance EmbPrj DeclarationWarning where
     InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
     OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
+    EmptyPattern r                    -> icodeN 28 EmptyPattern r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a

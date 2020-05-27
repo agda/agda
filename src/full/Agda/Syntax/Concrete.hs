@@ -397,7 +397,9 @@ data Declaration
     --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
-  | PatternSyn  Range [Declaration]
+  | PatternB    Range [Declaration]
+  | PatternSyn  Range Name [Arg Name] Pattern
+  -- | PatternTyped Range Name
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
@@ -760,6 +762,7 @@ instance HasRange Declaration where
   getRange (Module r _ _ _)        = r
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
+  getRange (PatternB r _)      = r
   getRange (PatternSyn r _ _ _)    = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
@@ -886,6 +889,7 @@ instance KillRange Declaration where
   killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
+  killRange (PatternB _ d)      = killRange1 (PatternB noRange) d
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
@@ -1092,6 +1096,7 @@ instance NFData Declaration where
   rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
+  rnf (PatternB _ a)      = rnf a
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
   rnf (Abstract _ a)          = rnf a

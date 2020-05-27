@@ -149,6 +149,7 @@ data WarningName
   | EmptyInstance_
   | EmptyMacro_
   | EmptyMutual_
+  | EmptyPattern_
   | EmptyPostulate_
   | EmptyPrimitive_
   | EmptyPrivate_
@@ -288,6 +289,7 @@ warningNameDescription = \case
   EmptyInstance_                   -> "Empty `instance' blocks."
   EmptyMacro_                      -> "Empty `macro' blocks."
   EmptyMutual_                     -> "Empty `mutual' blocks."
+  EmptyPattern_                    -> "Empty `pattern' blocks."
   EmptyPostulate_                  -> "Empty `postulate' blocks."
   EmptyPrimitive_                  -> "Empty `primitive' blocks."
   EmptyPrivate_                    -> "Empty `private' blocks."

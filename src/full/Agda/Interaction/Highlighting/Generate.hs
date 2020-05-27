@@ -458,6 +458,7 @@ warningHighlighting w = case tcWarning w of
     EmptyInstance{}                  -> deadcodeHighlighting $ getRange w
     EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
     EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
+    EmptyPattern{}                   -> deadcodeHighlighting $ getRange w
     EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
     EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
     EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w

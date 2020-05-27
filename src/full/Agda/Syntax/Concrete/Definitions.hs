@@ -140,10 +140,13 @@ data NiceDeclaration
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name (Maybe (Ranged Induction)) (Maybe HasEta0)
       (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
-  | NicePatternSyn Range Access Name [Arg Name] Pattern
+  | NicePatternB Range [NicePatternSyn]
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
+  deriving (Data, Show)
+
+data NicePatternSyn = NicePatternSyn Range Access Name [Arg Name] Pattern
   deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -373,7 +376,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceRecDef r _ _ _ _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _)    = r
   getRange (NiceDataSig r _ _ _ _ _ _ _)   = r
-  getRange (NicePatternSyn r _ _ _ _)      = r
+  getRange (NicePatternB r _)              = r
   getRange (NiceGeneralize r _ _ _ _ _)    = r
   getRange (NiceFunClause r _ _ _ _ _ _)   = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
@@ -397,7 +400,7 @@ instance Pretty NiceDeclaration where
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
     NiceRecDef _ _ _ _ _ x _ _ _ _ _ _ -> text "record" <+> pretty x <+> text "where"
-    NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
+    NicePatternB{}                 -> text "pattern"
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x
     NiceUnquoteDecl _ _ _ _ _ _ xs _ -> text "<unquote declarations>"
     NiceUnquoteDef _ _ _ _ _ xs _    -> text "<unquote definitions>"
@@ -502,7 +505,7 @@ declName NiceOpen{}          = "Open declarations"
 declName NiceImport{}        = "Import statements"
 declName NicePragma{}        = "Pragmas"
 declName PrimitiveFunction{} = "Primitive declarations"
-declName NicePatternSyn{}    = "Pattern synonyms"
+declName NicePatternB{}      = "Pattern synonyms"
 declName NiceGeneralize{}    = "Generalized variables"
 declName NiceUnquoteDecl{}   = "Unquoted declarations"
 declName NiceUnquoteDef{}    = "Unquoted definitions"
@@ -858,7 +861,7 @@ declKind NiceOpen{}                         = OtherDecl
 declKind NiceImport{}                       = OtherDecl
 declKind NicePragma{}                       = OtherDecl
 declKind NiceFunClause{}                    = OtherDecl
-declKind NicePatternSyn{}                   = OtherDecl
+declKind NicePatternB{}                   = OtherDecl
 declKind NiceGeneralize{}                   = OtherDecl
 declKind NiceUnquoteDecl{}                  = OtherDecl
 
@@ -1133,9 +1136,10 @@ niceDeclarations fixs ds = do
         Macro r ds' ->
           (,ds) <$> (macroBlock r =<< nice ds')
 
-        Pattern r [] -> justWarning $ EmptyPattern r
-        Pattern r ds' ->
-          (,ds) <$> (patternBlock r =<< nice ds')
+        PatternB r [] -> justWarning $ EmptyPattern r
+        PatternB r ds' -> do
+          ps <- patternBlock r =<< nice ds'
+          return ([NicePatternB r ps], ds)
 
         Postulate r []  -> justWarning $ EmptyPostulate r
         Postulate _ ds' ->
@@ -1156,7 +1160,7 @@ niceDeclarations fixs ds = do
         Syntax _ _ -> return ([], ds)
 
         PatternSyn r n as p -> do
-          return ([NicePatternSyn r PublicAccess n as p] , ds)
+          return ([NicePatternB r [NicePatternSyn r PublicAccess n as p]] , ds)
         Open r x is         -> return ([NiceOpen r x is] , ds)
         Import r x as op is -> return ([NiceImport r x as op is] , ds)
 
@@ -1538,7 +1542,7 @@ niceDeclarations fixs ds = do
             -- Andreas, 2018-10-29: We shift pattern synonyms to the bottom
             -- since they might refer to constructors defined in a data types
             -- just above them.
-            NicePatternSyn{}    -> bottom
+            NicePatternB{}      -> bottom
             NiceGeneralize{}    -> top
             NiceUnquoteDecl{}   -> top
             NiceUnquoteDef{}    -> bottom
@@ -1642,7 +1646,7 @@ niceDeclarations fixs ds = do
         termCheck NiceFunClause{}     = TerminationCheck
         termCheck NiceDataDef{}       = TerminationCheck
         termCheck NiceRecDef{}        = TerminationCheck
-        termCheck NicePatternSyn{}    = TerminationCheck
+        termCheck NicePatternB{}      = TerminationCheck
         termCheck NiceGeneralize{}    = TerminationCheck
 
         covCheck :: NiceDeclaration -> CoverageCheck
@@ -1665,7 +1669,7 @@ niceDeclarations fixs ds = do
         covCheck NiceFunClause{}     = YesCoverageCheck
         covCheck NiceDataDef{}       = YesCoverageCheck
         covCheck NiceRecDef{}        = YesCoverageCheck
-        covCheck NicePatternSyn{}    = YesCoverageCheck
+        covCheck NicePatternB{}      = YesCoverageCheck
         covCheck NiceGeneralize{}    = YesCoverageCheck
 
         -- ASR (26 December 2015): Do not positivity check a mutual
@@ -1718,6 +1722,10 @@ niceDeclarations fixs ds = do
         FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance r0 i
         NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance r0 i
         NiceMutual r tc cc pc ds        -> NiceMutual r tc cc pc <$> mapM (mkInstance r0) ds
+        NicePatternB r ds               -> NicePatternB r <$> mapM (mkInstancePatternSyn r0) ds
+          where
+          mkInstancePatternSyn :: Range -> Updater NicePatternSyn
+          mkInstancePatternSyn r0 d@(NicePatternSyn r p n args pat) = return d
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
@@ -1732,7 +1740,6 @@ niceDeclarations fixs ds = do
         d@NiceImport{}                 -> return d
         d@NiceDataDef{}                -> return d
         d@NiceRecDef{}                 -> return d
-        d@NicePatternSyn{}             -> return d
         d@NiceGeneralize{}             -> return d
 
     setInstance
@@ -1753,14 +1760,18 @@ niceDeclarations fixs ds = do
     -- Check:
     -- LHS is just variables
     -- RHS is a pattern
-    patternBlock :: Range -> [NiceDeclaration] -> Nice [NiceDeclaration]
-    patternBlock r (NiceFunClause r p a tc cc catchall (FunClause (LHS pat [] [] NoEllipsis) rhs NoWhere _) : ds) =  -- Untyped
-        args <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
-          (IdentP (QName n)) -> n
+    patternBlock :: Range -> [NiceDeclaration] -> Nice [NicePatternSyn]
+    patternBlock _ (NiceFunClause r p _ tc cc catchall (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) : ds) = do  -- Untyped
+        nameargs <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
+          (IdentP (QName n)) -> pure n
           _ -> throwError $ WrongContentBlock PatternBlock $ getRange p
           -- TODO: find better error
+        let name : args = nameargs
         ds' <- patternBlock r ds
-        return (NicePatternSyn r p name pats rhs : ds')
+        rhs' <- case isPattern rhs of
+          Just pat -> pure pat
+          Nothing -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
+        return $ NicePatternSyn r p (unArg name) args rhs' : ds'
     patternBlock r (FunSig{} : FunDef{} : ds) =  -- Typed
         patternBlock r ds
         -- TODO: don't ignore
@@ -1821,7 +1832,7 @@ instance MakeAbstract NiceDeclaration where
         whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicAbstract
         return d
       d@NiceImport{}                 -> return d
-      d@NicePatternSyn{}             -> return d
+      d@NicePatternB{}               -> return d
       d@NiceGeneralize{}             -> return d
 
 instance MakeAbstract Clause where
@@ -1874,7 +1885,7 @@ instance MakePrivate NiceDeclaration where
       NiceFunClause r p a tc cc catchall d     -> (\ p -> NiceFunClause r p a tc cc catchall d) <$> mkPrivate o p
       NiceUnquoteDecl r p a i tc cc x e        -> (\ p -> NiceUnquoteDecl r p a i tc cc x e)    <$> mkPrivate o p
       NiceUnquoteDef r p a tc cc x e           -> (\ p -> NiceUnquoteDef r p a tc cc x e)       <$> mkPrivate o p
-      NicePatternSyn r p x xs p'               -> (\ p -> NicePatternSyn r p x xs p')           <$> mkPrivate o p
+      NicePatternB r ps                        -> NicePatternB r <$> mkPrivate o ps
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
       d@NicePragma{}                           -> return d
       d@(NiceOpen _ _ directives)              -> do
@@ -1886,6 +1897,10 @@ instance MakePrivate NiceDeclaration where
       FunDef r ds a i tc cc x cls              -> FunDef r ds a i tc cc x <$> mkPrivate o cls
       d@NiceDataDef{}                          -> return d
       d@NiceRecDef{}                           -> return d
+
+instance MakePrivate NicePatternSyn where
+  mkPrivate o (NicePatternSyn r p x xs p') =
+    (\ p -> NicePatternSyn r p x xs p') <$> mkPrivate o p
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -1926,7 +1941,10 @@ notSoNiceDeclarations = \case
     FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x i e p c bs ds -> [RecordDef r x i e p c bs ds]
-    NicePatternSyn r _ n as p      -> [PatternSyn r n as p]
+    NicePatternB r ps              -> [PatternB r (map notSoNicePatternSyn ps)]
+      where
+      notSoNicePatternSyn :: NicePatternSyn -> Declaration
+      notSoNicePatternSyn (NicePatternSyn r _ n as pat) = PatternSyn r n as pat
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
@@ -1953,7 +1971,7 @@ niceHasAbstract = \case
     FunDef _ _ a _ _ _ _ _        -> Just a
     NiceDataDef _ _ a _ _ _ _ _   -> Just a
     NiceRecDef _ _ a _ _ _ _ _ _ _ _ _ -> Just a
-    NicePatternSyn{}              -> Nothing
+    NicePatternB{}                -> Nothing
     NiceGeneralize{}              -> Nothing
     NiceUnquoteDecl _ _ a _ _ _ _ _ -> Just a
     NiceUnquoteDef _ _ a _ _ _ _    -> Just a

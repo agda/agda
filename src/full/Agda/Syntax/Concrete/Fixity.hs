@@ -152,6 +152,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
+  PatternB _ ds' -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -219,6 +220,7 @@ declaredNames d = case d of
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x
+  PatternB _ ds    -> foldMap declaredNames ds
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
