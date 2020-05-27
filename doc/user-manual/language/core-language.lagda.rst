@@ -36,19 +36,19 @@ in :ref:`mutual recursion <mutual-recursion>`.
 Grammar
 -------
 
-At its core, Agda is a dependently typed lambda calculus. The grammar of terms
-is as follows:
+At its core, Agda is a dependently typed lambda calculus. The grammar of
+terms where ``a`` represents a generic term is:
 
 .. code-block:: text
 
   a ::= x                       -- variable
-      | λ x → a                 -- abstraction
-      | ?                       -- literal
-      | def ?                   -- definition
+      | λ x → a                 -- lambda abstraction
+      | f                       -- defined function
       | a a                     -- application
       | (x : a) → a             -- function space
-      | Set[n]                  -- universe with polymorphism
-      | Setω[n]                 -- universe without polymorphism
+      | F                       -- data/record type
+      | c a                     -- data/record constructor
+      | s                       -- sort Seti, Setω+i
       | (a)                     -- grouping
 
 
