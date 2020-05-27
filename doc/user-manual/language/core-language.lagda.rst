@@ -70,7 +70,8 @@ of interpretation:
 * **Internal**, the full-intepreted core Agda terms, typechecked; roughly
   corresponding to (Agda.Syntax.Internal).
 
-The full pipeline from an ``*.agda`` file towards an executable is:
+The process of translating an ``*.agda`` file into an executable has several
+stages:
 
 .. code-block:: text
 
@@ -86,7 +87,11 @@ The full pipeline from an ``*.agda`` file towards an executable is:
      ==[ Agda.Compiler.ToTreeless ]==>
   Treeless syntax
      ==[ different backends (Compiler.MAlonzo.*, Compiler.JS.*, ...) ]==>
+  Source code
+     ==[ different compilers (GHC compiler, ...) ]==>
   Executable
+
+The following sections describe these stages in more detail:
 
 Lexer
 -----
