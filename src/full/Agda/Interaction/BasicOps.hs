@@ -138,7 +138,12 @@ giveExpr force mii mi e = do
             [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
             , prettyTCM t'
             ]
-        v <- checkExpr e t'
+        -- Andreas, 2020-05-27 AIM XXXII, issue #4679
+        -- Clear envMutualBlock since cubical only executes
+        -- certain checks (checkIApplyConfluence) for an extended lambda
+        -- when not in a mutual block.
+        v <- locallyTC eMutualBlock (const Nothing) $
+          checkExpr e t'
         case mvInstantiation mv of
 
           InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC getRelevance) $ do
