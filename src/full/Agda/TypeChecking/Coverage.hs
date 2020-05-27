@@ -932,18 +932,18 @@ fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
       ]
 
     -- We update the target quantity to 0 for erased constructors.
-    f <- do
+    updQuant <- do
       case tag of
         SplitCon c -> do
           q <- getQuantity <$> getConstInfo c
           case q of
-            Quantity0{} -> return (q <>)
+            Quantity0{} -> return $ mapQuantity (q <>)
             Quantity1{} -> return id
             Quantityω{} -> return id
         SplitLit{} -> return id
         SplitCatchall{} -> return id
 
-    return $ sc { scTarget = Just $ mapQuantity f $ applySplitPSubst sigma target }
+    return $ sc { scTarget = Just $ updQuant $ applySplitPSubst sigma target }
 
 
 -- | Add more patterns to split clause if the target type is a function type.
