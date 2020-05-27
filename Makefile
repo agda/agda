@@ -426,26 +426,26 @@ test-size-solver : install-size-solver
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
-FAW_PATH = src/fix-whitespace
-FAW_BIN  = $(FAW_PATH)/dist/build/fix-whitespace/fix-whitespace
+FIXW_PATH = src/fix-whitespace
+FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
 fix-whitespace : build-fix-whitespace
-	$(FAW_BIN)
+	$(FIXW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
 check-whitespace : build-fix-whitespace
-	$(FAW_BIN) --check
+	$(FIXW_BIN) --check
 
 .PHONY : build-fix-whitespace ## Build fix-whitespace.
 build-fix-whitespace :
 	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-whitespace
-	mkdir -p $(FAW_PATH)/dist/build/fix-whitespace/
-	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FAW_BIN)
+	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
+	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FAW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
+	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
