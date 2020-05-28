@@ -543,8 +543,8 @@ instance KillRange a => KillRange (Drop a) where
 
 -- ASR (02 December 2014). This instance is not used anymore (module
 -- the test suite) when reporting errors. See Issue 1293.
-instance Show a => Show (Position' (Strict.Maybe a)) where
-  show (Pn (Strict.Just f) _ l c) = show f ++ ":" ++
+instance Pretty a => Show (Position' (Strict.Maybe a)) where
+  show (Pn (Strict.Just f) _ l c) = prettyShow f ++ ":" ++
                                     show l ++ "," ++ show c
   show (Pn Strict.Nothing  _ l c) = show l ++ "," ++ show c
 
@@ -566,18 +566,18 @@ instance Show IntervalWithoutFile where
       end | sl == el  = show ec
           | otherwise = show el ++ "," ++ show ec
 
-instance Show a => Show (Interval' (Strict.Maybe a)) where
+instance Pretty a => Show (Interval' (Strict.Maybe a)) where
   show i@(Interval s _) = file ++ show (setIntervalFile () i)
     where
       file :: String
       file = case srcFile s of
                Strict.Nothing -> ""
-               Strict.Just f  -> show f ++ ":"
+               Strict.Just f  -> prettyShow f ++ ":"
 
-instance Show a => Show (Range' (Strict.Maybe a)) where
+instance Pretty a => Show (Range' (Strict.Maybe a)) where
   show r = maybe "" show (rangeToIntervalWithFile r)
 
-instance Show a => Show (Range' (Maybe a)) where
+instance Pretty a => Show (Range' (Maybe a)) where
   show = show . fmap Strict.toStrict
 
 ------------------------------------------------------------------------

@@ -49,6 +49,7 @@ import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -239,12 +240,12 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
-             "The file name " ++ show file ++
+             "The file name " ++ prettyShow file ++
              " is invalid because it does not correspond to a valid module name."
       case m of
         Qual {} ->
           typeError $ GenericError $
-            "The file name " ++ show file ++ " is invalid because " ++
+            "The file name " ++ prettyShow file ++ " is invalid because " ++
             defaultName ++ " is not an unqualified module name."
         QName {} ->
           return $ TopLevelModuleName (getRange m) $ singleton defaultName

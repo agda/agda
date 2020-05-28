@@ -37,18 +37,11 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
-  deriving (Eq, Ord, Data, Hashable)
+  deriving (Show, Eq, Ord, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
 filePath = Text.unpack . byteStringPath
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instance is deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for this type.
-
-instance Show AbsolutePath where
-  show = filePath
 
 instance Pretty AbsolutePath where
   pretty = text . filePath
