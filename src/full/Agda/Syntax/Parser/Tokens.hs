@@ -38,7 +38,20 @@ data Keyword
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField, KwVariable ]
+    [ KwLet
+    , KwWhere
+    , KwDo
+    , KwPostulate
+    , KwMutual
+    , KwAbstract
+    , KwPrivate
+    , KwInstance
+    , KwMacro
+    , KwPrimitive
+    , KwField
+    , KwVariable
+    , KwPatternSyn
+    ]
 
 data Symbol
         = SymDot | SymSemi | SymVirtualSemi | SymBar
