@@ -50,7 +50,7 @@ keywords
   ``where`` ``with``
 
   The ``Set`` keyword can appear with a natural number suffix, optionally
-  subscripted (see :ref:`universe-levels`). For instance ``Set42`` and
+  subscripted (see :ref:`sort-system`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
 
 .. _names:
