@@ -1757,9 +1757,19 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    -- Check:
-    -- LHS is just variables
-    -- RHS is a pattern
+    foo :: Range ->  Declaration ->
+    foo r (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
+        nameargs <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
+          (IdentP (QName n)) -> pure n
+          _ -> throwError $ WrongContentBlock PatternBlock $ getRange p
+          -- TODO: find better error
+        let name : args = nameargs
+        ds' <- patternBlock r ds
+        rhs' <- case isPattern rhs of
+          Just pat -> pure pat
+          Nothing -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
+        return $ NicePatternSyn r p (unArg name) args rhs' : ds'
+
     patternBlock :: Range -> [NiceDeclaration] -> Nice [NicePatternSyn]
     patternBlock _ (NiceFunClause r p _ tc cc catchall (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) : ds) = do  -- Untyped
         nameargs <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
@@ -1772,8 +1782,15 @@ niceDeclarations fixs ds = do
           Just pat -> pure pat
           Nothing -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
         return $ NicePatternSyn r p (unArg name) args rhs' : ds'
-    patternBlock r (FunSig{} : FunDef{} : ds) =  -- Typed
-        patternBlock r ds
+  -- | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
+  -- | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
+    patternBlock r (FunSig r0 p a0 i0 m rel tc0 cc0 x0 e : FunDef r1 ds a1 i0 tc1 cc1 x1 cs : ds) =  -- Typed
+      unless (x0 == x1) (throwError $ WrongContentBlock PatternBlock r1)
+      d <- case ds of
+        [d] -> pure d
+        _ -> throwError $ WrongContentBlock PatternBlock r
+      --
+      patternBlock r ds
         -- TODO: don't ignore
     patternBlock r [] = return []
     patternBlock r (d : _) =
