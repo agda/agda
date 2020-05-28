@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : {A : Set} {B : State S A → Set} (m : State S A) → ((x : A) → State S (B (_,_ x))) → State S (B m) " nil)
+(agda2-info-action "*All Goals*" "?0 : {A : Set} {B : State S A → Set} (m : State S A) → ((x : A) → State S (B (state-return x))) → State S (B m) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "_>>=_")
 (agda2-status-action "")
