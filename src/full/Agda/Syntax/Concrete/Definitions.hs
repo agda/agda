@@ -150,7 +150,7 @@ data NiceDeclaration
 
 data NicePatternSyn
   = NicePatternSyn Range Access
-    (Maybe (Name, Expr)) -- ^ Maybe a type signature 
+    (Maybe (Name, Expr)) -- ^ Maybe a type signature
     Pattern              -- ^ An unparsed LHS
     Pattern              -- ^ RHS
   deriving (Data, Show)
