@@ -1,4 +1,4 @@
-
+{-# OPTIONS --auto-inline #-}
 module _ where
 
 data Sigma (A : Set)(B : A → Set) : Set where

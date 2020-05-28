@@ -303,7 +303,7 @@ defaultPragmaOptions = PragmaOptions
   , optCompileNoMain             = False
   , optCaching                   = True
   , optCountClusters             = False
-  , optAutoInline                = True
+  , optAutoInline                = False
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
   , optCallByName                = False
@@ -612,6 +612,9 @@ countClustersFlag o =
 
 noAutoInlineFlag :: Flag PragmaOptions
 noAutoInlineFlag o = return $ o { optAutoInline = False }
+
+autoInlineFlag :: Flag PragmaOptions
+autoInlineFlag o = return $ o { optAutoInline = True }
 
 noPrintPatSynFlag :: Flag PragmaOptions
 noPrintPatSynFlag o = return $ o { optPrintPatternSynonyms = False }
@@ -1082,9 +1085,11 @@ pragmaOptions =
                      "has not been enabled in this build of Agda)"
 #endif
                     )
+    , Option []     ["auto-inline"] (NoArg autoInlineFlag)
+                    "enable automatic compile-time inlining"
     , Option []     ["no-auto-inline"] (NoArg noAutoInlineFlag)
-                    ("disable automatic compile-time inlining " ++
-                     "(only definitions marked INLINE will be inlined)")
+                    ("disable automatic compile-time inlining (default), " ++
+                     "only definitions marked INLINE will be inlined")
     , Option []     ["no-print-pattern-synonyms"] (NoArg noPrintPatSynFlag)
                     "expand pattern synonyms when printing terms"
     , Option []     ["no-fast-reduce"] (NoArg noFastReduceFlag)

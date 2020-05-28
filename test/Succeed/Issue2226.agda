@@ -66,8 +66,8 @@ foo₁-def = refl
 bar-def : getDef bar ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
 bar-def = refl
 
--- bar₁ = foo {_} FooA
-bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
+-- bar₁ = Foo.foo₁ {A} FooA
+bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo₁) (hArg (def (quote A) [])  ∷ vArg (def (quote FooA) []) ∷ []))
 bar₁-def =  refl
 
 -- bar₂ = foo₂ {_} {FooA}
