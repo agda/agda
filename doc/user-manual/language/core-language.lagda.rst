@@ -44,12 +44,10 @@ terms where ``a`` represents a generic term is:
   a ::= x                       -- variable
       | λ x → a                 -- lambda abstraction
       | f                       -- defined function
-      | a a                     -- application
       | (x : a) → a             -- function space
       | F                       -- data/record type
       | c a                     -- data/record constructor
       | s                       -- sort Seti, Setω+i
-      | (a)                     -- grouping
 
 
 Syntax overview
