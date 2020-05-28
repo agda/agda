@@ -178,8 +178,8 @@ end _ _ _ =
 keyword :: Keyword -> LexAction Token
 keyword k = layout $ withInterval_ (TokKeyword k)
     where
-        layout | k `elem` layoutKeywords  = withLayout
-               | otherwise              = id
+        layout | k `elem` layoutKeywords = withLayout
+               | otherwise               = id
 
 
 -- | Parse a 'Symbol' token.

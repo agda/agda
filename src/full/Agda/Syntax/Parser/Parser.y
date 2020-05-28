@@ -1137,7 +1137,7 @@ Declaration
     | Module        { [$1] }
     | Pragma        { [$1] }
     | Syntax        { [$1] }
-    | PatternB  { [$1] }
+    | PatternB      { [$1] }
     | UnquoteDecl   { [$1] }
 
 
