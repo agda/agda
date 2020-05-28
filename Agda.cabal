@@ -324,6 +324,7 @@ library
                     Agda.Interaction.JSONTop
                     Agda.Interaction.JSON
                     Agda.Interaction.FindFile
+                    Agda.Interaction.PrettyPrintInterface
                     Agda.Interaction.Highlighting.Common
                     Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs

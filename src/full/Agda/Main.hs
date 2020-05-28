@@ -22,6 +22,7 @@ import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
+import qualified Agda.Interaction.PrettyPrintInterface as PrettyPrintInterface
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
@@ -147,6 +148,9 @@ runAgdaWithOptions backends generateHTML interaction progName opts
 
           whenM (isJust . optDependencyGraph <$> commandLineOptions) $
             Dot.generateDot $ i
+
+          whenM (isJust . optPrettyPrintInterface <$> commandLineOptions) $
+            PrettyPrintInterface.prettyPrint $ i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
             LaTeX.generateLaTeX i

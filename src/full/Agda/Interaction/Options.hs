@@ -110,6 +110,7 @@ data CommandLineOptions = Options
   , optGenerateHTML          :: Bool
   , optHTMLHighlight         :: HtmlHighlight
   , optDependencyGraph       :: Maybe FilePath
+  , optPrettyPrintInterface  :: Maybe FilePath
   , optLaTeXDir              :: FilePath
   , optHTMLDir               :: FilePath
   , optCSSFile               :: Maybe FilePath
@@ -242,6 +243,7 @@ defaultOptions = Options
   , optGenerateHTML          = False
   , optHTMLHighlight         = HighlightAll
   , optDependencyGraph       = Nothing
+  , optPrettyPrintInterface  = Nothing
   , optLaTeXDir              = defaultLaTeXDir
   , optHTMLDir               = defaultHTMLDir
   , optCSSFile               = Nothing
@@ -355,6 +357,7 @@ checkOpts opts
   atMostOne =
     [ optGenerateHTML
     , isJust . optDependencyGraph
+    , isJust . optPrettyPrintInterface
     ] ++
     map fst exclusive
 
@@ -377,9 +380,9 @@ checkOpts opts
   exclusiveMessage = unlines $
     [ "The options --interactive, --interaction, --interaction-json and"
     , "--only-scope-checking cannot be combined with each other or"
-    , "with --html or --dependency-graph. Furthermore"
-    , "--interactive and --interaction cannot be combined with"
-    , "--latex, and --only-scope-checking cannot be combined with"
+    , "with --html, --dependency-graph or --pretty-print-interface."
+    , "Furthermore --interactive and --interaction cannot be combined"
+    , "with --latex, and --only-scope-checking cannot be combined with"
     , "--vim."
     ]
 
@@ -802,6 +805,9 @@ htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
 dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
 dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
 
+prettyPrintInterfaceFlag :: FilePath -> Flag CommandLineOptions
+prettyPrintInterfaceFlag f o = return $ o { optPrettyPrintInterface = Just f }
+
 htmlDirFlag :: FilePath -> Flag CommandLineOptions
 htmlDirFlag d o = return $ o { optHTMLDir = d }
 
@@ -914,6 +920,8 @@ standardOptions =
                      "decide by source file type (auto)")
     , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
                     "generate a Dot file with a module dependency graph"
+    , Option []     ["pretty-print-interface"] (ReqArg prettyPrintInterfaceFlag "FILE")
+                    "pretty prints the interface in the given file"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
