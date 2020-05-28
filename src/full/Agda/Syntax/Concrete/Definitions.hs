@@ -1093,7 +1093,15 @@ niceDeclarations fixs ds = do
           _ <- addLoneSig r x $ RecName pc uc
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
-        Record r x i e p c tel t cs   -> do
+        Record r x i e p c tel t cs0  -> do
+          -- `pattern` is now a layout keyword. To avoid reduce/reduce conflicts in the grammar,
+          -- we do not try to parse it as a record directive and, instead, mine the list of
+          -- declarations for it (parsed as an empty pattern block).
+          let (pdir, cs) = partitionEithers $ flip map cs0 $ \case
+                -- TODO: treat all directives like `pattern`
+                PatternB r [] -> Left r
+                d             -> Right d
+          let p = listToMaybe pdir
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1110,6 +1118,7 @@ niceDeclarations fixs ds = do
           -- we do not try to parse it as a record directive and, instead, mine the list of
           -- declarations for it (parsed as an empty pattern block).
           let (pdir, cs) = partitionEithers $ flip map cs0 $ \case
+                -- TODO: treat all directives like `pattern`
                 PatternB r [] -> Left r
                 d             -> Right d
           let p = listToMaybe pdir

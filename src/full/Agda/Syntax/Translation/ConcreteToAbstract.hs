@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
+import Debug.Trace
 
 import Control.Applicative
 import Control.Monad.Except
@@ -44,6 +45,7 @@ import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
 import Agda.Syntax.Abstract.Pretty
+import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -937,7 +939,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
       C.Tactic r e -> do
-        let AppView e' args = appView e
+        let AppView e' args = C.appView e
         e'   <- toAbstract e'
         args <- toAbstract args
         return $ A.Tactic (ExprRange r) e' args
@@ -1936,20 +1938,20 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 instance ToAbstract NicePatternSyn [A.Declaration] where
 
-  toAbstract (NicePatternSyn r a mnty pat rhs) = do
+  toAbstract (NicePatternSyn r a mnty pat rhs) = setCurrentRange r $ do
     -- 1. Extract a name and a list of arguments (variables only)
       ((n, y), mty, as) <- case mnty of
         -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
         Just (n, ty) -> do
-          reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
+          reportSLn "scope.pat" 10 $ "found nice typed pattern syn: " ++ prettyShow n
           y <- freshAbstractQName' n
           bindName a PatternSynName n y
-          (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
-          as <- forM as $ mapM $ \case
-            Named _ (A.VarP n) -> pure n
-            _ -> __IMPOSSIBLE__ -- TODO
+          -- (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
+          -- as <- forM as $ mapM $ \case
+          --   Named _ (A.VarP n) -> pure n
+          --   _ -> __IMPOSSIBLE__ -- TODO
           ty <- toAbstractCtx TopCtx ty
-          pure ((n, y), Just ty, Left as)
+          pure ((n, y), Just ty, Left pat)
 
         -- Otherwise it better be a pattern of the form `c x0..xn`!
         Nothing -> do
@@ -1972,7 +1974,15 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
          rhs <- noDotorEqPattern err rhs
          as <- case as of
-           Left as  -> pure as
+           Left pat -> do
+             lhs <- toAbstract (C.patternToExpr pat)
+             let A.Application e as = A.appView lhs
+             case e of
+               A.PatternSyn (AmbQ (y' :| [])) | y == y' ->
+                 forM as $ mapM $ \case
+                   Named _ (A.ScopedExpr _ (A.Var n)) -> pure (BindName n)
+                   blah -> trace (show blah) __IMPOSSIBLE__  -- TODO
+               _ -> __IMPOSSIBLE__
            Right as -> do
              as <- mapM (unVarName <=< resolveName . C.QName) as
              pure $ map (defaultArg . BindName) as

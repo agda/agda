@@ -13,6 +13,7 @@ module Agda.Syntax.Concrete
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
   , isPattern, isAbsurdP, isBinderP
+  , patternToExpr
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -603,6 +604,29 @@ isPattern = \case
       HiddenArg _ p   -> HiddenP r (fmap f p)
       InstanceArg _ p -> InstanceP r (fmap f p)
       p               -> f p
+
+-- | Turn a pattern into an expression.
+--  Pattern needs to not be parsed already (operators still unresolved).
+
+patternToExpr :: Pattern -> Expr
+patternToExpr p = let r = getRange p; f = patternToExpr in case p of
+  IdentP n -> Ident n
+  QuoteP r -> Quote r
+  AppP p p' -> App r (f p) (fmap f <$> p')
+  RawAppP r ps -> RawApp r (f <$> ps)
+  OpAppP r n ns as -> __IMPOSSIBLE__  -- OpApp r n ns ?
+  HiddenP r p -> HiddenArg r (f <$> p)
+  InstanceP r p -> InstanceArg r (f <$> p)
+  ParenP r p -> Paren r (f p)
+  WildP r -> Underscore r Nothing
+  AbsurdP r -> Absurd r
+  AsP r n p -> As r n (f p)
+  DotP r e -> Dot r e
+  LitP l -> Lit l
+  RecP r as -> Rec r (Left . fmap f <$> as)
+  EqualP r ees -> __IMPOSSIBLE__
+  EllipsisP r -> Ellipsis r
+  WithP r p -> __IMPOSSIBLE__
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
