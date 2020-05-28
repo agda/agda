@@ -7,6 +7,8 @@ import Data.Char
 import Data.Word
 
 import Data.Data (Data)
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Numeric.IEEE ( IEEE(identicalIEEE) )
 
@@ -16,13 +18,14 @@ import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
 import Agda.Utils.FileName
 
-data Literal = LitNat    Range !Integer
-             | LitWord64 Range !Word64
-             | LitFloat  Range !Double
-             | LitString Range String
-             | LitChar   Range !Char
-             | LitQName  Range QName
-             | LitMeta   Range AbsolutePath MetaId
+data Literal
+  = LitNat    Range !Integer
+  | LitWord64 Range !Word64
+  | LitFloat  Range !Double
+  | LitString Range !Text
+  | LitChar   Range !Char
+  | LitQName  Range !QName
+  | LitMeta   Range AbsolutePath MetaId
   deriving Data
 
 instance Show Literal where
@@ -30,7 +33,7 @@ instance Show Literal where
     LitNat _ n    -> sh "LitNat _" n
     LitWord64 _ n -> sh "LitWord64 _" n
     LitFloat _ x  -> sh "LitFloat _" x
-    LitString _ s -> sh "LitString _" s
+    LitString _ s -> sh "LitString _" (T.unpack s)
     LitChar _ c   -> sh "LitChar _" c
     LitQName _ q  -> sh "LitQName _" q
     LitMeta _ _ x -> sh "LitMeta _ _" x
@@ -42,14 +45,15 @@ instance Pretty Literal where
     pretty (LitNat _ n)     = text $ show n
     pretty (LitWord64 _ n)  = text $ show n
     pretty (LitFloat _ d)   = text $ show d
-    pretty (LitString _ s)  = text $ showString' s ""
+    pretty (LitString _ s)  = text $ showText s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "'"
     pretty (LitQName _ x)   = pretty x
     pretty (LitMeta _ _ x)  = pretty x
 
-showString' :: String -> ShowS
-showString' s =
-    foldr (.) id $ [ showString "\"" ] ++ map showChar' s ++ [ showString "\"" ]
+showText :: Text -> ShowS
+showText s = showString "\""
+           . T.foldr (\ c -> (showChar' c .)) id s
+           . showString "\""
 
 showChar' :: Char -> ShowS
 showChar' '"'   = showString "\\\""
@@ -145,7 +149,7 @@ instance NFData Literal where
   rnf (LitNat _ _)    = ()
   rnf (LitWord64 _ _) = ()
   rnf (LitFloat _ _)  = ()
-  rnf (LitString _ a) = rnf a
+  rnf (LitString _ a) = ()
   rnf (LitChar _ _)   = ()
   rnf (LitQName _ a)  = rnf a
   rnf (LitMeta _ _ x) = rnf x

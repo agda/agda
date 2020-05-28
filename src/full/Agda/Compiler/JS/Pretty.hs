@@ -6,6 +6,8 @@ import Data.String ( IsString (fromString) )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
+import Data.Map ( Map, toAscList, empty, null )
+import qualified Data.Text as T
 import Data.Map ( Map, toAscList )
 
 import Agda.Syntax.Common ( Nat )
@@ -216,7 +218,7 @@ instance Pretty Exp where
   pretty n (Global m)        = pretty n m
   pretty n (Undefined)       = "undefined"
   pretty n (Null)            = "null"
-  pretty n (String s)        = "\"" <> unescapes s <> "\""
+  pretty n (String s)        = "\"" <> unescapes (T.unpack s) <> "\""
   pretty n (Char c)          = "\"" <> unescapes [c] <> "\""
   pretty n (Integer x)       = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   pretty n (Double x)        = text $ show x

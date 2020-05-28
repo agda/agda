@@ -8,6 +8,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup ( Semigroup )
 
+import Data.Text (Text)
+
 import Agda.Syntax.Common ( Nat )
 
 -- An untyped lambda calculus with records,
@@ -19,7 +21,7 @@ data Exp =
   Global GlobalId |
   Undefined |
   Null |
-  String String |
+  String Text |
   Char Char |
   Integer Integer |
   Double Double |

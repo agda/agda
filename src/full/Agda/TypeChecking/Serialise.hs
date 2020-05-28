@@ -90,40 +90,42 @@ encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD bD iD dD _tD
+    newD@(Dict nD ltD stD bD iD dD _tD
       _nameD
       _qnameD
-      nC sC bC iC dC tC
+      nC ltC stC bC iC dC tC
       nameC
       qnameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod  -- Only fills absPathD from fileMod
        icode a
-    nL <- benchSort $ l nD
-    sL <- benchSort $ l sD
-    bL <- benchSort $ l bD
-    iL <- benchSort $ l iD
-    dL <- benchSort $ l dD
+    nL  <- benchSort $ l nD
+    stL <- benchSort $ l stD
+    ltL <- benchSort $ l ltD
+    bL  <- benchSort $ l bD
+    iL  <- benchSort $ l iD
+    dL  <- benchSort $ l dD
     -- Record reuse statistics.
     verboseS "profile.sharing" 10 $ do
       statistics "pointers" tC
     verboseS "profile.serialize" 10 $ do
-      statistics "Integer"  iC
-      statistics "String"   sC
-      statistics "Text"     bC
-      statistics "Double"   dC
-      statistics "Node"     nC
+      statistics "Integer"     iC
+      statistics "Lazy Text"   ltC
+      statistics "Strict Text" stC
+      statistics "Text"        bC
+      statistics "Double"      dC
+      statistics "Node"        nC
       statistics "Shared Term" tC
-      statistics "A.QName"  qnameC
-      statistics "A.Name"  nameC
+      statistics "A.QName"     qnameC
+      statistics "A.Name"      nameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      return $!! B.encode (root, nL, sL, bL, iL, dL)
+      return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -180,12 +182,12 @@ decode s = do
 
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
-    ((r, nL, sL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
+    ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
     if s /= L.empty
      then noResult "Garbage at end."
      else do
 
-      st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
+      st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
               <$> liftIO H.new
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st

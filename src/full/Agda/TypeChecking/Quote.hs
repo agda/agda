@@ -5,6 +5,7 @@ import Control.Arrow ((&&&))
 import Control.Monad
 
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -287,7 +288,7 @@ quotingKit = do
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
-quoteString = Lit . LitString noRange
+quoteString = Lit . LitString noRange . T.pack
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)

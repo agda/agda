@@ -113,7 +113,7 @@ The interval and path types
 The key idea of Cubical Type Theory is to add an interval type ``I :
 Setω`` (the reason this is in ``Setω`` is because it doesn't support
 the ``transp`` and ``hcomp`` operations). A variable ``i : I``
-intuitively corresponds to a point the `real unit interval
+intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.

@@ -5,6 +5,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
+import qualified Data.Text as T
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -276,8 +277,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
   axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
-  unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
-                | otherwise = typeError $ NotImplemented s
+  unimplemented
+    | s `List.elem` axiom_prims =
+                   return $ rtmError $ T.pack $ "primitive with no body evaluated: " ++ s
+    | otherwise = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)

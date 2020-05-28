@@ -20,6 +20,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
@@ -136,7 +138,12 @@ giveExpr force mii mi e = do
             [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
             , prettyTCM t'
             ]
-        v <- checkExpr e t'
+        -- Andreas, 2020-05-27 AIM XXXII, issue #4679
+        -- Clear envMutualBlock since cubical only executes
+        -- certain checks (checkIApplyConfluence) for an extended lambda
+        -- when not in a mutual block.
+        v <- locallyTC eMutualBlock (const Nothing) $
+          checkExpr e t'
         case mvInstantiation mv of
 
           InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC getRelevance) $ do
@@ -343,7 +350,7 @@ computeWrapInput _               s = s
 showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
-    A.Lit (LitString _ s) -> pure (text s)
+    A.Lit (LitString _ s) -> pure (text $ T.unpack s)
     _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
@@ -383,7 +390,7 @@ reifyElimToExpr e = case e of
     I.Apply v -> appl "apply" <$> reify v
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
-    appl :: String -> Arg Expr -> Expr
+    appl :: Text -> Arg Expr -> Expr
     appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where

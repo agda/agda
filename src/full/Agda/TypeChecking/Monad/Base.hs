@@ -40,8 +40,9 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.Data (Data)
 import Data.String
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 import Data.IORef
 
@@ -180,11 +181,11 @@ data PreScopeState = PreScopeState
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
-  , stPreImportedUserWarnings :: !(Map A.QName String)
+  , stPreImportedUserWarnings :: !(Map A.QName Text)
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
-  , stPreLocalUserWarnings    :: !(Map A.QName String)
+  , stPreLocalUserWarnings    :: !(Map A.QName Text)
     -- ^ Locally defined @UserWarning@s, to be stored in the @Interface@
-  , stPreWarningOnImport      :: !(Strict.Maybe String)
+  , stPreWarningOnImport      :: !(Strict.Maybe Text)
     -- ^ Whether the current module should raise a warning when opened
   , stPreImportedPartialDefs :: !(Set QName)
     -- ^ Imported partial definitions, not to be stored in the @Interface@
@@ -471,23 +472,23 @@ stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
 
-stImportedUserWarnings :: Lens' (Map A.QName String) TCState
+stImportedUserWarnings :: Lens' (Map A.QName Text) TCState
 stImportedUserWarnings f s =
   f (stPreImportedUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedUserWarnings = x}}
 
-stLocalUserWarnings :: Lens' (Map A.QName String) TCState
+stLocalUserWarnings :: Lens' (Map A.QName Text) TCState
 stLocalUserWarnings f s =
   f (stPreLocalUserWarnings (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreLocalUserWarnings = x}}
 
-getUserWarnings :: ReadTCState m => m (Map A.QName String)
+getUserWarnings :: ReadTCState m => m (Map A.QName Text)
 getUserWarnings = do
   iuw <- useR stImportedUserWarnings
   luw <- useR stLocalUserWarnings
   return $ iuw `Map.union` luw
 
-stWarningOnImport :: Lens' (Maybe String) TCState
+stWarningOnImport :: Lens' (Maybe Text) TCState
 stWarningOnImport f s =
   f (Strict.toLazy $ stPreWarningOnImport (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreWarningOnImport = Strict.toStrict x}}
@@ -888,7 +889,7 @@ data ForeignCode = ForeignCode Range String
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
-  , iSource          :: Text
+  , iSource          :: TL.Text
     -- ^ The source code. The source code is stored so that the HTML
     -- and LaTeX backends can generate their output without having to
     -- re-read the (possibly out of date) source code.
@@ -912,9 +913,9 @@ data Interface = Interface
   , iSignature       :: Signature
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
-  , iUserWarnings    :: Map A.QName String
+  , iUserWarnings    :: Map A.QName Text
     -- ^ User warnings for imported identifiers
-  , iImportWarning   :: Maybe String
+  , iImportWarning   :: Maybe Text
     -- ^ Whether this module should raise a warning when imported
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
@@ -938,7 +939,7 @@ instance Pretty Interface where
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
-      , "source:"              $$  nest 2 (text $ T.unpack source)
+      , "source:"              $$  nest 2 (text $ TL.unpack source)
       , "file type:"           <+> (pretty . show) fileT
       , "imported modules:"    <+> (pretty . show) importedM
       , "module name:"         <+> pretty moduleN
@@ -3104,7 +3105,7 @@ data Warning
   | DeprecationWarning String String String
     -- ^ `DeprecationWarning old new version`:
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
-  | UserWarning String
+  | UserWarning Text
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
   | FixityInRenamingModule (NonEmpty Range)
     -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
