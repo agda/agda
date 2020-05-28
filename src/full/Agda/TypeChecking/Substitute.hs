@@ -121,10 +121,10 @@ conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (arg
 conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
 conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
-        "conApp: constructor " ++ show c ++
-        " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
+        "conApp: constructor " ++ prettyShow c ++
+        " with fields\n" ++ unlines (map (("  " ++) . prettyShow) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
-        " projected by " ++ show f
+        " projected by " ++ prettyShow f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
       stuck err = fk err (Con ch ci args) [Proj o f]
       -- Recurse using the instance for 't', see @applyTermE@

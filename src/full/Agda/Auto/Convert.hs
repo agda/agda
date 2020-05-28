@@ -323,8 +323,8 @@ instance Conversion TOM I.Clause (Maybe ([Pat O], MExp O)) where
 
 instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
   convert p = case Cm.unArg p of
-    I.IApplyP _ _ _ n  -> return $ PatVar (show n)
-    I.VarP _ n  -> return $ PatVar (show n)
+    I.IApplyP _ _ _ n  -> return $ PatVar (prettyShow n)
+    I.VarP _ n  -> return $ PatVar (prettyShow n)
     I.DotP _ _  -> return $ PatVar "_"
       -- because Agda includes these when referring to variables in the body
     I.ConP con _ pats -> do

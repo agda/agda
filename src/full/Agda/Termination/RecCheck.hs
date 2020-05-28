@@ -122,8 +122,8 @@ recDef include name = do
 
   reportS "rec.graph" 20
     [ "recDef " ++ prettyShow name
-    , "  names in the type: " ++ show ns1
-    , "  names in the def:  " ++ show ns2
+    , "  names in the type: " ++ prettyShow ns1
+    , "  names in the def:  " ++ prettyShow ns2
     ]
   return (perClause, ns1 `mappend` ns2)
 

@@ -578,7 +578,7 @@ getStoredInterface x file isMain msi = do
       reportSLn "import.iface" 5 "  bad interface, re-type checking"
       fallback
     Just i        -> do
-      reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
+      reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
 
       -- We set the pragma options of the skipped file here, so that
       -- we can check that they are compatible with those of the

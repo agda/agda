@@ -59,7 +59,7 @@ Wrote interface file.
 Finished (or skipped) writing to interface file.
 Finished Agda.Primitive.Cubical.
   using stored version of agda-default-include-path/Agda/Primitive/Cubical.agdai
-  imports: [(Agda.Primitive,6362477426603093905)]
+  imports: [(Agda.Primitive, 6362477426603093905)]
   Already visited Agda.Primitive
   New module. Let's check it out.
 Merging interface
