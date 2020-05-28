@@ -207,10 +207,6 @@ prop_intervalInvariant = intervalInvariant
 prop_rangeInvariant :: Range -> Bool
 prop_rangeInvariant = rangeInvariant
 
-instance Show (Position' Integer) where show = show . fmap Strict.Just
-instance Show (Interval' Integer) where show = show . fmap Strict.Just
-instance Show (Range'    Integer) where show = show . fmap Strict.Just
-
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------

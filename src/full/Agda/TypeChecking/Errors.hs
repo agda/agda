@@ -99,10 +99,10 @@ nameWithBinding q =
     r = nameBindingSite $ qnameName q
 
 tcErrString :: TCErr -> String
-tcErrString err = show (getRange err) ++ " " ++ case err of
+tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
   TypeError _ cl    -> errorString $ clValue cl
-  Exception r s     -> show r ++ " " ++ show s
-  IOException _ r e -> show r ++ " " ++ show e
+  Exception r s     -> prettyShow r ++ " " ++ show s
+  IOException _ r e -> prettyShow r ++ " " ++ show e
   PatternErr{}      -> "PatternErr"
 
 stringTCErr :: String -> TCErr

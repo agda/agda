@@ -146,13 +146,13 @@ showMetas [m] =
           s <- typeOfMeta AsIs i
           r <- getInteractionRange i
           d <- prettyA s
-          liftIO $ putStrLn $ show d ++ " " ++ show r
+          liftIO $ putStrLn $ show d ++ " " ++ prettyShow r
 showMetas [m,"normal"] =
     do  i <- InteractionId <$> readM m
         withInteractionId i $ do
           s <- prettyA =<< typeOfMeta Normalised i
           r <- getInteractionRange i
-          liftIO $ putStrLn $ show s ++ " " ++ show r
+          liftIO $ putStrLn $ show s ++ " " ++ prettyShow r
 showMetas [] =
     do  interactionMetas <- typesOfVisibleMetas AsIs
         hiddenMetas      <- typesOfHiddenMetas  AsIs
@@ -170,7 +170,7 @@ showMetas [] =
         print' x = do
             r <- getMetaRange $ nmid $ metaId x
             d <- showM x
-            liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
+            liftIO $ putStrLn $ show d ++ "  [ at " ++ prettyShow r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 

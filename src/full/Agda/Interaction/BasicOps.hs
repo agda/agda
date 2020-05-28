@@ -690,7 +690,7 @@ showGoals (ims, hms) = do
       let i = nmid $ namedMetaOf m
       r <- getMetaRange i
       d <- withMetaId i (prettyATop m)
-      return $ show d ++ "  [ at " ++ show r ++ " ]"
+      return $ show d ++ "  [ at " ++ prettyShow r ++ " ]"
 
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
