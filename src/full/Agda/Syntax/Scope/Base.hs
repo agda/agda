@@ -1374,7 +1374,7 @@ instance Pretty ScopeInfo where
     [ [ "ScopeInfo"
       , nest 2 $ "current =" <+> pretty this
       ]
-    , [ nest 2 $ "toBind  =" <+> pretty locals | not (null toBind) ]
+    , [ nest 2 $ "toBind  =" <+> pretty toBind | not (null toBind) ]
     , [ nest 2 $ "locals  =" <+> pretty locals | not (null locals) ]
     , [ nest 2 $ "context =" <+> pretty ctx
       , nest 2 $ "modules"
