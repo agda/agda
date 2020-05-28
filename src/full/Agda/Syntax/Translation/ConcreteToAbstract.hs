@@ -1524,7 +1524,6 @@ instance ToAbstract LetDef [A.LetBinding] where
           yes = return ()
           no  = genericError "Not a valid let pattern"
 
-
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
@@ -1918,34 +1917,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternB r ps -> fmap join $ forM ps $ \ (NicePatternSyn r a (Just (n, ty)) pat rhs) -> do
-      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
-      (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
-      as   <- forM as $ mapM $ \case
-        Named _ (A.VarP n) -> pure n
-        _ -> __IMPOSSIBLE__ -- TODO
-      ty   <- toAbstractCtx TopCtx ty
-      (as, rhs) <- withLocalVars $ do
-         rhs <- toAbstract =<< parsePatternSyn rhs
-         checkPatternLinearity rhs $ \ys ->
-           typeError $ RepeatedVariablesInPattern ys
-         bindVarsToBind
-         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
-         rhs <- noDotorEqPattern err rhs
-         unlessNull (patternVars rhs List.\\ map (unBind . unArg) as) $ \ xs -> do
-           typeError . GenericDocError =<< do
-             "Unbound variables in pattern synonym: " <+>
-               sep (map prettyA xs)
-         return (as, rhs)
-      y <- freshAbstractQName' n
-      bindName a PatternSynName n y
-      -- Expanding pattern synonyms already at definition makes it easier to
-      -- fold them back when printing (issue #2762).
-      ep <- expandPatternSynonyms rhs
-      modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
-      return [A.PatternSynDef y (Just ty) as rhs]   -- only for highlighting, so use unexpanded version
-      where unVarName (VarName a _) = return a
-            unVarName _ = typeError $ UnusedVariableInPatternSynonym
+    NicePatternB r ps -> concat <$> mapM toAbstract ps
 
     where
       -- checking postulate or type sig. without checking safe flag
@@ -1960,6 +1932,66 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName p kind x y
         return [ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+
+instance ToAbstract NicePatternSyn [A.Declaration] where
+
+  toAbstract (NicePatternSyn r a mnty pat rhs) = do
+    -- 1. Extract a name and a list of arguments (variables only)
+      ((n, y), mty, as) <- case mnty of
+        -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
+        Just (n, ty) -> do
+          reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
+          y <- freshAbstractQName' n
+          bindName a PatternSynName n y
+          (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
+          as <- forM as $ mapM $ \case
+            Named _ (A.VarP n) -> pure n
+            _ -> __IMPOSSIBLE__ -- TODO
+          ty <- toAbstractCtx TopCtx ty
+          pure ((n, y), Just ty, Left as)
+
+        -- Otherwise it better be a pattern of the form `c x0..xn`!
+        Nothing -> do
+          (n :| as) <- case pat of
+            C.RawAppP _ ps -> forM ps $ \case
+              (C.IdentP (C.QName n)) -> pure n
+              _ -> __IMPOSSIBLE__
+            _ -> __IMPOSSIBLE__
+          reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
+          y <- freshAbstractQName' n
+          bindName a PatternSynName n y
+          pure ((n, y), Nothing, Right as)
+
+    -- 2. Make sure the RHS is a valid pattern synonym (no unbound variables, no forced patterns, no raw terms)
+      (as, rhs) <- withLocalVars $ do
+         rhs <- toAbstract =<< parsePatternSyn rhs
+         checkPatternLinearity rhs $ \ys ->
+           typeError $ RepeatedVariablesInPattern ys
+         bindVarsToBind
+         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
+         rhs <- noDotorEqPattern err rhs
+         as <- case as of
+           Left as  -> pure as
+           Right as -> do
+             as <- mapM (unVarName <=< resolveName . C.QName) as
+             pure $ map (defaultArg . BindName) as
+         unlessNull (patternVars rhs List.\\ map (unBind . unArg) as) $ \ xs -> do
+           typeError . GenericDocError =<< do
+             "Unbound variables in pattern synonym: " <+>
+               sep (map prettyA xs)
+         return (as, rhs)
+
+    -- 3. Bind the pattern synonym
+      -- Expanding pattern synonyms already at definition makes it easier to
+      -- fold them back when printing (issue #2762).
+      ep <- expandPatternSynonyms rhs
+      modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
+      return [A.PatternSynDef y mty as rhs]   -- only for highlighting, so use unexpanded version
+
+      where unVarName (VarName a _) = return a
+            unVarName _ = typeError $ UnusedVariableInPatternSynonym
+
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)
