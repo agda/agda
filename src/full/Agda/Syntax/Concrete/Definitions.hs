@@ -51,6 +51,7 @@ import Control.Monad.State
 
 import Data.Bifunctor
 import Data.Data (Data)
+import Data.Either ( partitionEithers )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -147,7 +148,11 @@ data NiceDeclaration
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
   deriving (Data, Show)
 
-data NicePatternSyn = NicePatternSyn Range Access Name [Arg Name] Pattern
+data NicePatternSyn
+  = NicePatternSyn Range Access
+    (Maybe (Name, Expr)) -- ^ Maybe a type signature 
+    Pattern              -- ^ An unparsed LHS
+    Pattern              -- ^ RHS
   deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -758,7 +763,6 @@ loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -> LoneSigs
 loneSigsFromLoneNames = Map.fromList . map (\(r,x,k) -> (x, LoneSig r x k))
 
 -- | Lens for field '_termChk'.
-
 terminationCheckPragma :: Lens' TerminationCheck NiceEnv
 terminationCheckPragma f e = f (_termChk e) <&> \ s -> e { _termChk = s }
 
@@ -1101,7 +1105,14 @@ niceDeclarations fixs ds = do
           (,ds) <$> dataOrRec pc uc (\ r o a pc uc x tel cs -> NiceRecDef r o a pc uc x i e p c tel cs) NiceRecSig
                       return r x ((tel,) <$> mt) (Just (tel, cs))
 
-        RecordDef r x i e p c tel cs   -> do
+        RecordDef r x i e _ c tel cs0   -> do
+          -- `pattern` is now a layout keyword. To avoid reduce/reduce conflicts in the grammar,
+          -- we do not try to parse it as a record directive and, instead, mine the list of
+          -- declarations for it (parsed as an empty pattern block).
+          let (pdir, cs) = partitionEithers $ flip map cs0 $ \case
+                PatternB r [] -> Left r
+                d             -> Right d
+          let p = listToMaybe pdir
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1139,7 +1150,7 @@ niceDeclarations fixs ds = do
 
         PatternB r [] -> justWarning $ EmptyPattern r
         PatternB r ds' -> do
-          ps <- patternBlock r =<< nice ds'
+          ps <- patternBlock =<< nice ds'
           return ([NicePatternB r ps], ds)
 
         Postulate r []  -> justWarning $ EmptyPostulate r
@@ -1160,7 +1171,7 @@ niceDeclarations fixs ds = do
         Infix _ _  -> return ([], ds)
         Syntax _ _ -> return ([], ds)
 
-        PatternSyn r n as p -> __IMPOSSIBLE__
+        PatternSyn{} -> __IMPOSSIBLE__
         Open r x is         -> return ([NiceOpen r x is] , ds)
         Import r x as op is -> return ([NiceImport r x as op is] , ds)
 
@@ -1725,7 +1736,7 @@ niceDeclarations fixs ds = do
         NicePatternB r ds               -> NicePatternB r <$> mapM (mkInstancePatternSyn r0) ds
           where
           mkInstancePatternSyn :: Range -> Updater NicePatternSyn
-          mkInstancePatternSyn r0 d@(NicePatternSyn r p n args pat) = return d
+          mkInstancePatternSyn r0 d@(NicePatternSyn r p mt pat rhs) = return d
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
@@ -1757,43 +1768,30 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    foo :: Range ->  Declaration ->
-    foo r (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
-        nameargs <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
-          (IdentP (QName n)) -> pure n
-          _ -> throwError $ WrongContentBlock PatternBlock $ getRange p
-          -- TODO: find better error
-        let name : args = nameargs
-        ds' <- patternBlock r ds
+    untypedPatternSyn :: Range -> Access -> Declaration -> Nice NicePatternSyn
+    untypedPatternSyn r p (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
         rhs' <- case isPattern rhs of
           Just pat -> pure pat
-          Nothing -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
-        return $ NicePatternSyn r p (unArg name) args rhs' : ds'
+          Nothing  -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
+        return $ NicePatternSyn r p Nothing pat rhs'
+    untypedPatternSyn r _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
 
-    patternBlock :: Range -> [NiceDeclaration] -> Nice [NicePatternSyn]
-    patternBlock _ (NiceFunClause r p _ tc cc catchall (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) : ds) = do  -- Untyped
-        nameargs <- forM (patternAppView pat) $ mapM $ \ p -> case namedThing p of
-          (IdentP (QName n)) -> pure n
-          _ -> throwError $ WrongContentBlock PatternBlock $ getRange p
-          -- TODO: find better error
-        let name : args = nameargs
-        ds' <- patternBlock r ds
-        rhs' <- case isPattern rhs of
-          Just pat -> pure pat
-          Nothing -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
-        return $ NicePatternSyn r p (unArg name) args rhs' : ds'
-  -- | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
-  -- | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
-    patternBlock r (FunSig r0 p a0 i0 m rel tc0 cc0 x0 e : FunDef r1 ds a1 i0 tc1 cc1 x1 cs : ds) =  -- Typed
+    patternBlock :: [NiceDeclaration] -> Nice [NicePatternSyn]
+    patternBlock (NiceFunClause r p _ _ _ _ d : rest) = do  -- Untyped
+        psyn  <- untypedPatternSyn r p d
+        psyns <- patternBlock rest
+        return $ psyn : psyns
+    patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 ty
+                 : FunDef r1 ds _ _ _ _    x1 _ : rest) = do -- Typed
       unless (x0 == x1) (throwError $ WrongContentBlock PatternBlock r1)
       d <- case ds of
         [d] -> pure d
-        _ -> throwError $ WrongContentBlock PatternBlock r
-      --
-      patternBlock r ds
-        -- TODO: don't ignore
-    patternBlock r [] = return []
-    patternBlock r (d : _) =
+        _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
+      NicePatternSyn _ p _ pat rhs <- untypedPatternSyn r1 p d
+      psyns <- patternBlock rest
+      return (NicePatternSyn (fuseRange r0 r1) p (Just (x0, ty)) pat rhs : psyns)
+    patternBlock [] = return []
+    patternBlock (d : _) =
         throwError $ WrongContentBlock PatternBlock $ getRange d
 
 -- | Make a declaration abstract.
@@ -1916,8 +1914,8 @@ instance MakePrivate NiceDeclaration where
       d@NiceRecDef{}                           -> return d
 
 instance MakePrivate NicePatternSyn where
-  mkPrivate o (NicePatternSyn r p x xs p') =
-    (\ p -> NicePatternSyn r p x xs p') <$> mkPrivate o p
+  mkPrivate o (NicePatternSyn r p nty pat rhs) =
+    (\ p -> NicePatternSyn r p nty pat rhs) <$> mkPrivate o p
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -1961,7 +1959,7 @@ notSoNiceDeclarations = \case
     NicePatternB r ps              -> [PatternB r (map notSoNicePatternSyn ps)]
       where
       notSoNicePatternSyn :: NicePatternSyn -> Declaration
-      notSoNicePatternSyn (NicePatternSyn r _ n as pat) = PatternSyn r n as pat
+      notSoNicePatternSyn (NicePatternSyn r _ nty pat rhs) = PatternSyn r nty pat rhs
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]

@@ -1123,11 +1123,15 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 
-  toConcrete (A.PatternSynDef x xs p) = do
+  toConcrete (A.PatternSynDef x mty xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete (map (fmap A.unBind) xs) $ \ xs ->
-      singleton . C.PatternSyn (getRange x) x xs <$> do
-        dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
+    mty       <- traverse toConcrete mty
+    bindToConcrete (map (fmap A.unBind) xs) $ \ xs -> do
+      let mkPat = C.IdentP . C.QName
+      let pat   = foldl (\ f p -> C.AppP f (unnamed . mkPat <$> p)) (mkPat x) xs
+      rhs <- dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
+      let psyn = C.PatternSyn (getRange x) (fmap (x,) mty) pat rhs
+      pure $ [C.PatternB (getRange x) [psyn]]
 
   toConcrete (A.UnquoteDecl _ i xs e) = do
     let unqual (C.QName x) = return x

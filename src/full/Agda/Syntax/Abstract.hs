@@ -178,7 +178,7 @@ data Declaration
       -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
-  | PatternSynDef QName [Arg BindName] (Pattern' Void)
+  | PatternSynDef QName (Maybe Expr) [Arg BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
@@ -563,7 +563,7 @@ instance Eq Declaration where
   DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   RecSig a1 b1 c1 d1             == RecSig a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   RecDef a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 = (a1, b1, c1, d1, e1, f1, g1, h1, i1, j1) == (a2, b2, c2, d2, e2, f2, g2, h2, i2, j2)
-  PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
+  PatternSynDef a1 b1 c1 d1      == PatternSynDef a2 b2 c2 d2      = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
 
@@ -643,7 +643,7 @@ instance HasRange Declaration where
     getRange (DataDef    i _ _ _ _  ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
     getRange (RecDef i _ _ _ _ _ _ _ _ _) = getRange i
-    getRange (PatternSynDef x _ _   ) = getRange x
+    getRange (PatternSynDef x _ _ _)  = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
 
@@ -775,7 +775,7 @@ instance KillRange Declaration where
   killRange (DataDef i a b c d        ) = killRange5 DataDef i a b c d
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
   killRange (RecDef  i a b c d e f g h j) = killRange10 RecDef  i a b c d e f g h j
-  killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
+  killRange (PatternSynDef x mty xs p ) = killRange4 PatternSynDef x mty xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
 
