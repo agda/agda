@@ -219,8 +219,8 @@ declaredNames d = case d of
   Record _ x _ _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
-  PatternSyn _ x _ _   -> declaresName x
-  PatternB _ ds    -> foldMap declaredNames ds
+  PatternSyn _ x _ _   -> foldMap (declaresName . fst) x
+  PatternB _ ds        -> foldMap declaredNames ds
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds

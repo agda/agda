@@ -386,7 +386,7 @@ instance ExprLike Declaration where
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
       RecDef i r uc ind eta pat c bs e ds -> RecDef i r uc ind eta pat c <$> rec bs <*> rec e <*> rec ds
-      PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
+      PatternSynDef f mty xs p  -> PatternSynDef f <$> rec mty <*> pure xs <*> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
@@ -444,7 +444,7 @@ instance DeclaredNames Declaration where
         where
         kc = maybe mempty (singleton . WithKind k) c
         k  = maybe ConName (conKindOfName . rangedThing) i
-      PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
+      PatternSynDef q _ _ _        -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls

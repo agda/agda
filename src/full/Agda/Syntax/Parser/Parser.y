@@ -1691,23 +1691,11 @@ RecordDirective
     : RecordConstructorName { Constructor $1 }
     | RecordInduction       { Induction $1 }
     | RecordEta             { Eta $1 }
-    | RecordPatternMatching { PatternOrCopattern $1 }
 
 RecordEta :: { Ranged HasEta0 }
 RecordEta
     : 'eta-equality'    { Ranged (getRange $1) YesEta }
     | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
-
--- Directive 'pattern' if a decision between matching on constructor/record pattern
--- or copattern matching is needed.
--- Such decision is only needed for 'no-eta-equality' records.
--- But eta could be turned off automatically, thus, we do not bundle this
--- with the 'no-eta-equality' declaration.
--- Nor with the 'constructor' declaration, since it applies also to
--- the record pattern.
-RecordPatternMatching :: { Range }
-RecordPatternMatching
-    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Ranged Induction }

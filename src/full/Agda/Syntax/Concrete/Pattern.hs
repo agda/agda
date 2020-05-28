@@ -376,5 +376,5 @@ patternAppView = \case
     AppP p arg      -> patternAppView p ++ [arg]
     OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
     ParenP _ p      -> patternAppView p
-    RawAppP _ _     -> __IMPOSSIBLE__
+    RawAppP _ ps    -> __IMPOSSIBLE__
     p               -> [ defaultNamedArg p ]

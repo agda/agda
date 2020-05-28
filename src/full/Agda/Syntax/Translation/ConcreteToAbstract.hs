@@ -1918,28 +1918,32 @@ instance ToAbstract NiceDeclaration A.Declaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternB r ps -> fmap join $ forM ps $ \ (NicePatternSyn r a n as p) -> do
+    NicePatternB r ps -> fmap join $ forM ps $ \ (NicePatternSyn r a (Just (n, ty)) pat rhs) -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
-      (as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< parsePatternSyn p
-         checkPatternLinearity p $ \ys ->
+      (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
+      as   <- forM as $ mapM $ \case
+        Named _ (A.VarP n) -> pure n
+        _ -> __IMPOSSIBLE__ -- TODO
+      ty   <- toAbstractCtx TopCtx ty
+      (as, rhs) <- withLocalVars $ do
+         rhs <- toAbstract =<< parsePatternSyn rhs
+         checkPatternLinearity rhs $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
          bindVarsToBind
          let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
-         p <- noDotorEqPattern err p
-         as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
+         rhs <- noDotorEqPattern err rhs
+         unlessNull (patternVars rhs List.\\ map (unBind . unArg) as) $ \ xs -> do
            typeError . GenericDocError =<< do
              "Unbound variables in pattern synonym: " <+>
                sep (map prettyA xs)
-         return (as, p)
+         return (as, rhs)
       y <- freshAbstractQName' n
       bindName a PatternSynName n y
       -- Expanding pattern synonyms already at definition makes it easier to
       -- fold them back when printing (issue #2762).
-      ep <- expandPatternSynonyms p
-      modifyPatternSyns (Map.insert y (as, ep))
-      return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
+      ep <- expandPatternSynonyms rhs
+      modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
+      return [A.PatternSynDef y (Just ty) as rhs]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
 
