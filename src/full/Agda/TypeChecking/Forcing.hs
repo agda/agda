@@ -78,7 +78,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
