@@ -193,6 +193,9 @@ emptyRecordDirectives = RecordDirectives Nothing Nothing Nothing Nothing
 instance KillRange a => KillRange (RecordDirectives' a) where
   killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
 
+instance HasRange a => HasRange (RecordDirectives' a) where
+  getRange (RecordDirectives a b c d) = getRange (a, b, c, d)
+
 instance NFData a => NFData (RecordDirectives' a) where
   rnf (RecordDirectives a b _ c) = rnf (a, b, c)
 

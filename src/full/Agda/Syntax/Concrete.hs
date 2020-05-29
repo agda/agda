@@ -35,7 +35,7 @@ module Agda.Syntax.Concrete
     -- * Declarations
   , Declaration(..)
   , RecordDirective(..)
-  , RecordDirectives
+  , RecordDirectives, fromRecordDirective
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
@@ -435,6 +435,12 @@ data RecordDirective
    | Eta         (Ranged HasEta0)
        -- ^ Range of @[no-]eta-equality@ keyword.
    deriving (Data, Eq, Show)
+
+fromRecordDirective :: RecordDirective -> RecordDirectives
+fromRecordDirective = \case
+  Induction i   -> emptyRecordDirectives { recInduction   = Just i }
+  Constructor n -> emptyRecordDirectives { recConstructor = Just (n, NotInstanceDef) }
+  Eta e         -> emptyRecordDirectives { recHasEta      = Just (rangedThing e) }
 
 data ModuleApplication
   = SectionApp Range Telescope Expr

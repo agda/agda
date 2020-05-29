@@ -187,6 +187,7 @@ data DeclarationException
       --   Range is of mutual block.
   | UnquoteDefRequiresSignature (List1 Name)
   | BadMacroDef NiceDeclaration
+  | RepeatedRecordDirectives [Range]
     deriving (Data, Show)
 
 
@@ -336,6 +337,7 @@ instance HasRange DeclarationException where
   getRange (InvalidMeasureMutual r)             = r
   getRange (UnquoteDefRequiresSignature x)      = getRange x
   getRange (BadMacroDef d)                      = getRange d
+  getRange (RepeatedRecordDirectives rs)        = getRange rs
 
 instance HasRange DeclarationWarning where
   getRange (UnknownNamesInFixityDecl xs)        = getRange xs
@@ -448,6 +450,8 @@ instance Pretty DeclarationException where
     text (declName nd) : pwords "are not allowed in macro blocks"
   pretty (DeclarationPanic s) = text s
 
+  pretty (RepeatedRecordDirectives rs) = text "Repeated record directive"
+
 instance Pretty DeclarationWarning where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
@@ -504,7 +508,7 @@ instance Pretty DeclarationWarning where
     pwords "Shadowing in telescope, repeated variable names:"
     ++ punctuate comma (map (pretty . fst) nrs)
   pretty (MisplacedRecordDirective d) = fsep $
-    pwords "Record directive appears outside record."
+    pwords "Record directive appears outside record or inside instance block."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1099,14 +1103,8 @@ niceDeclarations fixs ds = do
           return ([NiceRecSig r PublicAccess ConcreteDef pc uc x tel t] , ds)
 
         Record r x (RecordDirectives i e _ c) tel t cs0  -> do
-          -- `pattern` is now a layout keyword. To avoid reduce/reduce conflicts in the grammar,
-          -- we do not try to parse it as a record directive and, instead, mine the list of
-          -- declarations for it (parsed as an empty pattern block).
-          let (pdir, cs) = partitionEithers $ flip map cs0 $ \case
-                -- TODO: treat all directives like `pattern`
-                PatternB r [] -> Left r
-                d             -> Right d
-          let p = listToMaybe pdir
+          (dirs, cs) <- extractRecordDirectives cs0
+          dir <- verifyRecordDirectives dirs
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1116,19 +1114,13 @@ niceDeclarations fixs ds = do
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc) x (Just t)
           (,ds) <$> dataOrRec pc uc
-                      (\ r o a pc uc x -> NiceRecDef r o a pc uc x (RecordDirectives i e p c))
+                      (\ r o a pc uc x -> NiceRecDef r o a pc uc x dir)
                       NiceRecSig
                       return r x ((tel,) <$> mt) (Just (tel, cs))
 
         RecordDef r x (RecordDirectives i e _ c) tel cs0   -> do
-          -- `pattern` is now a layout keyword. To avoid reduce/reduce conflicts in the grammar,
-          -- we do not try to parse it as a record directive and, instead, mine the list of
-          -- declarations for it (parsed as an empty pattern block).
-          let (pdir, cs) = partitionEithers $ flip map cs0 $ \case
-                -- TODO: treat all directives like `pattern`
-                PatternB r [] -> Left r
-                d             -> Right d
-          let p = listToMaybe pdir
+          (dirs, cs) <- extractRecordDirectives cs0
+          dir <- verifyRecordDirectives dirs
           pc <- use positivityCheckPragma
           -- Andreas, 2018-10-27, issue #3327
           -- Propagate {-# NO_UNIVERSE_CHECK #-} pragma from signature to definition.
@@ -1138,7 +1130,7 @@ niceDeclarations fixs ds = do
           uc <- if uc == NoUniverseCheck then return uc else getUniverseCheckFromSig x
           mt <- defaultTypeSig (RecName pc uc) x Nothing
           (,ds) <$> dataOrRec pc uc
-                      (\ r o a pc uc x -> NiceRecDef r o a pc uc x (RecordDirectives i e p c))
+                      (\ r o a pc uc x -> NiceRecDef r o a pc uc x dir)
                       NiceRecSig
                       return r x ((tel,) <$> mt) (Just (tel, cs))
 
@@ -1210,6 +1202,43 @@ niceDeclarations fixs ds = do
 
         RecordDirective d ->
           justWarning $ MisplacedRecordDirective (getRange d)
+
+
+    extractRecordDirectives :: [Declaration] -> Nice ([RecordDirectives], [Declaration])
+    extractRecordDirectives cs = do
+          lrss <- forM cs $ \case
+            PatternB r []     -> pure [Left (emptyRecordDirectives { recPattern = Just r })]
+            RecordDirective d -> pure [Left (fromRecordDirective d)]
+            InstanceB r ds    -> do
+              (dirs, ds) <- extractRecordDirectives ds
+              let ds'    = Right (InstanceB r ds)
+              case dirs of
+                [dir@(RecordDirectives Nothing Nothing Nothing (Just (n, _)))] -> pure
+                   [ Left (dir { recConstructor = Just (n, InstanceDef r) })
+                   , ds'
+                   ]
+                [] -> pure [ds']
+                _ -> [ds'] <$ niceWarning (MisplacedRecordDirective (getRange dirs))
+            d -> pure [Right d]
+          pure $ partitionEithers $ concat lrss
+
+    -- | Check for duplicate record directives.
+    verifyRecordDirectives :: [RecordDirectives] -> Nice RecordDirectives
+    verifyRecordDirectives ds
+      | null rs   = return $ RecordDirectives (listToMaybe is) (listToMaybe es) (listToMaybe ps) (listToMaybe cs)
+        -- Here, all the lists is, es, cs, ps are at most singletons.
+      | otherwise = throwError (RepeatedRecordDirectives rs)
+      where
+      errorFromList :: HasRange a => [a] -> [Range]
+      errorFromList []  = []
+      errorFromList [x] = []
+      errorFromList xs  = map getRange xs
+      rs  = List.sort $ concat [ errorFromList is, errorFromList es, errorFromList cs, errorFromList ps ]
+      is  = [ i | Just i <- map recInduction   ds ]
+      es  = [ e | Just e <- map recHasEta      ds ]
+      cs  = [ c | Just c <- map recConstructor ds ]
+      ps  = [ p | Just p <- map recPattern     ds ]
+
 
     nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
 
