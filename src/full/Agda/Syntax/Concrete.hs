@@ -34,6 +34,7 @@ module Agda.Syntax.Concrete
   , makePi
     -- * Declarations
   , Declaration(..)
+  , RecordDirective(..)
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
@@ -421,7 +422,16 @@ data Declaration
   | UnquoteDecl Range [Name] Expr
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
+  | RecordDirective RecordDirective
   deriving (Data, Eq)
+
+data RecordDirective
+   = Induction (Ranged Induction)
+       -- ^ Range of keyword @[co]inductive@.
+   | Constructor Name
+   | Eta         (Ranged HasEta0)
+       -- ^ Range of @[no-]eta-equality@ keyword.
+   deriving (Data, Eq, Show)
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
@@ -791,6 +801,12 @@ instance HasRange Declaration where
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
   getRange (Pragma p)              = getRange p
+  getRange (RecordDirective d)     = getRange d
+
+instance HasRange RecordDirective where
+  getRange (Induction i) = getRange i
+  getRange (Constructor c) = getRange c
+  getRange (Eta e) = getRange e
 
 instance HasRange LHS where
   getRange (LHS p eqns ws ell) = p `fuseRange` eqns `fuseRange` ws
@@ -929,6 +945,12 @@ instance KillRange Declaration where
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
   killRange (Pragma p)              = killRange1 Pragma p
+  killRange (RecordDirective d)     = killRange1 RecordDirective d
+
+instance KillRange RecordDirective where
+  killRange (Induction i) = killRange1 Induction i
+  killRange (Constructor n) = killRange1 Constructor n
+  killRange (Eta e) = killRange1 Eta e
 
 instance KillRange Expr where
   killRange (Ident q)            = killRange1 Ident q
@@ -1136,6 +1158,12 @@ instance NFData Declaration where
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (Pragma a)              = rnf a
+  rnf (RecordDirective a)     = rnf a
+
+instance NFData RecordDirective where
+  rnf (Induction a) = rnf a
+  rnf (Constructor a) = rnf a
+  rnf (Eta a) = rnf a
 
 -- | Ranges are not forced.
 

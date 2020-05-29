@@ -219,6 +219,8 @@ data DeclarationWarning
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
+  | MisplacedRecordDirective Range
+      -- ^ record directive not in a record
   | MissingDefinitions [(Name, Range)]
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
@@ -500,6 +502,8 @@ instance Pretty DeclarationWarning where
   pretty (ShadowingInTelescope nrs) = fsep $
     pwords "Shadowing in telescope, repeated variable names:"
     ++ punctuate comma (map (pretty . fst) nrs)
+  pretty (MisplacedRecordDirective d) = fsep $
+    pwords "Record directive appears outside record."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -1198,6 +1202,9 @@ niceDeclarations fixs ds = do
               return ([NiceUnquoteDef r PublicAccess ConcreteDef TerminationCheck YesCoverageCheck xs e] , ds)
 
         Pragma p -> nicePragma p ds
+
+        RecordDirective d ->
+          justWarning $ MisplacedRecordDirective (getRange d)
 
     nicePragma :: Pragma -> [Declaration] -> Nice ([NiceDeclaration], [Declaration])
 

@@ -177,6 +177,7 @@ fixitiesAndPolarities' = foldMap $ \case
   UnquoteDecl {}  -> mempty
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
+  RecordDirective{} -> mempty
 
 data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
@@ -240,3 +241,10 @@ declaredNames d = case d of
   Pragma (BuiltinPragma _ b (QName x))
     | isBuiltinNoDef $ rangedThing b -> declaresName x
   Pragma{}             -> mempty
+  RecordDirective d    -> declaredNamesRD d
+    where
+    declaredNamesRD :: RecordDirective -> DeclaredNames
+    declaredNamesRD = \case
+      Induction{} -> mempty
+      Constructor x -> declaresName x
+      Eta{} -> mempty

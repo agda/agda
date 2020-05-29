@@ -103,6 +103,11 @@ instance NFData a => NFData (HasEta' a) where
 type HasEta  = HasEta' PatternOrCopattern
 type HasEta0 = HasEta' ()
 
+instance Pretty HasEta0 where
+  pretty = \case
+    YesEta   -> "eta-equality"
+    NoEta () -> "no-eta-equality"
+
 -- | For a record without eta, which type of matching do we allow?
 data PatternOrCopattern
   = PatternMatching

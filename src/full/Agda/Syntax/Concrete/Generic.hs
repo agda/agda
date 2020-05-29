@@ -237,6 +237,7 @@ instance ExprLike Declaration where
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
      e@Pragma{}                -> e
+     e@RecordDirective{}       -> e
    where mapE e = mapExpr f e
 
   foldExpr     = __IMPOSSIBLE__

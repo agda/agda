@@ -561,11 +561,17 @@ instance Pretty Declaration where
             UnquoteDef _ xs t ->
               sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
             Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
+            RecordDirective d -> pretty d
         where
             namedBlock s ds =
                 sep [ text s
                     , nest 2 $ vcat $ map pretty ds
                     ]
+
+instance Pretty RecordDirective where
+  pretty (Induction i) = pretty i
+  pretty (Constructor n) = "constructor" <+> pretty n
+  pretty (Eta e) = pretty e
 
 pRecord
   :: Name
@@ -601,9 +607,7 @@ pRecord x ind eta pat con tel me ds = vcat
         pType Nothing  =
                   "where"
         pInd = maybeToList $ pretty . rangedThing <$> ind
-        pEta = maybeToList $ eta <&> \case
-          YesEta   -> "eta-equality"
-          NoEta () -> "no-eta-equality"
+        pEta = maybeToList $ pretty <$> eta
         pPat = maybeToList $ "pattern" <$ pat
         -- pEta = caseMaybe eta [] $ \case
         --   YesEta -> [ "eta-equality" ]
