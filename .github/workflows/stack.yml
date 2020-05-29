@@ -107,12 +107,11 @@ jobs:
     - name: Install stack and wget
       run: |
         choco install haskell-stack --no-progress
-        choco install wget --no-progress
 
     - name: Install text-icu ${{ matrix.icu-ver }}
       shell: bash
       run: |
-        wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
+        C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
         stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
         stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
 
