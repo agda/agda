@@ -112,6 +112,7 @@ jobs:
 
     - name: Download ICU ${{ matrix.icu-ver }} package
       run: |
+        cd C:\msys64\home\runneradmin
         C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
 
     - name: Install text-icu ${{ matrix.icu-ver }}
