@@ -220,7 +220,7 @@ retryConstraints = liftTCM wakeupConstraints_
 
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
-    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
+    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent DefaultCompute e
         liftIO $ print d
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 

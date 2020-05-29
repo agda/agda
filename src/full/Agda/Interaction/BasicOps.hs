@@ -309,19 +309,21 @@ refine force ii mr e = do
 -- rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
 
 {-| Evaluate the given expression in the current environment -}
-evalInCurrent :: Expr -> TCM Expr
-evalInCurrent e =
-    do  (v, t) <- inferExpr e
-        v' <- {- etaContract =<< -} normalise v
-        reify v'
+evalInCurrent :: ComputeMode -> Expr -> TCM Expr
+evalInCurrent cmode e = do
+  (v, t) <- inferExpr e
+  v' <- {- etaContract =<< -} compute v
+  reify v'
+  where compute | cmode == HeadCompute = reduce
+                | otherwise            = normalise
 
 
-evalInMeta :: InteractionId -> Expr -> TCM Expr
-evalInMeta ii e =
+evalInMeta :: InteractionId -> ComputeMode -> Expr -> TCM Expr
+evalInMeta ii cmode e =
    do   m <- lookupInteractionId ii
         mi <- getMetaInfo <$> lookupMeta m
         withMetaInfo mi $
-            evalInCurrent e
+            evalInCurrent cmode e
 
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
@@ -338,6 +340,7 @@ normalForm Normalised   t = {- etaContract =<< -} normalise t
 --
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
+computeIgnoreAbstract HeadCompute     = False
 computeIgnoreAbstract IgnoreAbstract  = True
 computeIgnoreAbstract UseShowInstance = True
   -- UseShowInstance requires the result to be a string literal so respecting

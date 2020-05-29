@@ -120,6 +120,21 @@ Reflection
   quoteωTC : ∀ {A : Setω} → A → TC Term
   ```
 
+Emacs mode
+----------
+
+* New command prefix `C-u C-u C-u` for weak-head normalization. For instance,
+  given
+
+  ```agda
+  downFrom : Nat → List Nat
+  downFrom 0 = []
+  downFrom (suc n) = n ∷ downFrom n
+  ```
+
+  `C-u C-u C-u C-c C-n downFrom 5` returns `4 ∷ downFrom 4`.
+
+
 JS backend
 ----------
 

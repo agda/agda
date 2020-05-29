@@ -69,9 +69,9 @@ The following notation is used when describing key combinations:
 :kbd:`SPC`
      is the space bar.
 
-Commands working with types can be prefixed with ``C-u`` to compute
-type without further normalisation and with ``C-u C-u`` to compute
-normalised types.
+Commands working with terms or types can be prefixed with ``C-u`` to compute without further
+normalisation, with ``C-u C-u`` to compute normal forms, and ``C-u C-u C-u`` to compute
+weak-head normal forms.
 
 .. _emacs-global-commands:
 

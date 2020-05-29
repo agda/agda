@@ -549,7 +549,7 @@ interpret (Cmd_compute_toplevel cmode s) = do
     where
     action = allowNonTerminatingReductions
            . (if B.computeIgnoreAbstract cmode then ignoreAbstractMode else inConcreteMode)
-           . B.evalInCurrent
+           . B.evalInCurrent cmode
 -- interpret (Cmd_compute_toplevel cmode s) =
 --   parseAndDoAtToplevel action Info_NormalForm $ computeWrapInput cmode s
 --   where
@@ -818,7 +818,7 @@ interpret (Cmd_make_case ii rng s) = do
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
-    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent e
+    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
