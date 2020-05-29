@@ -160,6 +160,7 @@ data WarningName
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
   | InvalidTerminationCheckPragma_
+  | MisplacedRecordDirective_
   | MissingDefinitions_
   | NotAllowedInMutual_
   | OpenPublicAbstract_
@@ -300,6 +301,7 @@ warningNameDescription = \case
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
+  MisplacedRecordDirective_        -> "Record directive appears outside record."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   OpenPublicAbstract_              -> "'open public' directive in an 'abstract' block."

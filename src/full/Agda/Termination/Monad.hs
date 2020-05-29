@@ -22,7 +22,7 @@ import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (recInduction)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
