@@ -20,6 +20,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Word (Word64)
 
 import qualified Text.PrettyPrint as P
 import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
@@ -62,6 +63,7 @@ instance Pretty Bool    where pretty = text . show
 instance Pretty Int     where pretty = text . show
 instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
+instance Pretty Word64  where pretty = text . show
 instance Pretty Double  where pretty = text . toStringWithoutDotZero
 
 instance Pretty Char where

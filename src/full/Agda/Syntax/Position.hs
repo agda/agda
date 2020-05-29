@@ -118,7 +118,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-  deriving (Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -142,7 +142,7 @@ type PositionWithoutFile = Position' ()
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-  deriving (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
@@ -187,7 +187,7 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile)
   deriving
-    (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
 
@@ -533,52 +533,6 @@ instance KillRange Permutation where
 
 instance KillRange a => KillRange (Drop a) where
   killRange = fmap killRange
-------------------------------------------------------------------------
--- Showing
-------------------------------------------------------------------------
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instances are deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for these types.
-
--- ASR (02 December 2014). This instance is not used anymore (module
--- the test suite) when reporting errors. See Issue 1293.
-instance Show a => Show (Position' (Strict.Maybe a)) where
-  show (Pn (Strict.Just f) _ l c) = show f ++ ":" ++
-                                    show l ++ "," ++ show c
-  show (Pn Strict.Nothing  _ l c) = show l ++ "," ++ show c
-
-instance Show PositionWithoutFile where
-  show p = show (p { srcFile = Strict.Nothing } :: Position)
-
-instance Show IntervalWithoutFile where
-  show (Interval s e) = start ++ "-" ++ end
-    where
-      sl = posLine s
-      el = posLine e
-      sc = posCol s
-      ec = posCol e
-
-      start :: String
-      start = show sl ++ "," ++ show sc
-
-      end :: String
-      end | sl == el  = show ec
-          | otherwise = show el ++ "," ++ show ec
-
-instance Show a => Show (Interval' (Strict.Maybe a)) where
-  show i@(Interval s _) = file ++ show (setIntervalFile () i)
-    where
-      file :: String
-      file = case srcFile s of
-               Strict.Nothing -> ""
-               Strict.Just f  -> show f ++ ":"
-
-instance Show a => Show (Range' (Strict.Maybe a)) where
-  show r = maybe "" show (rangeToIntervalWithFile r)
-
-instance Show a => Show (Range' (Maybe a)) where
-  show = show . fmap Strict.toStrict
 
 ------------------------------------------------------------------------
 -- Printing

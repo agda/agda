@@ -1,4 +1,4 @@
-
+{-# OPTIONS --auto-inline #-}
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit

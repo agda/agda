@@ -2034,8 +2034,8 @@ instance LivesInCurrentModule A.QName where
   livesInCurrentModule x = do
     m <- getCurrentModule
     reportS "scope.data.def" 30
-      [ "  A.QName of data type: " ++ show x
-      , "  current module: " ++ show m
+      [ "  A.QName of data type: " ++ prettyShow x
+      , "  current module: " ++ prettyShow m
       ]
     unless (A.qnameModule x == m) $
       genericError $ "Definition in different module than its type signature"
@@ -2564,11 +2564,11 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
 resolvePatternIdentifier r x ns = do
-  reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ show x ++ " at source position " ++ show r
+  reportSLn "scope.pat" 60 $ "resolvePatternIdentifier " ++ prettyShow x ++ " at source position " ++ prettyShow r
   px <- toAbstract (PatName x ns)
   case px of
     VarPatName y         -> do
-      reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ show y ++ " with range " ++ show (getRange y)
+      reportSLn "scope.pat" 60 $ "  resolved to VarPatName " ++ prettyShow y ++ " with range " ++ prettyShow (getRange y)
       return $ VarP $ A.mkBindName y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
                                           (AmbQ $ fmap anameName ds) []

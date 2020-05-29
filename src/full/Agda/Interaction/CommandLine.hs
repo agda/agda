@@ -146,13 +146,13 @@ showMetas [m] =
           s <- typeOfMeta AsIs i
           r <- getInteractionRange i
           d <- prettyA s
-          liftIO $ putStrLn $ show d ++ " " ++ show r
+          liftIO $ putStrLn $ render d ++ " " ++ prettyShow r
 showMetas [m,"normal"] =
     do  i <- InteractionId <$> readM m
         withInteractionId i $ do
           s <- prettyA =<< typeOfMeta Normalised i
           r <- getInteractionRange i
-          liftIO $ putStrLn $ show s ++ " " ++ show r
+          liftIO $ putStrLn $ render s ++ " " ++ prettyShow r
 showMetas [] =
     do  interactionMetas <- typesOfVisibleMetas AsIs
         hiddenMetas      <- typesOfHiddenMetas  AsIs
@@ -170,7 +170,7 @@ showMetas [] =
         print' x = do
             r <- getMetaRange $ nmid $ metaId x
             d <- showM x
-            liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
+            liftIO $ putStrLn $ render d ++ "  [ at " ++ prettyShow r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
@@ -184,7 +184,7 @@ metaParseExpr ii s =
     do  m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ putStrLn $ show scope
+        -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
         concreteToAbstract scope e

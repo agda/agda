@@ -410,8 +410,8 @@ instance Pretty DeclarationException where
     pwords "Missing with-clauses for function" ++ [pretty x]
 
   pretty (WrongDefinition x k k') = fsep $ pretty x :
-    pwords ("has been declared as a " ++ show k ++
-      ", but is being defined as a " ++ show k')
+    pwords ("has been declared as a " ++ prettyShow k ++
+      ", but is being defined as a " ++ prettyShow k')
   pretty (AmbiguousFunClauses lhs xs) = sep
     [ fsep $
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
@@ -532,7 +532,7 @@ data DataRecOrFun
     -- ^ Name of a record type
   | FunName TerminationCheck CoverageCheck
     -- ^ Name of a function.
-  deriving Data
+  deriving (Data, Show)
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where
@@ -541,10 +541,10 @@ instance Eq DataRecOrFun where
   FunName{}  == FunName{}  = True
   _          == _          = False
 
-instance Show DataRecOrFun where
-  show DataName{} = "data type"
-  show RecName{}  = "record type"
-  show FunName{}  = "function"
+instance Pretty DataRecOrFun where
+  pretty DataName{} = "data type"
+  pretty RecName{}  = "record type"
+  pretty FunName{}  = "function"
 
 isFunName :: DataRecOrFun -> Bool
 isFunName (FunName{}) = True

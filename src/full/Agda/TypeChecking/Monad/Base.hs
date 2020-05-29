@@ -3544,9 +3544,9 @@ data TCErr
       --   but also in other situations where we want to backtrack.
 
 instance Show TCErr where
-  show (TypeError _ e)     = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
-  show (Exception r d)     = show r ++ ": " ++ render d
-  show (IOException _ r e) = show r ++ ": " ++ show e
+  show (TypeError _ e)     = prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
+  show (Exception r d)     = prettyShow r ++ ": " ++ render d
+  show (IOException _ r e) = prettyShow r ++ ": " ++ show e
   show PatternErr{}        = "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where

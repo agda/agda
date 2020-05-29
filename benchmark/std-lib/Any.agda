@@ -8,7 +8,7 @@
 module Any where
 
 open import Algebra
-import Algebra.FunctionProperties as FP
+import Algebra.Definitions as FP
 open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
@@ -31,7 +31,7 @@ open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related using (Related; SK-sym)
 open import Function.Related.TypeIsomorphisms
 open import Level
-open import Relation.Binary
+open import Relation.Binary hiding (_⇔_)
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect) renaming ([_] to P[_])

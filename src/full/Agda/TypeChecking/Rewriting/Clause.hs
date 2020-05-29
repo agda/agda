@@ -13,6 +13,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 ------------------------------------------------------------------------
 -- * Converting clauses to rewrite rules
@@ -31,7 +32,7 @@ getClausesAsRewriteRules f = do
 clauseQName :: QName -> Int -> TCM QName
 clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
   where
-    clauseName n i = freshName noRange (show n ++ "-clause" ++ show i)
+    clauseName n i = freshName noRange (prettyShow n ++ "-clause" ++ show i)
 
 -- | @clauseToRewriteRule f q cl@ converts the clause @cl@ of the
 --   function @f@ to a rewrite rule with name @q@. Returns @Nothing@

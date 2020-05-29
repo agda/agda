@@ -12,7 +12,7 @@ open import Data.Nat.Solver
 open +-*-Solver
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 import Data.Fin.Properties as Fin
-open import Induction.Nat
+open import Data.Nat.Induction
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning

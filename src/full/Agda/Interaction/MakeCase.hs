@@ -43,6 +43,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -136,7 +137,7 @@ parseVariables f tel ii rng ss = do
             -- case the instantiation could as well be the other way
             -- around, so the new clauses will still make sense.
             (Var i [] , PatternBound) -> do
-              reportSLn "interaction.case" 30 $ "resolved variable " ++ show x ++ " = " ++ show i
+              reportSLn "interaction.case" 30 $ "resolved variable " ++ prettyShow x ++ " = " ++ show i
               when (i < nlocals) failCaseLet
               return (i - nlocals , C.InScope)
             (Var i [] , LambdaBound)
@@ -150,7 +151,7 @@ parseVariables f tel ii rng ss = do
         UnknownName -> do
           let xs' = filter ((s ==) . fst) xs
           when (null xs') $ failUnbound
-          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ show xs'
+          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ prettyShow xs'
           -- Andreas, 2018-05-28, issue #3095
           -- We want to act on an ambiguous name if it corresponds to only one local index.
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'

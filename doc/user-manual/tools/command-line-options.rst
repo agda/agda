@@ -370,9 +370,13 @@ Other features
 
      Default (since version 2.6.1): ``--no-irrelevant-projections``
 
+.. option:: --auto-inline
+
+     Turn on automatic compile-time inlining.
+
 .. option:: --no-auto-inline
 
-     Disable automatic compile-time inlining.  Only definitions marked
+     Disable automatic compile-time inlining (default). Only definitions marked
      ``INLINE`` will be inlined.
 
 .. option:: --no-fast-reduce

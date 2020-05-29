@@ -12,7 +12,7 @@ Merging interface
   Check for cycle
   Agda.Primitive.Cubical is up-to-date.
   no stored version, reading agda-default-include-path/Agda/Primitive/Cubical.agdai
-  imports: [(Agda.Primitive,6362477426603093905)]
+  imports: [(Agda.Primitive, 6362477426603093905)]
   Already visited Agda.Primitive
 Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
   New module. Let's check it out.

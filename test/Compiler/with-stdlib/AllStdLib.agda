@@ -4,7 +4,7 @@ module AllStdLib where
 -- Ensure that the entire standard library is compiled.
 import README
 
-open import Data.Unit.Base
+open import Data.Unit.Polymorphic using (⊤)
 open import Data.String
 open import IO hiding (_>>_)
 import IO.Primitive as Prim

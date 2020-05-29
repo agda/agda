@@ -40,6 +40,9 @@ Pragmas and options
   import Agda.Primitive using (Set; Prop)` at the top of each file
   (see below).
 
+* New option `--auto-inline` turns on automatic compile-time inlining of simple
+  functions. This was previously enabled by default.
+
 Language
 --------
 
