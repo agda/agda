@@ -323,27 +323,31 @@ filterResetingState m cands f = do
       tryC c = do
         ok <- f c
         v  <- instantiateFull (MetaV m ctxElims)
-        a  <- instantiateFull =<< (`piApplyM` ctxArgs) =<< getMetaType m
-        return (ok, v, a)
+        return (ok, v)
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
 
   -- Check that there aren't any hard failures
-  case [ err | (_, ((HellNo err, _, _), _)) <- result ] of
+  case [ err | (_, ((HellNo err, _), _)) <- result ] of
     err : _ -> throwError err
     []      -> return ()
 
-  let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, not (isNo r) ]
+  -- c : Candidate
+  -- r : YesNoMaybe
+  -- v : Term         (fully instantiated)
+  -- a : Type         (fully instantiated)
+  -- s : TCState
+  let result' = [ (c, v, s) | (c, ((r, v), s)) <- result, not (isNo r) ]
   result'' <- dropSameCandidates m result'
   case result'' of
-    [(c, _, _, s)] -> ([], [c]) <$ putTC s
-    _              -> do
-      let bad  = [ (c, err) | (c, ((NoBecause err, _, _), _)) <- result ]
-          good = [ c | (c, _, _, _) <- result'' ]
+    [(c, _, s)] -> ([], [c]) <$ putTC s
+    _           -> do
+      let bad  = [ (c, err) | (c, ((NoBecause err, _), _)) <- result ]
+          good = [ c | (c, _, _) <- result'' ]
       return (bad, good)
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
+dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
   metas <- getMetaVariableSet
   -- Does `it` have any metas in the initial meta variable store?
@@ -351,34 +355,38 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
 
   -- Take overlappable candidates into account
   let cands =
-        case List.partition (\ (c, _, _, _) -> candidateOverlappable c) cands0 of
+        case List.partition (\ (c, _, _) -> candidateOverlappable c) cands0 of
           (cand : _, []) -> [cand]  -- only overlappable candidates: pick the first one
           _              -> cands0  -- otherwise require equality
 
   reportSDoc "tc.instance" 50 $ vcat
     [ "valid candidates:"
-    , nest 2 $ vcat [ if freshMetas (v, a) then "(redacted)" else
-                      sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
-                    | (_, v, a, _) <- cands ] ]
+    , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
+                      sep [ prettyTCM v ]
+                    | (_, v, _) <- cands ] ]
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
     cvd : _ | isIrrelevant rel -> do
-      reportSLn "tc.instance" 30 "Meta is irrelevant so any candidate will do."
+      reportSLn "tc.instance" 30 "dropSameCandidates: Meta is irrelevant so any candidate will do."
       return [cvd]
-    (_, MetaV m' _, _, _) : _ | m == m' ->  -- We didn't instantiate, so can't compare
+    (_, MetaV m' _, _) : _ | m == m' -> do  -- We didn't instantiate, so can't compare
+      reportSLn "tc.instance" 30 "dropSameCandidates: Meta was not instantiated so we don't filter equal candidates yet"
       return cands
-    cvd@(_, v, a, _) : vas -> do
-        if freshMetas (v, a)
-          then return (cvd : vas)
-          else (cvd :) <$> dropWhileM equal vas
+    cvd@(_, v, _) : vas
+      | freshMetas v -> do
+          reportSLn "tc.instance" 30 "dropSameCandidates: Solution of instance meta has fresh metas so we don't filter equal candidates yet"
+          return (cvd : vas)
+      | otherwise -> (cvd :) <$> dropWhileM equal vas
       where
-        equal (_, v', a', _)
-            | freshMetas (v', a') = return False  -- If there are fresh metas we can't compare
-            | otherwise           =
-          verboseBracket "tc.instance" 30 "comparingCandidates" $ do
+        equal :: (Candidate, Term, a) -> TCM Bool
+        equal (_, v', _)
+            | freshMetas v' = return False  -- If there are fresh metas we can't compare
+            | otherwise     =
+          verboseBracket "tc.instance" 30 "dropSameCandidates: " $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> "==", nest 2 $ prettyTCM v' ]
-          localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+          a <- uncurry piApplyM =<< ((,) <$> getMetaType m <*> getContextArgs)
+          localTCState $ dontAssignMetas $ ifNoConstraints_ (equalTerm a v v')
                              {- then -} (return True)
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
@@ -408,6 +416,10 @@ checkCandidates m t cands =
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ "valid candidates"
       , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM c <+> ":" <+> prettyTCM t
+             | c@(Candidate q v t overlap) <- snd cands' ] ]
+    reportSDoc "tc.instance.candidates" 60 $ nest 2 $ vcat
+      [ "valid candidates"
+      , vcat [ "-" <+> (if overlap then "overlap" else empty) <+> prettyTCM v <+> ":" <+> prettyTCM t
              | c@(Candidate q v t overlap) <- snd cands' ] ]
     return cands'
   where
