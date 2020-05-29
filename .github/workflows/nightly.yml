@@ -106,7 +106,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install stack and wget
+    - name: Install stack
       run: |
         choco install haskell-stack --no-progress
 
