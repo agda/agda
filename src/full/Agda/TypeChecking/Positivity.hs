@@ -26,7 +26,7 @@ import qualified Data.Set as Set
 
 import Debug.Trace
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (recInduction)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Position (HasRange(..), noRange)

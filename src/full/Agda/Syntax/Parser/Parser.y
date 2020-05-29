@@ -1207,10 +1207,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n ind eta pat con $3 $5 ds }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n emptyRecordDirectives $3 $5 $7 }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n ind eta pat con $3 ds }
+         {% exprToName $2 >>= \ n -> return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n emptyRecordDirectives $3 $5 }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }

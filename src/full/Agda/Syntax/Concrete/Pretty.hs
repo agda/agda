@@ -511,10 +511,10 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta pat con tel e cs ->
-              pRecord x ind eta pat con tel (Just e) cs
-            RecordDef _ x ind eta pat con tel cs ->
-              pRecord x ind eta pat con tel Nothing cs
+            Record _ x dir tel e cs ->
+              pRecord x dir tel (Just e) cs
+            RecordDef _ x dir tel cs ->
+              pRecord x dir tel Nothing cs
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
@@ -575,15 +575,12 @@ instance Pretty RecordDirective where
 
 pRecord
   :: Name
-  -> Maybe (Ranged Induction)
-  -> Maybe HasEta0
-  -> Maybe Range                -- ^ Range of the 'pattern' keyword.
-  -> Maybe (Name, IsInstance)
+  -> RecordDirectives
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord x ind eta pat con tel me ds = vcat
+pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
               , pretty x

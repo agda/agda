@@ -13,7 +13,7 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (recInduction)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Abstract.Name
