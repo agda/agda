@@ -1207,16 +1207,22 @@ niceDeclarations fixs ds = do
     extractRecordDirectives :: [Declaration] -> Nice ([RecordDirectives], [Declaration])
     extractRecordDirectives cs = do
           lrss <- forM cs $ \case
+            -- pattern record (for records with no eta equality)
             PatternB r []     -> pure [Left (emptyRecordDirectives { recPattern = Just r })]
             RecordDirective d -> pure [Left (fromRecordDirective d)]
             InstanceB r ds    -> do
-              (dirs, ds) <- extractRecordDirectives ds
-              let ds'    = case ds of { [] -> []; _ -> [Right (InstanceB r ds)] }
+              -- extract the record directives in the instance block
+              (dirs, ds0) <- extractRecordDirectives ds
+              -- if this block is record directives only, we should not return an
+              -- empty instance block of declaration
+              let ds      = case ds0 of { [] -> []; _ -> [Right (InstanceB r ds0)] }
+              -- make sure that the record directives in the `instance` block are at
+              -- most a single constructor declaration
               case dirs of
                 [dir@(RecordDirectives Nothing Nothing Nothing (Just (n, _)))] ->
-                   pure (Left (dir { recConstructor = Just (n, InstanceDef r) }) : ds')
-                [] -> pure ds'
-                _ -> ds' <$ niceWarning (MisplacedRecordDirective (getRange dirs))
+                   pure (Left (dir { recConstructor = Just (n, InstanceDef r) }) : ds)
+                [] -> pure ds
+                _ -> ds <$ niceWarning (MisplacedRecordDirective (getRange dirs))
             d -> pure [Right d]
           pure $ partitionEithers $ concat lrss
 
