@@ -1211,14 +1211,12 @@ niceDeclarations fixs ds = do
             RecordDirective d -> pure [Left (fromRecordDirective d)]
             InstanceB r ds    -> do
               (dirs, ds) <- extractRecordDirectives ds
-              let ds'    = Right (InstanceB r ds)
+              let ds'    = case ds of { [] -> []; _ -> [Right (InstanceB r ds)] }
               case dirs of
-                [dir@(RecordDirectives Nothing Nothing Nothing (Just (n, _)))] -> pure
-                   [ Left (dir { recConstructor = Just (n, InstanceDef r) })
-                   , ds'
-                   ]
-                [] -> pure [ds']
-                _ -> [ds'] <$ niceWarning (MisplacedRecordDirective (getRange dirs))
+                [dir@(RecordDirectives Nothing Nothing Nothing (Just (n, _)))] ->
+                   pure (Left (dir { recConstructor = Just (n, InstanceDef r) }) : ds')
+                [] -> pure ds'
+                _ -> ds' <$ niceWarning (MisplacedRecordDirective (getRange dirs))
             d -> pure [Right d]
           pure $ partitionEithers $ concat lrss
 
