@@ -73,7 +73,7 @@ instance Eq Literal where
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
   LitQName _ x  == LitQName _ y  = x == y
-  LitMeta _ f x == LitMeta _ g y = (f, x) == (f, y)
+  LitMeta _ f x == LitMeta _ g y = (f, x) == (g, y)
   _             == _             = False
 
 instance Ord Literal where
