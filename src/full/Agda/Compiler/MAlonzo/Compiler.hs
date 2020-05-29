@@ -142,11 +142,11 @@ ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
     noComp = do
-      reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
+      reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
       Skip . hasMainFunction isMain <$> curIF
 
     yesComp = do
-      m   <- show . A.mnameToConcrete <$> curMName
+      m   <- prettyShow . A.mnameToConcrete <$> curMName
       out <- outFile_
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
@@ -236,7 +236,7 @@ definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModal
 definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
-    , nest 2 $ text (show d)
+    , nest 2 $ text (prettyShow d)
     ]
   pragma <- getHaskellPragma q
   mbool  <- getBuiltinName builtinBool
@@ -860,7 +860,7 @@ callGHC opts modIsMain mods = do
 
   let overridableArgs =
         [ "-O"] ++
-        (if isMain == IsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
+        (if isMain == IsMain then ["-o", mdir </> prettyShow (nameConcrete outputName)] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++

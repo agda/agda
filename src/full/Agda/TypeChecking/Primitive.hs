@@ -43,7 +43,7 @@ import Agda.TypeChecking.Warnings
 import Agda.Utils.Float
 import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -65,14 +65,14 @@ instance TermLike Nat where
   traverseTermM _ = pure
   foldTerm _      = mempty
 
-instance Show Nat where
-  show = show . toInteger
+instance Pretty Nat where
+  pretty = pretty . toInteger
 
 newtype Lvl = Lvl { unLvl :: Integer }
   deriving (Eq, Ord)
 
-instance Show Lvl where
-  show = show . unLvl
+instance Pretty Lvl where
+  pretty = pretty . unLvl
 
 class PrimType a where
   primType :: a -> TCM Type
@@ -746,7 +746,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
   -- , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
   -- , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
-  [ "primShowInteger"     |-> mkPrimFun1 (T.pack . show :: Integer -> Text)
+  [ "primShowInteger"     |-> mkPrimFun1 (T.pack . prettyShow :: Integer -> Text)
 
   -- Natural number functions
   , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
@@ -760,7 +760,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
       in mkPrimFun4 aux
   , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
   , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
-  , "primShowNat"         |-> mkPrimFun1 (T.pack . show :: Nat -> Text)
+  , "primShowNat"         |-> mkPrimFun1 (T.pack . prettyShow :: Nat -> Text)
 
   -- Machine words
   , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
@@ -802,7 +802,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
   , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
   , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
-  , "primShowFloat"       |-> mkPrimFun1 (T.pack . show   :: Double -> Text)
+  , "primShowFloat"       |-> mkPrimFun1 (T.pack . prettyShow   :: Double -> Text)
   , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
 

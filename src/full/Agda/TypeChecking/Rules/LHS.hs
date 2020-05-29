@@ -516,7 +516,7 @@ checkPatternLinearity eqs = do
         A.VarP x -> do
           let y = A.unBind x
           reportSLn "tc.lhs.linear" 60 $
-            "pattern variable " ++ show (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
+            "pattern variable " ++ prettyShow (A.nameConcrete y) ++ " with id " ++ show (A.nameId y)
           case Map.lookup x vars of
             Just (v , b) -> do
               traceCall (CheckPatternLinearityType $ A.nameConcrete y) $

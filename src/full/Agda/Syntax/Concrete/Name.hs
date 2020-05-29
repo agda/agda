@@ -411,22 +411,9 @@ instance IsNoName a => IsNoName (WithOrigin a) where
 -- * Showing names
 ------------------------------------------------------------------------
 
--- deriving instance Show Name
--- deriving instance Show NamePart
--- deriving instance Show QName
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instances are deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for these types:
-
-instance Show Name where
-  show = prettyShow
-
-instance Show NamePart where
-  show = prettyShow
-
-instance Show QName where
-  show = prettyShow
+deriving instance Show Name
+deriving instance Show NamePart
+deriving instance Show QName
 
 ------------------------------------------------------------------------
 -- * Printing names

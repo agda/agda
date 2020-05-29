@@ -61,7 +61,7 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty ( prettyShow, render )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -856,7 +856,7 @@ instance PrettyTCM TypeError where
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
-          if show p1 == show p2 then unambiguous e else pretty e
+          if render p1 == render p2 then unambiguous e else return p2
 
         unambiguous :: MonadPretty m => C.Expr -> m Doc
         unambiguous e@(C.OpApp r op _ xs)
@@ -930,7 +930,7 @@ instance PrettyTCM TypeError where
         pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
         pretty' d1 p' = do
           d2 <- pretty p'
-          if show d1 == show d2 then pretty $ unambiguousP p' else return d2
+          if render d1 == render d2 then pretty $ unambiguousP p' else return d2
 
         -- the entire pattern is shown, not just the ambiguous part,
         -- so we need to dig in order to find the OpAppP's.
@@ -958,7 +958,7 @@ instance PrettyTCM TypeError where
                    map (Boxes.vcat Boxes.left) [col1, col2, col3]) $
                unzip3 $
                map prettySect $
-               sortBy (compare `on` show . notaName . sectNotation) $
+               sortBy (compare `on` prettyShow . notaName . sectNotation) $
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole

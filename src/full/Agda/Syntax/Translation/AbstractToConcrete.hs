@@ -1331,7 +1331,7 @@ instance ToConcrete A.Pattern C.Pattern where
         resolveName (someKindsOfNames [FldName]) Nothing (C.QName cn) >>= \ case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
-            reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
+            reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ prettyShow (nameConcrete v)
             C.DotP r . C.Paren r <$> toConcrete (A.Var v)
           Right _ -> printDotDefault i e
           Left _ -> __IMPOSSIBLE__

@@ -1799,9 +1799,6 @@ unranged = Ranged noRange
 instance Pretty a => Pretty (Ranged a) where
   pretty = pretty . rangedThing
 
--- instance Show a => Show (Ranged a) where
---   show = show . rangedThing
-
 instance Eq a => Eq (Ranged a) where
   Ranged _ x == Ranged _ y = x == y
 
