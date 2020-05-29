@@ -96,6 +96,7 @@ import Agda.Utils.ListT
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -937,27 +938,40 @@ instance Pretty Interface where
             display userwarn importwarn builtin foreignCode highlighting pragmaO
             oUsed patternS warnings partialdefs) =
 
-    hang "Interface" 2 $ vcat
-      [ "source hash:"         <+> (pretty . show) sourceH
-      , "source:"              $$  nest 2 (text $ TL.unpack source)
-      , "file type:"           <+> (pretty . show) fileT
-      , "imported modules:"    <+> (pretty . show) importedM
-      , "module name:"         <+> pretty moduleN
-      , "scope:"               <+> (pretty . show) scope
-      , "inside scope:"        <+> (pretty . show) insideS
-      , "signature:"           <+> (pretty . show) signature
-      , "display:"             <+> (pretty . show) display
-      , "user warnings:"       <+> (pretty . show) userwarn
-      , "import warning:"      <+> (pretty . show) importwarn
-      , "builtin:"             <+> (pretty . show) builtin
-      , "Foreign code:"        <+> (pretty . show) foreignCode
-      , "highlighting:"        <+> (pretty . show) highlighting
-      , "pragma options:"      <+> (pretty . show) pragmaO
-      , "options used:"        <+> (pretty . show) oUsed
-      , "pattern syns:"        <+> (pretty . show) patternS
-      , "warnings:"            <+> (pretty . show) warnings
-      , "partial definitions:" <+> (pretty . show) partialdefs
-      ]
+    title "Interface"
+      $$ (vcat $ punctuate "\n\n" $ subtitles $ concat
+      [ [("Module name"         , pretty moduleN <+> parens ("hash" <+> pshow sourceH))]
+      , [("Source code"         , (text $ TL.unpack source))]
+      , [("File type"           , (pretty . show) fileT) | fileT /= AgdaFileType]
+      , [("Imported modules"    , vcat $
+                                    List.map (\(m, h) -> pretty m <+> parens ("hash" <+> pshow h))
+                                             importedM)]
+      , [("Scope"               , vcat $ map pretty $ Map.elems scope)]
+      , [("Inside scope"        , pretty insideS)]
+      , [("Definitions"         , pretty $ _sigDefinitions signature)]
+      , [("Sections"            , "(Not implemented yet)")] --pretty $ _sigSections signature  -- TODO
+      , [("Rewrite rules"       , pshow $ _sigRewriteRules signature)
+                                        | not $ List.null $ _sigRewriteRules signature]  -- TODO
+      , [("Display"             , (pretty . show) display) | not $ HMap.null display]  -- TODO
+      , [("User warnings"       , (pretty . show) userwarn) | not $ Map.null userwarn]  -- TODO
+      , [("Import warning"      , (pretty . show) iw) | iw <- maybeToList importwarn]  -- TODO
+      , [("Builtin"             , (pretty . show) builtin) | not $ Map.null builtin]  -- TODO
+      , [("Foreign code"        , (pretty . show) foreignCode) | not $ Map.null foreignCode]  -- TODO
+      , [("Highlighting"        , "(Not implemented yet)")] --(pretty . show) highlighting  -- TODO
+      , [("Pragma options"      , (pretty . show) pragmaO) | not $ List.null pragmaO]  -- TODO
+      , [("Options used"        , "(Not implemented yet)")] --(pretty . show) oUsed  -- TODO
+      , [("Pattern synonyms"    , (pretty . show) patternS) | not $ Map.null patternS]  -- TODO
+      , [("Warnings"            , (pretty . show) warnings) | not $ List.null warnings]  -- TODO
+      , [("Partial definitions" , pretty partialdefs) | not $ Set.null partialdefs]  -- TODO
+      ])
+   where
+     -- Underline the string with equals signs
+     title :: String -> Doc
+     title s = text s $$ (text (replicate (length s) '=') <> "\n")
+
+     -- Underline the strings with hyphens and separate them from the docs by a new line
+     subtitles :: [(String, Doc)] -> [Doc]
+     subtitles = List.map (\ (s, t) -> text s $$ (text (replicate (length s) '-') <> "\n") $$ t)
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
 iFullHash :: Interface -> Hash
@@ -1573,6 +1587,9 @@ instance Pretty DisplayTerm where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance Pretty DisplayForm where
+  pretty (Display n ps t) = pretty ps <+> "-->" <+> pretty t
+
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
@@ -1717,7 +1734,7 @@ data NumGeneralizableArgs
   | SomeGeneralizableArgs Int
     -- ^ When lambda-lifting new args are generalizable if
     --   'SomeGeneralizableArgs', also when the number is zero.
-  deriving (Data, Show)
+  deriving (Data, Show, Eq)
 
 theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
@@ -1842,6 +1859,15 @@ data Projection = Projection
     --   is returned as 'Def':  @t = \ pars -> f@.
   } deriving (Data, Show)
 
+prettyProj :: Projection -> [Doc]
+prettyProj Projection{..} = concat
+  [ ["- projection-like" | projProper == Nothing]
+  , ["- projection from record" <+> pretty n | n <- maybeToList projProper]
+  , ["- original projection name:" <+> pretty projOrig]
+  , ["- original record type:" <+> pretty projFromType]  -- TODO show ArgInfo?
+  , ["- index of the record argument:" <+> pretty projIndex]
+  , ["- projection lambdas:" <+> (prettyList $ getProjLams projLams)] ]
+
 -- | Abstractions to build projection function (dropping parameters).
 newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
   deriving (Data, Show, Null)
@@ -1888,6 +1914,11 @@ data FunctionFlag
   | FunMacro   -- ^ Is this function a macro?
   deriving (Data, Eq, Ord, Enum, Show)
 
+instance Pretty FunctionFlag where
+  pretty FunStatic = "static"
+  pretty FunInline = "inline"
+  pretty FunMacro  = "macro"
+
 data CompKit = CompKit
   { nameOfHComp :: Maybe QName
   , nameOfTransp :: Maybe QName
@@ -1901,7 +1932,7 @@ data Defn = Axiom -- ^ Postulate
           | DataOrRecSig
             { datarecPars :: Int }
             -- ^ Data or record type signature that doesn't yet have a definition
-          | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
+          | GeneralizableVar -- ^ Generalizable variable (introduced in `variable` block)
           | AbstractDefn Defn
             -- ^ Returned by 'getConstInfo' if definition is abstract.
           | Function
@@ -2033,24 +2064,152 @@ data Defn = Axiom -- ^ Postulate
             }
     deriving (Data, Show)
 
+instance Pretty Definitions where
+  pretty defs = vcat $ punctuate "\n" $ List.map pretty $ List.sortOn defMutual $ HMap.elems defs  -- TODO sort definitions inside mutual blocks, or at least datatypes and constructors
+
 instance Pretty Definition where
   pretty Defn{..} =
-    "Defn {" <?> vcat
-      [ "defArgInfo        =" <?> pshow defArgInfo
-      , "defName           =" <?> pretty defName
-      , "defType           =" <?> pretty defType
-      , "defPolarity       =" <?> pshow defPolarity
-      , "defArgOccurrences =" <?> pshow defArgOccurrences
-      , "defGeneralizedParams =" <?> pshow defGeneralizedParams
-      , "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
-      , "defMutual         =" <?> pshow defMutual
-      , "defCompiledRep    =" <?> pshow defCompiledRep
-      , "defInstance       =" <?> pshow defInstance
-      , "defCopy           =" <?> pshow defCopy
-      , "defMatchable      =" <?> pshow (Set.toList defMatchable)
-      , "defInjective      =" <?> pshow defInjective
-      , "defCopatternLHS   =" <?> pshow defCopatternLHS
-      , "theDef            =" <?> pretty theDef ] <+> "}"
+    vcat $ concat
+      [ [typeOfDef theDef <+> pretty defName <+> parens ("mutual block #" <> (pretty $ getId defMutual))]
+      , showArgInfo defArgInfo
+      , ["- polarity:" <+> pretty defPolarity | not $ List.all (\p -> p == Invariant) defPolarity]
+      , ["- positivity:" <+> pretty defArgOccurrences | not $ List.all (\p -> p == Mixed) defArgOccurrences]
+      , ["- number of generalized arguments:" <+> pshow defArgGeneralizable  -- TODO
+            | defArgGeneralizable /= NoGeneralizableArgs]
+      , ["- generalized parameters:" <+> pretty defGeneralizedParams  -- TODO
+            | not $ List.null defGeneralizedParams]
+      , ["- display form:" <+> showDisplayForm df | df <- defDisplay]
+      , ["- compiled representation for" <+> pretty b <+> ":" <+> pshow cr
+            | (b, cr) <- Map.toList defCompiledRep]  -- TODO
+      , ["- instance for class" <+> pretty n | n <- maybeToList defInstance]
+      , ["- created by a module instantiation" | defCopy]
+      , ["- applicable rewrite rule:" <+> pretty rr | rr <- Set.toList defMatchable]  -- TODO
+      , ["- skipped by compilers" | defNoCompilation]
+      , ["- injective" | defInjective]
+      , ["- defined by copatterns" | defCopatternLHS]
+      , blockingStatus defBlocked
+      , ["- type:" $$ (nest 2 $ pretty defType)]
+      , prettyDef theDef]
+
+    where
+      getId :: MutualId -> Int32
+      getId (MutId n) = n
+
+      typeOfDef :: Defn -> Doc
+      typeOfDef Axiom = "Axiom"
+      typeOfDef DataOrRecSig{} = "DataOrRecordSignature"
+      typeOfDef GeneralizableVar = "GeneralizableVariable"
+      typeOfDef (AbstractDefn def) = "Abstract" <+> typeOfDef def
+      typeOfDef Function{} = "Function"
+      typeOfDef Datatype{} = "Datatype"
+      typeOfDef Record{} = "Record"
+      typeOfDef Constructor{} = "Constructor"
+      typeOfDef Primitive{} = "Primitive"
+      typeOfDef PrimitiveSort{} = "PrimitiveSort"
+
+      showArgInfo :: ArgInfo -> [Doc]
+      showArgInfo (ArgInfo _ modality origin fv) =
+        List.map (\ s -> "- " <> s) $
+          concat [ [pshow modality | modality /= defaultModality]
+                 , [pshow origin | origin /= UserWritten]
+                 , [pshow fv | fv /= UnknownFVs] ]
+
+      blockingStatus :: Blocked_ -> [Doc]
+      blockingStatus (NotBlocked ReallyNotBlocked ()) = []
+      blockingStatus defBlocked = ["- blocking status" <+> pshow defBlocked]  -- TODO
+
+      showDisplayForm :: LocalDisplayForm -> Doc
+      showDisplayForm (OpenThing (CheckpointId 0) d) = pretty d
+      showDisplayForm (OpenThing (CheckpointId n) d) = pretty d <+> parens ("checkpointid:" <+> pretty n)
+
+prettyDef :: Defn -> [Doc]
+prettyDef Axiom = []
+prettyDef (DataOrRecSig n) = ["- number of parameters:" <+> pretty n]
+prettyDef GeneralizableVar = []
+prettyDef (AbstractDefn def) = prettyDef def
+prettyDef Function{..} = concat
+  [ caseMaybe
+      funMutual
+      ["- mutual block not yet computed"]
+      (\ l -> ["- names in same mutual block:" <+> pretty l | not $ List.null l])
+  , ["- abstract" | funAbstr == AbstractDef]
+  , ["- delayed" | funDelayed == Delayed]
+  , caseMaybe funProjection [] prettyProj
+  , ["- flag:" <+> pretty f | f <- Set.toList funFlags]
+  , ["- non-terminating" | funTerminates == Just False]
+  , ["- unknown termination status" | funTerminates == Nothing]
+  , ["- generated from extended lambda:" <+> pshow i | i <- maybeToList funExtLam]  -- TODO
+  , ["- generated with-function for" <+> pretty n | n <- maybeToList funWith]  -- TODO
+  , ["- clauses:" $$ (nest 2 $ vcat $ map pretty funClauses)]
+  , ["- compiled clauses:" $$ "  (Not implemented yet)" ]  -- TODO
+  , ["- split tree:" $$ "  (Not implemented yet)" ] -- (nest 2 $ pshow st) | st <- maybeToList funSplitTree]  -- TODO
+  , ["- treeless:" $$ (nest 2 $ pshow tl) | tl <- maybeToList funTreeless]  -- TODO
+  , ["- covering clauses:" $$ (nest 2 $ pshow funCovering) | not $ List.null funCovering]  -- TODO
+  , showInverse funInv
+  ]
+    where
+      showInverse :: FunctionInverse -> [Doc]
+      showInverse NotInjective = []
+      showInverse (Inverse f) =
+        ["inverse:" $$ (nest 2 $ vcat $ List.map (\(h, cs) -> pretty h <+> "-->" <+> pretty cs) $ Map.toList f) ]
+
+prettyDef Datatype{..} = concat
+  [ ["-" <+> pretty dataPars <+> "parameter(s) and" <+> pretty dataIxs <+> "index/indices"]
+  , ["- abstract" | dataAbstr == AbstractDef]
+  , ["- sort:" <+> pretty dataSort]
+  , ["- constructors:" <+> pretty dataCons]
+  , ["- path constructors:" <+> pretty dataPathCons | not $ List.null dataPathCons]
+  , ["- mutual block:" <+> pretty dataMutual]
+  , ["- clause:" <+> pretty cl | cl <- maybeToList dataClause] ]
+
+prettyDef Record{..} = concat
+  [ ["-" <+> pretty recPars <+> "parameter(s)"]
+  , ["- conHead" <+> pretty recConHead]
+  , ["- has a constructor" | recNamedCon]
+  , ["- fields:" <+> prettyList recFields]
+  , ["- telescope:" <+> pretty recTel]
+  , ["- mutual block:" <+> pretty recMutual]
+  , showEta $ getEtaData recEtaEquality' recPatternMatching
+  , ["- inductive" | recInduction == Just Inductive]
+  , ["- coinductive" | recInduction == Just CoInductive]]
+  where
+     showEta :: (Bool , Bool , PatternOrCopattern, Bool) -> [Doc]
+     showEta (specified, hasEta, p, conflict) = concat
+       [ [(if hasEta then "- has eta-equality" else "- does not have eta-equality")
+           <+> parens (if specified then "specified" else "user written")]
+       , ["- can pattern match on constructor" | p == PatternMatching]
+       , ["- recEtaEquality and recPatternMatching are different" | conflict] ]
+
+     -- (specified, has eta, _, conflict)
+     getEtaData :: EtaEquality -> PatternOrCopattern -> (Bool , Bool , PatternOrCopattern, Bool)
+     getEtaData (Specified YesEta) p     = (True,  True,  p, False)
+     getEtaData (Specified (NoEta p)) p' = (True,  False, p, p /= p')
+     getEtaData (Inferred  YesEta) p     = (False, True,  p, False)
+     getEtaData (Inferred  (NoEta p)) p' = (False, False, p, p /= p')
+
+prettyDef Constructor{..} = concat
+  [ ["-" <+> pretty conPars <+> "parameter(s) and" <+> pretty conArity <+> "argument(s)"]
+  , ["- abstract" | conAbstr == AbstractDef]
+  , ["- coinductive" | conInd == CoInductive]
+  , ["- associated datatype:" <+> pretty conData]
+  , ["- name of original constructor:" <+> pretty conSrcCon]
+  , ["- cubical stuff:" <+> caseMaybe (nameOfHComp conComp) "(no hcomp)" pretty
+                        <+> caseMaybe (nameOfTransp conComp) "(no transp)" pretty]
+  , ["- projections:" <+> prettyList pj | pj <- maybeToList conProj]
+  , ["- forced arguments:" <+> pshow conForced | not $ null conForced]
+  , ["- erased arguments:" <+> prettyList e | e <- maybeToList conErased] ]
+
+prettyDef Primitive{..} =
+  [ "Primitive {" <?> vcat
+    [ "primAbstr    =" <?> pshow primAbstr
+    , "primName     =" <?> pshow primName
+    , "primClauses  =" <?> pshow primClauses
+    , "primCompiled =" <?> pshow primCompiled ] <?> "}" ]
+prettyDef PrimitiveSort{..} =
+  [ "PrimitiveSort {" <?> vcat
+    [ "primName =" <?> pshow primName
+    , "primSort =" <?> pshow primSort
+    ] <?> "}" ]
 
 instance Pretty Defn where
   pretty Axiom = "Axiom"
