@@ -27,8 +27,8 @@ included-dirs:
     # Without this line the above path will be excluded.
 
 excluded-dirs:
-  - "**MAlonzo" # matches every MAlonzo in any directory including the src/full/Agda/Compiler/MAlonzo
-  - "**dist*"   # matches every dist* in any directory
+  - "**/MAlonzo" # matches every MAlonzo in any directory including the src/full/Agda/Compiler/MAlonzo
+  - "**/dist*"   # matches every dist* in any directory
   - .stack-work
   - _darcs
   - .git
@@ -38,19 +38,19 @@ excluded-dirs:
 
 # Every matched filename is included unless it is matched by excluded-files.
 included-files:
-  - "**.agda"
-  - "**.cabal"
-  - "**.el"
-  - "**.hs"
-  - "**.hs-boot"
-  - "**.lagda"
-  - "**.lhs"
-  - "**.md"
-  - "**.rst"
-  - "**.x"
-  - "**.y"
-  - "**.yaml"
-  - "**.yml"
+  - "*.agda"
+  - "*.cabal"
+  - "*.el"
+  - "*.hs"
+  - "*.hs-boot"
+  - "*.lagda"
+  - "*.lhs"
+  - "*.md"
+  - "*.rst"
+  - "*.x"
+  - "*.y"
+  - "*.yaml"
+  - "*.yml"
 
 excluded-files:
 # Andreas (24 Sep 2014).
