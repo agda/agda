@@ -7,8 +7,8 @@ open import Common.Prelude
 postulate
   f : ∀ a → Set a
 
-pattern expectedType =
-  pi (vArg (def (quote Level) []))
+pattern
+  expectedType = pi (vArg (def (quote Level) []))
      (abs "a" (sort (set (var 0 []))))
 
 ok : ⊤

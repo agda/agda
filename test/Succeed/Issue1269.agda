@@ -12,13 +12,14 @@ data Even  : ℕ → Set where
   isEven0  : Even 0
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
 
-pattern expected =
-  def (quote ∃)
-      ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-        arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-        arg (argInfo hidden relevant) (def (quote ℕ) []) ∷
-        arg (argInfo visible relevant) (def (quote Even) []) ∷
-        [] )
+pattern
+  expected =
+    def (quote ∃)
+        ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo hidden relevant) (def (quote ℕ) []) ∷
+          arg (argInfo visible relevant) (def (quote Even) []) ∷
+          [] )
 
 isExpected : Term → Bool
 isExpected expected = true
