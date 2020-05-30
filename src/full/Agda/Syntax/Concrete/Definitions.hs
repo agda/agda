@@ -1823,8 +1823,8 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    untypedPatternSyn :: Range -> Access -> Maybe (Name, Expr) -> Declaration -> Nice NicePatternSyn
-    untypedPatternSyn r p mnty (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
+    mkPatternSyn :: Range -> Access -> Maybe (Name, Expr) -> Declaration -> Nice NicePatternSyn
+    mkPatternSyn r p mnty (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
         rhs'   <- case isPattern rhs of
           Just pat -> pure pat
           Nothing  -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
@@ -1834,11 +1834,11 @@ niceDeclarations fixs ds = do
                 RawAppP _ (IdentP (QName nm) :| _) -> nm
                 _ -> __IMPOSSIBLE__ -- TODO
         return $ NicePatternSyn r p n' (snd <$> mnty) pat rhs'
-    untypedPatternSyn r _ _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
+    mkPatternSyn r _ _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
 
     patternBlock :: [NiceDeclaration] -> Nice [NicePatternSyn]
     patternBlock (NiceFunClause r p _ _ _ _ d : rest) = do  -- Untyped
-        psyn  <- untypedPatternSyn r p Nothing d
+        psyn  <- mkPatternSyn r p Nothing d
         psyns <- patternBlock rest
         return $ psyn : psyns
     patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 ty
@@ -1847,7 +1847,7 @@ niceDeclarations fixs ds = do
       d <- case ds of
         [d] -> pure d
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
-      psyn  <- untypedPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
+      psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
       psyns <- patternBlock rest
       return (psyn : psyns)
     patternBlock [] = return []
