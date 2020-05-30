@@ -104,7 +104,7 @@ jobs:
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |
-        C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- wget -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
 
     - name: Install text-icu ${{ matrix.icu-ver }}
       run: |
