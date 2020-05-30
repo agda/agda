@@ -221,7 +221,7 @@ declaredNames d = case d of
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _ _ -> declaresName x
-  PatternB _ ds        -> foldMap declaredNames ds
+  PatternB _ ds        -> foldMap declaredNamesPB ds
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
@@ -250,3 +250,8 @@ declaredNames d = case d of
 
     declaresNameRD :: RecordDirectives -> DeclaredNames
     declaresNameRD (RecordDirectives _ _ _ con) = foldMap (declaresName . fst) con
+
+    declaredNamesPB :: Declaration -> DeclaredNames
+    declaredNamesPB = \case
+      FunClause (LHS (RawAppP _ (IdentP (QName nm) List1.:| _)) [] [] NoEllipsis) _ NoWhere _ -> declaresName nm
+      d -> declaredNames d
