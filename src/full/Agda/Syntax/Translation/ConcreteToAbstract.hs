@@ -1956,11 +1956,16 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
 
         -- Otherwise it better be a pattern of the form `c x0..xn`!
         Nothing -> do
-          (n :| as) <- case pat of
-            C.RawAppP _ ps -> forM ps $ \case
-              (C.IdentP (C.QName n)) -> pure n
-              _ -> __IMPOSSIBLE__
-            _ -> __IMPOSSIBLE__
+          (Arg _ n :| as) <- case pat of
+            C.RawAppP _ ps -> forM ps $ \ p0 -> do
+              let (h, p) = case p0 of
+                    C.HiddenP _   (Named Nothing (C.RawAppP _ (p :| []))) -> (Hidden, p)
+                    C.InstanceP _ (Named Nothing (C.RawAppP _ (p :| []))) -> (Instance NoOverlap, p)
+                    _ -> (NotHidden, p0)
+              case p of
+                C.IdentP (C.QName n) -> pure (setHiding h $ defaultArg n)
+                p -> trace (show p) __IMPOSSIBLE__
+            _ -> trace (show pat) __IMPOSSIBLE__
           reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
           y <- freshAbstractQName' n
           bindName a PatternSynName n y
@@ -1984,9 +1989,9 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
                    Named _ (A.ScopedExpr _ (A.Var n)) -> pure (BindName n)
                    blah -> trace (show blah) __IMPOSSIBLE__  -- TODO
                _ -> trace (show e) __IMPOSSIBLE__ --TODO
-           Right as -> do
-             as <- mapM (unVarName <=< resolveName . C.QName) as
-             pure $ map (defaultArg . BindName) as
+           Right args -> do
+             as <- mapM (unVarName <=< resolveName . C.QName . unArg) args
+             pure $ zipWith ((<$) . BindName) (as :: [A.Name]) (args :: [Arg C.Name])
          unlessNull (patternVars rhs List.\\ map (unBind . unArg) as) $ \ xs -> do
            typeError . GenericDocError =<< do
              "Unbound variables in pattern synonym: " <+>
