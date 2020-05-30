@@ -1979,11 +1979,11 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
              lhs <- toAbstract (C.patternToExpr pat)
              let A.Application e as = A.appView lhs
              case e of
-               A.PatternSyn (AmbQ (y' :| [])) | y == y' ->
+               A.PatternSyn (AmbQ ys) | any (y ==) ys -> -- We are allowed to overload pattern synonyms!
                  forM as $ mapM $ \case
                    Named _ (A.ScopedExpr _ (A.Var n)) -> pure (BindName n)
                    blah -> trace (show blah) __IMPOSSIBLE__  -- TODO
-               _ -> __IMPOSSIBLE__
+               _ -> trace (show e) __IMPOSSIBLE__ --TODO
            Right as -> do
              as <- mapM (unVarName <=< resolveName . C.QName) as
              pure $ map (defaultArg . BindName) as
