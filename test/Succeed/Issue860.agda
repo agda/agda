@@ -1,8 +1,9 @@
 
 open import Common.Prelude hiding (length; map)
 
-pattern [_] x = x ∷ []
-pattern tail {x} xs = x ∷ xs
+pattern
+  [_] x = x ∷ []
+  tail {x} xs = x ∷ xs
 
 length : ∀ {A : Set} → List A → Nat
 length [] = 0

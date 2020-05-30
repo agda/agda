@@ -152,7 +152,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
-  PatternB _ ds' -> fixitiesAndPolarities' ds'
+  PatternB _ ds'  -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -220,8 +220,8 @@ declaredNames d = case d of
   Record _ x d _ _ ds  -> declaresName x <> declaresNameRD d <> foldMap declaredNames ds
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
-  PatternSyn _ x _ _   -> foldMap (declaresName . fst) x
-  PatternB _ ds        -> foldMap declaredNames ds
+  PatternSyn _ x _ _ _ -> declaresName x
+  PatternB _ ds        -> foldMap declaredNamesPB ds
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
@@ -250,3 +250,8 @@ declaredNames d = case d of
 
     declaresNameRD :: RecordDirectives -> DeclaredNames
     declaresNameRD (RecordDirectives _ _ _ con) = foldMap (declaresName . fst) con
+
+    declaredNamesPB :: Declaration -> DeclaredNames
+    declaredNamesPB = \case
+      FunClause (LHS (RawAppP _ (IdentP (QName nm) List1.:| _)) [] [] NoEllipsis) _ NoWhere _ -> declaresName nm
+      d -> declaredNames d

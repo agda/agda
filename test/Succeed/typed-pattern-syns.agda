@@ -1,7 +1,7 @@
 open import Agda.Builtin.Nat
 open import Agda.Builtin.List
 
--- pattern z = zero
+pattern z = zero
 
 pattern
   one = suc zero
@@ -11,7 +11,7 @@ pattern
 
 pattern
 
-  one : Nat
+  one : Nat → Nat
   one = suc zero
   infixr 5 _◂_◂_
 

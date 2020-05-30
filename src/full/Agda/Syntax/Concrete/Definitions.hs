@@ -148,9 +148,10 @@ data NiceDeclaration
 
 data NicePatternSyn
   = NicePatternSyn Range Access
-    (Maybe (Name, Expr)) -- ^ Maybe a type signature
-    Pattern              -- ^ An unparsed LHS
-    Pattern              -- ^ RHS
+    Name         -- ^ The synonym name (either declared or prefix for untyped ones)
+    (Maybe Expr) -- ^ Maybe a type signature
+    Pattern      -- ^ An unparsed LHS
+    Pattern      -- ^ RHS
   deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -1207,16 +1208,22 @@ niceDeclarations fixs ds = do
     extractRecordDirectives :: [Declaration] -> Nice ([RecordDirectives], [Declaration])
     extractRecordDirectives cs = do
           lrss <- forM cs $ \case
+            -- pattern record (for records with no eta equality)
             PatternB r []     -> pure [Left (emptyRecordDirectives { recPattern = Just r })]
             RecordDirective d -> pure [Left (fromRecordDirective d)]
             InstanceB r ds    -> do
-              (dirs, ds) <- extractRecordDirectives ds
-              let ds'    = case ds of { [] -> []; _ -> [Right (InstanceB r ds)] }
+              -- extract the record directives in the instance block
+              (dirs, ds0) <- extractRecordDirectives ds
+              -- if this block is record directives only, we should not return an
+              -- empty instance block of declaration
+              let ds      = case ds0 of { [] -> []; _ -> [Right (InstanceB r ds0)] }
+              -- make sure that the record directives in the `instance` block are at
+              -- most a single constructor declaration
               case dirs of
                 [dir@(RecordDirectives Nothing Nothing Nothing (Just (n, _)))] ->
-                   pure (Left (dir { recConstructor = Just (n, InstanceDef r) }) : ds')
-                [] -> pure ds'
-                _ -> ds' <$ niceWarning (MisplacedRecordDirective (getRange dirs))
+                   pure (Left (dir { recConstructor = Just (n, InstanceDef r) }) : ds)
+                [] -> pure ds
+                _ -> ds <$ niceWarning (MisplacedRecordDirective (getRange dirs))
             d -> pure [Right d]
           pure $ partitionEithers $ concat lrss
 
@@ -1784,7 +1791,7 @@ niceDeclarations fixs ds = do
         NicePatternB r ds               -> NicePatternB r <$> mapM (mkInstancePatternSyn r0) ds
           where
           mkInstancePatternSyn :: Range -> Updater NicePatternSyn
-          mkInstancePatternSyn r0 d@(NicePatternSyn r p mt pat rhs) = return d
+          mkInstancePatternSyn r0 d@(NicePatternSyn r p n mt pat rhs) = return d
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
@@ -1816,17 +1823,22 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    untypedPatternSyn :: Range -> Access -> Declaration -> Nice NicePatternSyn
-    untypedPatternSyn r p (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
-        rhs' <- case isPattern rhs of
+    mkPatternSyn :: Range -> Access -> Maybe (Name, Expr) -> Declaration -> Nice NicePatternSyn
+    mkPatternSyn r p mnty (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
+        rhs'   <- case isPattern rhs of
           Just pat -> pure pat
           Nothing  -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
-        return $ NicePatternSyn r p Nothing pat rhs'
-    untypedPatternSyn r _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
+        let n' = case mnty of
+              Just (nm, _) -> nm
+              Nothing      -> case pat of
+                RawAppP _ (IdentP (QName nm) :| _) -> nm
+                _ -> __IMPOSSIBLE__ -- TODO
+        return $ NicePatternSyn r p n' (snd <$> mnty) pat rhs'
+    mkPatternSyn r _ _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
 
     patternBlock :: [NiceDeclaration] -> Nice [NicePatternSyn]
     patternBlock (NiceFunClause r p _ _ _ _ d : rest) = do  -- Untyped
-        psyn  <- untypedPatternSyn r p d
+        psyn  <- mkPatternSyn r p Nothing d
         psyns <- patternBlock rest
         return $ psyn : psyns
     patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 ty
@@ -1835,9 +1847,9 @@ niceDeclarations fixs ds = do
       d <- case ds of
         [d] -> pure d
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
-      NicePatternSyn _ p _ pat rhs <- untypedPatternSyn r1 p d
+      psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
       psyns <- patternBlock rest
-      return (NicePatternSyn (fuseRange r0 r1) p (Just (x0, ty)) pat rhs : psyns)
+      return (psyn : psyns)
     patternBlock [] = return []
     patternBlock (d : _) =
         throwError $ WrongContentBlock PatternBlock $ getRange d
@@ -1962,8 +1974,8 @@ instance MakePrivate NiceDeclaration where
       d@NiceRecDef{}                           -> return d
 
 instance MakePrivate NicePatternSyn where
-  mkPrivate o (NicePatternSyn r p nty pat rhs) =
-    (\ p -> NicePatternSyn r p nty pat rhs) <$> mkPrivate o p
+  mkPrivate o (NicePatternSyn r p n ty pat rhs) =
+    (\ p -> NicePatternSyn r p n ty pat rhs) <$> mkPrivate o p
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -2007,7 +2019,7 @@ notSoNiceDeclarations = \case
     NicePatternB r ps              -> [PatternB r (map notSoNicePatternSyn ps)]
       where
       notSoNicePatternSyn :: NicePatternSyn -> Declaration
-      notSoNicePatternSyn (NicePatternSyn r _ nty pat rhs) = PatternSyn r nty pat rhs
+      notSoNicePatternSyn (NicePatternSyn r _ n ty pat rhs) = PatternSyn r n ty pat rhs
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
