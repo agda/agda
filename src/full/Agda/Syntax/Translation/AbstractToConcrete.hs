@@ -1130,7 +1130,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       let mkPat = C.IdentP . C.QName
       let pat   = foldl (\ f p -> C.AppP f (unnamed . mkPat <$> p)) (mkPat x) xs
       rhs <- dontFoldPatternSynonyms $ toConcrete (vacuous p :: A.Pattern)
-      let psyn = C.PatternSyn (getRange x) (fmap (x,) mty) pat rhs
+      let psyn = C.PatternSyn (getRange x) x mty pat rhs
       pure $ [C.PatternB (getRange x) [psyn]]
 
   toConcrete (A.UnquoteDecl _ i xs e) = do

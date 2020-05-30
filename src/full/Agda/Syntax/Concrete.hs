@@ -401,7 +401,9 @@ data Declaration
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternB    Range [Declaration]
-  | PatternSyn  Range (Maybe (Name, Expr)) Pattern Pattern
+  | PatternSyn  Range Name (Maybe Expr) Pattern Pattern
+    -- ^ The optional expr is a type
+    --   The last two patterns are the pattern's LHS and RHS respectively
   -- | PatternTyped Range Name
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
@@ -806,7 +808,7 @@ instance HasRange Declaration where
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
   getRange (PatternB r _)          = r
-  getRange (PatternSyn r _ _ _)    = r
+  getRange (PatternSyn r _ _ _ _)  = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
   getRange (Pragma p)              = getRange p
@@ -939,7 +941,7 @@ instance KillRange Declaration where
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternB _ d)          = killRange1 (PatternB noRange) d
-  killRange (PatternSyn _ nt ns p)  = killRange3 (PatternSyn noRange) nt ns p
+  killRange (PatternSyn _ n t ns p) = killRange4 (PatternSyn noRange) n t ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
@@ -1152,7 +1154,7 @@ instance NFData Declaration where
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternB _ a)          = rnf a
-  rnf (PatternSyn _ a b c)    = rnf (a, b, c)
+  rnf (PatternSyn _ a b c d)  = rnf (a, b, c, d)
   rnf (Mutual _ a)            = rnf a
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a

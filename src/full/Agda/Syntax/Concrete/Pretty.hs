@@ -519,8 +519,8 @@ instance Pretty Declaration where
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternB _ ds -> namedBlock "pattern" ds
-            PatternSyn _ mnty p rhs -> vcat
-              [ maybe empty (\ (n, ty) -> pretty n <+> ":" <+> pretty ty) mnty
+            PatternSyn _ n mty p rhs -> vcat
+              [ maybe empty (\ ty -> pretty n <+> ":" <+> pretty ty) mty
               , pretty p <+> "=" <+> pretty rhs
               ]
             Mutual _ ds     -> namedBlock "mutual" ds

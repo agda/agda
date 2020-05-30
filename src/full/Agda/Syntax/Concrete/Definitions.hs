@@ -148,9 +148,10 @@ data NiceDeclaration
 
 data NicePatternSyn
   = NicePatternSyn Range Access
-    (Maybe (Name, Expr)) -- ^ Maybe a type signature
-    Pattern              -- ^ An unparsed LHS
-    Pattern              -- ^ RHS
+    Name         -- ^ The synonym name (either declared or prefix for untyped ones)
+    (Maybe Expr) -- ^ Maybe a type signature
+    Pattern      -- ^ An unparsed LHS
+    Pattern      -- ^ RHS
   deriving (Data, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -1790,7 +1791,7 @@ niceDeclarations fixs ds = do
         NicePatternB r ds               -> NicePatternB r <$> mapM (mkInstancePatternSyn r0) ds
           where
           mkInstancePatternSyn :: Range -> Updater NicePatternSyn
-          mkInstancePatternSyn r0 d@(NicePatternSyn r p mt pat rhs) = return d
+          mkInstancePatternSyn r0 d@(NicePatternSyn r p n mt pat rhs) = return d
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
@@ -1822,17 +1823,22 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    untypedPatternSyn :: Range -> Access -> Declaration -> Nice NicePatternSyn
-    untypedPatternSyn r p (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
-        rhs' <- case isPattern rhs of
+    untypedPatternSyn :: Range -> Access -> Maybe (Name, Expr) -> Declaration -> Nice NicePatternSyn
+    untypedPatternSyn r p mnty (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
+        rhs'   <- case isPattern rhs of
           Just pat -> pure pat
           Nothing  -> throwError $ WrongContentBlock PatternBlock $ getRange rhs
-        return $ NicePatternSyn r p Nothing pat rhs'
-    untypedPatternSyn r _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
+        let n' = case mnty of
+              Just (nm, _) -> nm
+              Nothing      -> case pat of
+                RawAppP _ (IdentP (QName nm) :| _) -> nm
+                _ -> __IMPOSSIBLE__ -- TODO
+        return $ NicePatternSyn r p n' (snd <$> mnty) pat rhs'
+    untypedPatternSyn r _ _ _ = throwError $ WrongContentBlock PatternBlock r -- TODO
 
     patternBlock :: [NiceDeclaration] -> Nice [NicePatternSyn]
     patternBlock (NiceFunClause r p _ _ _ _ d : rest) = do  -- Untyped
-        psyn  <- untypedPatternSyn r p d
+        psyn  <- untypedPatternSyn r p Nothing d
         psyns <- patternBlock rest
         return $ psyn : psyns
     patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 ty
@@ -1841,9 +1847,9 @@ niceDeclarations fixs ds = do
       d <- case ds of
         [d] -> pure d
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
-      NicePatternSyn _ p _ pat rhs <- untypedPatternSyn r1 p d
+      psyn  <- untypedPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
       psyns <- patternBlock rest
-      return (NicePatternSyn (fuseRange r0 r1) p (Just (x0, ty)) pat rhs : psyns)
+      return (psyn : psyns)
     patternBlock [] = return []
     patternBlock (d : _) =
         throwError $ WrongContentBlock PatternBlock $ getRange d
@@ -1968,8 +1974,8 @@ instance MakePrivate NiceDeclaration where
       d@NiceRecDef{}                           -> return d
 
 instance MakePrivate NicePatternSyn where
-  mkPrivate o (NicePatternSyn r p nty pat rhs) =
-    (\ p -> NicePatternSyn r p nty pat rhs) <$> mkPrivate o p
+  mkPrivate o (NicePatternSyn r p n ty pat rhs) =
+    (\ p -> NicePatternSyn r p n ty pat rhs) <$> mkPrivate o p
 
 instance MakePrivate Clause where
   mkPrivate o (Clause x catchall lhs rhs wh with) = do
@@ -2013,7 +2019,7 @@ notSoNiceDeclarations = \case
     NicePatternB r ps              -> [PatternB r (map notSoNicePatternSyn ps)]
       where
       notSoNicePatternSyn :: NicePatternSyn -> Declaration
-      notSoNicePatternSyn (NicePatternSyn r _ nty pat rhs) = PatternSyn r nty pat rhs
+      notSoNicePatternSyn (NicePatternSyn r _ n ty pat rhs) = PatternSyn r n ty pat rhs
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]

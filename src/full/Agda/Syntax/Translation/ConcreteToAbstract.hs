@@ -1939,11 +1939,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 instance ToAbstract NicePatternSyn [A.Declaration] where
 
-  toAbstract (NicePatternSyn r a mnty pat rhs) = setCurrentRange r $ do
+  toAbstract (NicePatternSyn r a n mty pat rhs) = setCurrentRange r $ do
     -- 1. Extract a name and a list of arguments (variables only)
-      ((n, y), mty, as) <- case mnty of
+      ((n, y), mty, as) <- case mty of
         -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
-        Just (n, ty) -> do
+        Just ty -> do
           reportSLn "scope.pat" 10 $ "found nice typed pattern syn: " ++ prettyShow n
           y <- freshAbstractQName' n
           bindName a PatternSynName n y
