@@ -1676,7 +1676,7 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { [Declaration] }
 RecordDeclarations
-    : vopen Declarations1 close { $2 }
+    : Declarations0 { $1 }
 
 
 RecordDirective :: { RecordDirective }
