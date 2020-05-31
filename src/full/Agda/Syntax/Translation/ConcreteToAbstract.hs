@@ -1374,12 +1374,13 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
+      NiceMutual _ _ _ _ d@[ C.FunSig _ _ _ instanc macro info _ _ x mty
+                           , C.FunDef _ _ abstract _ _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "`abstract` not allowed in let expressions"
               when (macro == MacroDef) $ do
                 genericError $ "Macros cannot be defined in a let expression"
-              t <- toAbstract t
+              t <- toAbstract (fromMaybe (C.Underscore (getRange x) Nothing) mty)
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
               fx <- getConcreteFixity x
@@ -1422,7 +1423,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x (C.Underscore (getRange x) Nothing)
+                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x Nothing
                 , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
@@ -1645,9 +1646,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
-    C.FunSig r p a i m rel _ _ x t -> do
+    C.FunSig r p a i m rel _ _ x mty -> do
         let kind = if m == MacroDef then MacroName else FunName
-        toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+        let ty = fromMaybe (C.Underscore (getRange x) Nothing) mty
+        toAbstractNiceAxiom kind (C.Axiom r p a i rel x ty)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
