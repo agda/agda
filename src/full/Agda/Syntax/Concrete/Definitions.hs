@@ -131,7 +131,7 @@ data NiceDeclaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
-  | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
+  | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name (Maybe Expr)
   | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
@@ -907,7 +907,8 @@ replaceSigs ps = if Map.null ps then id else \case
     replaceable :: NiceDeclaration -> Maybe (Name, NiceDeclaration)
     replaceable = \case
       FunSig r acc abst inst _ argi _ _ x e ->
-        Just (x, Axiom r acc abst inst argi x e)
+        let ty = fromMaybe (Underscore (getRange x) Nothing) e in
+        Just (x, Axiom r acc abst inst argi x ty)
       NiceRecSig r acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
@@ -1012,7 +1013,8 @@ niceDeclarations fixs ds = do
           let r = getRange d
           -- register x as lone type signature, to recognize clauses later
           x' <- addLoneSig r x $ FunName termCheck covCheck
-          return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)
+          let fsig = FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' (Just t)
+          return ([fsig] , ds)
 
         -- Should not show up: all FieldSig are part of a Field block
         FieldSig{} -> __IMPOSSIBLE__
@@ -1437,10 +1439,8 @@ niceDeclarations fixs ds = do
     mkFunDef info termCheck covCheck x mt ds0 = do
       ds <- expandEllipsis ds0
       cs <- mkClauses x ds False
-      return [ FunSig (fuseRange x t) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x t
+      return [ FunSig (fuseRange x mt) PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x mt
              , FunDef (getRange ds0) ds0 ConcreteDef NotInstanceDef termCheck covCheck x cs ]
-        where
-          t = fromMaybe (underscore (getRange x)) mt
 
     underscore r = Underscore r Nothing
 
@@ -1841,15 +1841,19 @@ niceDeclarations fixs ds = do
         psyn  <- mkPatternSyn r p Nothing d
         psyns <- patternBlock rest
         return $ psyn : psyns
-    patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 ty
-                 : FunDef r1 ds _ _ _ _    x1 _ : rest) = do -- Typed
+    patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 mty
+                 : FunDef r1 ds a _ tc cc  x1 _ : rest) = do -- Typed
       unless (x0 == x1) (throwError $ WrongContentBlock PatternBlock r1)
       d <- case ds of
         [d] -> pure d
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
-      psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
-      psyns <- patternBlock rest
-      return (psyn : psyns)
+      case mty of
+        Nothing -> patternBlock (NiceFunClause r1 p a tc cc False d : rest)
+         -- ^ A simple FunClause Agda felt smart assigning a type to
+        Just ty -> do
+          psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
+          psyns <- patternBlock rest
+          return (psyn : psyns)
     patternBlock [] = return []
     patternBlock (d : _) =
         throwError $ WrongContentBlock PatternBlock $ getRange d
@@ -2012,7 +2016,8 @@ notSoNiceDeclarations = \case
     NiceRecSig r _ _ _ _ x bs e    -> [RecordSig r x bs e]
     NiceDataSig r _ _ _ _ x bs e   -> [DataSig r x bs e]
     NiceFunClause _ _ _ _ _ _ d    -> [d]
-    FunSig _ _ _ i _ rel _ _ x e   -> inst i [TypeSig rel Nothing x e]
+    FunSig _ _ _ i _ rel _ _ x me  -> inst i [TypeSig rel Nothing x ty]
+      where ty = fromMaybe (Underscore (getRange x) Nothing) me
     FunDef _ ds _ _ _ _ _ _        -> ds
     NiceDataDef r _ _ _ _ x bs cs  -> [DataDef r x bs $ concatMap notSoNiceDeclarations cs]
     NiceRecDef r _ _ _ _ x dir bs ds -> [RecordDef r x dir bs ds]
