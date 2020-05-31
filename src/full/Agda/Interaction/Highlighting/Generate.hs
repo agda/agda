@@ -449,7 +449,7 @@ warningHighlighting w = let dead = deadcodeHighlighting (getRange w) in case tcW
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> dead
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
-  NicifierIssue w           -> case w of
+  NicifierIssue w           -> let dead = deadcodeHighlighting (getRange w) in case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
