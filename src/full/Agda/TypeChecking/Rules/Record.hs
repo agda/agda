@@ -39,6 +39,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.POMonoid
+import Agda.Utils.Pretty (render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -136,12 +137,13 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         -- NB: contype does not contain the parameter telescope
 
       -- Obtain name of constructor (if present).
-      (hasNamedCon, conName, conInfo) <- case con of
-        Just c  -> return (True, c, i)
+      (hasNamedCon, conName) <- case con of
+        Just c  -> return (True, c)
         Nothing -> do
           m <- killRange <$> currentModule
-          c <- qualify m <$> freshName_ ("recCon-NOT-PRINTED" :: String)
-          return (False, c, i)
+          r <- prettyTCM name
+          c <- qualify m <$> freshName_ (render r ++ ".constructor")
+          return (False, c)
 
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"
@@ -226,7 +228,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
               , conArity  = size fs
               , conSrcCon = con
               , conData   = name
-              , conAbstr  = Info.defAbstract conInfo
+              , conAbstr  = Info.defAbstract i
               , conInd    = conInduction
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
