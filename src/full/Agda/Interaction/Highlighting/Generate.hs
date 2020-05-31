@@ -388,7 +388,7 @@ errorWarningHighlighting w =
 -- | Generate syntax highlighting for warnings.
 
 warningHighlighting :: TCWarning -> File
-warningHighlighting w = case tcWarning w of
+warningHighlighting w = let dead = deadcodeHighlighting (getRange w) in case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
   -- #3965 highlight each unreachable clause independently: they
@@ -398,24 +398,24 @@ warningHighlighting w = case tcWarning w of
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
-  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
-  ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
+  AbsurdPatternRequiresNoRHS{} -> dead
+  ModuleDoesntExport{}         -> dead
   FixityInRenamingModule rs    -> foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
-  EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
-  EmptyWhere{}               -> deadcodeHighlighting $ getRange w
-  IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
-  UselessPublic{}            -> deadcodeHighlighting $ getRange w
+  EmptyRewritePragma{}       -> dead
+  EmptyWhere{}               -> dead
+  IllformedAsClause{}        -> dead
+  UselessPublic{}            -> dead
   UselessInline{}            -> mempty
-  UselessPatternDeclarationForRecord{} -> deadcodeHighlighting $ getRange w
+  UselessPatternDeclarationForRecord{} -> dead
   ClashesViaRenaming _ xs    -> foldMap (deadcodeHighlighting . getRange) xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
   WrongInstanceDeclaration{} -> mempty
-  InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
+  InstanceWithExplicitArg{}  -> dead
   InstanceNoOutputTypeName{} -> mempty
   InstanceArgWithExplicitArg{} -> mempty
   ParseWarning{}             -> mempty
@@ -444,34 +444,36 @@ warningHighlighting w = case tcWarning w of
   LibraryWarning{}           -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
-  PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
-  NotInScopeW{}              -> deadcodeHighlighting $ getRange w
+  PragmaCompileErased{}      -> dead
+  NotInScopeW{}              -> dead
   AsPatternShadowsConstructorOrPatternSynonym{}
-                             -> deadcodeHighlighting $ getRange w
+                             -> dead
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
-  NicifierIssue w           -> case w of
+  NicifierIssue w           -> let dead = deadcodeHighlighting (getRange w) in case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual{}             -> deadcodeHighlighting $ getRange w
-    EmptyAbstract{}                  -> deadcodeHighlighting $ getRange w
-    EmptyInstance{}                  -> deadcodeHighlighting $ getRange w
-    EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
-    EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
-    EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
-    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
-    EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w
-    EmptyGeneralize{}                -> deadcodeHighlighting $ getRange w
-    EmptyField{}                     -> deadcodeHighlighting $ getRange w
-    UselessAbstract{}                -> deadcodeHighlighting $ getRange w
-    UselessInstance{}                -> deadcodeHighlighting $ getRange w
-    UselessPrivate{}                 -> deadcodeHighlighting $ getRange w
-    InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting $ getRange w
-    InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
-    InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
-    InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
-    OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
-    OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
+    NotAllowedInMutual{}             -> dead
+    EmptyAbstract{}                  -> dead
+    EmptyInstance{}                  -> dead
+    EmptyMacro{}                     -> dead
+    EmptyMutual{}                    -> dead
+    EmptyPattern{}                   -> dead
+    EmptyPostulate{}                 -> dead
+    EmptyPrimitive{}                 -> dead
+    EmptyPrivate{}                   -> dead
+    EmptyGeneralize{}                -> dead
+    EmptyField{}                     -> dead
+    UselessAbstract{}                -> dead
+    UselessInstance{}                -> dead
+    UselessPrivate{}                 -> dead
+    InvalidNoPositivityCheckPragma{} -> dead
+    InvalidNoUniverseCheckPragma{}   -> dead
+    InvalidTerminationCheckPragma{}  -> dead
+    InvalidCoverageCheckPragma{}     -> dead
+    OpenPublicAbstract{}             -> dead
+    OpenPublicPrivate{}              -> dead
+    MisplacedRecordDirective{}       -> dead
     W.ShadowingInTelescope nrs       -> foldMap
                                           (shadowingTelHighlighting . snd)
                                           nrs

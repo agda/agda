@@ -152,6 +152,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
   Macro     _ ds' -> fixitiesAndPolarities' ds'
+  PatternB _ ds'  -> fixitiesAndPolarities' ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -176,6 +177,7 @@ fixitiesAndPolarities' = foldMap $ \case
   UnquoteDecl {}  -> mempty
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
+  RecordDirective{} -> mempty
 
 data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
@@ -214,11 +216,12 @@ declaredNames d = case d of
   DataDef _ _ _ cs     -> foldMap declaredNames cs
   Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
-  RecordDef _ x _ _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
-  Record _ x _ _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  RecordDef _ x d _ ds -> declaresNameRD d <> foldMap declaredNames ds
+  Record _ x d _ _ ds  -> declaresName x <> declaresNameRD d <> foldMap declaredNames ds
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
-  PatternSyn _ x _ _   -> declaresName x
+  PatternSyn _ x _ _ _ -> declaresName x
+  PatternB _ ds        -> foldMap declaredNamesPB ds
   Mutual    _ ds       -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
@@ -238,3 +241,17 @@ declaredNames d = case d of
   Pragma (BuiltinPragma _ b (QName x))
     | isBuiltinNoDef $ rangedThing b -> declaresName x
   Pragma{}             -> mempty
+  RecordDirective d    -> case d of
+      Induction{}   -> mempty
+      Constructor x -> declaresName x
+      Eta{}         -> mempty
+
+  where
+
+    declaresNameRD :: RecordDirectives -> DeclaredNames
+    declaresNameRD (RecordDirectives _ _ _ con) = foldMap (declaresName . fst) con
+
+    declaredNamesPB :: Declaration -> DeclaredNames
+    declaredNamesPB = \case
+      FunClause (LHS (RawAppP _ (IdentP (QName nm) List1.:| _)) [] [] NoEllipsis) _ NoWhere _ -> declaresName nm
+      d -> declaredNames d

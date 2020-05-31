@@ -31,7 +31,7 @@ import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (recInduction)
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
 import Agda.Termination.CutOff
@@ -113,7 +113,7 @@ termDecl' d = case d of
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ _ _ _ ds -> termDecls ds
+    A.RecDef _ r _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}      -> __IMPOSSIBLE__
     A.DataSig{}     -> __IMPOSSIBLE__
@@ -127,7 +127,7 @@ termDecl' d = case d of
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
     getName (A.FunDef i x delayed cs)   = [x]
-    getName (A.RecDef _ _ _ _ _ _ _ _ _ ds) = getNames ds
+    getName (A.RecDef _ _ _ _ _ _ ds)   = getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ ds)        = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds

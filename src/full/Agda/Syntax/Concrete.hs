@@ -13,6 +13,7 @@ module Agda.Syntax.Concrete
   , appView, AppView(..)
   , isSingleIdentifierP, removeSingletonRawAppP
   , isPattern, isAbsurdP, isBinderP
+  , patternToExpr
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -33,6 +34,8 @@ module Agda.Syntax.Concrete
   , makePi
     -- * Declarations
   , Declaration(..)
+  , RecordDirective(..)
+  , RecordDirectives, fromRecordDirective
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
@@ -392,13 +395,17 @@ data Declaration
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
+  | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
+  | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
     --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
-  | PatternSyn  Range Name [Arg Name] Pattern
+  | PatternB    Range [Declaration]
+  | PatternSyn  Range Name (Maybe Expr) Pattern Pattern
+    -- ^ The optional expr is a type
+    --   The last two patterns are the pattern's LHS and RHS respectively
+  -- | PatternTyped Range Name
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
@@ -419,7 +426,24 @@ data Declaration
   | UnquoteDecl Range [Name] Expr
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
+  | RecordDirective RecordDirective
   deriving (Data, Eq)
+
+type RecordDirectives = RecordDirectives' (Name, IsInstance)
+
+data RecordDirective
+   = Induction (Ranged Induction)
+       -- ^ Range of keyword @[co]inductive@.
+   | Constructor Name
+   | Eta         (Ranged HasEta0)
+       -- ^ Range of @[no-]eta-equality@ keyword.
+   deriving (Data, Eq, Show)
+
+fromRecordDirective :: RecordDirective -> RecordDirectives
+fromRecordDirective = \case
+  Induction i   -> emptyRecordDirectives { recInduction   = Just i }
+  Constructor n -> emptyRecordDirectives { recConstructor = Just (n, NotInstanceDef) }
+  Eta e         -> emptyRecordDirectives { recHasEta      = Just (rangedThing e) }
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
@@ -603,6 +627,29 @@ isPattern = \case
       InstanceArg _ p -> InstanceP r (fmap f p)
       p               -> f p
 
+-- | Turn a pattern into an expression.
+--  Pattern needs to not be parsed already (operators still unresolved).
+
+patternToExpr :: Pattern -> Expr
+patternToExpr p = let r = getRange p; f = patternToExpr in case p of
+  IdentP n -> Ident n
+  QuoteP r -> Quote r
+  AppP p p' -> App r (f p) (fmap f <$> p')
+  RawAppP r ps -> RawApp r (f <$> ps)
+  OpAppP r n ns as -> __IMPOSSIBLE__  -- OpApp r n ns ?
+  HiddenP r p -> HiddenArg r (f <$> p)
+  InstanceP r p -> InstanceArg r (f <$> p)
+  ParenP r p -> Paren r (f p)
+  WildP r -> Underscore r Nothing
+  AbsurdP r -> Absurd r
+  AsP r n p -> As r n (f p)
+  DotP r e -> Dot r e
+  LitP l -> Lit l
+  RecP r as -> Rec r (Left . fmap f <$> as)
+  EqualP r ees -> __IMPOSSIBLE__
+  EllipsisP r -> Ellipsis r
+  WithP r p -> __IMPOSSIBLE__
+
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
   AbsurdP r      -> pure (r, NotHidden)
@@ -745,8 +792,8 @@ instance HasRange Declaration where
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (RecordDef r _ _ _ _ _ _ _) = r
-  getRange (Record r _ _ _ _ _ _ _ _)  = r
+  getRange (RecordDef r _ _ _ _ )  = r
+  getRange (Record r _ _ _ _ _)    = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
@@ -761,10 +808,17 @@ instance HasRange Declaration where
   getRange (Module r _ _ _)        = r
   getRange (Infix f _)             = getRange f
   getRange (Syntax n _)            = getRange n
-  getRange (PatternSyn r _ _ _)    = r
+  getRange (PatternB r _)          = r
+  getRange (PatternSyn r _ _ _ _)  = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
   getRange (Pragma p)              = getRange p
+  getRange (RecordDirective d)     = getRange d
+
+instance HasRange RecordDirective where
+  getRange (Induction i) = getRange i
+  getRange (Constructor c) = getRange c
+  getRange (Eta e) = getRange e
 
 instance HasRange LHS where
   getRange (LHS p eqns ws ell) = p `fuseRange` eqns `fuseRange` ws
@@ -883,11 +937,12 @@ instance KillRange Declaration where
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (RecordDef _ n mi mb mp mn k d) = killRange7 (RecordDef noRange) n mi mb mp mn k d
-  killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
+  killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
+  killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
-  killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
+  killRange (PatternB _ d)          = killRange1 (PatternB noRange) d
+  killRange (PatternSyn _ n t ns p) = killRange4 (PatternSyn noRange) n t ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
@@ -902,6 +957,12 @@ instance KillRange Declaration where
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
   killRange (Pragma p)              = killRange1 Pragma p
+  killRange (RecordDirective d)     = killRange1 RecordDirective d
+
+instance KillRange RecordDirective where
+  killRange (Induction i) = killRange1 Induction i
+  killRange (Constructor n) = killRange1 Constructor n
+  killRange (Eta e) = killRange1 Eta e
 
 instance KillRange Expr where
   killRange (Ident q)            = killRange1 Ident q
@@ -1089,11 +1150,12 @@ instance NFData Declaration where
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordDef _ a b c _ d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
-  rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
+  rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
+  rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
-  rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
+  rnf (PatternB _ a)          = rnf a
+  rnf (PatternSyn _ a b c d)  = rnf (a, b, c, d)
   rnf (Mutual _ a)            = rnf a
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a
@@ -1108,6 +1170,12 @@ instance NFData Declaration where
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (Pragma a)              = rnf a
+  rnf (RecordDirective a)     = rnf a
+
+instance NFData RecordDirective where
+  rnf (Induction a) = rnf a
+  rnf (Constructor a) = rnf a
+  rnf (Eta a) = rnf a
 
 -- | Ranges are not forced.
 

@@ -1137,8 +1137,10 @@ Declaration
     | Module        { [$1] }
     | Pragma        { [$1] }
     | Syntax        { [$1] }
-    | PatternSyn    { [$1] }
     | UnquoteDecl   { [$1] }
+    | PatternB      { [$1] }
+    | RecordDirective { [RecordDirective $1] }
+      -- `pattern` is both a declaration and a record directive.
 
 
 {--------------------------------------------------------------------------
@@ -1205,10 +1207,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n ind eta pat con $3 $5 ds }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n emptyRecordDirectives $3 $5 $7 }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n ind eta pat con $3 ds }
+         {% exprToName $2 >>= \ n -> return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n emptyRecordDirectives $3 $5 }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1216,9 +1218,8 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 -- Declaration of record constructor name.
-RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+RecordConstructorName :: { Name }
+RecordConstructorName : 'constructor' Id { $2 }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1301,16 +1302,8 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
 }
 
 -- Pattern synonyms.
-PatternSyn :: { Declaration }
-PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
-  p <- exprToPattern $5
-  return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
-  }
-
-PatternSynArgs :: { [Arg Name] }
-PatternSynArgs
-  : {- empty -} { [] }
-  | LamBinds    {% patternSynArgs (List1.toList $1) }
+PatternB :: { Declaration }
+PatternB : 'pattern' Declarations0 { PatternB (fuseRange $1 $2) $2 }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
@@ -1681,41 +1674,21 @@ ArgTypeSignatures0
     | {- empty -}                         { [] }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta0, Maybe Range, Maybe (Name, IsInstance)), [Declaration]) }
+RecordDeclarations :: { [Declaration] }
 RecordDeclarations
-    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (,$4) }
-    | vopen Declarations1 close                       { (empty, $2) }
+    : Declarations0 { $1 }
 
-
-RecordDirectives :: { [RecordDirective] }
-RecordDirectives
-    : {- empty -}                           { [] }
-    | RecordDirectives semi RecordDirective { $3 : $1 }
-    | RecordDirective                       { [$1] }
 
 RecordDirective :: { RecordDirective }
 RecordDirective
     : RecordConstructorName { Constructor $1 }
     | RecordInduction       { Induction $1 }
     | RecordEta             { Eta $1 }
-    | RecordPatternMatching { PatternOrCopattern $1 }
 
 RecordEta :: { Ranged HasEta0 }
 RecordEta
     : 'eta-equality'    { Ranged (getRange $1) YesEta }
     | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
-
--- Directive 'pattern' if a decision between matching on constructor/record pattern
--- or copattern matching is needed.
--- Such decision is only needed for 'no-eta-equality' records.
--- But eta could be turned off automatically, thus, we do not bundle this
--- with the 'no-eta-equality' declaration.
--- Nor with the 'constructor' declaration, since it applies also to
--- the record pattern.
-RecordPatternMatching :: { Range }
-RecordPatternMatching
-    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Ranged Induction }
@@ -2116,37 +2089,27 @@ verifyImportDirective i =
         names (Using xs)    = xs
         names UseEverything = []
 
-data RecordDirective
-   = Induction (Ranged Induction)
-       -- ^ Range of keyword @[co]inductive@.
-   | Constructor (Name, IsInstance)
-   | Eta         (Ranged HasEta0)
-       -- ^ Range of @[no-]eta-equality@ keyword.
-   | PatternOrCopattern Range
-       -- ^ If declaration @pattern@ is present, give its range.
-   deriving (Eq,Show)
-
 -- | Check for duplicate record directives.
-verifyRecordDirectives :: [RecordDirective] -> Parser
-  ( Maybe (Ranged Induction)
-  , Maybe HasEta0
-  , Maybe Range                -- Range of 'pattern' declaration, if any.
-  , Maybe (Name, IsInstance)
-  )
-verifyRecordDirectives ds
-  | null rs   = return (listToMaybe is, listToMaybe es, listToMaybe ps, listToMaybe cs)
-      -- Here, all the lists is, es, cs, ps are at most singletons.
-  | otherwise = parseErrorRange (head rs) $ unlines $ "Repeated record directives at:" : map prettyShow rs
-  where
-  errorFromList []  = []
-  errorFromList [x] = []
-  errorFromList xs  = map getRange xs
-  rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
-  es  = map rangedThing es'
-  is  = [ i | Induction i          <- ds ]
-  es' = [ e | Eta e                <- ds ]
-  cs  = [ c | Constructor c        <- ds ]
-  ps  = [ r | PatternOrCopattern r <- ds ]
+-- verifyRecordDirectives :: [RecordDirective] -> Parser
+--   ( Maybe (Ranged Induction)
+--   , Maybe HasEta0
+--   , Maybe Range                -- Range of 'pattern' declaration, if any.
+--   , Maybe (Name, IsInstance)
+--   )
+-- verifyRecordDirectives ds
+--   | null rs   = return (listToMaybe is, listToMaybe es, listToMaybe ps, listToMaybe cs)
+--       -- Here, all the lists is, es, cs, ps are at most singletons.
+--   | otherwise = parseErrorRange (head rs) $ unlines $ "Repeated record directives at:" : map prettyShow rs
+--   where
+--   errorFromList []  = []
+--   errorFromList [x] = []
+--   errorFromList xs  = map getRange xs
+--   rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
+--   es  = map rangedThing es'
+--   is  = [ i | Induction i          <- ds ]
+--   es' = [ e | Eta e                <- ds ]
+--   cs  = [ c | Constructor c        <- ds ]
+--   ps  = [ r | PatternOrCopattern r <- ds ]
 
 
 -- | Breaks up a string into substrings. Returns every maximal
@@ -2230,16 +2193,16 @@ maybeNamed e =
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
-patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
-patternSynArgs = mapM pSynArg
-  where
-    pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
-    pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
-    pSynArg (Right (DomainFree x))
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden]
-         = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+-- patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
+-- patternSynArgs = mapM pSynArg
+--   where
+--     pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
+--     pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
+--     pSynArg (Right (DomainFree x))
+--       | let h = getHiding x, h `notElem` [Hidden, NotHidden]
+--          = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
+--       | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
+--       | otherwise          = return $ fmap (boundName . binderName . namedThing) x
 
 mkLamClause
   :: Bool   -- ^ Catch-all?

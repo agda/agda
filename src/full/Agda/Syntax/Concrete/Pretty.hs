@@ -495,15 +495,18 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta pat con tel e cs ->
-              pRecord x ind eta pat con tel (Just e) cs
-            RecordDef _ x ind eta pat con tel cs ->
-              pRecord x ind eta pat con tel Nothing cs
+            Record _ x dir tel e cs ->
+              pRecord x dir tel (Just e) cs
+            RecordDef _ x dir tel cs ->
+              pRecord x dir tel Nothing cs
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
-            PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
-                                     <+> "=" <+> pretty p
+            PatternB _ ds -> namedBlock "pattern" ds
+            PatternSyn _ n mty p rhs -> vcat
+              [ maybe empty (\ ty -> pretty n <+> ":" <+> pretty ty) mty
+              , pretty p <+> "=" <+> pretty rhs
+              ]
             Mutual _ ds     -> namedBlock "mutual" ds
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ _ ds  -> namedBlock "private" ds
@@ -542,23 +545,26 @@ instance Pretty Declaration where
             UnquoteDef _ xs t ->
               sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
             Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
+            RecordDirective d -> pretty d
         where
             namedBlock s ds =
                 sep [ text s
                     , nest 2 $ vcat $ map pretty ds
                     ]
 
+instance Pretty RecordDirective where
+  pretty (Induction i) = pretty i
+  pretty (Constructor n) = "constructor" <+> pretty n
+  pretty (Eta e) = pretty e
+
 pRecord
   :: Name
-  -> Maybe (Ranged Induction)
-  -> Maybe HasEta0
-  -> Maybe Range                -- ^ Range of the 'pattern' keyword.
-  -> Maybe (Name, IsInstance)
+  -> RecordDirectives
   -> [LamBinding]
   -> Maybe Expr
   -> [Declaration]
   -> Doc
-pRecord x ind eta pat con tel me ds = vcat
+pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
     [ sep
       [ hsep  [ "record"
               , pretty x
@@ -582,9 +588,7 @@ pRecord x ind eta pat con tel me ds = vcat
         pType Nothing  =
                   "where"
         pInd = maybeToList $ pretty . rangedThing <$> ind
-        pEta = maybeToList $ eta <&> \case
-          YesEta   -> "eta-equality"
-          NoEta () -> "no-eta-equality"
+        pEta = maybeToList $ pretty <$> eta
         pPat = maybeToList $ "pattern" <$ pat
         -- pEta = caseMaybe eta [] $ \case
         --   YesEta -> [ "eta-equality" ]

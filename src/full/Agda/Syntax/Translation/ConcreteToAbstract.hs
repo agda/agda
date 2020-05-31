@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
+import Debug.Trace
 
 import Control.Applicative
 import Control.Monad.Except
@@ -44,6 +45,7 @@ import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
 import Agda.Syntax.Abstract.Pretty
+import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -230,7 +232,7 @@ recordConstructorType decls =
         C.FunDef{}            -> failure
         C.NiceDataDef{}       -> failure
         C.NiceRecDef{}        -> failure
-        C.NicePatternSyn{}    -> failure
+        C.NicePatternB{}      -> failure
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
@@ -937,7 +939,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
       C.Tactic r e -> do
-        let AppView e' args = appView e
+        let AppView e' args = C.appView e
         e'   <- toAbstract e'
         args <- toAbstract args
         return $ A.Tactic (ExprRange r) e' args
@@ -1309,14 +1311,14 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
      -- to hide an illegal pragma in a block. Cf. Issue #3983
      noUnsafePragma :: C.Declaration -> TCM C.Declaration
      noUnsafePragma = \case
-       C.Pragma pr                         -> warnUnsafePragma pr
-       C.RecordDef r n ind eta pat con lams ds -> C.RecordDef r n ind eta pat con lams <$> mapM noUnsafePragma ds
-       C.Record r n ind eta pat con lams e ds  -> C.Record r n ind eta pat con lams e <$> mapM noUnsafePragma ds
-       C.Mutual r ds                       -> C.Mutual r <$> mapM noUnsafePragma ds
-       C.Abstract r ds                     -> C.Abstract r <$> mapM noUnsafePragma ds
-       C.Private r o ds                    -> C.Private r o <$> mapM noUnsafePragma ds
-       C.InstanceB r ds                    -> C.InstanceB r <$> mapM noUnsafePragma ds
-       C.Macro r ds                        -> C.Macro r <$> mapM noUnsafePragma ds
+       C.Pragma pr                 -> warnUnsafePragma pr
+       C.RecordDef r n dir lams ds -> C.RecordDef r n dir lams <$> mapM noUnsafePragma ds
+       C.Record r n dir lams e ds  -> C.Record r n dir lams e <$> mapM noUnsafePragma ds
+       C.Mutual r ds               -> C.Mutual r <$> mapM noUnsafePragma ds
+       C.Abstract r ds             -> C.Abstract r <$> mapM noUnsafePragma ds
+       C.Private r o ds            -> C.Private r o <$> mapM noUnsafePragma ds
+       C.InstanceB r ds            -> C.InstanceB r <$> mapM noUnsafePragma ds
+       C.Macro r ds                -> C.Macro r <$> mapM noUnsafePragma ds
        d -> pure d
 
      warnUnsafePragma :: C.Pragma -> TCM C.Declaration
@@ -1372,12 +1374,13 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
+      NiceMutual _ _ _ _ d@[ C.FunSig _ _ _ instanc macro info _ _ x mty
+                           , C.FunDef _ _ abstract _ _ _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "`abstract` not allowed in let expressions"
               when (macro == MacroDef) $ do
                 genericError $ "Macros cannot be defined in a let expression"
-              t <- toAbstract t
+              t <- toAbstract (fromMaybe (C.Underscore (getRange x) Nothing) mty)
               -- We bind the name here to make sure it's in scope for the LHS (#917).
               -- It's unbound for the RHS in letToAbstract.
               fx <- getConcreteFixity x
@@ -1420,7 +1423,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x (C.Underscore (getRange x) Nothing)
+                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x Nothing
                 , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
@@ -1523,7 +1526,6 @@ instance ToAbstract LetDef [A.LetBinding] where
           where
           yes = return ()
           no  = genericError "Not a valid let pattern"
-
 
 instance ToAbstract NiceDeclaration A.Declaration where
 
@@ -1644,9 +1646,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
           return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
 
   -- Type signatures
-    C.FunSig r p a i m rel _ _ x t -> do
+    C.FunSig r p a i m rel _ _ x mty -> do
         let kind = if m == MacroDef then MacroName else FunName
-        toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+        let ty = fromMaybe (C.Underscore (getRange x) Nothing) mty
+        toAbstractNiceAxiom kind (C.Axiom r p a i rel x ty)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
@@ -1702,7 +1705,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.NiceRecDef r o a _ uc x ind eta pat cm pars fields -> do
+    C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
 
       -- Andreas, 2020-04-19, issue #4560
@@ -1761,7 +1764,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
         let params = DataDefParams gvars pars
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta pat cm' params contel afields ]
+        let dir    = RecordDirectives ind eta pat cm'
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir params contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1918,30 +1922,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NicePatternSyn r a n as p -> do
-      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
-      (as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< parsePatternSyn p
-         checkPatternLinearity p $ \ys ->
-           typeError $ RepeatedVariablesInPattern ys
-         bindVarsToBind
-         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
-         p <- noDotorEqPattern err p
-         as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         unlessNull (patternVars p List.\\ map unArg as) $ \ xs -> do
-           typeError . GenericDocError =<< do
-             "Unbound variables in pattern synonym: " <+>
-               sep (map prettyA xs)
-         return (as, p)
-      y <- freshAbstractQName' n
-      bindName a PatternSynName n y
-      -- Expanding pattern synonyms already at definition makes it easier to
-      -- fold them back when printing (issue #2762).
-      ep <- expandPatternSynonyms p
-      modifyPatternSyns (Map.insert y (as, ep))
-      return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
-      where unVarName (VarName a _) = return a
-            unVarName _ = typeError $ UnusedVariableInPatternSynonym
+    NicePatternB r ps -> concat <$> mapM toAbstract ps
 
     where
       -- checking postulate or type sig. without checking safe flag
@@ -1956,6 +1937,79 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName p kind x y
         return [ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
+
+
+instance ToAbstract NicePatternSyn [A.Declaration] where
+
+  toAbstract (NicePatternSyn r a n mty pat rhs) = setCurrentRange r $ do
+    -- 1. Extract a name and a list of arguments (variables only)
+      ((n, y), mty, as) <- case mty of
+        -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
+        Just ty -> do
+          reportSLn "scope.pat" 10 $ "found nice typed pattern syn: " ++ prettyShow n
+          y <- freshAbstractQName' n
+          bindName a PatternSynName n y
+          -- (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
+          -- as <- forM as $ mapM $ \case
+          --   Named _ (A.VarP n) -> pure n
+          --   _ -> __IMPOSSIBLE__ -- TODO
+          ty <- toAbstractCtx TopCtx ty
+          pure ((n, y), Just ty, Left pat)
+
+        -- Otherwise it better be a pattern of the form `c x0..xn`!
+        Nothing -> do
+          (Arg _ n :| as) <- case pat of
+            C.RawAppP _ ps -> forM ps $ \ p0 -> do
+              let (h, p) = case p0 of
+                    C.HiddenP _   (Named Nothing (C.RawAppP _ (p :| []))) -> (Hidden, p)
+                    C.InstanceP _ (Named Nothing (C.RawAppP _ (p :| []))) -> (Instance NoOverlap, p)
+                    _ -> (NotHidden, p0)
+              case p of
+                C.IdentP (C.QName n) -> pure (setHiding h $ defaultArg n)
+                p -> trace (show p) __IMPOSSIBLE__
+            _ -> trace (show pat) __IMPOSSIBLE__
+          reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
+          y <- freshAbstractQName' n
+          bindName a PatternSynName n y
+          pure ((n, y), Nothing, Right as)
+
+    -- 2. Make sure the RHS is a valid pattern synonym (no unbound variables, no forced patterns, no raw terms)
+      (as, rhs) <- withLocalVars $ do
+         rhs <- toAbstract =<< parsePatternSyn rhs
+         checkPatternLinearity rhs $ \ys ->
+           typeError $ RepeatedVariablesInPattern ys
+         bindVarsToBind
+         let err = "Dot or equality patterns are not allowed in pattern synonyms. Maybe use '_' instead."
+         rhs <- noDotorEqPattern err rhs
+         as <- case as of
+           Left pat -> do
+             lhs <- toAbstract (C.patternToExpr pat)
+             let A.Application e as = A.appView lhs
+             case e of
+               A.PatternSyn (AmbQ ys) | any (y ==) ys -> -- We are allowed to overload pattern synonyms!
+                 forM as $ mapM $ \case
+                   Named _ (A.ScopedExpr _ (A.Var n)) -> pure (BindName n)
+                   blah -> trace (show blah) __IMPOSSIBLE__  -- TODO
+               _ -> trace (show e) __IMPOSSIBLE__ --TODO
+           Right args -> do
+             as <- mapM (unVarName <=< resolveName . C.QName . unArg) args
+             pure $ zipWith ((<$) . BindName) (as :: [A.Name]) (args :: [Arg C.Name])
+         unlessNull (patternVars rhs List.\\ map (unBind . unArg) as) $ \ xs -> do
+           typeError . GenericDocError =<< do
+             "Unbound variables in pattern synonym: " <+>
+               sep (map prettyA xs)
+         return (as, rhs)
+
+    -- 3. Bind the pattern synonym
+      -- Expanding pattern synonyms already at definition makes it easier to
+      -- fold them back when printing (issue #2762).
+      ep <- expandPatternSynonyms rhs
+      modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
+      return [A.PatternSynDef y mty as rhs]   -- only for highlighting, so use unexpanded version
+
+      where unVarName (VarName a _) = return a
+            unVarName _ = typeError $ UnusedVariableInPatternSynonym
+
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
 unGeneralized (A.Generalized s t) = (s, t)

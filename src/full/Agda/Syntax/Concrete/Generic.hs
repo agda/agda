@@ -216,10 +216,11 @@ instance ExprLike Declaration where
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
-     RecordDef r n ind eta pat c tel ds -> RecordDef r n ind eta pat c (mapE tel) $ mapE ds
-     Record r n ind eta pat c tel e ds  -> Record r n ind eta pat c (mapE tel) (mapE e) $ mapE ds
+     RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
+     Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
      e@Infix{}                 -> e
      e@Syntax{}                -> e
+     e@PatternB{}          -> e
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
@@ -236,6 +237,7 @@ instance ExprLike Declaration where
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
      e@Pragma{}                -> e
+     e@RecordDirective{}       -> e
    where mapE e = mapExpr f e
 
   foldExpr     = __IMPOSSIBLE__
