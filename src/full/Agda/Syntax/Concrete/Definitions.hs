@@ -1849,7 +1849,7 @@ niceDeclarations fixs ds = do
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
       case mty of
         Nothing -> patternBlock (NiceFunClause r1 p a tc cc False d : rest)
-         -- ^ A simple FunClause Agda felt smart assigning a type to
+         -- This was a simple FunClause Agda felt smart assigning a type to
         Just ty -> do
           psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
           psyns <- patternBlock rest
