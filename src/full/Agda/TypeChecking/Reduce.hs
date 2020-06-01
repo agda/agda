@@ -478,7 +478,7 @@ slowReduceTerm v = do
       reduceNat v@(Con c ci []) = do
         mz  <- getBuiltin' builtinZero
         case v of
-          _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
+          _ | Just v == mz  -> return $ Lit $ LitNat 0
           _                 -> return v
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
         ms  <- getBuiltin' builtinSuc
@@ -486,9 +486,9 @@ slowReduceTerm v = do
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
           _                         -> return v
           where
-            inc w = case w of
-              Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
-              _                -> Con c ci [Apply $ defaultArg w]
+            inc = \case
+              Lit (LitNat n) -> Lit $ LitNat $ n + 1
+              w              -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion

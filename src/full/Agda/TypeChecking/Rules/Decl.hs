@@ -416,7 +416,7 @@ highlight_ hlmod d = do
       -- * fields become bound variables,
       -- * declarations become let-bound variables.
       -- We do not need that crap.
-      dummy = A.Lit $ LitString noRange $
+      dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.

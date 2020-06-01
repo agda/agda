@@ -247,10 +247,10 @@ casetree cc = do
                 c' <- lift (canonicalName c)
                 dtNm <- conData . theDef <$> lift (getConstInfo c')
                 return $ C.CTData dtNm
-              ([], (LitChar _ _):_)  -> return C.CTChar
-              ([], (LitString _ _):_) -> return C.CTString
-              ([], (LitFloat _ _):_) -> return C.CTFloat
-              ([], (LitQName _ _):_) -> return C.CTQName
+              ([], (LitChar _):_)  -> return C.CTChar
+              ([], (LitString _):_) -> return C.CTString
+              ([], (LitFloat _):_) -> return C.CTFloat
+              ([], (LitQName _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- asks (lookupLevel n . ccCxt)

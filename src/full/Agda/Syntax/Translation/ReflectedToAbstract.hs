@@ -117,7 +117,7 @@ instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
     where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
 
 instance ToAbstract Literal Expr where
-  toAbstract l = return (A.Lit l)
+  toAbstract l = return $ A.Lit empty l
 
 instance ToAbstract Term Expr where
   toAbstract t = case t of
@@ -183,7 +183,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
         -- behaviour consistent with lambda and pi.
         -- return ([], A.WildP patNoRange)
     R.VarP s  -> withName s $ \ name -> return ([name], A.VarP $ mkBindName name)
-    R.LitP l  -> return ([], A.LitP l)
+    R.LitP l  -> return ([], A.LitP patNoRange l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)
 

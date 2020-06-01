@@ -263,7 +263,7 @@ updateProblemEqs eqs = do
 
           _ -> return [eq]
 
-      Lit l | A.LitP l' <- p , l == l' -> return []
+      Lit l | A.LitP _ l' <- p , l == l' -> return []
 
       _ | A.EqualP{} <- p -> do
         itisone <- liftTCM primItIsOne
@@ -886,7 +886,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       p <- liftTCM $ expandLitPattern p
       case snd $ asView p of
-        (A.LitP l)        -> splitLit delta1 dom adelta2 l
+        (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
         p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
         p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
         p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts

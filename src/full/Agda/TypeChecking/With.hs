@@ -506,8 +506,8 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
            mismatch
 
         LitP _ lit -> case namedArg p of
-          A.LitP lit' | lit == lit' -> recurse $ Lit lit
-          A.WildP{}                 -> recurse $ Lit lit
+          A.LitP _ lit' | lit == lit' -> recurse $ Lit lit
+          A.WildP{}                   -> recurse $ Lit lit
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $

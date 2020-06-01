@@ -143,7 +143,7 @@ quotingKit = do
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
       quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat noRange n)
+      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat n)
       quoteSortLevelTerm l               = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
@@ -162,7 +162,7 @@ quotingKit = do
       quoteType (El _ t) = quoteTerm t
 
       quoteQName :: QName -> ReduceM Term
-      quoteQName x = pure $ Lit $ LitQName noRange x
+      quoteQName x = pure $ Lit $ LitQName x
 
       quotePats :: [NamedArg DeBruijnPattern] -> ReduceM Term
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
@@ -211,7 +211,7 @@ quotingKit = do
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-             in  var !@! Lit (LitNat noRange $ fromIntegral n) @@ quoteArgs ts
+             in  var !@! Lit (LitNat $ fromIntegral n) @@ quoteArgs ts
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             defn <- getConstInfo x
@@ -288,21 +288,21 @@ quotingKit = do
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
-quoteString = Lit . LitString noRange . T.pack
+quoteString = Lit . LitString . T.pack
 
 quoteName :: QName -> Term
-quoteName x = Lit (LitQName noRange x)
+quoteName x = Lit (LitQName x)
 
 quoteNat :: Integer -> Term
 quoteNat n
-  | n >= 0    = Lit (LitNat noRange n)
+  | n >= 0    = Lit (LitNat n)
   | otherwise = __IMPOSSIBLE__
 
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
 
 quoteMeta :: AbsolutePath -> MetaId -> Term
-quoteMeta file = Lit . LitMeta noRange file
+quoteMeta file = Lit . LitMeta file
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do

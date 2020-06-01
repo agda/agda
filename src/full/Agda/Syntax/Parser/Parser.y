@@ -385,10 +385,10 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
 
 -- A float. Used in fixity declarations.
 Float :: { Ranged Double }
-Float : literal {% case $1 of
-                   { LitNat   r i -> return $ Ranged r $ fromInteger i
-                   ; LitFloat r i -> return $ Ranged r i
-                   ; _            -> parseError $ "Expected floating point number"
+Float : literal {% forM $1 $ \case
+                   { LitNat   i -> return $ fromInteger i
+                   ; LitFloat d -> return d
+                   ; _          -> parseError $ "Expected floating point number"
                    }
                 }
 
@@ -713,7 +713,7 @@ Expr3NoCurly
 ExprOrAttr :: { Expr }
 ExprOrAttr
     : QId                               { Ident $1 }
-    | literal                           { Lit $1 }
+    | literal                           { Lit (getRange $1) (rangedThing $1) }
     | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
 
 Expr3 :: { Expr }
@@ -1610,7 +1610,7 @@ WarningOnUsagePragma :: { Pragma }
 WarningOnUsagePragma
   : '{-#' 'WARNING_ON_USAGE' PragmaQName literal '#-}'
   {%  case $4 of
-        { LitString r str -> return $ WarningOnUsage (getRange ($1,$2,$3,r,$5)) $3 str
+        { Ranged r (LitString str) -> return $ WarningOnUsage (getRange ($1,$2,$3,r,$5)) $3 str
         ; _ -> parseError "Expected string literal"
         }
   }
@@ -1619,7 +1619,7 @@ WarningOnImportPragma :: { Pragma }
 WarningOnImportPragma
   : '{-#' 'WARNING_ON_IMPORT' literal '#-}'
   {%  case $3 of
-        { LitString r str -> return $ WarningOnImport (getRange ($1,$2,r,$4)) str
+        { Ranged r (LitString str) -> return $ WarningOnImport (getRange ($1,$2,r,$4)) str
         ; _ -> parseError "Expected string literal"
         }
   }

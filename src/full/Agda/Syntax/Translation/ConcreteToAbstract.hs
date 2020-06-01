@@ -151,7 +151,7 @@ noDotorEqPattern err = dot
       A.DotP{}               -> genericError err
       A.EqualP{}             -> genericError err   -- Andrea: so we also disallow = patterns, reasonable?
       A.AbsurdP i            -> pure $ A.AbsurdP i
-      A.LitP l               -> pure $ A.LitP l
+      A.LitP i l             -> pure $ A.LitP i l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
@@ -788,30 +788,28 @@ instance ToAbstract C.Expr A.Expr where
       Ident x -> toAbstract (OldQName x Nothing)
 
   -- Literals
-      C.Lit l ->
+      C.Lit r l -> do
         case l of
-          LitNat r n -> do
+          LitNat n -> do
             let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
                         | otherwise = ensureInScope =<< getBuiltin' builtinFromNat
-                l'   = LitNat r (abs n)
-                info = defaultAppInfo r
-            conv <- builtin
-            case conv of
-              Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l')
-              _                -> return $ A.Lit l
+            builtin >>= \case
+              Just (I.Def q _) -> return $ mkApp q $ A.Lit i $ LitNat $ abs n
+              _                -> return alit
 
-          LitString r s -> do
-            conv <- ensureInScope =<< getBuiltin' builtinFromString
-            let info = defaultAppInfo r
-            case conv of
-              Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l)
-              _                -> return $ A.Lit l
+          LitString s -> do
+            getBuiltin' builtinFromString >>= ensureInScope >>= \case
+              Just (I.Def q _) -> return $ mkApp q alit
+              _                -> return alit
 
-          _ -> return $ A.Lit l
+          _ -> return alit
         where
-          ensureInScope :: Maybe I.Term -> ScopeM (Maybe I.Term)
-          ensureInScope v@(Just (I.Def q _)) = ifM (isNameInScope q <$> getScope) (return v) (return Nothing)
-          ensureInScope _ = return Nothing
+        i       = ExprRange r
+        alit    = A.Lit i l
+        mkApp q = A.App (defaultAppInfo r) (A.Def q) . defaultNamedArg
+        ensureInScope :: Maybe I.Term -> ScopeM (Maybe I.Term)
+        ensureInScope v@(Just (I.Def q _)) = ifM (isNameInScope q <$> getScope) (return v) (return Nothing)
+        ensureInScope _ = return Nothing
 
   -- Meta variables
       C.QuestionMark r n -> do
@@ -2620,7 +2618,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       | IdentP x <- namedArg p,
         visible p = do
       e <- toAbstract (OldQName x Nothing)
-      A.LitP . LitQName (getRange x) <$> quotedName e
+      A.LitP (PatRange $ getRange x) . LitQName <$> quotedName e
 
     toAbstract (QuoteP r) =
       genericError "quote must be applied to an identifier"
@@ -2674,7 +2672,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
-    toAbstract (C.LitP l)       = return $ A.LitP l
+    toAbstract (C.LitP r l)     = return $ A.LitP (PatRange r) l
 
     toAbstract p0@(C.AsP r x p) = do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!

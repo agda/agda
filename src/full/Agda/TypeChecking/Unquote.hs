@@ -207,35 +207,35 @@ instance Unquote Integer where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitNat _ n) -> return n
+      Lit (LitNat n) -> return n
       _ -> throwError $ NonCanonical "integer" t
 
 instance Unquote Word64 where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitWord64 _ n) -> return n
+      Lit (LitWord64 n) -> return n
       _ -> throwError $ NonCanonical "word64" t
 
 instance Unquote Double where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitFloat _ x) -> return x
+      Lit (LitFloat x) -> return x
       _ -> throwError $ NonCanonical "float" t
 
 instance Unquote Char where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitChar _ x) -> return x
+      Lit (LitChar x) -> return x
       _ -> throwError $ NonCanonical "char" t
 
 instance Unquote Text where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitString _ x) -> return x
+      Lit (LitString x) -> return x
       _ -> throwError $ NonCanonical "string" t
 
 unquoteString :: Term -> UnquoteM String
@@ -306,8 +306,8 @@ instance Unquote QName where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitQName _ x) -> return x
-      _                  -> throwError $ NonCanonical "name" t
+      Lit (LitQName x) -> return x
+      _ -> throwError $ NonCanonical "name" t
 
 instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
@@ -327,7 +327,7 @@ instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitMeta r f x) -> liftTCM $ do
+      Lit (LitMeta f x) -> liftTCM $ do
         live <- (f ==) <$> getCurrentPath
         unless live $ do
             m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
@@ -359,18 +359,15 @@ instance Unquote R.Sort where
 instance Unquote Literal where
   unquote t = do
     t <- reduceQuotedTerm t
-    let litMeta r x = do
-          file <- getCurrentPath
-          return $ LitMeta r file x
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaLitNat,    LitNat    noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitString, LitString noRange <$> unquoteNString x)
-          , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitMeta,   litMeta   noRange =<< unquoteN x) ]
+          [ (c `isCon` primAgdaLitNat,    LitNat    <$> unquoteN x)
+          , (c `isCon` primAgdaLitFloat,  LitFloat  <$> unquoteN x)
+          , (c `isCon` primAgdaLitChar,   LitChar   <$> unquoteN x)
+          , (c `isCon` primAgdaLitString, LitString <$> unquoteNString x)
+          , (c `isCon` primAgdaLitQName,  LitQName  <$> unquoteN x)
+          , (c `isCon` primAgdaLitMeta,   LitMeta   <$> getCurrentPath <*> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "literal" t

@@ -236,7 +236,7 @@ instance Hilite A.Expr where
       A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
       A.PatternSyn qs            -> hilitePatternSynonym qs
       A.Macro q                  -> hiliteQName (Just Macro) q
-      A.Lit  l                   -> hl l
+      A.Lit _r l                 -> hl l
       A.QuestionMark _mi _ii     -> mempty
       A.Underscore _mi           -> mempty
       A.Dot _r e                 -> hl e                   -- TODO? Projection?
@@ -274,7 +274,7 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
                                   Nothing       -> singleOtherAspect DottedPattern r
                                   Just (_o, qs) -> hiliteProjection qs
       A.AbsurdP _r           -> mempty
-      A.LitP l               -> hl l
+      A.LitP _r l            -> hl l
       A.PatternSynP _r qs es -> hilitePatternSynonym qs <> hl es
       A.RecP _r ps           -> hl ps
       A.EqualP _r ps         -> hl ps
@@ -290,8 +290,8 @@ instance Hilite Literal where
     LitFloat{}               -> mempty
     LitString{}              -> mempty
     LitChar{}                -> mempty
-    LitQName _r x            -> hilite x
-    LitMeta _r _fileName _id -> mempty
+    LitQName x               -> hilite x
+    LitMeta _fileName _id    -> mempty
 
 -- * Minor syntactic categories
 ---------------------------------------------------------------------------

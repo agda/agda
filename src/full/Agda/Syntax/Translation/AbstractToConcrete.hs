@@ -660,11 +660,12 @@ instance ToConcrete A.Expr C.Expr where
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
-    toConcrete e@(A.Lit (LitQName r x)) = tryToRecoverPatternSyn e $ do
+    toConcrete e@(A.Lit i (LitQName x)) = tryToRecoverPatternSyn e $ do
       x <- lookupQName AmbiguousNothing x
+      let r = getRange i
       bracket appBrackets $ return $
         C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
-    toConcrete e@(A.Lit l) = tryToRecoverPatternSyn e $ return $ C.Lit l
+    toConcrete e@(A.Lit i l) = tryToRecoverPatternSyn e $ return $ C.Lit (getRange i) l
 
     -- Andreas, 2014-05-17  We print question marks with their
     -- interaction id, in case @metaNumber /= Nothing@
@@ -693,9 +694,9 @@ instance ToConcrete A.Expr C.Expr where
         (Just (HdDef q), l@A.Lit{})
           | any (is q) [builtinFromNat, builtinFromString], visible e2,
             getOrigin i == Inserted -> toConcrete l
-        (Just (HdDef q), A.Lit (LitNat r n))
+        (Just (HdDef q), A.Lit r (LitNat n))
           | q `is` builtinFromNeg, visible e2,
-            getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
+            getOrigin i == Inserted -> toConcrete (A.Lit r (LitNat (-n)))
         _ ->
           tryToRecoverPatternSyn e
           $ tryToRecoverOpApp e
@@ -1308,11 +1309,11 @@ instance ToConcrete A.Pattern C.Pattern where
       A.AbsurdP i ->
         return $ C.AbsurdP (getRange i)
 
-      A.LitP (LitQName r x) -> do
+      A.LitP i (LitQName x) -> do
         x <- lookupQName AmbiguousNothing x
-        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
-      A.LitP l ->
-        return $ C.LitP l
+        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP (getRange i)) (defaultNamedArg (C.IdentP x))
+      A.LitP i l ->
+        return $ C.LitP (getRange i) l
 
       -- Andreas, 2018-06-19, issue #3130
       -- Print .p as .(p) if p is a projection
@@ -1383,7 +1384,7 @@ instance ToConcrete (Maybe A.Pattern) (Maybe C.Pattern) where
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
   is <- isBuiltinFun
-  caseMaybe (recoverNatural is e) def $ return . C.Lit . LitNat noRange
+  caseMaybe (recoverNatural is e) def $ return . C.Lit noRange . LitNat
 
 recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
 recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
@@ -1392,7 +1393,7 @@ recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
     explore isZero isSuc k (A.App _ (A.Con c) t) | Just f <- getUnambiguous c, isSuc f
                                                 = (explore isZero isSuc $! k + 1) (namedArg t)
     explore isZero isSuc k (A.Con c) | Just x <- getUnambiguous c, isZero x = Just k
-    explore isZero isSuc k (A.Lit (LitNat _ l)) = Just (k + l)
+    explore isZero isSuc k (A.Lit _ (LitNat l)) = Just (k + l)
     explore _ _ _ _                             = Nothing
 
 -- Helpers for recovering C.OpApp ------------------------------------------

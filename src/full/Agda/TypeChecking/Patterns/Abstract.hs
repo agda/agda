@@ -26,15 +26,15 @@ import Agda.Utils.Impossible
 --
 expandLitPattern :: A.Pattern -> TCM A.Pattern
 expandLitPattern p = case asView p of
-  (xs, A.LitP (LitNat r n))
+  (xs, A.LitP info (LitNat n))
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> tooBig
     | otherwise -> do
       Con z _ _ <- primZero
       Con s _ _ <- primSuc
+      let r     = getRange info
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
-          info  = A.PatRange r
           cinfo = A.ConPatInfo ConOCon info ConPatEager
           p'    = foldr ($) zero $ List.genericReplicate n suc
       return $ foldr ((A.AsP info) . A.mkBindName) p' xs
