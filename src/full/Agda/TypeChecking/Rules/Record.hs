@@ -141,7 +141,10 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         Just c  -> return (True, c)
         Nothing -> do
           m <- killRange <$> currentModule
-          r <- prettyTCM name
+          -- Andreas, 2020-06-01, AIM XXXII
+          -- Using prettyTCM here jinxes the printer, see PR #4699.
+          -- r <- prettyTCM name
+          let r = P.pretty $ qnameName name
           c <- qualify m <$> freshName_ (render r ++ ".constructor")
           return (False, c)
 
