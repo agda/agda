@@ -406,7 +406,6 @@ instance PrettyTCM TypeError where
         A.WithP{}   -> "with"
         A.EqualP{}  -> "equality"
         A.AsP _ _ p -> kindOfPattern p
-        A.PatternSynP{} -> __IMPOSSIBLE__
 
     WrongNumberOfConstructorArguments c expect given -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++

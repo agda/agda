@@ -155,7 +155,6 @@ noDotorEqPattern err = dot
       A.AbsurdP i            -> pure $ A.AbsurdP i
       A.LitP l               -> pure $ A.LitP l
       A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
-      A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -580,7 +579,6 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
       FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
       ConstructorName _ ds -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
       UnknownName          -> pure Nothing
-      PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
     where
       withSuffix NoSuffix   e         = Just e
       withSuffix s@Suffix{} (A.Def x) = Just $ A.Def' x s
@@ -593,7 +591,6 @@ instance ToAbstract ResolveQName ResolvedName where
 
 data APatName = VarPatName A.Name
               | ConPatName (NonEmpty AbstractName)
-              | PatternSynPatName (NonEmpty AbstractName)
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x ns) = do
@@ -609,16 +606,12 @@ instance ToAbstract PatName APatName where
       (DefinedName _ d _, C.QName x) | isDefName (anameKind d) -> bindPatVar x
       (UnknownName,       C.QName x)                           -> bindPatVar x
       (ConstructorName _ ds, _)                                -> patCon ds
-      (PatternSynResName d, _)                                 -> patSyn d
       _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     where
       bindPatVar = VarPatName <.> bindPatternVariable
       patCon ds = do
         reportSLn "scope.pat" 10 $ "it was a con: " ++ prettyShow (fmap anameName ds)
         return $ ConPatName ds
-      patSyn ds = do
-        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ prettyShow (fmap anameName ds)
-        return $ PatternSynPatName ds
 
 -- | Translate and possibly bind a pattern variable
 --   (which could have been bound before due to non-linearity).
@@ -650,7 +643,6 @@ instance ToQName a => ToAbstract (OldName a) A.QName where
       -- We can get the cases below for DISPLAY pragmas
       ConstructorName _ ds -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
       FieldName ds         -> return $ anameName (NonEmpty.head ds)
-      PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
 
@@ -1519,7 +1511,6 @@ instance ToAbstract LetDef [A.LetBinding] where
             A.DotP{}             -> no
             A.AbsurdP{}          -> no
             A.LitP{}             -> no
-            A.PatternSynP _ _ ps -> mapM_ (checkValidLetPattern . namedArg) ps
             A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
             A.EqualP{}           -> no
             A.WithP{}            -> no
@@ -1986,7 +1977,7 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
              lhs <- toAbstract (C.patternToExpr pat)
              let A.Application e as = A.appView lhs
              case e of
-               A.PatternSyn (AmbQ ys) | any (y ==) ys -> -- We are allowed to overload pattern synonyms!
+               A.Con (AmbQ ys) | any (y ==) ys -> -- We are allowed to overload pattern synonyms!
                  forM as $ mapM $ \case
                    Named _ (A.ScopedExpr _ (A.Var n)) -> pure (BindName n)
                    blah -> trace (show blah) __IMPOSSIBLE__  -- TODO
@@ -2203,7 +2194,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
           A.Proj _ x          -> err "ambiguous projection"
           A.Con c | Just x <- getUnambiguous c -> return x
           A.Con x             -> err "ambiguous constructor"
-          A.PatternSyn{}      -> err "pattern synonym"
           A.Var{}             -> err "local variable"
           _                   -> __IMPOSSIBLE__
         return [ A.CompilePragma rb y s ]
@@ -2293,19 +2283,17 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
     top <- getHead lhs
 
-    (isPatSyn, hd) <- do
+    hd <- do
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
-        VarName x' _                -> return . (False,) $ A.qnameFromList $ singleton x'
-        DefinedName _ d NoSuffix    -> return . (False,) $ anameName d
+        VarName x' _                -> return $ A.qnameFromList $ singleton x'
+        DefinedName _ d NoSuffix    -> return $ anameName d
         DefinedName _ d Suffix{}    -> genericError $ "Invalid pattern " ++ prettyShow top
-        FieldName     (d :| [])     -> return . (False,) $ anameName d
+        FieldName     (d :| [])     -> return $ anameName d
         FieldName ds                -> genericError $ "Ambiguous projection " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
-        ConstructorName _ (d :| []) -> return . (False,) $ anameName d
+        ConstructorName _ (d :| []) -> return $ anameName d
         ConstructorName _ ds        -> genericError $ "Ambiguous constructor " ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
         UnknownName                 -> notInScopeError top
-        PatternSynResName (d :| []) -> return . (True,) $ anameName d
-        PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
     lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
     ps  <- case lhs of
@@ -2315,13 +2303,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
     -- Andreas, 2016-08-08, issue #2132
     -- Remove pattern synonyms on lhs
     (hd, ps) <- do
-      let mkP | isPatSyn  = A.PatternSynP (PatRange $ getRange lhs) (unambiguous hd)
-              | otherwise = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
+      let mkP = A.DefP (PatRange $ getRange lhs) (unambiguous hd)
       p <- expandPatternSynonyms $ mkP ps
       case p of
         A.DefP _ f ps | Just hd <- getUnambiguous f -> return (hd, ps)
         A.ConP _ c ps | Just hd <- getUnambiguous c -> return (hd, ps)
-        A.PatternSynP{} -> __IMPOSSIBLE__
         _ -> err
 
     rhs <- toAbstract rhs
@@ -2626,8 +2612,6 @@ resolvePatternIdentifier r x ns = do
       return $ VarP $ A.mkBindName y
     ConPatName ds        -> return $ ConP (ConPatInfo ConOCon (PatRange r) ConPatEager)
                                           (AmbQ $ fmap anameName ds) []
-    PatternSynPatName ds -> return $ PatternSynP (PatRange r)
-                                                 (AmbQ $ fmap anameName ds) []
 
 -- | Apply an abstract syntax pattern head to pattern arguments.
 --
@@ -2644,7 +2628,6 @@ applyAPattern p0 p ps = do
     case p of
       A.ConP i x as        -> return $ A.ConP        i x (as ++ ps)
       A.DefP i x as        -> return $ A.DefP        i x (as ++ ps)
-      A.PatternSynP i x as -> return $ A.PatternSynP i x (as ++ ps)
       -- Dotted constructors are turned into "lazy" constructor patterns.
       A.DotP i (Ident x)   -> resolveName x >>= \case
         ConstructorName _ ds -> do
@@ -2738,7 +2721,6 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       toAbstract (PatName (C.QName x) Nothing) >>= \case
         VarPatName x        -> A.AsP (PatRange r) (A.mkBindName x) <$> toAbstract p
         ConPatName{}        -> ignoreAsPat False
-        PatternSynPatName{} -> ignoreAsPat True
       where
       -- An @-bound name which shadows a constructor is illegal and becomes dead code.
       ignoreAsPat b = do

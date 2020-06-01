@@ -346,8 +346,8 @@ data NameOrModule = NameNotModule | ModuleNotName
 data KindOfName
   = ConName                  -- ^ Constructor name ('Inductive' or don't know).
   | CoConName                -- ^ Constructor name (definitely 'CoInductive').
-  | FldName                  -- ^ Record field name.
   | PatternSynName           -- ^ Name of a pattern synonym.
+  | FldName                  -- ^ Record field name.
   | GeneralizeName           -- ^ Name to be generalized
   | DisallowedGeneralizeName -- ^ Generalizable variable from a let open
   | MacroName                -- ^ Name of a macro
@@ -505,9 +505,6 @@ data ResolvedName
   | -- | Data or record constructor name.
     ConstructorName (Set Induction) (List1 AbstractName) -- ^ @isJust . 'isConName' . 'anameKind'@ for all names.
 
-  | -- | Name of pattern synonym.
-    PatternSynResName (List1 AbstractName) -- ^ @('PatternSynName' ==) . 'anameKind'@ for all names.
-
   | -- | Unbound name.
     UnknownName
   deriving (Data, Show, Eq)
@@ -518,7 +515,6 @@ instance Pretty ResolvedName where
     DefinedName a x s    -> pretty a      <+> (pretty x <> pretty s)
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs
-    PatternSynResName x  -> "pattern"     <+> pretty x
     UnknownName          -> "<unknown name>"
 
 instance Pretty A.Suffix where

@@ -153,7 +153,6 @@ instance ExprLike Expr where
       QuoteTerm{}             -> pure e0
       Unquote{}               -> pure e0
       DontCare e              -> DontCare <$> recurse e
-      PatternSyn{}            -> pure e0
       Tactic ei e xs          -> Tactic ei <$> recurse e <*> recurse xs
       Macro{}                 -> pure e0
 
@@ -163,7 +162,6 @@ instance ExprLike Expr where
       Def'{}               -> m
       Proj{}               -> m
       Con{}                -> m
-      PatternSyn{}         -> m
       Macro{}              -> m
       Lit{}                -> m
       QuestionMark{}       -> m
@@ -220,7 +218,6 @@ instance ExprLike Expr where
       Unquote{}               -> f e
       Tactic ei e xs          -> f =<< Tactic ei <$> trav e <*> trav xs
       DontCare e              -> f =<< DontCare <$> trav e
-      PatternSyn{}            -> f e
       Macro{}                 -> f e
 
 instance ExprLike a => ExprLike (Arg a)

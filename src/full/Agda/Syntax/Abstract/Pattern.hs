@@ -57,7 +57,6 @@ instance MapNamedArgPattern NAP where
       -- list of NamedArg subpatterns:
       ConP i qs ps       -> f $ setNamedArg p $ ConP i qs $ mapNamedArgPattern f ps
       DefP i qs ps       -> f $ setNamedArg p $ DefP i qs $ mapNamedArgPattern f ps
-      PatternSynP i x ps -> f $ setNamedArg p $ PatternSynP i x $ mapNamedArgPattern f ps
       -- Pattern subpattern(s):
       -- RecP: we copy the NamedArg info to the subpatterns but discard it after recursion
       RecP i fs          -> f $ setNamedArg p $ RecP i $ map (fmap namedArg) $ mapNamedArgPattern f $ map (fmap (setNamedArg p)) fs
@@ -138,7 +137,6 @@ instance APatternLike a (Pattern' a) where
       ConP _ _ ps        -> foldrAPattern f ps
       DefP _ _ ps        -> foldrAPattern f ps
       RecP _ ps          -> foldrAPattern f ps
-      PatternSynP _ _ ps -> foldrAPattern f ps
       WithP _ p          -> foldrAPattern f p
       VarP _             -> mempty
       ProjP _ _ _        -> mempty
@@ -164,7 +162,6 @@ instance APatternLike a (Pattern' a) where
       A.DefP        i q  ps -> A.DefP        i q  <$> traverseAPatternM pre post ps
       A.AsP         i x  p  -> A.AsP         i x  <$> traverseAPatternM pre post p
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
-      A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
       A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
 
 -- The following instances need UndecidableInstances
@@ -208,7 +205,6 @@ patternVars p = foldAPattern f p `appEndo` []
     A.DotP        {} -> mempty
     A.AbsurdP     {} -> mempty
     A.EqualP      {} -> mempty
-    A.PatternSynP {} -> mempty
     A.WithP _ _      -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
@@ -223,7 +219,6 @@ containsAPattern f = getAny . foldAPattern (Any . f)
 
 containsAbsurdPattern :: APatternLike a p => p -> Bool
 containsAbsurdPattern = containsAPattern $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
     A.AbsurdP{}     -> True
     _               -> False
 
@@ -233,7 +228,6 @@ containsAbsurdPattern = containsAPattern $ \case
 
 containsAsPattern :: APatternLike a p => p -> Bool
 containsAsPattern = containsAPattern $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
     A.AsP{}         -> True
     _               -> False
 
@@ -276,7 +270,6 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   LitP _            -> p
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
-  PatternSynP _ _ _ -> p
   WithP _ _         -> p
 
 

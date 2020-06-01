@@ -907,7 +907,6 @@ stripImplicits params ps = do
             A.AbsurdP _   -> p
             A.LitP _      -> p
             A.AsP i x p   -> A.AsP i x $ stripPat p
-            A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
             A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
             A.EqualP{}    -> p -- EqualP cannot be blanked.
             A.WithP i p   -> A.WithP i $ stripPat p -- TODO #2822: right?
@@ -983,7 +982,6 @@ instance BlankVars A.Pattern where
     A.AbsurdP _   -> p
     A.LitP _      -> p
     A.AsP i n p   -> A.AsP i n $ blank bound p
-    A.PatternSynP _ _ _ -> __IMPOSSIBLE__
     A.RecP i fs   -> A.RecP i $ blank bound fs
     A.EqualP{}    -> p
     A.WithP i p   -> A.WithP i (blank bound p)
@@ -1019,7 +1017,6 @@ instance BlankVars A.Expr where
     A.Unquote {}           -> __IMPOSSIBLE__
     A.Tactic {}            -> __IMPOSSIBLE__
     A.DontCare v           -> A.DontCare $ blank bound v
-    A.PatternSyn {}        -> e
     A.Macro {}             -> e
 
 instance BlankVars A.ModuleName where
@@ -1067,7 +1064,6 @@ instance Binder A.Pattern where
     A.DotP{}            -> empty
     A.AbsurdP{}         -> empty
     A.LitP{}            -> empty
-    A.PatternSynP _ _ _ -> empty
     A.RecP _ _          -> empty
     A.EqualP{}          -> empty
     A.WithP _ _         -> empty

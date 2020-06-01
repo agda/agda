@@ -85,7 +85,6 @@ desugarDo qBind qThen = \case
     res <- resolveName (QName x)
     let isMatch = case res of
           ConstructorName{}   -> True
-          PatternSynResName{} -> True
           _                   -> False
     rest <- desugarDo0 ss
     if isMatch then return $ matchingBind qBind r p e rest []

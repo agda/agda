@@ -637,7 +637,6 @@ instance ToConcrete ResolvedName C.QName where
     DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
     ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
-    PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
 addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
@@ -838,7 +837,6 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
-    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete (headAmbQ n)
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
@@ -1216,7 +1214,6 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
         | conPatOrigin i == ConOSplit -> ret p
         | otherwise          -> bindToConcrete (map UserPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map UserPattern args) $ ret . A.DefP i f
-      A.PatternSynP i f args -> bindToConcrete (map UserPattern args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap) UserPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindName' (unBind x) $
                                 bindToConcrete (UserPattern p) $ \ p ->
@@ -1248,7 +1245,6 @@ instance ToConcrete (SplitPattern A.Pattern) A.Pattern where
                              -> bindToConcrete ((map . fmap . fmap) BindingPat args) $ ret . A.ConP i c
         | otherwise          -> bindToConcrete (map SplitPattern args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map SplitPattern args) $ ret . A.DefP i f
-      A.PatternSynP i f args -> bindToConcrete (map SplitPattern args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap) SplitPattern args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (SplitPattern p)  $ \ p ->
                                 ret (A.AsP i x p)
@@ -1277,7 +1273,6 @@ instance ToConcrete BindingPattern A.Pattern where
       A.EqualP{}             -> ret p
       A.ConP i c args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.ConP i c
       A.DefP i f args        -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.DefP i f
-      A.PatternSynP i f args -> bindToConcrete (map (updateNamedArg BindingPat) args) $ ret . A.PatternSynP i f
       A.RecP i args          -> bindToConcrete ((map . fmap)        BindingPat args) $ ret . A.RecP i
       A.AsP i x p            -> bindToConcrete (FreshenName x) $ \ x ->
                                 bindToConcrete (BindingPat p)  $ \ p ->
@@ -1344,8 +1339,6 @@ instance ToConcrete A.Pattern C.Pattern where
 
       A.EqualP i es -> do
         C.EqualP (getRange i) <$> toConcrete es
-
-      A.PatternSynP i n args -> tryOp (headAmbQ n) (A.PatternSynP i n) args
 
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
@@ -1423,7 +1416,6 @@ getHead (Var x)          = Just (HdVar x)
 getHead (Def f)          = Just (HdDef f)
 getHead (Proj o f)       = Just (HdDef $ headAmbQ f)
 getHead (Con c)          = Just (HdCon $ headAmbQ c)
-getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> [MaybeSection C.Expr] -> C.Expr
@@ -1498,7 +1490,6 @@ tryToRecoverOpAppP p = do
     view p = case p of
       ConP _        cs ps -> Just (HdCon (headAmbQ cs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
       DefP _        fs ps -> Just (HdDef (headAmbQ fs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
-      PatternSynP _ ns ps -> Just (HdSyn (headAmbQ ns), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
       _                   -> Nothing
       -- ProjP _ _ d   -> Just (HdDef (headAmbQ d), [])   -- ? Andreas, 2016-04-21
 
@@ -1545,7 +1536,6 @@ recoverOpApp bracket isLam opApp view e = case view e of
             DefinedName _ q _          -> q ^. lensFixity
             FieldName (q :| _)         -> q ^. lensFixity
             ConstructorName _ (q :| _) -> q ^. lensFixity
-            PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
     doQName fx x n' args (C.nameParts $ C.unqualify x)
 
@@ -1622,12 +1612,13 @@ tryToRecoverPatternSyn e fallback
         Application A.Lit{} _ -> True
         _                     -> False
 
-    apply c args = A.unAppView $ Application (A.PatternSyn $ unambiguous c) args
+    apply c args = A.unAppView $ Application (A.Con $ unambiguous c) args
 
 -- | Recover pattern synonyms in patterns.
 tryToRecoverPatternSynP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
-  where apply c args = PatternSynP patNoRange (unambiguous c) args
+  where apply c args = ConP (ConPatInfo ConOSystem patNoRange ConPatEager)
+                            (unambiguous c) args
 
 -- | General pattern synonym recovery parameterised over expression type
 recoverPatternSyn :: ToConcrete a c =>

@@ -348,7 +348,9 @@ tryResolveName kinds names x = do
           return $ FieldName $ fmap (upd . fst) ds
 
         Just ds  | all ((PatternSynName ==) . anameKind . fst) ds , isNothing suffixedNames ->
-          return $ PatternSynResName $ fmap (upd . fst) ds
+          return $ ConstructorName Set.empty $ fmap (upd . fst) ds
+          -- TODO: maybe delete `PatternSynName`?
+          -- Definitely: merge with constructors case above.
 
         Just ((d, a) :| []) | isNothing suffixedNames ->
           return $ DefinedName a (upd d) A.NoSuffix
@@ -441,7 +443,6 @@ getNotation x ns = do
     DefinedName _ d _   -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
     ConstructorName _ ds-> return $ oneNotation ds
-    PatternSynResName n -> return $ oneNotation n
     UnknownName         -> __IMPOSSIBLE__
   where
     notation = namesToNotation x . qnameName . anameName
@@ -487,7 +488,6 @@ bindName'' acc kind meta x y = do
         VarName z _         -> clash $ A.qualify_ z
         FieldName       ds  -> ambiguous (== FldName) ds
         ConstructorName i ds-> ambiguous (isJust . isConName) ds
-        PatternSynResName n -> ambiguous (== PatternSynName) n
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   traverse_ (modifyCurrentScope . addNameToScope ns x) y'

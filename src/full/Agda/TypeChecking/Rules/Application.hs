@@ -122,20 +122,20 @@ checkApplication cmp hd args e t =
       Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
       Right c      -> checkConstructorApplication cmp e t c args
 
-    -- Subcase: pattern synonym
-    A.PatternSyn n -> do
-      (ns, p) <- lookupPatternSyn n
-      p <- return $ setRange (getRange n) $ killRange $ vacuous p   -- Pattern' Void -> Pattern' Expr
-      -- Expand the pattern synonym by substituting for
-      -- the arguments we have got and lambda-lifting
-      -- over the ones we haven't.
-      let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
-      case A.insertImplicitPatSynArgs meta (getRange n) ns args of
-        Nothing      -> typeError $ BadArgumentsToPatternSynonym n
-        Just (s, ns) -> do
-          let p' = A.patternToExpr p
-              e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
-          checkExpr' cmp e' t
+    -- Subcase: pattern synonym TODO: delete
+    -- A.PatternSyn n -> do
+    --   (ns, p) <- lookupPatternSyn n
+    --   p <- return $ setRange (getRange n) $ killRange $ vacuous p   -- Pattern' Void -> Pattern' Expr
+    --   -- Expand the pattern synonym by substituting for
+    --   -- the arguments we have got and lambda-lifting
+    --   -- over the ones we haven't.
+    --   let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
+    --   case A.insertImplicitPatSynArgs meta (getRange n) ns args of
+    --     Nothing      -> typeError $ BadArgumentsToPatternSynonym n
+    --     Just (s, ns) -> do
+    --       let p' = A.patternToExpr p
+    --           e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
+    --       checkExpr' cmp e' t
 
     -- Subcase: macro
     A.Macro x -> do

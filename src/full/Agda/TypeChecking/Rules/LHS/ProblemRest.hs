@@ -44,7 +44,6 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
           , visible dom || (getOrigin ai == UserWritten && isNothing nm) ->
           dom{ unDom = (nameToArgName x, a) }
         A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
-        A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
         -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
         _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom

@@ -106,7 +106,6 @@ exprToTerm e =
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
     A.Proj _ f -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here
-    A.PatternSyn f -> pure $ Def (headAmbQ f) []
     A.Macro f      -> pure $ Def f []
 
     A.WithApp{}      -> notAllowed "with application"

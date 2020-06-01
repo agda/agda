@@ -124,7 +124,6 @@ parseVariables f tel ii rng ss = do
         DefinedName{}       -> failNotVar
         FieldName{}         -> failNotVar
         ConstructorName{}   -> failNotVar
-        PatternSynResName{} -> failNotVar
 
         -- If s is a variable name in scope, get its de Bruijn index
         -- via the type checker.

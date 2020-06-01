@@ -495,11 +495,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                                                  (map argFromDom $ recordFieldNames def)
             stripConP d us b c ConORec qs' ps'
 
-          p@(A.PatternSynP pi' c' ps') -> do
-             reportSDoc "impossible" 10 $
-               "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
-             __IMPOSSIBLE__
-
           p -> do
            reportSDoc "tc.with.strip" 60 $
              text $ "with clause pattern is  " ++ show p
@@ -508,11 +503,6 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         LitP _ lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> recurse $ Lit lit
           A.WildP{}                 -> recurse $ Lit lit
-
-          p@(A.PatternSynP pi' c' [ps']) -> do
-             reportSDoc "impossible" 10 $
-               "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
-             __IMPOSSIBLE__
 
           _ -> mismatch
       where

@@ -78,7 +78,6 @@ data Expr
                                        --   with a possible suffix.
   | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
-  | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
   | Lit Literal                        -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
@@ -477,7 +476,6 @@ data Pattern' e
     -- ^ Dot pattern @.e@
   | AbsurdP PatInfo
   | LitP Literal
-  | PatternSynP PatInfo AmbiguousQName (NAPs e)
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
@@ -519,7 +517,6 @@ instance Eq Expr where
   Def a1                  == Def a2                  = a1 == a2
   Proj _ a1               == Proj _ a2               = a1 == a2
   Con a1                  == Con a2                  = a1 == a2
-  PatternSyn a1           == PatternSyn a2           = a1 == a2
   Macro a1                == Macro a2                = a1 == a2
   Lit a1                  == Lit a2                  = a1 == a2
   QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
@@ -625,7 +622,6 @@ instance HasRange Expr where
     getRange (Unquote i)           = getRange i
     getRange (Tactic i _ _)        = getRange i
     getRange (DontCare{})          = noRange
-    getRange (PatternSyn x)        = getRange x
     getRange (Macro x)             = getRange x
 
 instance HasRange Declaration where
@@ -659,7 +655,6 @@ instance HasRange (Pattern' e) where
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
-    getRange (PatternSynP i _ _) = getRange i
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
     getRange (WithP i _)         = getRange i
@@ -705,7 +700,6 @@ instance SetRange (Pattern' a) where
     setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
-    setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
@@ -754,7 +748,6 @@ instance KillRange Expr where
   killRange (Unquote i)            = killRange1 Unquote i
   killRange (Tactic i e xs)        = killRange3 Tactic i e xs
   killRange (DontCare e)           = killRange1 DontCare e
-  killRange (PatternSyn x)         = killRange1 PatternSyn x
   killRange (Macro x)              = killRange1 Macro x
 
 instance KillRange Suffix where
@@ -798,7 +791,6 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l
-  killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
   killRange (RecP i as)         = killRange2 RecP i as
   killRange (EqualP i es)       = killRange2 EqualP i es
   killRange (WithP i p)         = killRange2 WithP i p
@@ -894,7 +886,7 @@ instance NameToExpr AbstractName where
       FldName                  -> Proj ProjSystem ux
       ConName                  -> Con ux
       CoConName                -> Con ux
-      PatternSynName           -> PatternSyn ux
+      PatternSynName           -> Con ux
       MacroName                -> Macro x
       QuotableName             -> App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
     where
@@ -913,7 +905,6 @@ instance NameToExpr ResolvedName where
     DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
     ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
-    PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
     where
       withSuffix NoSuffix   e       = e
@@ -938,7 +929,6 @@ patternToExpr = \case
   DotP _ e           -> e
   AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
   LitP l             -> Lit l
-  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
   RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
   EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
   WithP r p          -> __IMPOSSIBLE__
@@ -1016,7 +1006,6 @@ instance SubstExpr Expr where
     Unquote i             -> e
     Tactic i e xs         -> Tactic i (substExpr s e) (substExpr s xs)
     DontCare e            -> DontCare (substExpr s e)
-    PatternSyn{}          -> e
     Macro{}               -> e
 
 instance SubstExpr LetBinding where

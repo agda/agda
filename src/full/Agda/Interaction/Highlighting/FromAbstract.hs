@@ -237,7 +237,6 @@ instance Hilite A.Expr where
       A.Proj _o qs               -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
                                       -- Names from @open R r@ should not be highlighted as projections
       A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
-      A.PatternSyn qs            -> hilitePatternSynonym qs
       A.Macro q                  -> hiliteQName (Just Macro) q
       A.Lit  l                   -> hl l
       A.QuestionMark _mi _ii     -> mempty
@@ -278,7 +277,6 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
                                   Just (_o, qs) -> hiliteProjection qs
       A.AbsurdP _r           -> mempty
       A.LitP l               -> hl l
-      A.PatternSynP _r qs es -> hilitePatternSynonym qs <> hl es
       A.RecP _r ps           -> hl ps
       A.EqualP _r ps         -> hl ps
       A.WithP _ p            -> hl p
@@ -435,7 +433,6 @@ instance Hilite ResolvedName where
     FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
     ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
       where k = kindOfNameToNameKind <$> exactConName i
-    PatternSynResName xs         -> hilitePatternSynonym $ A.AmbQ $ fmap anameName xs
     UnknownName                  -> mempty
 
 instance Hilite A.QName where
@@ -491,9 +488,6 @@ hiliteBound x =
 
 hiliteInductiveConstructor :: A.AmbiguousQName -> Hiliter
 hiliteInductiveConstructor = hiliteAmbiguousQName $ Just $ Constructor Inductive
-
-hilitePatternSynonym :: A.AmbiguousQName -> Hiliter
-hilitePatternSynonym = hiliteInductiveConstructor  -- There are no coinductive pattern synonyms!?
 
 hiliteProjection :: A.AmbiguousQName -> Hiliter
 hiliteProjection = hiliteAmbiguousQName (Just Field)

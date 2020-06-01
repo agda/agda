@@ -833,8 +833,8 @@ bindBuiltin b x = do
       DefinedName _ x NoSuffix -> return $ x :| []
       DefinedName _ x Suffix{} -> failure
       FieldName xs         -> return xs
-      ConstructorName _ xs -> return xs
-      PatternSynResName xs -> failure
+      ConstructorName _ xs -> return xs  -- FIXME: check no RHS
+      -- PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
     unlessM (allM xs $ ((0 ==) . size) <.> lookupSection . qnameModule . anameName) $
@@ -868,7 +868,6 @@ bindUntypedBuiltin b = \case
   VarName _x _bnd      -> wrong
   UnknownName          -> wrong
   ConstructorName _ xs -> err xs
-  PatternSynResName xs -> err xs
   where
   bind x = bindBuiltinName b (Def (anameName x) [])
   wrong  = genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined name"

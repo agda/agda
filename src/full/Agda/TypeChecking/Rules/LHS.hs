@@ -304,7 +304,6 @@ problemAllVariables problem =
     isSolved A.ProjP{}       = __IMPOSSIBLE__
     isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
-    isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
     isSolved A.EqualP{}      = False -- __IMPOSSIBLE__
     isSolved A.WithP{}       = __IMPOSSIBLE__
 
@@ -328,7 +327,6 @@ noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) 
    A.DefP        {} -> __IMPOSSIBLE__
    A.AsP         {} -> __IMPOSSIBLE__ -- removed by asView
    A.LitP        {} -> __IMPOSSIBLE__
-   A.PatternSynP {} -> __IMPOSSIBLE__
    A.WithP       {} -> __IMPOSSIBLE__
    -- Andreas, 2017-12-01, issue #2859.
    -- Due to parameter refinement, there can be (invisible) variable patterns from module
@@ -475,7 +473,6 @@ transferOrigins ps qs = do
     patOrig A.AsP{}         = __IMPOSSIBLE__
     patOrig A.ProjP{}       = __IMPOSSIBLE__
     patOrig A.DefP{}        = __IMPOSSIBLE__
-    patOrig A.PatternSynP{} = __IMPOSSIBLE__
     patOrig A.WithP{}       = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
@@ -535,7 +532,6 @@ checkPatternLinearity eqs = do
         A.ProjP{}       -> __IMPOSSIBLE__
         A.DefP{}        -> __IMPOSSIBLE__
         A.LitP{}        -> __IMPOSSIBLE__
-        A.PatternSynP{} -> __IMPOSSIBLE__
         A.RecP{}        -> __IMPOSSIBLE__
         A.EqualP{}      -> __IMPOSSIBLE__
         A.WithP{}       -> __IMPOSSIBLE__
@@ -810,7 +806,6 @@ splitStrategy = filter shouldSplit
       A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
       A.AsP{}         -> __IMPOSSIBLE__
-      A.PatternSynP{} -> __IMPOSSIBLE__
       A.WithP{}       -> __IMPOSSIBLE__
 
 
@@ -898,7 +893,6 @@ checkLHS mf = updateModality checkLHS_ where
         A.ProjP{}       -> __IMPOSSIBLE__
         A.DefP{}        -> __IMPOSSIBLE__
         A.AsP{}         -> __IMPOSSIBLE__
-        A.PatternSynP{} -> __IMPOSSIBLE__
         A.WithP{}       -> __IMPOSSIBLE__
 
 

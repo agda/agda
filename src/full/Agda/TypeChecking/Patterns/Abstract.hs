@@ -68,23 +68,24 @@ expandLitPattern p = case asView p of
 -- and keep the type class ExpandPatternSynonyms (which would otherwise be superfluous).
 
 expandPatternSynonyms' :: forall e. A.Pattern' e -> TCM (A.Pattern' e)
-expandPatternSynonyms' = postTraverseAPatternM $ \case
+expandPatternSynonyms' = pure  -- TODO
+  -- postTraverseAPatternM $ \case
 
-  A.PatternSynP i x as -> setCurrentRange i $ do
-    (ns, p) <- killRange <$> lookupPatternSyn x
+  -- A.PatternSynP i x as -> setCurrentRange i $ do
+  --   (ns, p) <- killRange <$> lookupPatternSyn x
 
-    -- Must expand arguments before instantiating otherwise pattern
-    -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
-    p <- expandPatternSynonyms' (vacuous p :: A.Pattern' e)
+  --   -- Must expand arguments before instantiating otherwise pattern
+  --   -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
+  --   p <- expandPatternSynonyms' (vacuous p :: A.Pattern' e)
 
-    case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
-      Nothing       -> typeError $ BadArgumentsToPatternSynonym x
-      Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
-      Just (s, [])  -> do
-        let subE _ = __IMPOSSIBLE__   -- No dot patterns in p
-        return $ setRange (getRange i) $ substPattern' subE s p
+  --   case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
+  --     Nothing       -> typeError $ BadArgumentsToPatternSynonym x
+  --     Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
+  --     Just (s, [])  -> do
+  --       let subE _ = __IMPOSSIBLE__   -- No dot patterns in p
+  --       return $ setRange (getRange i) $ substPattern' subE s p
 
-  p -> return p
+  -- p -> return p
 
 class ExpandPatternSynonyms a where
   expandPatternSynonyms :: a -> TCM a
