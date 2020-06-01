@@ -1,4 +1,4 @@
--- Andreas, Bentfest 2016-04-28 Marsstrand
+-- Andreas, Bengtfest 2016-04-28 Marsstrand
 -- Issue 1944: also resolve overloaded projections in checking position
 
 module _ (A : Set) (a : A) where
