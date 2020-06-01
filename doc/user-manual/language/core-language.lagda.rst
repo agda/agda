@@ -130,12 +130,24 @@ as the user wrote it.
 Nice Concrete Syntax
 --------------------
 
-The translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract" involves
-scope analysis, figuring out infix operator precedences and tidying up
-definitions.
+The ``Nice Concrete Syntax`` is a slightly reorganized version of the
+``Concrete Syntax`` that is easier to deal with internally. Among other
+things, it:
+
+* detects mutual blocks
+* assembles :ref:`definitions <module-basics>` from their isolated parts
+* collects fixity information of :ref:`mixfix operators <mixfix-operators>`
+  and attaches it to definitions
+* emits warnings for possibly unintended but still valid declarations, which
+  essentially is dead code such as empty ``instance`` blocks and misplaced
+  :ref:`pragmas <pragmas>`
 
 Abstract Syntax
 ---------------
+
+The translation from ``Agda.Syntax.Concrete`` to ``Agda.Syntax.Abstract``
+involves scope analysis, figuring out infix operator precedences and tidying
+up definitions.
 
 The abstract syntax ``Agda.Syntax.Abstract`` is the result after desugaring
 and scope analysis of the concrete syntax. The type checker works on abstract
@@ -146,6 +158,16 @@ Internal Syntax
 
 This is the final stage of syntax before being handed off to one of the
 backends. Terms are well-scoped and well-typed.
+
+While producing the ``Internal Syntax``, terms are checked for safety. This
+safety check means :ref:`termination check <termination-checking>` and
+coverage check for functions, and :ref:`positivity check <positivity-checking>`
+for datatypes.
+
+Type-directed operations such as
+:ref:`instance resolution <instance-resolution>` and disambiguation of
+overloaded constructors (different constructors with the same name) also
+happen here.
 
 The internal syntax ``Agda.Syntax.Internal`` uses the following haskell
 datatype to represent the grammar of a ``Term`` presented above.
@@ -182,3 +204,14 @@ translates the treeless syntax into a proper GHC Haskell program.
 Another backend that may be used is the
 :ref:`JavaScript backend <javascript-backend>`, which translates the treeless
 syntax to JavaScript code.
+
+.. _a-normal-form:
+
+The treeless representation of the program has `A-normal form
+<https://en.wikipedia.org/wiki/A-normal_form>`_ (ANF). That means that all the
+case expressions are targeting a *single* variable, and all alternatives may
+only peel off one constructor.
+
+The backends can handle an ANF syntax easier than a syntax of a language where
+one may case arbitrary expressions and use
+:ref:`deep patterns <with-abstraction>`.
