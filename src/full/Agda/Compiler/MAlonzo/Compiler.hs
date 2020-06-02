@@ -328,11 +328,12 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless q
 
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
         | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         computeErasedConstructorArgs q
+        cs <- getNonErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
@@ -343,8 +344,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
               ]
         return result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-                dataCons = cs } -> do
+              } -> do
         computeErasedConstructorArgs q
+        cs <- getNonErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
         return $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> return []

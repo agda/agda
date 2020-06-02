@@ -214,6 +214,12 @@ getNumberOfParameters d = do
     Constructor{ conPars = n } -> return $ Just n
     _                          -> return Nothing
 
+getNotErasedConstructors :: QName -> TCM [QName]
+getNotErasedConstructors d = do
+  cs <- getConstructors d
+  flip filterM cs $ \ c -> do
+    usableModality <$> getConstInfo c
+
 -- | Precondition: Name is a data or record type.
 getConstructors :: QName -> TCM [QName]
 getConstructors d = fromMaybe __IMPOSSIBLE__ <$>

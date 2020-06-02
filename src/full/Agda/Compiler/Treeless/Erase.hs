@@ -11,6 +11,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -63,7 +64,7 @@ runE m = evalStateT m (ESt Map.empty Map.empty)
 -- | Takes the name of the data/record type.
 computeErasedConstructorArgs :: QName -> TCM ()
 computeErasedConstructorArgs d = do
-  cs <- getConstructors d
+  cs <- getNotErasedConstructors d
   runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> EvaluationStrategy -> TTerm -> TCM TTerm
@@ -163,8 +164,12 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
 pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
-pruneUnreachable _ (CTData q) d bs = do
-  cs <- lift $ getConstructors q
+pruneUnreachable _ (CTData q) d bs' = do
+  cs <- lift $ getNotErasedConstructors q
+  let bs = flip filter bs' $ \case
+             a@TACon{} -> List.any (aCon a ==) cs
+             TAGuard{} -> True
+             TALit{}   -> True
   let complete =length cs == length [ b | b@TACon{} <- bs ]
   let d' | complete  = tUnreachable
          | otherwise = d

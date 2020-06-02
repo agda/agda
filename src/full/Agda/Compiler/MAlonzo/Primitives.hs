@@ -275,7 +275,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
+  -- 4638: extend the list here, so the error is at runtime at least.
+  axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"
+                ,"primTransp","primHComp"]
   unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
                 | otherwise = typeError $ NotImplemented s
 
