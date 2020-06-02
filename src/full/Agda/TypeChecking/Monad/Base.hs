@@ -2140,6 +2140,25 @@ emptyFunction = Function
   , funCovering    = []
   }
 
+emptyConstructor :: Defn
+emptyConstructor = Constructor
+  { conPars   = 0
+  , conArity  = 0
+  , conSrcCon = ConHead
+    { conName      = __IMPOSSIBLE__
+    , conInductive = Inductive
+    , conFields    = []
+    , conRHS       = Nothing
+    }
+  , conData   = __IMPOSSIBLE__
+  , conAbstr  = ConcreteDef
+  , conInd    = Inductive
+  , conComp   = __IMPOSSIBLE__
+  , conProj   = Nothing
+  , conForced = []
+  , conErased = Nothing
+  }
+
 funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
   f (Set.member flag flags) <&>

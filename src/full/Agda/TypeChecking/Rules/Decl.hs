@@ -646,6 +646,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
+          PatternSynName -> emptyConstructor
+           -- TODO: maybe something better than this
           _         -> __IMPOSSIBLE__
 
   addConstant x =<< do
