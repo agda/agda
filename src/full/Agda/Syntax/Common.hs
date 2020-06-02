@@ -2475,7 +2475,7 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
 -- * Information on expanded ellipsis (@...@)
 -----------------------------------------------------------------------------
 
--- ^ When the ellipsis in a clause are expanded, we remember that we
+-- ^ When the ellipsis in a clause is expanded, we remember that we
 --   did so. We also store the number of with-arguments that are
 --   included in the expanded ellipsis.
 data ExpandedEllipsis

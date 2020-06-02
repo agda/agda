@@ -523,7 +523,10 @@ buildParsers kind exprNames = do
 ---------------------------------------------------------------------------
 
 -- | Returns the list of possible parses.
-parsePat :: ([Pattern] -> [Pattern]) -> Pattern -> [Pattern]
+parsePat
+  :: ([Pattern] -> [Pattern]) -- ^ Turns a 'RawAppP' into possible parses.
+  -> Pattern                  -- ^ Pattern possibly containing 'RawAppP's.
+  -> [Pattern]                -- ^ Possible parses, not containing 'RawAppP's.
 parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
