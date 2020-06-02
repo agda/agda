@@ -250,8 +250,8 @@ makeConHead c = do
     Constructor{conPars = n, conProj = Just fs} -> do
       TelV tel _ <- telView (defType def)
       let ai = map getArgInfo $ drop n $ telToList tel
-      return $ ConHead c Inductive $ zipWith Arg ai fs
-    Constructor{conProj = Nothing} -> return $ ConHead c Inductive []
+      return $ ConHead c Inductive (zipWith Arg ai fs) Nothing
+    Constructor{conProj = Nothing} -> return $ ConHead c Inductive [] Nothing  -- FIXME
     _ -> __IMPOSSIBLE__
 
 {- UNUSED

@@ -69,7 +69,7 @@ patternToTerm p ret =
   case p of
     A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ cs ps
-      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon . map Apply) ps ret
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive [] Nothing) ConOCon . map Apply) ps ret
       | otherwise                   -> ambigErr "constructor" cs
     A.ProjP _ _ ds
       | Just d <- getUnambiguous ds -> ret 0 (Def d [])
@@ -101,7 +101,7 @@ exprToTerm e =
   case unScope e of
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
-    A.Con c  -> pure $ Con (ConHead (headAmbQ c) Inductive []) ConOCon [] -- Don't care too much about ambiguity here
+    A.Con c  -> pure $ Con (ConHead (headAmbQ c) Inductive [] Nothing) ConOCon [] -- Don't care too much about ambiguity here
     A.Lit l  -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 

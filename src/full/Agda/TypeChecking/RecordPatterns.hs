@@ -178,7 +178,7 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo c >>= \ case
               RecordCon YesEta fs ->
-                let ch = ConHead c Inductive (map argFromDom fs) in
+                let ch = ConHead c Inductive (map argFromDom fs) Nothing in
                 yesEtaCase ch b
               _ -> noEtaCase
           _ -> noEtaCase

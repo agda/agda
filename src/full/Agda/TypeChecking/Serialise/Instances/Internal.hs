@@ -66,7 +66,7 @@ instance EmbPrj a => EmbPrj (Elim' a) where
     valu _         = malformed
 
 instance EmbPrj I.ConHead where
-  icod_ (ConHead a b c) = icodeN' ConHead a b c
+  icod_ (ConHead a b c d) = icodeN' ConHead a b c d
 
   value = valueN ConHead
 

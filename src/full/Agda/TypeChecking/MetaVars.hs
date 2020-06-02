@@ -1256,7 +1256,7 @@ instance NoProjectedVar Term where
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ Inductive (_:_)) _ es | Just vs <- allApplyElims es -> noProjectedVar vs
+      Con (ConHead _ Inductive (_:_) _) _ es | Just vs <- allApplyElims es -> noProjectedVar vs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (Arg a) where

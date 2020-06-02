@@ -141,9 +141,10 @@ data ConHead = ConHead
   { conName      :: QName     -- ^ The name of the constructor.
   , conInductive :: Induction -- ^ Record constructors can be coinductive.
   , conFields    :: [Arg QName]   -- ^ The name of the record fields.
-      --   Empty list for data constructors.
+      --   Empty list for non-record constructors.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
+  , conRHS       :: Maybe Pattern -- ^ If it's a pattern synonym, its definition.
   } deriving (Data, Show)
 
 instance Eq ConHead where
@@ -558,6 +559,7 @@ data Pattern' x
   | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
   deriving (Data, Show, Functor, Foldable, Traversable)
+-- TODO: implement pattern syn expansion on this type
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -1292,7 +1294,7 @@ instance TermSize a => TermSize (Substitution' a) where
 ---------------------------------------------------------------------------
 
 instance KillRange ConHead where
-  killRange (ConHead c i fs) = killRange3 ConHead c i fs
+  killRange (ConHead c i fs md) = killRange4 ConHead c i fs md
 
 instance KillRange Term where
   killRange v = case v of

@@ -477,7 +477,8 @@ underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
 underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
-underConstructor (ConHead c i fs) =
+underConstructor (ConHead c i fs md) =
+  -- TODO: what happens to pattern synonyms?
   case (i,fs) of
     -- Coinductive (record) constructors admit infinite cycles:
     (CoInductive, _)   -> underFlexRig WeaklyRigid

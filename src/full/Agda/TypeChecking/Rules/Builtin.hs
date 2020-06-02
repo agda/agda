@@ -716,7 +716,7 @@ bindBuiltinEquality x = do
           (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
           unless (deBruijnView a == Just 0) wrongRefl
           unless (deBruijnView b == Just 0) wrongRefl
-          bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
+          bindBuiltinName builtinRefl (Con (ConHead c Inductive [] Nothing) ConOSystem [])
         _ -> __IMPOSSIBLE__
     _ -> genericError "Builtin EQUALITY must be a data type with a single constructor"
   where
@@ -925,7 +925,7 @@ bindBuiltinNoDef b q = inTopContext $ do
       t <- mt
       d <- return $! getPrimName $ unEl t
       let
-        ch = ConHead q Inductive []
+        ch = ConHead q Inductive [] Nothing
         def = Constructor
               { conPars   = 0   -- Andrea TODO: fix zeros
               , conArity  = 0

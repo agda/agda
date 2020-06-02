@@ -167,7 +167,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction $ map argFromDom fs
+          con = ConHead conName conInduction (map argFromDom fs) Nothing
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
@@ -443,7 +443,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                   -- body = u i1 itIsOne
                   DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
 
-              p = ConP (ConHead io_name Inductive [])
+              p = ConP (ConHead io_name Inductive [] Nothing)
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                          , conPFallThrough = True })
                          []

@@ -105,7 +105,7 @@ instance Apply BraveTerm where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
-    (Con (ConHead _ _ fs) _ vs) -> do
+    (Con (ConHead _ _ fs _) _ vs) -> do
       (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Jesper, 2019-10-17: dont unfold irrelevant projections
       guard $ not $ isIrrelevant fld
@@ -115,11 +115,14 @@ canProject f v =
     _ -> Nothing
 
 -- | Eliminate a constructed term.
-conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
+conApp :: forall t. (Coercible t Term, Apply t) =>
+          (Empty -> Term -> Elims -> Term) ->
+          ConHead -> ConInfo -> Elims -> Elims -> Term
 conApp fk ch                  ci args []             = Con ch ci args
 conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
 conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
-conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
+conApp fk ch@(ConHead c _ fs md) ci args ees@(Proj o f : es) =
+  -- TODO: expand pattern synonyms (a bit, at least) here
   let failure err = flip trace err $
         "conApp: constructor " ++ show c ++
         " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++

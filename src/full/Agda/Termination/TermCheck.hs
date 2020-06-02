@@ -573,7 +573,7 @@ instance TermToPattern Term DeBruijnPattern where
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
       suc <- terGetSizeSuc
-      if Just s == suc then ConP (ConHead s Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
+      if Just s == suc then ConP (ConHead s Inductive [] Nothing) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
        else return $ dotP t
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
@@ -619,7 +619,7 @@ termClause clause = do
       DotP o t -> termToDBP t
       p        -> return p
     stripCoCon p = case p of
-      ConP (ConHead c _ _) _ _ -> do
+      ConP (ConHead c _ _ _) _ _ -> do
         ifM ((Just c ==) <$> terGetSizeSuc) (return p) $ {- else -} do
         whatInduction c >>= \case
           Inductive   -> return p
