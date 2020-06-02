@@ -39,6 +39,7 @@ import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -333,7 +334,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         computeErasedConstructorArgs q
-        cs <- getNonErasedConstructors q
+        cs <- getNotErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
@@ -343,10 +344,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         return result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-              } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl } -> do
         computeErasedConstructorArgs q
-        cs <- getNonErasedConstructors q
+        cs <- getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
         return $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> return []
