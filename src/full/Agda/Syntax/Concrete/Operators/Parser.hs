@@ -31,8 +31,7 @@ import Agda.Utils.Impossible
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
 placeholder p =
   doc (text ("_" ++ show p)) $
-  sat $ \t ->
-  case t of
+  sat $ \case
     Placeholder p' | p' == p -> True
     _                        -> False
 
@@ -45,8 +44,7 @@ maybePlaceholder mp p = case mp of
   p' = noPlaceholder <$> p
 
 satNoPlaceholder :: (e -> Maybe a) -> Parser e a
-satNoPlaceholder p = sat' $ \tok ->
-  case tok of
+satNoPlaceholder p = sat' $ \case
     NoPlaceholder _ e -> p e
     Placeholder _     -> Nothing
 
@@ -73,7 +71,7 @@ instance IsExpr e => HasRange (ExprView e) where
   getRange = getRange . unExprView
 
 instance IsExpr Expr where
-    exprView e = case e of
+    exprView = \case
         Ident x         -> LocalV x
         App _ e1 e2     -> AppV e1 e2
         OpApp r d ns es -> OpAppV d ns es
@@ -81,9 +79,9 @@ instance IsExpr Expr where
         InstanceArg _ e -> InstanceArgV e
         Paren _ e       -> ParenV e
         Lam _ bs    e   -> LamV bs e
-        Underscore{}    -> WildV e
-        _               -> OtherV e
-    unExprView e = case e of
+        e@Underscore{}  -> WildV e
+        e               -> OtherV e
+    unExprView = \case
         LocalV x       -> Ident x
         AppV e1 e2     -> App (fuseRange e1 e2) e1 e2
         OpAppV d ns es -> OpApp (fuseRange d es) d ns es
@@ -97,7 +95,7 @@ instance IsExpr Expr where
     patternView = isPattern
 
 instance IsExpr Pattern where
-    exprView e = case e of
+    exprView = \case
         IdentP x         -> LocalV x
         AppP e1 e2       -> AppV e1 e2
         OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap)
@@ -105,14 +103,14 @@ instance IsExpr Pattern where
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
-        WildP{}          -> WildV e
-        _                -> OtherV e
-    unExprView e = case e of
+        e@WildP{}        -> WildV e
+        e                -> OtherV e
+    unExprView = \case
         LocalV x       -> IdentP x
         AppV e1 e2     -> AppP e1 e2
         OpAppV d ns es -> let ess :: [NamedArg Pattern]
                               ess = (map . fmap . fmap)
-                                      (\x -> case x of
+                                      (\case
                                           Placeholder{}     -> __IMPOSSIBLE__
                                           NoPlaceholder _ x -> fromOrdinary __IMPOSSIBLE__ x)
                                       es
@@ -206,7 +204,7 @@ atLeastTwoParts =
   <*> many (part Middle)
   <*> part End
   where
-  part pos = sat' $ \tok -> case tok of
+  part pos = sat' $ \case
     Placeholder pos'                   | pos == pos' -> Just ( Nothing
                                                              , Hole
                                                              )
