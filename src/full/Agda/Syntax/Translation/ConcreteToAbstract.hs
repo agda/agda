@@ -1932,20 +1932,25 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 instance ToAbstract NicePatternSyn [A.Declaration] where
 
-  toAbstract (NicePatternSyn r a n mty pat rhs) = setCurrentRange r $ do
+  toAbstract (NicePatternSyn r p n mty pat rhs) = setCurrentRange r $ do
     -- 1. Extract a name and a list of arguments (variables only)
-      ((n, y), mty, as) <- case mty of
+      ((n, y), mty, as, ax) <- case mty of
         -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
-        Just ty -> do
+        Just (i, rel, ty) -> do
           reportSLn "scope.pat" 10 $ "found nice typed pattern syn: " ++ prettyShow n
-          y <- freshAbstractQName' n
-          bindName a PatternSynName n y
+          fx <- getConcreteFixity n
+          y <- freshAbstractQName fx n
+          bindName p PatternSynName n y
           -- (A.LHS _ (A.LHSHead _ as)) <- toAbstract $ LeftHandSide (C.QName n) pat NoEllipsis
           -- as <- forM as $ mapM $ \case
           --   Named _ (A.VarP n) -> pure n
           --   _ -> __IMPOSSIBLE__ -- TODO
           ty <- toAbstractCtx TopCtx ty
-          pure ((n, y), Just ty, Left pat)
+          let ax = [A.Axiom PatternSynName
+                            (DefInfo fx p ConcreteDef i NotMacroDef
+                                     (DeclInfo n r) Nothing)
+                            rel Nothing y ty]
+          pure ((n, y), Just ty, Left pat, ax)
 
         -- Otherwise it better be a pattern of the form `c x0..xn`!
         Nothing -> do
@@ -1961,8 +1966,8 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
             _ -> trace (show pat) __IMPOSSIBLE__
           reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
           y <- freshAbstractQName' n
-          bindName a PatternSynName n y
-          pure ((n, y), Nothing, Right as)
+          bindName p PatternSynName n y
+          pure ((n, y), Nothing, Right as, [])
 
     -- 2. Make sure the RHS is a valid pattern synonym (no unbound variables, no forced patterns, no raw terms)
       (as, rhs) <- withLocalVars $ do
@@ -1994,9 +1999,9 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
     -- 3. Bind the pattern synonym
       -- Expanding pattern synonyms already at definition makes it easier to
       -- fold them back when printing (issue #2762).
-      ep <- expandPatternSynonyms rhs
-      modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
-      return [A.PatternSynDef y mty as rhs]   -- only for highlighting, so use unexpanded version
+      -- ep <- expandPatternSynonyms rhs
+      -- modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
+      return (ax ++ [A.PatternSynDef y mty as rhs])
 
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym

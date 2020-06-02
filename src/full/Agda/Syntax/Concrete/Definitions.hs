@@ -149,7 +149,7 @@ data NiceDeclaration
 data NicePatternSyn
   = NicePatternSyn Range Access
     Name         -- ^ The synonym name (either declared or prefix for untyped ones)
-    (Maybe Expr) -- ^ Maybe a type signature
+    (Maybe (IsInstance, ArgInfo, Expr)) -- ^ Maybe a type signature, and other info
     Pattern      -- ^ An unparsed LHS
     Pattern      -- ^ RHS
   deriving (Data, Show)
@@ -1823,7 +1823,7 @@ niceDeclarations fixs ds = do
         d@FunDef{}                     -> return d
         d                              -> throwError (BadMacroDef d)
 
-    mkPatternSyn :: Range -> Access -> Maybe (Name, Expr) -> Declaration -> Nice NicePatternSyn
+    mkPatternSyn :: Range -> Access -> Maybe (Name, (IsInstance, ArgInfo, Expr)) -> Declaration -> Nice NicePatternSyn
     mkPatternSyn r p mnty (FunClause (LHS pat [] [] NoEllipsis) (RHS rhs) NoWhere _) = do
         rhs'   <- case isPattern rhs of
           Just pat -> pure pat
@@ -1841,17 +1841,20 @@ niceDeclarations fixs ds = do
         psyn  <- mkPatternSyn r p Nothing d
         psyns <- patternBlock rest
         return $ psyn : psyns
-    patternBlock ( FunSig r0 p _ _ _ _ _ _ x0 mty
+  -- | FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name (Maybe Expr)
+  -- | FunDef Range [Declaration] IsAbstract IsInstance TerminationCheck CoverageCheck Name [Clause]
+    patternBlock ( FunSig r0 p _ i _ rel _ _ x0 mty
                  : FunDef r1 ds a _ tc cc  x1 _ : rest) = do -- Typed
       unless (x0 == x1) (throwError $ WrongContentBlock PatternBlock r1)
       d <- case ds of
+        -- TODO: What if we have both untyped and typed next to each other?
         [d] -> pure d
         _   -> throwError $ WrongContentBlock PatternBlock (getRange ds)
       case mty of
         Nothing -> patternBlock (NiceFunClause r1 p a tc cc False d : rest)
          -- This was a simple FunClause Agda felt smart assigning a type to
         Just ty -> do
-          psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, ty)) d
+          psyn  <- mkPatternSyn (fuseRange r0 r1) p (Just (x0, (i, rel, ty))) d
           psyns <- patternBlock rest
           return (psyn : psyns)
     patternBlock [] = return []
@@ -2024,7 +2027,8 @@ notSoNiceDeclarations = \case
     NicePatternB r ps              -> [PatternB r (map notSoNicePatternSyn ps)]
       where
       notSoNicePatternSyn :: NicePatternSyn -> Declaration
-      notSoNicePatternSyn (NicePatternSyn r _ n ty pat rhs) = PatternSyn r n ty pat rhs
+      notSoNicePatternSyn (NicePatternSyn r _ n ty pat rhs) =
+        PatternSyn r n ((\(_, _, ty) -> ty) <$> ty) pat rhs
     NiceGeneralize r _ i tac n e   -> [Generalize r [TypeSig i tac n e]]
     NiceUnquoteDecl r _ _ i _ _ x e -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e    -> [UnquoteDef r x e]
