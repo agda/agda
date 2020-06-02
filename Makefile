@@ -103,21 +103,22 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-.PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
-quick-install-bin: ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo "===================== Installing using Stack ============================="
-	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-else
-	@echo "===================== Installing using Cabal ============================="
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-endif
+# Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
+# .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
+# quick-install-bin: ensure-hash-is-correct
+# ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+# 	@echo "===================== Installing using Stack ============================="
+# 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+# else
+# 	@echo "===================== Installing using Cabal ============================="
+# 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+# endif
 
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
-quicker-install-bin: ensure-hash-is-correct
+quicker-install-bin:
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
