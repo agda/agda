@@ -158,6 +158,12 @@ install-debug : ensure-hash-is-correct
         -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
         $(CABAL_INSTALL_OPTS)
 
+.PHONY : debug-install-quick ## Install Agda (compiled with -O0) with debug enabled via cabal.
+debug-install-quick :
+	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug-quick --builddir=$(BUILD_DIR)-debug-quick \
+        $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
+
 .PHONY : compile-emacs-mode ## Compile Agda's Emacs mode using Emacs.
 compile-emacs-mode: install-bin
 	$(AGDA_MODE) compile
