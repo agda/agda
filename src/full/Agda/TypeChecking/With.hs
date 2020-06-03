@@ -146,6 +146,8 @@ withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
   vtys <- etaContract =<< normalise vtys
 
   -- wd2db = wtel → [vs : as] (Δ₂ → B)
+  -- TODO IWITH abstract in the boundary from Δ₂ too.
+  -- I guess d2b should be changed to the pi/path type.
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
@@ -426,7 +428,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         VarP _ x  ->
           (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
 
-        IApplyP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of Path patterns" -- TODO maybe we can support them now?
+        IApplyP _ _ _ x  ->
+          (setVarArgInfo x p :) <$> recurse (var (dbPatVarIndex x))
+
         DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
 
         DotP o v  -> do
@@ -517,12 +521,16 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           _ -> mismatch
       where
         recurse v = do
-          caseMaybeM (liftTCM $ isPath t) (return ()) $ \ _ ->
-            typeError $ GenericError $
-              "With-clauses currently not supported under Path abstraction."
+          -- caseMaybeM (liftTCM $ isPath t) (return ()) $ \ _ ->
+          --   typeError $ GenericError $
+          --     "With-clauses currently not supported under Path abstraction."
 
-          t' <- piApplyM t v
-          strip (self `apply1` v) t' ps qs
+          let piOrPathApplyM t v = do
+                (TelV tel t', bs) <- telViewUpToPathBoundaryP 1 t
+                unless (size tel == 1) $ __IMPOSSIBLE__
+                return (teleElims tel bs, subst 0 v t')
+          (e, t') <- piOrPathApplyM t v
+          strip (self `applyE` e) t' ps qs
 
         mismatch = addContext delta $ typeError $
           WithClausePatternMismatch (namedArg p0) q

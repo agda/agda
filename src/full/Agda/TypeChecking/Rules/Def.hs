@@ -986,6 +986,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
             -- First the variables bound outside this definition
             (us0, us1') = splitAt (n - m) us
             -- Then permute the rest and grab those needed to for the with arguments
+            -- TODO IWITH we should be permuting elims containing the appropriate IApply patterns.
             (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             mkWithArg = \ (WithHiding h e) -> setHiding h $ defaultArg e
