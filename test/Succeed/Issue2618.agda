@@ -4,6 +4,7 @@ open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Nat
+open import Agda.Builtin.Sigma
 
 data Unit : Set where
   unit : Unit
@@ -37,16 +38,18 @@ mkArgs = map λ i → vArg (var i [])
 
 unit,X=>_∙_ : Nat → List Nat → Term
 unit,X=> n ∙ args =
-  pat-lam [ clause (vArg (con (quote unit) []) ∷ vArg (var "X") ∷ [])
+  pat-lam [ clause [ "X" , vArg (agda-sort (lit 0)) ]
+                   (vArg (con (quote unit) []) ∷ vArg (var 0) ∷ [])
                    (var n []) ]
           (mkArgs args)
 
 abs,X=>∙_ : List Nat → Term
-abs,X=>∙ is = pat-lam [ absurd-clause (vArg absurd ∷ vArg (var "X") ∷ []) ]
+abs,X=>∙ is = pat-lam [ absurd-clause ( ("()" , vArg (def (quote Empty) [])) ∷  ("X" , vArg (agda-sort (lit 0))) ∷ [])
+                                      (vArg absurd ∷ vArg (var 0) ∷ []) ]
                       (mkArgs is)
 
 abs=>∙_ : List Nat → Term
-abs=>∙ is = pat-lam [ absurd-clause (vArg absurd ∷ []) ]
+abs=>∙ is = pat-lam [ absurd-clause [ "()" , vArg (def (quote Empty) []) ] (vArg absurd ∷ []) ]
                     (mkArgs is)
 
 _ : qU (λ { unit X → X }) ≡ unit,X=> 0 ∙ []

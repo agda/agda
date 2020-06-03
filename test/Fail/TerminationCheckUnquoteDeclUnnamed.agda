@@ -25,7 +25,7 @@ makeLoop : TC ⊤
 makeLoop =
   freshName "aux" >>= λ aux →
   declareDef (iArg aux) `Box >>= λ _ →
-  defineFun aux (clause [] (con (quote box) (vArg (def (quote unbox) (vArg (def aux []) ∷ [])) ∷ [])) ∷ [])
+  defineFun aux (clause [] [] (con (quote box) (vArg (def (quote unbox) (vArg (def aux []) ∷ [])) ∷ [])) ∷ [])
 
 unquoteDecl = makeLoop
 
