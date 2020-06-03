@@ -6,6 +6,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (null)
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Arrow ((***))
 import Control.Monad
@@ -37,7 +38,8 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
+import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
+  -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
@@ -46,7 +48,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
-import Agda.TypeChecking.Warnings ( warning )
+import Agda.TypeChecking.Warnings ( warning, warning' )
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
@@ -75,6 +77,11 @@ printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
+
+scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
+scopeWarning d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  warning' (file, line)  $ NicifierIssue $
+    DeclarationWarning (file, line) $ d
 
 ---------------------------------------------------------------------------
 -- * General operations
@@ -220,7 +227,7 @@ checkNoShadowing old new = do
     let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
     -- Warn if we have two or more occurrences of the same name.
     unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-      warning $ NicifierIssue $ ShadowingInTelescope conflicts
+      scopeWarning $ ShadowingInTelescope conflicts
   where
     pairWithRange :: C.Name -> (C.Name, [Range])
     pairWithRange n = (n, [getRange n])
@@ -411,10 +418,10 @@ instance MonadFixityError ScopeM where
   throwMultiplePolarityPragmas xs     = case xs of
     x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
     []    -> __IMPOSSIBLE__
-  warnUnknownNamesInFixityDecl        = warning   . NicifierIssue . UnknownNamesInFixityDecl
-  warnUnknownNamesInPolarityPragmas   = warning   . NicifierIssue . UnknownNamesInPolarityPragmas
-  warnUnknownFixityInMixfixDecl       = warning   . NicifierIssue . UnknownFixityInMixfixDecl
-  warnPolarityPragmasButNotPostulates = warning   . NicifierIssue . PolarityPragmasButNotPostulates
+  warnUnknownNamesInFixityDecl        = scopeWarning . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas   = scopeWarning . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
+  warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.

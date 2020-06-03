@@ -14,6 +14,7 @@ import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
@@ -37,10 +38,9 @@ import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM = return . tcWarningPrintedWarning
-
-instance PrettyTCM Warning where
-  prettyTCM = prettyWarning
+  prettyTCM w@(TCWarning (file, line) _ _ _ _) = do
+    reportSLn "warning" 2 $ "Warning raised in file " ++ file ++ " at line " ++ show line
+    pure $ tcWarningPrintedWarning w
 
 prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
 prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
@@ -68,7 +68,6 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     blocking (Guarded c pid) = pid : blocking c
     blocking _               = []
 
-{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
 
@@ -415,8 +414,8 @@ applyFlagsToTCWarnings' isMain ws = do
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap List.nub (foldMap pragmas ws) of
-              (TCWarning r w p b:_, sfp) ->
-                 [TCWarning r (SafeFlagPragma sfp) p b]
+              (TCWarning fl r w p b:_, sfp) ->
+                 [TCWarning fl r (SafeFlagPragma sfp) p b]
               _                        -> []
 
   warnSet <- do

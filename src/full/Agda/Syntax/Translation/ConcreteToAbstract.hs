@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Applicative
 import Control.Monad.Except
@@ -106,17 +107,21 @@ import Agda.ImpossibleTest (impossibleTest)
 
 -- notAModuleExpr e = typeError $ NotAModuleExpr e
 
-notAnExpression :: C.Expr -> ScopeM A.Expr
-notAnExpression e = typeError $ NotAnExpression e
+notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
+notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (file, line) $ NotAnExpression e
 
-nothingAppliedToHiddenArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (file, line) $ NothingAppliedToHiddenArg e
 
-nothingAppliedToInstanceArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
+nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (file, line) $ NothingAppliedToInstanceArg e
 
-notAValidLetBinding :: NiceDeclaration -> ScopeM a
-notAValidLetBinding d = typeError $ NotAValidLetBinding d
+notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
+notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (file, line) $ NotAValidLetBinding d
 
 {--------------------------------------------------------------------------
     Helpers
@@ -1286,7 +1291,9 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     -- Otherwise we simply record the warnings
     warnings $ NicifierIssue <$> warns
   case result of
-    Left e   -> throwError $ Exception (getRange e) $ pretty e
+    Left (DeclarationException (file, line) e) -> do
+      reportSLn "error" 2 $ "Error raised in file " ++ file ++ " at line " ++ show line
+      throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 
   where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName

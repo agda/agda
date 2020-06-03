@@ -176,8 +176,8 @@ initialInstanceCandidates t = do
           return $ Just $ Candidate (GlobalCandidate q) v t False
       where
         -- unbound constant throws an internal error
-        handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
-        handle err                                                 = throwError err
+        handle (TypeError _ _ (Closure {clValue = InternalError _})) = return Nothing
+        handle err                                                   = throwError err
 
         filterQualified :: TCM (Maybe Candidate) -> TCM (Maybe Candidate)
         filterQualified m = ifM (optQualifiedInstances <$> pragmaOptions) m $ do
@@ -522,7 +522,7 @@ checkCandidates m t cands =
           debugTypeFail err       = reportSDoc "tc.instance" 50 $ "candidate failed type check:" <+> prettyTCM err
 
           hardFailure :: TCErr -> Bool
-          hardFailure (TypeError _ err) =
+          hardFailure (TypeError _ _ err) =
             case clValue err of
               InstanceSearchDepthExhausted{} -> True
               _                              -> False
