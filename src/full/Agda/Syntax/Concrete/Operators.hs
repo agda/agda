@@ -399,6 +399,8 @@ buildParsers kind exprNames = do
               , pAtom   = atomP isAtom
               }
 
+    -- Andreas, 2020-06-03 #4712
+    -- Note: needs Agda to be compiled with DEBUG to print the grammar.
     reportSDoc "scope.grammar" 10 $ return $
       "Operator grammar:" $$ nest 2 (grammar (pTop g))
 
