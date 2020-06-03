@@ -80,7 +80,7 @@ data Expr
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
-  | Lit Literal                        -- ^ Literal.
+  | Lit ExprInfo Literal               -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
     -- ^ Meta variable for interaction.
     --   The 'InteractionId' is usually identical with the
@@ -474,7 +474,7 @@ data Pattern' e
   | DotP PatInfo e
     -- ^ Dot pattern @.e@
   | AbsurdP PatInfo
-  | LitP Literal
+  | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
@@ -519,7 +519,7 @@ instance Eq Expr where
   Con a1                  == Con a2                  = a1 == a2
   PatternSyn a1           == PatternSyn a2           = a1 == a2
   Macro a1                == Macro a2                = a1 == a2
-  Lit a1                  == Lit a2                  = a1 == a2
+  Lit r1 a1               == Lit r2 a2               = (r1, a1) == (r2, a2)
   QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
   Underscore a1           == Underscore a2           = a1 == a2
   Dot r1 e1               == Dot r2 e2               = (r1, e1) == (r2, e2)
@@ -601,7 +601,7 @@ instance HasRange Expr where
     getRange (Def' x _)            = getRange x
     getRange (Proj _ x)            = getRange x
     getRange (Con x)               = getRange x
-    getRange (Lit l)               = getRange l
+    getRange (Lit i _)             = getRange i
     getRange (QuestionMark i _)    = getRange i
     getRange (Underscore  i)       = getRange i
     getRange (Dot i _)             = getRange i
@@ -656,7 +656,7 @@ instance HasRange (Pattern' e) where
     getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
-    getRange (LitP l)            = getRange l
+    getRange (LitP i l)          = getRange i
     getRange (PatternSynP i _ _) = getRange i
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
@@ -702,7 +702,7 @@ instance SetRange (Pattern' a) where
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
-    setRange r (LitP l)             = LitP (setRange r l)
+    setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
@@ -730,7 +730,7 @@ instance KillRange Expr where
   killRange (Def' x v)             = killRange2 Def' x v
   killRange (Proj o x)             = killRange1 (Proj o) x
   killRange (Con x)                = killRange1 Con x
-  killRange (Lit l)                = killRange1 Lit l
+  killRange (Lit i l)              = killRange2 Lit i l
   killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
   killRange (Underscore  i)        = killRange1 Underscore i
   killRange (Dot i e)              = killRange2 Dot i e
@@ -795,7 +795,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (AsP i a b)         = killRange3 AsP i a b
   killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
-  killRange (LitP l)            = killRange1 LitP l
+  killRange (LitP i l)          = killRange2 LitP i l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
   killRange (RecP i as)         = killRange2 RecP i as
   killRange (EqualP i es)       = killRange2 EqualP i es
@@ -935,7 +935,7 @@ patternToExpr = \case
   AsP _ _ p          -> patternToExpr p
   DotP _ e           -> e
   AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
-  LitP l             -> Lit l
+  LitP (PatRange r) l-> Lit (ExprRange r) l
   PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
   RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
   EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
@@ -991,7 +991,7 @@ instance SubstExpr Expr where
     Def' _ _              -> e
     Proj{}                -> e
     Con _                 -> e
-    Lit _                 -> e
+    Lit _ _               -> e
     QuestionMark{}        -> e
     Underscore   _        -> e
     Dot i e               -> Dot i (substExpr s e)

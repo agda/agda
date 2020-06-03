@@ -56,6 +56,7 @@ import Agda.TypeChecking.Warnings (runPM)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
+import Agda.Syntax.Common (pattern Ranged)
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Internal as I
@@ -219,13 +220,13 @@ tokenHighlighting = merge . map tokenToCFile
   tokenToCFile (T.TokKeyword T.KwREWRITE _)     = mempty  -- #4361, REWRITE is not always a Keyword
   tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (getRange i)
   tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (getRange i)
-  tokenToCFile (T.TokLiteral (L.LitNat    r _)) = aToF Number r
-  tokenToCFile (T.TokLiteral (L.LitWord64 r _)) = aToF Number r
-  tokenToCFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
-  tokenToCFile (T.TokLiteral (L.LitString r _)) = aToF String r
-  tokenToCFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
-  tokenToCFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
-  tokenToCFile (T.TokLiteral (L.LitMeta r _ _)) = aToF String r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitNat    _))) = aToF Number r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitWord64 _))) = aToF Number r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitFloat  _))) = aToF Number r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitString _))) = aToF String r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitChar   _))) = aToF String r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitQName  _))) = aToF String r
+  tokenToCFile (T.TokLiteral (Ranged r (L.LitMeta _ _))) = aToF String r
   tokenToCFile (T.TokComment (i, _))            = aToF Comment (getRange i)
   tokenToCFile (T.TokTeX (i, _))                = aToF Background (getRange i)
   tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (getRange i)

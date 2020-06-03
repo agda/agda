@@ -1143,7 +1143,7 @@ checkExpr' cmp e t =
               checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
-        A.Lit lit    -> checkLiteral lit t
+        A.Lit _ lit  -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
         A.Pi _ tel e -> do
             (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do

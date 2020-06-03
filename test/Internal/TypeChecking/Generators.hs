@@ -248,14 +248,13 @@ instance GenC Word64 where
   genC _ = arbitrary
 
 instance GenC Literal where
-  genC conf = oneof (concat $ zipWith gen useLits
-              [ uncurry LitNat    <$> genC conf
-              , uncurry LitWord64 <$> genC conf
-              , uncurry LitFloat  <$> genC conf
-              , uncurry LitString . fmap T.pack <$> genC conf
-              , uncurry LitChar   <$> genC conf
+  genC conf = oneof $ concat $ zipWith gen useLits
+              [ LitNat    <$> genC conf
+              , LitWord64 <$> genC conf
+              , LitFloat  <$> genC conf
+              , LitString . T.pack <$> genC conf
+              , LitChar   <$> genC conf
               ]
-           )
     where
       useLits = map ($ tcLiterals conf) [ useLitInt, useLitFloat, useLitString, useLitChar ]
 
@@ -404,14 +403,14 @@ instance ShrinkC ConName ConHead where
   noShrink = unConName
 
 instance ShrinkC Literal Literal where
-  shrinkC _ (LitNat _ 0) = []
-  shrinkC conf l         = LitNat noRange 0 : case l of
-      LitNat    r n -> LitNat    r <$> shrink n
-      LitWord64 r n -> LitWord64 r <$> shrink n
-      LitString r s -> LitString r . T.pack <$> shrinkC conf (T.unpack s)
-      LitChar   r c -> LitChar   r <$> shrinkC conf c
-      LitFloat  r x -> LitFloat  r <$> shrink x
-      LitQName  r x -> []
+  shrinkC _ (LitNat 0) = []
+  shrinkC conf l         = LitNat 0 : case l of
+      LitNat    n -> LitNat    <$> shrink n
+      LitWord64 n -> LitWord64 <$> shrink n
+      LitString s -> LitString . T.pack <$> shrinkC conf (T.unpack s)
+      LitChar   c -> LitChar   <$> shrinkC conf c
+      LitFloat  x -> LitFloat  <$> shrink x
+      LitQName  x -> []
       LitMeta{}     -> []
   noShrink = id
 

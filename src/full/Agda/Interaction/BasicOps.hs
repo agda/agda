@@ -353,7 +353,7 @@ computeWrapInput _               s = s
 showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
-    A.Lit (LitString _ s) -> pure (text $ T.unpack s)
+    A.Lit _ (LitString s) -> pure (text $ T.unpack s)
     _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
@@ -394,7 +394,7 @@ reifyElimToExpr e = case e of
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
     appl :: Text -> Arg Expr -> Expr
-    appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
+    appl s v = A.App defaultAppInfo_ (A.Lit empty (LitString s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v

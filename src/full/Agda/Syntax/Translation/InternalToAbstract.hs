@@ -363,7 +363,7 @@ reifyDisplayFormP f ps wps = do
         termToPat (DTerm (I.Def _ [])) = return $ unnamed $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ unnamed $ A.WildP patNoRange
 
-        termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP l
+        termToPat (DTerm (I.Lit l))    = return $ unnamed $ A.LitP patNoRange l
 
         termToPat (DDot v)             = unnamed . A.DotP patNoRange <$> termToExpr v
         termToPat v                    = unnamed . A.DotP patNoRange <$> reify v
@@ -399,7 +399,7 @@ reifyDisplayFormP f ps wps = do
 
 instance Reify Literal Expr where
   reifyWhen = reifyWhenE
-  reify l = return (A.Lit l)
+  reify l = return $ A.Lit empty l
 
 instance Reify Term Expr where
   reifyWhen = reifyWhenE
@@ -593,7 +593,7 @@ reifyTerm expandAnonDefs0 v0 = do
       showIrr <- optShowIrrelevant <$> pragmaOptions
       if | showIrr   -> reifyTerm expandAnonDefs v
          | otherwise -> return underscore
-    I.Dummy s [] -> return $ A.Lit $ LitString noRange (T.pack s)
+    I.Dummy s [] -> return $ A.Lit empty $ LitString (T.pack s)
     I.Dummy "applyE" es | I.Apply (Arg _ h) : es' <- es -> do
                             h <- reify h
                             es' <- reify es'
@@ -824,7 +824,7 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
 --     I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
 --     where
 --       appl :: String -> Arg Expr -> Expr
---       appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
+--       appl s v = A.App exprInfo (A.Lit empty (LitString s)) $ fmap unnamed v
 
 data NamedClause = NamedClause QName Bool I.Clause
   -- ^ Also tracks whether module parameters should be dropped from the patterns.
@@ -907,7 +907,7 @@ stripImplicits params ps = do
             A.DotP _ e    -> p
             A.WildP _     -> p
             A.AbsurdP _   -> p
-            A.LitP _      -> p
+            A.LitP _ _    -> p
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
             A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
@@ -983,7 +983,7 @@ instance BlankVars A.Pattern where
     A.DotP i e    -> A.DotP i $ blank bound e
     A.WildP _     -> p
     A.AbsurdP _   -> p
-    A.LitP _      -> p
+    A.LitP _ _    -> p
     A.AsP i n p   -> A.AsP i n $ blank bound p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__
     A.RecP i fs   -> A.RecP i $ blank bound fs
@@ -998,7 +998,7 @@ instance BlankVars A.Expr where
     A.Def' _ _             -> e
     A.Proj{}               -> e
     A.Con _                -> e
-    A.Lit _                -> e
+    A.Lit _ _              -> e
     A.QuestionMark{}       -> e
     A.Underscore _         -> e
     A.Dot i e              -> A.Dot i $ blank bound e
@@ -1132,7 +1132,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
       -- Possibly expanded literal pattern (see #4215)
       p | Just (PatternInfo PatOLit asB) <- patternInfo p -> do
         reduce (I.patternToTerm p) >>= \case
-          I.Lit l -> addAsBindings asB $ return $ A.LitP l
+          I.Lit l -> addAsBindings asB $ return $ A.LitP empty l
           _       -> __IMPOSSIBLE__
       I.VarP i x -> addAsBindings (patAsNames i) $ case patOrigin i of
         o@PatODot  -> reifyDotP o $ var $ dbPatVarIndex x
@@ -1150,7 +1150,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
           else
             reifyDotP o v
         o -> reifyDotP o v
-      I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP l
+      I.LitP i l  -> addAsBindings (patAsNames i) $ return $ A.LitP empty l
       I.ProjP o d -> return $ A.ProjP patNoRange o $ unambiguous d
       I.ConP c cpi ps | conPRecord cpi -> addAsBindings (patAsNames $ conPInfo cpi) $
         case patOrigin (conPInfo cpi) of
@@ -1350,7 +1350,7 @@ instance Reify Sort Expr where
           return $ A.App defaultAppInfo_ (A.Var univs) $ defaultNamedArg e
         I.MetaS x es -> reify $ I.MetaV x es
         I.DefS d es -> reify $ I.Def d es
-        I.DummyS s -> return $ A.Lit $ LitString noRange (T.pack s)
+        I.DummyS s -> return $ A.Lit empty $ LitString $ T.pack s
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE

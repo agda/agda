@@ -128,17 +128,17 @@ class ToTerm a where
 
   toTermR = (pure .) <$> toTerm
 
-instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
-instance ToTerm Word64  where toTerm = return $ Lit . LitWord64 noRange
+instance ToTerm Nat     where toTerm = return $ Lit . LitNat . toInteger
+instance ToTerm Word64  where toTerm = return $ Lit . LitWord64
 instance ToTerm Lvl     where toTerm = return $ Level . ClosedLevel . unLvl
-instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
-instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
-instance ToTerm Text    where toTerm = return $ Lit . LitString noRange
-instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
+instance ToTerm Double  where toTerm = return $ Lit . LitFloat
+instance ToTerm Char    where toTerm = return $ Lit . LitChar
+instance ToTerm Text    where toTerm = return $ Lit . LitString
+instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
     file <- getCurrentPath
-    return $ Lit . LitMeta noRange file
+    return $ Lit . LitMeta file
 
 instance ToTerm Integer where
   toTerm = do
@@ -276,51 +276,51 @@ instance FromTerm Integer where
         _ -> return $ NoReduction (reduced b)
 
 instance FromTerm Nat where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitNat _ n -> Just $ fromInteger n
-    _          -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitNat n -> Just $ fromInteger n
+    _ -> Nothing
 
 instance FromTerm Word64 where
   fromTerm = fromLiteral $ \ case
-    LitWord64 _ n -> Just n
-    _             -> Nothing
+    LitWord64 n -> Just n
+    _ -> Nothing
 
 instance FromTerm Lvl where
-  fromTerm = fromReducedTerm $ \l -> case l of
+  fromTerm = fromReducedTerm $ \case
     Level (ClosedLevel n) -> Just $ Lvl n
-    _                     -> Nothing
+    _ -> Nothing
 
 instance FromTerm Double where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitFloat _ x -> Just x
-    _            -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitFloat x -> Just x
+    _ -> Nothing
 
 instance FromTerm Char where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitChar _ c -> Just c
-    _           -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitChar c -> Just c
+    _ -> Nothing
 
 instance FromTerm Text where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitString _ s -> Just s
-    _             -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitString s -> Just s
+    _ -> Nothing
 
 instance FromTerm QName where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitQName _ x -> Just x
-    _             -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitQName x -> Just x
+    _ -> Nothing
 
 instance FromTerm MetaId where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitMeta _ _ x -> Just x
-    _             -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitMeta _ x -> Just x
+    _ -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do
         true  <- primTrue
         false <- primFalse
-        fromReducedTerm $ \t -> case t of
-            _   | t =?= true  -> Just True
+        fromReducedTerm $ \case
+            t   | t =?= true  -> Just True
                 | t =?= false -> Just False
                 | otherwise   -> Nothing
         where
@@ -391,7 +391,7 @@ fromReducedTerm f = return $ \t -> do
         Nothing -> return $ NoReduction (reduced b)
 
 fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
-fromLiteral f = fromReducedTerm $ \t -> case t of
+fromLiteral f = fromReducedTerm $ \case
     Lit lit -> f lit
     _       -> Nothing
 
@@ -418,8 +418,7 @@ mkPrimInjective a b qn = do
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
-    eq' <- reduce' eq
-    case eq' of
+    reduce' eq >>= \case
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
 
@@ -821,7 +820,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
   , "primCharToNatInjective" |-> primCharToNatInjective
   , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
-  , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar noRange)
+  , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
   , "primStringToList"          |-> mkPrimFun1 T.unpack
@@ -829,7 +828,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primStringFromList"        |-> mkPrimFun1 T.pack
   , "primStringAppend"          |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
   , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Text)
-  , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString noRange)
+  , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString)
   , "primStringUncons"          |-> mkPrimFun1 T.uncons
 
   -- Other stuff

@@ -215,7 +215,7 @@ instance Pretty Expr where
     pretty e =
         case e of
             Ident x          -> pretty x
-            Lit l            -> pretty l
+            Lit _ l          -> pretty l
             QuestionMark _ n -> "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
             App _ _ _        ->
@@ -693,7 +693,7 @@ instance Pretty Pattern where
             AsP _ x p       -> pretty x <> "@" <> pretty p
             DotP _ p        -> "." <> pretty p
             AbsurdP _       -> "()"
-            LitP l          -> pretty l
+            LitP _ l        -> pretty l
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]

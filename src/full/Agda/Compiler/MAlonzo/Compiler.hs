@@ -644,9 +644,9 @@ alt sc a = do
       return $ HS.Alt HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier g] b])
                       emptyBinds
-    T.TALit { T.aLit = LitQName _ q } -> mkAlt (litqnamepat q)
-    T.TALit { T.aLit = l@LitFloat{},   T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
-    T.TALit { T.aLit = LitString _ s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
+    T.TALit { T.aLit = LitQName q } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = l@LitFloat{}, T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
+    T.TALit { T.aLit = LitString s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
     T.TALit {} -> mkAlt (HS.PLit $ hslit $ T.aLit a)
   where
     mkGuarded eq lit b = do
@@ -668,12 +668,12 @@ alt sc a = do
 
 literal :: Literal -> HS.Exp
 literal l = case l of
-  LitNat    _ _   -> typed "Integer"
-  LitWord64 _ _   -> typed "MAlonzo.RTE.Word64"
-  LitFloat  _ x   -> floatExp x "Double"
-  LitQName  _ x   -> litqname x
-  LitString _ s   -> litString s
-  _               -> l'
+  LitNat    _   -> typed "Integer"
+  LitWord64 _   -> typed "MAlonzo.RTE.Word64"
+  LitFloat  x   -> floatExp x "Double"
+  LitQName  x   -> litqname x
+  LitString s   -> litString s
+  _             -> l'
   where
     l'    = HS.Lit $ hslit l
     typed = HS.ExpTypeSig l' . HS.TyCon . rtmQual
@@ -695,13 +695,14 @@ literal l = case l of
     isNegativeNaN x = isNaN x && not (identicalIEEE x (0.0 / 0.0))
 
 hslit :: Literal -> HS.Literal
-hslit l = case l of LitNat    _ x -> HS.Int    x
-                    LitWord64 _ x -> HS.Int    (fromIntegral x)
-                    LitFloat  _ x -> HS.Frac   (toRational x)
-                    LitChar   _ x -> HS.Char   x
-                    LitQName  _ x -> __IMPOSSIBLE__
-                    LitString _ _ -> __IMPOSSIBLE__
-                    LitMeta{}     -> __IMPOSSIBLE__
+hslit = \case
+  LitNat    x -> HS.Int    x
+  LitWord64 x -> HS.Int    (fromIntegral x)
+  LitFloat  x -> HS.Frac   (toRational x)
+  LitChar   x -> HS.Char   x
+  LitQName  x -> __IMPOSSIBLE__
+  LitString _ -> __IMPOSSIBLE__
+  LitMeta{}   -> __IMPOSSIBLE__
 
 litString :: Text -> HS.Exp
 litString s = HS.Ann (HS.Lit (HS.String s))

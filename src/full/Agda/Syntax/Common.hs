@@ -1796,14 +1796,17 @@ data Ranged a = Ranged
 unranged :: a -> Ranged a
 unranged = Ranged noRange
 
+-- | Ignores range.
 instance Pretty a => Pretty (Ranged a) where
   pretty = pretty . rangedThing
 
+-- | Ignores range.
 instance Eq a => Eq (Ranged a) where
-  Ranged _ x == Ranged _ y = x == y
+  (==) = (==) `on` rangedThing
 
+-- | Ignores range.
 instance Ord a => Ord (Ranged a) where
-  compare (Ranged _ x) (Ranged _ y) = compare x y
+  compare = compare `on` rangedThing
 
 instance HasRange (Ranged a) where
   getRange = rangeOf
@@ -2472,7 +2475,7 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
 -- * Information on expanded ellipsis (@...@)
 -----------------------------------------------------------------------------
 
--- ^ When the ellipsis in a clause are expanded, we remember that we
+-- ^ When the ellipsis in a clause is expanded, we remember that we
 --   did so. We also store the number of with-arguments that are
 --   included in the expanded ellipsis.
 data ExpandedEllipsis

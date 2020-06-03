@@ -37,7 +37,7 @@ mergeDef (xs, p) (ys, q) = do
   (xs,) <$> merge ren p q
   where
     merge ren p@(VarP x) (VarP y)   = p <$ guard ((unBind x, unBind y) `elem` ren)
-    merge ren p@(LitP l) (LitP l')  = p <$ guard (l == l')
+    merge ren p@(LitP _ l) (LitP _ l') = p <$ guard (l == l')
     merge ren p@(WildP _) (WildP _) = return p
     merge ren (ConP i (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
       guard $ map getArgInfo ps == map getArgInfo qs
@@ -53,7 +53,7 @@ matchPatternSyn :: PatternSynDefn -> Expr -> Maybe [Arg Expr]
 matchPatternSyn = runMatch match
   where
     match (VarP x) e = unBind x ==> e
-    match (LitP l) (Lit l') = guard (l == l')
+    match (LitP _ l) (Lit _ l') = guard (l == l')
     match (ConP _ (AmbQ cs) ps) e = do
       Application (Con (AmbQ cs')) args <- return (appView e)
       guard $ null (NonEmpty.toList cs' \\ NonEmpty.toList cs)            -- check all possible constructors appear in the synonym
@@ -66,7 +66,7 @@ matchPatternSynP :: PatternSynDefn -> Pattern' e -> Maybe [Arg (Pattern' e)]
 matchPatternSynP = runMatch match
   where
     match (VarP x) q = unBind x ==> q
-    match (LitP l) (LitP l') = guard (l == l')
+    match (LitP _ l) (LitP _ l') = guard (l == l')
     match (WildP _) (WildP _) = return ()
     match (ConP _ (AmbQ cs) ps) (ConP _ (AmbQ cs') qs) = do
       guard $ null (NonEmpty.toList cs' \\ NonEmpty.toList cs)

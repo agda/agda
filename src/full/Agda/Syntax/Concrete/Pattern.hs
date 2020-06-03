@@ -195,7 +195,7 @@ instance CPatternLike Pattern where
       WildP _         -> mempty
       DotP _ _        -> mempty
       AbsurdP _       -> mempty
-      LitP _          -> mempty
+      LitP _ _        -> mempty
       QuoteP _        -> mempty
       EqualP _ _      -> mempty
       EllipsisP _     -> mempty
@@ -216,7 +216,7 @@ instance CPatternLike Pattern where
       WildP _         -> pure p0
       DotP _ _        -> pure p0
       AbsurdP _       -> pure p0
-      LitP _          -> pure p0
+      LitP _ _        -> pure p0
       QuoteP _        -> pure p0
       EqualP _ _      -> pure p0
       EllipsisP _     -> pure p0
@@ -239,7 +239,7 @@ instance CPatternLike Pattern where
       WildP _         -> return p0
       DotP _ _        -> return p0
       AbsurdP _       -> return p0
-      LitP _          -> return p0
+      LitP _ _        -> return p0
       QuoteP _        -> return p0
       EqualP _ _      -> return p0
       EllipsisP _     -> return p0
@@ -313,7 +313,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     WildP _        -> mempty
     AbsurdP _      -> mempty
     DotP _ _       -> mempty
-    LitP _         -> mempty
+    LitP _ _       -> mempty
     QuoteP _       -> mempty
     InstanceP _ _  -> mempty
     RecP _ _       -> mempty

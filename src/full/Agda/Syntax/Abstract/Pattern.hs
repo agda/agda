@@ -145,7 +145,7 @@ instance APatternLike a (Pattern' a) where
       WildP _            -> mempty
       DotP _ _           -> mempty
       AbsurdP _          -> mempty
-      LitP _             -> mempty
+      LitP _ _           -> mempty
       EqualP _ _         -> mempty
 
   traverseAPatternM pre post = pre >=> recurse >=> post
@@ -273,7 +273,7 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   ProjP _ _ _       -> p
   WildP _           -> p
   AbsurdP _         -> p
-  LitP _            -> p
+  LitP _ _          -> p
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p

@@ -149,6 +149,12 @@ data BindingSource
   | LetBound     -- ^ @let ... in@
   deriving (Data, Show, Eq)
 
+instance Pretty BindingSource where
+  pretty = \case
+    LambdaBound  -> "local"
+    PatternBound -> "pattern"
+    LetBound     -> "let-bound"
+
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
 --   a scope error.
@@ -514,7 +520,7 @@ data ResolvedName
 
 instance Pretty ResolvedName where
   pretty = \case
-    VarName x _          -> "variable"    <+> pretty x
+    VarName x b          -> pretty b <+> "variable" <+> pretty x
     DefinedName a x s    -> pretty a      <+> (pretty x <> pretty s)
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs

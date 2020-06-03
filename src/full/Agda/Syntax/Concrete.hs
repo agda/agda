@@ -127,7 +127,7 @@ exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
   = Ident QName                                -- ^ ex: @x@
-  | Lit Literal                                -- ^ ex: @1@ or @\"foo\"@
+  | Lit Range Literal                          -- ^ ex: @1@ or @\"foo\"@
   | QuestionMark Range (Maybe Nat)             -- ^ ex: @?@ or @{! ... !}@
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
   | RawApp Range (List1 Expr)                  -- ^ before parsing operators
@@ -189,7 +189,7 @@ data Pattern
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@ unused
   | DotP Range Expr                        -- ^ @.e@
-  | LitP Literal                           -- ^ @0@, @1@, etc.
+  | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
@@ -570,7 +570,7 @@ isPattern = \case
   Absurd r        -> return $ AbsurdP r
   As r x e        -> pushUnderBracesP r (AsP r x) <$> isPattern e
   Dot r e         -> return $ pushUnderBracesE r (DotP r) e
-  Lit l           -> return $ LitP l
+  Lit r l         -> return $ LitP r l
   HiddenArg r e   -> HiddenP r <$> mapM isPattern e
   InstanceArg r e -> InstanceP r <$> mapM isPattern e
   RawApp r es     -> RawAppP r <$> mapM isPattern es
@@ -669,7 +669,7 @@ instance HasRange e => HasRange (OpApp e) where
 instance HasRange Expr where
   getRange = \case
       Ident x            -> getRange x
-      Lit x              -> getRange x
+      Lit r _            -> r
       QuestionMark r _   -> r
       Underscore r _     -> r
       App r _ _          -> r
@@ -819,7 +819,7 @@ instance HasRange Pattern where
   getRange (WildP r)          = r
   getRange (AsP r _ _)        = r
   getRange (AbsurdP r)        = r
-  getRange (LitP l)           = getRange l
+  getRange (LitP r _)         = r
   getRange (QuoteP r)         = r
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
@@ -841,7 +841,7 @@ instance SetRange Pattern where
   setRange r (WildP _)          = WildP r
   setRange r (AsP _ x p)        = AsP r (setRange r x) p
   setRange r (AbsurdP _)        = AbsurdP r
-  setRange r (LitP l)           = LitP (setRange r l)
+  setRange r (LitP _ l)         = LitP r l
   setRange r (QuoteP _)         = QuoteP r
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
@@ -905,7 +905,7 @@ instance KillRange Declaration where
 
 instance KillRange Expr where
   killRange (Ident q)            = killRange1 Ident q
-  killRange (Lit l)              = killRange1 Lit l
+  killRange (Lit _ l)            = killRange1 (Lit noRange) l
   killRange (QuestionMark _ n)   = QuestionMark noRange n
   killRange (Underscore _ n)     = Underscore noRange n
   killRange (RawApp _ e)         = killRange1 (RawApp noRange) e
@@ -974,7 +974,7 @@ instance KillRange Pattern where
   killRange (AbsurdP _)       = AbsurdP noRange
   killRange (AsP _ n p)       = killRange2 (AsP noRange) n p
   killRange (DotP _ e)        = killRange1 (DotP noRange) e
-  killRange (LitP l)          = killRange1 LitP l
+  killRange (LitP _ l)        = killRange1 (LitP noRange) l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EqualP _ es)     = killRange1 (EqualP noRange) es
@@ -1022,7 +1022,7 @@ instance KillRange WhereClause where
 
 instance NFData Expr where
   rnf (Ident a)          = rnf a
-  rnf (Lit a)            = rnf a
+  rnf (Lit _ a)          = rnf a
   rnf (QuestionMark _ a) = rnf a
   rnf (Underscore _ a)   = rnf a
   rnf (RawApp _ a)       = rnf a
@@ -1059,23 +1059,23 @@ instance NFData Expr where
 -- | Ranges are not forced.
 
 instance NFData Pattern where
-  rnf (IdentP a) = rnf a
-  rnf (QuoteP _) = ()
-  rnf (AppP a b) = rnf a `seq` rnf b
-  rnf (RawAppP _ a) = rnf a
+  rnf (IdentP a)       = rnf a
+  rnf (QuoteP _)       = ()
+  rnf (AppP a b)       = rnf a `seq` rnf b
+  rnf (RawAppP _ a)    = rnf a
   rnf (OpAppP _ a b c) = rnf a `seq` rnf b `seq` rnf c
-  rnf (HiddenP _ a) = rnf a
-  rnf (InstanceP _ a) = rnf a
-  rnf (ParenP _ a) = rnf a
-  rnf (WildP _) = ()
-  rnf (AbsurdP _) = ()
-  rnf (AsP _ a b) = rnf a `seq` rnf b
-  rnf (DotP _ a) = rnf a
-  rnf (LitP a) = rnf a
-  rnf (RecP _ a) = rnf a
-  rnf (EqualP _ es) = rnf es
-  rnf (EllipsisP _) = ()
-  rnf (WithP _ a) = rnf a
+  rnf (HiddenP _ a)    = rnf a
+  rnf (InstanceP _ a)  = rnf a
+  rnf (ParenP _ a)     = rnf a
+  rnf (WildP _)        = ()
+  rnf (AbsurdP _)      = ()
+  rnf (AsP _ a b)      = rnf a `seq` rnf b
+  rnf (DotP _ a)       = rnf a
+  rnf (LitP _ a)       = rnf a
+  rnf (RecP _ a)       = rnf a
+  rnf (EqualP _ es)    = rnf es
+  rnf (EllipsisP _)    = ()
+  rnf (WithP _ a)      = rnf a
 
 -- | Ranges are not forced.
 

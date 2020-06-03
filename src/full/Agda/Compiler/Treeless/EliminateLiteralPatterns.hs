@@ -66,9 +66,9 @@ transform kit = tr
 
     eqFromLit :: Literal -> TPrim
     eqFromLit x = case x of
-      LitNat _ _     -> PEqI
-      LitFloat _ _   -> PEqF
-      LitString _ _  -> PEqS
-      LitChar _ _    -> PEqC
-      LitQName _ _   -> PEqQ
-      _              -> __IMPOSSIBLE__
+      LitNat _     -> PEqI
+      LitFloat _   -> PEqF
+      LitString _  -> PEqS
+      LitChar _    -> PEqC
+      LitQName _   -> PEqQ
+      _ -> __IMPOSSIBLE__
