@@ -1061,8 +1061,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo Nothing x' t']]
+      t' <- traverse toConcreteTop t
+      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ _ cs) =

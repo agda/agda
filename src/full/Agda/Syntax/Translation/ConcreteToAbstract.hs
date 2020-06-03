@@ -1591,7 +1591,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
-      t' <- toAbstractCtx TopCtx t
+      t' <- traverse (toAbstractCtx TopCtx) t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
