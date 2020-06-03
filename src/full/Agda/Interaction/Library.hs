@@ -47,7 +47,6 @@ import qualified Data.Map as Map
 import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.List as List
 import qualified Data.Text as T
-import Debug.Trace (traceShow)
 
 import System.Directory
 import System.FilePath

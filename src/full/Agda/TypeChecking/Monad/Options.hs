@@ -5,7 +5,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import qualified Data.Map as Map
 import Data.Maybe
 
 import System.Directory

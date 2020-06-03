@@ -18,8 +18,6 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
-import System.Process
-import System.Exit
 
 import qualified Agda.Interaction.Options.Lenses as Lens
 
