@@ -99,8 +99,6 @@ jobs:
         icu-ver: [58.2-3]
 
     env:
-      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
-      FLAGS: "--flag Agda:enable-cluster-counting"
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
@@ -110,25 +108,19 @@ jobs:
       run: |
         C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
 
-    - name: Install stack
-      run: |
-        choco install haskell-stack --no-progress
-
     - name: Install text-icu ${{ matrix.icu-ver }}
-      shell: bash
       run: |
         stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
         stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
 
+    # See comment in .github/workflows/stack.yml
     - name: Build dependencies
-      shell: bash
       run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --only-dependencies
 
     - name: Build agda
-      shell: bash
       run: |
-        stack build ${ARGS} ${FLAGS}
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting
 
     - name: Pack artifacts
       shell: bash
