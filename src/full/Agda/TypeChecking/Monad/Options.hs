@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import qualified Data.Map as Map
 import Data.Maybe
 
 import System.Directory
@@ -90,7 +91,7 @@ setLibraryPaths
   -> CommandLineOptions
   -> TCM CommandLineOptions
 setLibraryPaths root o =
-  setLibraryIncludes =<< addDefaultLibraries root o
+  addTrustedExecutables =<< setLibraryIncludes =<< addDefaultLibraries root o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o
@@ -111,6 +112,20 @@ addDefaultLibraries root o
   | otherwise = do
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
+
+addTrustedExecutables
+  :: CommandLineOptions
+  -> TCM CommandLineOptions
+addTrustedExecutables o
+  | not (optAllowExec (optPragmaOptions o)) || optShowVersion o = do
+  return o
+  | otherwise = do
+  trustedExes <- libToTCM $ getTrustedExecutables
+  -- Wen, 2020-06-03
+  -- Replace the map wholesale instead of computing the union because this function
+  -- should never be called more than once, and doing so either has the same result
+  -- or is a security risk.
+  return o{ optTrustedExecutables = trustedExes }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do

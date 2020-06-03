@@ -2,11 +2,16 @@
 
 module Agda.Interaction.Library.Base where
 
+import Data.Text ( Text )
 import Agda.Utils.Lens
 
 -- | A symbolic library name.
 --
 type LibName = String
+
+-- | A symbolic executable name.
+--
+type ExeName = Text
 
 -- | The special name @\".\"@ is used to indicated that the current directory
 --   should count as a project root.

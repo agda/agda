@@ -21,8 +21,10 @@ module Agda.Interaction.Library
   ( findProjectRoot
   , getDefaultLibraries
   , getInstalledLibraries
+  , getTrustedExecutables
   , libraryIncludePaths
   , LibName
+  , ExeName
   , LibM
   , LibWarning(..)
   , LibPositionInfo(..)
@@ -40,7 +42,12 @@ import Data.Data ( Data )
 import Data.Either
 import Data.Bifunctor ( first )
 import Data.Function
+import Data.Map ( Map )
+import qualified Data.Map as Map
+import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.List as List
+import qualified Data.Text as T
+import Debug.Trace (traceShow)
 
 import System.Directory
 import System.FilePath
@@ -70,6 +77,14 @@ data LibrariesFile = LibrariesFile
       -- ^ E.g. @~/.agda/libraries@.
   , lfExists :: Bool
        -- ^ The libraries file might not exist,
+       --   but we may print its assumed location in error messages.
+  } deriving (Show)
+
+data ExecutablesFile = ExecutablesFile
+  { efPath   :: FilePath
+      -- ^ E.g. @~/.agda/executables@.
+  , efExists :: Bool
+       -- ^ The executables file might not exist,
        --   but we may print its assumed location in error messages.
   } deriving (Show)
 
@@ -119,11 +134,15 @@ libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
 --
 data LibError'
   = LibNotFound LibrariesFile LibName
-      -- ^ Raised when a library name could no successfully be resolved
+      -- ^ Raised when a library name could not successfully be resolved
       --   to an @.agda-lib@ file.
       --
   | AmbiguousLib LibName [AgdaLibFile]
       -- ^ Raised when a library name is defined in several @.agda-lib files@.
+  | ExeNotFound ExecutablesFile FilePath
+      -- ^ Raised when a trusted executable can not be found.
+  | ExeNotExecutable ExecutablesFile FilePath
+      -- ^ Raised when a trusted executable does not have the executable permission.
   | OtherError String
       -- ^ Generic error.
   deriving (Show)
@@ -170,7 +189,7 @@ getAgdaAppDir = do
         return d
 
 -- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
---   The content of @libraries@ is is a list of pathes to @.agda-lib@ files.
+--   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
 --   Agda honors also version specific @libraries@ files, e.g. @libraries-2.6.0@.
 --
@@ -184,6 +203,17 @@ defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
 --
 defaultsFile :: FilePath
 defaultsFile = "defaults"
+
+-- | The @~/.agda/executables@ file lists the executables Agda should know about.
+--   The content of @executables@ is a list of paths to executables.
+--
+--   Agda honors also version specific @executables@ files, e.g. @executables-2.6.0@.
+--
+--   @defaultExecutablesFiles@ gives a list of all @executables@ Agda should process
+--   by default.
+--
+defaultExecutableFiles :: [FilePath]
+defaultExecutableFiles = ["executables-" ++ version, "executables"]
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project
@@ -315,6 +345,69 @@ stripCommentLines = concatMap strip . zip [1..] . lines
   where
     strip (i, s) = [ (i, s') | not $ null s' ]
       where s' = trimLineComment s
+
+-- | Returns the path of the @executables@ file which lists the trusted executables Agda knows about.
+--
+--   Note: file may not exist.
+--
+getExecutablesFile
+  :: IO ExecutablesFile
+getExecutablesFile = do
+  agdaDir <- getAgdaAppDir
+  let defaults = map (agdaDir </>) defaultExecutableFiles  -- NB: non-empty list
+  files <- filterM doesFileExist defaults
+  case files of
+    file : _ -> return $ ExecutablesFile file True
+    []       -> return $ ExecutablesFile (last defaults) False -- doesn't exist, but that's ok
+
+-- | Return the trusted executables Agda knows about.
+--
+--   Returns none if there is no @executables@ file.
+--
+getTrustedExecutables
+  :: LibM (Map ExeName FilePath)  -- ^ Content of @executables@ files.
+getTrustedExecutables = mkLibM [] $ do
+    file <- lift $ getExecutablesFile
+    lift $ print file
+    if not (efExists file) then return Map.empty else do
+      es    <- lift $ stripCommentLines <$> readFile (efPath file)
+      files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
+      tmp   <- parseExecutablesFile file $ nubOn snd files
+      lift $ print tmp
+      return tmp
+  `catchIO` \ e -> do
+    raiseErrors' [ OtherError $ unlines ["Failed to read trusted executables.", show e] ]
+    return Map.empty
+
+-- | Parse the @executables@ file.
+--
+parseExecutablesFile
+  :: ExecutablesFile
+  -> [(LineNumber, FilePath)]
+  -> LibErrorIO (Map ExeName FilePath)
+parseExecutablesFile ef files =
+  fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
+
+    -- Check if the executable exists.
+    fpExists <- lift $ doesFileExist fp
+    if not fpExists
+      then do raiseErrors' [ExeNotFound ef fp]
+              return Nothing
+      else do
+
+      -- Check if the executable is executable.
+      fpPerms <- lift $ getPermissions fp
+      if not (executable fpPerms)
+        then do raiseErrors' [ExeNotExecutable ef fp]
+                return Nothing
+        else do
+
+        -- Compute canonical executable name and absolute filepath.
+        let strExeName  = takeFileName fp
+        let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
+        let txtExeName  = T.pack strExeName
+        exePath <- lift $ makeAbsolute fp
+        return $ Just (txtExeName, exePath)
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -462,6 +555,13 @@ formatLibError installed (LibError mc e) = prefix <+> body where
             , "Could refer to any one of"
           ]
         : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
+
+    ExeNotFound file exe -> vcat $
+      [ text $ "Executable '" ++ exe ++ "' not found." ]
+
+    ExeNotExecutable file exe -> vcat $
+      [ text $ "Executable '" ++ exe ++ "' not executable."
+      ]
 
     OtherError err -> text err
 
