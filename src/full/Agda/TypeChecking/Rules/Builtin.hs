@@ -90,9 +90,9 @@ coreBuiltins =
                                                                    builtinAgdaLitQName, builtinAgdaLitMeta])
   , (builtinAgdaPattern                      |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
                                                                    builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
-  , (builtinAgdaPatVar                       |-> BuiltinDataCons (tstring --> tpat))
+  , (builtinAgdaPatVar                       |-> BuiltinDataCons (tnat --> tpat))
   , (builtinAgdaPatCon                       |-> BuiltinDataCons (tqname --> tlist (targ tpat) --> tpat))
-  , (builtinAgdaPatDot                       |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatDot                       |-> BuiltinDataCons (tterm --> tpat))
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons tpat)
@@ -319,8 +319,8 @@ coreBuiltins =
   , (builtinProp                             |-> BuiltinSort "primProp")
   , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
-  , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
-  , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
+  , (builtinAgdaClauseClause                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tterm --> tclause))
+  , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tclause))
   , (builtinAgdaDefinition                   |-> BuiltinData tset [builtinAgdaDefinitionFunDef
                                                                   ,builtinAgdaDefinitionDataDef
                                                                   ,builtinAgdaDefinitionDataConstructor
@@ -392,6 +392,11 @@ coreBuiltins =
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         tmaybe x   = el $ tMaybe (fmap unEl x)
+        tpair lx ly x y = el $ primSigma
+                            <#> lx
+                            <#> ly
+                            <@> fmap unEl x
+                            <@> (Lam defaultArgInfo . NoAbs "_" <$> fmap unEl y)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
@@ -420,6 +425,7 @@ coreBuiltins =
         tliteral   = el primAgdaLiteral
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause
+        ttelescope = tlist (tpair primLevelZero primLevelZero tstring (targ ttype))
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
         tinterval  = El (Inf 0) <$> primInterval

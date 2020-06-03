@@ -3,6 +3,7 @@ module _ where
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
 open import Common.Equality
+open import Agda.Builtin.Sigma
 
 module _ (A : Set) where
   record R : Set where
@@ -28,15 +29,18 @@ module _ (A : Set) where
   helper-term : Term
   helper-term = var 0 []
 
+  helper-telescope : List (Σ String λ _ → Arg Type)
+  helper-telescope = ("x" , vArg unknown) ∷ []
+
   helper-patterns : List (Arg Pattern)
-  helper-patterns = vArg (var "x") ∷
+  helper-patterns = vArg (var 0) ∷
                     []
 
   defineHelper : Type → TC ⊤
   defineHelper t =
     freshName "n" >>= λ n →
     declareDef (vArg n) t >>= λ _ →
-    defineFun n (clause helper-patterns helper-term ∷ [])
+    defineFun n (clause helper-telescope helper-patterns helper-term ∷ [])
 
   noFail : TC ⊤ → TC Bool
   noFail m = catchTC (bindTC m λ _ → returnTC true) (returnTC false)

@@ -23,6 +23,6 @@ module M where
       ty ← quoteTC D
       _  ← declareDef (arg (arg-info visible relevant) g) ty
       qc ← quoteTC c
-      defineFun g (clause [] qc ∷ [])
+      defineFun g (clause [] [] qc ∷ [])
 
 -- Should print lots of debug stuff and succeed.
