@@ -10,6 +10,8 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
+import Debug.Trace
+
 import Control.Applicative ((<|>))
 import Control.Arrow (first)
 import Control.Monad.Except
@@ -113,7 +115,15 @@ checkApplication cmp hd args e t =
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
       -- augment c with record fields, but do not revert to original name
-      con <- fromRightM (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
+      def <- getConstInfo' c
+      case def of
+        Left (SigUnknown n) -> trace n __IMPOSSIBLE__ -- sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c) e
+        Left SigAbstract -> __IMPOSSIBLE__
+        Right i -> trace (show i) (return ())
+      -- def <- ExceptT $ getConstInfo' c
+      -- case theDef def of
+      con <- fromRightM
+        (sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c)) $
         getOrigConHead c
       checkConstructorApplication cmp e t con args
 

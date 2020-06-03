@@ -383,7 +383,11 @@ instance ExprLike Declaration where
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
       RecDef i r uc dir bs e ds -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
-      PatternSynDef f mty xs p  -> PatternSynDef f <$> rec mty <*> pure xs <*> rec p
+      PatternSynDef f mie xs p ->
+        let mie' = case mie of
+              Nothing -> pure Nothing
+              Just (i, e) -> fmap (\e' -> Just (i, e')) (rec e)
+        in PatternSynDef f <$> mie' <*> pure xs <*> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds

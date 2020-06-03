@@ -13,6 +13,7 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
+import Data.Void
 
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
@@ -182,7 +183,19 @@ checkDecl d = setCurrentRange d $ do
                                   -- they should be (unless we're in a mutual
                                   -- block).
       A.Open{}                 -> none $ return ()
-      A.PatternSynDef{}        -> none $ return ()
+      A.PatternSynDef x (Just (i, ty)) as rhs ->
+        -- BindName -> Named_ (Pattern' a)
+        let ps = (fmap $ \a -> unnamed (A.VarP a)) <$> as in
+        let c = A.Clause
+              { A.clauseLHS = A.LHS empty (A.LHSHead x ps)
+              , A.clauseStrippedPats = []
+              , A.clauseRHS = A.RHS (A.patternToExpr (vacuous rhs)) Nothing
+              , A.clauseWhereDecls = A.WhereDecls Nothing Nothing
+              , A.clauseCatchall = False
+              }
+        in
+        impossible $ check x i $ checkFunDef NotDelayed i x [c]
+      A.PatternSynDef x Nothing as rhs -> none $ return ()
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
@@ -639,6 +652,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
 
+  tele <- telView t
+
   let defn = defaultDefn info x t $
         case kind of
           FunName   -> emptyFunction
@@ -646,7 +661,25 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
-          PatternSynName -> emptyConstructor
+          PatternSynName -> Constructor
+            { conPars   = 0
+            , conArity  = 0
+            , conSrcCon = ConHead
+              { conName      = x
+              , conInductive = Inductive
+              , conFields    = []
+              , conRHS       = Nothing  -- FIXME
+              }
+            , conData   = case unEl (theCore tele) of
+                Def n _ -> n
+                _ -> __IMPOSSIBLE__
+            , conAbstr  = ConcreteDef
+            , conInd    = Inductive
+            , conComp   = CompKit Nothing Nothing
+            , conProj   = Nothing
+            , conForced = []
+            , conErased = Nothing
+            }
            -- TODO: maybe something better than this
           _         -> __IMPOSSIBLE__
 

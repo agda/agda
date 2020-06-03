@@ -1934,7 +1934,7 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
 
   toAbstract (NicePatternSyn r p n mty pat rhs) = setCurrentRange r $ do
     -- 1. Extract a name and a list of arguments (variables only)
-      ((n, y), mty, as, ax) <- case mty of
+      ((n, y), mdity, as, ax) <- case mty of
         -- If we are handed a name & type, we parse the pat as a LHS (potentially mixfix definition)
         Just (i, rel, ty) -> do
           reportSLn "scope.pat" 10 $ "found nice typed pattern syn: " ++ prettyShow n
@@ -1946,11 +1946,9 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
           --   Named _ (A.VarP n) -> pure n
           --   _ -> __IMPOSSIBLE__ -- TODO
           ty <- toAbstractCtx TopCtx ty
-          let ax = [A.Axiom PatternSynName
-                            (DefInfo fx p ConcreteDef i NotMacroDef
-                                     (DeclInfo n r) Nothing)
-                            rel Nothing y ty]
-          pure ((n, y), Just ty, Left pat, ax)
+          let di = DefInfo fx p ConcreteDef i NotMacroDef (DeclInfo n r) Nothing
+          let ax = [A.Axiom PatternSynName di rel Nothing y ty]
+          pure ((n, y), Just (di, ty), Left pat, ax)
 
         -- Otherwise it better be a pattern of the form `c x0..xn`!
         Nothing -> do
@@ -2001,7 +1999,7 @@ instance ToAbstract NicePatternSyn [A.Declaration] where
       -- fold them back when printing (issue #2762).
       -- ep <- expandPatternSynonyms rhs
       -- modifyPatternSyns (Map.insert y (map (fmap unBind) as, ep))
-      return (ax ++ [A.PatternSynDef y mty as rhs])
+      return (ax ++ [A.PatternSynDef y mdity as rhs])
 
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym

@@ -1121,8 +1121,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 
-  toConcrete (A.PatternSynDef x mty xs p) = do
+  toConcrete (A.PatternSynDef x mity xs p) = do
     C.QName x <- toConcrete x
+    let mty = snd <$> mity
     mty       <- traverse toConcrete mty
     bindToConcrete (map (fmap A.unBind) xs) $ \ xs -> do
       let mkPat = C.IdentP . C.QName

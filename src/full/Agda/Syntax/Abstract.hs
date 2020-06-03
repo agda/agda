@@ -177,7 +177,7 @@ data Declaration
       -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
-  | PatternSynDef QName (Maybe Expr) [Arg BindName] (Pattern' Void)
+  | PatternSynDef QName (Maybe (DefInfo, Expr)) [Arg BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
