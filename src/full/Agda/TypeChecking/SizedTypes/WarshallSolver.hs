@@ -267,9 +267,6 @@ nodeToSizeExpr n =
 instance Negative a => Negative (Edge' r f a) where
   negative = negative . label
 
--- instance Show a => Show (Edge' a) where
---   show (Edge u v l) = show u ++ " -(" ++ show l ++ ")-> " ++ show v
-
 instance (Ord r, Ord f, MeetSemiLattice a) => MeetSemiLattice (Edge' r f a) where
   e@(Edge u v l) `meet` e'@(Edge u' v' l')
     | u == u' && v == v' = Edge u v $ l `meet` l'

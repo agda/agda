@@ -48,7 +48,7 @@ import Agda.VersionCommit
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 mimicGHCi :: TCM () -> TCM ()
-mimicGHCi = repl (liftIO . mapM_ print <=< lispifyResponse) "Agda2> "
+mimicGHCi = repl (liftIO . mapM_ (putStrLn . prettyShow) <=< lispifyResponse) "Agda2> "
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 

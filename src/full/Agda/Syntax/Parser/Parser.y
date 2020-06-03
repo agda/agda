@@ -1281,7 +1281,10 @@ Postulate : 'postulate' Declarations0 { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
-Primitive : 'primitive' TypeSignatures0  { Primitive (fuseRange $1 $2) $2 }
+Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
+  let { setArg (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
+      ; setArg _ = __IMPOSSIBLE__ } in
+  Primitive (fuseRange $1 $2) (map setArg $2) }
 
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
