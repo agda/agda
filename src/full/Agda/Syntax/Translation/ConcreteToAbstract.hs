@@ -1289,7 +1289,7 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    warnings $ NicifierIssue <$> warns
+    mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
   case result of
     Left (DeclarationException (file, line) e) -> do
       reportSLn "error" 2 $ "Error raised in file " ++ file ++ " at line " ++ show line

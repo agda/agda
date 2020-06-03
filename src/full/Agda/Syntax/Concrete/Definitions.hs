@@ -199,9 +199,12 @@ data DeclarationWarning = DeclarationWarning
   , dwWarning  :: DeclarationWarning'
   } deriving (Show, Data)
 
+declarationWarning' :: HasCallStack => (String, Int) -> DeclarationWarning' -> Nice ()
+declarationWarning' fl w = niceWarning (DeclarationWarning fl w)
+
 declarationWarning :: HasCallStack => DeclarationWarning' -> Nice ()
 declarationWarning w = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  niceWarning (DeclarationWarning (file, line) w)
+  declarationWarning' (file, line) w
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
@@ -1013,7 +1016,11 @@ niceDeclarations fixs ds = do
     nice1 :: [Declaration] -> Nice ([NiceDeclaration], [Declaration])
     nice1 []     = return ([], []) -- Andreas, 2017-09-16, issue #2759: no longer __IMPOSSIBLE__
     nice1 (d:ds) = do
-      let justWarning w = do declarationWarning w; nice1 ds
+      let justWarning :: HasCallStack => DeclarationWarning' -> Nice ([NiceDeclaration], [Declaration])
+          justWarning w = do
+            withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+              declarationWarning' (file, line) w
+            nice1 ds
 
       case d of
 
