@@ -160,7 +160,7 @@ data Declaration
   | Generalize (Set QName) DefInfo ArgInfo QName Expr
     -- ^ First argument is set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
-  | Primitive  DefInfo QName Expr                    -- ^ primitive function
+  | Primitive  DefInfo QName (Arg Expr)              -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
   | Section    Range ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective

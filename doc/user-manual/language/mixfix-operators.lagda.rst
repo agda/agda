@@ -66,6 +66,8 @@ operators:
     nil  : List A
     _∷_ : A → List A → List A
 
+.. _precedence:
+
 Precedence
 ==========
 

@@ -97,31 +97,28 @@ jobs:
         icu-ver: [58.2-3]
 
     env:
-      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
-      FLAGS: "--flag Agda:enable-cluster-counting"
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install stack and wget
+    - name: Download ICU ${{ matrix.icu-ver }}
       run: |
-        choco install haskell-stack --no-progress
-        choco install wget --no-progress
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- wget -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
 
     - name: Install text-icu ${{ matrix.icu-ver }}
-      shell: bash
       run: |
-        wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${env:ICU_FILE}
         stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
 
-    - name: Install dependencies
-      shell: bash
+    # I [Ed Nutting] don't understand how to make Powershell treat a string from ${env:ARGS}
+    #  as a list of arguments to pass to an executable. Anything I try causes Powershell
+    #  to wrap the thing in quotation marks when it calls stack - thus making stack think
+    #  it's a path to a package. So for now, I've written out the arguments explicitly.
+    - name: Build dependencies
       run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --only-dependencies
 
     - name: Build with -fenable-cluster-counting
-      shell: bash
       run: |
-        stack build ${ARGS} ${FLAGS}
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting

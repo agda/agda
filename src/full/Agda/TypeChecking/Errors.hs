@@ -22,7 +22,7 @@ import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
 import Data.Function
-import Data.List (sortBy, dropWhileEnd)
+import Data.List (sortBy, dropWhileEnd, intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import qualified Data.Set as Set
@@ -177,6 +177,7 @@ errorString err = case err of
   NoSuchModule{}                           -> "NoSuchModule"
   DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
+  WrongModalityForPrimitive{}              -> "WrongModalityForPrimitive"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
@@ -666,6 +667,17 @@ instance PrettyTCM TypeError where
 
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
+
+    WrongModalityForPrimitive x got expect ->
+      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [text x]
+           , nest 2 $ text $ "Got:      " ++ intercalate ", " gs
+           , nest 2 $ text $ "Expected: " ++ intercalate ", " es ]
+      where
+        (gs, es) = unzip [ p | p@(g, e) <- zip (things got) (things expect), g /= e ]
+        things i = [verbalize $ getHiding i,
+                    verbalize $ getRelevance i,
+                    verbalize $ getQuantity i,
+                    verbalize $ getCohesion i]
 
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++

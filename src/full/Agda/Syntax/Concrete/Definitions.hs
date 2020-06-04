@@ -116,7 +116,7 @@ data NiceDeclaration
       --   'ArgInfo' argument: Axioms and functions can be declared irrelevant.
       --   ('Hiding' should be 'NotHidden'.)
   | NiceField Range Access IsAbstract IsInstance TacticAttribute Name (Arg Expr)
-  | PrimitiveFunction Range Access IsAbstract Name Expr
+  | PrimitiveFunction Range Access IsAbstract Name (Arg Expr)
   | NiceMutual Range TerminationCheck CoverageCheck PositivityCheck [NiceDeclaration]
   | NiceModule Range Access IsAbstract QName Telescope [Declaration]
   | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
@@ -1350,7 +1350,7 @@ niceDeclarations fixs ds = do
       _ -> throwError $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
-    toPrim (Axiom r p a i rel x t) = PrimitiveFunction r p a x t
+    toPrim (Axiom r p a i rel x t) = PrimitiveFunction r p a x (Arg rel t)
     toPrim _                       = __IMPOSSIBLE__
 
     -- Create a function definition.
@@ -1884,7 +1884,7 @@ notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
 notSoNiceDeclarations = \case
     Axiom _ _ _ i rel x e          -> inst i [TypeSig rel Nothing x e]
     NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
-    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig defaultArgInfo Nothing x e]]
+    PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig (argInfo e) Nothing x (unArg e)]]
     NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ x tel ds      -> [Module r x tel ds]
     NiceModuleMacro r _ x ma o dir -> [ModuleMacro r x ma o dir]

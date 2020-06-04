@@ -29,7 +29,7 @@ import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty)
+import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -683,7 +683,7 @@ oldSolver metas cs = do
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
     Nothing  -> cannotSolve
     Just sol -> do
-      reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
+      reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ prettyShow sol
       suc   <- primSizeSuc
       infty <- primSizeInf
       let plus v 0 = v

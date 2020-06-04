@@ -103,21 +103,22 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-.PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
-quick-install-bin: ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	@echo "===================== Installing using Stack ============================="
-	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-else
-	@echo "===================== Installing using Cabal ============================="
-	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-endif
+# Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
+# .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
+# quick-install-bin: ensure-hash-is-correct
+# ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+# 	@echo "===================== Installing using Stack ============================="
+# 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+# else
+# 	@echo "===================== Installing using Cabal ============================="
+# 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+# endif
 
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
-quicker-install-bin: ensure-hash-is-correct
+quicker-install-bin:
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
@@ -156,6 +157,12 @@ install-debug : ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
         $(CABAL_INSTALL_OPTS)
+
+.PHONY : debug-install-quick ## Install Agda (compiled with -O0) with debug enabled via cabal.
+debug-install-quick :
+	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug-quick --builddir=$(BUILD_DIR)-debug-quick \
+        $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
 
 .PHONY : compile-emacs-mode ## Compile Agda's Emacs mode using Emacs.
 compile-emacs-mode: install-bin

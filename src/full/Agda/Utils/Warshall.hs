@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 
 import Agda.Utils.SemiRing
 import Agda.Utils.List (nubOn)
+import Agda.Utils.Pretty as P
 
 type Matrix a = Array (Int,Int) a
 
@@ -60,16 +61,18 @@ warshallG g = fromMatrix $ warshall m
       return (i, es)
 
 -- | Edge weight in the graph, forming a semi ring.
-data Weight = Finite Int | Infinite
-              deriving (Eq)
+data Weight
+  = Finite Int
+  | Infinite
+  deriving (Eq, Show)
 
 inc :: Weight -> Int -> Weight
 inc Infinite   n = Infinite
 inc (Finite k) n = Finite (k + n)
 
-instance Show Weight where
-  show (Finite i) = show i
-  show Infinite   = "."
+instance Pretty Weight where
+  pretty (Finite i) = pretty i
+  pretty Infinite   = "."
 
 instance Ord Weight where
   a <= Infinite = True
@@ -99,7 +102,7 @@ data Node = Rigid Rigid
 
 data Rigid = RConst Weight
            | RVar RigidId
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Ord)
 
 type NodeId  = Int
 type RigidId = Int
@@ -107,11 +110,11 @@ type FlexId  = Int
 type Scope   = RigidId -> Bool
 -- ^ Which rigid variables a flex may be instatiated to.
 
-instance Show Node where
-  show (Flex  i) = "?" ++ show i
-  show (Rigid (RVar i)) = "v" ++ show i
-  show (Rigid (RConst Infinite))   = "#"
-  show (Rigid (RConst (Finite n))) = show n
+instance Pretty Node where
+  pretty (Flex  i)                   = "?" P.<> pretty i
+  pretty (Rigid (RVar i))            = "v" P.<> pretty i
+  pretty (Rigid (RConst Infinite))   = "#"
+  pretty (Rigid (RConst (Finite n))) = pretty n
 
 infinite :: Rigid -> Bool
 infinite (RConst Infinite) = True
@@ -136,11 +139,12 @@ data Constraint
     --   If @k <= 0@ this means  @suc^(-k) v1 <= v2@
     --   otherwise               @v1 <= suc^k v3@.
 
-instance Show Constraint where
-  show (NewFlex i s) = "SizeMeta(?" ++ show i ++ ")"
-  show (Arc v1 k v2) | k == 0 = show v1 ++ "<=" ++ show v2
-                     | k < 0  = show v1 ++ "+" ++ show (-k) ++ "<=" ++ show v2
-                     | otherwise  = show v1 ++ "<=" ++ show v2 ++ "+" ++ show k
+instance Pretty Constraint where
+  pretty (NewFlex i s) = hcat [ "SizeMeta(?", pretty i, ")" ]
+  pretty (Arc v1 k v2)
+    | k == 0    = hcat [ pretty v1, "<=", pretty v2 ]
+    | k < 0     = hcat [ pretty v1, "+", pretty (-k), "<=", pretty v2 ]
+    | otherwise = hcat [ pretty v1, "<=", pretty v2, "+", pretty k ]
 
 type Constraints = [Constraint]
 
@@ -218,14 +222,14 @@ data LegendMatrix a b c = LegendMatrix
   , coldescr :: Int -> c
   }
 
-instance (Show a, Show b, Show c) => Show (LegendMatrix a b c) where
-  show (LegendMatrix m rd cd) =
+instance (Pretty a, Pretty b, Pretty c) => Pretty (LegendMatrix a b c) where
+  pretty (LegendMatrix m rd cd) =
     -- first show column description
     let ((r,c),(r',c')) = bounds m
-    in foldr (\ j s -> "\t" ++ show (cd j) ++ s) "" [c .. c'] ++
+    in foldr (\ j s -> "\t" P.<> pretty (cd j) P.<> s) "" [c .. c'] P.<>
     -- then output rows
-       foldr (\ i s -> "\n" ++ show (rd i) ++
-                foldr (\ j t -> "\t" ++ show (m!(i,j)) ++ t)
+       foldr (\ i s -> "\n" P.<> pretty (rd i) P.<>
+                foldr (\ j t -> "\t" P.<> pretty (m!(i,j)) P.<> t)
                       s
                       [c .. c'])
              "" [r .. r']
@@ -245,10 +249,10 @@ extendSolution subst k v = Map.insert k v subst
 data SizeExpr = SizeVar RigidId Int   -- ^ e.g. x + 5
               | SizeConst Weight      -- ^ a number or infinity
 
-instance Show SizeExpr where
-  show (SizeVar n 0) = show (Rigid (RVar n))
-  show (SizeVar n k) = show (Rigid (RVar n)) ++ "+" ++ show k
-  show (SizeConst w) = show w
+instance Pretty SizeExpr where
+  pretty (SizeVar n 0) = pretty (Rigid (RVar n))
+  pretty (SizeVar n k) = pretty (Rigid (RVar n)) P.<> "+" P.<> pretty k
+  pretty (SizeConst w) = pretty w
 
 -- | @sizeRigid r n@ returns the size expression corresponding to @r + n@
 sizeRigid :: Rigid -> Int -> SizeExpr
@@ -299,12 +303,12 @@ while flexible variables j left
 -}
 
 solve :: Constraints -> Maybe Solution
-solve cs = -- trace (show cs) $
-   -- trace (show lm0) $
-    -- trace (show lm) $ -- trace (show d) $
+solve cs = -- trace (prettyShow cs) $
+   -- trace (prettyShow lm0) $
+    -- trace (prettyShow lm) $ -- trace (prettyShow d) $
      let solution = if solvable then loop1 flexs rigids emptySolution
                     else Nothing
-     in -- trace (show solution) $
+     in -- trace (prettyShow solution) $
          solution
    where -- compute the graph and its transitive closure m
          gr  = buildGraph cs
@@ -412,6 +416,6 @@ while flexible variables j left
                         (True, Finite z) | z >= 0 ->
                             loop2 flxs (extendSolution subst f (sizeRigid r z))
                         (_, Infinite) -> loop3 (col+1) subst
-                        _ -> -- trace ("unusable rigid: " ++ show r ++ " for flex " ++ show f)
+                        _ -> -- trace ("unusable rigid: " ++ prettyShow r ++ " for flex " ++ prettyShow f)
                               Nothing  -- NOT: loop3 (col+1) subst
                      _ -> loop3 (col+1) subst
