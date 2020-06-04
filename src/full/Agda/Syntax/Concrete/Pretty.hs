@@ -410,7 +410,7 @@ instance Pretty LHSCore where
   pretty (LHSProj d ps lhscore ps') = sep $
     pretty d : map (parens . pretty) ps ++
     parens (pretty lhscore) : map (parens . pretty) ps'
-  pretty (LHSWith h wps ps) = if null ps then doc else
+  pretty (LHSWith h _ell wps ps) = if null ps then doc else
       sep $ parens doc : map (parens . pretty) ps
     where
     doc = sep $ pretty h : map (("|" <+>) . pretty) wps
@@ -698,7 +698,7 @@ instance Pretty Pattern where
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
-            EllipsisP _     -> "..."
+            EllipsisP _ _   -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .

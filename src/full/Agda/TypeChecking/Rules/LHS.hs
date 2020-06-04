@@ -749,7 +749,8 @@ checkLeftHandSide call f ps a withSub' strippedPats =
                  , "qs      = " <+> addContext delta (prettyList $ map pretty qs)
                  ]
                ]
-        reportSDoc "tc.lhs.top" 30 $
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "vars     = " <+> pretty vars
+        reportSDoc "tc.lhs.top" 50 $
           nest 2 $ vcat
                  [ "vars   = " <+> text (show vars)
                  ]

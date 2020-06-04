@@ -33,6 +33,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
+-- import Debug.Trace (trace)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
@@ -548,8 +550,9 @@ parsePat prs = \case
     p@IdentP{}       -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
     p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
-    EllipsisP _      -> fail "bad ellipsis"
     WithP r p        -> WithP r <$> parsePat prs p
+    p@(EllipsisP r Nothing) -> return p
+    EllipsisP r (Just p)    -> EllipsisP r . Just <$> parsePat prs p
 
 
 {- Implement parsing of copattern left hand sides, e.g.
@@ -675,6 +678,33 @@ classifyPattern :: PatternCheckConfig -> Pattern -> PM ParseLHS
 classifyPattern conf p =
   case patternAppView p of
 
+    -- case @... | wps@
+    Arg _ (Named _ ellip@(EllipsisP _ mlhs)) : wps -> do
+
+      -- The ellipsis should be expanded, but in some pathologial cases
+      -- it is not, see issues #3937 and #4586.
+      -- Thus, we fail with a parse error rather than crashing with __IMPOSSIBLE__.
+      lhs <- maybeToEither (Just ellip) mlhs
+
+      -- The expansion of the ellipsis should parse as a LHS.
+      classifyPattern conf lhs >>= \case
+        ParseLHS f core -> do
+          -- The patterns after the ellipsis must be with-patterns.
+          ps <- mapM (fromWithP . namedArg) wps
+          mapM_ valid ps
+          return $ ParseLHS f $ lhsWith core True ps []
+        ParsePattern p  ->
+          -- An expanded ellipsis is guaranteed to parse as lhs.
+          -- Thus, if we end up in this case, we should abandon this parse
+          -- using @throwError@ and try the next one.
+          -- -- trace (unlines
+          -- --   [ "ellipsis contains pattern " ++ prettyShow p
+          -- --   , "raw: " ++ show p
+          -- --   , "raw (before classify): " ++ show lhs
+          -- --   , "app view: " ++ show (patternAppView p)
+          -- --   ]) $
+          throwError (Just p)
+
     -- case @f ps@
     Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
@@ -693,8 +723,8 @@ classifyPattern conf p =
       mapM_ (guardWithError Nothing . isParsePattern . namedArg) ps3
 
       -- Step 2: construct the lhs.
-      let (f, lhs0)     = fromParseLHS $ namedArg p2
-          lhs           = setNamedArg p2 lhs0
+      (f, lhs0)        <- fromParseLHS $ namedArg p2
+      let lhs           = setNamedArg p2 lhs0
           (ps', _:ps'') = splitAt (length ps1) ps
       return $ ParseLHS f $ lhsCoreAddSpine (LHSProj x ps' lhs []) ps''
 
@@ -711,11 +741,16 @@ classifyPattern conf p =
     ParsePattern{} -> True
     ParseLHS{}     -> False
 
-  fromParseLHS :: ParseLHS -> (QName, LHSCore)
+  fromParseLHS :: ParseLHS -> PM (QName, LHSCore)
   fromParseLHS = \case
-    ParseLHS f lhs -> (f, lhs)
-    ParsePattern{} -> __IMPOSSIBLE__
+    ParseLHS f lhs -> return (f, lhs)
+    ParsePattern p -> throwError $ Just p
 
+  fromWithP :: Pattern -> PM Pattern
+  fromWithP = \case
+    WithP _ p -> return p
+    -- ParenP _ p -> fromWithP p
+    p -> throwError $ Just p
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 parseLHS :: QName -> Pattern -> ScopeM LHSCore

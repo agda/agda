@@ -16,3 +16,14 @@ baz : Nat → Nat
 baz m with m
 ... | n with n
 ... | p = {!p!}
+
+-- data IsSuc : Nat → Set where
+--   isSuc : ∀ n → IsSuc (suc n)
+
+-- postulate
+--   lie : ∀ n → IsSuc n
+
+-- blub : Nat → Nat → Nat
+-- blub x y with lie x | bar y
+-- ... | isSuc n | q with lie q | lie x
+-- ... | r | isSuc _ = {!r!}

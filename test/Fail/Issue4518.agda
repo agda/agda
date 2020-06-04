@@ -1,4 +1,5 @@
--- Andreas, 2020-03-18, issue 4518, reported by strangeglyph
+-- Andreas, 2020-03-18, issue #4518, reported by strangeglyph
+-- Andreas, 2020-06-03, issue #4704, now preserves ellipsis in error
 
 -- Better error message when parsing of LHS fails
 
@@ -13,6 +14,6 @@ test with foo
 ... | suc n = Set
 
 -- ERROR:
--- Could not parse the left-hand side test | suc n
+-- Could not parse the left-hand side ... | suc n
 -- NEW INFORMATION:
 -- Problematic expression: (suc n)

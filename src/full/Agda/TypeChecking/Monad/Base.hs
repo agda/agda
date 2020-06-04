@@ -2626,6 +2626,8 @@ data TCEnv =
           , envMakeCase            :: Bool                 -- ^ are we inside a make-case (if so, ignore forcing analysis in unifier)
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
+          , envScopeCheckingEllipsis :: Bool
+                -- ^ Are we scope checking an ellipsis?
           , envCheckingWhere       :: Bool
                 -- ^ Have we stepped into the where-declarations of a clause?
                 --   Everything under a @where@ will be checked with this flag on.
@@ -2752,6 +2754,7 @@ initEnv = TCEnv { envContext             = []
                 , envCoverageCheck       = YesCoverageCheck
                 , envMakeCase            = False
                 , envSolvingConstraints  = False
+                , envScopeCheckingEllipsis = False
                 , envCheckingWhere       = False
                 , envActiveProblems      = Set.empty
                 , envWorkingOnTypes      = False
@@ -2859,6 +2862,9 @@ eMakeCase f e = f (envMakeCase e) <&> \ x -> e { envMakeCase = x }
 
 eSolvingConstraints :: Lens' Bool TCEnv
 eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
+
+eScopeCheckingEllipsis :: Lens' Bool TCEnv
+eScopeCheckingEllipsis f e = f (envScopeCheckingEllipsis e) <&> \ x -> e { envScopeCheckingEllipsis = x }
 
 eCheckingWhere :: Lens' Bool TCEnv
 eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }

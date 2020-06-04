@@ -194,7 +194,8 @@ data Pattern
   | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
-  | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
+  | EllipsisP Range (Maybe Pattern)        -- ^ @...@, only as left-most pattern.
+                                           --   Maybe with its resolution.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
   deriving (Data, Eq)
 
@@ -304,7 +305,8 @@ data LHSCore
              , lhsPats         :: [NamedArg Pattern]  -- ^ More application patterns.
              }
   | LHSWith  { lhsHead         :: LHSCore
-             , lhsWithPatterns :: [Pattern]          -- ^ Non-empty; at least one @(| p)@.
+             , lhsHeadEllipsis :: Bool               -- ^ Does @lhsHead@ come from an ellipsis @...@?
+             , lhsWithPatterns :: [Pattern]          -- ^ Non-empty; at least one @(| p)@.  Not prefixed by 'WithP'.
              , lhsPats         :: [NamedArg Pattern] -- ^ More application patterns.
              }
   deriving (Data, Eq)
@@ -590,7 +592,7 @@ isPattern = \case
   RawApp r es     -> RawAppP r <$> mapM isPattern es
   Quote r         -> return $ QuoteP r
   Equal r e1 e2   -> return $ EqualP r [(e1, e2)]
-  Ellipsis r      -> return $ EllipsisP r
+  Ellipsis r      -> return $ EllipsisP r Nothing
   Rec r es        -> do
     fs <- mapM maybeLeft es
     RecP r <$> mapM (mapM isPattern) fs
@@ -785,7 +787,7 @@ instance HasRange LHS where
 instance HasRange LHSCore where
   getRange (LHSHead f ps)              = fuseRange f ps
   getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
-  getRange (LHSWith f wps ps)          = f `fuseRange` wps `fuseRange` ps
+  getRange (LHSWith f _ wps ps)        = f `fuseRange` wps `fuseRange` ps
 
 instance HasRange RHS where
   getRange AbsurdRHS = noRange
@@ -839,7 +841,7 @@ instance HasRange Pattern where
   getRange (DotP r _)         = r
   getRange (RecP r _)         = r
   getRange (EqualP r _)       = r
-  getRange (EllipsisP r)      = r
+  getRange (EllipsisP r _)    = r
   getRange (WithP r _)        = r
 
 -- SetRange instances
@@ -861,7 +863,7 @@ instance SetRange Pattern where
   setRange r (DotP _ e)         = DotP r e
   setRange r (RecP _ fs)        = RecP r fs
   setRange r (EqualP _ es)      = EqualP r es
-  setRange r (EllipsisP _)      = EllipsisP r
+  setRange r (EllipsisP _ p)    = EllipsisP r p
   setRange r (WithP _ p)        = WithP r p
 
 instance SetRange TypedBinding where
@@ -991,7 +993,7 @@ instance KillRange Pattern where
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EqualP _ es)     = killRange1 (EqualP noRange) es
-  killRange (EllipsisP _)     = EllipsisP noRange
+  killRange (EllipsisP _ p)   = killRange1 (EllipsisP noRange) p
   killRange (WithP _ p)       = killRange1 (WithP noRange) p
 
 instance KillRange Pragma where
@@ -1087,7 +1089,7 @@ instance NFData Pattern where
   rnf (LitP _ a)       = rnf a
   rnf (RecP _ a)       = rnf a
   rnf (EqualP _ es)    = rnf es
-  rnf (EllipsisP _)    = ()
+  rnf (EllipsisP _ p)  = rnf p
   rnf (WithP _ a)      = rnf a
 
 -- | Ranges are not forced.

@@ -43,7 +43,7 @@ import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
+import Agda.Syntax.Abstract.Pattern as A ( patternVars, checkPatternLinearity, lhsWith )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -629,10 +629,20 @@ instance ToAbstract PatName APatName where
 --   (which could have been bound before due to non-linearity).
 bindPatternVariable :: C.Name -> ScopeM A.Name
 bindPatternVariable x = do
+  ell <- asksTC envScopeCheckingEllipsis
   y <- (AssocList.lookup x <$> getVarsToBind) >>= \case
-    Just (LocalVar y _ _) -> do
-      reportSLn "scope.pat" 10 $ "it was a old var: " ++ prettyShow x
-      return $ setRange (getRange x) y
+    Just (LocalVar y _ _)
+      | ell -> do
+          -- Andreas, 2020-06-01, issue #4704
+          -- Shadowed pattern variables in an ellipsis are bound as fresh names.
+          reportSLn "scope.pat" 10 $ unlines
+            [ "it was a old var: " ++ prettyShow x
+            , "however, in an ellipsis we bind it as a new var"
+            ]
+          freshAbstractName_ x
+      | otherwise -> do
+          reportSLn "scope.pat" 10 $ "it was a old var: " ++ prettyShow x
+          return $ setRange (getRange x) y
     Nothing -> do
       reportSLn "scope.pat" 10 $ "it was a new var: " ++ prettyShow x
       freshAbstractName_ x
@@ -1432,24 +1442,25 @@ instance ToAbstract LetDef [A.LetBinding] where
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
             where
-              definedName (C.IdentP (C.QName x)) = Just x
-              definedName C.IdentP{}             = Nothing
-              definedName (C.RawAppP _ (List2 p _ _)) = definedName p
-              definedName (C.ParenP _ p)         = definedName p
-              definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
-              definedName C.AbsurdP{}            = Nothing
-              definedName C.AsP{}                = Nothing
-              definedName C.DotP{}               = Nothing
-              definedName C.EqualP{}             = Nothing
-              definedName C.LitP{}               = Nothing
-              definedName C.RecP{}               = Nothing
-              definedName C.QuoteP{}             = Nothing
-              definedName C.HiddenP{}            = Nothing -- Not impossible, see issue #2291
-              definedName C.InstanceP{}          = Nothing
-              definedName C.WithP{}              = Nothing
-              definedName C.AppP{}               = Nothing -- Not impossible, see issue #4586
-              definedName C.OpAppP{}             = __IMPOSSIBLE__
-              definedName C.EllipsisP{}          = Nothing -- Not impossible, see issue #3937
+            definedName = \case
+              C.IdentP (C.QName x)        -> Just x
+              C.IdentP{}                  -> Nothing
+              (C.RawAppP _ (List2 p _ _)) -> definedName p
+              C.ParenP _ p                -> definedName p
+              C.WildP{}                   -> Nothing   -- for instance let _ + x = x in ... (not allowed)
+              C.AbsurdP{}                 -> Nothing
+              C.AsP{}                     -> Nothing
+              C.DotP{}                    -> Nothing
+              C.EqualP{}                  -> Nothing
+              C.LitP{}                    -> Nothing
+              C.RecP{}                    -> Nothing
+              C.QuoteP{}                  -> Nothing
+              C.HiddenP{}                 -> Nothing -- Not impossible, see issue #2291
+              C.InstanceP{}               -> Nothing
+              C.WithP{}                   -> Nothing
+              C.AppP{}                    -> Nothing -- Not impossible, see issue #4586
+              C.OpAppP{}                  -> __IMPOSSIBLE__
+              C.EllipsisP _ mp            -> definedName =<< mp  -- Not impossible, see issue #3937
 
       -- You can't open public in a let
       NiceOpen r x dirs -> do
@@ -2541,11 +2552,15 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                   "head of copattern needs to be a field identifier, but "
                   ++ prettyShow d ++ " isn't one"
         A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs <$> toAbstract ps2)
-    toAbstract (C.LHSWith core wps ps) = do
-      liftA3 A.LHSWith
-        (toAbstract core)
-        (toAbstract wps)
-        (toAbstract ps)
+    toAbstract (C.LHSWith core ell wps ps) = do
+      wps  <- toAbstract wps
+      ps   <- toAbstract ps
+      -- Andreas, 2020-06-02, issue #4704
+      -- Do @core@ (potentially coming from ellipsis) last because
+      -- pattern variables in (w)ps may shadow those coming from the ellipsis.
+      -- NOT NEEDED: -- when ell $ bindVarsToBind
+      core <- locallyTC eScopeCheckingEllipsis (const ell) $ toAbstract core
+      return $ A.LHSWith core wps ps
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -2639,10 +2654,14 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       genericError "quote must be applied to an identifier"
 
     toAbstract p0@(AppP p q) = do
+        -- Andreas, 2020-06-01, issue #4704.
+        -- We check q first so that the pattern variables of q are in scope
+        -- when we come to the possible ellipsis in p.
+        q' <- toAbstract q
         reportSLn "scope.pat" 50 $ "distributeDots before = " ++ show p
         p <- distributeDots p
         reportSLn "scope.pat" 50 $ "distributeDots after  = " ++ show p
-        (p', q') <- toAbstract (p, q)
+        p' <- toAbstract p
         applyAPattern p0 p' [q']
 
         where
@@ -2681,7 +2700,10 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
-    toAbstract (EllipsisP _)   = __IMPOSSIBLE__
+    toAbstract (EllipsisP _ _) = __IMPOSSIBLE__
+    -- toAbstract (EllipsisP _ Nothing) = __IMPOSSIBLE__
+    -- toAbstract (EllipsisP _ (Just p)) =
+    --   locallyTC eScopeCheckingEllipsis (const True) $ toAbstract p
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"

@@ -372,6 +372,13 @@ lhsCoreWith :: LHSCore' e -> [Pattern' e] -> LHSCore' e
 lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps ++ wps') []
 lhsCoreWith core                  wps' = LHSWith core wps' []
 
+-- Andreas, 2020-06-04, issue #4704:
+-- The type-checker does not deal correctly with consecutive LHSWith,
+-- thus we fuse them.  (I did not get to the bottom of this problem.)
+-- | Smart 'LHSWith' constructor, fuses consecutive 'LHSWith'.
+lhsWith :: IsProjP e => LHSCore' e -> [Pattern' e] -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsWith core wps ps = core `lhsCoreWith` wps `lhsCoreAddSpine` ps
+
 lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
 lhsCoreAddChunk core = \case
   LHSAppP ps               -> lhsCoreApp core ps

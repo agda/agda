@@ -1423,14 +1423,15 @@ niceDeclarations fixs ds = do
             FunClause (LHS p0 eqs es NoEllipsis) rhs wh ca -> do
               case hasEllipsis' p0 of
                 ManyHoles -> declarationException $ MultipleEllipses p0
-                OneHole cxt ~(EllipsisP r) -> do
+                OneHole cxt (EllipsisP r Nothing) -> do
                   -- Replace the ellipsis by @p@.
-                  let p1 = cxt $ setRange r p
-                  let ell = ExpandedEllipsis r (numberOfWithPatterns p)
-                  let d' = FunClause (LHS p1 eqs es ell) rhs wh ca
+                  -- Andreas, 2020-06-01, issue #4704: but keep marked as ellipsis.
+                  let p1  = cxt $ EllipsisP r $ Just p   -- or @setRange r p@ ??
+                  let ell = ExpandedEllipsis r $ numberOfWithPatterns p
+                  let d'  = FunClause (LHS p1 eqs es ell) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following
                   -- ellipses also get the additional patterns in p0.
-                  (d' :) <$> expand (if null es then p else killRange p1) ds
+                  (d' :) <$> expand (if null es then p else killRange $ cxt p) ds
                 ZeroHoles _ -> do
                   -- We can have ellipses after a fun clause without.
                   -- They refer to the last clause that introduced new with-expressions.
@@ -1439,6 +1440,7 @@ niceDeclarations fixs ds = do
                   -- Andreas, Jesper, 2017-05-13, issue #2578
                   -- Need to update the range also on the next with-patterns.
                   (d :) <$> expand (if null es then p else killRange p0) ds
+                _ -> __IMPOSSIBLE__
             _ -> __IMPOSSIBLE__
     expandEllipsis _ = __IMPOSSIBLE__
 

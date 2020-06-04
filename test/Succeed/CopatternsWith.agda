@@ -1,4 +1,5 @@
 -- Andreas, 2015-05-02 Integrate copatterns with with.
+-- Andreas, 2020-06-03 issue #4704: shadowing of pattern variables under ellipsis
 
 {-# OPTIONS --guardedness #-}
 
@@ -24,11 +25,15 @@ force (map f s) with force s
 
 zipWith : ∀{A B C} → (A → B → C) → Stream A → Stream B → Stream C
 force (zipWith f s t) with force s | force t
-... | a , as | b , bs = f a b , zipWith f as bs
+... | a , s | b , t = f a b , zipWith f s t
+  -- Andreas, 2020-06-03 issue #4704
+  -- Allow shadowing of pattern variables (s, t) under an ellipsis.
 
-interleave : ∀{A} (s t : Stream A) → Stream A
-force (interleave s t) with force s
-... | a , as = a , interleave t as
+_interleave_ : ∀{A} (s t : Stream A) → Stream A
+force (s interleave t) with force s
+... | a , s = a , t interleave s
+  -- Andreas, 2020-06-03 issue #4704
+  -- Should also work with operator lhs (see pr #4709).
 
 mutual
   evens : ∀{A} (s : Stream A) → Stream A
