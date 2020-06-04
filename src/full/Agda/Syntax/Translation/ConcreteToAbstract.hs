@@ -601,6 +601,7 @@ instance ToAbstract PatName APatName where
           -- be meant since we are in a pattern
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
+    reportSLn "scope.pat" 20 $ "resolved as " ++ prettyShow rx
     case (rx, x) of
       (VarName y _,       C.QName x)                           -> bindPatVar x
       (FieldName d,       C.QName x)                           -> bindPatVar x
@@ -1591,7 +1592,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
-      t' <- toAbstractCtx TopCtx t
+      t' <- traverse (toAbstractCtx TopCtx) t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
@@ -2478,8 +2479,12 @@ data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs ell) =
       traceCall (ScopeCheckLHS top lhs) $ do
+        reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
+        reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
+        reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
         lhscore <- parseLHS top lhs
-        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
+        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
+        reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but --no-copatterns option
         unlessM (optCopatterns <$> pragmaOptions) $
@@ -2488,11 +2493,13 @@ instance ToAbstract LeftHandSide A.LHS where
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         bindVarsToBind
-        reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
+        -- reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        reportSLn "scope.lhs" 60 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
-        reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
+        -- reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
