@@ -109,19 +109,19 @@ import Agda.ImpossibleTest (impossibleTest)
 
 notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
 notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (file, line) $ NotAnExpression e
+  typeError' (AgdaSourceErrorLocation file line) $ NotAnExpression e
 
 nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
 nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (file, line) $ NothingAppliedToHiddenArg e
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToHiddenArg e
 
 nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
 nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (file, line) $ NothingAppliedToInstanceArg e
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToInstanceArg e
 
 notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
 notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (file, line) $ NotAValidLetBinding d
+  typeError' (AgdaSourceErrorLocation file line) $ NotAValidLetBinding d
 
 {--------------------------------------------------------------------------
     Helpers

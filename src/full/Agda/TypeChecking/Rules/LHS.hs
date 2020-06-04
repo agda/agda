@@ -1398,14 +1398,14 @@ suspendErrors f = do
 --   @softTypeError err == suspendErrors (typeError err)@
 softTypeError :: (HasCallStack, ReadTCState m, MonadError TCErr m, MonadTCEnv m) => TypeError -> m a
 softTypeError err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  throwError =<< typeError' (file, line) err
+  throwError =<< typeError' (AgdaSourceErrorLocation file line) err
 
 -- | A convenient alias for @liftTCM . typeError@. Throws the error directly
 --   in the TCM even if there is a surrounding monad also implementing
 --   @MonadError TCErr@.
 hardTypeError :: (HasCallStack, MonadTCM m) => TypeError -> m a
 hardTypeError = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  liftTCM . typeError' (file, line)
+  liftTCM . typeError' (AgdaSourceErrorLocation file line)
 
 data DataOrRecord
   = IsData

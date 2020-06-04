@@ -343,7 +343,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
       addContext gamma $ do
           dontAssignMetas $ noConstraints $ equalTerm a rhs1 rhs2
         `catchError` \case
-          TypeError (file, line) s err -> do
+          TypeError _ s err -> do
             prettyErr <- withTCState (const s) $ prettyTCM err
             warning $ RewriteNonConfluent (hd es) rhs1 rhs2 prettyErr
           err           -> throwError err
