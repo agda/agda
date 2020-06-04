@@ -53,7 +53,9 @@ import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Monad (guardWithError)
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
@@ -532,7 +534,7 @@ parsePat
 parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List1.toList ps))
+    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List2.toList ps))
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
@@ -611,7 +613,7 @@ parseLHS'
        -- ^ The returned list contains all operators/notations/sections that
        -- were used to generate the grammar.
 
-parseLHS' IsLHS (Just qn) (RawAppP _ (WildP{} :| [])) =
+parseLHS' IsLHS (Just qn) WildP{} =
     return (ParseLHS qn $ LHSHead qn [], [])
 
 parseLHS' lhsOrPatSyn top p = do
@@ -795,11 +797,10 @@ qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
   nubOn id $ filter (not . null) $ map (List1.init . qnameParts) qs
 
--- | Parse a list of expressions into an application.
-parseApplication :: List1 Expr -> ScopeM Expr
-parseApplication (e :| []) = return e
+-- | Parse a list of expressions (typically from a 'RawApp') into an application.
+parseApplication :: List2 Expr -> ScopeM Expr
 parseApplication es  = billToParser IsExpr $ do
-    let es0 = List1.toList es
+    let es0 = List2.toList es
     -- Build the parser
     p <- buildParsers IsExpr [ q | Ident q <- es0 ]
 
@@ -820,8 +821,9 @@ parseModuleIdentifier :: Expr -> ScopeM QName
 parseModuleIdentifier (Ident m) = return m
 parseModuleIdentifier e = typeError $ NotAModuleExpr e
 
-parseRawModuleApplication :: List1 Expr -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es@(e :| es_args) = billToParser IsExpr $ do
+parseRawModuleApplication :: List2 Expr -> ScopeM (QName, [NamedArg Expr])
+parseRawModuleApplication es@(List2 e e2 rest) = billToParser IsExpr $ do
+    let es_args = e2:rest
     m <- parseModuleIdentifier e
 
     -- Build the arguments parser

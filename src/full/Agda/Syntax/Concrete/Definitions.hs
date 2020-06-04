@@ -1383,7 +1383,7 @@ niceDeclarations fixs ds = do
                 ManyHoles -> throwError $ MultipleEllipses p0
                 OneHole cxt ~(EllipsisP r) -> do
                   -- Replace the ellipsis by @p@.
-                  let p1 = cxt p
+                  let p1 = cxt $ setRange r p
                   let ell = ExpandedEllipsis r (numberOfWithPatterns p)
                   let d' = FunClause (LHS p1 eqs es ell) rhs wh ca
                   -- If we have with-expressions (es /= []) then the following

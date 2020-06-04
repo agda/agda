@@ -16,7 +16,8 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.List1  ( List1, pattern (:|) )
+import Agda.Utils.List1  ( List1 )
+import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
 
 
@@ -29,7 +30,6 @@ class IsEllipsis a where
 instance IsEllipsis Pattern where
   isEllipsis = \case
     EllipsisP{}         -> True
-    RawAppP _ (p :| []) -> isEllipsis p
     ParenP _ p          -> isEllipsis p
     _ -> False
 
@@ -61,7 +61,6 @@ class IsWithP p where
 instance IsWithP Pattern where
   isWithP = \case
     WithP _ p           -> Just p
-    RawAppP _ (p :| []) -> isWithP p
     ParenP _ p          -> isWithP p
     _ -> Nothing
 
@@ -262,6 +261,7 @@ instance CPatternLike p => CPatternLike (Arg p)
 instance CPatternLike p => CPatternLike (Named n p)
 instance CPatternLike p => CPatternLike [p]
 instance CPatternLike p => CPatternLike (List1 p)
+instance CPatternLike p => CPatternLike (List2 p)
 instance CPatternLike p => CPatternLike (Maybe p)
 instance CPatternLike p => CPatternLike (FieldAssignment' p)
 

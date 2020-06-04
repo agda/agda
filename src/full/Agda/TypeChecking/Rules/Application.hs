@@ -807,7 +807,7 @@ checkConstructorApplication cmp org t c args = do
          -- Since we get the constructor type ctype from d but the parameters
          -- from t = Def d' vs, we drop the additional parameters.
          npars' <- getNumberOfParameters d'
-         caseMaybe (sequenceA $ List2 (Just npars, npars')) fallback $ \ (List2 (n, n')) -> do
+         caseMaybe (sequenceA $ Pair (Just npars) npars') fallback $ \ (Pair n n') -> do
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
            when (n > n')  -- preprocessor does not like ', so put on next line

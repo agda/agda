@@ -87,6 +87,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List2 ( List2, pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -767,7 +768,7 @@ scopeCheckExtendedLam r cs = do
   -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
-            let p   = C.RawAppP (getRange ps) $ IdentP (C.QName cname) :| ps
+            let p   = C.rawAppP $ (killRange $ IdentP $ C.QName cname) :| ps
             let lhs = C.LHS p [] [] NoEllipsis
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
@@ -955,7 +956,7 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
-               (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m :| es)))
+               (C.SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
                DontOpen i
         case r of
           (LetApply _ m' _ _ _ : _) -> return (m', r)
@@ -1426,7 +1427,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             where
               definedName (C.IdentP (C.QName x)) = Just x
               definedName C.IdentP{}             = Nothing
-              definedName (C.RawAppP _ (p :|_))  = definedName p
+              definedName (C.RawAppP _ (List2 p _ _)) = definedName p
               definedName (C.ParenP _ p)         = definedName p
               definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
               definedName C.AbsurdP{}            = Nothing
@@ -2233,7 +2234,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x
-        getHead (C.RawAppP _ (p :|_)) = getHead p
+        getHead (C.RawAppP _ (List2 p _ _)) = getHead p
         getHead _                     = err
 
     top <- getHead lhs

@@ -1164,7 +1164,6 @@ parseName r s = do
 isQName :: C.Expr -> Maybe C.QName
 isQName = \case
   C.Ident x                    -> return x
-  C.RawApp _ (C.Ident x :| []) -> return x
   _ -> Nothing
 
 isName :: C.Expr -> Maybe C.Name

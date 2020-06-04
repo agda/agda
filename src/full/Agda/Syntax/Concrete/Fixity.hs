@@ -207,7 +207,7 @@ declaredNames d = case d of
   FieldSig _ _ x _     -> declaresName x
   Field _ fs           -> foldMap declaredNames fs
   FunClause (LHS p [] [] _) _ _ _
-    | IdentP (QName x) <- removeSingletonRawAppP p
+    | IdentP (QName x) <- removeParenP p
                        -> declaresName x
   FunClause{}          -> mempty
   DataSig _ x _ _      -> declaresName x

@@ -73,6 +73,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -755,7 +756,7 @@ instance ToConcrete A.Expr C.Expr where
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
-              removeApp (C.RawAppP _r (_ :| ps)) = return ps
+              removeApp (C.RawAppP _ (List2 _ p ps)) = return $ p:ps
               removeApp (C.AppP (C.IdentP _) np) = return [namedPat np]
               removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
