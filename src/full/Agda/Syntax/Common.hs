@@ -83,6 +83,9 @@ data AgdaSourceErrorLocation = AgdaSourceErrorLocation
   , slocLine :: Int    -- ^ Line number in this file
   } deriving (Show, Data)
 
+instance Pretty AgdaSourceErrorLocation where
+  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
+
 ---------------------------------------------------------------------------
 -- * Eta-equality
 ---------------------------------------------------------------------------

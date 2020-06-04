@@ -38,8 +38,8 @@ import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM w@(TCWarning (AgdaSourceErrorLocation file line) _ _ _ _) = do
-    reportSLn "warning" 2 $ "Warning raised in file " ++ file ++ " at line " ++ show line
+  prettyTCM w@(TCWarning fl _ _ _ _) = do
+    reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow fl
     pure $ tcWarningPrintedWarning w
 
 prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc

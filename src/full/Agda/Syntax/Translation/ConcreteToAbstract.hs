@@ -1291,8 +1291,8 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
     -- Otherwise we simply record the warnings
     mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
   case result of
-    Left (DeclarationException (file, line) e) -> do
-      reportSLn "error" 2 $ "Error raised in file " ++ file ++ " at line " ++ show line
+    Left (DeclarationException fl e) -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
       throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 
