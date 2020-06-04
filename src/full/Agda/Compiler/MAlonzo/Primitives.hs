@@ -132,10 +132,7 @@ xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
   qs <- HMap.keys <$> curDefs
   bs <- Map.toList <$> getsTC stBuiltinThings
-  let getName (Builtin (Def q _))    = q
-      getName (Builtin (Con q _ _))  = conName q
-      getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
-      getName (Builtin _)            = __IMPOSSIBLE__
+  let getName (Builtin t)    = getPrimName t
       getName (Prim (PrimFun q _ _)) = q
   concat <$> sequence [ fromMaybe (return []) $ List.lookup s table
                         | (s, def) <- bs, getName def `elem` qs ]
@@ -275,10 +272,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  -- 4638: extend the list here, so the error is at runtime at least.
   axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"
-                ,"primTransp","primHComp"]
-  unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
+                ,"primTransp","primHComp","primSubOut"]
+                -- TODO 4638 remove the || True and handle this differently instead.
+  unimplemented | s `List.elem` axiom_prims || True = return $ rtmError $ "primitive with no body evaluated: " ++ s
                 | otherwise = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)

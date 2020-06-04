@@ -459,7 +459,8 @@ getPrimName ty = do
   case lamV ty of
             (_, Def path _) -> path
             (_, Con nm _ _)   -> conName nm
-            (_, _)          -> __IMPOSSIBLE__
+            (_, Var 0 [Proj _ l]) -> l
+            (_, t)          -> __IMPOSSIBLE__
 
 getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
 getBuiltinName' n = fmap getPrimName <$> getBuiltin' n
