@@ -203,6 +203,9 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
       reportSDoc "tc.with" 20 $ vcat
         [ "buildWithClause returns" <+> prettyA result
         ]
+      reportSDoc "tc.with.clause" 70 $ vcat
+        [ "buildWithClause returns" <+> (text . show) result
+        ]
       return result
 
     buildRHS _ rhs@A.RHS{}                 = return rhs
