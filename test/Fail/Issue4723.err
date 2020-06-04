@@ -1,0 +1,6 @@
+Issue4723.agda:7,1-6
+Could not parse the left-hand side ... x
+Problematic expression: x
+Operators used in the grammar:
+  None
+when scope checking the left-hand side ... x in the definition of f
