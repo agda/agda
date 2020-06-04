@@ -7,6 +7,7 @@ module Agda.TypeChecking.Rules.LHS
   , IsFlexiblePattern(..)
   , DataOrRecord(..)
   , checkSortOfSplitVar
+  , disambiguateConstructor
   ) where
 
 import Prelude hiding ( null )
