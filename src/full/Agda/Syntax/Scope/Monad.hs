@@ -80,8 +80,8 @@ printLocals v s = verboseS "scope.top" v $ do
 
 scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
 scopeWarning d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  warning' (file, line)  $ NicifierIssue $
-    DeclarationWarning (file, line) $ d
+  warning' (AgdaSourceErrorLocation file line)  $ NicifierIssue $
+    DeclarationWarning (AgdaSourceErrorLocation file line) $ d
 
 ---------------------------------------------------------------------------
 -- * General operations

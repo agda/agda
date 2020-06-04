@@ -33,6 +33,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 
@@ -85,8 +86,8 @@ genericWarning = warning . GenericWarning
 genericNonFatalError :: MonadWarning m => P.Doc -> m ()
 genericNonFatalError = warning . GenericNonFatalError
 
-{-# SPECIALIZE warning'_ :: (String, Int) -> Warning -> TCM TCWarning #-}
-warning'_ :: (MonadWarning m) => (String, Int) -> Warning -> m TCWarning
+{-# SPECIALIZE warning'_ :: AgdaSourceErrorLocation -> Warning -> TCM TCWarning #-}
+warning'_ :: (MonadWarning m) => AgdaSourceErrorLocation -> Warning -> m TCWarning
 warning'_ fl w = do
   r <- viewTC eRange
   c <- viewTC eCall
@@ -101,7 +102,7 @@ warning'_ fl w = do
 {-# SPECIALIZE warning_ :: Warning -> TCM TCWarning #-}
 warning_ :: (HasCallStack, MonadWarning m) => Warning -> m TCWarning
 warning_ w = withFileAndLine $ \ file line ->
-  warning'_ (file, line) w
+  warning'_ (AgdaSourceErrorLocation file line) w
 
 -- UNUSED Liang-Ting Chen 2019-07-16
 ---- | @applyWarningMode@ filters out the warnings the user has not requested
@@ -112,8 +113,8 @@ warning_ w = withFileAndLine $ \ file line ->
 --  ErrorWarnings -> Just w
 --  AllWarnings   -> w <$ guard (Set.member (warningName w) $ wm ^. warningSet)
 
-{-# SPECIALIZE warnings' :: (String, Int) -> [Warning] -> TCM () #-}
-warnings' :: MonadWarning m => (String, Int) -> [Warning] -> m ()
+{-# SPECIALIZE warnings' :: AgdaSourceErrorLocation -> [Warning] -> TCM () #-}
+warnings' :: MonadWarning m => AgdaSourceErrorLocation -> [Warning] -> m ()
 warnings' fl ws = do
 
   wmode <- optWarningMode <$> pragmaOptions
@@ -133,16 +134,16 @@ warnings' fl ws = do
 {-# SPECIALIZE warnings :: HasCallStack => [Warning] -> TCM () #-}
 warnings :: (HasCallStack, MonadWarning m) => [Warning] -> m ()
 warnings ws = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  warnings' (file, line) ws
+  warnings' (AgdaSourceErrorLocation file line) ws
 
-{-# SPECIALIZE warning' :: (String, Int) -> Warning -> TCM () #-}
-warning' :: MonadWarning m => (String, Int) -> Warning -> m ()
+{-# SPECIALIZE warning' :: AgdaSourceErrorLocation -> Warning -> TCM () #-}
+warning' :: MonadWarning m => AgdaSourceErrorLocation -> Warning -> m ()
 warning' fl = warnings' fl . pure
 
 {-# SPECIALIZE warning :: HasCallStack => Warning -> TCM () #-}
 warning :: (HasCallStack, MonadWarning m) => Warning -> m ()
 warning w = withFileAndLine' (freezeCallStack callStack)  $ \ file line ->
-  warning' (file, line) w
+  warning' (AgdaSourceErrorLocation file line) w
 
 isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings

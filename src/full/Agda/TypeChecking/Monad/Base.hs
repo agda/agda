@@ -3210,7 +3210,7 @@ warningName = \case
 
 data TCWarning
   = TCWarning
-    { tcWarningFileLine :: (String, Int)
+    { tcWarningFileLine :: AgdaSourceErrorLocation
         -- ^ File and line the error was raised at
     , tcWarningRange    :: Range
         -- ^ Range where the warning was raised
@@ -3533,7 +3533,7 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 
 data TCErr
   = TypeError
-    { tcErrFileLine :: (String, Int)
+    { tcErrFileLine :: AgdaSourceErrorLocation
        -- ^ File and line the error was raised at
     , tcErrState    :: TCState
         -- ^ The state in which the error was raised.
@@ -4114,37 +4114,37 @@ patternViolation = throwError PatternErr
 
 internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
 internalError s = withFileAndLine $ \ file line ->
-  liftTCM $ typeError' (file, line) $ InternalError s
+  liftTCM $ typeError' (AgdaSourceErrorLocation file line) $ InternalError s
 
 -- | The constraints needed for 'typeError' and similar.
 type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
 
 genericError :: (HasCallStack, MonadTCError m) => String -> m a
 genericError = withFileAndLine $ \ file line ->
-  typeError' (file, line) . GenericError
+  typeError' (AgdaSourceErrorLocation file line) . GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
 genericDocError :: (HasCallStack, MonadTCError m) => Doc -> m a
 genericDocError = withFileAndLine $ \ file line ->
-  typeError' (file, line) . GenericDocError
+  typeError' (AgdaSourceErrorLocation file line) . GenericDocError
 
-{-# SPECIALIZE typeError' :: (String, Int) -> TypeError -> TCM a #-}
-typeError' :: MonadTCError m => (String, Int) -> TypeError -> m a
+{-# SPECIALIZE typeError' :: AgdaSourceErrorLocation -> TypeError -> TCM a #-}
+typeError' :: MonadTCError m => AgdaSourceErrorLocation -> TypeError -> m a
 typeError' fl err = throwError =<< typeError'_ fl err
 
 {-# SPECIALIZE typeError :: HasCallStack => TypeError -> TCM a #-}
 typeError :: (HasCallStack, MonadTCError m) => TypeError -> m a
 typeError err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  throwError =<< typeError'_ (file, line) err
+  throwError =<< typeError'_ (AgdaSourceErrorLocation file line) err
 
-{-# SPECIALIZE typeError'_ :: (String, Int) -> TypeError -> TCM TCErr #-}
-typeError'_ :: (MonadTCEnv m, ReadTCState m) => (String, Int) -> TypeError -> m TCErr
+{-# SPECIALIZE typeError'_ :: AgdaSourceErrorLocation -> TypeError -> TCM TCErr #-}
+typeError'_ :: (MonadTCEnv m, ReadTCState m) => AgdaSourceErrorLocation -> TypeError -> m TCErr
 typeError'_ fl err = TypeError fl <$> getTCState <*> buildClosure err
 
 {-# SPECIALIZE typeError_ :: HasCallStack => TypeError -> TCM TCErr #-}
 typeError_ :: (HasCallStack, MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
 typeError_ err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError'_ (file, line) err
+  typeError'_ (AgdaSourceErrorLocation file line) err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

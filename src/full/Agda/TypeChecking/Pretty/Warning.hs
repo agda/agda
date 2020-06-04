@@ -20,7 +20,7 @@ import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 
-import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( AgdaSourceErrorLocation(..), ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -38,7 +38,7 @@ import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM w@(TCWarning (file, line) _ _ _ _) = do
+  prettyTCM w@(TCWarning (AgdaSourceErrorLocation file line) _ _ _ _) = do
     reportSLn "warning" 2 $ "Warning raised in file " ++ file ++ " at line " ++ show line
     pure $ tcWarningPrintedWarning w
 

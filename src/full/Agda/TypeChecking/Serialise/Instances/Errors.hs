@@ -8,6 +8,7 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
+import Agda.Syntax.Common (AgdaSourceErrorLocation(..))
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -19,9 +20,12 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+instance EmbPrj AgdaSourceErrorLocation where
+  icod_ (AgdaSourceErrorLocation a b) = icodeN' AgdaSourceErrorLocation a b
+  value = valueN AgdaSourceErrorLocation
+
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
-
   value = valueN TCWarning
 
 -- We don't need to serialise warnings that turn into errors
