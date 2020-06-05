@@ -263,7 +263,7 @@ isErasable qn =
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do
-  TelV tel t <- telView t
+  TelV tel t <- telViewPath t
   return (telToList tel, t)
 
 typeWithoutParams :: QName -> TCM (ListTel, Type)

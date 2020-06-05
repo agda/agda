@@ -244,16 +244,21 @@ casetree cc = do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll
       else do
-        caseTy <- case (Map.keys conBrs', Map.keys litBrs) of
-              ((c:_), []) -> do
+        let go p =
+             case p of
+              ((c:cs), []) -> do
                 c' <- lift (canonicalName c)
-                dtNm <- conData . theDef <$> lift (getConstInfo c')
-                return $ C.CTData dtNm
+                defn <- theDef <$> lift (getConstInfo c')
+                case defn of
+                  Constructor{conData = dtNm} -> return $ C.CTData dtNm
+                  _                           -> go (cs , [])
               ([], (LitChar _ _):_)  -> return C.CTChar
               ([], (LitString _ _):_) -> return C.CTString
               ([], (LitFloat _ _):_) -> return C.CTFloat
               ([], (LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
+
+        caseTy <- go (Map.keys conBrs', Map.keys litBrs)
         updateCatchAll catchAll $ do
           x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
