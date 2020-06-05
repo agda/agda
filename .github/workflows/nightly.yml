@@ -4,6 +4,8 @@ on:
   push:
     paths:
     - '.github/workflows/nightly.yml'
+    branches-ignore:
+    - 'issue*'
 
   schedule:
     # Run every day at 0400.

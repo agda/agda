@@ -8,6 +8,13 @@ on:
     - 'cabal.project'
     - '.github/workflows/cabal.yml'
     - 'Setup.hs'
+    branches:
+    - 'master'
+    - 'future'
+    - 'legacy-*'
+    - 'release-*'
+    - 'stable-*'
+    - 'workflow-*'
   pull_request:
     paths:
     - 'src/**'

@@ -5,6 +5,13 @@ on:
     paths:
     - 'doc/user-manual/**'
     - '.github/workflows/user_manual.yml'
+    branches:
+    - 'master'
+    - 'future'
+    - 'legacy-*'
+    - 'release-*'
+    - 'stable-*'
+    - 'workflow-*'
   pull_request:
     paths:
     - 'doc/user-manual/**'

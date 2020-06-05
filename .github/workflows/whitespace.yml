@@ -1,5 +1,14 @@
 name: Whitespace
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - 'master'
+    - 'future'
+    - 'legacy-*'
+    - 'release-*'
+    - 'stable-*'
+    - 'workflow-*'
+  pull_request:
 
 jobs:
   check:
