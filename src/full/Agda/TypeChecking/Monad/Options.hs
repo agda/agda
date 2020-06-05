@@ -90,7 +90,7 @@ setLibraryPaths
   -> CommandLineOptions
   -> TCM CommandLineOptions
 setLibraryPaths root o =
-  addTrustedExecutables =<< setLibraryIncludes =<< addDefaultLibraries root o
+  setLibraryIncludes =<< addDefaultLibraries root o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o
@@ -116,7 +116,7 @@ addTrustedExecutables
   :: CommandLineOptions
   -> TCM CommandLineOptions
 addTrustedExecutables o
-  | not (optAllowExec (optPragmaOptions o)) || optShowVersion o = do
+  | optShowVersion o = do
   return o
   | otherwise = do
   trustedExes <- libToTCM $ getTrustedExecutables

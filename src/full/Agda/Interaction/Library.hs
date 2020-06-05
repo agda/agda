@@ -367,12 +367,10 @@ getTrustedExecutables
   :: LibM (Map ExeName FilePath)  -- ^ Content of @executables@ files.
 getTrustedExecutables = mkLibM [] $ do
     file <- lift $ getExecutablesFile
-    lift $ print file
     if not (efExists file) then return Map.empty else do
       es    <- lift $ stripCommentLines <$> readFile (efPath file)
       files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
       tmp   <- parseExecutablesFile file $ nubOn snd files
-      lift $ print tmp
       return tmp
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read trusted executables.", show e] ]
