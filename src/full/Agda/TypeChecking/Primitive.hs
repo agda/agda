@@ -801,7 +801,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
   , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
   , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
-  , "primShowFloat"       |-> mkPrimFun1 (T.pack . prettyShow   :: Double -> Text)
+  , "primShowFloat"       |-> mkPrimFun1 (T.pack . show   :: Double -> Text)
   , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
 

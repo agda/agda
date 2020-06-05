@@ -157,7 +157,7 @@ pickName a =
   case a of
     R.Pi{}   -> "f"
     R.Sort{} -> "A"
-    R.Def d _ | c:_ <- show (qnameName d),
+    R.Def d _ | c:_ <- prettyShow (qnameName d),
               isAlpha c -> [toLower c]
     _        -> "_"
 
