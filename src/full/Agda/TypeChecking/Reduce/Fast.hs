@@ -223,7 +223,7 @@ compactDef bEnv def rewr = do
           -- "primForceLemma"
           "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
           "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
-          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (show a)
+          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
           -- "primQNameFixity"  -- We don't have fixity builtins (TODO)
           "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
           "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
