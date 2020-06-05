@@ -11,12 +11,14 @@ import Agda.Syntax.Info
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Implicit
+import Agda.TypeChecking.Substitute.Class
 
 import Agda.TypeChecking.Rules.LHS ( disambiguateConstructor )
 import Agda.TypeChecking.Rules.Term
@@ -49,6 +51,10 @@ checkTyped name i sig as rhs =
   -- 4. Register "constructor"
       undefined
 
+-- TODO: what happens to trailing implicit arguments?
+-- pattern
+--   ze : {n : _} -> Fin (suc n)
+--   ze = zero
 checkLHS :: Type -> [Arg A.BindName] -> ({- Telescope -> -} Type -> TCM a) -> TCM a
 checkLHS ty []           k = k ty
 checkLHS ty xxs@(x : xs) k = do
@@ -122,9 +128,10 @@ checkRHS ty p k = case p of
                                 }
       k (ConP con pi naps)
 
-{-
-  | RecP PatInfo [FieldAssignment' (Pattern' e)]
--}
+  A.RecP i fs -> genericError "Record patterns not implemented"
+  -- | RecP PatInfo [FieldAssignment' (Pattern' e)]
+
+  _ -> genericError "Unsupported pattern syntax"
 
 checkArguments :: Type -> A.NAPs Void -> (NAPs -> TCM a) -> TCM a
 checkArguments ty []           k = k []
@@ -137,7 +144,11 @@ checkArguments ty pps@(p : ps) k = do
     Pi a b | not (sameHiding a p) -> genericError "Expected implicit type, got explicit one"
     Pi a b | otherwise -> do
       checkRHS (unDom a) (namedThing $ unArg p) $ \ p' ->
-        undefined
+        let b' = absApp b (patternToTerm p') in
+        checkArguments b' ps $ \ ps' ->
+          k ((fmap (fmap (DotP defaultPatternInfo)) <$> nargs)
+             ++ defaultNamedArg p' : ps')
+    _ -> genericError "Too many arguments"
 
 -- Ideally:
 --        checkArguments (b [p'/0]) ps $ \ ps' ->
