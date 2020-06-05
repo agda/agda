@@ -1,0 +1,12 @@
+name: 'Check run conditions'
+description: 'Checks whether a run for a `push` event should be shortcircuited.'
+inputs:
+  repo-token:
+    description: "Token for the repo. Can be passed in using {{ secrets.GITHUB_TOKEN }}"
+    required: true
+outputs:
+  shouldRun:
+    description: 'true if the run should continue, false otherwise.'
+runs:
+  using: 'node12'
+  main: 'check-run-conditions.js'

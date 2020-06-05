@@ -1,0 +1,13 @@
+name: Check run testing
+
+on:
+  push:
+
+jobs:
+  Ubuntu:
+    runs-on: ubuntu-16.04
+
+    steps:
+    - uses: ./.github/actions/check-run-conditions
+      env:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
