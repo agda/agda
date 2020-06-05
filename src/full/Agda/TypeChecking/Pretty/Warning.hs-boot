@@ -1,7 +1,7 @@
 module Agda.TypeChecking.Pretty.Warning where
 
+import Agda.Utils.Pretty
 import Agda.TypeChecking.Monad.Base
-import {-# SOURCE #-} Agda.TypeChecking.Pretty (PrettyTCM)
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty)
 
-instance PrettyTCM Warning
-
+prettyWarning :: MonadPretty m => Warning -> m Doc

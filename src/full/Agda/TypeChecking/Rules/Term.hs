@@ -791,7 +791,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- we reraise the error.
     x <- maybe reraise return =<< do
       case err of
-        TypeError s cl -> localTCState $ do
+        TypeError _ s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
             IlltypedPattern p a -> isBlocked a

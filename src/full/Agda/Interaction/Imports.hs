@@ -1124,7 +1124,7 @@ getMaybeWarnings' isMain ww = do
 
 getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
 getAllWarningsOfTCErr err = case err of
-  TypeError tcst cls -> case clValue cls of
+  TypeError _ tcst cls -> case clValue cls of
     NonFatalErrors{} -> return []
     _ -> localTCState $ do
       putTC tcst

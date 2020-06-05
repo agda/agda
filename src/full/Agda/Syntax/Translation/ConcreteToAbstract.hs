@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Applicative
 import Control.Monad.Except
@@ -107,17 +108,21 @@ import Agda.ImpossibleTest (impossibleTest)
 
 -- notAModuleExpr e = typeError $ NotAModuleExpr e
 
-notAnExpression :: C.Expr -> ScopeM A.Expr
-notAnExpression e = typeError $ NotAnExpression e
+notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
+notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NotAnExpression e
 
-nothingAppliedToHiddenArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToHiddenArg e
 
-nothingAppliedToInstanceArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
+nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToInstanceArg e
 
-notAValidLetBinding :: NiceDeclaration -> ScopeM a
-notAValidLetBinding d = typeError $ NotAValidLetBinding d
+notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
+notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NotAValidLetBinding d
 
 {--------------------------------------------------------------------------
     Helpers
@@ -1286,9 +1291,11 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    warnings $ NicifierIssue <$> warns
+    mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
   case result of
-    Left e   -> throwError $ Exception (getRange e) $ pretty e
+    Left (DeclarationException fl e) -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+      throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 
   where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName

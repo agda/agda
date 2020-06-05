@@ -34,7 +34,7 @@ module Agda.Syntax.Concrete.Definitions
     , NiceConstructor, NiceTypeSignature
     , Clause(..)
     , DeclarationException(..)
-    , DeclarationWarning(..), unsafeDeclarationWarning
+    , DeclarationWarning(..), DeclarationWarning'(..), unsafeDeclarationWarning
     , Nice, runNice
     , niceDeclarations
     , notSoNiceDeclarations
@@ -44,6 +44,7 @@ module Agda.Syntax.Concrete.Definitions
     ) where
 
 import Prelude hiding (null)
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -164,8 +165,18 @@ type NiceTypeSignature  = NiceDeclaration
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Data, Show)
 
+-- | Exception with File and Line source
+data DeclarationException = DeclarationException
+  { deFileLine   :: AgdaSourceErrorLocation
+  , deExceptiion :: DeclarationException'
+  }
+
+declarationException :: HasCallStack => DeclarationException' -> Nice a
+declarationException e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  throwError (DeclarationException (AgdaSourceErrorLocation file line) e)
+
 -- | The exception type.
-data DeclarationException
+data DeclarationException'
   = MultipleEllipses Pattern
   | InvalidName Name
   | DuplicateDefinition Name
@@ -183,8 +194,20 @@ data DeclarationException
     deriving (Data, Show)
 
 
+data DeclarationWarning = DeclarationWarning
+  { dwFileLine :: AgdaSourceErrorLocation
+  , dwWarning  :: DeclarationWarning'
+  } deriving (Show, Data)
+
+declarationWarning' :: AgdaSourceErrorLocation -> DeclarationWarning' -> Nice ()
+declarationWarning' fl w = niceWarning (DeclarationWarning fl w)
+
+declarationWarning :: HasCallStack => DeclarationWarning' -> Nice ()
+declarationWarning w = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  declarationWarning' (AgdaSourceErrorLocation file line) w
+
 -- | Non-fatal errors encountered in the Nicifier.
-data DeclarationWarning
+data DeclarationWarning'
   -- Please keep in alphabetical order.
   = EmptyAbstract Range   -- ^ Empty @abstract@  block.
   | EmptyField Range      -- ^ Empty @field@     block.
@@ -235,7 +258,10 @@ data DeclarationWarning
   deriving (Data, Show)
 
 declarationWarningName :: DeclarationWarning -> WarningName
-declarationWarningName = \case
+declarationWarningName = declarationWarningName' . dwWarning
+
+declarationWarningName' :: DeclarationWarning' -> WarningName
+declarationWarningName' = \case
   -- Please keep in alphabetical order.
   EmptyAbstract{}                   -> EmptyAbstract_
   EmptyField{}                      -> EmptyField_
@@ -268,7 +294,10 @@ declarationWarningName = \case
 
 -- | Nicifier warnings turned into errors in @--safe@ mode.
 unsafeDeclarationWarning :: DeclarationWarning -> Bool
-unsafeDeclarationWarning = \case
+unsafeDeclarationWarning = unsafeDeclarationWarning' . dwWarning
+
+unsafeDeclarationWarning' :: DeclarationWarning' -> Bool
+unsafeDeclarationWarning' = \case
   -- Please keep in alphabetical order.
   EmptyAbstract{}                   -> False
   EmptyField{}                      -> False
@@ -310,6 +339,9 @@ data KindOfBlock
 
 
 instance HasRange DeclarationException where
+  getRange (DeclarationException _ err) = getRange err
+
+instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
@@ -323,6 +355,9 @@ instance HasRange DeclarationException where
   getRange (BadMacroDef d)                      = getRange d
 
 instance HasRange DeclarationWarning where
+  getRange (DeclarationWarning _ w) = getRange w
+
+instance HasRange DeclarationWarning' where
   getRange (UnknownNamesInFixityDecl xs)        = getRange xs
   getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
@@ -399,7 +434,7 @@ instance Pretty NiceDeclaration where
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
-instance Pretty DeclarationException where
+instance Pretty DeclarationException' where
   pretty (MultipleEllipses p) = fsep $
     pwords "Multiple ellipses in left-hand side" ++ [pretty p]
   pretty (InvalidName x) = fsep $
@@ -432,6 +467,9 @@ instance Pretty DeclarationException where
   pretty (DeclarationPanic s) = text s
 
 instance Pretty DeclarationWarning where
+  pretty (DeclarationWarning _ w) = pretty w
+
+instance Pretty DeclarationWarning' where
   pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):"
     ++ punctuate comma (map pretty xs)
@@ -579,7 +617,7 @@ combineTerminationChecks r tcs = loop tcs where
   loop :: [TerminationCheck] -> Nice TerminationCheck
   loop []         = return TerminationCheck
   loop (tc : tcs) = do
-    let failure r = throwError $ InvalidMeasureMutual r
+    let failure r = declarationException $ InvalidMeasureMutual r
     tc' <- loop tcs
     case (tc, tc') of
       (TerminationCheck      , tc'                   ) -> return tc'
@@ -708,7 +746,7 @@ addLoneSig r x k = do
     let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
     case mr of
       Nothing -> return s'
-      Just{}  -> throwError $ DuplicateDefinition x
+      Just{}  -> declarationException $ DuplicateDefinition x
   return x'
 
 -- | Remove a lone signature from the state.
@@ -734,7 +772,7 @@ forgetLoneSigs = loneSigs .= Map.empty
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs = do
   forgetLoneSigs
-  unless (Map.null xs) $ niceWarning $ MissingDefinitions $
+  unless (Map.null xs) $ declarationWarning $ MissingDefinitions $
     map (\s -> (loneSigName s , loneSigRange s)) $ Map.elems xs
 
 -- | Get names of lone function signatures, plus their unique names.
@@ -978,7 +1016,11 @@ niceDeclarations fixs ds = do
     nice1 :: [Declaration] -> Nice ([NiceDeclaration], [Declaration])
     nice1 []     = return ([], []) -- Andreas, 2017-09-16, issue #2759: no longer __IMPOSSIBLE__
     nice1 (d:ds) = do
-      let justWarning w = do niceWarning w; nice1 ds
+      let justWarning :: HasCallStack => DeclarationWarning' -> Nice ([NiceDeclaration], [Declaration])
+          justWarning w = do
+            withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+              declarationWarning' (AgdaSourceErrorLocation file line) w
+            nice1 ds
 
       case d of
 
@@ -1039,7 +1081,7 @@ niceDeclarations fixs ds = do
                return ([FunDef (getRange fits) fits ConcreteDef NotInstanceDef termCheck covCheck x' cs] , rest)
 
             -- case: clauses match more than one sigs (ambiguity)
-            xf:xfs -> throwError $ AmbiguousFunClauses lhs $ List1.reverse $ fmap fst $ xf :| xfs
+            xf:xfs -> declarationException $ AmbiguousFunClauses lhs $ List1.reverse $ fmap fst $ xf :| xfs
                  -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
         Field r [] -> justWarning $ EmptyField r
@@ -1158,7 +1200,7 @@ niceDeclarations fixs ds = do
         UnquoteDef r xs e -> do
           sigs <- map fst . loneFuns <$> use loneSigs
           List1.ifNotNull (filter (`notElem` sigs) xs)
-            {-then-} (throwError . UnquoteDefRequiresSignature)
+            {-then-} (declarationException . UnquoteDefRequiresSignature)
             {-else-} $ do
               mapM_ removeLoneSig xs
               return ([NiceUnquoteDef r PublicAccess ConcreteDef TerminationCheck YesCoverageCheck xs e] , ds)
@@ -1171,52 +1213,52 @@ niceDeclarations fixs ds = do
       if canHaveTerminationMeasure ds then
         withTerminationCheckPragma (TerminationMeasure r x) $ nice1 ds
       else do
-        niceWarning $ InvalidTerminationCheckPragma r
+        declarationWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
     nicePragma (TerminationCheckPragma r NoTerminationCheck) ds = do
       -- This PRAGMA has been deprecated in favour of (NON_)TERMINATING
       -- We warn the user about it and then assume the function is NON_TERMINATING.
-      niceWarning $ PragmaNoTerminationCheck r
+      declarationWarning $ PragmaNoTerminationCheck r
       nicePragma (TerminationCheckPragma r NonTerminating) ds
 
     nicePragma (TerminationCheckPragma r tc) ds =
       if canHaveTerminationCheckPragma ds then
         withTerminationCheckPragma tc $ nice1 ds
       else do
-        niceWarning $ InvalidTerminationCheckPragma r
+        declarationWarning $ InvalidTerminationCheckPragma r
         nice1 ds
 
     nicePragma (NoCoverageCheckPragma r) ds =
       if canHaveCoverageCheckPragma ds then
         withCoverageCheckPragma NoCoverageCheck $ nice1 ds
       else do
-        niceWarning $ InvalidCoverageCheckPragma r
+        declarationWarning $ InvalidCoverageCheckPragma r
         nice1 ds
 
     nicePragma (CatchallPragma r) ds =
       if canHaveCatchallPragma ds then
         withCatchallPragma True $ nice1 ds
       else do
-        niceWarning $ InvalidCatchallPragma r
+        declarationWarning $ InvalidCatchallPragma r
         nice1 ds
 
     nicePragma (NoPositivityCheckPragma r) ds =
       if canHaveNoPositivityCheckPragma ds then
         withPositivityCheckPragma NoPositivityCheck $ nice1 ds
       else do
-        niceWarning $ InvalidNoPositivityCheckPragma r
+        declarationWarning $ InvalidNoPositivityCheckPragma r
         nice1 ds
 
     nicePragma (NoUniverseCheckPragma r) ds =
       if canHaveNoUniverseCheckPragma ds then
         withUniverseCheckPragma NoUniverseCheck $ nice1 ds
       else do
-        niceWarning $ InvalidNoUniverseCheckPragma r
+        declarationWarning $ InvalidNoUniverseCheckPragma r
         nice1 ds
 
     nicePragma p@CompilePragma{} ds = do
-      niceWarning $ PragmaCompiled (getRange p)
+      declarationWarning $ PragmaCompiled (getRange p)
       return ([NicePragma (getRange p) p], ds)
 
     nicePragma (PolarityPragma{}) ds = return ([], ds)
@@ -1293,7 +1335,7 @@ niceDeclarations fixs ds = do
     defaultTypeSig k x t@Just{} = return t
     defaultTypeSig k x Nothing  = do
       caseMaybeM (getSig x) (return Nothing) $ \ k' -> do
-        unless (sameKind k k') $ throwError $ WrongDefinition x k' k
+        unless (sameKind k k') $ declarationException $ WrongDefinition x k' k
         Nothing <$ removeLoneSig x
 
     dataOrRec
@@ -1347,7 +1389,7 @@ niceDeclarations fixs ds = do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Pragma p@(RewritePragma r _ _) -> do
         return [ NicePragma r p ]
-      _ -> throwError $ WrongContentBlock b $ getRange d
+      _ -> declarationException $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
     toPrim (Axiom r p a i rel x t) = PrimitiveFunction r p a x (Arg rel t)
@@ -1380,7 +1422,7 @@ niceDeclarations fixs ds = do
                   (d :) <$> expand p ds
             FunClause (LHS p0 eqs es NoEllipsis) rhs wh ca -> do
               case hasEllipsis' p0 of
-                ManyHoles -> throwError $ MultipleEllipses p0
+                ManyHoles -> declarationException $ MultipleEllipses p0
                 OneHole cxt ~(EllipsisP r) -> do
                   -- Replace the ellipsis by @p@.
                   let p1 = cxt $ setRange r p
@@ -1404,10 +1446,10 @@ niceDeclarations fixs ds = do
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
     mkClauses x (Pragma (CatchallPragma r) : cs) True  = do
-      niceWarning $ InvalidCatchallPragma r
+      declarationWarning $ InvalidCatchallPragma r
       mkClauses x cs True
     mkClauses x (Pragma (CatchallPragma r) : cs) False = do
-      when (null cs) $ niceWarning $ InvalidCatchallPragma r
+      when (null cs) $ declarationWarning $ InvalidCatchallPragma r
       mkClauses x cs True
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall
@@ -1415,7 +1457,7 @@ niceDeclarations fixs ds = do
       (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
 
     mkClauses x (FunClause lhs rhs wh ca : cs) catchall = do
-      when (null withClauses) $ throwError $ MissingWithClauses x lhs
+      when (null withClauses) $ declarationException $ MissingWithClauses x lhs
       wcs <- mkClauses x withClauses False
       (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
@@ -1491,7 +1533,7 @@ niceDeclarations fixs ds = do
         --   -- Otherwise, only categorized signatures and definitions are allowed:
         --   -- Data, Record, Fun
         --   _ -> if (declKind d /= OtherDecl) then success
-        --        else Nothing <$ niceWarning (NotAllowedInMutual (getRange d) $ declName d)
+        --        else Nothing <$ declarationWarning (NotAllowedInMutual (getRange d) $ declName d)
         -- Sort the declarations in the mutual block.
         -- Declarations of names go to the top.  (Includes module definitions.)
         -- Definitions of names go to the bottom.
@@ -1500,7 +1542,7 @@ niceDeclarations fixs ds = do
         (top, bottom, invalid) <- forEither3M ds $ \ d -> do
           let top       = return (In1 d)
               bottom    = return (In2 d)
-              invalid s = In3 d <$ do niceWarning $ NotAllowedInMutual (getRange d) s
+              invalid s = In3 d <$ do declarationWarning $ NotAllowedInMutual (getRange d) s
           case d of
             -- Andreas, 2013-11-23 allow postulates in mutual blocks
             Axiom{}             -> top
@@ -1678,14 +1720,14 @@ niceDeclarations fixs ds = do
       let inherited = r == noRange
       if anyChange then return ds' else do
         -- hack to avoid failing on inherited abstract blocks in where clauses
-        unless inherited $ niceWarning $ UselessAbstract r
+        unless inherited $ declarationWarning $ UselessAbstract r
         return ds -- no change!
 
     privateBlock _ _ [] = return []
     privateBlock r o ds = do
       (ds', anyChange) <- runChangeT $ mkPrivate o ds
       if anyChange then return ds' else do
-        when (o == UserWritten) $ niceWarning $ UselessPrivate r
+        when (o == UserWritten) $ declarationWarning $ UselessPrivate r
         return ds -- no change!
 
     instanceBlock
@@ -1696,7 +1738,7 @@ niceDeclarations fixs ds = do
     instanceBlock r ds = do
       let (ds', anyChange) = runChange $ mapM (mkInstance r) ds
       if anyChange then return ds' else do
-        niceWarning $ UselessInstance r
+        declarationWarning $ UselessInstance r
         return ds -- no change!
 
     -- Make a declaration eligible for instance search.
@@ -1738,7 +1780,7 @@ niceDeclarations fixs ds = do
     mkMacro = \case
         FunSig r p a i _ rel tc cc x e -> return $ FunSig r p a i MacroDef rel tc cc x e
         d@FunDef{}                     -> return d
-        d                              -> throwError (BadMacroDef d)
+        d                              -> declarationException (BadMacroDef d)
 
 -- | Make a declaration abstract.
 --
@@ -1790,7 +1832,7 @@ instance MakeAbstract NiceDeclaration where
       d@NiceModuleMacro{}            -> return d
       d@NicePragma{}                 -> return d
       d@(NiceOpen _ _ directives)              -> do
-        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicAbstract
+        whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicAbstract
         return d
       d@NiceImport{}                 -> return d
       d@NicePatternSyn{}             -> return d
@@ -1850,7 +1892,7 @@ instance MakePrivate NiceDeclaration where
       NiceGeneralize r p i tac x t             -> (\ p -> NiceGeneralize r p i tac x t)         <$> mkPrivate o p
       d@NicePragma{}                           -> return d
       d@(NiceOpen _ _ directives)              -> do
-        whenJust (publicOpen directives) $ lift . niceWarning . OpenPublicPrivate
+        whenJust (publicOpen directives) $ lift . declarationWarning . OpenPublicPrivate
         return d
       d@NiceImport{}                           -> return d
       -- Andreas, 2016-07-08, issue #2089

@@ -4,7 +4,6 @@
 
 module Agda.TypeChecking.Errors
   ( prettyError
-  , prettyWarning
   , tcErrString
   , prettyTCWarnings'
   , prettyTCWarnings
@@ -100,7 +99,7 @@ nameWithBinding q =
 
 tcErrString :: TCErr -> String
 tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
-  TypeError _ cl    -> errorString $ clValue cl
+  TypeError _ _ cl  -> errorString $ clValue cl
   Exception r s     -> prettyShow r ++ " " ++ show s
   IOException _ r e -> prettyShow r ++ " " ++ show e
   PatternErr{}      -> "PatternErr"
@@ -261,11 +260,14 @@ instance PrettyTCM TCErr where
     -- Gallais, 2016-05-14
     -- Given where `NonFatalErrors` are created, we know for a
     -- fact that ̀ws` is non-empty.
-    TypeError _ Closure{ clValue = NonFatalErrors ws } -> foldr1 ($$) $ fmap prettyTCM ws
+    TypeError fl _ Closure{ clValue = NonFatalErrors ws } -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+      foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
-    TypeError s e -> withTCState (const s) $
+    TypeError fl s e -> withTCState (const s) $ do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ show e
@@ -768,7 +770,7 @@ instance PrettyTCM TypeError where
 
     NotInScope xs ->
       -- using the warning version to avoid code duplication
-      prettyTCM (NotInScopeW xs)
+      prettyWarning (NotInScopeW xs)
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 

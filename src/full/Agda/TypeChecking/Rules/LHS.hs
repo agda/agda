@@ -10,6 +10,7 @@ module Agda.TypeChecking.Rules.LHS
   ) where
 
 import Prelude hiding ( null )
+import GHC.Stack ( HasCallStack, callStack, freezeCallStack )
 
 import Data.Function (on)
 import Data.Maybe
@@ -1395,14 +1396,16 @@ suspendErrors f = do
 
 -- | A more direct implementation of the specification
 --   @softTypeError err == suspendErrors (typeError err)@
-softTypeError :: (ReadTCState m, MonadError TCErr m, MonadTCEnv m) => TypeError -> m a
-softTypeError err = throwError =<< typeError_ err
+softTypeError :: (HasCallStack, ReadTCState m, MonadError TCErr m, MonadTCEnv m) => TypeError -> m a
+softTypeError err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  throwError =<< typeError' (AgdaSourceErrorLocation file line) err
 
 -- | A convenient alias for @liftTCM . typeError@. Throws the error directly
 --   in the TCM even if there is a surrounding monad also implementing
 --   @MonadError TCErr@.
-hardTypeError :: (MonadTCM m) => TypeError -> m a
-hardTypeError = liftTCM . typeError
+hardTypeError :: (HasCallStack, MonadTCM m) => TypeError -> m a
+hardTypeError = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  liftTCM . typeError' (AgdaSourceErrorLocation file line)
 
 data DataOrRecord
   = IsData

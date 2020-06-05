@@ -8,7 +8,8 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
+import Agda.Syntax.Common (AgdaSourceErrorLocation(..))
+import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
@@ -19,9 +20,12 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
-instance EmbPrj TCWarning where
-  icod_ (TCWarning a b c d) = icodeN' TCWarning a b c d
+instance EmbPrj AgdaSourceErrorLocation where
+  icod_ (AgdaSourceErrorLocation a b) = icodeN' AgdaSourceErrorLocation a b
+  value = valueN AgdaSourceErrorLocation
 
+instance EmbPrj TCWarning where
+  icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
   value = valueN TCWarning
 
 -- We don't need to serialise warnings that turn into errors
@@ -127,6 +131,12 @@ instance EmbPrj RecordFieldWarning where
     _ -> malformed
 
 instance EmbPrj DeclarationWarning where
+  icod_ (DeclarationWarning a b) = icodeN' DeclarationWarning a b
+  value = vcase $ \case
+    [a, b] -> valuN DeclarationWarning a b
+    _ -> malformed
+
+instance EmbPrj DeclarationWarning' where
   icod_ = \case
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
