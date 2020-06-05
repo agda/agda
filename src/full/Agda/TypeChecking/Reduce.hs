@@ -40,6 +40,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -670,7 +671,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- treatAbstractly f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
+        "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
@@ -683,7 +684,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red

@@ -1357,7 +1357,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | otherwise            = runReduce $
-          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ show f)
+          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
                    __IMPOSSIBLE__
 
     -- Some helper functions to build machine states and closures.

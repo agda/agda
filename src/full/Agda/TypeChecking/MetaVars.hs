@@ -1487,7 +1487,7 @@ openMetasToPostulates = do
       -- Create a name for the new postulate.
       let r = clValue $ miClosRange $ mvInfo mv
       -- s <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
-      let s = "unsolved#meta." ++ show x
+      let s = "unsolved#meta." ++ prettyShow x
       n <- freshName r s
       let q = A.QName m n
 

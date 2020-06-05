@@ -51,6 +51,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
@@ -972,7 +973,7 @@ compareElims pols0 fors0 a v els01 els02 =
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> "/=" <+> prettyTCM f'
+      | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
       | otherwise -> ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
@@ -984,7 +985,7 @@ compareElims pols0 fors0 a v els01 els02 =
             compareElims [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
-              [ text $ "projection " ++ show f
+              [ text $ "projection " ++ prettyShow f
               , text   "applied to value " <+> prettyTCM v
               , text   "of unexpected type " <+> prettyTCM a
               ]
