@@ -399,24 +399,24 @@ warningHighlighting w = case tcWarning w of
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
   UnsolvedConstraints cs     -> constraintsHighlighting cs
   UnsolvedMetaVariables rs   -> metasHighlighting rs
-  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting $ getRange w
-  ModuleDoesntExport{}         -> deadcodeHighlighting $ getRange w
+  AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
+  ModuleDoesntExport{}         -> deadcodeHighlighting w
   FixityInRenamingModule rs    -> foldMap deadcodeHighlighting rs
   -- expanded catch-all case to get a warning for new constructors
   CantGeneralizeOverSorts{}  -> mempty
   UnsolvedInteractionMetas{} -> mempty
   OldBuiltin{}               -> mempty
-  EmptyRewritePragma{}       -> deadcodeHighlighting $ getRange w
-  EmptyWhere{}               -> deadcodeHighlighting $ getRange w
-  IllformedAsClause{}        -> deadcodeHighlighting $ getRange w
-  UselessPublic{}            -> deadcodeHighlighting $ getRange w
+  EmptyRewritePragma{}       -> deadcodeHighlighting w
+  EmptyWhere{}               -> deadcodeHighlighting w
+  IllformedAsClause{}        -> deadcodeHighlighting w
+  UselessPublic{}            -> deadcodeHighlighting w
   UselessInline{}            -> mempty
-  UselessPatternDeclarationForRecord{} -> deadcodeHighlighting $ getRange w
-  ClashesViaRenaming _ xs    -> foldMap (deadcodeHighlighting . getRange) xs
+  UselessPatternDeclarationForRecord{} -> deadcodeHighlighting w
+  ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs
     -- #4154, TODO: clashing renamings are not dead code, but introduce problems.
     -- Should we have a different color?
   WrongInstanceDeclaration{} -> mempty
-  InstanceWithExplicitArg{}  -> deadcodeHighlighting $ getRange w
+  InstanceWithExplicitArg{}  -> deadcodeHighlighting w
   InstanceNoOutputTypeName{} -> mempty
   InstanceArgWithExplicitArg{} -> mempty
   ParseWarning{}             -> mempty
@@ -443,40 +443,40 @@ warningHighlighting w = case tcWarning w of
   DeprecationWarning{}       -> mempty
   UserWarning{}              -> mempty
   LibraryWarning{}           -> mempty
-  RewriteNonConfluent{}      -> confluenceErrorHighlighting $ getRange w
-  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting $ getRange w
-  PragmaCompileErased{}      -> deadcodeHighlighting $ getRange w
-  NotInScopeW{}              -> deadcodeHighlighting $ getRange w
+  RewriteNonConfluent{}      -> confluenceErrorHighlighting w
+  RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
+  PragmaCompileErased{}      -> deadcodeHighlighting w
+  NotInScopeW{}              -> deadcodeHighlighting w
   AsPatternShadowsConstructorOrPatternSynonym{}
-                             -> deadcodeHighlighting $ getRange w
+                             -> deadcodeHighlighting w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.
-    NotAllowedInMutual{}             -> deadcodeHighlighting $ getRange w
-    EmptyAbstract{}                  -> deadcodeHighlighting $ getRange w
-    EmptyInstance{}                  -> deadcodeHighlighting $ getRange w
-    EmptyMacro{}                     -> deadcodeHighlighting $ getRange w
-    EmptyMutual{}                    -> deadcodeHighlighting $ getRange w
-    EmptyPostulate{}                 -> deadcodeHighlighting $ getRange w
-    EmptyPrimitive{}                 -> deadcodeHighlighting $ getRange w
-    EmptyPrivate{}                   -> deadcodeHighlighting $ getRange w
-    EmptyGeneralize{}                -> deadcodeHighlighting $ getRange w
-    EmptyField{}                     -> deadcodeHighlighting $ getRange w
-    UselessAbstract{}                -> deadcodeHighlighting $ getRange w
-    UselessInstance{}                -> deadcodeHighlighting $ getRange w
-    UselessPrivate{}                 -> deadcodeHighlighting $ getRange w
-    InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting $ getRange w
-    InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting $ getRange w
-    InvalidTerminationCheckPragma{}  -> deadcodeHighlighting $ getRange w
-    InvalidCoverageCheckPragma{}     -> deadcodeHighlighting $ getRange w
-    OpenPublicAbstract{}             -> deadcodeHighlighting $ getRange w
-    OpenPublicPrivate{}              -> deadcodeHighlighting $ getRange w
+    NotAllowedInMutual{}             -> deadcodeHighlighting w
+    EmptyAbstract{}                  -> deadcodeHighlighting w
+    EmptyInstance{}                  -> deadcodeHighlighting w
+    EmptyMacro{}                     -> deadcodeHighlighting w
+    EmptyMutual{}                    -> deadcodeHighlighting w
+    EmptyPostulate{}                 -> deadcodeHighlighting w
+    EmptyPrimitive{}                 -> deadcodeHighlighting w
+    EmptyPrivate{}                   -> deadcodeHighlighting w
+    EmptyGeneralize{}                -> deadcodeHighlighting w
+    EmptyField{}                     -> deadcodeHighlighting w
+    UselessAbstract{}                -> deadcodeHighlighting w
+    UselessInstance{}                -> deadcodeHighlighting w
+    UselessPrivate{}                 -> deadcodeHighlighting w
+    InvalidNoPositivityCheckPragma{} -> deadcodeHighlighting w
+    InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
+    InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
+    InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
+    OpenPublicAbstract{}             -> deadcodeHighlighting w
+    OpenPublicPrivate{}              -> deadcodeHighlighting w
     W.ShadowingInTelescope nrs       -> foldMap
                                           (shadowingTelHighlighting . snd)
                                           nrs
-    MissingDefinitions{}             -> missingDefinitionHighlighting $ getRange w
+    MissingDefinitions{}             -> missingDefinitionHighlighting w
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty
     PolarityPragmasButNotPostulates{} -> mempty
@@ -492,7 +492,7 @@ recordFieldWarningHighlighting = \case
   TooManyFieldsWarning _q _ys xrs -> dead xrs
   where
   dead :: [(C.Name, Range)] -> File
-  dead = mconcat . map (deadcodeHighlighting . getRange)
+  dead = mconcat . map deadcodeHighlighting
   -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
   -- dead = mconcat . map f
   -- f (x, r) = deadcodeHighlighting (getRange x) `mappend` deadcodeHighlighting r
@@ -519,8 +519,8 @@ positivityErrorHighlighting q os =
     rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
-deadcodeHighlighting :: Range -> File
-deadcodeHighlighting r = H.singleton (rToR $ P.continuous r) m
+deadcodeHighlighting :: HasRange a => a -> File
+deadcodeHighlighting a = H.singleton (rToR $ P.continuous $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
 coverageErrorHighlighting :: Range -> File
@@ -540,12 +540,12 @@ catchallHighlighting :: Range -> File
 catchallHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
-confluenceErrorHighlighting :: Range -> File
-confluenceErrorHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
+confluenceErrorHighlighting :: HasRange a => a -> File
+confluenceErrorHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
-missingDefinitionHighlighting :: Range -> File
-missingDefinitionHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
+missingDefinitionHighlighting :: HasRange a => a -> File
+missingDefinitionHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton MissingDefinition }
 
 -- | Generates and prints syntax highlighting information for unsolved
