@@ -142,7 +142,7 @@ $(Tests) : %.cmp : %.out
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			wdiff $*.out $*.tmp | colordiff; \
-			echo -n "Accept new error [y/N/q]? "; \
+			echo -n "Accept new error [y(es)/n(o)/Q(uit)] (default: no)? "; \
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
@@ -150,7 +150,7 @@ $(Tests) : %.cmp : %.out
 			       rm -f $*.tmp; \
                                rm -rf $(TMPDIR); \
 			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
-			       [ "X$$REPLY" != "Xq" ]; \
+			       [ "X$$REPLY" != "XQ" ]; \
 			  else echo "Replacing output, continuing..."; \
 			    mv $*.tmp $*.out; \
 			    true; \
