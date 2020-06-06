@@ -38,7 +38,7 @@ module Agda.Syntax.Concrete
   , TypeSignature
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
-  , Renaming
+  , Renaming, RenamingDirective, HidingDirective
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
@@ -349,6 +349,8 @@ data ExprWhere = ExprWhere Expr WhereClause
 type ImportDirective = ImportDirective' Name Name
 type Using           = Using'           Name Name
 type Renaming        = Renaming'        Name Name
+type RenamingDirective = RenamingDirective' Name Name
+type HidingDirective   = HidingDirective'   Name Name  -- 'Hiding' is already taken
 
 -- | An imported name can be a module or a defined name.
 type ImportedName = ImportedName' Name Name

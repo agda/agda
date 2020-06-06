@@ -13,6 +13,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
+import Control.Applicative ((<|>))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -2224,11 +2225,14 @@ instance LensFixity' Fixity' where
 data ImportDirective' n m = ImportDirective
   { importDirRange :: Range
   , using          :: Using' n m
-  , hiding         :: [ImportedName' n m]
-  , impRenaming    :: [Renaming' n m]
+  , hiding         :: HidingDirective' n m
+  , impRenaming    :: RenamingDirective' n m
   , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
+
+type HidingDirective'   n m = [ImportedName' n m]
+type RenamingDirective' n m = [Renaming' n m]
 
 -- | @null@ for import directives holds when everything is imported unchanged
 --   (no names are hidden or renamed).
@@ -2237,6 +2241,19 @@ instance Null (ImportDirective' n m) where
     ImportDirective _ UseEverything [] [] _ -> True
     _ -> False
   empty = defaultImportDir
+
+instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+  i1 <> i2 = ImportDirective
+    { importDirRange = fuseRange i1 i2
+    , using          = using i1 <> using i2
+    , hiding         = hiding i1 ++ hiding i2
+    , impRenaming    = impRenaming i1 ++ impRenaming i2
+    , publicOpen     = publicOpen i1 <|> publicOpen i2
+    }
+
+instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+  mempty  = empty
+  mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m

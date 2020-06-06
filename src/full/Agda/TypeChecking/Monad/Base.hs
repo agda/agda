@@ -3108,6 +3108,8 @@ data Warning
     --   `old` is deprecated, use `new` instead. This will be an error in Agda `version`.
   | UserWarning Text
     -- ^ User-defined warning (e.g. to mention that a name is deprecated)
+  | DuplicateUsing (List1 C.ImportedName)
+    -- ^ Duplicate mentions of the same name in @using@ directive(s).
   | FixityInRenamingModule (List1 Range)
     -- ^ Fixity of modules cannot be changed via renaming (since modules have no fixity).
   | ModuleDoesntExport C.QName [C.Name] [C.Name] [C.ImportedName]
@@ -3168,6 +3170,7 @@ warningName = \case
   InstanceWithExplicitArg{}    -> InstanceWithExplicitArg_
   InstanceNoOutputTypeName{}   -> InstanceNoOutputTypeName_
   InstanceArgWithExplicitArg{} -> InstanceArgWithExplicitArg_
+  DuplicateUsing{}             -> DuplicateUsing_
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   GenericNonFatalError{}       -> GenericNonFatalError_
   GenericWarning{}             -> GenericWarning_

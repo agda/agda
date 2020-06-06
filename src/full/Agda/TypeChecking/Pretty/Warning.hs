@@ -33,6 +33,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
@@ -242,6 +243,8 @@ prettyWarning = \case
       ms            = map ImportedModule ms0
       (ys0, ms0)    = partitionImportedNames xs
       suggestion zs = maybe empty parens . didYouMean (map C.QName zs) fromImportedName
+
+    DuplicateUsing xs -> fsep $ pwords "Duplicates in `using` directive:" ++ map pretty (List1.toList xs)
 
     FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 

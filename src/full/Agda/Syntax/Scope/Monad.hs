@@ -698,6 +698,26 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
+-- Moved here carefully from Parser.y to preserve the archaeological artefact
+-- dating from Oct 2005 (5ba14b647b9bd175733f9563e744176425c39126).
+-- | Check that an import directive doesn't contain repeated names.
+verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
+verifyImportDirective usn hdn ren =
+    case filter ((>1) . length)
+         $ List.group
+         $ List.sort xs
+    of
+        []  -> return ()
+        yss -> setCurrentRange yss $ genericError $
+                "Repeated name" ++ s ++ " in import directive: " ++
+                concat (List.intersperse ", " $ map (prettyShow . head) yss)
+            where
+                s = case yss of
+                        [_] -> ""
+                        _   -> "s"
+    where
+        xs = usn ++ hdn ++ map renFrom ren
+
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 --
@@ -713,9 +733,18 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
 
+    -- Andreas, 2020-06-06, issue #4707
+    -- Duplicates in @using@ directive are dropped with a warning.
+    usingList <- discardDuplicatesInUsing usn'
+
+    -- The following check was originally performed by the parser.
+    -- The Great Ulf Himself added the check back in the dawn of time
+    -- (5ba14b647b9bd175733f9563e744176425c39126)
+    -- when Agda 2 wasn't even believed to exist yet.
+    verifyImportDirective usingList hdn' ren'
+
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
-    let usingList = fromUsing usn'
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
       reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
@@ -775,11 +804,16 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
-    -- | Names in the @using@ directive
-    fromUsing :: Using' a b -> [ImportedName' a b]
-    fromUsing = \case
-      Using  xs     -> xs
-      UseEverything -> []
+
+    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Monadic for the sake of throwing warnings.
+    discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
+    discardDuplicatesInUsing = \case
+      UseEverything -> return []
+      Using  xs     -> do
+        let (ys, dups) = nubAndDuplicatesOn id xs
+        List1.unlessNull dups $ warning . DuplicateUsing
+        return ys
 
     -- | If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.

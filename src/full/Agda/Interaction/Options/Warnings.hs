@@ -181,6 +181,7 @@ data WarningName
   | CoverageIssue_
   | CoverageNoExactSplit_
   | DeprecationWarning_
+  | DuplicateUsing_
   | FixityInRenamingModule_
   | GenericNonFatalError_
   | GenericWarning_
@@ -331,6 +332,7 @@ warningNameDescription = \case
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
+  DuplicateUsing_                  -> "Repeated names in using directive."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."

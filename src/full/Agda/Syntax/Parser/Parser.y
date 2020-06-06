@@ -1000,12 +1000,9 @@ DoWhere
 
 -- Import directives
 ImportDirective :: { ImportDirective }
-ImportDirective : ImportDirectives {% mergeImportDirectives $1 }
-
-ImportDirectives :: { [ImportDirective] }
-ImportDirectives
-  : ImportDirective1 ImportDirectives { $1 : $2 }
-  | {- empty -}                       { [] }
+ImportDirective
+  : ImportDirective1 ImportDirective { $1 <> $2 }
+  | {- empty -}                      { mempty }
 
 ImportDirective1 :: { ImportDirective }
   : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = Just (getRange $1) } }
@@ -2075,41 +2072,6 @@ buildDoStmt e@(RawApp r _)    cs = do
     Nothing -> defaultBuildDoStmt e cs
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
-
-mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
-mergeImportDirectives is = do
-  i <- foldl merge (return defaultImportDir) is
-  verifyImportDirective i
-  where
-    merge mi i2 = do
-      i1 <- mi
-      let err = parseError' (rStart' $ getRange i2) "Cannot mix using and hiding module directives"
-      return $ ImportDirective
-        { importDirRange = fuseRange i1 i2
-        , using          = using i1 <> using i2
-        , hiding         = hiding i1 ++ hiding i2
-        , impRenaming    = impRenaming i1 ++ impRenaming i2
-        , publicOpen     = publicOpen i1 <|> publicOpen i2 }
-
--- | Check that an import directive doesn't contain repeated names
-verifyImportDirective :: ImportDirective -> Parser ImportDirective
-verifyImportDirective i =
-    case filter ((>1) . length)
-         $ List.group
-         $ List.sort xs
-    of
-        []  -> return i
-        yss -> parseErrorRange (head $ concat yss) $
-                "Repeated name" ++ s ++ " in import directive: " ++
-                concat (List.intersperse ", " $ map (prettyShow . head) yss)
-            where
-                s = case yss of
-                        [_] -> ""
-                        _   -> "s"
-    where
-        xs = names (using i) ++ hiding i ++ map renFrom (impRenaming i)
-        names (Using xs)    = xs
-        names UseEverything = []
 
 data RecordDirective
    = Induction (Ranged Induction)
