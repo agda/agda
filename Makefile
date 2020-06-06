@@ -43,11 +43,25 @@ STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
 # installation for avoiding recompilation (see Issue #2083 and
 # https://github.com/haskell/cabal/issues/1893).
 
+# quicker install: -O0, no tests
+
 QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
 QUICK_STACK_BUILD_DIR = .stack-work-quick
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR)
+
+# fast install: -O0, but tests
+
+FAST_BUILD_DIR       = $(BUILD_DIR)-fast
+FAST_STACK_BUILD_DIR = .stack-work-fast
+
+FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
+                     --enable-tests --ghc-options=-O0 --program-suffix=-fast
+FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
+                     --test --no-run-tests --fast
+
+# ordinary install: optimizations and tests
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
@@ -101,6 +115,20 @@ else
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+endif
+
+.PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
+fast-install-bin:
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo "============= Installing using Stack with -O0 and test suites ============"
+	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+else
+# `cabal new-install --enable-tests` emits the error message (bug?):
+# cabal: --enable-tests was specified, but tests can't be enabled in a remote package
+	@echo "============= Installing using Cabal with -O0 and test suites ============"
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
 # Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
