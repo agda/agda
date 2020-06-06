@@ -690,7 +690,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
 checkNoFixityInRenamingModule ren = do
   whenJust (nonEmpty $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
-    traceCall (SetRange $ getRange rs) $ do
+    setCurrentRange rs $ do
       warning $ FixityInRenamingModule rs
   where
   rangeOfUselessInfix :: C.Renaming -> Maybe Range

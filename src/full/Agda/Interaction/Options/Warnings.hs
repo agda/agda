@@ -332,7 +332,7 @@ warningNameDescription = \case
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
-  NotInScope_                      -> "Out of scope name"
+  NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
