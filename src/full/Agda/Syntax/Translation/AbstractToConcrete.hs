@@ -72,7 +72,7 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|), (<|) )
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -1425,16 +1425,15 @@ getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
-cOpApp r x n es1 =
-  C.OpApp r x (Set.singleton n) $ map (defaultNamedArg . placeholder) eps
+cOpApp r x n es =
+  C.OpApp r x (Set.singleton n) $ fmap (defaultNamedArg . placeholder) eps
   where
-    es = List1.toList es1
     x0 = C.unqualify x
-    positions | isPrefix  x0 =             [ Middle | _ <- drop 1 es ] ++ [End]
-              | isPostfix x0 = Beginning : [ Middle | _ <- drop 1 es ]
-              | isInfix x0   = Beginning : [ Middle | _ <- drop 2 es ] ++ [End]
-              | otherwise    =             [ Middle | _ <- es ]
-    eps = zip es positions
+    positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
+              | isPostfix x0 = Beginning :| (const Middle <$> List1.drop 1 es)
+              | isInfix x0   = Beginning :| (const Middle <$> List1.drop 2 es) ++ [ End ]
+              | otherwise    =               const Middle <$> es
+    eps = List1.zip es positions
     placeholder (YesSection , pos ) = Placeholder pos
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
 
@@ -1486,7 +1485,7 @@ tryToRecoverOpAppP p = do
     ]
   return res
   where
-    opApp r x n ps = C.OpAppP r x (Set.singleton n) $ List1.toList $
+    opApp r x n ps = C.OpAppP r x (Set.singleton n) $
       fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
       -- `view` does not generate any `Nothing`s
 

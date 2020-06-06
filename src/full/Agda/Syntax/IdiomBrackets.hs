@@ -12,7 +12,9 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.List1  ( List1, pattern (:|), (<|) )
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
 
 parseIdiomBracketsSeq :: Range -> [Expr] -> ScopeM Expr
 parseIdiomBracketsSeq r es = do
@@ -36,16 +38,15 @@ parseIdiomBrackets r e = do
   mapM_ ensureInScope [qPure, qAp]
   case e of
     RawApp _ es -> do
-      e : es <- appViewM =<< parseApplication es
+      e :| es <- appViewM =<< parseApplication es
       return $ foldl eAp (ePure e) es
     _ -> return $ ePure e
 
-appViewM :: Expr -> ScopeM [Expr]
-appViewM e =
-  case e of
-    App{}           -> let AppView e' es = appView e in (e' :) <$> mapM onlyVisible es
-    OpApp _ op _ es -> (Ident op :) <$> mapM (ordinary <=< noPlaceholder <=< onlyVisible) es
-    _               -> return [e]
+appViewM :: Expr -> ScopeM (List1 Expr)
+appViewM = \case
+    e@App{}         -> let AppView e' es = appView e in (e' :|) <$> mapM onlyVisible es
+    OpApp _ op _ es -> (Ident op <|) <$> mapM (ordinary <=< noPlaceholder <=< onlyVisible) es
+    e               -> return $ singleton e
   where
     onlyVisible a
       | defaultNamedArg () == fmap (() <$) a = return $ namedArg a

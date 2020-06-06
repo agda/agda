@@ -16,9 +16,11 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.List1  ( List1 )
+import Agda.Utils.List1  ( List1, (<|) )
 import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton
+import qualified Agda.Utils.List1 as List1
 
 
 -- | Check for ellipsis @...@.
@@ -352,7 +354,7 @@ reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
 reintroduceEllipsis NoEllipsis p = p
 reintroduceEllipsis (ExpandedEllipsis r k) p =
   let core  = EllipsisP r
-      wargs = snd $ splitEllipsis k $ patternAppView p
+      wargs = snd $ splitEllipsis k $ List1.toList $ patternAppView p
   in foldl AppP core wargs
 
 splitEllipsis :: (IsWithP p) => Int -> [p] -> ([p],[p])
@@ -371,10 +373,10 @@ splitEllipsis k (p:ps)
 --   (in most cases a constructor).
 --
 --  Pattern needs to be parsed already (operators resolved).
-patternAppView :: Pattern -> [NamedArg Pattern]
+patternAppView :: Pattern -> List1 (NamedArg Pattern)
 patternAppView = \case
-    AppP p arg      -> patternAppView p ++ [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) : ps
+    AppP p arg      -> patternAppView p `List1.append` [arg]
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) <| ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__
-    p               -> [ defaultNamedArg p ]
+    p               -> singleton $ defaultNamedArg p
