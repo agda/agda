@@ -620,7 +620,7 @@ defineProjections dataName con params names fsT t = do
 
 
 freshAbstractQName'_ :: String -> TCM QName
-freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
+freshAbstractQName'_ = freshAbstractQName noFixity' . C.simpleName
 
 
 -- * Special cases of Type

@@ -16,8 +16,8 @@ import Agda.Utils.Pretty ( prettyShow )
 
 parseIdiomBracketsSeq :: Range -> [Expr] -> ScopeM Expr
 parseIdiomBracketsSeq r es = do
-  let qEmpty = QName $ Name noRange InScope [Id "empty"]
-      qPlus  = QName $ Name noRange InScope [Hole, Id "<|>", Hole]
+  let qEmpty = QName $ simpleName "empty"
+      qPlus  = QName $ simpleBinaryOperator "<|>"
       ePlus a b = App r (App r (Ident qPlus) (defaultNamedArg a)) (defaultNamedArg b)
   case es of
     []       -> ensureInScope qEmpty >> return (Ident qEmpty)
@@ -29,8 +29,8 @@ parseIdiomBracketsSeq r es = do
 
 parseIdiomBrackets :: Range -> Expr -> ScopeM Expr
 parseIdiomBrackets r e = do
-  let qPure = QName $ Name noRange InScope [Id "pure"]
-      qAp   = QName $ Name noRange InScope [Hole, Id "<*>", Hole]
+  let qPure = QName $ simpleName "pure"
+      qAp   = QName $ simpleBinaryOperator "<*>"
       ePure   = App r (Ident qPure) . defaultNamedArg
       eAp a b = App r (App r (Ident qAp) (defaultNamedArg a)) (defaultNamedArg b)
   mapM_ ensureInScope [qPure, qAp]

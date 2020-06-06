@@ -631,9 +631,9 @@ isAbsurdP = \case
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
   IdentP qn  -> mkBinder_ <$> isUnqualified qn
-  WildP r    -> pure $ mkBinder_ (Name r InScope [Hole])
-  AsP r n p  -> pure $ Binder (Just p) (mkBoundName_ n)
-  ParenP r p -> pure $ Binder (Just p) (mkBoundName_ $ Name r InScope [Hole])
+  WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
+  AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
+  ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
   _ -> Nothing
 
 {--------------------------------------------------------------------------

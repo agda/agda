@@ -26,7 +26,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Arrow (first)
+import Control.Arrow ((&&&), first)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -315,7 +315,7 @@ lookupQName ambCon x = do
       qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
-lookupModule (A.MName []) = return $ C.QName $ C.Name noRange InScope [Id "-1"]
+lookupModule (A.MName []) = return $ C.QName $ C.simpleName "-1"
   -- Andreas, 2016-10-10 it can happen that we have an empty module name
   -- for instance when we query the current module inside the
   -- frontmatter or module telescope of the top level module.
@@ -1424,11 +1424,11 @@ getHead (Con c)          = Just (HdCon $ headAmbQ c)
 getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
-cOpApp :: Range -> C.QName -> A.Name -> [MaybeSection C.Expr] -> C.Expr
-cOpApp r x n es =
-  C.OpApp r x (Set.singleton n)
-          (map (defaultNamedArg . placeholder) eps)
+cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
+cOpApp r x n es1 =
+  C.OpApp r x (Set.singleton n) $ map (defaultNamedArg . placeholder) eps
   where
+    es = List1.toList es1
     x0 = C.unqualify x
     positions | isPrefix  x0 =             [ Middle | _ <- drop 1 es ] ++ [End]
               | isPostfix x0 = Beginning : [ Middle | _ <- drop 1 es ]
@@ -1486,8 +1486,8 @@ tryToRecoverOpAppP p = do
     ]
   return res
   where
-    opApp r x n ps = C.OpAppP r x (Set.singleton n) $
-      map (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+    opApp r x n ps = C.OpAppP r x (Set.singleton n) $ List1.toList $
+      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
       -- `view` does not generate any `Nothing`s
 
     appInfo = defaultAppInfo_
@@ -1503,7 +1503,7 @@ tryToRecoverOpAppP p = do
 recoverOpApp :: forall a c . (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for lambdas
-  -> (Range -> C.QName -> A.Name -> [MaybeSection c] -> c)
+  -> (Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
   -> (a -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, a))]))
   -> a
   -> AbsToCon (Maybe c)
@@ -1545,57 +1545,50 @@ recoverOpApp bracket isLam opApp view e = case view e of
             ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
-    doQName fx x n' args (C.nameParts $ C.unqualify x)
+    List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
+      doQName fx x n' as (C.nameParts $ C.unqualify x)
 
-  doQName :: Fixity -> C.QName -> A.Name -> [MaybeSection (AppInfo, a)] -> [NamePart] -> AbsToCon (Maybe c)
+  doQName :: Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> AbsToCon (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
-  doQName _ x _ es xs
-    | null es                 = mDefault
-    | length es /= numHoles x = mDefault
+  doQName _ x _ as xs
+    | length as /= numHoles x = mDefault
 
   -- binary case
-  doQName fixity x n as xs
-    | Hole <- head xs
-    , Hole <- last xs = do
-        let a1  = head as
-            an  = last as
-            as' = case as of
-                    as@(_ : _ : _) -> init $ tail as
-                    _              -> __IMPOSSIBLE__
+  doQName fixity x n (a1 :| as) xs
+    | Hole <- List1.head xs
+    , Hole <- List1.last xs = do
+        let (as', an) = List1.ifNull as {-then-} __IMPOSSIBLE__ {-else-} List1.initLast
         Just <$> do
           bracket (opBrackets' (skipParens an) fixity) $ do
             e1 <- traverse (toConcreteCtx (LeftOperandCtx fixity) . snd) a1
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (uncurry $ toConcreteCtx . RightOperandCtx fixity . appParens) an
-            return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
+            return $ opApp (getRange (e1, en)) x n (e1 :| es ++ [en])
 
   -- prefix
   doQName fixity x n as xs
-    | Hole <- last xs = do
-        let an  = last as
-            as' = case as of
-                    as@(_ : _) -> init as
-                    _          -> __IMPOSSIBLE__
+    | Hole <- List1.last xs = do
+        let (as', an) = List1.initLast as
         Just <$> do
           bracket (opBrackets' (skipParens an) fixity) $ do
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (\ (i, e) -> toConcreteCtx (RightOperandCtx fixity $ appParens i) e) an
-            return $ opApp (getRange (n, en)) x n (es ++ [en])
+            return $ opApp (getRange (n, en)) x n (List1.snoc es en)
 
   -- postfix
   doQName fixity x n as xs
-    | Hole <- head xs = do
-        let a1  = head as
-            as' = tail as
+    | Hole <- List1.head xs = do
+        let a1  = List1.head as
+            as' = List1.tail as
         e1 <- traverse (toConcreteCtx (LeftOperandCtx fixity) . snd) a1
         es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
         Just <$> do
           bracket (opBrackets fixity) $
-            return $ opApp (getRange (e1, n)) x n (e1 : es)
+            return $ opApp (getRange (e1, n)) x n (e1 :| es)
 
   -- roundfix
-  doQName _ x n as xs = do
+  doQName _ x n as _ = do
     es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as
     Just <$> do
       bracket roundFixBrackets $

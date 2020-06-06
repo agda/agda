@@ -22,6 +22,7 @@ module Agda.Utils.List1
   , module List1
   ) where
 
+import Control.Arrow ((&&&))
 import qualified Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty as List1 hiding (NonEmpty)
 
@@ -32,6 +33,12 @@ import qualified Data.Semigroup as Semigroup
 import Agda.Utils.Null (Null(..))
 
 type List1 = Data.List.NonEmpty.NonEmpty
+
+-- | Return the last element and the rest.
+
+initLast :: List1 a -> ([a], a)
+initLast = List1.init &&& List1.last
+  -- traverses twice, but does not create intermediate pairs
 
 -- | Append a list to a non-empty list.
 
@@ -50,8 +57,8 @@ snoc as a = prepend as $ a :| []
 
 -- | Concatenate one or more non-empty lists.
 
-concat :: List1 (List1 a) -> List1 a
-concat = Semigroup.sconcat
+concat :: [List1 a] -> [a]
+concat = concatMap toList
 
 -- * Recovering non-emptyness.
 

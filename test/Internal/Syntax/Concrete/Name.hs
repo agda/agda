@@ -2,8 +2,9 @@
 module Internal.Syntax.Concrete.Name () where
 
 import Agda.Syntax.Concrete.Name
-
-import Data.List
+import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.List1    ( (<|) )
+import qualified Agda.Utils.List1 as List1
 
 import Internal.Helpers
 import Internal.Syntax.Common ()
@@ -28,13 +29,13 @@ instance Arbitrary Name where
     ]
     where
     parts = do
-      parts         <- listOf1 (elements ["x", "y", "z"])
+      parts         <- list1Of $ elements ["x", "y", "z"]
       startWithHole <- arbitrary
       endWithHole   <- arbitrary
       return $
-        (if startWithHole then (Hole :)    else id) $
-        (if endWithHole   then (++ [Hole]) else id) $
-        intersperse Hole (map Id parts)
+        applyWhen startWithHole (Hole <|) $
+        applyWhen endWithHole   (`List1.append` [Hole]) $
+        List1.intersperse Hole $ fmap Id parts
 
 instance CoArbitrary NamePart
 

@@ -186,7 +186,7 @@ buildParsers kind exprNames = do
         namesInExpr :: Set QName
         namesInExpr = Set.fromList exprNames
 
-        partListsInExpr' = map (nameParts . unqualify) $
+        partListsInExpr' = map (List1.toList . nameParts . unqualify) $
                            Set.toList namesInExpr
 
         partListTrie f =

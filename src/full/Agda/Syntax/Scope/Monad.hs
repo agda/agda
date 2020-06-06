@@ -59,6 +59,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
 
 import Agda.Utils.Impossible
@@ -290,9 +291,8 @@ freshAbstractQName' x = do
 -- | Create a concrete name that is not yet in scope.
 freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
 freshConcreteName r i s = do
-  let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-  rn <- resolveName $ C.QName cname
-  case rn of
+  let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
+  resolveName (C.QName cname) >>= \case
     UnknownName -> return cname
     _           -> freshConcreteName r (i+1) s
 

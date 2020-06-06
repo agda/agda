@@ -45,8 +45,8 @@ import Agda.Utils.Impossible
 
 desugarDoNotation :: Range -> List1 DoStmt -> ScopeM Expr
 desugarDoNotation r ss = do
-  let qBind = QName $ Name noRange InScope [Hole, Id ">>=", Hole]
-      qThen = QName $ Name noRange InScope [Hole, Id ">>", Hole]
+  let qBind = QName $ simpleBinaryOperator ">>="
+      qThen = QName $ simpleBinaryOperator ">>"
       isBind DoBind{} = True
       isBind _        = False
       isThen DoThen{} = True

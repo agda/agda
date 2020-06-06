@@ -443,7 +443,7 @@ reifyTerm expandAnonDefs0 v0 = do
     -- only show up in errors. Check the spined form!
     _ | I.Var n (I.Proj _ p : es) <- v,
         Just name <- getGeneralizedFieldName p -> do
-      let fakeName = (qnameName p) {nameConcrete = C.Name noRange C.InScope [C.Id name]} -- TODO: infix names!?
+      let fakeName = (qnameName p) {nameConcrete = C.simpleName name} -- TODO: infix names!?
       elims (A.Var fakeName) =<< reify es
     I.Var n es -> do
       x <- fromMaybeM (freshName_ $ "@" ++ show n) $ nameOfBV' n
@@ -1182,7 +1182,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
            -- Andreas, 2017-09-03, issue #2729
            -- Restore original pattern name.  AbstractToConcrete picks unique names.
          | otherwise -> return $ A.VarP $
-             mkBindName n { nameConcrete = C.Name noRange C.InScope [ C.Id y ] }
+             mkBindName n { nameConcrete = C.simpleName y }
 
     reifyDotP :: MonadReify m => PatOrigin -> Term -> m A.Pattern
     reifyDotP o v = do

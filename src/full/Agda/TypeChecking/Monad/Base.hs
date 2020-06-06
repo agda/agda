@@ -780,7 +780,7 @@ freshNoName_ = freshNoName noRange
 freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
-  return $ Name i (C.Name noRange C.NotInScope [C.Id "r"]) noRange noFixity' True
+  return $ Name i (C.setNotInScope $ C.simpleName "r") noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where

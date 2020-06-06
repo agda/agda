@@ -23,8 +23,9 @@ import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 import Agda.Utils.Pretty
 import Agda.Utils.List  ( spanEnd )
-import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -135,18 +136,18 @@ data ParseSections = ParseSections | DoNotParseSections
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
 parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
+parse (ParseSections,      p) es = P.parse p (List1.concat $ map splitExpr es)
   where
-  splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
+  splitExpr :: IsExpr e => e -> List1 (MaybePlaceholder e)
   splitExpr e = case exprView e of
     LocalV n -> splitName n
     _        -> noSplit
     where
-    noSplit = [noPlaceholder e]
+    noSplit = singleton $ noPlaceholder e
 
     splitName n = case List1.last ns of
-      Name r nis ps@(_ : _ : _) -> splitParts r nis (List1.init ns) Beginning ps
-      _                         -> noSplit
+      Name r nis ps@(_ :| _ : _) -> splitParts r nis (List1.init ns) Beginning ps
+      _                          -> noSplit
       where
       ns = qnameParts n
 
@@ -157,16 +158,15 @@ parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
       -- Note also that the module qualifier, if any, is only applied
       -- to the first name part.
 
-      splitParts _ _   _ _ []          = __IMPOSSIBLE__
-      splitParts _ _   _ _ (Hole : []) = [Placeholder End]
-      splitParts r nis m _ (Id s : []) = [part r nis m End s]
-      splitParts r nis m w (Hole : ps) = Placeholder w : splitParts r nis m  Middle ps
-      splitParts r nis m w (Id s : ps) = part r nis m w s : splitParts r nis [] Middle ps
+      splitParts _ _   _ _ (Hole :| [])     = singleton $ Placeholder End
+      splitParts r nis m _ (Id s :| [])     = singleton $ part r nis m End s
+      splitParts r nis m w (Hole :| p : ps) = Placeholder w    <| splitParts r nis m  Middle (p :| ps)
+      splitParts r nis m w (Id s :| p : ps) = part r nis m w s <| splitParts r nis [] Middle (p :| ps)
 
       part r nis m w s =
         NoPlaceholder (Strict.Just w)
                       (unExprView $ LocalV $
-                         foldr Qual (QName (Name r nis [Id s])) m)
+                         foldr Qual (QName $ Name r nis $ singleton $ Id s) m)
 
 ---------------------------------------------------------------------------
 -- * Parser combinators
@@ -181,7 +181,7 @@ partP ms s =
   doc (text (show str)) $
   satNoPlaceholder isLocal
   where
-  str = prettyShow $ foldr Qual (QName $ Name noRange InScope [Id s]) ms
+  str = prettyShow $ foldr Qual (QName $ simpleName s) ms
   isLocal e = case exprView e of
       LocalV y | str == prettyShow y -> Just $ getRange y
       _ -> Nothing
@@ -196,9 +196,9 @@ partP ms s =
 atLeastTwoParts :: IsExpr e => Parser e Name
 atLeastTwoParts =
   (\p1 ps p2 ->
-      let all = p1 : ps ++ [p2] in
-      case mapMaybe fst all of
-        (r,nis) : _ -> Name r nis (map snd all)
+      let all = p1 :| ps ++ [p2] in
+      case List1.mapMaybe fst all of
+        (r,nis) : _ -> Name r nis (fmap snd all)
         []          -> __IMPOSSIBLE__)
   <$> part Beginning
   <*> many (part Middle)
@@ -210,8 +210,8 @@ atLeastTwoParts =
                                                              )
     NoPlaceholder (Strict.Just pos') e | pos == pos' ->
       case exprView e of
-        LocalV (QName (Name r nis [Id s])) -> Just (Just (r,nis), Id s)
-        _                                  -> Nothing
+        LocalV (QName (Name r nis (Id s :| []))) -> Just (Just (r, nis), Id s)
+        _ -> Nothing
     _ -> Nothing
 
 -- | Parses a potentially pattern-matching binder
@@ -308,7 +308,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
             p
       <*> worker ms xs
   worker ms (WildHole h : xs) =
-    (\(r, es) -> let anon = mkBinder_ (Name noRange InScope [Hole])
+    (\(r, es) -> let anon = mkBinder_ simpleHole
                  in (r, Right (mkBinding h anon) : es))
       <$> worker ms xs
   worker ms (BindHole _ h : xs) = do

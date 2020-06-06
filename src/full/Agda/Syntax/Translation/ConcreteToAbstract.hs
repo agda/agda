@@ -1217,8 +1217,8 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                            "Illegal declaration(s) before top-level module"
 
                     -- Otherwise, reconstruct the top-level module name
-                    _ -> return $ C.QName $ C.Name (getRange m0) C.InScope
-                           [Id $ stringToRawName $ rootNameModule file]
+                    _ -> return $ C.QName $ setRange (getRange m0) $
+                           C.simpleName $ stringToRawName $ rootNameModule file
                 -- Andreas, 2017-05-17, issue #2574, keep name as jump target!
                 -- Andreas, 2016-07-12, ALTERNATIVE:
                 -- -- We assign an anonymous file module the name expected from
@@ -1239,10 +1239,9 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           am           <- toAbstract (NewModuleQName m)
           noImportSorts <- not . optImportSorts <$> pragmaOptions
           -- Add implicit `open import Agda.Primitive using (Set; Prop)`
-          let mkName x            = C.Name noRange InScope [Id x]
-              agdaPrimitiveName   = Qual (mkName "Agda") $ C.QName $ mkName "Primitive"
-              agdaSetName         = mkName "Set"
-              agdaPropName        = mkName "Prop"
+          let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
+              agdaSetName         = C.simpleName "Set"
+              agdaPropName        = C.simpleName "Prop"
               usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
               directives          = ImportDirective noRange usingDirective [] [] Nothing
               importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]

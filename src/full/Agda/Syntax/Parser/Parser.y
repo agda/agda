@@ -33,7 +33,7 @@ import Data.Bifunctor (first, second)
 import Data.Char
 import qualified Data.List as List
 import Data.Maybe
-import Data.Semigroup ((<>))
+import Data.Semigroup ((<>), sconcat)
 import qualified Data.Traversable as T
 
 import Debug.Trace
@@ -490,7 +490,7 @@ ModuleName : QId { $1 }
 -- A binding variable. Can be '_'
 BId :: { Name }
 BId : Id    { $1 }
-    | '_'   { Name (getRange $1) InScope [Hole] }
+    | '_'   { setRange (getRange $1) simpleHole }
 
 {- UNUSED
 -- A binding variable. Can be '_'
@@ -554,7 +554,7 @@ BIdsWithHiding : Application {%
   -- interpret an expression as a name and maybe a pattern
   case mapM exprAsNameOrHiddenNames $1 of
     Nothing   -> parseError "Expected sequence of possibly hidden bound identifiers"
-    Just good -> forM (List1.concat good) $ updateNamedArgA $ \ (n, me) -> do
+    Just good -> forM (sconcat good) $ updateNamedArgA $ \ (n, me) -> do
                    p <- traverse exprToPattern me
                    pure $ Binder p (mkBoundName_ n)
     }
@@ -958,7 +958,7 @@ DomainFreeBindingAbsurd
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
     | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance NonStrict) $3 $2 }
     | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
-                                 pure . Left . singleton $ mkDomainFree_ id (Just p) $ Name noRange InScope [Hole] }
+                                 pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
               first (fmap (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
@@ -1295,7 +1295,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ [_] -> case mkNotation $3 $5 of
+    Name _ _ (_ :| []) -> case mkNotation $3 $5 of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1365,8 +1365,8 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh  = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique ]
-    ; fresh' = Name mr NotInScope [ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1) ]
+    ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
+    ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
     ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
@@ -1377,7 +1377,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
           ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
     ; parseAsClause = case last2Args of
-      { [ Ident (QName (Name asR InScope [Id x]))
+      { [ Ident (QName (Name asR InScope (Id x :| [])))
         , e
           -- Andreas, 2018-11-03, issue #3364, accept anything after 'as'
           -- but require it to be a 'Name' in the scope checker.
@@ -1878,9 +1878,9 @@ mkName (i, s) = do
               TokEOF{}      -> __IMPOSSIBLE__
 
         -- we know that there are no two Ids in a row
-        alternating (Hole : Hole : _) = False
-        alternating (_ : xs)          = alternating xs
-        alternating []                = True
+        alternating (Hole :| Hole : _) = False
+        alternating (_    :| x   : xs) = alternating $ x :| xs
+        alternating (_    :|       []) = True
 
 -- | Create a qualified name from a list of strings
 mkQName :: [(Interval, String)] -> Parser QName
@@ -1975,9 +1975,9 @@ exprAsNamesAndPatterns = mapM exprAsNameAndPattern . exprAsTele
 
 exprAsNameAndPattern :: Expr -> Maybe (Name, Maybe Expr)
 exprAsNameAndPattern (Ident (QName x)) = Just (x, Nothing)
-exprAsNameAndPattern (Underscore r _)  = Just (Name r InScope [Hole], Nothing)
+exprAsNameAndPattern (Underscore r _)  = Just (setRange r simpleHole, Nothing)
 exprAsNameAndPattern (As _ n e)        = Just (n, Just e)
-exprAsNameAndPattern (Paren r e)       = Just (Name r InScope [Hole], Just e)
+exprAsNameAndPattern (Paren r e)       = Just (setRange r simpleHole, Just e)
 exprAsNameAndPattern _                 = Nothing
 
 -- interpret an expression as name or list of hidden / instance names
@@ -2021,7 +2021,7 @@ exprToAssignment (RawApp r es)
                            <*> pure (getRange arr)
                            <*> pure (rawApp $ List1.fromList es2))
   where
-    isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 
@@ -2035,7 +2035,7 @@ buildWithBlock rees = case groupByEither rees of
 
     finalWith :: [Either (List1 RewriteEqn) (List1 (List1 Expr))] -> Parser [Expr]
     finalWith []             = pure $ []
-    finalWith [Right ees]    = pure $ List1.toList $ List1.concat ees
+    finalWith [Right ees]    = pure $ List1.toList $ sconcat ees
     finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
       "Cannot use rewrite / pattern-matching with after a with-abstraction."
 
