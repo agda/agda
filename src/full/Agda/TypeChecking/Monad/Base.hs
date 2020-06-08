@@ -2060,8 +2060,8 @@ instance Pretty Defn where
   pretty Function{..} =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
-      , "funCompiled     =" <?> pshow funCompiled
-      , "funSplitTree    =" <?> pshow funSplitTree
+      , "funCompiled     =" <?> pretty funCompiled
+      , "funSplitTree    =" <?> pretty funSplitTree
       , "funTreeless     =" <?> pshow funTreeless
       , "funInv          =" <?> pshow funInv
       , "funMutual       =" <?> pshow funMutual
@@ -2070,7 +2070,7 @@ instance Pretty Defn where
       , "funProjection   =" <?> pshow funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
-      , "funWith         =" <?> pshow funWith ] <?> "}"
+      , "funWith         =" <?> pretty funWith ] <?> "}"
   pretty Datatype{..} =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars

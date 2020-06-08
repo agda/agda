@@ -30,6 +30,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -122,13 +123,14 @@ withFunctionType
   -> [WithHiding (Term, EqualityView)]  -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
+  -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
   -> TCM (Type, Nat)
     -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
     --     @[vs/wtel]wtel = as@ and
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
     --     @[vs/wtel]b′ = b@.
     -- Plus the final number of with-arguments.
-withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
+withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
 
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
 
@@ -136,7 +138,7 @@ withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
   -- of the pattern variables not mentioned in @vs : as@.
   let dbg n s x = reportSDoc "tc.with.abstract" n $ nest 2 $ text (s ++ " =") <+> prettyTCM x
 
-  let d2b = telePi_ delta2 b
+  d2b <- telePiPath_ delta2 b bndry
   dbg 30 "Δ₂ → B" d2b
   d2b  <- normalise d2b
   dbg 30 "normal Δ₂ → B" d2b
@@ -146,12 +148,23 @@ withFunctionType delta1 vtys delta2 b = addContext delta1 $ do
   vtys <- etaContract =<< normalise vtys
 
   -- wd2db = wtel → [vs : as] (Δ₂ → B)
-  -- TODO IWITH abstract in the boundary from Δ₂ too.
-  -- I guess d2b should be changed to the pi/path type.
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  return (telePi_ delta1 wd2b, countWithArgs (map (snd . whThing) vtys))
+  let nwithargs = countWithArgs (map (snd . whThing) vtys)
+
+  TelV wtel _ <- telViewUpTo nwithargs wd2b
+
+  -- select the boundary for "Δ₁" abstracting over "wΓ.Δ₂"
+  let bndry' = [(i - sd2,(lams u0, lams u1)) | (i,(u0,u1)) <- bndry, i >= sd2]
+        where sd2 = size delta2
+              lams u = teleNoAbs wtel (abstract delta2 u)
+
+  d1wd2b <- telePiPath_ delta1 wd2b bndry'
+
+  dbg 30 "Δ₁ → wΓ → Δ₂ → B" d1wd2b
+
+  return (d1wd2b, nwithargs)
 
 countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
