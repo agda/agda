@@ -155,6 +155,11 @@ prettyWarning = \case
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
+    UselessHiding xs -> fsep $ concat
+      [ pwords "Ignoring names in `hiding' directive:"
+      , punctuate "," $ map pretty xs
+      ]
+
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"

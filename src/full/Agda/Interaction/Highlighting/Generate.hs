@@ -411,6 +411,7 @@ warningHighlighting w = case tcWarning w of
   EmptyWhere{}               -> deadcodeHighlighting w
   IllformedAsClause{}        -> deadcodeHighlighting w
   UselessPublic{}            -> deadcodeHighlighting w
+  UselessHiding xs           -> foldMap deadcodeHighlighting xs
   UselessInline{}            -> mempty
   UselessPatternDeclarationForRecord{} -> deadcodeHighlighting w
   ClashesViaRenaming _ xs    -> foldMap deadcodeHighlighting xs

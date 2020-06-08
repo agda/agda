@@ -213,6 +213,7 @@ data WarningName
   | UnsolvedConstraints_
   | UnsolvedInteractionMetas_
   | UnsolvedMetaVariables_
+  | UselessHiding_
   | UselessInline_
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
@@ -311,6 +312,7 @@ warningNameDescription = \case
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
+  UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."

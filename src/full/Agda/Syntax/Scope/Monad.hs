@@ -823,12 +823,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
           let useless = \case
                 ImportedName{}   -> True
                 ImportedModule y -> notMentioned (ImportedName y)
-          unlessNull (filter useless ys) $ \ uselessHiding -> do
-            typeError $ GenericError $ unwords $
-              [ "Hiding"
-              , List.intercalate ", " $ map prettyShow uselessHiding
-              , "has no effect"
-              ]
+          unlessNull (filter useless ys) $ warning . UselessHiding
           -- We can empty @hiding@ now, since there is an explicit @using@ directive
           -- and @hiding@ served its purpose to prevent modules to enter the @Using@ list.
           return dir{ hiding = [] }

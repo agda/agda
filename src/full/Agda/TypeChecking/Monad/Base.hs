@@ -3070,6 +3070,9 @@ data Warning
   | UselessPublic
     -- ^ If the user opens a module public before the module header.
     --   (See issue #2377.)
+  | UselessHiding [C.ImportedName]
+    -- ^ Names in `hiding` directive that don't hide anything
+    --   imported by a `using` directive.
   | UselessInline            QName
   | WrongInstanceDeclaration
   | InstanceWithExplicitArg  QName
@@ -3196,6 +3199,7 @@ warningName = \case
   UnsolvedInteractionMetas{}   -> UnsolvedInteractionMetas_
   UnsolvedConstraints{}        -> UnsolvedConstraints_
   UnsolvedMetaVariables{}      -> UnsolvedMetaVariables_
+  UselessHiding{}              -> UselessHiding_
   UselessInline{}              -> UselessInline_
   UselessPublic{}              -> UselessPublic_
   UselessPatternDeclarationForRecord{} -> UselessPatternDeclarationForRecord_
