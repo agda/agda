@@ -293,3 +293,28 @@ When installing Agda the following flags can be used:
      message. Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell
+
+.. _installing-multiple-versions-of-Agda:
+
+Installing multiple versions of Agda
+====================================
+
+Multiple versions of Agda can be installed concurrently by using the --program-suffix flag.
+For example:
+
+.. code-block:: bash
+
+  cabal install Agda-2.6.1 --program-suffix=-2.6.1
+
+will install version 2.6.1 under the name agda-2.6.1. You can then switch to this version
+of Agda in Emacs via
+
+.. code-block:: bash
+
+   C-c C-x C-s 2.6.1 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+.. code-block:: bash
+
+   C-c C-x C-s RETURN
