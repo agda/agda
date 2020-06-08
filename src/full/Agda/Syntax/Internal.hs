@@ -1508,6 +1508,7 @@ instance Pretty tm => Pretty (Elim' tm) where
   prettyPrec p (Apply v)    = prettyPrec p v
   prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
   prettyPrec p (IApply x y r) = prettyPrec p r
+--  prettyPrec p (IApply x y r) = text "@[" <> prettyPrec 0 x <> text ", " <> prettyPrec 0 y <> text "]" <> prettyPrec p r
 
 instance Pretty DBPatVar where
   prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
@@ -1532,6 +1533,8 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec _ (LitP _ l)    = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
+--  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
+
 -----------------------------------------------------------------------------
 -- * NFData instances
 -----------------------------------------------------------------------------

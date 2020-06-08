@@ -68,6 +68,7 @@ import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Primitive hiding (Nat)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
@@ -670,6 +671,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
         addContext delta $ do
           mapM_ noShadowingOfConstructors eqs
 
+        arity_a <- arityPiPath a
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
             notProj _       = True
@@ -708,7 +710,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
             --    type is fully reduced.
 
             weakSub :: Substitution
-            weakSub | isJust withSub' = wkS (max 0 $ numPats - arity a) idS -- if numPats < arity, Θ is empty
+            weakSub | isJust withSub' = wkS (max 0 $ numPats - arity_a) idS -- if numPats < arity, Θ is empty
                     | otherwise       = wkS (numPats - length cxt) idS
             withSub  = fromMaybe idS withSub'
             patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
