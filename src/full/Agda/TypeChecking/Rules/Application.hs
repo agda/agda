@@ -119,7 +119,7 @@ checkApplication cmp hd args e t =
       case def of
         Left (SigUnknown n) -> trace n __IMPOSSIBLE__ -- sigError __IMPOSSIBLE_VERBOSE__ (typeError $ AbstractConstructorNotInScope c) e
         Left SigAbstract -> __IMPOSSIBLE__
-        Right i -> trace (show i) (return ())
+        Right i -> return ()
       -- def <- ExceptT $ getConstInfo' c
       -- case theDef def of
       con <- fromRightM

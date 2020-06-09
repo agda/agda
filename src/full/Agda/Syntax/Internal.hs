@@ -144,8 +144,11 @@ data ConHead = ConHead
       --   Empty list for non-record constructors.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  , conRHS       :: Maybe Pattern -- ^ If it's a pattern synonym, its definition.
+  , conRHS       :: Maybe DeBruijnPattern -- ^ If it's a pattern synonym, its definition.
   } deriving (Data, Show)
+
+isPatternSyn :: ConHead -> Bool
+isPatternSyn c = isJust (conRHS c)
 
 instance Eq ConHead where
   (==) = (==) `on` conName

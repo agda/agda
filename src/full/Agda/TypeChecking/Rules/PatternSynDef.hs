@@ -18,6 +18,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Implicit
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Substitute.Class
 
 import Agda.TypeChecking.Rules.LHS ( disambiguateConstructor )
@@ -29,45 +30,66 @@ import Agda.Utils.Impossible
 
 checkPatternSynDef :: QName -> Maybe (A.DefInfo, A.Expr) -> [Arg A.BindName] ->
                       A.Pattern' Void -> TCM ()
-checkPatternSynDef name Nothing as rhs = undefined
+checkPatternSynDef name Nothing as rhs = return ()
+                                         -- An untyped patternSynDef is just an artifact
+                                         -- from the concrete syntax, retained for
+                                         -- highlighting purposes.
 checkPatternSynDef name (Just (i, e)) as rhs = do
-  ty <- isType_ e
+  ty <- workOnTypes $ isType_ e
   checkTyped name i ty as rhs
 
-checkTyped :: QName -> A.DefInfo -> Type -> [Arg A.BindName] ->
-              A.Pattern' Void -> TCM ()
-checkTyped name i sig as rhs =
+checkTyped :: QName
+           -> A.DefInfo
+           -> Type             -- ^ type of pattern synonym (already reduced)
+           -> [Arg A.BindName]
+           -> A.Pattern' Void
+           -> TCM ()
+checkTyped name i ty as rhs =
   -- 1. Check left hand side
-  checkLHS sig as $ \ target -> do
+  checkLHS ty 0 as $ \ target arity -> do
   -- 2. Sanity check: pattern syn targets data or record type
     target <- reduce target
-    case unEl target of
+    targetName <- case unEl target of
       Def tyCon _ -> do
         Just{} <- isDataOrRecordType tyCon
-        pure ()
+        pure tyCon
       _ -> genericError "Expected a data or record type as the target of the pattern synonym"
   -- 3. Check right hand side
-    checkRHS target rhs $ \ rhs ->
+    checkRHS target rhs $ \ rhs -> do
   -- 4. Register "constructor"
-      undefined
+      let con = ConHead name Inductive [] (Just rhs)
+      addConstant name $
+        defaultDefn defaultArgInfo name ty $ Constructor
+          { conPars   = 0
+          , conArity  = arity
+          , conSrcCon = con
+          , conData   = targetName
+          , conAbstr  = ConcreteDef
+          , conInd    = Inductive
+          , conComp   = emptyCompKit
+          , conProj   = Just []
+          , conForced = []
+          , conErased = Nothing
+          }
+
 
 -- TODO: what happens to trailing implicit arguments?
 -- pattern
 --   ze : {n : _} -> Fin (suc n)
 --   ze = zero
-checkLHS :: Type -> [Arg A.BindName] -> ({- Telescope -> -} Type -> TCM a) -> TCM a
-checkLHS ty []           k = k ty
-checkLHS ty xxs@(x : xs) k = do
+checkLHS :: Type -> Int -> [Arg A.BindName] -> ({- Telescope -> -} Type -> Int -> TCM a) -> TCM a
+checkLHS ty n []           k = k ty n
+checkLHS ty n xxs@(x : xs) k = do
   ty <- reduce ty
   case unEl ty of
     Pi a b | not (sameHiding x a) ->
       if visible a
       then genericError "Tried to bind an implicit argument but expected an explicit one"
-      else addContext (absName b, a) $ underAbstractionAbs a b $ \b -> checkLHS b xxs k
+      else addContext (absName b, a) $ underAbstractionAbs a b $ \b -> checkLHS b (n+1) xxs k
     -- In the rest, `a` and `x` do have the same visibility
     Pi a b | otherwise ->
       lambdaAddContext (A.unBind (unArg x)) (absName b) a $
-        underAbstractionAbs a b $ \b -> checkLHS b xs k
+        underAbstractionAbs a b $ \b -> checkLHS b (n+1) xs k
     -- TODO: Allow named arguments & use the names to align the sequences of implicits
     -- e.g.
     -- c : {a b c d} {x} -> ...
@@ -160,4 +182,3 @@ checkArguments ty pps@(p : ps) k = do
 
 -- But:
 -- p' is a pattern, not a term
-

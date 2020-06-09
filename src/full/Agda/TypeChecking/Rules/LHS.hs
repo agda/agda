@@ -1679,11 +1679,14 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       -> QName       -- ^ Candidate constructor.
       -> ExceptT TCErr TCM (QName, ConHead, Type)
     tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
-      Left (SigUnknown err) -> __IMPOSSIBLE__
+      Left (SigUnknown err) -> __IMPOSSIBLE_VERBOSE__ err
       Left SigAbstract -> abstractConstructor c
       Right def -> do
-        let con = conSrcCon (theDef def) `withRangeOf` c
-        unless (conName con `elem` cons) $ wrongDatatype c d
+        let dd = theDef def
+        let con = conSrcCon dd `withRangeOf` c
+        unless ((conName con `elem` cons)
+                  || (isPatternSyn con && conData dd == d))
+          $ wrongDatatype c d
 
         -- Andreas, 2013-03-22 fixing issue 279
         -- To resolve ambiguous constructors, Agda always looks up

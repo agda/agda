@@ -59,6 +59,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def     ( checkFunDef, newSection, useTerPragma )
+import Agda.TypeChecking.Rules.PatternSynDef ( checkPatternSynDef )
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
@@ -183,7 +184,7 @@ checkDecl d = setCurrentRange d $ do
                                   -- they should be (unless we're in a mutual
                                   -- block).
       A.Open{}                 -> none $ return ()
-      A.PatternSynDef x (Just (i, ty)) as rhs ->
+      A.PatternSynDef x mty as rhs ->
         -- BindName -> Named_ (Pattern' a)
         let ps = (fmap $ \a -> unnamed (A.VarP a)) <$> as in
         let c = A.Clause
@@ -194,11 +195,8 @@ checkDecl d = setCurrentRange d $ do
               , A.clauseCatchall = False
               }
         in
-        impossible $ check x i $ checkFunDef NotDelayed i x [c]
-      A.PatternSynDef x Nothing as rhs -> none $ return ()
-                                  -- Open and PatternSynDef are just artifacts
-                                  -- from the concrete syntax, retained for
-                                  -- highlighting purposes.
+        none $ checkPatternSynDef x mty as rhs
+      -- A.PatternSynDef x Nothing as rhs -> none $ return ()
       -- Andreas, 2019-08-19, issue #4010, observe @abstract@ also for unquoting.
       -- TODO: is it possible that some of the unquoted declarations/definitions
       -- are abstract and some are not?  Then allowing all to look into abstract things,
