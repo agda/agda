@@ -128,6 +128,7 @@ jobs:
         - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
+        - stack ${ARGS} exec -- ${MAKE_CMD} common
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
       before_cache:
@@ -195,6 +196,7 @@ jobs:
         - .travis/cabal_install
       ##############################################################################
       script:
+        - make BUILD_DIR=$BUILD_DIR common
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
         - make BUILD_DIR=$BUILD_DIR interaction
