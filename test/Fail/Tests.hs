@@ -26,9 +26,10 @@ testDir = "test" </> "Fail"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  return $ testGroup "Fail" $
-    [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
-    ++ map mkFailTest inpFiles
+  return $ testGroup "Fail" $ concat
+    [ map mkFailTest inpFiles
+    , [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
+    ]
 
 data TestResult
   = TestResult T.Text -- the cleaned stdout
