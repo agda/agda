@@ -7,6 +7,7 @@ module Agda.Interaction.Highlighting.Range
   , Ranges(..)
   , rangesInvariant
   , overlapping
+  , overlappings
   , empty
   , rangeToPositions
   , rangesToPositions
@@ -61,6 +62,9 @@ rangesInvariant (Ranges rs) =
 overlapping :: Range -> Range -> Bool
 overlapping r1 r2 = not $
   to r1 <= from r2 || to r2 <= from r1
+
+overlappings :: Ranges -> Ranges -> Bool
+overlappings (Ranges r1s) (Ranges r2s) = or [ overlapping r1 r2 | r1 <- r1s, r2 <- r2s ]
 
 ------------------------------------------------------------------------
 -- Conversion
