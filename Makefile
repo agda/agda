@@ -282,6 +282,7 @@ fast-forward-cubical :
 
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
+       common \
        succeed \
        fail \
        bugs \
@@ -309,7 +310,7 @@ test-using-std-lib : std-lib-test \
                      std-lib-interaction
 
 .PHONY : quicktest ## Run successful and failing tests.
-quicktest : succeed fail
+quicktest : common succeed fail
 
 .PHONY : bugs ##
 bugs :
@@ -321,10 +322,14 @@ internal-tests :
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
+.PHONY : common ##
+common :
+	@$(call decorate, "Suite of successful tests: mini-library Common", \
+		$(MAKE) -C test/Common )
+
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		$(MAKE) -C test/Common; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
 
 .PHONY : fail ##
@@ -496,7 +501,7 @@ hpc-build: ensure-hash-is-correct
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
-agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
+agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
 
 .PHONY: hpc ## Generate a code coverage report via cabal.
