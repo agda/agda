@@ -3,6 +3,7 @@ module Utils (module Utils,
               AgdaError(..)) where
 
 import Control.Applicative
+import Control.Arrow ((&&&))
 
 import Data.Array
 import Data.Bifunctor (first)
@@ -10,6 +11,8 @@ import qualified Data.ByteString as BS
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Ord
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -118,55 +121,98 @@ getEnvVar :: String -> IO (Maybe String)
 getEnvVar v =
   lookup v <$> getEnvironment
 
+-- | List of possible extensions of agda files.
+agdaExtensions :: [String]
+agdaExtensions =
+  [ ".agda"
+  , ".lagda"
+  , ".lagda.tex"
+  , ".lagda.rst"
+  , ".lagda.md"
+  , ".lagda.org"
+  ]
+
+-- | List of files paired with agda files by the test suites.
+-- E.g. files recording the accepted output or error message.
+helperExtensions :: [String]
+helperExtensions =
+  [ ".flags"        -- Supplementary file
+  , ".warn"         -- Produced by test/Succeed
+  , ".err"          -- Produced by test/Fail
+  , ".in", ".out"   -- For running test/interaction
+  ]
+
+-- | Generalizes 'stripExtension'.
+stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
+stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
+
+stripAgdaExtension :: FilePath -> Maybe FilePath
+stripAgdaExtension = stripAnyOfExtensions agdaExtensions
+
+stripHelperExtension :: FilePath -> Maybe FilePath
+stripHelperExtension = stripAnyOfExtensions helperExtensions
+
 -- | Checks if a String has Agda extension
 hasAgdaExtension :: FilePath -> Bool
-hasAgdaExtension = isJust . dropAgdaExtension'
-
-data SearchMode = Rec | NonRec deriving (Eq)
-
-dropAgdaExtension' :: FilePath -> Maybe FilePath
-dropAgdaExtension' p =  stripExtension ".agda" p
-                        <|> stripExtension ".lagda" p
-                        <|> stripExtension ".lagda.tex" p
-                        <|> stripExtension ".lagda.rst" p
-                        <|> stripExtension ".lagda.md" p
-                        <|> stripExtension ".lagda.org" p
+hasAgdaExtension = isJust . stripAgdaExtension
 
 dropAgdaExtension :: FilePath -> FilePath
 dropAgdaExtension p =
-  fromMaybe (error$ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
-  dropAgdaExtension' p
+  fromMaybe (error $ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
+  stripAgdaExtension p
 
 dropAgdaOrOtherExtension :: FilePath -> FilePath
-dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> dropAgdaExtension'
+dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> stripAgdaExtension
+
+data SearchMode = Rec | NonRec deriving (Eq)
 
 -- | Find (non)recursively all Agda files in the given directory
 --   and order them alphabetically, with the exception that
 --   the ones from the last week come first, ordered by age (youngest first).
 --   This heuristic should run the interesting tests first.
+--   The age computation also considers helper file modification time
+--   (.err, .in, .out, .warn).
 getAgdaFilesInDir :: SearchMode -> FilePath -> IO [FilePath]
 getAgdaFilesInDir recurse dir = do
-  now <- epochTime
+  -- Get all agda files...
+  agdaFiles <- findWithInfo recP (hasAgdaExtension <$> Find.filePath) dir
+  -- ...and organize them in a map @baseName ↦ (modificationTime, baseName.ext)@.
+  -- We may assume that all agda files have different @baseName@s.
+  -- (Otherwise agda will complain when trying to load them.)
+  let m = Map.fromList $ flip map agdaFiles $
+            {-key-} (dropAgdaExtension . Find.infoPath) &&&
+            {-val-} (modificationTime . Find.infoStatus) &&& Find.infoPath
+  -- Andreas, 2020-06-08, issue #4736: Go again through all the files.
+  -- If we find one whose baseName is in the map and
+  -- that has a newer modificationTime than what is stored in the map,
+  -- we update the modificationTime in the map.
+  m <- Find.fold recP (flip updateModificationTime) m dir
   -- Andreas, 2017-04-29 issue #2546
   -- We take first the new test cases, then the rest.
   -- Both groups are ordered alphabetically,
   -- but for the first group, the younger ones come first.
-  let order :: Find.FileInfo -> Find.FileInfo -> Ordering
-      order = comparing $ \ info ->
-        let age = now - modificationTime (Find.infoStatus info) in
-        -- Building a tuple for lexicographic comparison:
-        ( Down $  -- This Down reverses the usual order Nothing < Just
-            if age > consideredNew then Nothing else Just $
-              Down age -- This Down reverses the effect of the first Down
-        , Find.infoPath info
-        )
-      -- Test cases from up to one week ago are considered new.
-      consideredNew = 7 * 24 * 60 * 60
-      -- If @recurse /= Rec@ don't go into subdirectories
-      recP = pure (recurse == Rec) Find.||? Find.depth Find.<? 1
-  map Find.infoPath  . sortBy order <$>
-    findWithInfo recP (hasAgdaExtension <$> Find.filePath) dir
-
+  -- Ignore first (i.e., the time) component if older than @consideredNew@.
+  -- The second component is the filepath.
+  now <- epochTime
+  let order = comparing $ first $ \ t -> let age = now - t in
+        Down $  -- This Down reverses the usual order Nothing < Just
+          if age > consideredNew then Nothing else Just $
+            Down age -- This Down reverses the effect of the first Down
+  return $ map snd $ sortBy order $ Map.elems m
+  where
+  -- If @recurse /= Rec@ don't go into subdirectories
+  recP = pure (recurse == Rec) Find.||? Find.depth Find.<? 1
+  -- Updating the map of agda files to take modification
+  -- of secondary files (.err, .in, .out) into account.
+  updateModificationTime f =
+    case stripHelperExtension $ Find.infoPath f of
+      Just k  -> Map.adjust (updIfNewer $ modificationTime $ Find.infoStatus f) k
+      Nothing -> id
+  updIfNewer tNew old@(tOld, f)
+    | tNew > tOld = (tNew, f)
+    | otherwise   = old
+  -- Test cases from up to one week ago are considered new.
+  consideredNew = 7 * 24 * 60 * 60
 
 -- | Search a directory recursively, with recursion controlled by a
 --   'RecursionPredicate'.  Lazily return a unsorted list of all files
