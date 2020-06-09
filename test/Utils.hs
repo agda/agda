@@ -11,7 +11,6 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Data.Ord
-import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -38,31 +37,31 @@ import Agda.Utils.Maybe
 
 data ProgramResult = ProgramResult
   { exitCode :: ExitCode
-  , stdOut   :: T.Text
-  , stdErr   :: T.Text
+  , stdOut   :: Text
+  , stdErr   :: Text
   } deriving (Read, Show, Eq)
 
-fromProgramResult :: ProgramResult -> (ExitCode, T.Text, T.Text)
+fromProgramResult :: ProgramResult -> (ExitCode, Text, Text)
 fromProgramResult (ProgramResult c o e) = (c, o, e)
 
-toProgramResult :: (ExitCode, T.Text, T.Text) -> ProgramResult
+toProgramResult :: (ExitCode, Text, Text) -> ProgramResult
 toProgramResult (c, o, e) = ProgramResult c o e
 
-printProgramResult :: ProgramResult -> T.Text
+printProgramResult :: ProgramResult -> Text
 printProgramResult = printProcResult . fromProgramResult
 
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: AgdaArgs -> T.Text
-                            -> IO (ExitCode, T.Text, T.Text)
+readAgdaProcessWithExitCode :: AgdaArgs -> Text
+                            -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
   PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
 
 data AgdaResult
-  = AgdaSuccess (Maybe T.Text) -- ^ A success can come with warnings
+  = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
   | AgdaFailure Int (Maybe AgdaError) -- ^ A failure, with exit code
 
 runAgdaWithOptions
@@ -94,7 +93,7 @@ runAgdaWithOptions testName opts mflag = do
     ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
     ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
 
-hasWarning :: T.Text -> Bool
+hasWarning :: Text -> Bool
 hasWarning t =
  "———— All done; warnings encountered ————————————————————————"
  `T.isInfixOf` t
@@ -104,11 +103,9 @@ getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
-getAgdaBin = do
-  agda <- getEnvVar "AGDA_BIN"
-  case agda of
-    Just x -> return x
-    Nothing -> fail "AGDA_BIN environment variable not set, aborting..."
+getAgdaBin = fromMaybeM err $ getEnvVar "AGDA_BIN"
+  where
+  err = fail "AGDA_BIN environment variable not set, aborting..."
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
@@ -184,9 +181,11 @@ findWithInfo recurse filt dir = Find.fold recurse act [] dir
   where
   -- Add file to list front when it matches the filter
   act :: [Find.FileInfo] -> Find.FileInfo -> [Find.FileInfo]
-  act fs f
-    | Find.evalClause filt f = f:fs
-    | otherwise = fs
+  act = flip $ consIf $ Find.evalClause filt
+
+-- | Prepend element if it satisfies the given condition.
+consIf :: (a -> Bool) -> a -> [a] -> [a]
+consIf p a = if p a then (a :) else id
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
@@ -208,7 +207,7 @@ writeTextFile f = BS.writeFile f . encodeUtf8
 -- | Replaces all matches of a regex with the given text.
 --
 -- (There doesn't seem to be any such function in the regex-tdfa libraries?)
-replace :: R.Regex -> T.Text -> T.Text -> T.Text
+replace :: R.Regex -> Text -> Text -> Text
 replace rgx new inp =
   foldr repl inp matches
   where
@@ -218,17 +217,17 @@ replace rgx new inp =
 
     matches = R.matchAll rgx inp
 
-    repl :: R.MatchArray -> T.Text -> T.Text
+    repl :: R.MatchArray -> Text -> Text
     repl match t =
       T.take off t `T.append` new `T.append` T.drop (off + len) t
       where
         (off, len) = match ! 0
 
-mkRegex :: T.Text -> R.Regex
+mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput :: T.Text -> IO T.Text
+cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
 
