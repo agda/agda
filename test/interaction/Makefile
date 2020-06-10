@@ -127,6 +127,10 @@ $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 # Comparing output
 ########################################################################
 
+# Andreas, 2020-06-09, issue #4736
+# If the output has changed, the test case is "interesting",
+# thus, we sort it up for the next run by touching the .agda file.
+
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
@@ -136,13 +140,14 @@ $(Tests) : %.cmp : %.out
 	@if diff -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
+			for file in ls `$*.*agda`; do touch $file; done ; \
 			echo "=== Old output ==="; \
 			cat $*.out; \
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			wdiff $*.out $*.tmp | colordiff; \
-			echo -n "Accept new error [y(es)/n(o)/Q(uit)] (default: no)? "; \
+			echo -n "Accept new error [y/n/Q] (default: no)? "; \
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \

@@ -12,11 +12,12 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
+import System.PosixCompat.Files (touchFile)
 
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
-  (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
+  (readFileMaybe, goldenTest1, goldenTestIO1, GDiff (..), GShow (..))
 
 import Utils
 
@@ -39,7 +40,7 @@ mkFailTest
   :: FilePath -- ^ Input file (Agda file).
   -> TestTree
 mkFailTest agdaFile =
-  goldenTest1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
+  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff (pure . resShow) $ Just updGolden
   where
   testName   = asTestName testDir agdaFile
   goldenFile = dropAgdaExtension agdaFile <.> ".err"
@@ -54,6 +55,25 @@ mkFailTest agdaFile =
                    ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
     runAgdaWithOptions testName agdaArgs (Just flagFile)
       <&> expectFail
+
+  -- | Treats newlines or consecutive whitespaces as one single whitespace.
+  --
+  -- Philipp20150923: On travis lines are wrapped at different positions sometimes.
+  -- It's not really clear to me why this happens, but just ignoring line breaks
+  -- for comparing the results should be fine.
+  resDiff :: T.Text -> T.Text -> IO GDiff
+  resDiff t1 t2
+    | stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2 = return Equal
+    | otherwise = do
+        -- Andreas, 2020-06-09, issue #4736
+        -- If the output has changed, the test case is "interesting"
+        -- regardless of whether the golden value is updated or not.
+        -- Thus, we touch the agdaFile to have it sorted up in the next
+        -- test run.
+        -- -- putStrLn $ "TOUCHING " ++ agdaFile
+        touchFile agdaFile
+        return $ DiffText Nothing t1 t2
+
 
 issue2649 :: TestTree
 issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
@@ -108,13 +128,19 @@ expectFail (res, ret) = case ret of
 -- for comparing the results should be fine.
 resDiff :: T.Text -> T.Text -> GDiff
 resDiff t1 t2 =
-  if strip t1 == strip t2
+  if stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2
     then
       Equal
     else
       DiffText Nothing t1 t2
-  where
-    strip = replace (mkRegex " +") " " . replace (mkRegex "(\n|\r)") " "
+
+
+-- | Converts newlines and consecutive whitespaces into one single whitespace.
+--
+stripConsecutiveWhiteSpace :: T.Text -> T.Text
+stripConsecutiveWhiteSpace
+  = replace (mkRegex " +")      " "
+  . replace (mkRegex "(\n|\r)") " "
 
 resShow :: T.Text -> GShow
 resShow = ShowText
