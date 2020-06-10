@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
@@ -69,6 +70,11 @@ askName i = reader (!!! i)
 class ToAbstract r a | r -> a where
   toAbstract :: MonadReflectedToAbstract m => r -> m a
 
+  default toAbstract
+    :: (Traversable t, ToAbstract s b, t s ~ r, t b ~ a)
+    => MonadReflectedToAbstract m => r -> m a
+  toAbstract = traverse toAbstract
+
 -- | Translate reflected syntax to abstract, using the names from the current typechecking context.
 toAbstract_ ::
   (ToAbstract r a
@@ -96,13 +102,11 @@ toAbstractWithoutImplicit ::
 toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
 
 instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
-  toAbstract = traverse toAbstract
 
 instance ToAbstract r a => ToAbstract (Arg r) (NamedArg a) where
   toAbstract (Arg i x) = Arg i <$> toAbstract (unnamed x)
 
 instance ToAbstract r a => ToAbstract [Arg r] [NamedArg a] where
-  toAbstract = traverse toAbstract
 
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
   toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
