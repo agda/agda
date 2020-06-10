@@ -6,10 +6,6 @@
   open import Agda.Builtin.Equality public
   open import Agda.Primitive
 
-  data Maybe (A : Set) : Set where
-    just : A → Maybe A
-    nothing : Maybe A
-
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
