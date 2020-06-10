@@ -480,7 +480,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
+	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
