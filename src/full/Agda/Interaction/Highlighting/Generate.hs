@@ -15,8 +15,7 @@ module Agda.Interaction.Highlighting.Generate
   , printHighlightingInfo
   , highlightAsTypeChecked
   , highlightWarning, warningHighlighting
-  , computeUnsolvedMetaWarnings
-  , computeUnsolvedConstraints
+  , computeUnsolvedInfo
   , storeDisambiguatedConstructor, storeDisambiguatedProjection
   , disambiguateRecordFields
   ) where
@@ -42,7 +41,7 @@ import qualified Data.Text.Lazy as Text
 import Agda.Interaction.Response
   ( RemoveTokenBasedHighlighting( KeepHighlighting ) )
 import Agda.Interaction.Highlighting.Precise as H
-import Agda.Interaction.Highlighting.Range (rToR)  -- Range is ambiguous
+import Agda.Interaction.Highlighting.Range (rToR, overlappings, Ranges)  -- Range is ambiguous
 import Agda.Interaction.Highlighting.FromAbstract
 
 import qualified Agda.TypeChecking.Errors as TCM
@@ -89,9 +88,11 @@ data Level
     --   constructors.
 
 -- | Highlight a warning.
+--   We do not generate highlighting for unsolved metas and
+--   constraints, as that gets handled in bulk after typechecking.
 highlightWarning :: TCWarning -> TCM ()
 highlightWarning tcwarn = do
-  let h = compress $ warningHighlighting tcwarn
+  let h = compress $ warningHighlighting' False tcwarn
   modifyTCLens stSyntaxInfo (h <>)
   ifTopLevelAndHighlightingLevelIs NonInteractive $
     printHighlightingInfo KeepHighlighting h
@@ -389,7 +390,11 @@ errorWarningHighlighting w =
 -- | Generate syntax highlighting for warnings.
 
 warningHighlighting :: TCWarning -> File
-warningHighlighting w = case tcWarning w of
+warningHighlighting = warningHighlighting' True
+
+warningHighlighting' :: Bool -- ^ should we generate highlighting for unsolved metas and constrains?
+                     -> TCWarning -> File
+warningHighlighting' b w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
   -- #3965 highlight each unreachable clause independently: they
@@ -397,8 +402,8 @@ warningHighlighting w = case tcWarning w of
   UnreachableClauses _ rs    -> foldMap deadcodeHighlighting rs
   CoverageIssue{}            -> coverageErrorHighlighting $ getRange w
   CoverageNoExactSplit{}     -> catchallHighlighting $ getRange w
-  UnsolvedConstraints cs     -> constraintsHighlighting cs
-  UnsolvedMetaVariables rs   -> metasHighlighting rs
+  UnsolvedConstraints cs     -> if b then constraintsHighlighting [] cs else mempty
+  UnsolvedMetaVariables rs   -> if b then metasHighlighting rs          else mempty
   AbsurdPatternRequiresNoRHS{} -> deadcodeHighlighting w
   ModuleDoesntExport{}         -> deadcodeHighlighting w
   DuplicateUsing xs            -> foldMap deadcodeHighlighting xs
@@ -555,16 +560,23 @@ missingDefinitionHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getR
 
 printUnsolvedInfo :: TCM ()
 printUnsolvedInfo = do
-  metaInfo       <- computeUnsolvedMetaWarnings
-  constraintInfo <- computeUnsolvedConstraints
+  info <- computeUnsolvedInfo
 
   printHighlightingInfo KeepHighlighting
-    (compress $ metaInfo `mappend` constraintInfo)
+    (compress $ info)
+
+
+computeUnsolvedInfo :: TCM File
+computeUnsolvedInfo = do
+  (rs, metaInfo) <- computeUnsolvedMetaWarnings
+  constraintInfo <- computeUnsolvedConstraints rs
+
+  return $ metaInfo `mappend` constraintInfo
 
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.
-
-computeUnsolvedMetaWarnings :: TCM File
+--   Also returns ranges of unsolved or interaction metas.
+computeUnsolvedMetaWarnings :: TCM ([Ranges],File)
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
 
@@ -574,24 +586,33 @@ computeUnsolvedMetaWarnings = do
   let notBlocked m = not <$> isBlockedTerm m
   ms <- filterM notBlocked =<< getOpenMetas
 
-  rs <- mapM getMetaRange (ms \\ is)
-  return $ metasHighlighting rs
+  let extend = map (rToR . P.continuousPerLine)
+
+  rs <- extend <$> mapM getMetaRange (ms \\ is)
+
+  rs' <- extend <$> mapM getMetaRange is
+  return $ (rs ++ rs', metasHighlighting' rs)
 
 metasHighlighting :: [Range] -> File
-metasHighlighting rs = several (map (rToR . P.continuousPerLine) rs)
+metasHighlighting rs = metasHighlighting' (map (rToR . P.continuousPerLine) rs)
+
+metasHighlighting' :: [Ranges] -> File
+metasHighlighting' rs = several rs
                      $ parserBased { otherAspects = Set.singleton UnsolvedMeta }
 
 -- | Generates syntax highlighting information for unsolved constraints
 --   (ideally: that are not connected to a meta variable).
 
-computeUnsolvedConstraints :: TCM File
-computeUnsolvedConstraints = constraintsHighlighting <$> getAllConstraints
+computeUnsolvedConstraints :: [Ranges] -- ^ does not add ranges that would overlap with these.
+                           -> TCM File
+computeUnsolvedConstraints ms = constraintsHighlighting ms <$> getAllConstraints
 
-constraintsHighlighting :: Constraints -> File
-constraintsHighlighting cs =
-  several (map (rToR . P.continuousPerLine) rs)
+constraintsHighlighting :: [Ranges] -> Constraints -> File
+constraintsHighlighting ms cs =
+  several (filter noOverlap $ map (rToR . P.continuousPerLine) rs)
           (parserBased { otherAspects = Set.singleton UnsolvedConstraint })
   where
+  noOverlap r = not $ any (overlappings $ r) $ ms
   -- get ranges of interesting unsolved constraints
   rs = (`mapMaybe` (map theConstraint cs)) $ \case
     Closure{ clValue = IsEmpty r t           } -> Just r

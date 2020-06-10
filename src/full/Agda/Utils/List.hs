@@ -642,3 +642,13 @@ editDistance xs ys = editD 0 0
   xsA, ysA :: Array Int a
   xsA = listArray (0,n-1) xs
   ysA = listArray (0,m-1) ys
+
+
+mergeStrictlyOrderedBy :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]
+mergeStrictlyOrderedBy (<) = loop where
+  loop [] ys = Just ys
+  loop xs [] = Just xs
+  loop (x:xs) (y:ys)
+    | x < y = (x:) <$> loop xs (y:ys)
+    | y < x = (y:) <$> loop (x:xs) ys
+    | otherwise = Nothing
