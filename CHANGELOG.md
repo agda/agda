@@ -112,6 +112,16 @@ Language
   [#2119](https://github.com/agda/agda/issues/2119) and
   [#4585](https://github.com/agda/agda/issues/4585)).
 
+* Changed the internal representation of literal strings: instead of using a
+  linked list of characters (`String`), we are now using `Data.Text`. This
+  should be a transparent change from the user's point of view: the backend
+  was already packing these strings as text.
+
+  Used this opportunity to introduce a `primStringUncons` primitive in
+  `Agda.Builtin.String` (and to correspondingly add the `Agda.Builtin.Maybe`
+  it needs).
+
+
 Reflection
 ----------
 
