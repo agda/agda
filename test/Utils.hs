@@ -27,6 +27,7 @@ import System.FilePath.GlobPattern
 import System.IO.Temp
 import System.PosixCompat.Time (epochTime)
 import System.PosixCompat.Files (modificationTime)
+import System.Process (proc, CreateProcess(..) )
 import qualified System.Process.Text as PT
 
 import Test.Tasty.Silver
@@ -61,7 +62,8 @@ readAgdaProcessWithExitCode :: AgdaArgs -> Text
 readAgdaProcessWithExitCode args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
-  PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
+  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True }
+  PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult
   = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
