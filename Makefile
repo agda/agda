@@ -465,22 +465,22 @@ FIXW_PATH = src/fix-whitespace
 FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
-fix-whitespace : build-fix-whitespace
+fix-whitespace : install-fix-whitespace
 	$(FIXW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
-check-whitespace : build-fix-whitespace
+check-whitespace : install-fix-whitespace
 	$(FIXW_BIN) --check
 
-.PHONY : build-fix-whitespace ## Build fix-whitespace.
-build-fix-whitespace :
+.PHONY : install-fix-whitespace ## Build fix-whitespace.
+install-fix-whitespace :
 	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-whitespace
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
+	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
