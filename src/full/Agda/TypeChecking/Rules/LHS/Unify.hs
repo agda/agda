@@ -660,8 +660,9 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel =<< reduce (getEqualityUnraised k s)
+  sa <- reduce $ getSort a
   case unEl a of
-    Def d es | Type{} <- getSort a -> do
+    Def d es | Type{} <- sa -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
