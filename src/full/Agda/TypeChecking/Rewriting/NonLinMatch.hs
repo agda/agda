@@ -143,14 +143,14 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) (p:ps) (v:vs) = case (p,v) of
     (Apply p, Apply v) -> do
-      ~(Pi a b) <- unEl <$> reduce t
+      ~(Pi a b) <- addContext k $ unEl <$> reduce t
       match r gamma k a p v
-      t' <- addContext k $ t `piApplyM` v
+      let t'  = absApp b (unArg v)
           hd' = hd . (Apply v:)
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
-      ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
+      ~(Just (El _ (Pi a b))) <- addContext k $ getDefType f =<< reduce t
       let u = hd []
           t' = b `absApp` u
       hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
@@ -177,7 +177,7 @@ instance Match () NLPType Type where
 
 instance Match () NLPSort Sort where
   match r gamma k _ p s = do
-    bs <- reduceB s
+    bs <- addContext k $ reduceB s
     let b = void bs
         s = ignoreBlocking bs
         yes = return ()
