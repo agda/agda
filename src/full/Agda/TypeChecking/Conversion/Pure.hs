@@ -36,19 +36,19 @@ newtype PureConversionT m a = PureConversionT
 pureEqualTerm
   :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Type -> Term -> Term -> m Bool
-pureEqualTerm a u v = locallyTC eCompareBlocked (const True) $
+pureEqualTerm a u v =
   isRight <$> runPureConversion (equalTerm a u v)
 
 pureCompareAs
   :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
-pureCompareAs cmp a u v = locallyTC eCompareBlocked (const True) $
+pureCompareAs cmp a u v =
   isRight <$> runPureConversion (compareAs cmp a u v)
 
 runPureConversion
   :: (ReadTCState m, MonadDebug m, HasOptions m, MonadTCEnv m, Show a)
   => PureConversionT m a -> m (Either TCErr a)
-runPureConversion (PureConversionT m) = do
+runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
   i <- useR stFreshInt
   pid <- useR stFreshProblemId
   nid <- useR stFreshNameId
