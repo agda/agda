@@ -731,7 +731,7 @@ appDefE v cc rewr es = do
   r <- matchCompiledE cc es
   case r of
     YesReduction simpl t -> return $ YesReduction simpl t
-    NoReduction es'      -> rewrite (void es') v rewr (ignoreBlocking es')
+    NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
 appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
@@ -750,7 +750,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
         -- the remaining clauses (see Issue 907).
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> rewrite (NotBlocked MissingClauses ()) v rewr es
+        [] -> rewrite (NotBlocked MissingClauses ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
@@ -763,7 +763,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
             let es = es0 ++ es1
             case m of
               No         -> goCls cls es
-              DontKnow b -> rewrite b v rewr es
+              DontKnow b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
@@ -771,7 +771,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
                     -- Andreas, 2013-05-19 isn't this done now?
                     let sigma = buildSubstitution __IMPOSSIBLE__ nvars vs
                     return $ YesReduction simpl $ applySubst sigma w `applyE` es1
-                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) v rewr es
+                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do

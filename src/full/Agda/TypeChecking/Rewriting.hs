@@ -354,40 +354,40 @@ checkRewriteRule q = do
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
-            -> Term
+            -> (Elims -> Term)
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
-    [ "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
-    , " having head " <+> prettyTCM v <+> " of type " <+> prettyTCM t
+    [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
+    , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
     , " with rule " <+> prettyTCM rew
     ]) $ do
   traceSDoc "rewriting.rewrite" 90 (sep
-    [ "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
-    , " having head " <+> (text . show) v <+> " of type " <+> (text . show) t
+    [ "raw: attempting to rewrite term " <+> (text . show) (hd es)
+    , " having head " <+> (text . show) (hd []) <+> " of type " <+> (text . show) t
     , " with rule " <+> (text . show) rew
     ]) $ do
-  result <- nonLinMatch gamma (t,v) ps es
+  result <- nonLinMatch gamma (t,hd) ps es
   case result of
     Left block -> traceSDoc "rewriting.rewrite" 50 "}" $
-      return $ Left $ block $> v `applyE` es -- TODO: remember reductions
+      return $ Left $ block $> hd es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
       traceSDoc "rewriting.rewrite" 50 (sep
-        [ "rewrote " <+> prettyTCM (v `applyE` es)
+        [ "rewrote " <+> prettyTCM (hd es)
         , " to " <+> prettyTCM v' <+> "}"
         ]) $ do
       return $ Right v'
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-rewrite block v rules es = do
+rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    t <- case v of
+    t <- case hd [] of
       Def f []   -> defType <$> getConstInfo f
       Con c _ [] -> typeOfConst $ conName c
         -- Andreas, 2018-09-08, issue #3211:
@@ -395,19 +395,19 @@ rewrite block v rules es = do
       _ -> __IMPOSSIBLE__
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
-    return $ NoReduction (block $> v `applyE` es)
+    return $ NoReduction (block $> hd es)
   where
     loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep
-        [ "failed to rewrite " <+> prettyTCM (v `applyE` es)
+        [ "failed to rewrite " <+> prettyTCM (hd es)
         , "blocking tag" <+> text (show block)
         ]) $ do
-      return $ NoReduction $ block $> v `applyE` es
+      return $ NoReduction $ block $> hd es
     loop block t (rew:rews) es
      | let n = rewArity rew, length es >= n = do
           let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith t v rew es1
+          result <- rewriteWith t hd rew es1
           case result of
             Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
             Left (NotBlocked _ _) -> loop block t rews es

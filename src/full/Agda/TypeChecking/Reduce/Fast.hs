@@ -1309,7 +1309,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
         es <- decodeSpine spine
-        case runReduce (rewrite blk v0 rewr es) of
+        case runReduce (rewrite blk (applyE v0) rewr es) of
           NoReduction b    -> runAM (evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl)
           YesReduction _ v -> runAM (evalClosure v emptyEnv [] ctrl)
       where rewr = case t of

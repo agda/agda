@@ -137,7 +137,7 @@ instance Match t a b => Match (Dom t) (Arg a) (Arg b) where
   match r gamma k t p v = let r' = r `composeRelevance` getRelevance p
                           in  match r' gamma k (unDom t) (unArg p) (unArg v)
 
-instance Match (Type, Term) [Elim' NLPat] Elims where
+instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
   match r gamma k (t, hd) [] [] = return ()
   match r gamma k (t, hd) [] _  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
@@ -146,13 +146,14 @@ instance Match (Type, Term) [Elim' NLPat] Elims where
       ~(Pi a b) <- unEl <$> reduce t
       match r gamma k a p v
       t' <- addContext k $ t `piApplyM` v
-      let hd' = hd `apply` [ v ]
+          hd' = hd . (Apply v:)
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
-      let t' = b `absApp` hd
-      hd' <- addContext k $ applyDef o f (argFromDom a $> hd)
+      let u = hd []
+          t' = b `absApp` u
+      hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
       match r gamma k (t',hd') ps vs
 
     (Proj _ f, Proj _ f') | otherwise -> do
@@ -274,11 +275,11 @@ instance Match Type NLPat Term where
           Def f' es
             | f == f'   -> do
                 ft <- addContext k $ defType <$> getConstInfo f
-                match r gamma k (ft , Def f []) ps es
+                match r gamma k (ft , Def f) ps es
           Con c ci vs
             | f == conName c -> do
                 ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-                match r gamma k (ct , Con c ci []) ps vs
+                match r gamma k (ct , Con c ci) ps vs
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
                 pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -299,7 +300,7 @@ instance Match Type NLPat Term where
                 ps'
                   | conName c == f = ps
                   | otherwise      = map (Apply . fmap mkField) flds
-            match r gamma k (ct, Con c ci []) ps' (map Apply vs)
+            match r gamma k (ct, Con c ci) ps' (map Apply vs)
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           v -> maybeBlock v
@@ -322,7 +323,7 @@ instance Match Type NLPat Term where
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
           let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i
-          match r gamma k (ti , var i) ps es
+          match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
               pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -335,7 +336,7 @@ instance Match Type NLPat Term where
           ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
           let flds = map argFromDom $ recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
-          match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
+          match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
