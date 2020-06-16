@@ -327,7 +327,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
           setModuleCheckpoint m
-          checkRecordProjections m name hasNamedCon con tel' (raise 1 ftel) fields
+          checkRecordProjections m name hasNamedCon con tel' ftel fields
 
 
       -- we define composition here so that the projections are already in the signature.
@@ -530,18 +530,18 @@ checkRecordProjections ::
   ModuleName -> QName -> Bool -> ConHead -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
 checkRecordProjections m r hasNamedCon con tel ftel fs = do
-    checkProjs EmptyTel ftel fs
+    checkProjs EmptyTel ftel [] fs
   where
 
-    checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
+    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Declaration] -> TCM ()
 
-    checkProjs _ _ [] = return ()
+    checkProjs _ _ _ [] = return ()
 
-    checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
-      setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
+    checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
+      setScope scope >> checkProjs ftel1 ftel2 vs (fs' ++ fs)
 
     -- Case: projection.
-    checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) (A.Field info x _ : fs) =
+    checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) vs (A.Field info x _ : fs) =
       traceCall (CheckProjection (getRange info) x t) $ do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
@@ -552,9 +552,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         , nest 2 $ vcat
           [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , "ftel1 =" <+> prettyTCM ftel1
-          , "t     =" <+> prettyTCM t
-          , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , "ftel1 =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel1)
+          , "t     =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t)
+          , "ftel2 =" <+> escapeContext __IMPOSSIBLE__ 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
+          , "vs    =" <+> prettyList_ (map prettyTCM vs)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
           , "coh   =" <+> (text . show) (getCohesion ai)
@@ -584,22 +585,25 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
       {- what are the contexts?
 
-          Γ, tel            ⊢ t
-          Γ, tel, r         ⊢ vs
-          Γ, tel, r, ftel₁  ⊢ raiseFrom (size ftel₁) 1 t
+          Γ, tel, ftel₁     ⊢ t
+          Γ, tel, r         ⊢ reverse vs : ftel₁
+          Γ, tel, r, ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
+          Γ, tel, r         ⊢ t'' = applySubst (parallelS vs) t'
       -}
 
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-      let finalt   = telePi (replaceEmptyName "r" tel) t
+      let t'       = raiseFrom (size ftel1) 1 t
+          t''      = applySubst (parallelS vs) t'
+          finalt   = telePi (replaceEmptyName "r" tel) t''
           projname = qualify m $ qnameName x
           projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (ftel2 `absApp` projcall ProjSystem) fs
+                                (absBody ftel2) (projcall ProjSystem : vs) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
         inTopContext $ prettyTCM finalt
@@ -655,7 +659,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body
-                            , clauseType      = Just $ Arg ai t
+                            , clauseType      = Just $ Arg ai t'
                             , clauseCatchall  = False
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
@@ -722,6 +726,6 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         recurse
 
     -- Case: definition.
-    checkProjs ftel1 ftel2 (d : fs) = do
+    checkProjs ftel1 ftel2 vs (d : fs) = do
       checkDecl d
-      checkProjs ftel1 ftel2 fs
+      checkProjs ftel1 ftel2 vs fs
