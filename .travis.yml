@@ -6,8 +6,8 @@ language: c
 
 os: linux
 
-# Request Ubuntu Xenial (16.04 LTS).
-dist: xenial
+# Request Ubuntu Focal (20.04 LTS).
+dist: focal
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
