@@ -243,6 +243,15 @@ instance EmbPrj PragmaOptions where
       valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa
     _ -> malformed
 
+instance EmbPrj ConfluenceCheck where
+  icod_ LocalConfluenceCheck  = icodeN' LocalConfluenceCheck
+  icod_ GlobalConfluenceCheck = icodeN 0 GlobalConfluenceCheck
+
+  value = vcase valu where
+    valu []  = valuN LocalConfluenceCheck
+    valu [0] = valuN GlobalConfluenceCheck
+    valu _   = malformed
+
 instance EmbPrj WarningMode where
   icod_ = \case
     WarningMode a b -> icodeN' WarningMode a b

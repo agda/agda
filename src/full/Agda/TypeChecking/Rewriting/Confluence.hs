@@ -28,6 +28,8 @@ import Data.Functor ( ($>) )
 import Data.List ( elemIndex , tails )
 import qualified Data.Set as Set
 
+import Agda.Interaction.Options ( ConfluenceCheck(..) )
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
@@ -62,23 +64,23 @@ import Agda.Utils.Size
 
 -- ^ Check confluence of the given rewrite rules wrt all other rewrite
 --   rules (also amongst themselves).
-checkConfluenceOfRules :: [RewriteRule] -> TCM ()
-checkConfluenceOfRules = checkConfluenceOfRules' False
+checkConfluenceOfRules :: ConfluenceCheck -> [RewriteRule] -> TCM ()
+checkConfluenceOfRules confChk rews = checkConfluenceOfRules' confChk False rews
 
 -- ^ Check confluence of the given clause wrt rewrite rules of the
 -- constructors it matches against
-checkConfluenceOfClause :: QName -> Int -> Clause -> TCM ()
-checkConfluenceOfClause f i cl = do
+checkConfluenceOfClause :: ConfluenceCheck -> QName -> Int -> Clause -> TCM ()
+checkConfluenceOfClause confChk f i cl = do
   fi <- clauseQName f i
   whenJust (clauseToRewriteRule f fi cl) $ \rew -> do
-    checkConfluenceOfRules' True [rew]
+    checkConfluenceOfRules' confChk True [rew]
     let matchables = getMatchables rew
     reportSDoc "rewriting.confluence" 30 $
       "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
     modifySignature $ setMatchableSymbols f matchables
 
-checkConfluenceOfRules' :: Bool -> [RewriteRule] -> TCM ()
-checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
+checkConfluenceOfRules' :: ConfluenceCheck -> Bool -> [RewriteRule] -> TCM ()
+checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ do
 
   forM_ (tails rews) $ listCase (return ()) $ \rew rewsRest -> do
 

@@ -151,8 +151,8 @@ addRewriteRules qs = do
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
-  whenM (optConfluenceCheck <$> pragmaOptions) $
-    checkConfluenceOfRules rews
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk ->
+    checkConfluenceOfRules confChk rews
 
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule

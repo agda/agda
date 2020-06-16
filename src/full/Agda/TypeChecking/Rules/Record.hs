@@ -335,10 +335,10 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
-      whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
+      whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> forM_ fs $ \f -> do
         cls <- defClauses <$> getConstInfo (unDom f)
         forM (zip cls [0..]) $ \(cl,i) ->
-          checkConfluenceOfClause (unDom f) i cl
+          checkConfluenceOfClause confChk (unDom f) i cl
 
       return ()
   where
