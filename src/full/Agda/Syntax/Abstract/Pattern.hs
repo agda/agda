@@ -229,11 +229,8 @@ containsAbsurdPattern = containsAPattern $ \case
 
 -- | Check if a pattern contains an @-pattern.
 --
---   Precondition: contains no pattern synonyms.
-
 containsAsPattern :: APatternLike a p => p -> Bool
 containsAsPattern = containsAPattern $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
     A.AsP{}         -> True
     _               -> False
 

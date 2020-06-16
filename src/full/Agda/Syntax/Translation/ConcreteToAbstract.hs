@@ -43,7 +43,7 @@ import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity )
+import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity, containsAsPattern )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -1928,6 +1928,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
+         when (containsAsPattern p) $
+           typeError $ GenericError $
+             "@-patterns are not allowed in pattern synonyms"
          checkPatternLinearity p $ \ys ->
            typeError $ RepeatedVariablesInPattern ys
          bindVarsToBind
