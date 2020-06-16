@@ -21,6 +21,7 @@ import Data.Semigroup (Semigroup(..))
 #endif
 
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 
 -- | Lazy monadic computation of a list of results.
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
@@ -56,6 +57,14 @@ caseListT l nil cons = caseMaybeM (runListT l) nil $ uncurry cons
 foldListT :: Monad m => (a -> m b -> m b) -> m b -> ListT m a -> m b
 foldListT cons nil = loop where
   loop l = caseListT l nil $ \ a l' -> cons a $ loop l'
+
+-- | Lazy monadic disjunction of lazy monadic list, effects left-to-right
+anyListT :: Monad m => ListT m a -> (a -> m Bool) -> m Bool
+anyListT xs f = foldListT (or2M . f) (return False) xs
+
+-- | Lazy monadic conjunction of lazy monadic list, effects left-to-right
+allListT :: Monad m => ListT m a -> (a -> m Bool) -> m Bool
+allListT xs f = foldListT (and2M . f) (return True) xs
 
 -- | Force all values in the lazy list, effects left-to-right
 sequenceListT :: Monad m => ListT m a -> m [a]
