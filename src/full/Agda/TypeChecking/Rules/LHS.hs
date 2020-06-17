@@ -27,7 +27,6 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Semigroup ( Semigroup )
 import qualified Data.Semigroup as Semigroup
 import Data.Map (Map)
@@ -82,6 +81,9 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List  as List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -91,6 +93,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Compute the set of flexible patterns in a list of patterns. The result is
 ----   the deBruijn indices of the flexible patterns.
@@ -1548,7 +1551,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
-      case partitionEithers $ NonEmpty.toList disambiguations of
+      case partitionEithers $ List1.toList disambiguations of
         (_ , (d,a) : disambs) | constraintsOk <= null disambs -> do
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
@@ -1558,7 +1561,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           return (d, comatching, r, a)
         other -> failure other
 
-    notRecord = wrongProj $ NonEmpty.head ds
+    notRecord = wrongProj $ List1.head ds
 
     wrongProj :: (MonadTCM m, MonadError TCErr m, ReadTCState m) => QName -> m a
     wrongProj d = softTypeError =<< do
@@ -1650,30 +1653,76 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
   -- First, try do disambiguate with noConstraints,
   -- if that fails, try again allowing constraint generation.
-  tryDisambiguate False cons d $ \ _ ->
-    tryDisambiguate True cons d $ \case
-        ([]   , []                 ) -> __IMPOSSIBLE__
-        (err:_, []                 ) -> throwError err
-        (_    , disambs@((c,_,_):_)) -> typeError . GenericDocError =<< vcat
+  tryDisambiguate False d cons $ \ _ ->
+    tryDisambiguate True d cons $ \case
+        ([]   , [] ) -> __IMPOSSIBLE__
+        (err:_, [] ) -> throwError err
+        -- If all disambiguations point to the same original constructor
+        -- meaning that only the parameters may differ,
+        -- then throw more specific error.
+        (_    , [_]) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
+        (_    , disambs@(((c,_,_):|_):_)) -> typeError . GenericDocError =<< vcat
           [ "Ambiguous constructor " <> pretty (qnameName c) <> "."
           , "It could refer to any of"
-          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) disambs
+          , nest 2 $ vcat $ map (prettyDisambCons . conName . snd3) $ List1.concat disambs
           ]
 
   where
-    tryDisambiguate constraintsOk cons d failure = do
+    tryDisambiguate
+      :: Bool
+           -- ^ May we constrain/solve metas to arrive at unique disambiguation?
+      -> QName
+           -- ^ Data/record type.
+      -> [QName]
+           -- ^ Its constructor(s).
+      -> ( ( [TCErr]
+           , [List1 (QName, ConHead, (Type, Maybe TCState))]
+           )
+           -> TCM (ConHead, Type) )
+           -- ^ Failure continuation, taking possible disambiguations
+           --   grouped by the original constructor name in 'ConHead'.
+      -> TCM (ConHead, Type)
+           -- ^ Unique disambiguation and its type.
+    tryDisambiguate constraintsOk d cons failure = do
+      reportSDoc "tc.lhs.disamb" 30 $ sep $ List.concat $
+        [ [ "tryDisambiguate" ]
+        , if constraintsOk then [ "(allowing new constraints)" ] else empty
+        , map (nest 2 . pretty) $ List1.toList cs
+        , [ "against" ]
+        , map (nest 2 . pretty) cons
+        ]
       disambiguations <- mapM (runExceptT . tryCon constraintsOk cons d pars) cs
-      -- TODO: can we be more lazy, like using the ListT monad?
-      case second dedupCons . partitionEithers $ NonEmpty.toList disambiguations of
-        (_, [(c0,c,a)]) -> do
+      -- Q: can we be more lazy, like using the ListT monad?
+      -- Andreas, 2020-06-17: Not really, since we need to make sure
+      -- that only a single candidate remains, and if not,
+      -- report all alternatives in the error message.
+      let (errs, fits0) = partitionEithers $ List1.toList disambiguations
+      reportSDoc "tc.lhs.disamb" 40 $ vcat $ do
+        let hideSt (c0,c,(a,mst)) = (c0, c, (a, ("(state change)" :: String) <$ mst))
+        "remaining candidates: " : map (nest 2 . prettyTCM . hideSt) fits0
+      dedupCons fits0 >>= \case
+
+        -- Single candidate remains.
+        [ (c0,c,(a,mst)) :| [] ] -> do
+          reportSDoc "tc.lhs.disamb" 30 $ sep $
+            [ "tryDisambiguate suceeds with"
+            , pretty c0
+            , ":"
+            , prettyTCM a
+            ]
+          -- Andreas, 2020-06-16, issue #4135
+          -- If disambiguation succeeded with new constraints/solutions,
+          -- put them into action.
+          whenJust mst putTC
           -- If there are multiple candidates for the constructor pattern, exactly one of
           -- which type checks, remember our choice for highlighting info.
           when (isAmbiguous ambC) $ liftTCM $
             storeDisambiguatedConstructor (conInductive c) c0
           return (c,a)
+
         -- Either no candidate constructor in 'cs' type checks, or multiple candidates
         -- type check.
-        other -> failure other
+        groups -> failure (errs, groups)
 
     abstractConstructor c = softTypeError $
       AbstractConstructorNotInScope c
@@ -1682,12 +1731,15 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       ConstructorPatternInWrongDatatype c d
 
     tryCon
-      :: Bool        -- ^ Are we allowed to create new constraints?
+      :: Bool        -- ^ Are we allowed to constrain metas?
       -> [QName]     -- ^ Constructors of data type under consideration.
       -> QName       -- ^ Name of data/record type we are eliminating.
       -> Args        -- ^ Parameters of data/record type we are eliminating.
       -> QName       -- ^ Candidate constructor.
-      -> ExceptT TCErr TCM (QName, ConHead, Type)
+      -> ExceptT TCErr TCM (QName, ConHead, (Type, Maybe TCState))
+           -- ^ If this candidate succeeds, return its disambiguation
+           --   its type, and maybe the state obtained after checking it
+           --   (which may contain new constraints/solutions).
     tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
@@ -1707,19 +1759,56 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         -- but the extra check here is non-invasive to the existing code.
         -- Andreas, 2016-12-31 fixing issue #1975
         -- Do this also for constructors which were originally ambiguous.
-        suspendErrors $ applyUnless constraintsOk noConstraints $
-          checkConstructorParameters c d pars
+        let chk = checkConstructorParameters c d pars
+        mst <- suspendErrors $
+          if constraintsOk then Just . snd <$> localTCStateSaving chk
+          else Nothing <$ do dontAssignMetas $ noConstraints chk
 
-        -- Get the type from the original constructor
+        -- Get the type from the original constructor.
+        -- Andreas, 2020-06-17 TODO:
+        -- Couldn't we return this type from checkConstructorParameters?
         cType <- (`piApply` pars) . defType <$> getConInfo con
 
-        return (c, con, cType)
+        return (c, con, (cType, mst))
 
-    -- This deduplication identifies different names of the same constructor, ensuring
+    -- | This deduplication identifies different names of the same constructor, ensuring
     -- that the "ambiguous constructor" error does not fire for the case described
     -- in #4130.
-    dedupCons :: forall a b. [(a, ConHead, b)] -> [(a, ConHead, b)]
-    dedupCons = List.nubBy ((==) `on` conName . snd3)
+    --
+    -- Andreas, 2020-06-17, issue #4135:
+    -- However, we need to distinguish different occurrences
+    -- of the same original constructor if it is used
+    -- with different data parameters, as recorded in the @Type@.
+    dedupCons ::
+      forall a.       [ (a, ConHead, (Type, Maybe TCState)) ]
+         -> TCM [ List1 (a, ConHead, (Type, Maybe TCState)) ]
+    dedupCons cands = do
+      -- Group candidates by original constructor name.
+      let groups = List1.groupWith (conName . snd3) cands
+      -- Eliminate duplicates (same type) from groups.
+      mapM (List1.nubM (cmpM `on` thd3)) groups
+      where
+      -- The types come possibly with their own state.
+      cmpM (a1, mst1) (a2, mst2) = do
+        let cmpTypes = tryConversion $ equalType a1 a2
+        case (mst1, mst2) of
+          (Nothing, Nothing) -> cmpTypes
+          (Just st, Nothing) -> inState st cmpTypes
+          (Nothing, Just st) -> inState st cmpTypes
+          -- Andreas, 2020-06-17, issue #4135.
+          -- If the state has diverged into two states we give up.
+          -- For instance, one state may say `?0 := true`
+          -- and the other `?0 := false`.
+          -- The types may be both `D ?0`, which is the same
+          -- but diverges in the different states.
+          -- We do not check states for equality.
+          --
+          -- Of course, this is conservative and not maximally extensional.
+          -- We might throw an ambiguity error too eagerly,
+          -- but this can always be worked around.
+          (Just{},  Just{})  -> return False
+      inState st m = localTCState $ do putTC st; m
+
 
 prettyDisamb :: (QName -> Maybe (Range' SrcFile)) -> QName -> TCM Doc
 prettyDisamb f x = do
@@ -1754,12 +1843,14 @@ checkParameters dc d pars = liftTCM $ do
   case a of
     Def d0 es -> do -- compare parameters
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      reportSDoc "tc.lhs.split" 40 $
-        vcat [ nest 2 $ "d                   =" <+> (text . prettyShow) d
-             , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
-             , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
-             , nest 2 $ "vs                  =" <+> prettyTCM vs
-             ]
+      reportSDoc "tc.lhs.split" 40 $ vcat $
+        [ "checkParameters"
+        , nest 2 $ "d                   =" <+> (text . prettyShow) d
+        , nest 2 $ "d0 (should be == d) =" <+> (text . prettyShow) d0
+        , nest 2 $ "dc                  =" <+> (text . prettyShow) dc
+        , nest 2 $ "vs                  =" <+> prettyTCM vs
+        , nest 2 $ "pars                =" <+> prettyTCM pars
+        ]
       -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
       t <- typeOfConst d
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)

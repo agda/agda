@@ -2,10 +2,11 @@
 
 module Agda.Utils.List where
 
-import Control.Arrow (first, second)
+import Control.Monad (filterM)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
+import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -14,6 +15,7 @@ import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
 ---------------------------------------------------------------------------
@@ -549,6 +551,13 @@ uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
+
+-- | Non-efficient, monadic 'nub'.
+-- O(n²).
+nubM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
+nubM eq = loop where
+  loop []     = return []
+  loop (a:as) = (a :) <$> do loop =<< filterM (not <.> eq a) as
 
 ---------------------------------------------------------------------------
 -- * Zipping

@@ -913,7 +913,7 @@ disambiguateConstructor cs0 t = do
                      storeDisambiguatedConstructor (conInductive c) (conName c)
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
-                   cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
+                   (c:cs) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ fmap conName $ c :| cs
       getCon >>= \ case
         Nothing -> return $ Left $ isJust <$> getCon
         Just c  -> return $ Right c

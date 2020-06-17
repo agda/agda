@@ -422,7 +422,7 @@ instance PrettyTCM TypeError where
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
       ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
-      ++ map pretty cs
+      ++ map pretty (List1.toList cs)
 
     DoesNotConstructAnElementOf c t -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
