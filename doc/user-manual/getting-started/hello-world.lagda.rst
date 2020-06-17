@@ -403,3 +403,20 @@ corresponding to our source code will have the name
   JavaScript code faster but less readable. On the other hand, the
   ``--js-minify`` flag makes the generated JavaScript code smaller and still
   less readable.
+
+Where to go from here?
+======================
+
+There are many books and tutorials on Agda. We recommend this
+:ref:`list of tutorials <tutorial-list>`.
+
+Join the Agda Community!
+------------------------
+
+Get in touch and join the `Agda community <agda-community_>`_. Chat with us in
+Gitter, we have the `Agda channel <gitter-agda_>`_ and the
+`Cubical channel <gitter-cubical_>`_
+
+.. _agda-community: https://github.com/agda
+.. _gitter-agda: https://gitter.im/agda/agda
+.. _gitter-cubical: https://gitter.im/agda/cubical
