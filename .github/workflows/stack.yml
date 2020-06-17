@@ -30,15 +30,13 @@ jobs:
       FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
       FLAGS_2: "--flag Agda:enable-cluster-counting"
 
-    before_install:
-      - sudo apt-get -y install libicu-dev
-
     addons:
       apt:
         sources:
           - ppa:hvr/ghc
         packages:
         - haskell
+        - libicu-dev
 
     steps:
     - uses: actions/checkout@v2
