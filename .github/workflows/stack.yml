@@ -45,7 +45,7 @@ jobs:
 
     - name: Install needed Ubuntu packages
       run: |
-        sudo apt-get update && sudo apt-get install libicu-dev libicu55
+        sudo apt-get update && sudo apt-get install libicu-dev libicu60
 
     - name: Install dependencies
       run: |
