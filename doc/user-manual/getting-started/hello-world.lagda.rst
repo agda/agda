@@ -13,7 +13,7 @@ programming, and the second shows how to write proofs in Agda. Finally, we
 will build a program that creates a GHC or Javascript executable.
 
 Before proceeding, make sure that you :ref:`installed Agda <installation>`
-and the `standard library
+and a compatible version of the `standard library
 <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
 You will also need an editor with *interactive* capabilities, currently
 Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via the
