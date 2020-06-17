@@ -470,15 +470,17 @@ FIXW_PATH = src/fix-whitespace
 FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
-fix-whitespace : install-fix-whitespace
+fix-whitespace : $(FIXW_BIN)
 	$(FIXW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
-check-whitespace : install-fix-whitespace
+check-whitespace : $(FIXW_BIN)
 	$(FIXW_BIN) --check
 
 .PHONY : install-fix-whitespace ## Build fix-whitespace.
-install-fix-whitespace :
+install-fix-whitespace : $(FIXW_BIN)
+
+$(FIXW_BIN) :
 	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-whitespace
