@@ -1,5 +1,3 @@
-{-# LANGUAGE DoAndIfThenElse, ScopedTypeVariables   #-}
-
 module Interactive.Tests where
 
 import Data.Foldable
