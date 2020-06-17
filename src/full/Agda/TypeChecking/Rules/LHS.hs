@@ -1552,7 +1552,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
       case partitionEithers $ List1.toList disambiguations of
-        (_ , (d,a) : disambs) | constraintsOk <= null disambs -> do
+        (_ , (d, (a, mst)) : disambs) | constraintsOk <= null disambs -> do
+          mapM_ putTC mst -- Activate state changes
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
           -- This is safe here (fingers crossed) as we won't decide on a
@@ -1586,7 +1587,8 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -> QName                -- ^ Name of record type we are eliminating.
       -> Args                 -- ^ Parameters of record type we are eliminating.
       -> QName                -- ^ Candidate projection.
-      -> ExceptT TCErr TCM (QName, Arg Type)
+      -> ExceptT TCErr TCM (QName, (Arg Type, Maybe TCState))
+           -- ^ TCState contains possibly new constraints/meta solutions.
     tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
       Nothing -> wrongProj d0
@@ -1625,8 +1627,10 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         unless (caseMaybe h True $ sameHiding ai) $ wrongHiding d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
-        suspendErrors $ applyUnless constraintsOk noConstraints $
-          checkParameters qr r vs
+        let chk = checkParameters qr r vs
+        mst <- suspendErrors $
+          if constraintsOk then Just . snd <$> localTCStateSaving chk
+          else Nothing <$ do dontAssignMetas $ noConstraints chk
 
         -- Get the type of projection d applied to "self"
         dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
@@ -1634,7 +1638,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           [ "we are being projected by dType = " <+> prettyTCM dType
           ]
         projType <- liftTCM $ dType `piApplyM` vs
-        return (d0 , Arg ai projType)
+        return (d0 , (Arg ai projType , mst))
 
 -- | Disambiguate a constructor based on the data type it is supposed to be
 --   constructing. Returns the unambiguous constructor name and its type.
