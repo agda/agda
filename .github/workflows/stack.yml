@@ -45,7 +45,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get install -y libicu-dev
         stack build ${ARGS} ${FLAGS_1} --only-dependencies
 
     - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
