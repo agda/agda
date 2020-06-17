@@ -341,7 +341,7 @@ checkConfluenceOfRules' isClause rews = inTopContext $ inAbstractMode $ do
         , " : " , nest 2 $ prettyTCM a ]
 
       addContext gamma $ do
-          dontAssignMetas $ noConstraints $ equalTerm a rhs1 rhs2
+          nonConstraining $ equalTerm a rhs1 rhs2
         `catchError` \case
           TypeError _ s err -> do
             prettyErr <- withTCState (const s) $ prettyTCM err

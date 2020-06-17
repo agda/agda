@@ -1630,7 +1630,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         let chk = checkParameters qr r vs
         mst <- suspendErrors $
           if constraintsOk then Just . snd <$> localTCStateSaving chk
-          else Nothing <$ do dontAssignMetas $ noConstraints chk
+          else Nothing <$ nonConstraining chk
 
         -- Get the type of projection d applied to "self"
         dType <- liftTCM $ defType <$> getConstInfo d  -- full type!
@@ -1655,8 +1655,8 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
     def@Record{}   -> return $ [conName $ recConHead def]
     _              -> __IMPOSSIBLE__
 
-  -- First, try do disambiguate with noConstraints,
-  -- if that fails, try again allowing constraint generation.
+  -- First, try do disambiguate with nonConstraining,
+  -- if that fails, try again allowing constraint/solution generation.
   tryDisambiguate False d cons $ \ _ ->
     tryDisambiguate True d cons $ \case
         ([]   , [] ) -> __IMPOSSIBLE__
@@ -1766,7 +1766,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
         let chk = checkConstructorParameters c d pars
         mst <- suspendErrors $
           if constraintsOk then Just . snd <$> localTCStateSaving chk
-          else Nothing <$ do dontAssignMetas $ noConstraints chk
+          else Nothing <$ nonConstraining chk
 
         -- Get the type from the original constructor.
         -- Andreas, 2020-06-17 TODO:

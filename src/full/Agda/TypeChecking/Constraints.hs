@@ -123,7 +123,12 @@ stealConstraintsTCM pid = do
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
+
 -- | Don't allow the argument to produce any blocking constraints.
+--
+-- WARNING: this does not mean that the given computation cannot
+-- constrain the solution space further.
+-- It can well do so, by solving metas.
 noConstraints
   :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
   => m a -> m a
@@ -135,6 +140,19 @@ noConstraints problem = do
       w <- warning'_ (AgdaSourceErrorLocation file line) (UnsolvedConstraints cs)
       typeError' (AgdaSourceErrorLocation file line) $ NonFatalErrors [ w ]
   return x
+
+-- | Run a computation that should succeeds without constraining
+--   the solution space, i.e., not add any information about meta-variables.
+nonConstraining ::
+  ( HasOptions m
+  , MonadConstraint m
+  , MonadDebug m
+  , MonadError TCErr m
+  , MonadFresh ProblemId m
+  , MonadTCEnv m
+  , MonadWarning m
+  ) => m a -> m a
+nonConstraining = dontAssignMetas . noConstraints
 
 -- | Create a fresh problem for the given action.
 newProblem
