@@ -30,14 +30,6 @@ jobs:
       FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
       FLAGS_2: "--flag Agda:enable-cluster-counting"
 
-    addons:
-      apt:
-        sources:
-          - ppa:hvr/ghc
-        packages:
-        - haskell
-        - libicu-dev
-
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1.1
@@ -53,6 +45,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo apt-get install -y libicu-dev
         stack build ${ARGS} ${FLAGS_1} --only-dependencies
 
     - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
