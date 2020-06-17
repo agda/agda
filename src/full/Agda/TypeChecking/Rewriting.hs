@@ -389,9 +389,16 @@ rewrite block hd rules es = do
   if (rewritingAllowed && not (null rules)) then do
     t <- case hd [] of
       Def f []   -> defType <$> getConstInfo f
-      Con c _ [] -> typeOfConst $ conName c
+      Con (ConHead { conName = c }) _ [] -> do
         -- Andreas, 2018-09-08, issue #3211:
         -- discount module parameters for constructor heads
+        vs <- freeVarsToApply c
+        -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
+        -- case we don't have enough parameters
+        npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
+        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+        t <- defType <$> getConstInfo c
+        t `piApplyM` (vs ++ ws)
       _ -> __IMPOSSIBLE__
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
