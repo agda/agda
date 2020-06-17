@@ -15,3 +15,6 @@ module M (A : Set) where
 
   test : ∀ {B} → c {B} ≡ c' {B}
   test = refl
+
+-- Jesper, 2020-06-17: Parameters are now considered to be fully
+-- general, so this rewrite rule is now accepted (see #3538).

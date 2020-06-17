@@ -243,7 +243,7 @@ checkRewriteRule q = do
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
-          addContext gamma1 $ checkParametersAreGeneral c (size gamma1) pars
+          addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
@@ -334,15 +334,15 @@ checkRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
-    checkParametersAreGeneral :: ConHead -> Int -> Args -> TCM ()
-    checkParametersAreGeneral c k vs = do
+    checkParametersAreGeneral :: ConHead -> Args -> TCM ()
+    checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
       where
         loop []       = return []
         loop (v : vs) = case unArg v of
-          Var i [] | i < k -> (i :) <$> loop vs
-          _                -> errorNotGeneral
+          Var i [] -> (i :) <$> loop vs
+          _        -> errorNotGeneral
 
         errorNotGeneral :: TCM a
         errorNotGeneral = typeError . GenericDocError =<< vcat
