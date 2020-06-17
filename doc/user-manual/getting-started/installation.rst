@@ -20,6 +20,11 @@ Agda can be installed using different flags (see :ref:`installation-flags`).
 
 .. _installation-from-hackage:
 
+.. hint:: If you want a sneak peek of Agda without installing it, try the
+  `Agda Pad <agda-pad_>`_
+
+.. _agda-pad: https://agdapad.quasicoherent.io/
+
 Installation from Hackage
 =========================
 
