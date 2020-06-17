@@ -40,7 +40,7 @@ jobs:
       name: Cache dependencies
       with:
         path: "~/.stack"
-        # A unique cache is used for each stack.yam.
+        # A unique cache is used for each stack.yaml.
         key: ${{ runner.os }}-new-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Install needed Ubuntu packages
