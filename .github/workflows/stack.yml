@@ -36,16 +36,17 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
-    - uses: actions/cache@v1
-      name: Cache dependencies
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yam.
-        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+# what if the problem was from the cached stuff?  Try without
+#    - uses: actions/cache@v1
+#      name: Cache dependencies
+#      with:
+#        path: "~/.stack"
+#        # A unique cache is used for each stack.yam.
+#        key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Install needed Ubuntu packages
       run: |
-        sudo apt-get update && sudo apt-get install libicu-dev libicu60
+        sudo apt-get update && sudo apt-get install libicu-dev
 
     - name: Install dependencies
       run: |
