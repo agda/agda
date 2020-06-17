@@ -18,11 +18,6 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
 
-addons:
-  apt:
-    packages:
-    - libicu-dev
-
 jobs:
   Ubuntu:
     runs-on: ubuntu-18.04
@@ -47,6 +42,10 @@ jobs:
         path: "~/.stack"
         # A unique cache is used for each stack.yam.
         key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+    - name: Install needed Ubuntu packages
+      run: |
+        sudo apt-get update && sudo apt-get install libicu-dev
 
     - name: Install dependencies
       run: |
