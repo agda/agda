@@ -18,6 +18,11 @@ on:
     - 'Agda.cabal'
     - 'Setup.hs'
 
+addons:
+  apt:
+    packages:
+    - libicu-dev
+
 jobs:
   Ubuntu:
     runs-on: ubuntu-18.04
