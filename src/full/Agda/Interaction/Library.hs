@@ -402,7 +402,7 @@ parseExecutablesFile ef files =
         -- Compute canonical executable name and absolute filepath.
         let strExeName  = takeFileName fp
         let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
-        let txtExeName  = T.pack strExeName
+        let txtExeName  = T.pack strExeName'
         exePath <- lift $ makeAbsolute fp
         return $ Just (txtExeName, exePath)
 
