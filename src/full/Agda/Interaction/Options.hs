@@ -27,7 +27,6 @@ module Agda.Interaction.Options
     , mapFlag
     , usage
     , defaultLibDir
-    , allowExec
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions, deadStandardOptions
