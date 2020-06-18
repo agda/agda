@@ -86,7 +86,7 @@ patternToTerm p ret =
     ambigErr thing (AmbQ xs) =
       genericDocError =<< do
         text ("Ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (map pretty $ NonEmpty.toList xs))
+          fsep (punctuate comma (fmap pretty xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do

@@ -778,14 +778,14 @@ instance PrettyTCM TypeError where
     AmbiguousName x ys -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map nameWithBinding (NonEmpty.toList ys)
+      , nest 2 $ vcat $ fmap nameWithBinding ys
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
 
     AmbiguousModule x ys -> vcat
       [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map help (NonEmpty.toList ys)
+      , nest 2 $ vcat $ fmap help ys
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
       where
@@ -862,7 +862,7 @@ instance PrettyTCM TypeError where
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> "."] ++
       pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' $ List1.toList es')
+      ) $$ nest 2 (vcat $ fmap pretty' es')
       where
         pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es
@@ -904,7 +904,7 @@ instance PrettyTCM TypeError where
     CannotResolveAmbiguousPatternSynonym defs -> vcat
       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
                pwords "since candidates have different shapes:"
-      , nest 2 $ vcat $ map prDef (NonEmpty.toList defs)
+      , nest 2 $ vcat $ fmap prDef defs
       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
       ]
       where

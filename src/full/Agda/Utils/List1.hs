@@ -22,8 +22,11 @@ module Agda.Utils.List1
   , module List1
   ) where
 
+import Prelude hiding (filter)
+
 import Control.Arrow ((&&&))
 import Control.Monad (filterM)
+import qualified Control.Monad as List (zipWithM, zipWithM_)
 
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -64,6 +67,11 @@ snoc as a = prepend as $ a :| []
 
 concat :: [List1 a] -> [a]
 concat = concatMap toList
+
+-- | Like 'Data.List.union'.  Duplicates in the first list are not removed.
+-- O(nm).
+union :: Eq a => List1 a -> List1 a -> List1 a
+union (a :| as) bs = a :| List.union as (filter (/= a) bs)
 
 -- * Recovering non-emptyness.
 
@@ -117,3 +125,13 @@ rights = Either.rights  . List1.toList
 -- O(n²).
 nubM :: Monad m => (a -> a -> m Bool) -> List1 a -> m (List1 a)
 nubM eq (a :| as) = (a :|) <$> do List.nubM eq =<< filterM (not <.> eq a) as
+
+-- | Like 'Control.Monad.zipWithM'.
+
+zipWithM :: Applicative m => (a -> b -> m c) -> List1 a -> List1 b -> m (List1 c)
+zipWithM f (a :| as) (b :| bs) = (:|) <$> f a b <*> List.zipWithM f as bs
+
+-- | Like 'Control.Monad.zipWithM'.
+
+zipWithM_ :: Applicative m => (a -> b -> m c) -> List1 a -> List1 b -> m ()
+zipWithM_ f (a :| as) (b :| bs) = f a b *> List.zipWithM_ f as bs

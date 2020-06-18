@@ -47,7 +47,7 @@ insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
   reportSDoc "tc.term.lambda.imp" 20 $
     vcat [ "insertImplicitBindersT"
          , nest 2 $ "bs  = " <+> do
-             brackets $ fsep $ punctuate comma $ map prettyA $ List1.toList bs
+             brackets $ fsep $ punctuate comma $ fmap prettyA bs
          , nest 2 $ "tel = " <+> prettyTCM tel
          , nest 2 $ "ty  = " <+> addContext tel (prettyTCM ty0)
          ]

@@ -449,7 +449,7 @@ deriving instance Show QName
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name _ _ xs)    = hcat $ map pretty $ List1.toList xs
+  pretty (Name _ _ xs)    = hcat $ fmap pretty xs
   pretty (NoName _ _)     = "_"
 
 instance Pretty NamePart where

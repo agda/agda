@@ -17,8 +17,6 @@ import Control.Monad.State
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -54,6 +52,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -317,7 +316,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, HasBuiltins m, MonadError (NonEmpty A.QName) m)
+  :: (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -453,7 +452,7 @@ getNotation x ns = do
   where
     notation = namesToNotation x . qnameName . anameName
     oneNotation ds =
-      case mergeNotations $ map notation $ NonEmpty.toList ds of
+      case mergeNotations $ map notation $ List1.toList ds of
         [n] -> n
         _   -> __IMPOSSIBLE__
 
@@ -505,7 +504,7 @@ bindName'' acc kind meta x y = do
 
     ambiguous f ds =
       if f kind && all (f . anameKind) ds
-      then success else clash $ anameName (NonEmpty.head ds)
+      then success else clash $ anameName (List1.head ds)
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an

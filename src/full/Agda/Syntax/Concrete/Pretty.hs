@@ -9,6 +9,7 @@ import Prelude hiding ( null )
 
 import Data.IORef
 import Data.Maybe
+import qualified Data.Foldable  as Fold
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
 import qualified Data.Text as T
@@ -124,10 +125,10 @@ emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 -- @
 -- If the list is empty, then the notation @{}@ is used.
 
-bracesAndSemicolons :: [Doc] -> Doc
-bracesAndSemicolons []       = "{}"
-bracesAndSemicolons (d : ds) =
-  sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
+bracesAndSemicolons :: Foldable t => t Doc -> Doc
+bracesAndSemicolons ts = case Fold.toList ts of
+  []       -> "{}"
+  (d : ds) -> sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
 
 arrow, lambda :: Doc
 arrow  = _arrow specialCharacters
@@ -235,13 +236,13 @@ instance Pretty Expr where
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e
-            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty $ List1.toList bs) <+> absurd h
+            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (fmap pretty bs) <+> absurd h
             Lam _ bs e ->
-                sep [ lambda <+> fsep (map pretty $ List1.toList bs) <+> arrow
+                sep [ lambda <+> fsep (fmap pretty bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty $ List1.toList pes)
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (fmap pretty pes)
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
@@ -260,7 +261,7 @@ instance Pretty Expr where
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> "do" <+> vcat (map pretty $ List1.toList ss)
+            DoBlock _ ss -> "do" <+> vcat (fmap pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
             DoubleDot _ e  -> ".." <> pretty e
@@ -348,7 +349,7 @@ instance Pretty LamBinding where
 instance Pretty TypedBinding where
     pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
-      fsep (map (pretty . NamedBinding True) $ List1.toList xs)
+      fsep (fmap (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
@@ -502,7 +503,7 @@ instance Pretty Declaration where
             RecordDef _ x ind eta pat con tel cs ->
               pRecord x ind eta pat con tel Nothing cs
             Infix f xs  ->
-                pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
+                pretty f <+> fsep (punctuate comma $ fmap pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
