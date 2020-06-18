@@ -252,7 +252,7 @@ instance Pretty Expr where
                     , pretty e
                     ]
             Let _ ds me  ->
-                sep [ "let" <+> vcat (map pretty ds)
+                sep [ "let" <+> vcat (fmap pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
@@ -347,7 +347,7 @@ instance Pretty LamBinding where
     pretty (DomainFull b) = pretty b
 
 instance Pretty TypedBinding where
-    pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
+    pretty (TLet _ ds) = parens $ "let" <+> vcat (fmap pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
       fsep (fmap (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
@@ -428,7 +428,7 @@ instance Pretty DoStmt where
       prCs [] = empty
       prCs cs = "where" <?> vcat (map pretty cs)
   pretty (DoThen e) = pretty e
-  pretty (DoLet _ ds) = "let" <+> vcat (map pretty ds)
+  pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
     prettyList = vcat . map pretty

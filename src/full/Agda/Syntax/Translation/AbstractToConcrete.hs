@@ -717,14 +717,14 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.AbsurdLam i h) =
       bracket lamBrackets $ return $ C.AbsurdLam (getRange i) h
     toConcrete e@(A.Lam i _ _) =
-        tryToRecoverOpApp e   -- recover sections
-        $ List1.ifNull bs'
+      tryToRecoverOpApp e $   -- recover sections
+        bindToConcrete (fmap makeDomainFree bs) $ \ bs' -> do
+          List1.ifNull (catMaybes bs')
             {-then-} (toConcrete e')
             {-else-} $ \ bs -> bracket lamBrackets $
-                bindToConcrete (fmap makeDomainFree bs) $ \ bs -> do
-                  C.Lam (getRange i) bs <$> toConcreteTop e'
-        where
-          (bs', e') = lamView e
+              C.Lam (getRange i) bs <$> toConcreteTop e'
+      where
+          (bs, e') = lamView e
           -- #3238 GA: We drop the hidden lambda abstractions which have
           -- been inserted by the machine rather than the user. This means
           -- that the result of lamView may actually be an empty list of
@@ -778,13 +778,13 @@ instance ToConcrete A.Expr C.Expr where
           C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
-    toConcrete (A.Pi _ tel0 e0) = do
-      let (tel, e) = piTel1 tel0 e0
+    toConcrete (A.Pi _ tel1 e0) = do
+      let (tel, e) = piTel1 tel1 e0
       bracket piBrackets $
          bindToConcrete tel $ \ tel' ->
-           C.Pi tel' <$> toConcreteTop e
+           C.makePi (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e = first (List1.append tel) $ piTel e
+        piTel1 tel e         = first (List1.append tel) $ piTel e
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
@@ -813,7 +813,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
              e'  <- toConcreteTop e
-             return $ C.Let (getRange i) (concat ds') (Just e')
+             return $ C.mkLet (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
@@ -823,7 +823,7 @@ instance ToConcrete A.Expr C.Expr where
       bracket appBrackets $ do
         C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
-    toConcrete (A.ETel tel) = C.ETel <$> toConcrete tel
+    toConcrete (A.ETel tel) = C.ETel . catMaybes <$> toConcrete tel
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
@@ -883,24 +883,24 @@ instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
     bindToConcrete p $ \ p ->
     ret $ C.Binder p a
 
-instance ToConcrete A.LamBinding C.LamBinding where
+instance ToConcrete A.LamBinding (Maybe C.LamBinding) where
     bindToConcrete (A.DomainFree t x) ret = do
       t <- traverse toConcrete t
       let setTac x = x { bnameTactic = t }
       bindToConcrete (forceNameIfHidden x) $
-        ret . C.DomainFree . updateNamedArg (fmap setTac)
-    bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
+        ret . Just . C.DomainFree . updateNamedArg (fmap setTac)
+    bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . fmap C.DomainFull
 
-instance ToConcrete A.TypedBinding C.TypedBinding where
+instance ToConcrete A.TypedBinding (Maybe C.TypedBinding) where
     bindToConcrete (A.TBind r t xs e) ret = do
         t <- traverse toConcrete t
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
           let setTac x = x { bnameTactic = t }
-          ret $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
+          ret $ Just $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
-        ret $ C.TLet r $ concat ds
+        ret $ C.mkTLet r $ concat ds
 
 instance ToConcrete A.LetBinding [C.Declaration] where
     bindToConcrete (A.LetBind i info x t e) ret =
@@ -1021,7 +1021,7 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
     bindToConcrete tel $ \ tel -> do
       es <- toConcreteCtx argumentCtx_ es
       let r = fuseRange y es
-      return $ C.SectionApp r tel (foldl (C.App r) (C.Ident y) es)
+      return $ C.SectionApp r (catMaybes tel) (foldl (C.App r) (C.Ident y) es)
 
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
@@ -1074,26 +1074,26 @@ instance ToConcrete A.Declaration [C.Declaration] where
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.DataSig (getRange i) x' (map C.DomainFull tel') t' ]
+      return [ C.DataSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.DataDef (getRange i) x' tel' cs' ]
+      return [ C.DataDef (getRange i) x' (catMaybes tel') cs' ]
 
   toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
+      return [ C.RecordSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.RecDef  i x uc ind eta pat c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.RecordDef (getRange i) x' ind eta pat Nothing tel' cs' ]
+      return [ C.RecordDef (getRange i) x' ind eta pat Nothing (catMaybes tel') cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
@@ -1101,7 +1101,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     bindToConcrete tel $ \ tel -> do
       ds <- declsToConcrete ds
-      return [ C.Module (getRange i) x tel ds ]
+      return [ C.Module (getRange i) x (catMaybes tel) ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x

@@ -190,15 +190,14 @@ recordConstructorType decls =
       -- TODO: Telescope instead of Expr in abstract RecDef
     buildType ds = do
       dummy <- A.Def . fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
-      List1.ifNull ds (return dummy) $ \ ds -> do
-        tel <- mapM makeBinding ds
-        return $ A.Pi (ExprRange (getRange ds)) tel dummy
+      tel   <- catMaybes <$> mapM makeBinding ds
+      return $ A.mkPi (ExprRange (getRange ds)) tel dummy
 
-    makeBinding :: C.NiceDeclaration -> ScopeM A.TypedBinding
+    makeBinding :: C.NiceDeclaration -> ScopeM (Maybe A.TypedBinding)
     makeBinding d = do
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
-          mkLet d = A.TLet r <$> toAbstract (LetDef d)
+          mkLet d = Just . A.TLet r <$> toAbstract (LetDef d)
       traceCall (SetRange r) $ case d of
 
         C.NiceField r pr ab inst tac x a -> do
@@ -258,7 +257,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     -- Check that expression @e@ is of the form @m args@.
     (m, args) <- parseModuleApplication e
     -- Scope check the telescope (introduces bindings!).
-    tel' <- toAbstract tel
+    tel' <- catMaybes <$> toAbstract tel
     -- Scope check the old module name and the module args.
     m1    <- toAbstract $ OldModuleName m
     args' <- toAbstractCtx (ArgumentCtx PreferParen) args
@@ -308,7 +307,7 @@ checkModuleMacro
   -> C.ModuleApplication
   -> OpenShortHand
   -> C.ImportDirective
-  -> ScopeM [a]
+  -> ScopeM a
 checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checking ModuleMacro " ++ prettyShow x
@@ -361,7 +360,7 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` singleton x
-        adecls = [ apply info m modapp' copyInfo adir ]
+        adecl  = apply info m modapp' copyInfo adir
 
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleMacro " ++ prettyShow x
@@ -370,9 +369,8 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSLn  "scope.decl" 90 $ "m       = " ++ prettyShow m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
     reportSDoc "scope.decl" 90 $ return $ pretty copyInfo
-    reportSDoc "scope.decl" 70 $ vcat $
-      map (nest 2 . prettyA) adecls
-    return adecls
+    reportSDoc "scope.decl" 70 $ nest 2 $ prettyA adecl
+    return adecl
   where
     info = ModuleInfo
              { minfoRange  = r
@@ -739,13 +737,20 @@ toAbstractLam :: Range -> List1 C.LamBinding -> C.Expr -> Precedence -> ScopeM A
 toAbstractLam r bs e ctx = do
   -- Translate the binders
   lvars0 <- getLocalVars
-  -- We have at least one binder.  Get first @b@ and rest @bs@.
-  localToAbstract (fmap (C.DomainFull . makeDomainFull) bs) $ \ (b :| bs) -> do
+  localToAbstract (fmap (C.DomainFull . makeDomainFull) bs) $ \ bs -> do
     lvars1 <- getLocalVars
     checkNoShadowing lvars0 lvars1
     -- Translate the body
     e <- toAbstractCtx ctx e
-    return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
+    -- We have at least one binder.  Get first @b@ and rest @bs@.
+    return $ case List1.catMaybes bs of
+      -- Andreas, 2020-06-18
+      -- There is a pathological case in which we end up without binder:
+      --   λ (let
+      --        mutual -- warning: empty mutual block
+      --     ) -> Set
+      []   -> e
+      b:bs -> A.Lam (ExprRange r) b $ foldr mkLam e bs
   where
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
@@ -889,7 +894,7 @@ instance ToAbstract C.Expr A.Expr where
           checkNoShadowing lvars0 lvars1
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
-          return $ A.Pi info tel e
+          return $ A.mkPi info (List1.catMaybes tel) e
 
   -- Let
       e0@(C.Let _ ds (Just e)) ->
@@ -897,13 +902,13 @@ instance ToAbstract C.Expr A.Expr where
         localToAbstract (LetDefs ds) $ \ds' -> do
           e <- toAbstractCtx TopCtx e
           let info = ExprRange (getRange e0)
-          return $ A.Let info ds' e
+          return $ A.mkLet info ds' e
       C.Let _ _ Nothing -> genericError "Missing body in let-expression"
 
   -- Record construction
       C.Rec r fs  -> do
         fs' <- toAbstractCtx TopCtx fs
-        let ds'  = [ d | Right (_, ds) <- fs', d <- ds ]
+        let ds'  = [ d | Right (_, Just d) <- fs' ]
             fs'' = map (mapRight fst) fs'
             i    = ExprRange r
         return $ A.mkLet i ds' (A.Rec i fs'')
@@ -955,16 +960,16 @@ instance ToAbstract C.Expr A.Expr where
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
 
-instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
+instance ToAbstract C.ModuleAssignment (A.ModuleName, Maybe A.LetBinding) where
   toAbstract (C.ModuleAssignment m es i)
-    | null es && isDefaultImportDir i = (, []) <$> toAbstract (OldModuleName m)
+    | null es && isDefaultImportDir i = (, Nothing) <$> toAbstract (OldModuleName m)
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
                (C.SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
                DontOpen i
         case r of
-          (LetApply _ m' _ _ _ : _) -> return (m', r)
+          LetApply _ m' _ _ _ -> return (m', Just r)
           _ -> __IMPOSSIBLE__
 
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
@@ -989,18 +994,18 @@ instance ToAbstract (C.Binder' (NewName C.BoundName)) A.Binder where
     p <- toAbstract p
     pure $ A.Binder p n
 
-instance ToAbstract C.LamBinding A.LamBinding where
+instance ToAbstract C.LamBinding (Maybe A.LamBinding) where
   toAbstract (C.DomainFree x)  = do
     tac <- traverse toAbstract $ bnameTactic $ C.binderName $ namedArg x
-    A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
-  toAbstract (C.DomainFull tb) = A.DomainFull <$> toAbstract tb
+    Just . A.DomainFree tac <$> toAbstract (updateNamedArg (fmap $ NewName LambdaBound) x)
+  toAbstract (C.DomainFull tb) = fmap A.DomainFull <$> toAbstract tb
 
 makeDomainFull :: C.LamBinding -> C.TypedBinding
 makeDomainFull (C.DomainFull b) = b
 makeDomainFull (C.DomainFree x) = C.TBind r (singleton x) $ C.Underscore r Nothing
   where r = getRange x
 
-instance ToAbstract C.TypedBinding A.TypedBinding where
+instance ToAbstract C.TypedBinding (Maybe A.TypedBinding) where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
     tac <- traverse toAbstract $
@@ -1010,8 +1015,8 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
                -- Invariant: all tactics are the same
                -- (distributed in the parser, TODO: don't)
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
-    return $ A.TBind r tac xs' t'
-  toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
+    return $ Just $ A.TBind r tac xs' t'
+  toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
 --
@@ -1368,14 +1373,14 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
        C.CompilePragma{}    -> Nothing
 
 
-newtype LetDefs = LetDefs [C.Declaration]
+newtype LetDefs = LetDefs (List1 C.Declaration)
 newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
   toAbstract (LetDefs ds) =
-    concat <$> niceDecls DoWarn ds (toAbstract . map LetDef)
+    List1.concat <$> niceDecls DoWarn (List1.toList ds) (toAbstract . map LetDef)
 
-instance ToAbstract LetDef [A.LetBinding] where
+instance ToAbstract LetDef (List1 A.LetBinding) where
   toAbstract (LetDef d) =
     case d of
       NiceMutual _ _ _ _ d@[C.FunSig _ _ _ instanc macro info _ _ x t, C.FunDef _ _ abstract _ _ _ _ [cl]] ->
@@ -1398,8 +1403,8 @@ instance ToAbstract LetDef [A.LetBinding] where
               -- definition. The first list element below is
               -- used to highlight the declared instance in the
               -- right way (see Issue 1618).
-              return [ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x))
-                     , A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
+              return $ A.LetDeclaredVariable (A.mkBindName (setRange (getRange x') x)) :|
+                     [ A.LetBind (LetRange $ getRange d) info' (A.mkBindName x) t e
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
@@ -1420,7 +1425,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 typeError $ RepeatedVariablesInPattern ys
               bindVarsToBind
               p   <- toAbstract p
-              return [ A.LetPatBind (LetRange r) p rhs ]
+              return $ singleton $ A.LetPatBind (LetRange r) p rhs
           -- It's not a record pattern, so it should be a prefix left-hand side
           Left err ->
             case definedName p0 of
@@ -1462,13 +1467,13 @@ instance ToAbstract LetDef [A.LetBinding] where
               , minfoOpenShort = Nothing
               , minfoDirective = Just dirs
               }
-        return [A.LetOpen minfo m adir]
+        return $ singleton $ A.LetOpen minfo m adir
 
       NiceModuleMacro r p x modapp open dir -> do
         whenJust (publicOpen dir) $ \ r -> setCurrentRange r $ warning UselessPublic
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
-        checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
+        singleton <$> checkModuleMacro LetApply LetOpenModule r (PrivateAccess Inserted) x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1558,7 +1563,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
              (not <$> (Lens.isBuiltinModuleWithSafePostulates . filePath =<< getCurrentPath)))
             (warning $ SafeFlagPostulate x)
       -- check the postulate
-      toAbstractNiceAxiom AxiomName d
+      singleton <$> toAbstractNiceAxiom AxiomName d
 
     C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
@@ -1652,7 +1657,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Type signatures
     C.FunSig r p a i m rel _ _ x t -> do
         let kind = if m == MacroDef then MacroName else FunName
-        toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
+        singleton <$> toAbstractNiceAxiom kind (C.Axiom r p a i rel x t)
 
   -- Function definitions
     C.FunDef r ds a i _ _ x cs -> do
@@ -1692,7 +1697,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                setCurrentRange bad $
                  typeError $ DuplicateConstructors dups
 
-          pars <- toAbstract pars
+          pars <- catMaybes <$> toAbstract pars
           let x' = anameName ax
           -- Create the module for the qualified constructors
           checkForModuleClash x -- disallow shadowing previously defined modules
@@ -1732,7 +1737,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- Check that the generated module doesn't clash with a previously
         -- defined module
         checkForModuleClash x
-        pars   <- toAbstract pars
+        pars   <- catMaybes <$> toAbstract pars
         let x' = anameName ax
         -- We scope check the fields a first time when putting together
         -- the type of the constructor.
@@ -1791,19 +1796,20 @@ instance ToAbstract NiceDeclaration A.Declaration where
         [ text $ "scope checking NiceModuleMacro " ++ prettyShow x
         ]
 
-      adecls <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
+      adecl <- checkModuleMacro Apply TopOpenModule r p x modapp open dir
 
       reportSDoc "scope.decl" 70 $ vcat $
-        text ( "scope checked NiceModuleMacro " ++ prettyShow x
-             ) : map (nest 2 . prettyA) adecls
-      return adecls
+        [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
+        , nest 2 $ prettyA adecl
+        ]
+      return [ adecl ]
 
     NiceOpen r x dir -> do
       (minfo, m, adir) <- checkOpen r Nothing x dir
       return [A.Open minfo m adir]
 
     NicePragma r p -> do
-      ps <- toAbstract p
+      ps <- toAbstract p  -- could result in empty list of pragmas
       return $ map (A.Pragma r) ps
 
     NiceImport r x as open dir -> setCurrentRange r $ do
@@ -1954,7 +1960,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM [A.Declaration]
+      toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
       toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
         t' <- toAbstractCtx TopCtx t
         f  <- getConcreteFixity x
@@ -1963,7 +1969,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let isMacro | kind == MacroName = MacroDef
                     | otherwise         = NotMacroDef
         bindName p kind x y
-        return [ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
+        return $ A.Axiom kind (mkDefInfoInstance x f p a i isMacro r) info mp y t'
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
 unGeneralized :: A.Expr -> (Set.Set I.QName, A.Expr)
@@ -2024,13 +2030,13 @@ data GenTelAndType = GenTelAndType C.Telescope C.Expr
 
 instance ToAbstract GenTel A.GeneralizeTelescope where
   toAbstract (GenTel tel) =
-    uncurry A.GeneralizeTel <$> collectAndBindGeneralizables (toAbstract tel)
+    uncurry A.GeneralizeTel <$> collectAndBindGeneralizables (catMaybes <$> toAbstract tel)
 
 instance ToAbstract GenTelAndType (A.GeneralizeTelescope, A.Expr) where
   toAbstract (GenTelAndType tel t) = do
     (binds, (tel, t)) <- collectAndBindGeneralizables $
                           (,) <$> toAbstract tel <*> toAbstract t
-    return (A.GeneralizeTel binds tel, t)
+    return (A.GeneralizeTel binds (catMaybes tel), t)
 
 -- | Make sure definition is in same module as signature.
 class LivesInCurrentModule a where

@@ -1112,31 +1112,30 @@ ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
  --------------------------------------------------------------------------}
 
 -- Top-level definitions.
-Declaration :: { [Declaration] }
+Declaration :: { List1 Declaration }
 Declaration
-    : Fields        { [$1] }
-    | FunClause     {  $1  }  -- includes type signatures
-    | Data          { [$1] }
-    | DataSig       { [$1] }  -- lone data type signature in mutual block
-    | Record        { [$1] }
-    | RecordSig     { [$1] }  -- lone record signature in mutual block
-    | Infix         { [$1] }
-    | Generalize    {  $1  }
-    | Mutual        { [$1] }
-    | Abstract      { [$1] }
-    | Private       { [$1] }
-    | Instance      { [$1] }
-    | Macro         { [$1] }
-    | Postulate     { [$1] }
-    | Primitive     { [$1] }
-    | Open          {  $1  }
---    | Import      { [$1] }
-    | ModuleMacro   { [$1] }
-    | Module        { [$1] }
-    | Pragma        { [$1] }
-    | Syntax        { [$1] }
-    | PatternSyn    { [$1] }
-    | UnquoteDecl   { [$1] }
+    : Fields        { singleton $1 }
+    | FunClause     { $1 }            -- includes type signatures
+    | Data          { singleton $1 }
+    | DataSig       { singleton $1 }  -- lone data type signature in mutual block
+    | Record        { singleton $1 }
+    | RecordSig     { singleton $1 }  -- lone record signature in mutual block
+    | Infix         { singleton $1 }
+    | Generalize    { singleton $1 }
+    | Mutual        { singleton $1 }
+    | Abstract      { singleton $1 }
+    | Private       { singleton $1 }
+    | Instance      { singleton $1 }
+    | Macro         { singleton $1 }
+    | Postulate     { singleton $1 }
+    | Primitive     { singleton $1 }
+    | Open          { $1  }
+    | ModuleMacro   { singleton $1 }
+    | Module        { singleton $1 }
+    | Pragma        { singleton $1 }
+    | Syntax        { singleton $1 }
+    | PatternSyn    { singleton $1 }
+    | UnquoteDecl   { singleton $1 }
 
 
 {--------------------------------------------------------------------------
@@ -1172,7 +1171,7 @@ ArgTypeSigs
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
-FunClause :: { [Declaration] }
+FunClause :: { List1 Declaration }
 FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
   | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 }
 
@@ -1242,11 +1241,11 @@ Fields : 'field' ArgTypeSignaturesOrEmpty
   --             in Field (fuseRange $1 $2) $ map toField $2 }
 
 -- Variable declarations for automatic generalization
-Generalize :: { [Declaration] }
+Generalize :: { Declaration }
 Generalize : 'variable' ArgTypeSignaturesOrEmpty
             { let
                 toGeneralize (Arg info (TypeSig _ tac x t)) = TypeSig info tac x t
-              in [ Generalize (fuseRange $1 $2) (map toGeneralize $2) ] }
+              in Generalize (fuseRange $1 $2) (map toGeneralize $2) }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -1351,7 +1350,7 @@ MaybeOpen : 'open'      { Just (getRange $1) }
           | {- empty -} { Nothing }
 
 -- Open
-Open :: { [Declaration] }
+Open :: { List1 Declaration }
 Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     let
     { doOpen = maybe DontOpen (const DoOpen) $1
@@ -1388,23 +1387,23 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       }
     } in
     case es of
-      { [] -> return [Import r m Nothing doOpen dir]
-      ; _ | Just (asR, m') <- parseAsClause ->
-              if null initArgs then return
-                 [ Import (getRange (m, asR, m', dir)) m
+      { [] -> return $ singleton $ Import r m Nothing doOpen dir
+      ; _ | Just (asR, m') <- parseAsClause -> return $
+              if null initArgs then singleton
+                 ( Import (getRange (m, asR, m', dir)) m
                      (Just (AsName m' asR)) doOpen dir
-                 ]
-              else return [ impStm asR, appStm (fromRight (const fresh') m') initArgs ]
+                 )
+              else impStm asR :| [ appStm (fromRight (const fresh') m') initArgs ]
           -- Andreas, 2017-05-13, issue #2579
           -- Nisse reports that importing with instantation but without open
           -- could be usefule for bringing instances into scope.
           -- Ulf, 2018-12-6: Not since fixes of #1913 and #2489 which require
           -- instances to be in scope.
           | DontOpen <- doOpen -> parseErrorRange $2 "An import statement with module instantiation is useless without either an `open' keyword or an `as` binding giving a name to the instantiated module."
-          | otherwise -> return
-              [ impStm noRange
-              , appStm (noName $ beginningOf $ getRange m) es
-              ]
+          | otherwise -> return $
+              impStm noRange :|
+              appStm (noName $ beginningOf $ getRange m) es :
+              []
       }
   }
   |'open' ModuleName OpenArgs ImportDirective {
@@ -1413,8 +1412,8 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; es  = $3
     ; dir = $4
     ; r   = getRange ($1, m, es, dir)
-    } in
-    [ case es of
+    } in singleton $
+      case es of
       { []  -> Open r m dir
       ; _   -> Private r Inserted
                  [ ModuleMacro r (noName $ beginningOf $ getRange m)
@@ -1422,14 +1421,12 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
                              DoOpen dir
                  ]
       }
-    ]
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
-    let r = getRange $2 in
-    [ Private r Inserted
+    let r = getRange $2 in singleton $
+      Private r Inserted
       [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleInstance r $2) DoOpen $6
       ]
-    ]
   }
 
 OpenArgs :: { [Expr] }
@@ -1685,8 +1682,8 @@ ArgTypeSignatures0
 RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta0, Maybe Range, Maybe (Name, IsInstance)), [Declaration]) }
 RecordDeclarations
     : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (,$4) }
-    | vopen Declarations1 close                       { (empty, $2) }
+    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
+    | vopen Declarations1 close                       { (empty, List1.toList $2) }
 
 
 RecordDirectives :: { [RecordDirective] }
@@ -1725,7 +1722,7 @@ RecordInduction
     | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
-Declarations :: { [Declaration] }
+Declarations :: { List1 Declaration }
 Declarations
     : vopen Declarations1 close { $2 }
 
@@ -1733,18 +1730,18 @@ Declarations
 Declarations0 :: { [Declaration] }
 Declarations0
     : vopen close  { [] }
-    | Declarations { $1 }
+    | Declarations { List1.toList $1 }
 
-Declarations1 :: { [Declaration] }
+Declarations1 :: { List1 Declaration }
 Declarations1
-    : Declaration semi Declarations1 { $1 ++ $3 }
+    : Declaration semi Declarations1 { $1 <> $3 }
     | Declaration vsemi              { $1 } -- #3046
     | Declaration                    { $1 }
 
 TopDeclarations :: { [Declaration] }
 TopDeclarations
   : {- empty -}   { [] }
-  | Declarations1 { $1 }
+  | Declarations1 { List1.toList $1 }
 
 {
 
@@ -2213,23 +2210,22 @@ data RHSOrTypeSigs
  | TypeSigsRHS Expr
  deriving Show
 
-patternToNames :: Pattern -> Parser [(ArgInfo, Name)]
-patternToNames p =
-  case p of
-    IdentP (QName i)         -> return [(defaultArgInfo, i)]
-    WildP r                  -> return [(defaultArgInfo, C.noName r)]
-    DotP _ (Ident (QName i)) -> return [(setRelevance Irrelevant defaultArgInfo, i)]
-    RawAppP _ ps             -> concat <$> mapM patternToNames ps
-    _                        -> parseError $
+patternToNames :: Pattern -> Parser (List1 (ArgInfo, Name))
+patternToNames = \case
+    IdentP (QName i)         -> return $ singleton $ (defaultArgInfo, i)
+    WildP r                  -> return $ singleton $ (defaultArgInfo, C.noName r)
+    DotP _ (Ident (QName i)) -> return $ singleton $ (setRelevance Irrelevant defaultArgInfo, i)
+    RawAppP _ ps             -> sconcat . List2.toList1 <$> mapM patternToNames ps
+    p                        -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
 
-funClauseOrTypeSigs :: [Attr] -> LHS -> RHSOrTypeSigs -> WhereClause -> Parser [Declaration]
+funClauseOrTypeSigs :: [Attr] -> LHS -> RHSOrTypeSigs -> WhereClause -> Parser (List1 Declaration)
 funClauseOrTypeSigs attrs lhs mrhs wh = do
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
       unless (null attrs) $ parseErrorRange attrs $ "A function clause cannot have attributes"
-      return [FunClause lhs rhs wh False]
+      return $ singleton $ FunClause lhs rhs wh False
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         LHS p _ _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
@@ -2244,7 +2240,7 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s [FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca] | null (parseInp s) ->
+    ParseOk s (FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
