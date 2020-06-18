@@ -86,6 +86,8 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
 
   reportSDoc "rewriting.confluence" 10 $
     "Checking confluence of rule" <+> prettyTCM (rewName rew)
+  reportSDoc "rewriting.confluence" 30 $
+    "Checking confluence of rule" <+> prettyTCM rew
 
   let f   = rewHead rew
       qs  = rewPats rew
@@ -93,36 +95,38 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
   def <- getConstInfo f
   (fa , hdf) <- addContext tel $ makeHead def (rewType rew)
 
+  reportSDoc "rewriting.confluence" 30 $ addContext tel $
+    "Head symbol" <+> prettyTCM (hdf []) <+> "of rewrite rule has type" <+> prettyTCM fa
+
   -- Step 1: check other rewrite rules that overlap at top position
   forMM_ (getRulesFor f isClause) $ \ rew' ->
-    unless (any (sameName rew') $ rew:rewsRest) $
+    unless (any (sameRuleName rew') $ rew:rewsRest) $
       checkConfluenceTop hdf rew rew'
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
   es <- nlPatToTerm qs
-  forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole ->
-    caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (g , hdg , _) -> do
-      forMM_ (getRulesFor g isClause) $ \rew' ->
-        unless (any (sameName rew') rewsRest) $
-          checkConfluenceSub hdf hdg rew rew' hole
+  forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole -> do
+    let g   = ohHeadName hole
+        hdg = ohHead hole
+    forMM_ (getRulesFor g isClause) $ \rew' ->
+      unless (any (sameRuleName rew') rewsRest) $
+        checkConfluenceSub hdf hdg rew rew' hole
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g -> do
     forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' -> do
-      unless (any (sameName rew') rewsRest) $ do
+      unless (any (sameRuleName rew') rewsRest) $ do
         es' <- nlPatToTerm (rewPats rew')
         let tel' = rewContext rew'
         def' <- getConstInfo g
         (ga , hdg) <- addContext tel' $ makeHead def' (rewType rew')
-        forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole ->
-          caseMaybe (headView $ ohContents hole) __IMPOSSIBLE__ $ \ (f' , _ , _) ->
-            when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
+        forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole -> do
+          let f' = ohHeadName hole
+          when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
 
   where
-
-    sameName = (==) `on` rewName
 
     -- Check confluence of two rewrite rules that have the same head symbol,
     -- e.g. @f ps --> a@ and @f ps' --> b@.
@@ -189,8 +193,8 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
         let bvTel0     = ohBoundVars hole0
             k          = size bvTel0
             b0         = applySubst (liftS k sub1) $ ohType hole0
-            (g,_,es0)  = fromMaybe __IMPOSSIBLE__ $ headView $
-                           applySubst (liftS k sub1) $ ohContents hole0
+            g          = ohHeadName hole0
+            es0        = applySubst (liftS k sub1) $ ohElims hole0
             qs2        = rewPats rew2
 
         -- If the second rewrite rule has more eliminations than the
@@ -209,7 +213,8 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
             ]
 
         let hole      = hole1 `composeHole` hole0
-            (g,_,es') = fromMaybe __IMPOSSIBLE__ $ headView $ ohContents hole -- g == rewHead rew2
+            g         = ohHeadName hole -- == rewHead rew2
+            es'       = ohElims hole
             bvTel     = ohBoundVars hole
             plug      = ohPlugHole hole
 
@@ -259,64 +264,6 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
 
         whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hdf (applySubst sub1 $ plug $ hdg es1))
 
-    headView :: Term -> Maybe (QName, Elims -> Term, Elims)
-    headView (Def f es) = Just (f , Def f , es)
-    headView (Con c ci es) = Just (conName c , Con c ci , es)
-    headView _ = Nothing
-
-    makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
-    makeHead def a = case theDef def of
-      Constructor{ conSrcCon = ch } -> do
-        ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
-        return (ca , Con ch ConOSystem)
-      -- For record projections @f : R Δ → A@, we rely on the invariant
-      -- that any clause is fully general in the parameters, i.e. it
-      -- is quantified over the parameter telescope @Δ@
-      Function { funProjection = Just proj } -> do
-        let f          = projOrig proj
-            r          = unArg $ projFromType proj
-        rtype <- defType <$> getConstInfo r
-        TelV ptel _ <- telView rtype
-        n <- getContextSize
-        let pars :: Args
-            pars = raise (n - size ptel) $ teleArgs ptel
-        ftype <- defType def `piApplyM` pars
-        return (ftype , Def f)
-      _ -> return (defType def , Def $ defName def)
-
-    getClausesAndRewriteRulesFor :: QName -> TCM [RewriteRule]
-    getClausesAndRewriteRulesFor f =
-      (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
-
-    getRulesFor :: QName -> Bool -> TCM [RewriteRule]
-    getRulesFor f isClause
-      | isClause  = getRewriteRulesFor f
-      | otherwise = getClausesAndRewriteRulesFor f
-
-    -- Build a substitution that replaces all variables in the given
-    -- telescope by fresh metavariables.
-    makeMetaSubst :: (MonadMetaSolver m) => Telescope -> m Substitution
-    makeMetaSubst gamma = parallelS . reverse . map unArg <$> newTelMeta gamma
-
-    -- Try to run the TCM action, return @Just x@ if it succeeds with
-    -- result @x@ or @Nothing@ if it throws a type error. Abort if
-    -- there are any constraints.
-    tryUnification :: Term -> Term -> TCM a -> TCM (Maybe a)
-    tryUnification lhs1 lhs2 f = (Just <$> f)
-      `catchError` \case
-        err@TypeError{} -> do
-          reportSDoc "rewriting.confluence" 20 $ vcat
-            [ "Unification failed with error: "
-            , nest 2 $ prettyTCM err
-            ]
-          return Nothing
-        err -> throwError err
-      `ifNoConstraints` return $ \pid _ -> do
-        cs <- getConstraintsForProblem pid
-        prettyCs <- prettyInterestingConstraints cs
-        warning $ RewriteMaybeNonConfluent lhs1 lhs2 prettyCs
-        return Nothing
-
     checkCriticalPair
       :: Type     -- Type of the critical pair
       -> (Elims -> Term)  -- Head of lhs
@@ -350,6 +297,62 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
             warning $ RewriteNonConfluent (hd es) rhs1 rhs2 prettyErr
           err           -> throwError err
 
+makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
+makeHead def a = case theDef def of
+  Constructor{ conSrcCon = ch } -> do
+    ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
+    return (ca , Con ch ConOSystem)
+  -- For record projections @f : R Δ → A@, we rely on the invariant
+  -- that any clause is fully general in the parameters, i.e. it
+  -- is quantified over the parameter telescope @Δ@
+  Function { funProjection = Just proj } -> do
+    let f          = projOrig proj
+        r          = unArg $ projFromType proj
+    rtype <- defType <$> getConstInfo r
+    TelV ptel _ <- telView rtype
+    n <- getContextSize
+    let pars :: Args
+        pars = raise (n - size ptel) $ teleArgs ptel
+    ftype <- defType def `piApplyM` pars
+    return (ftype , Def f)
+  _ -> return (defType def , Def $ defName def)
+
+sameRuleName :: RewriteRule -> RewriteRule -> Bool
+sameRuleName = (==) `on` rewName
+
+getClausesAndRewriteRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getClausesAndRewriteRulesFor f =
+  (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
+
+getRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> Bool -> m [RewriteRule]
+getRulesFor f isClause
+  | isClause  = getRewriteRulesFor f
+  | otherwise = getClausesAndRewriteRulesFor f
+
+-- | Build a substitution that replaces all variables in the given
+--   telescope by fresh metavariables.
+makeMetaSubst :: (MonadMetaSolver m) => Telescope -> m Substitution
+makeMetaSubst gamma = parallelS . reverse . map unArg <$> newTelMeta gamma
+
+-- | Try to run the TCM action, return @Just x@ if it succeeds with
+--   result @x@ or @Nothing@ if it throws a type error. Abort if there
+--   are any constraints.
+tryUnification :: Term -> Term -> TCM a -> TCM (Maybe a)
+tryUnification lhs1 lhs2 f = (Just <$> f)
+  `catchError` \case
+    err@TypeError{} -> do
+      reportSDoc "rewriting.confluence" 20 $ vcat
+        [ "Unification failed with error: "
+        , nest 2 $ prettyTCM err
+        ]
+      return Nothing
+    err -> throwError err
+  `ifNoConstraints` return $ \pid _ -> do
+    cs <- getConstraintsForProblem pid
+    prettyCs <- prettyInterestingConstraints cs
+    warning $ RewriteMaybeNonConfluent lhs1 lhs2 prettyCs
+    return Nothing
+
 -- | Given metavariables ms and some x, construct a telescope Γ and
 --   replace all occurrences of the given metavariables in @x@ by
 --   normal variables from Γ. Returns @Nothing@ if metas have cyclic
@@ -377,12 +380,25 @@ data OneHole a = OneHole
   { ohBoundVars :: Telescope     -- Telescope of bound variables at the hole
   , ohType      :: Type          -- Type of the term in the hole
   , ohPlugHole  :: Term -> a     -- Plug the hole with some term
-  , ohContents  :: Term          -- The term in the hole
+  , ohHead      :: Elims -> Term -- The head symbol of the term in the hole
+  , ohElims     :: Elims         -- The eliminations of the term in the hole
   } deriving (Functor)
+
+ohHeadName :: OneHole a -> QName
+ohHeadName oh = case ohHead oh [] of
+  Def f _   -> f
+  Con c _ _ -> conName c
+  _         -> __IMPOSSIBLE__
+
+ohContents :: OneHole a -> Term
+ohContents oh = ohHead oh $ ohElims oh
 
 -- | The trivial hole
 idHole :: Type -> Term -> OneHole Term
-idHole a v = OneHole EmptyTel a id v
+idHole a = \case
+  Def f es    -> OneHole EmptyTel a id (Def f) es
+  Con c ci es -> OneHole EmptyTel a id (Con c ci) es
+  _           -> __IMPOSSIBLE__
 
 -- | Plug a hole with another hole
 composeHole :: OneHole Term -> OneHole a -> OneHole a
@@ -390,7 +406,8 @@ composeHole inner outer = OneHole
   { ohBoundVars = ohBoundVars outer `abstract` ohBoundVars inner
   , ohType      = ohType inner
   , ohPlugHole  = ohPlugHole outer . ohPlugHole inner
-  , ohContents  = ohContents inner
+  , ohHead      = ohHead inner
+  , ohElims     = ohElims inner
   }
 
 ohAddBV :: ArgName -> Dom Type -> OneHole a -> OneHole a
