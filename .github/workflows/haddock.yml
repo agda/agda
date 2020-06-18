@@ -38,7 +38,7 @@ jobs:
       name: Cache dependencies
       with:
         path: "~/.cabal"
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-new-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       run: |
