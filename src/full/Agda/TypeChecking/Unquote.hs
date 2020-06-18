@@ -781,16 +781,13 @@ evalTCM v = do
 -- * Trusted executables
 ------------------------------------------------------------------------
 
--- Wen, 2020-06-02
--- Prototype implementation of `primExec`, which uses `unsafePerformIO`,
--- since functions defined in `PrimitiveImpl` don't have access to IO.
-
 type ExeArg  = Text
 type StdIn   = Text
 type StdOut  = Text
 type StdErr  = Text
 
 -- | Raise an error if the @--allow-exec@ option was not specified.
+--
 requireAllowExec :: TCM ()
 requireAllowExec = do
   allowExec <- optAllowExec <$> pragmaOptions
@@ -825,9 +822,8 @@ tcExec exe args stdIn = do
 
 -- | Raise an error if the trusted executable cannot be found.
 --
---   TODO: this should probably not be a @GenericError@ nor, perhaps, a @TypeError@
---
 raiseExeNotFound :: ExeName -> Map ExeName FilePath -> TCM a
-raiseExeNotFound exe exes = typeError . GenericError . unlines $
-  ("Could not find trusted executable '" ++ T.unpack exe ++ "' in list:") :
-  [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]
+raiseExeNotFound exe exes = genericDocError =<< do
+  vcat . map pretty $
+    ("Could not find trusted executable '" ++ T.unpack exe ++ "' in list:") :
+    [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]
