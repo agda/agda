@@ -43,6 +43,9 @@ Pragmas and options
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
 
+* New option `--allow-exec` enables the use of system calls during type checking
+  using the `AGDATCMEXECTC` builtin.
+
 Language
 --------
 
@@ -118,6 +121,11 @@ Reflection
 - New operation in `TC` monad, similar to `quoteTC` but operating on types in `Setω`
   ```agda
   quoteωTC : ∀ {A : Setω} → A → TC Term
+  ```
+
+- New operation in `TC` monad, `execTC`, which calls an external executable
+  ```agda
+  execTC : String → List String → String → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
   ```
 
 Emacs mode
