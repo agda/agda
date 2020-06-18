@@ -127,6 +127,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive.agda
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
+                    MAlonzo/src/MAlonzo/RTE/*.hs
                     postprocess-latex.pl
 
 source-repository head
