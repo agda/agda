@@ -13,6 +13,7 @@ import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
+import Agda.Utils.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -198,5 +199,5 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
       traceSLn "impossible" 10
-        ("Incomplete pattern matching when applying " ++ show f)
+        ("Incomplete pattern matching when applying " ++ prettyShow f)
         __IMPOSSIBLE__

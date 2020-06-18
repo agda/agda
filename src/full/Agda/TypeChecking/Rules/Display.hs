@@ -14,6 +14,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Pretty (prettyShow)
+
 import Agda.Utils.Impossible
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
@@ -23,7 +25,7 @@ checkDisplayPragma f ps e = do
             let lhs = map I.Apply args
             v <- exprToTerm e
             return $ Display n lhs (DTerm v)
-  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
+  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
   addDisplayForm f df
 
 --UNUSED Liang-Ting 2019-07-16
@@ -79,14 +81,12 @@ patternToTerm p ret =
       | otherwise                   -> ambigErr "DefP" fs
     A.LitP _ l                      -> ret 0 $ Lit l
     A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
-    _                               -> do
-      doc <- prettyA p
-      typeError $ GenericError $ "Pattern not allowed in DISPLAY pragma:\n" ++ show doc
+    _ -> genericDocError =<< vcat [ "Pattern not allowed in DISPLAY pragma:", prettyA p ]
   where
     ambigErr thing (AmbQ xs) =
       genericDocError =<< do
         text ("Ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (map pshow $ NonEmpty.toList xs))
+          fsep (punctuate comma (map pretty $ NonEmpty.toList xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do

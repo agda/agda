@@ -15,11 +15,12 @@ module Agda.TypeChecking.Errors
   , stringTCErr
   ) where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, foldl )
 
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
+import Data.Foldable (foldl)
 import Data.Function
 import Data.List (sortBy, dropWhileEnd, intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -421,7 +422,7 @@ instance PrettyTCM TypeError where
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
       ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
-      ++ map pretty cs
+      ++ map pretty (List1.toList cs)
 
     DoesNotConstructAnElementOf c t -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
@@ -877,7 +878,7 @@ instance PrettyTCM TypeError where
           | all (isOrdinary . namedArg) xs =
             pretty $
               foldl (C.App r) (C.Ident op) $
-                (map . fmap . fmap) fromOrdinary xs
+                (fmap . fmap . fmap) fromOrdinary xs
           | any (isPlaceholder . namedArg) xs =
               pretty e <+> "(section)"
         unambiguous e = pretty e

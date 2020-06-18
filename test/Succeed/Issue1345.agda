@@ -3,6 +3,7 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Agda.Builtin.Sigma
 
 module Issue1345 (A : Set) where
 
@@ -12,7 +13,7 @@ module Issue1345 (A : Set) where
 abstract
   unquoteDecl idNat = define (vArg idNat)
     (funDef (pi (vArg (def (quote Nat) [])) (abs "" (def (quote Nat) [])))
-            (clause (vArg (var "") ∷ []) (var 0 []) ∷ []))
+            (clause (("", vArg unknown) ∷ []) (vArg (var 0) ∷ []) (var 0 []) ∷ []))
   -- This raised the UselessAbstract error in error.
   -- Should work.
 

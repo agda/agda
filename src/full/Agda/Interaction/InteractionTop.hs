@@ -247,8 +247,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- the status information is also updated.
     handleErr method e = do
         unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
-        meta    <- lift $ computeUnsolvedMetaWarnings
-        constr  <- lift $ computeUnsolvedConstraints
+        unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
         method  <- case method of
@@ -256,7 +255,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
           Just m  -> return m
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
-                     err : if unsolvedNotOK then [meta, constr] else []
+                     err : if unsolvedNotOK then [unsolved] else []
 
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e

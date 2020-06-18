@@ -19,6 +19,7 @@ import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
@@ -170,8 +171,8 @@ quotingKit = do
       quotePat :: DeBruijnPattern -> ReduceM Term
       quotePat p
        | patternOrigin p == Just PatOAbsurd = pure absurdP
-      quotePat (VarP o x)        = varP !@! quoteString (dbPatVarName x)
-      quotePat (DotP _ _)        = pure dotP
+      quotePat (VarP o x)        = varP !@! quoteNat (toInteger $ dbPatVarIndex x)
+      quotePat (DotP _ t)        = dotP !@ quoteTerm t
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP _ l)        = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
@@ -179,13 +180,21 @@ quotingKit = do
       quotePat DefP{}            = pure unsupported
 
       quoteClause :: Clause -> ReduceM Term
-      quoteClause cl@Clause{namedClausePats = ps, clauseBody = body} =
+      quoteClause cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
-          Nothing -> absurdClause !@ quotePats ps
+          Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps
           Just b  ->
             let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm' False ps -- Dot patterns don't count (#2203)
                 v    = applySubst (renamingR perm) b
-            in normalClause !@ quotePats ps @@ quoteTerm v
+            in normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm v
+
+      quoteTelescope :: Telescope -> ReduceM Term
+      quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
+        where
+          quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
+          quoteTelEntry dom@Dom{ unDom = (x , t) } = do
+            SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+            Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
       list = foldr (\ a as -> cons !@ a @@ as) (pure nil)
@@ -229,7 +238,8 @@ quotingKit = do
               qx df@Function{ funCompiled = Just Fail, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
-                    extlam !@ list [quoteClause $ dropArgs n cl]
+                        pars = take n ts
+                    extlam !@ list [quoteClause $ cl `apply` pars ]
                            @@ list (drop n $ map (quoteArg quoteTerm) ts)
               qx _ = do
                 n <- getDefFreeVars x

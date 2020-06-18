@@ -2,10 +2,11 @@
 
 module Agda.Utils.List where
 
-import Control.Arrow (first, second)
+import Control.Monad (filterM)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
+import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -14,6 +15,7 @@ import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
 ---------------------------------------------------------------------------
@@ -550,6 +552,13 @@ allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
 
+-- | Non-efficient, monadic 'nub'.
+-- O(n²).
+nubM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
+nubM eq = loop where
+  loop []     = return []
+  loop (a:as) = (a :) <$> do loop =<< filterM (not <.> eq a) as
+
 ---------------------------------------------------------------------------
 -- * Zipping
 ---------------------------------------------------------------------------
@@ -642,3 +651,13 @@ editDistance xs ys = editD 0 0
   xsA, ysA :: Array Int a
   xsA = listArray (0,n-1) xs
   ysA = listArray (0,m-1) ys
+
+
+mergeStrictlyOrderedBy :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]
+mergeStrictlyOrderedBy (<) = loop where
+  loop [] ys = Just ys
+  loop xs [] = Just xs
+  loop (x:xs) (y:ys)
+    | x < y = (x:) <$> loop xs (y:ys)
+    | y < x = (y:) <$> loop (x:xs) ys
+    | otherwise = Nothing

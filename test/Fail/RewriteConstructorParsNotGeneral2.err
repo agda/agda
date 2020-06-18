@@ -1,5 +1,0 @@
-RewriteConstructorParsNotGeneral2.agda:14,3-22
-rew  is not a legal rewrite rule, since the constructor parameters are not fully general:
-  Constructor:  c
-  Parameters:  [A]
-when checking the pragma REWRITE rew

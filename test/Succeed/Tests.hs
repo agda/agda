@@ -18,7 +18,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
-
+import System.PosixCompat.Files (touchFile)
 
 import Utils
 
@@ -43,65 +43,69 @@ data TestResult
 mkSucceedTest
   :: AgdaArgs -- ^ Extra options to Agda.
   -> FilePath -- ^ Test directory.
-  -> FilePath -- ^ Input file.
+  -> FilePath -- ^ Input file (an Agda file).
   -> TestTree
-mkSucceedTest extraOpts dir inp =
+mkSucceedTest extraOpts dir agdaFile =
   goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
---  goldenVsAction testName goldenFile doRun printAgdaResult
-  where testName = asTestName dir inp
-        flagFile = dropAgdaExtension inp <.> ".flags"
-        warnFile = dropAgdaExtension inp <.> ".warn"
+  where
+  testName = asTestName dir agdaFile
+  flagFile = dropAgdaExtension agdaFile <.> ".flags"
+  warnFile = dropAgdaExtension agdaFile <.> ".warn"
 
-        -- Unless we have a .warn file, we don't really have a golden
-        -- file. Just use a dummy update function.
-        -- TODO extend tasty-silver to handle this use case properly
-        readGolden = do
-          warnExists <- doesFileExist warnFile
-          if warnExists then readTextFileMaybe warnFile
-                        else return $ Just $ printTestResult TestSuccess
+  -- Unless we have a .warn file, we don't really have a golden
+  -- file. Just use a dummy update function.
+  -- TODO extend tasty-silver to handle this use case properly
+  readGolden = do
+    warnExists <- doesFileExist warnFile
+    if warnExists then readTextFileMaybe warnFile
+                  else return $ Just $ printTestResult TestSuccess
 
-        updGolden = Just $ writeTextFile warnFile
+  updGolden = Just $ writeTextFile warnFile
 
-        doRun = do
-          let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
-                         , "--no-libraries"
-                         , "-vimpossible:10" -- BEWARE: no spaces allowed here
-                         , "-vwarning:1"
-                         ] ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
-                           ++ extraOpts
+  doRun = do
+    let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , agdaFile
+                   , "--no-libraries"
+                   , "-vimpossible:10" -- BEWARE: no spaces allowed here
+                   , "-vwarning:1"
+                   ] ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
+                     ++ extraOpts
 
-          (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
-          case ret of
-            AgdaSuccess{} | testName == "Issue481" -> do
-              dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
-              dot <- TIO.readFile "Issue481.dot"
-              removeFile "Issue481.dot"
-              if dot == dotOrig
-                then
-                  return $ TestSuccess
-                else
-                  return $ TestWrongDotOutput dot
-            AgdaSuccess warn -> do
-              warnExists <- doesFileExist warnFile
-              return $
-                if warnExists || isJust warn
-                then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
-                else TestSuccess
-            AgdaFailure{} -> return $ TestUnexpectedFail res
+    (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
+    case ret of
+      AgdaSuccess{} | testName == "Issue481" -> do
+        dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
+        dot <- TIO.readFile "Issue481.dot"
+        removeFile "Issue481.dot"
+        if dot == dotOrig
+          then
+            return $ TestSuccess
+          else
+            return $ TestWrongDotOutput dot
+      AgdaSuccess warn -> do
+        warnExists <- doesFileExist warnFile
+        return $
+          if warnExists || isJust warn
+          then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
+          else TestSuccess
+      AgdaFailure{} -> return $ TestUnexpectedFail res
 
-resDiff :: T.Text -> T.Text -> IO GDiff
-resDiff t1 t2 =
-  if T.words t1 == T.words t2
-    then
-      return Equal
-    else
-      return $ DiffText Nothing t1 t2
+  resDiff :: T.Text -> T.Text -> IO GDiff
+  resDiff t1 t2
+    | T.words t1 == T.words t2 = return Equal
+    | otherwise = do
+        -- Andreas, 2020-06-09, issue #4736
+        -- If the output has changed, the test case is "interesting"
+        -- regardless of whether the golden value is updated or not.
+        -- Thus, we touch the agdaFile to have it sorted up in the next
+        -- test run.
+        touchFile agdaFile
+        return $ DiffText Nothing t1 t2
 
 resShow :: T.Text -> IO GShow
 resShow = return . ShowText
 
 printTestResult :: TestResult -> T.Text
-printTestResult r = case r of
+printTestResult = \case
   TestSuccess               -> "AGDA_SUCCESS\n\n"
   TestSuccessWithWarnings t -> t
   TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p

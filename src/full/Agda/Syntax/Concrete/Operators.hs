@@ -52,7 +52,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
@@ -186,7 +186,7 @@ buildParsers kind exprNames = do
         namesInExpr :: Set QName
         namesInExpr = Set.fromList exprNames
 
-        partListsInExpr' = map (nameParts . unqualify) $
+        partListsInExpr' = map (List1.toList . nameParts . unqualify) $
                            Set.toList namesInExpr
 
         partListTrie f =
@@ -676,12 +676,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
+    Arg _ (Named _ (IdentP x)) :| ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
       return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP x)) : ps | fldName conf x -> do
+    Arg _ (Named _ (IdentP x)) :| ps | fldName conf x -> do
 
       -- Step 1: check for valid copattern lhs.
       ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
@@ -771,7 +771,7 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> IdentP op :| map namedArg ps `mappend` reverse acc
+    OpAppP _ op _ ps -> IdentP op <| fmap namedArg ps `List1.append` reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__
@@ -875,7 +875,7 @@ fullParen' e = case exprView e of
                 Hidden     -> e2
                 Instance{} -> e2
                 NotHidden  -> fullParen' <$> e2
-    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (map . fmap . fmap . fmap . fmap) fullParen' es
+    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (fmap . fmap . fmap . fmap . fmap) fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV

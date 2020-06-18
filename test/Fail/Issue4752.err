@@ -1,0 +1,4 @@
+Issue4752.agda:11,1-29
+@-patterns are not allowed in pattern synonyms
+when scope checking the declaration
+  pattern ss x = suc x@(suc _)

@@ -83,6 +83,8 @@ instance EmbPrj Warning where
     UselessPatternDeclarationForRecord a  -> icodeN 30 UselessPatternDeclarationForRecord a
     EmptyWhere                            -> icodeN 31 EmptyWhere
     AsPatternShadowsConstructorOrPatternSynonym a -> icodeN 32 AsPatternShadowsConstructorOrPatternSynonym a
+    DuplicateUsing a                      -> icodeN 33 DuplicateUsing a
+    UselessHiding a                       -> icodeN 34 UselessHiding a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -118,6 +120,8 @@ instance EmbPrj Warning where
     [30, a]              -> valuN UselessPatternDeclarationForRecord a
     [31]                 -> valuN EmptyWhere
     [32, a]              -> valuN AsPatternShadowsConstructorOrPatternSynonym a
+    [33, a]              -> valuN DuplicateUsing a
+    [34, a]              -> valuN UselessHiding a
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

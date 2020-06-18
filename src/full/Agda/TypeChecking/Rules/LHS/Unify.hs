@@ -660,8 +660,9 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel =<< reduce (getEqualityUnraised k s)
+  sa <- reduce $ getSort a
   case unEl a of
-    Def d es | Type{} <- getSort a -> do
+    Def d es | Type{} <- sa -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
@@ -870,7 +871,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- liftTCM $ addContext (varTel s) $ tryCatch $ do
-      dontAssignMetas $ noConstraints $ equalTerm a u v
+      nonConstraining $ equalTerm a u v
     withoutK <- liftTCM withoutKOption
     case isReflexive of
       Just err     -> return $ DontKnow []
@@ -1156,7 +1157,7 @@ solutionStep retry s
   equalTypes <- liftTCM $ addContext (varTel s) $ tryCatch $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    dontAssignMetas $ noConstraints $ equalType a a'
+    nonConstraining $ equalType a a'
 
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be

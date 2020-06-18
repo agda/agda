@@ -591,7 +591,7 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply t args                    =
-  trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
+  trace ("piApply t = " ++ prettyShow t ++ "\n  args = " ++ prettyShow args) __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Abstraction

@@ -43,11 +43,25 @@ STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
 # installation for avoiding recompilation (see Issue #2083 and
 # https://github.com/haskell/cabal/issues/1893).
 
+# quicker install: -O0, no tests
+
 QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
 QUICK_STACK_BUILD_DIR = .stack-work-quick
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
 QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR)
+
+# fast install: -O0, but tests
+
+FAST_BUILD_DIR       = $(BUILD_DIR)-fast
+FAST_STACK_BUILD_DIR = .stack-work-fast
+
+FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
+                     --enable-tests --ghc-options=-O0 --program-suffix=-fast
+FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
+                     --test --no-run-tests --fast
+
+# ordinary install: optimizations and tests
 
 SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
 SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
@@ -101,6 +115,20 @@ else
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+endif
+
+.PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
+fast-install-bin:
+ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+	@echo "============= Installing using Stack with -O0 and test suites ============"
+	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+else
+# `cabal new-install --enable-tests` emits the error message (bug?):
+# cabal: --enable-tests was specified, but tests can't be enabled in a remote package
+	@echo "============= Installing using Cabal with -O0 and test suites ============"
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
 # Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
@@ -254,6 +282,7 @@ fast-forward-cubical :
 
 .PHONY : test ## Run all test suites.
 test : check-whitespace \
+       common \
        succeed \
        fail \
        bugs \
@@ -281,7 +310,7 @@ test-using-std-lib : std-lib-test \
                      std-lib-interaction
 
 .PHONY : quicktest ## Run successful and failing tests.
-quicktest : succeed fail
+quicktest : common succeed fail
 
 .PHONY : bugs ##
 bugs :
@@ -293,10 +322,14 @@ internal-tests :
 	@$(call decorate, "Internal test suite", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Internal )
 
+.PHONY : common ##
+common :
+	@$(call decorate, "Suite of successful tests: mini-library Common", \
+		$(MAKE) -C test/Common )
+
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		$(MAKE) -C test/Common; \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
 
 .PHONY : fail ##
@@ -437,22 +470,24 @@ FIXW_PATH = src/fix-whitespace
 FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
-fix-whitespace : build-fix-whitespace
+fix-whitespace : $(FIXW_BIN)
 	$(FIXW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
-check-whitespace : build-fix-whitespace
+check-whitespace : $(FIXW_BIN)
 	$(FIXW_BIN) --check
 
-.PHONY : build-fix-whitespace ## Build fix-whitespace.
-build-fix-whitespace :
+.PHONY : install-fix-whitespace ## Build fix-whitespace.
+install-fix-whitespace : $(FIXW_BIN)
+
+$(FIXW_BIN) :
 	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	stack build fix-whitespace
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_CLEAN_CMD) && $(CABAL_CMD) $(CABAL_BUILD_CMD)
+	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
@@ -468,7 +503,7 @@ hpc-build: ensure-hash-is-correct
 	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
 	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
-agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
+agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
 
 .PHONY: hpc ## Generate a code coverage report via cabal.

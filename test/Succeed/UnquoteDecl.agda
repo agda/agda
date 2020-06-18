@@ -4,13 +4,14 @@ module UnquoteDecl where
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Agda.Builtin.Sigma
 
 infixr 3 _`⇒_
 pattern _`⇒_ a b = pi (vArg a) (abs "_" b)
 pattern `Nat = def (quote Nat) []
 
 unquoteDecl x =
-  define (vArg x) (funDef `Nat (clause [] (quoteTerm 15) ∷ []))
+  define (vArg x) (funDef `Nat (clause [] [] (quoteTerm 15) ∷ []))
 
 y = x + 4
 
@@ -23,8 +24,9 @@ pattern `suc n = con (quote suc) (vArg n ∷ [])
 unquoteDecl plus =
   define (vArg plus) (
   funDef (`Nat `⇒ `Nat `⇒ `Nat)
-         ( clause (vArg (con (quote zero) []) ∷ vArg (var "y") ∷ []) (var 0 [])
-         ∷ clause (vArg (con (quote suc) (vArg (var "x") ∷ [])) ∷ vArg (var "y") ∷ [])
+         ( clause (("y" , vArg unknown) ∷ []) (vArg (con (quote zero) []) ∷ vArg (var 0) ∷ []) (var 0 [])
+         ∷ clause (("y" , vArg unknown) ∷ ("x" , vArg unknown) ∷ [])
+                  (vArg (con (quote suc) (vArg (var 1) ∷ [])) ∷ vArg (var 0) ∷ [])
                   (`suc (def plus (vArg (var 1 []) ∷ vArg (var 0 []) ∷ [])))
          ∷ []))
 
@@ -34,6 +36,6 @@ prf = refl
 magicDef : FunDef
 magicDef =
   funDef (def (quote ⊥) [] `⇒ `Nat)
-         (absurdClause (vArg absurd ∷ []) ∷ [])
+         (absurdClause (("()" , vArg unknown) ∷ []) (vArg absurd ∷ []) ∷ [])
 
 unquoteDecl magic = define (vArg magic) magicDef

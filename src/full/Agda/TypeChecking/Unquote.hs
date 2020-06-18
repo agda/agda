@@ -165,7 +165,7 @@ pickName a =
   case a of
     R.Pi{}   -> "f"
     R.Sort{} -> "A"
-    R.Def d _ | c:_ <- show (qnameName d),
+    R.Def d _ | c:_ <- prettyShow (qnameName d),
               isAlpha c -> [toLower c]
     _        -> "_"
 
@@ -303,6 +303,17 @@ instance Unquote a => Unquote [a] where
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "list" t
+
+instance (Unquote a, Unquote b) => Unquote (a, b) where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    case t of
+      Con c _ es | Just [x,y] <- allApplyElims es ->
+        choice
+          [(pure (c == sigmaCon), (,) <$> unquoteN x <*> unquoteN y)]
+          __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "pair" t
 
 instance Unquote Hiding where
   unquote t = do
@@ -446,11 +457,11 @@ instance Unquote R.Pattern where
       Con c _ [] ->
         choice
           [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
-          , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaPatVar,  R.VarP . T.unpack <$> unquoteNString x)
+          [ (c `isCon` primAgdaPatVar,  R.VarP . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatDot,  R.DotP  <$> unquoteN x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
@@ -465,13 +476,13 @@ instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [x] <- allApplyElims es ->
-        choice
-          [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
-          __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
+          [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x <*> unquoteN y) ]
+          __IMPOSSIBLE__
+      Con c _ es | Just [x, y, z] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y <*> unquoteN z) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "clause" t

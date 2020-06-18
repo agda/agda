@@ -22,16 +22,27 @@ module Agda.Utils.List1
   , module List1
   ) where
 
-import qualified Data.List.NonEmpty (NonEmpty)
-import Data.List.NonEmpty as List1 hiding (NonEmpty)
+import Control.Arrow ((&&&))
+import Control.Monad (filterM)
 
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Semigroup as Semigroup
 
+import qualified Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty as List1 hiding (NonEmpty)
+
+import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Null (Null(..))
+import qualified Agda.Utils.List as List
 
 type List1 = Data.List.NonEmpty.NonEmpty
+
+-- | Return the last element and the rest.
+
+initLast :: List1 a -> ([a], a)
+initLast = List1.init &&& List1.last
+  -- traverses twice, but does not create intermediate pairs
 
 -- | Append a list to a non-empty list.
 
@@ -50,8 +61,8 @@ snoc as a = prepend as $ a :| []
 
 -- | Concatenate one or more non-empty lists.
 
-concat :: List1 (List1 a) -> List1 a
-concat = Semigroup.sconcat
+concat :: [List1 a] -> [a]
+concat = concatMap toList
 
 -- * Recovering non-emptyness.
 
@@ -84,3 +95,8 @@ catMaybes =  Maybe.catMaybes . List1.toList
 
 mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
 mapMaybe f = Maybe.mapMaybe f . List1.toList
+
+-- | Non-efficient, monadic 'nub'.
+-- O(n²).
+nubM :: Monad m => (a -> a -> m Bool) -> List1 a -> m (List1 a)
+nubM eq (a :| as) = (a :|) <$> do List.nubM eq =<< filterM (not <.> eq a) as

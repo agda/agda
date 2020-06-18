@@ -6,10 +6,6 @@
   open import Agda.Builtin.Equality public
   open import Agda.Primitive
 
-  data Maybe (A : Set) : Set where
-    just : A → Maybe A
-    nothing : Maybe A
-
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
@@ -461,6 +457,30 @@ know to compile the List type to Haskell lists.
   [_] : ∀ {a} {A : Set a} → A → List A
   [ x ] = x ∷ []
 
+.. _built-in-maybe:
+
+Maybe
+-----
+
+.. code-block:: agda
+
+  module Agda.Builtin.Maybe
+
+Built-in maybe type is bound using the ``MAYBE`` built-in::
+
+  data Maybe {a} (A : Set a) : Set a where
+    nothing : Maybe A
+    just    : A → Maybe A
+  {-# BUILTIN MAYBE Maybe #-}
+
+The constructors are bound automatically when binding the type. Maybe is not
+required to be level polymorphic; ``Maybe : Set → Set`` is also accepted.
+
+As with list, the effect of binding the ``MAYBE`` built-in is to let
+you use primitive functions working with maybes, such as ``primStringUncons``
+that returns the head and tail of a string (if it is non empty), and letting
+the :ref:`GHC backend <ghc-backend>` know to compile the Maybe type to Haskell
+maybes.
 
 .. _built-in-char:
 
@@ -536,6 +556,7 @@ functions are available on strings (given suitable bindings for
 :ref:`List <built-in-list>`)::
 
   primitive
+    primStringUncons   : String → Maybe (Σ Char (λ _ → String))
     primStringToList   : String → List Char
     primStringFromList : List Char → String
     primStringAppend   : String → String → String

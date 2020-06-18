@@ -9,6 +9,7 @@ module Agda.Syntax.Concrete
   ( -- * Expressions
     Expr(..)
   , OpApp(..), fromOrdinary
+  , OpAppArgs, OpAppArgs', OpAppArgs0
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
   , rawApp, rawAppP
@@ -38,7 +39,7 @@ module Agda.Syntax.Concrete
   , TypeSignature
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
-  , Renaming
+  , Renaming, RenamingDirective, HidingDirective
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
@@ -134,15 +135,9 @@ data Expr
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
   | RawApp Range (List2 Expr)                  -- ^ before parsing operators
   | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-  | OpApp Range QName (Set A.Name)
-          [NamedArg
-             (MaybePlaceholder (OpApp Expr))]  -- ^ ex: @e + e@
-                                               -- The 'QName' is
-                                               -- possibly ambiguous,
-                                               -- but it must
-                                               -- correspond to one of
-                                               -- the names in the
-                                               -- set.
+  | OpApp Range QName (Set A.Name) OpAppArgs   -- ^ ex: @e + e@
+                                               -- The 'QName' is possibly ambiguous,
+                                               -- but it must correspond to one of the names in the set.
   | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
   | HiddenArg Range (Named_ Expr)              -- ^ ex: @{e}@ or @{x=e}@
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -172,6 +167,10 @@ data Expr
   | Generalized Expr
   deriving (Data, Eq)
 
+type OpAppArgs = OpAppArgs' Expr
+type OpAppArgs' e = List1 (NamedArg (MaybePlaceholder (OpApp e)))
+type OpAppArgs0 e = [NamedArg (MaybePlaceholder (OpApp e))]
+
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
   = IdentP QName                           -- ^ @c@ or @x@
@@ -179,7 +178,7 @@ data Pattern
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set A.Name)
-           [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
+           (List1 (NamedArg Pattern))      -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
                                            -- ambiguous, but it must
                                            -- correspond to one of
@@ -349,6 +348,8 @@ data ExprWhere = ExprWhere Expr WhereClause
 type ImportDirective = ImportDirective' Name Name
 type Using           = Using'           Name Name
 type Renaming        = Renaming'        Name Name
+type RenamingDirective = RenamingDirective' Name Name
+type HidingDirective   = HidingDirective'   Name Name  -- 'Hiding' is already taken
 
 -- | An imported name can be a module or a defined name.
 type ImportedName = ImportedName' Name Name
@@ -629,9 +630,9 @@ isAbsurdP = \case
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
   IdentP qn  -> mkBinder_ <$> isUnqualified qn
-  WildP r    -> pure $ mkBinder_ (Name r InScope [Hole])
-  AsP r n p  -> pure $ Binder (Just p) (mkBoundName_ n)
-  ParenP r p -> pure $ Binder (Just p) (mkBoundName_ $ Name r InScope [Hole])
+  WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
+  AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
+  ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
   _ -> Nothing
 
 {--------------------------------------------------------------------------

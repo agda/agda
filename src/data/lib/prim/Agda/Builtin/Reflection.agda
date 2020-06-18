@@ -142,29 +142,13 @@ data Literal : Set where
 {-# BUILTIN AGDALITQNAME  name    #-}
 {-# BUILTIN AGDALITMETA   meta    #-}
 
--- Patterns --
 
-data Pattern : Set where
-  con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
-  dot    : Pattern
-  var    : (s : String)  → Pattern
-  lit    : (l : Literal) → Pattern
-  proj   : (f : Name)    → Pattern
-  absurd : Pattern
+-- Terms and patterns --
 
-{-# BUILTIN AGDAPATTERN   Pattern #-}
-{-# BUILTIN AGDAPATCON    con     #-}
-{-# BUILTIN AGDAPATDOT    dot     #-}
-{-# BUILTIN AGDAPATVAR    var     #-}
-{-# BUILTIN AGDAPATLIT    lit     #-}
-{-# BUILTIN AGDAPATPROJ   proj    #-}
-{-# BUILTIN AGDAPATABSURD absurd  #-}
-
--- Terms --
-
-data Sort   : Set
-data Clause : Set
-data Term   : Set
+data Term    : Set
+data Sort    : Set
+data Pattern : Set
+data Clause  : Set
 Type = Term
 
 data Term where
@@ -184,13 +168,22 @@ data Sort where
   lit     : (n : Nat) → Sort
   unknown : Sort
 
-data Clause where
-  clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
-  absurd-clause : (ps : List (Arg Pattern)) → Clause
+data Pattern where
+  con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
+  dot    : (t : Term)    → Pattern
+  var    : (x : Nat)     → Pattern
+  lit    : (l : Literal) → Pattern
+  proj   : (f : Name)    → Pattern
+  absurd : Pattern
 
-{-# BUILTIN AGDASORT    Sort   #-}
-{-# BUILTIN AGDATERM    Term   #-}
-{-# BUILTIN AGDACLAUSE  Clause #-}
+data Clause where
+  clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause
+  absurd-clause : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) → Clause
+
+{-# BUILTIN AGDATERM      Term    #-}
+{-# BUILTIN AGDASORT      Sort    #-}
+{-# BUILTIN AGDAPATTERN   Pattern #-}
+{-# BUILTIN AGDACLAUSE    Clause  #-}
 
 {-# BUILTIN AGDATERMVAR         var       #-}
 {-# BUILTIN AGDATERMCON         con       #-}
@@ -206,6 +199,13 @@ data Clause where
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+{-# BUILTIN AGDAPATCON    con     #-}
+{-# BUILTIN AGDAPATDOT    dot     #-}
+{-# BUILTIN AGDAPATVAR    var     #-}
+{-# BUILTIN AGDAPATLIT    lit     #-}
+{-# BUILTIN AGDAPATPROJ   proj    #-}
+{-# BUILTIN AGDAPATABSURD absurd  #-}
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}

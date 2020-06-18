@@ -223,11 +223,11 @@ compactDef bEnv def rewr = do
           -- "primForceLemma"
           "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
           "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
-          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (show a)
+          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
           -- "primQNameFixity"  -- We don't have fixity builtins (TODO)
           "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
           "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
-          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (show (pretty a))
+          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
 
           _                            -> pure COther
         where
@@ -1309,7 +1309,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
         es <- decodeSpine spine
-        case runReduce (rewrite blk v0 rewr es) of
+        case runReduce (rewrite blk (applyE v0) rewr es) of
           NoReduction b    -> runAM (evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl)
           YesReduction _ v -> runAM (evalClosure v emptyEnv [] ctrl)
       where rewr = case t of
@@ -1357,7 +1357,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | otherwise            = runReduce $
-          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ show f)
+          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
                    __IMPOSSIBLE__
 
     -- Some helper functions to build machine states and closures.

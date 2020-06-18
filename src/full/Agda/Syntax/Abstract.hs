@@ -482,6 +482,7 @@ data Pattern' e
   deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type NAPs e   = [NamedArg (Pattern' e)]
+type NAPs1 e  = List1 (NamedArg (Pattern' e))
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 

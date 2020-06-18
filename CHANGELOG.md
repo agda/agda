@@ -115,6 +115,16 @@ Language
   [#2119](https://github.com/agda/agda/issues/2119) and
   [#4585](https://github.com/agda/agda/issues/4585)).
 
+* Changed the internal representation of literal strings: instead of using a
+  linked list of characters (`String`), we are now using `Data.Text`. This
+  should be a transparent change from the user's point of view: the backend
+  was already packing these strings as text.
+
+  Used this opportunity to introduce a `primStringUncons` primitive in
+  `Agda.Builtin.String` (and to correspondingly add the `Agda.Builtin.Maybe`
+  it needs).
+
+
 Reflection
 ----------
 
@@ -126,6 +136,56 @@ Reflection
   `nameErr` parts. They also do a better job of respecting line breaks in
   `strErr` parts.
 
+- The representation of reflected patterns and clauses has
+  changed. Each clause now includes a telescope with the names and
+  types of the pattern variables.
+
+  ```agda
+  data Clause where
+    clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause
+    absurd-clause : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) → Clause
+  ```
+
+  These telescopes provide additional information on the types of
+  pattern variables that was previously hard to reconstruct (see
+  [#2151](https://github.com/agda/agda/issues/2151)). When unquoting a
+  clause, the types in the clause telescope are currently ignored (but
+  this is subject to change in the future).
+
+  Two constructors of the `Pattern` datatype were also changed:
+  pattern variables now refer to a de Bruijn index (relative to the
+  clause telescope) rather than a string, and dot patterns now include
+  the actual dotted term.
+
+  ```agda
+  data Pattern where
+    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
+    dot    : (t : Term)    → Pattern   -- previously:   dot : Pattern
+    var    : (x : Nat)     → Pattern   -- previously:   var : (x : String) → Pattern
+    lit    : (l : Literal) → Pattern
+    proj   : (f : Name)    → Pattern
+    absurd : Pattern
+  ```
+
+  It is likely that this change to the reflected syntax requires you
+  to update reflection code written for previous versions of
+  Agda. Here are some tips for updating your code:
+
+  * When quoting a clause, you can recover the name of a pattern
+    variable by looking up the given index in the clause
+    telescope. The contents of dot patterns can safely be ignored
+    (unless you have a use for them).
+
+  * When creating a new clause for unquoting, you need to create a
+    telescope for the types of the pattern variables. To get back the
+    old behaviour of Agda, it is sufficient to set all the types of
+    the pattern variables to `unknown`. So you can construct the
+    telescope by listing the names of all pattern variables together
+    with their `ArgInfo`. Meanwhile, the pattern variables should be
+    numbered in order to update them to the new representation. As for
+    the telescope types, the contents of a `dot` pattern can safely be
+    set to `unknown`.
+    
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda
   execTC : String → List String → String → TC (Σ Nat (λ _ → Σ String (λ _ → String)))

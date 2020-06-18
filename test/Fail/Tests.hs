@@ -3,6 +3,7 @@
 module Fail.Tests where
 
 import qualified Data.ByteString as BS
+import Data.Functor ((<&>))
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -11,11 +12,12 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
+import System.PosixCompat.Files (touchFile)
 
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
-  (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
+  (readFileMaybe, goldenTest1, goldenTestIO1, GDiff (..), GShow (..))
 
 import Utils
 
@@ -25,32 +27,53 @@ testDir = "test" </> "Fail"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  return $ testGroup "Fail" $
-    [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
-    ++ map mkFailTest inpFiles
+  return $ testGroup "Fail" $ concat
+    [ map mkFailTest inpFiles
+    , [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
+    ]
 
 data TestResult
   = TestResult T.Text -- the cleaned stdout
   | TestUnexpectedSuccess ProgramResult
 
-mkFailTest :: FilePath -- inp file
-    -> TestTree
-mkFailTest inp =
-  goldenTest1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
---  goldenVsAction testName goldenFile doRun printTestResult
-  where testName   = asTestName testDir inp
-        goldenFile = dropAgdaExtension inp <.> ".err"
-        flagFile   = dropAgdaExtension inp <.> ".flags"
+mkFailTest
+  :: FilePath -- ^ Input file (Agda file).
+  -> TestTree
+mkFailTest agdaFile =
+  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff (pure . resShow) $ Just updGolden
+  where
+  testName   = asTestName testDir agdaFile
+  goldenFile = dropAgdaExtension agdaFile <.> ".err"
+  flagFile   = dropAgdaExtension agdaFile <.> ".flags"
 
-        readGolden = readTextFileMaybe goldenFile
-        updGolden  = writeTextFile goldenFile
+  readGolden = readTextFileMaybe goldenFile
+  updGolden  = writeTextFile goldenFile
 
-        doRun = do
-          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp
-                         , "--ignore-interfaces", "--no-libraries"]
-                         ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
-          runAgdaWithOptions testName agdaArgs (Just flagFile)
-            >>= expectFail
+  doRun = do
+    let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , agdaFile
+                   , "--ignore-interfaces", "--no-libraries"]
+                   ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
+    runAgdaWithOptions testName agdaArgs (Just flagFile)
+      <&> expectFail
+
+  -- | Treats newlines or consecutive whitespaces as one single whitespace.
+  --
+  -- Philipp20150923: On travis lines are wrapped at different positions sometimes.
+  -- It's not really clear to me why this happens, but just ignoring line breaks
+  -- for comparing the results should be fine.
+  resDiff :: T.Text -> T.Text -> IO GDiff
+  resDiff t1 t2
+    | stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2 = return Equal
+    | otherwise = do
+        -- Andreas, 2020-06-09, issue #4736
+        -- If the output has changed, the test case is "interesting"
+        -- regardless of whether the golden value is updated or not.
+        -- Thus, we touch the agdaFile to have it sorted up in the next
+        -- test run.
+        -- -- putStrLn $ "TOUCHING " ++ agdaFile
+        touchFile agdaFile
+        return $ DiffText Nothing t1 t2
+
 
 issue2649 :: TestTree
 issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
@@ -63,7 +86,7 @@ issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
       _  <- runAgdaWithOptions "Issue2649-1" (agdaArgs "Issue2649-1.agda") Nothing
       _  <- runAgdaWithOptions "Issue2649-2" (agdaArgs "Issue2649-2.agda") Nothing
       runAgdaWithOptions "Issue2649"   (agdaArgs "Issue2649.agda")   Nothing
-        >>= fmap printTestResult . expectFail
+        <&> printTestResult . expectFail
 
 nestedProjectRoots :: TestTree
 nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenFile)
@@ -76,22 +99,22 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
       r1 <- runAgdaWithOptions "NestedProjectRoots"
               ("--ignore-interfaces" : ("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
               Nothing
-              >>= fmap printTestResult . expectFail
+              <&> printTestResult . expectFail
       r2 <- runAgdaWithOptions "Imports.A" (agdaArgs ("Imports" </> "A.agda")) Nothing
-              >>= expectOk
+              <&> expectOk
       r3 <- runAgdaWithOptions "NestedProjectRoots"
               (("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
               Nothing
-              >>= fmap printTestResult . expectFail
+              <&> printTestResult . expectFail
       return $ r1 `T.append` r2 `T.append` r3
 
-expectOk :: (ProgramResult, AgdaResult) -> IO T.Text
-expectOk (res, ret) = pure $ case ret of
+expectOk :: (ProgramResult, AgdaResult) -> T.Text
+expectOk (res, ret) = case ret of
   AgdaSuccess{} -> stdOut res
   _             -> "UNEXPECTED_SUCCESS\n\n" <> printProgramResult res
 
-expectFail :: (ProgramResult, AgdaResult) -> IO TestResult
-expectFail (res, ret) = pure $ case ret of
+expectFail :: (ProgramResult, AgdaResult) -> TestResult
+expectFail (res, ret) = case ret of
   AgdaSuccess{} -> TestUnexpectedSuccess res
   -- If it's a type error, we do not print the exit code
   AgdaFailure _ (Just TCMError) -> TestResult $ stdOut res
@@ -105,21 +128,27 @@ expectFail (res, ret) = pure $ case ret of
 -- for comparing the results should be fine.
 resDiff :: T.Text -> T.Text -> GDiff
 resDiff t1 t2 =
-  if strip t1 == strip t2
+  if stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2
     then
       Equal
     else
       DiffText Nothing t1 t2
-  where
-    strip = replace (mkRegex " +") " " . replace (mkRegex "(\n|\r)") " "
+
+
+-- | Converts newlines and consecutive whitespaces into one single whitespace.
+--
+stripConsecutiveWhiteSpace :: T.Text -> T.Text
+stripConsecutiveWhiteSpace
+  = replace (mkRegex " +")      " "
+  . replace (mkRegex "(\n|\r)") " "
 
 resShow :: T.Text -> GShow
 resShow = ShowText
 
 printTestResult :: TestResult -> T.Text
-printTestResult (TestResult t)            = t
-printTestResult (TestUnexpectedSuccess p) =
-  "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProgramResult p
+printTestResult = \case
+  TestResult t            -> t
+  TestUnexpectedSuccess p -> "AGDA_UNEXPECTED_SUCCESS\n\n" <> printProgramResult p
 
 noDoubleCheckTests :: [String]
 noDoubleCheckTests =
