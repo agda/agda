@@ -1,4 +1,4 @@
-name: cabal build
+name: Cabal build
 
 on:
   push:

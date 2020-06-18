@@ -1,4 +1,4 @@
-name: stack build
+name: Stack build
 
 on:
   push:
