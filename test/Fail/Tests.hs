@@ -3,7 +3,6 @@
 module Fail.Tests where
 
 import qualified Data.ByteString as BS
-import Data.Functor ((<&>))
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -20,6 +19,8 @@ import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTest1, goldenTestIO1, GDiff (..), GShow (..))
 
 import Utils
+
+import Agda.Utils.Functor ((<&>))
 
 testDir :: FilePath
 testDir = "test" </> "Fail"
