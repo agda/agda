@@ -15,6 +15,7 @@ import Agda.Syntax.Concrete
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
+import Agda.Utils.List2 (List2)
 
 import Agda.Utils.Impossible
 
@@ -71,6 +72,7 @@ instance ExprLike Bool where
 
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
+instance ExprLike a => ExprLike (List2 a)
 instance ExprLike a => ExprLike (Maybe a)
 
 instance ExprLike a => ExprLike (Arg a)

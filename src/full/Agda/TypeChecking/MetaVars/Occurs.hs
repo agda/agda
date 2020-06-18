@@ -315,7 +315,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
     -- Produce nicer error messages
     nicerErrorMessage :: TCM a -> TCM a
     nicerErrorMessage f = f `catchError` \ err -> case err of
-      TypeError _ cl -> case clValue cl of
+      TypeError _ _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
             fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")

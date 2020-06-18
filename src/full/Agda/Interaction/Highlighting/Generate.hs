@@ -55,7 +55,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Warnings (runPM)
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..) )
+import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
 import Agda.Syntax.Common (pattern Ranged)
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -450,7 +450,7 @@ warningHighlighting w = case tcWarning w of
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting $ getRange w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
-  NicifierIssue w           -> case w of
+  NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we
     -- can get.

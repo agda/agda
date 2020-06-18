@@ -62,6 +62,7 @@ import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Maybe.Strict as Strict
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 
 import Agda.Utils.Impossible
 
@@ -614,9 +615,9 @@ Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
-                                              (defaultArg $ rawAppUnlessSingleton (getRange $1) $1)
+                                              (defaultArg $ rawApp $1)
                                               $3 }
-  | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawAppUnlessSingleton (getRange ($1,$2)) $2) <&> \ dom ->
+  | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
   | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
@@ -631,8 +632,8 @@ Expr1  : WithExprs {% case $1 of
 
 WithExprs :: { List1 Expr }
 WithExprs
-  : Application3 '|' WithExprs { RawApp (getRange $1) $1 <| $3 }
-  | Application                { singleton (RawApp (getRange $1) $1) }
+  : Application3 '|' WithExprs { rawApp $1 <| $3 }
+  | Application                { singleton (rawApp $1) }
 
 Application :: { List1 Expr }
 Application
@@ -648,7 +649,7 @@ Expr2
     | 'let' Declarations LetBody   { Let (getRange ($1,$2,$3)) $2 $3 }
     | 'do' vopen DoStmts close     { DoBlock (getRange ($1, $3)) $3 }
     | Expr3                        { $1 }
-    | 'tactic' Application3        { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) }
+    | 'tactic' Application3        { Tactic (getRange ($1, $2)) (rawApp $2) }
 
 LetBody :: { Maybe Expr }
 LetBody : 'in' Expr   { Just $2 }
@@ -956,7 +957,7 @@ DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
     | '..' BId MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance NonStrict) $3 $2 }
-    | '(' Application ')'     {% exprToPattern (RawApp (getRange $2) $2) >>= \ p ->
+    | '(' Application ')'     {% exprToPattern (rawApp $2) >>= \ p ->
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ Name noRange InScope [Hole] }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
@@ -1374,7 +1375,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
         Private r Inserted
           [ ModuleMacro r m'
              (SectionApp (getRange es) []
-               (RawApp (getRange es) (Ident (QName fresh) :| es)))
+               (rawApp (Ident (QName fresh) :| es)))
              doOpen dir
           ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
@@ -1420,7 +1421,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
       { []  -> Open r m dir
       ; _   -> Private r Inserted
                  [ ModuleMacro r (noName $ beginningOf $ getRange m)
-                             (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m :| es)))
+                             (SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
                              DoOpen dir
                  ]
       }
@@ -1444,7 +1445,7 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
                     else parseError "No bindings allowed for record module with non-canonical implicits" )
                     }
                   | ModuleName OpenArgs {
-                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (RawApp (fuseRange $1 $2) (Ident $1 :| $2)) ) }
+                    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (rawApp (Ident $1 :| $2)) ) }
 
 
 -- Module instantiation
@@ -1960,14 +1961,6 @@ isName s (_,s')
 forallPi :: List1 LamBinding -> Expr -> Expr
 forallPi bs e = Pi (fmap addType bs) e
 
--- | Builds a 'RawApp' from 'Range' and 'Expr' list, unless the list
--- is a single expression.  In the latter case, just the 'Expr' is
--- returned.
-rawAppUnlessSingleton :: Range -> List1 Expr -> Expr
-rawAppUnlessSingleton r = \case
-  e :| [] -> e
-  es      -> RawApp r es
-
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBinding
 addType (DomainFull b) = b
@@ -1977,7 +1970,7 @@ addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 
 exprAsTele :: Expr -> List1 Expr
-exprAsTele (RawApp _ es) = es
+exprAsTele (RawApp _ es) = List2.toList1 es
 exprAsTele e             = singleton e
 
 exprAsNamesAndPatterns :: Expr -> Maybe (List1 (Name, Maybe Expr))
@@ -2024,12 +2017,12 @@ boundNamesOrAbsurd es
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
 exprToAssignment (RawApp r es)
-  | (es1, arr : es2) <- List1.break isLeftArrow es =
+  | (es1, arr : es2) <- List2.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (RawApp (getRange es1) $ List1.fromList es1)
+      [] -> Just <$> ((,,) <$> exprToPattern (rawApp $ List1.fromList es1)
                            <*> pure (getRange arr)
-                           <*> pure (RawApp (getRange es2) $ List1.fromList es2))
+                           <*> pure (rawApp $ List1.fromList es2))
   where
     isLeftArrow (Ident (QName (Name _ _ [Id arr]))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
@@ -2074,9 +2067,8 @@ defaultBuildDoStmt e (_ : _) = parseError' (rStart' $ getRange e) "Only pattern 
 defaultBuildDoStmt e []      = pure $ DoThen e
 
 buildDoStmt :: Expr -> [LamClause] -> Parser DoStmt
-buildDoStmt (RawApp r (e:|[])) cs = buildDoStmt e cs
 buildDoStmt (Let r ds Nothing) [] = return $ DoLet r ds
-buildDoStmt e@(RawApp r es)    cs = do
+buildDoStmt e@(RawApp r _)    cs = do
   mpatexpr <- exprToAssignment e
   case mpatexpr of
     Just (pat, r, expr) -> pure $ DoBind r pat expr cs
@@ -2208,14 +2200,9 @@ exprToName :: Expr -> Parser Name
 exprToName (Ident (QName x)) = return x
 exprToName e = parseErrorRange e $ "Not a valid identifier: " ++ prettyShow e
 
-stripSingletonRawApp :: Expr -> Expr
-stripSingletonRawApp (RawApp _ (e :| [])) = stripSingletonRawApp e
-stripSingletonRawApp e = e
-
 isEqual :: Expr -> Maybe (Expr, Expr)
-isEqual e =
-  case stripSingletonRawApp e of
-    Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
+isEqual = \case
+    Equal _ a b -> Just (a, b)
     _           -> Nothing
 
 -- | When given expression is @e1 = e2@, turn it into a named expression.

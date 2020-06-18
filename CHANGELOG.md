@@ -122,6 +122,9 @@ Reflection
   ```agda
   quoteωTC : ∀ {A : Setω} → A → TC Term
   ```
+- `typeError` and `debugPrint` no longer inserts spaces around `termErr` and
+  `nameErr` parts. They also do a better job of respecting line breaks in
+  `strErr` parts.
 
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda

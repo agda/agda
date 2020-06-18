@@ -75,6 +75,18 @@ instance Pretty FileType where
     OrgFileType  -> "org-mode"
 
 ---------------------------------------------------------------------------
+-- * Agda Source location of errors
+---------------------------------------------------------------------------
+
+data AgdaSourceErrorLocation = AgdaSourceErrorLocation
+  { slocFile :: String -- ^ File the error was raised in
+  , slocLine :: Int    -- ^ Line number in this file
+  } deriving (Show, Data)
+
+instance Pretty AgdaSourceErrorLocation where
+  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
+
+---------------------------------------------------------------------------
 -- * Eta-equality
 ---------------------------------------------------------------------------
 

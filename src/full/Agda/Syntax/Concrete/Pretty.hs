@@ -24,6 +24,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -225,7 +226,7 @@ instance Pretty Expr where
 --                      sep [ pretty e1
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
-            RawApp _ es    -> fsep $ map pretty $ List1.toList es
+            RawApp _ es    -> fsep $ map pretty $ List2.toList es
             OpApp _ q _ es -> fsep $ prettyOpApp q es
 
             WithApp _ e es -> fsep $
@@ -684,7 +685,7 @@ instance Pretty Pattern where
     pretty = \case
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
-            RawAppP _ ps    -> fsep $ map pretty $ List1.toList ps
+            RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
             OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps)
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p

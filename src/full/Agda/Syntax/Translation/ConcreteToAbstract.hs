@@ -20,6 +20,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Applicative
 import Control.Monad.Except
@@ -87,6 +88,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List2 ( List2, pattern List2 )
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -106,17 +108,21 @@ import Agda.ImpossibleTest (impossibleTest)
 
 -- notAModuleExpr e = typeError $ NotAModuleExpr e
 
-notAnExpression :: C.Expr -> ScopeM A.Expr
-notAnExpression e = typeError $ NotAnExpression e
+notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
+notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NotAnExpression e
 
-nothingAppliedToHiddenArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToHiddenArg e
 
-nothingAppliedToInstanceArg :: C.Expr -> ScopeM A.Expr
-nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
+nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
+nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToInstanceArg e
 
-notAValidLetBinding :: NiceDeclaration -> ScopeM a
-notAValidLetBinding d = typeError $ NotAValidLetBinding d
+notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
+notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  typeError' (AgdaSourceErrorLocation file line) $ NotAValidLetBinding d
 
 {--------------------------------------------------------------------------
     Helpers
@@ -601,6 +607,7 @@ instance ToAbstract PatName APatName where
           -- be meant since we are in a pattern
           -- Andreas, 2020-04-11 CoConName:
           -- coinductive constructors will be rejected later, in the type checker
+    reportSLn "scope.pat" 20 $ "resolved as " ++ prettyShow rx
     case (rx, x) of
       (VarName y _,       C.QName x)                           -> bindPatVar x
       (FieldName d,       C.QName x)                           -> bindPatVar x
@@ -766,7 +773,7 @@ scopeCheckExtendedLam r cs = do
   -- for testing issue #4016.
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
-            let p   = C.RawAppP (getRange ps) $ IdentP (C.QName cname) :| ps
+            let p   = C.rawAppP $ (killRange $ IdentP $ C.QName cname) :| ps
             let lhs = C.LHS p [] [] NoEllipsis
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
@@ -954,7 +961,7 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
     | otherwise = do
         x <- C.NoName (getRange m) <$> fresh
         r <- checkModuleMacro LetApply LetOpenModule (getRange (m, es, i)) PublicAccess x
-               (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m :| es)))
+               (C.SectionApp (getRange (m , es)) [] (rawApp (Ident m :| es)))
                DontOpen i
         case r of
           (LetApply _ m' _ _ _ : _) -> return (m', r)
@@ -1284,9 +1291,11 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    warnings $ NicifierIssue <$> warns
+    mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
   case result of
-    Left e   -> throwError $ Exception (getRange e) $ pretty e
+    Left (DeclarationException fl e) -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+      throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 
   where notOnlyInSafeMode = (PragmaCompiled_ /=) . declarationWarningName
@@ -1425,7 +1434,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             where
               definedName (C.IdentP (C.QName x)) = Just x
               definedName C.IdentP{}             = Nothing
-              definedName (C.RawAppP _ (p :|_))  = definedName p
+              definedName (C.RawAppP _ (List2 p _ _)) = definedName p
               definedName (C.ParenP _ p)         = definedName p
               definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
               definedName C.AbsurdP{}            = Nothing
@@ -2232,7 +2241,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x
-        getHead (C.RawAppP _ (p :|_)) = getHead p
+        getHead (C.RawAppP _ (List2 p _ _)) = getHead p
         getHead _                     = err
 
     top <- getHead lhs
@@ -2478,8 +2487,12 @@ data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs ell) =
       traceCall (ScopeCheckLHS top lhs) $ do
+        reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
+        reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
+        reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
         lhscore <- parseLHS top lhs
-        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
+        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
+        reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but --no-copatterns option
         unlessM (optCopatterns <$> pragmaOptions) $
@@ -2488,11 +2501,13 @@ instance ToAbstract LeftHandSide A.LHS where
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         bindVarsToBind
-        reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
+        -- reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        reportSLn "scope.lhs" 60 $ "parsed lhs patterns: " ++ show lhscore
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
-        reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
+        -- reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ prettyShow lhscore  -- TODO: Pretty A.LHSCore'
+        reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 

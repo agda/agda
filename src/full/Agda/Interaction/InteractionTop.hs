@@ -965,7 +965,7 @@ setInteractionMode mode = modify $ \ st -> st { interactionMode = mode }
 handleNotInScope :: CommandM a -> CommandM a -> CommandM a
 handleNotInScope cmd handler = do
   cmd `catchError` \case
-    TypeError _s (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
+    TypeError _ _ (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
       reportSLn "interaction.top" 60 $ "Handling `Not in scope` error"
       handler
     err -> do

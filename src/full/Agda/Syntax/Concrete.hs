@@ -11,7 +11,8 @@ module Agda.Syntax.Concrete
   , OpApp(..), fromOrdinary
   , module Agda.Syntax.Concrete.Name
   , appView, AppView(..)
-  , isSingleIdentifierP, removeSingletonRawAppP
+  , rawApp, rawAppP
+  , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
     -- * Bindings
   , Binder'(..)
@@ -77,6 +78,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Either ( maybeLeft )
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|) )
+import Agda.Utils.List2  ( List2, pattern List2 )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 
@@ -130,7 +132,7 @@ data Expr
   | Lit Range Literal                          -- ^ ex: @1@ or @\"foo\"@
   | QuestionMark Range (Maybe Nat)             -- ^ ex: @?@ or @{! ... !}@
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
-  | RawApp Range (List1 Expr)                  -- ^ before parsing operators
+  | RawApp Range (List2 Expr)                  -- ^ before parsing operators
   | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
   | OpApp Range QName (Set A.Name)
           [NamedArg
@@ -175,7 +177,7 @@ data Pattern
   = IdentP QName                           -- ^ @c@ or @x@
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
-  | RawAppP Range (List1 Pattern)          -- ^ @p1..pn@ before parsing operators
+  | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set A.Name)
            [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
@@ -518,6 +520,18 @@ data HoleContent' qn p e
 
 type HoleContent = HoleContent' () Pattern Expr
 
+---------------------------------------------------------------------------
+-- * Smart constructors
+---------------------------------------------------------------------------
+
+rawApp :: List1 Expr -> Expr
+rawApp es@(e1 :| e2 : rest) = RawApp (getRange es) $ List2 e1 e2 rest
+rawApp (e :| []) = e
+
+rawAppP :: List1 Pattern -> Pattern
+rawAppP ps@(p1 :| p2 : rest) = RawAppP (getRange ps) $ List2 p1 p2 rest
+rawAppP (p :| []) = p
+
 {--------------------------------------------------------------------------
     Views
  --------------------------------------------------------------------------}
@@ -528,7 +542,8 @@ data AppView = AppView Expr [NamedArg Expr]
 appView :: Expr -> AppView
 appView = \case
     App r e1 e2      -> vApp (appView e1) e2
-    RawApp _ (e:|es) -> AppView e $ map arg es
+    RawApp _ (List2 e1 e2 es)
+                     -> AppView e1 $ map arg (e2:es)
     e                -> AppView e []
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
@@ -538,22 +553,21 @@ appView = \case
     arg e                 = defaultArg (unnamed e)
 
 isSingleIdentifierP :: Pattern -> Maybe Name
-isSingleIdentifierP p = case removeSingletonRawAppP p of
+isSingleIdentifierP = \case
   IdentP (QName x) -> Just x
   WildP r          -> Just $ noName r
+  ParenP _ p       -> isSingleIdentifierP p
   _                -> Nothing
 
-removeSingletonRawAppP :: Pattern -> Pattern
-removeSingletonRawAppP = \case
-    RawAppP _ (p :| []) -> removeSingletonRawAppP p
-    ParenP _ p          -> removeSingletonRawAppP p
+removeParenP :: Pattern -> Pattern
+removeParenP = \case
+    ParenP _ p -> removeParenP p
     p -> p
 
 -- | Observe the hiding status of an expression
 
 observeHiding :: Expr -> WithHiding Expr
 observeHiding = \case
-  RawApp _ (e :| [])              -> observeHiding e
   HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
   InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
   e                               -> WithHiding NotHidden e
@@ -608,7 +622,6 @@ isAbsurdP = \case
   AbsurdP r      -> pure (r, NotHidden)
   AsP _ _      p -> isAbsurdP p
   ParenP _     p -> isAbsurdP p
-  RawAppP _ (p :| []) -> isAbsurdP p
   HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
   InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
   _ -> Nothing

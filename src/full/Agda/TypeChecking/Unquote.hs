@@ -259,6 +259,25 @@ instance PrettyTCM ErrorPart where
   prettyTCM (TermPart t) = prettyTCM t
   prettyTCM (NamePart x) = prettyTCM x
 
+-- | We do a little bit of work here to make it possible to generate nice
+--   layout for multi-line error messages. Specifically we split the parts
+--   into lines (indicated by \n in a string part) and vcat all the lines.
+prettyErrorParts :: [ErrorPart] -> TCM Doc
+prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
+  where
+    splitLines [] = []
+    splitLines (StrPart s : ss) =
+      case break (=='\n') s of
+        (s0, '\n' : s1) -> [StrPart s0] : splitLines (StrPart s1 : ss)
+        (s0, "")        -> consLine (StrPart s0) (splitLines ss)
+        _               -> __IMPOSSIBLE__
+    splitLines (p@TermPart{} : ss) = consLine p (splitLines ss)
+    splitLines (p@NamePart{} : ss) = consLine p (splitLines ss)
+
+    consLine l []        = [[l]]
+    consLine l (l' : ls) = (l : l') : ls
+
+
 instance Unquote ErrorPart where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -598,11 +617,11 @@ evalTCM v = do
       liftTCM primUnitUnit
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
+    tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err
 
     tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
     tcDebugPrint s n msg = do
-      reportSDoc (T.unpack s) (fromIntegral n) $ fsep (map prettyTCM msg)
+      reportSDoc (T.unpack s) (fromIntegral n) $ prettyErrorParts msg
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term

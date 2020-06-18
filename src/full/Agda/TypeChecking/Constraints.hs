@@ -10,6 +10,7 @@ import Control.Monad.Except
 import qualified Data.List as List
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -130,8 +131,9 @@ noConstraints problem = do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
-    w <- warning_ (UnsolvedConstraints cs)
-    typeError $ NonFatalErrors [ w ]
+    withFileAndLine $ \ file line -> do
+      w <- warning'_ (AgdaSourceErrorLocation file line) (UnsolvedConstraints cs)
+      typeError' (AgdaSourceErrorLocation file line) $ NonFatalErrors [ w ]
   return x
 
 -- | Create a fresh problem for the given action.
