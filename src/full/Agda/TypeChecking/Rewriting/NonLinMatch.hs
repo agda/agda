@@ -141,7 +141,12 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
   match r gamma k (t, hd) [] [] = return ()
   match r gamma k (t, hd) [] _  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
-  match r gamma k (t, hd) (p:ps) (v:vs) = case (p,v) of
+  match r gamma k (t, hd) (p:ps) (v:vs) =
+   traceSDoc "rewriting.match" 50 (sep
+     [ "matching elimination " <+> addContext (gamma `abstract` k) (prettyTCM p)
+     , "  with               " <+> addContext k (prettyTCM v)
+     , "  eliminating head   " <+> addContext k (prettyTCM $ hd []) <+> ":" <+> addContext k (prettyTCM t)]) $ do
+   case (p,v) of
     (Apply p, Apply v) -> do
       ~(Pi a b) <- addContext k $ unEl <$> reduce t
       match r gamma k a p v
