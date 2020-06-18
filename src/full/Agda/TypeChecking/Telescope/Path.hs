@@ -1,4 +1,4 @@
-
+{-# LANGUAGE NondecreasingIndentation #-}
 module Agda.TypeChecking.Telescope.Path where
 
 import Prelude hiding (null)
@@ -18,6 +18,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -80,3 +81,12 @@ iApplyVars ps = flip concatMap (map namedArg ps) $ \case
                              DotP{} -> []
                              DefP _ _ ps -> iApplyVars ps
                              ConP _ _ ps -> iApplyVars ps
+
+isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
+isInterval t = liftTCM $ do
+  mi <- getName' builtinInterval
+  caseMaybe mi (return False) $ \ i -> do
+  t <- reduce $ unEl t
+  case t of
+    Def q [] -> return $ q == i
+    _        -> return $ False

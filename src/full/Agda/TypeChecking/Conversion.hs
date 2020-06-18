@@ -608,9 +608,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
-                        (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+              equalType (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -865,7 +865,7 @@ compareElims pols0 fors0 a v els01 els02 =
             nest 2 $ "va =" <+> text (show (isPathType va))
           case va of
             PathType s path l bA x y -> do
-              b <- elInf primInterval
+              b <- primIntervalType
               compareWithPol pol (flip compareTerm b)
                                   r1 r2
               -- TODO: compare (x1,x2) and (y1,y2) ?
@@ -1935,7 +1935,7 @@ compareInterval cmp i t u = do
       -- but we could still prune/solve some metas by comparing the terms as atoms.
       -- also if blocked we won't find the terms conclusively unequal(?) so compareAtom
       -- won't report type errors when we should accept.
-      interval <- elInf $ primInterval
+      interval <- primIntervalType
       compareAtom CmpEq (AsTermsOf interval) t u
     _ | otherwise -> do
       x <- leqInterval it iu
@@ -1974,7 +1974,7 @@ leqConj (rs, rst) (qs, qst) = do
   if toSet qs `Set.isSubsetOf` toSet rs
     then do
       interval <-
-        elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        elSSet $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1) in some situations the same constraint would get generated twice.
       -- 2) unless things are completely accepted we are going to

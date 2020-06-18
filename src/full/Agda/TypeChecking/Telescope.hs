@@ -487,7 +487,7 @@ pathViewAsPi'whnf = do
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El (Inf 0) interval
+          i = El (SSet $ ClosedLevel 0) interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 

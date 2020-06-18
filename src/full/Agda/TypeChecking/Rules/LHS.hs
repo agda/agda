@@ -67,6 +67,7 @@ import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Primitive hiding (Nat)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
@@ -1003,7 +1004,7 @@ checkLHS mf = updateModality checkLHS_ where
       unless (domFinite dom) $ liftTCM $ softTypeError . GenericDocError =<<
         hsep [ "Not a finite domain:" , prettyTCM $ unDom dom ]
 
-      tInterval <- liftTCM $ elInf primInterval
+      tInterval <- liftTCM $ primIntervalType
 
       names <- liftTCM $ addContext tel $ do
         LeftoverPatterns{patternVariables = vars} <- getLeftoverPatterns $ problem ^. problemEqs
@@ -1185,7 +1186,7 @@ checkLHS mf = updateModality checkLHS_ where
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
 
       checkMatchingAllowed dr  -- No splitting on coinductive constructors.
-      addContext delta1 $ checkSortOfSplitVar dr a (Just target)
+      addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
       -- set, we locally enable --with-K during unification.
@@ -1768,17 +1769,30 @@ checkParameters dc d pars = liftTCM $ do
 
 checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
-                    => DataOrRecord -> a -> Maybe ty -> m ()
-checkSortOfSplitVar dr a mtarget = do
+                    => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
+checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
     Type{}
       | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> unlessM (isFibrant target) splitOnFibrantError
-      | otherwise              -> splitOnFibrantError
+      | Just target <- mtarget -> do
+          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
+          unlessM (isFibrant target) splitOnFibrantError
+          forM_ (telToList tel) $ \ d -> do
+            let ty = snd $ unDom d
+            unlessM (isFibrant ty) $
+              unlessM (isInterval ty) $
+                splitOnFibrantError' ty
+      | otherwise              -> do
+          reportSDoc "tc.sort.check" 20 $ "no target"
+          splitOnFibrantError
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
-      | otherwise              -> splitOnPropError
+      | Just target <- mtarget -> do
+        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
+        unlessM (isPropM target) splitOnPropError
+      | otherwise              -> do
+          reportSDoc "tc.sort.check" 20 $ "no target prop"
+          splitOnPropError
     Inf{} -> return () -- see #4109
     SSet{} -> return ()
     _      -> softTypeError =<< do
@@ -1788,6 +1802,12 @@ checkSortOfSplitVar dr a mtarget = do
   where
     splitOnPropError = softTypeError $ GenericError
       "Cannot split on datatype in Prop unless target is in Prop"
+
+    splitOnFibrantError' t = softTypeError =<< do
+      liftTCM $ GenericDocError <$> fsep
+        [ "Cannot eliminate fibrant type" , prettyTCM a
+        , "unless context type", prettyTCM t, "is also fibrant."
+        ]
 
     splitOnFibrantError = softTypeError =<< do
       liftTCM $ GenericDocError <$> fsep

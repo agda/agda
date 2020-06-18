@@ -704,7 +704,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             | visible info
             , PathType s _ _ bA x y <- viewPath t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
-                u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
+                u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) $
                   checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
@@ -1314,7 +1314,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- elInf $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
+      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1335,7 +1335,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
+      ty <- el's (pure (unArg l)) $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1361,7 +1361,7 @@ checkPrimTrans c rs vs _ = do
       -- ty = (i : I) -> Set (l i)
       ty <- runNamesT [] $ do
         l <- open $ unArg l
-        nPi' "i" (elInf $ cl primInterval) $ \ i -> (sort . tmSort <$> (l <@> i))
+        nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (l <@> i))
       a <- blockArg ty (rs !!! 1) a $ do
         equalTermOnFace (unArg phi) ty
           (unArg a)
@@ -1444,7 +1444,7 @@ check_glue c rs vs _ = do
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
-            elInf $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
+            el's lb $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v

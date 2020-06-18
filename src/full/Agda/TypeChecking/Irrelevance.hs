@@ -494,12 +494,18 @@ isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
 
 -- * Fibrant types
 
--- | Is a type fibrant (i.e. not a SSet)?
+-- | Is a type fibrant (i.e. Type, Prop)?
 
 isFibrant :: (LensSort a, MonadReduce m) => a -> m Bool
 isFibrant a = reduce (getSort a) <&> \case
   Type{}     -> True
   Prop{}     -> True
-  Inf{}      -> True
-  SizeUniv{} -> True
-  _          -> False
+  Inf{}      -> False
+  SSet{}     -> False
+  SizeUniv{} -> False
+  PiSort{}   -> False
+  FunSort{}  -> False
+  UnivSort{} -> False
+  MetaS{}    -> False
+  DefS{}     -> False
+  DummyS{}   -> False

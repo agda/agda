@@ -931,11 +931,17 @@ unreducedLevel v = atomicLevel $ UnreducedLevel v
 sort :: Sort -> Type
 sort s = El (UnivSort s) $ Sort s
 
+ssort :: Level -> Type
+ssort l = El (UnivSort (SSet l)) $ Sort (SSet l)
+
 varSort :: Int -> Sort
 varSort n = Type $ atomicLevel $ NeutralLevel mempty $ var n
 
 tmSort :: Term -> Sort
 tmSort t = Type $ unreducedLevel t
+
+tmSSort :: Term -> Sort
+tmSSort t = SSet $ unreducedLevel t
 
 -- | Given a constant @m@ and level @l@, compute @m + l@
 levelPlus :: Integer -> Level -> Level

@@ -453,6 +453,7 @@ instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
 instance ShrinkC Sort Sort where
   shrinkC conf s = mkProp 0 : case s of
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
+    SSet l     -> []
     Prop{}     -> []
     Inf _      -> []
     SizeUniv   -> []

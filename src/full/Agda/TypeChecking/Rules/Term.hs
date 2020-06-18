@@ -368,7 +368,7 @@ checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
     let x    = updateNamedArg (A.unBind . A.binderName) x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
-    interval <- elInf primInterval
+    interval <- primIntervalType
     v <- addContext ([x], interval) $
            checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
