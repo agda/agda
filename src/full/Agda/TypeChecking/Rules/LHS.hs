@@ -22,7 +22,6 @@ import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 
-import Data.Either (partitionEithers)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (findIndex)
@@ -1551,7 +1550,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- Note that tryProj wraps TCM in an ExceptT, collecting errors
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
-      case partitionEithers $ List1.toList disambiguations of
+      case List1.partitionEithers disambiguations of
         (_ , (d, (a, mst)) : disambs) | constraintsOk <= null disambs -> do
           mapM_ putTC mst -- Activate state changes
           -- From here, we have the correctly disambiguated projection.
@@ -1700,7 +1699,7 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       -- Andreas, 2020-06-17: Not really, since we need to make sure
       -- that only a single candidate remains, and if not,
       -- report all alternatives in the error message.
-      let (errs, fits0) = partitionEithers $ List1.toList disambiguations
+      let (errs, fits0) = List1.partitionEithers disambiguations
       reportSDoc "tc.lhs.disamb" 40 $ vcat $ do
         let hideSt (c0,c,(a,mst)) = (c0, c, (a, ("(state change)" :: String) <$ mst))
         "remaining candidates: " : map (nest 2 . prettyTCM . hideSt) fits0

@@ -25,6 +25,7 @@ module Agda.Utils.List1
 import Control.Arrow ((&&&))
 import Control.Monad (filterM)
 
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Semigroup as Semigroup
@@ -95,6 +96,22 @@ catMaybes =  Maybe.catMaybes . List1.toList
 
 mapMaybe :: (a -> Maybe b) -> List1 a -> [b]
 mapMaybe f = Maybe.mapMaybe f . List1.toList
+
+-- | Like 'Data.Either.partitionEithers'.
+
+partitionEithers :: List1 (Either a b) -> ([a], [b])
+partitionEithers = Either.partitionEithers . List1.toList
+
+-- | Like 'Data.Either.lefts'.
+
+lefts :: List1 (Either a b) -> [a]
+lefts = Either.lefts  . List1.toList
+
+-- | Like 'Data.Either.rights'.
+
+rights :: List1 (Either a b) -> [b]
+rights = Either.rights  . List1.toList
+
 
 -- | Non-efficient, monadic 'nub'.
 -- O(n²).

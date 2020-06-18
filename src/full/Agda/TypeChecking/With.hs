@@ -7,7 +7,6 @@ import Control.Monad.Writer (WriterT, runWriterT, tell)
 
 import Data.Either
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Data.Foldable ( foldrM )
 
@@ -38,6 +37,7 @@ import Agda.TypeChecking.Rules.LHS.Problem (ProblemEq(..))
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
@@ -474,7 +474,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
                 -- If dot-pattern is an application of the constructor, try to preserve the
                 -- arguments.
                 Application (A.Con (A.AmbQ cs')) es -> do
-                  cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
+                  cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
                   unless (c `elem` cs') mismatch
                   return $ (map . fmap . fmap) (A.DotP r) es
                 _  -> return $ map (unnamed (A.WildP empty) <$) qs'
@@ -502,7 +502,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
             -- Check whether the with-clause constructor can be (possibly trivially)
             -- disambiguated to be equal to the parent-clause constructor.
             -- Andreas, 2017-08-13, herein, ignore abstract constructors.
-            cs' <- liftTCM $ snd . partitionEithers <$> mapM getConForm (NonEmpty.toList cs')
+            cs' <- liftTCM $ List1.rights <$> mapM getConForm cs'
             unless (c `elem` cs') mismatch
             -- Strip the subpatterns ps' and then continue.
             stripConP d us b c ConOCon qs' ps'
