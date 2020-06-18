@@ -4,6 +4,8 @@
 module MAlonzo.RTE.Float where
 
 import Numeric.IEEE ( IEEE(identicalIEEE, nan) )
+import Data.Word (Word64)
+
 #if __GLASGOW_HASKELL__ >= 804
 import GHC.Float (castDoubleToWord64)
 #else

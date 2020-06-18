@@ -1,15 +1,11 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE PolyKinds #-}
 
-module MAlonzo.RTE
-  ( module MAlonzo.RTE
-  , module MAlonzo.RTE.Float
-  ) where
+module MAlonzo.RTE where
 
 import Unsafe.Coerce
 import qualified GHC.Exts as GHC (Any)
 import qualified Data.Word
-import MAlonzo.RTE.Float
 
 type AgdaAny = GHC.Any
 

@@ -181,6 +181,9 @@ mazAnyType = HS.TyCon (hsName mazAnyTypeName)
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"
 
+mazRTEFloat :: HS.ModuleName
+mazRTEFloat = HS.ModuleName "MAlonzo.RTE.Float"
+
 rtmQual :: String -> HS.QName
 rtmQual = HS.UnQual . HS.Ident
 
