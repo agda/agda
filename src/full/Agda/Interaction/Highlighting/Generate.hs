@@ -453,6 +453,8 @@ warningHighlighting' b w = case tcWarning w of
   LibraryWarning{}           -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
+  RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
+  RewriteMissingRule{}       -> confluenceErrorHighlighting w
   PragmaCompileErased{}      -> deadcodeHighlighting w
   NotInScopeW{}              -> deadcodeHighlighting w
   AsPatternShadowsConstructorOrPatternSynonym{}

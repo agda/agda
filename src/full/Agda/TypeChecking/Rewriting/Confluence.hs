@@ -1,11 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
--- | Checking confluence of rewrite rules.
+-- | Checking local or global confluence of rewrite rules.
 --
--- Given a rewrite rule @f ps ↦ v@, we construct critical pairs
--- involving this as the main rule by searching for:
+-- For checking LOCAL CONFLUENCE of a given rewrite rule @f ps ↦ v@,
+-- we construct critical pairs involving this as the main rule by
+-- searching for:
 --
 -- 1. *Different* rules @f ps' ↦ v'@ where @ps@ and @ps'@ can be
 --    unified@.
@@ -15,6 +17,22 @@
 --
 -- Each of these leads to a *critical pair* @v₁ <-- u --> v₂@, which
 -- should satisfy @v₁ = v₂@.
+--
+-- For checking GLOBAL CONFLUENCE, we check the following two
+-- properties:
+--
+-- 1. For any two left-hand sides of the rewrite rules that overlap
+--    (either at the root position or at a subterm), the most general
+--    unifier of the two left-hand sides is again a left-hand side of
+--    a rewrite rule. For example, if there are two rules @suc m + n =
+--    suc (m + n)@ and @m + suc n = suc (m + n)@, then there should
+--    also be a rule @suc m + suc n = suc (suc (m + n))@.
+--
+-- 2. Each rewrite rule should satisfy the *triangle property*: For
+--    any rewrite rule @u = w@ and any single-step parallel unfolding
+--    @u => v@, we should have another single-step parallel unfolding
+--    @v => w@.
+
 
 module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules , checkConfluenceOfClause ) where
 
@@ -23,6 +41,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.Either
 import Data.Function ( on )
 import Data.Functor ( ($>) )
 import Data.List ( elemIndex , tails )
@@ -36,6 +55,7 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance ( workOnTypes )
@@ -47,12 +67,15 @@ import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Clause
+import Agda.TypeChecking.Rewriting.NonLinMatch
 import Agda.TypeChecking.Rewriting.NonLinPattern
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Applicative
+import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -98,8 +121,15 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
   reportSDoc "rewriting.confluence" 30 $ addContext tel $
     "Head symbol" <+> prettyTCM (hdf []) <+> "of rewrite rule has type" <+> prettyTCM fa
 
+  -- Step 0 (global confluence check only): check triangle property
+  -- for LHS of each rewrite rule
+  when (confChk == GlobalConfluenceCheck && not isClause) $
+    checkTrianglePropertyForRule rew
+
   -- Step 1: check other rewrite rules that overlap at top position
-  forMM_ (getRulesFor f isClause) $ \ rew' ->
+  forMM_ (getRulesFor f isClause) $ \ rew' -> do
+    when (confChk == GlobalConfluenceCheck && not (any (sameRuleName rew') rews)) $
+      checkTrianglePropertyForRule rew'
     unless (any (sameRuleName rew') $ rew:rewsRest) $
       checkConfluenceTop hdf rew rew'
 
@@ -117,6 +147,8 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g -> do
     forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' -> do
+      when (confChk == GlobalConfluenceCheck && not (any (sameRuleName rew') rews)) $
+        checkTrianglePropertyForRule rew'
       unless (any (sameRuleName rew') rewsRest) $ do
         es' <- nlPatToTerm (rewPats rew')
         let tel' = rewContext rew'
@@ -145,14 +177,24 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
         es1 <- applySubst sub1 <$> nlPatToTerm (rewPats rew1)
         es2 <- applySubst sub2 <$> nlPatToTerm (rewPats rew2)
 
+        reportSDoc "rewriting.confluence" 30 $ vcat
+          [ "checkConfluenceTop" <+> prettyTCM (rewName rew1) <+> prettyTCM (rewName rew2)
+          , "  f    = " <+> prettyTCM f
+          , "  ctx1 = " <+> prettyTCM (rewContext rew1)
+          , "  ctx2 = " <+> prettyTCM (rewContext rew2)
+          , "  es1  = " <+> prettyTCM es1
+          , "  es2  = " <+> prettyTCM es2
+          ]
+
         -- Make sure we are comparing eliminations with the same arity
         -- (see #3810).
         let n = min (size es1) (size es2)
             (es1' , es1r) = splitAt n es1
             (es2' , es2r) = splitAt n es2
+            esr           = es1r ++ es2r
 
-            lhs1 = hd $ es1' ++ es2r
-            lhs2 = hd $ es2' ++ es1r
+            lhs1 = hd $ es1' ++ esr
+            lhs2 = hd $ es2' ++ esr
 
             -- Use type of rewrite rule with the most eliminations
             a | null es1r = a2
@@ -179,7 +221,7 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
 
           return (rhs1 , rhs2)
 
-        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++ es2r))
+        whenJust maybeCriticalPair $ uncurry (checkCriticalPair a hd (es1' ++ esr))
 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
@@ -289,13 +331,82 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
         , " =?= " , nest 2 $ prettyTCM rhs2
         , " : " , nest 2 $ prettyTCM a ]
 
-      addContext gamma $ do
-          nonConstraining $ equalTerm a rhs1 rhs2
-        `catchError` \case
-          TypeError _ s err -> do
-            prettyErr <- withTCState (const s) $ prettyTCM err
-            warning $ RewriteNonConfluent (hd es) rhs1 rhs2 prettyErr
-          err           -> throwError err
+      addContext gamma $ case confChk of
+
+        -- Local confluence check: check that critical pair has a
+        -- common reduct.
+        LocalConfluenceCheck -> do
+            dontAssignMetas $ noConstraints $ equalTerm a rhs1 rhs2
+          `catchError` \case
+            TypeError _ s err -> do
+              prettyErr <- withTCState (const s) $ prettyTCM err
+              warning $ RewriteNonConfluent (hd es) rhs1 rhs2 prettyErr
+            err           -> throwError err
+
+        -- Global confluence check: enforce that MGU is again the LHS
+        -- of a rewrite rule (actual global confluence then follows
+        -- from the triangle property which was checked before).
+        GlobalConfluenceCheck -> do
+          (t, f) <- case hd [] of
+            Def f [] -> do
+              t <- defType <$> getConstInfo f
+              return (t, f)
+            Con (ConHead{ conName = c }) _ [] -> do
+              t <- typeOfConst c
+              return (t, c)
+            _ -> __IMPOSSIBLE__
+
+          let checkEqualLHS :: RewriteRule -> TCM Bool
+              checkEqualLHS (RewriteRule q delta _ ps _ _) = do
+                onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
+                  Left _    -> return False
+                  Right sub -> do
+                    let us = applySubst sub $ map var [0..(size delta-1)]
+                    reportSDoc "rewriting.confluence.global" 35 $
+                      prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q <+> "with instantiation" <+> prettyList_ (map prettyTCM us)
+                    let ok = allDistinctVars us
+                    when ok $ reportSDoc "rewriting.confluence.global" 30 $
+                      "It is equal to the LHS of rewrite rule" <+> prettyTCM q
+                    return ok
+              allDistinctVars :: [Term] -> Bool
+              allDistinctVars us = case traverse isVar us of
+                Just is -> fastDistinct is
+                Nothing -> False
+              isVar (Var i []) = Just i
+              isVar _          = Nothing -- TODO: use type-directed isEtaVar
+
+          rews <- getClausesAndRewriteRulesFor f
+          let sameRHS = onlyReduceTypes $ pureEqualTerm a rhs1 rhs2
+          unlessM (sameRHS `or2M` anyM rews checkEqualLHS) $ addContext gamma $
+            warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
+
+    checkTrianglePropertyForRule :: RewriteRule -> TCM ()
+    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b) = addContext gamma $ do
+      u  <- nlPatToTerm $ PDef f ps
+      -- First element in the list is the "best reduct" @ρ(u)@
+      (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
+      reportSDoc "rewriting.confluence" 40 $ ("rho(" <> prettyTCM u <> ") =") <+> prettyTCM rhou
+      reportSDoc "rewriting.confluence" 40 $ ("S(" <> prettyTCM u <> ") =") <+> prettyList_ (map prettyTCM vs)
+      -- If present, last element is always equal to u
+      caseMaybe (initLast vs) (return ()) $ \(vs',u') -> do
+        unless (u == u') __IMPOSSIBLE__
+        forM_ vs' $ \v -> unlessM (checkParallelReductionStep b v rhou) $
+          warning $ RewriteMissingRule u v rhou
+
+    checkParallelReductionStep :: Type -> Term -> Term -> TCM Bool
+    checkParallelReductionStep a u w = do
+      reportSDoc "rewriting.confluence.global" 30 $ fsep
+        [ "Global confluence: checking if" , prettyTCM u
+        , "reduces to" , prettyTCM w , "in one parallel step." ]
+      anyListT (parReduce u) $ \v -> do
+        reportSDoc "rewriting.confluence.global" 30 $ fsep
+          [ prettyTCM u , " reduces to " , prettyTCM v
+          ]
+        eq <- onlyReduceTypes $ pureEqualTerm a v w
+        when eq $ reportSDoc "rewriting.confluence.global" 30 $ fsep
+          [ "  which is equal to" , prettyTCM w
+          ]
+        return eq
 
 makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
 makeHead def a = case theDef def of
@@ -352,6 +463,110 @@ tryUnification lhs1 lhs2 f = (Just <$> f)
     prettyCs <- prettyInterestingConstraints cs
     warning $ RewriteMaybeNonConfluent lhs1 lhs2 prettyCs
     return Nothing
+
+
+type MonadParallelReduce m =
+  ( MonadReduce m
+  , MonadAddContext m
+  , MonadDebug m
+  , HasBuiltins m
+  , HasConstInfo m
+  , MonadFresh NameId m
+  )
+
+-- | List all possible single-step parallel reductions of the given term.
+allParallelReductions :: (MonadParallelReduce m, ParallelReduce a) => a -> m [a]
+allParallelReductions = sequenceListT . parReduce
+
+-- | Single-step parallel reduction of a given term.
+--   The monad 'm' can be instantiated in multiple ways:
+--   * Use 'MaybeT TCM' to get the "optimal reduct" obtained by
+--     applying rewrite rules eagerly.
+--   * Use 'ListT TCM' to obtain all possible one-step parallel
+--     reductions.
+class ParallelReduce a where
+  parReduce :: (MonadParallelReduce m, MonadPlus m) => a -> m a
+
+  default parReduce
+    :: ( MonadParallelReduce m, MonadPlus m
+       , Traversable f, a ~ f b, ParallelReduce b)
+    => a -> m a
+  parReduce = traverse parReduce
+
+-- | Compute possible one-step reductions by applying a rewrite rule
+--   at the top-level and reducing all subterms in the position of a
+--   variable of the rewrite rule in parallel.
+topLevelReductions :: (MonadParallelReduce m, MonadPlus m) => (Elims -> Term) -> Elims -> m Term
+topLevelReductions hd es = do
+  reportSDoc "rewriting.parreduce" 30 $ "topLevelReductions" <+> prettyTCM (hd es)
+  -- Get type of head symbol
+  (f , t) <- case hd [] of
+    Def f []   -> (f,) . defType <$> getConstInfo f
+    -- See @rewrite@ function in Rewriting.hs
+    Con (ConHead { conName = c }) _ [] -> do
+      vs <- freeVarsToApply c
+      npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
+      let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+      t0 <- defType <$> getConstInfo c
+      t <- t0 `piApplyM` (vs ++ ws)
+      return (c , t)
+    _ -> __IMPOSSIBLE__
+  reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
+  RewriteRule q gamma _ ps rhs b <- scatterMP (getClausesAndRewriteRulesFor f)
+  reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
+  -- Don't reduce if underapplied
+  guard $ length es >= length ps
+  let (es0 , es1) = splitAt (length ps) es
+  onlyReduceTypes (nonLinMatch gamma (t,hd) ps es0) >>= \case
+    -- Matching failed: no reduction
+    Left block -> empty
+    -- Matching succeeded
+    Right sub -> do
+      let vs = map (lookupS sub) $ [0..(size gamma-1)]
+      sub' <- parallelS <$> parReduce vs
+      es1' <- parReduce es1
+      let w = (applySubst sub' rhs) `applyE` es1'
+      reportSDoc "rewriting.parreduce" 50 $ "topLevelReductions: rewrote" <+> prettyTCM (hd es) <+> "to" <+> prettyTCM w
+      return w
+
+instance ParallelReduce Term where
+  parReduce = \case
+    -- Interesting cases
+    (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
+    (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
+
+    -- Congruence cases
+    Lam i u  -> Lam i <$> parReduce u
+    Var x es -> Var x <$> parReduce es
+    Pi a b   -> Pi    <$> parReduce a <*> parReduce b
+    Sort s   -> Sort  <$> parReduce s
+
+    -- Base cases
+    u@Lit{}      -> return u
+    u@Level{}    -> return u -- TODO: is this fine?
+    u@DontCare{} -> return u
+    u@Dummy{}    -> return u -- not __IMPOSSIBLE__ because of presence of Dummy
+                             -- parameters for rewrite rules on constructors.
+
+    -- Impossible cases
+    MetaV{}    -> __IMPOSSIBLE__
+
+instance ParallelReduce Sort where
+  parReduce = pure -- TODO: is this fine?
+
+instance ParallelReduce a => ParallelReduce (Arg a) where
+instance ParallelReduce a => ParallelReduce (Dom a) where
+instance ParallelReduce a => ParallelReduce (Type' a) where
+instance ParallelReduce a => ParallelReduce [a] where
+
+instance ParallelReduce a => ParallelReduce (Elim' a) where
+  parReduce (Apply u)  = Apply <$> parReduce u
+  parReduce e@Proj{}   = pure e
+  parReduce IApply{}   = __IMPOSSIBLE__ -- not yet supported
+
+instance (Free a, Subst t a, ParallelReduce a) => ParallelReduce (Abs a) where
+  parReduce = mapAbstraction __DUMMY_DOM__ parReduce
+
 
 -- | Given metavariables ms and some x, construct a telescope Γ and
 --   replace all occurrences of the given metavariables in @x@ by

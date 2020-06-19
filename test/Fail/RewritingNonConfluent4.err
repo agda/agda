@@ -1,19 +1,150 @@
+RewritingNonConfluent4.agda:20,13-23
+Global confluence check failed: suc m + 0 can be rewritten to
+either suc (m + 0) or suc m.
+Possible fix: add a rewrite rule with left-hand side suc m + 0 to
+resolve the ambiguity.
+when checking confluence of the rewrite rule plus-suc-l with
+plus-0r
+RewritingNonConfluent4.agda:21,13-23
+Global confluence check failed: suc m + suc n can be rewritten to
+either suc (suc m + n) or suc (m + suc n).
+Possible fix: add a rewrite rule with left-hand side suc m + suc n
+to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-suc-r with
+plus-suc-l
+RewritingNonConfluent4.agda:21,13-23
+Global confluence check failed: 0 + suc n can be rewritten to
+either suc (0 + n) or suc n.
+Possible fix: add a rewrite rule with left-hand side 0 + suc n to
+resolve the ambiguity.
+when checking confluence of the rewrite rule plus-suc-r with
+plus-0l
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (k + l) + suc n can be rewritten to
+either k + (l + suc n) or suc ((k + l) + n).
+Possible fix: add a rewrite rule with left-hand side
+(k + l) + suc n to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-suc-r
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (k + l) + 0 can be rewritten to
+either k + (l + 0) or k + l.
+Possible fix: add a rewrite rule with left-hand side (k + l) + 0 to
+resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-0r
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: ((k + l) + l₁) + m can be rewritten
+to either (k + l) + (l₁ + m) or (k + (l + l₁)) + m.
+Possible fix: add a rewrite rule with left-hand side
+((k + l) + l₁) + m to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with itself
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (k + suc n) + m can be rewritten to
+either k + (suc n + m) or suc (k + n) + m.
+Possible fix: add a rewrite rule with left-hand side
+(k + suc n) + m to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-suc-r
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (suc m + l) + m₁ can be rewritten
+to either suc m + (l + m₁) or suc (m + l) + m₁.
+Possible fix: add a rewrite rule with left-hand side
+(suc m + l) + m₁ to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-suc-l
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (k + 0) + m can be rewritten to
+either k + (0 + m) or k + m.
+Possible fix: add a rewrite rule with left-hand side (k + 0) + m to
+resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-0r
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: (0 + l) + m can be rewritten to
+either 0 + (l + m) or l + m.
+Possible fix: add a rewrite rule with left-hand side (0 + l) + m to
+resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with
+plus-0l
+RewritingNonConfluent4.agda:22,13-23
+Global confluence check failed: ((k + l) + l₁) + m can be rewritten
+to either (k + l) + (l₁ + m) or (k + (l + l₁)) + m.
+Possible fix: add a rewrite rule with left-hand side
+((k + l) + l₁) + m to resolve the ambiguity.
+when checking confluence of the rewrite rule plus-assoc with itself
+RewritingNonConfluent4.agda:36,13-23
+Global confluence check failed: suc m * 0 can be rewritten to
+either 0 + (m * 0) or 0.
+Possible fix: add a rewrite rule with left-hand side suc m * 0 to
+resolve the ambiguity.
+when checking confluence of the rewrite rule mult-suc-l with
+mult-0r
+RewritingNonConfluent4.agda:37,13-23
+Global confluence check failed: suc m * suc n can be rewritten to
+either (suc m * n) + suc m or suc n + (m * suc n).
+Possible fix: add a rewrite rule with left-hand side suc m * suc n
+to resolve the ambiguity.
+when checking confluence of the rewrite rule mult-suc-r with
+mult-suc-l
+RewritingNonConfluent4.agda:37,13-23
+Global confluence check failed: 0 * suc n can be rewritten to
+either (0 * n) + 0 or 0.
+Possible fix: add a rewrite rule with left-hand side 0 * suc n to
+resolve the ambiguity.
+when checking confluence of the rewrite rule mult-suc-r with
+mult-0l
 RewritingNonConfluent4.agda:38,13-23
-Confluence check failed: (k * l) * suc n reduces to both
-k * (l * suc n) and ((k * l) * n) + (k * l)
-which are not equal because
-k * (l * suc n) != ((k * l) * n) + (k * l) of type Nat
+Global confluence check failed: (k * l) * suc n can be rewritten to
+either k * (l * suc n) or ((k * l) * n) + (k * l).
+Possible fix: add a rewrite rule with left-hand side
+(k * l) * suc n to resolve the ambiguity.
 when checking confluence of the rewrite rule mult-assoc with
 mult-suc-r
 RewritingNonConfluent4.agda:38,13-23
-Confluence check failed: (k * suc n) * m reduces to both
-k * (suc n * m) and ((k * n) + k) * m which are not equal because
-k != (k * n) + k of type Nat
+Global confluence check failed: (k * l) * 0 can be rewritten to
+either k * (l * 0) or 0.
+Possible fix: add a rewrite rule with left-hand side (k * l) * 0 to
+resolve the ambiguity.
+when checking confluence of the rewrite rule mult-assoc with
+mult-0r
+RewritingNonConfluent4.agda:38,13-23
+Global confluence check failed: ((k * l) * l₁) * m can be rewritten
+to either (k * l) * (l₁ * m) or (k * (l * l₁)) * m.
+Possible fix: add a rewrite rule with left-hand side
+((k * l) * l₁) * m to resolve the ambiguity.
+when checking confluence of the rewrite rule mult-assoc with itself
+RewritingNonConfluent4.agda:38,13-23
+Global confluence check failed: (k * suc n) * m can be rewritten to
+either k * (suc n * m) or ((k * n) + k) * m.
+Possible fix: add a rewrite rule with left-hand side
+(k * suc n) * m to resolve the ambiguity.
 when checking confluence of the rewrite rule mult-assoc with
 mult-suc-r
 RewritingNonConfluent4.agda:38,13-23
-Confluence check failed: (suc m * l) * m₁ reduces to both
-suc m * (l * m₁) and (l + (m * l)) * m₁ which are not equal because
-(l * m) + (m₁ * (l * m)) != (l + (m₁ * l)) * m of type Nat
+Global confluence check failed: (suc m * l) * m₁ can be rewritten
+to either suc m * (l * m₁) or (l + (m * l)) * m₁.
+Possible fix: add a rewrite rule with left-hand side
+(suc m * l) * m₁ to resolve the ambiguity.
 when checking confluence of the rewrite rule mult-assoc with
 mult-suc-l
+RewritingNonConfluent4.agda:38,13-23
+Global confluence check failed: (k * 0) * m can be rewritten to
+either k * (0 * m) or 0 * m.
+Possible fix: add a rewrite rule with left-hand side (k * 0) * m to
+resolve the ambiguity.
+when checking confluence of the rewrite rule mult-assoc with
+mult-0r
+RewritingNonConfluent4.agda:38,13-23
+Global confluence check failed: (0 * l) * m can be rewritten to
+either 0 * (l * m) or 0 * m.
+Possible fix: add a rewrite rule with left-hand side (0 * l) * m to
+resolve the ambiguity.
+when checking confluence of the rewrite rule mult-assoc with
+mult-0l
+RewritingNonConfluent4.agda:38,13-23
+Global confluence check failed: ((k * l) * l₁) * m can be rewritten
+to either (k * l) * (l₁ * m) or (k * (l * l₁)) * m.
+Possible fix: add a rewrite rule with left-hand side
+((k * l) * l₁) * m to resolve the ambiguity.
+when checking confluence of the rewrite rule mult-assoc with itself

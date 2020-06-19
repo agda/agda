@@ -1,5 +1,7 @@
 Issue1445-2.agda:26,15-16
-Confluence check failed: block unit false reduces to both true and
-false which are not equal because true != false of type Bool
+Global confluence check failed: block unit false can be rewritten
+to either true or false.
+Possible fix: add a rewrite rule with left-hand side
+block unit false to resolve the ambiguity.
 when checking confluence of the rewrite rule r with
 Issue1445-2.block-clause1

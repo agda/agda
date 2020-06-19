@@ -86,6 +86,8 @@ instance EmbPrj Warning where
     DuplicateUsing a                      -> icodeN 33 DuplicateUsing a
     UselessHiding a                       -> icodeN 34 UselessHiding a
     GenericUseless a b                    -> icodeN 35 GenericUseless a b
+    RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
+    RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -124,6 +126,8 @@ instance EmbPrj Warning where
     [33, a]              -> valuN DuplicateUsing a
     [34, a]              -> valuN UselessHiding a
     [35, a, b]           -> valuN GenericUseless a b
+    [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
+    [37, a, b, c]        -> valuN RewriteMissingRule a b c
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where
