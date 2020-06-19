@@ -377,7 +377,7 @@ reallyFree xs v = do
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
-  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) IdS
+  parallelS $ map (fromMaybe __DUMMY_TERM__ . val) [0 .. size gamma-1]
     where
       val i = case IntMap.lookup i sub of
                 Just (Irrelevant, v) -> Just $ dontCare v

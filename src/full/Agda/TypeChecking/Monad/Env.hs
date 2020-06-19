@@ -119,9 +119,10 @@ allowAllReductions = putAllowedReductions allReductions
 allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
 allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 
--- | Allow all reductions when reducing types
+-- | Allow all reductions when reducing types. Otherwise only allow
+--   inlined functions to be unfolded.
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
-onlyReduceTypes = putAllowedReductions $ SmallSet.singleton TypeLevelReductions
+onlyReduceTypes = putAllowedReductions $ SmallSet.fromList [TypeLevelReductions, InlineReductions]
 
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a

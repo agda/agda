@@ -43,6 +43,9 @@ Pragmas and options
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
 
+* New option `--local-confluence-check` to restore the old behaviour
+  of the `--confluence-check` flag (see below for the new behaviour).
+
 Language
 --------
 
@@ -120,6 +123,26 @@ Language
   Used this opportunity to introduce a `primStringUncons` primitive in
   `Agda.Builtin.String` (and to correspondingly add the `Agda.Builtin.Maybe`
   it needs).
+
+* The option `--confluence-check` for rewrite rules has been given a
+  new implementation that checks global confluence instead of local
+  confluence. Concretely, it does so by enforcing two properties:
+
+  1. For any two left-hand sides of the rewrite rules that overlap
+     (either at the root position or at a subterm), the most general
+     unifier of the two left-hand sides is again a left-hand side of a
+     rewrite rule. For example, if there are two rules @suc m + n =
+     suc (m + n)@ and @m + suc n = suc (m + n)@, then there should
+     also be a rule @suc m + suc n = suc (suc (m + n))@.
+
+  2. Each rewrite rule should satisfy the *triangle property*: For any
+     rewrite rule @u = w@ and any single-step parallel unfolding @u =>
+     v@, we should have another single-step parallel unfolding @v =>
+     w@.
+
+  The previous behaviour of the confluence checker that only ensures
+  local confluence can be restored by using the
+  `--local-confluence-check` flag.
 
 
 Reflection

@@ -3135,6 +3135,13 @@ data Warning
   | RewriteMaybeNonConfluent Term Term [Doc]
     -- ^ Confluence checker got stuck on computing overlap between two
     --   rewrite rules
+  | RewriteAmbiguousRules Term Term Term
+    -- ^ The global confluence checker found a term @u@ that reduces
+    --   to both @v1@ and @v2@ and there is no rule to resolve the
+    --   ambiguity.
+  | RewriteMissingRule Term Term Term
+    -- ^ The global confluence checker found a term @u@ that reduces
+    --   to @v@, but @v@ does not reduce to @rho(u)@.
   | PragmaCompileErased BackendName QName
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
@@ -3216,6 +3223,8 @@ warningName = \case
   CoInfectiveImport{}          -> CoInfectiveImport_
   RewriteNonConfluent{}        -> RewriteNonConfluent_
   RewriteMaybeNonConfluent{}   -> RewriteMaybeNonConfluent_
+  RewriteAmbiguousRules{}      -> RewriteAmbiguousRules_
+  RewriteMissingRule{}         -> RewriteMissingRule_
   PragmaCompileErased{}        -> PragmaCompileErased_
   -- record field warnings
   RecordFieldWarning w -> case w of

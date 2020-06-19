@@ -1,4 +1,6 @@
-Issue3816.agda:17,25-29
-Confluence check failed: f g reduces to both a and f (λ _ → a)
-which are not equal because a != b of type A
-when checking confluence of the rewrite rule rewf₁ with rewg
+Issue3816.agda:17,1-33
+Global confluence check failed: f (λ z → g z) unfolds to
+f (λ _ → a) which should further unfold to a but it does not.
+Possible fix: add a rule to rewrite f (λ _ → a) to a, or change the
+order of the rules so more specialized rules come later.
+when checking the pragma REWRITE rewf₁ rewf₂ rewg

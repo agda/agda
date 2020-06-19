@@ -1,18 +1,59 @@
+RewritingNonConfluent1.agda:22,13-19
+Global confluence check failed: max (suc m) (suc m) can be
+rewritten to either suc (max m m) or suc m.
+Possible fix: add a rewrite rule with left-hand side
+max (suc m) (suc m) to resolve the ambiguity.
+when checking confluence of the rewrite rule max-ss with max-diag
 RewritingNonConfluent1.agda:23,13-22
-Confluence check failed: max (max k l) (max k l) reduces to both
-max k (max l (max k l)) and max k l which are not equal because
-max l (max k l) != l of type Nat
+Global confluence check failed: max (max k l) (max k l) can be
+rewritten to either max k (max l (max k l)) or max k l.
+Possible fix: add a rewrite rule with left-hand side
+max (max k l) (max k l) to resolve the ambiguity.
 when checking confluence of the rewrite rule max-assoc with
 max-diag
 RewritingNonConfluent1.agda:23,13-22
-Confluence check failed: max (max (suc m) (suc n)) m₁
-reduces to both max (suc m) (max (suc n) m₁) and
-max (suc (max m n)) m₁ which are not equal because
-m != max m n of type Nat
+Global confluence check failed: max (max k l) 0 can be rewritten to
+either max k (max l 0) or max k l.
+Possible fix: add a rewrite rule with left-hand side
+max (max k l) 0 to resolve the ambiguity.
+when checking confluence of the rewrite rule max-assoc with max-0r
+RewritingNonConfluent1.agda:23,13-22
+Global confluence check failed: max (max (max k l) l₁) m can be
+rewritten to either max (max k l) (max l₁ m) or
+max (max k (max l l₁)) m.
+Possible fix: add a rewrite rule with left-hand side
+max (max (max k l) l₁) m to resolve the ambiguity.
+when checking confluence of the rewrite rule max-assoc with itself
+RewritingNonConfluent1.agda:23,13-22
+Global confluence check failed: max (max (suc m) (suc n)) m₁ can be
+rewritten to either max (suc m) (max (suc n) m₁) or
+max (suc (max m n)) m₁.
+Possible fix: add a rewrite rule with left-hand side
+max (max (suc m) (suc n)) m₁ to resolve the ambiguity.
 when checking confluence of the rewrite rule max-assoc with max-ss
 RewritingNonConfluent1.agda:23,13-22
-Confluence check failed: max (max k k) m reduces to both
-max k (max k m) and max k m which are not equal because
-max k m != m of type Nat
+Global confluence check failed: max (max k k) m can be rewritten to
+either max k (max k m) or max k m.
+Possible fix: add a rewrite rule with left-hand side
+max (max k k) m to resolve the ambiguity.
 when checking confluence of the rewrite rule max-assoc with
 max-diag
+RewritingNonConfluent1.agda:23,13-22
+Global confluence check failed: max (max k 0) m can be rewritten to
+either max k (max 0 m) or max k m.
+Possible fix: add a rewrite rule with left-hand side
+max (max k 0) m to resolve the ambiguity.
+when checking confluence of the rewrite rule max-assoc with max-0r
+RewritingNonConfluent1.agda:23,13-22
+Global confluence check failed: max (max 0 l) m can be rewritten to
+either max 0 (max l m) or max l m.
+Possible fix: add a rewrite rule with left-hand side
+max (max 0 l) m to resolve the ambiguity.
+when checking confluence of the rewrite rule max-assoc with max-0l
+RewritingNonConfluent1.agda:23,13-22
+Global confluence check failed: max (max (max k l) l₁) m can be
+rewritten to either max (max k l) (max l₁ m) or
+max (max k (max l l₁)) m.
+Possible fix: add a rewrite rule with left-hand side
+max (max (max k l) l₁) m to resolve the ambiguity.
+when checking confluence of the rewrite rule max-assoc with itself

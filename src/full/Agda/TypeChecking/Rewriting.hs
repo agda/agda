@@ -286,6 +286,9 @@ checkRewriteRule q = do
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
     checkNoLhsReduction f es = do
+      -- Skip this check when global confluence check is enabled, as
+      -- redundant rewrite rules may be required to prove confluence.
+      unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = Def f es
       v' <- reduce v
       let fail = do
