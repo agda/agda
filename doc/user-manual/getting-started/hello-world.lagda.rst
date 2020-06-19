@@ -247,10 +247,38 @@ to resolve it.
 
 Now we have again one hole to resolve. If you load the file again, you will
 get the type of the term that should be in the hole
-``?0 : suc x + (y + z) ≡ suc x + y + z``. It seems like proving ``+assoc``
-for the case ``suc x`` amounts to proving ``+assoc`` for ``x`` and then
-applying the ``suc`` function to both sides of the equivalence. We can get the
-latter with ``cong suc``.
+``?0 : suc x + (y + z) ≡ suc x + y + z``.
+
+How does Agda infer that the left hand side (aka lhs) ``(suc x + y) + z``
+actually computes to ``suc (x + y + z)`` and the right hand side
+``suc x + (y + z)`` (aka rhs) computes to ``suc (x + (y + z))``? This is
+done by applying the definition of ``_+_``.
+
+.. tip:: You can use the ``go-to-definition`` command by selecting the
+  definition that you want to check eg. ``_+_`` and pressing ``M-.`` in
+  Emacs or ``C-M-\`` in Atom.
+
+Normal form of a term
+---------------------
+
+If you put the cursor in the hole, you can compute the normal form of a term
+with ``C-c C-n``. Try it with the expressions we mentioned before
+``(suc x + y) + z`` and ``suc x + (y + z)``. Observe the results.
+
+You may also ask yourself why Agda knows that the term ``(x + y) + z`` can be
+reduced to ``x + y + z`` (without round brackets). This is done thanks to
+the infix statement ``infixl 6 _+_`` that was declared in the imported
+``Agda.Builtin.Nat`` module. This means that the ``_+_`` operation is
+associative to the left. More information about
+:ref:`mixfix operator <mixfix-operators>` like the arithmetic operations.
+You can also check :ref:`this associativity example <associativity>`.
+
+Recursive call on ``+assoc``
+----------------------------
+
+It seems like proving ``+assoc`` for the case ``suc x`` amounts to proving
+``+assoc`` for ``x`` and then applying the ``suc`` function to both sides of
+the equivalence. We can get the latter with ``cong suc``.
 
 Go ahead and infer its type with ``C-c C-d``. Agda returns
 ``{x y : Nat} → x ≡ y → suc x ≡ suc y``. ``cong suc`` takes as input a proof
