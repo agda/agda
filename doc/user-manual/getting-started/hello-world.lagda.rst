@@ -138,7 +138,7 @@ Paste or type the following code:
 
   module hello-world-proof where
 
-Loading the file with ``C-c C-l`` should work. This is fon now the empty
+Loading the file with ``C-c C-l`` should work. This turns out to be the empty
 module. Now we bring to scope the datatype ``Nat`` and the addition operation
 ``_+_``, both defined in the Agda Builtin library.
 
