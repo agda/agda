@@ -290,7 +290,12 @@ and load the file. Now the goal is just proving
 ``?0 : x + (y + z) ≡ x + y + z``, which is the proof of ``+assoc x y z``.
 
 As it is structurally smaller than ``+assoc (suc x) y z``, we can recursively
-use it as a proof. The result of the definition we were looking for is:
+use it as a proof. Agda performs
+:ref:`termination checking <termination-checking>` on recursive functions.
+Note that not all recusions are allowed, only the ones that are mechanically
+proved to terminate, like in this case.
+
+The result of the definition we were looking for is:
 
 .. code-block:: agda
 
