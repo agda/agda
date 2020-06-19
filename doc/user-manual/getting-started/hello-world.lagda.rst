@@ -40,7 +40,7 @@ is a list of objects with a determined length.
 
   open import Agda.Builtin.Nat using (Nat ; zero ; suc)
 
-  data Vec (A : Set) : ℕ → Set where
+  data Vec (A : Set) : Nat → Set where
     []  : Vec A zero
     _∷_ : ∀ {n} (x : A) (xs : Vec A n) → Vec A (suc n)
 
