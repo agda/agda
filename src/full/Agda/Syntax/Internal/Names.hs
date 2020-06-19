@@ -108,7 +108,7 @@ instance NamesIn Sort where
   namesIn s = case s of
     Type l   -> namesIn l
     Prop l   -> namesIn l
-    Inf _    -> Set.empty
+    Inf _ _  -> Set.empty
     SSet l   -> namesIn l
     SizeUniv -> Set.empty
     PiSort a b -> namesIn (a, b)

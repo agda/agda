@@ -282,12 +282,14 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
+data IsFibrant = IsFibrant | IsStrict deriving (Data,Show,Eq,Ord)
+
 -- | Sorts.
 --
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf Integer      -- ^ @Setωᵢ@.
+  | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
@@ -1265,7 +1267,7 @@ instance TermSize Sort where
   tsize s = case s of
     Type l    -> 1 + tsize l
     Prop l    -> 1 + tsize l
-    Inf _     -> 1
+    Inf _ _   -> 1
     SSet l    -> 1 + tsize l
     SizeUniv  -> 1
     PiSort a s -> 1 + tsize a + tsize s
@@ -1333,7 +1335,7 @@ instance (KillRange a) => KillRange (Type' a) where
 
 instance KillRange Sort where
   killRange s = case s of
-    Inf n      -> Inf n
+    Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
@@ -1496,8 +1498,8 @@ instance Pretty Sort where
       Prop (ClosedLevel 0) -> "Prop"
       Prop (ClosedLevel n) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
-      Inf 0 -> "Setω"
-      Inf n -> text $ "Setω" ++ show n
+      Inf f 0 -> text $ addS f "Setω"
+      Inf f n -> text $ addS f "Setω" ++ show n
       SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
       PiSort a b -> mparens (p > 9) $
@@ -1510,6 +1512,9 @@ instance Pretty Sort where
       MetaS x es -> prettyPrec p $ MetaV x es
       DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
+   where
+     addS IsFibrant t = t
+     addS IsStrict  t = "S" ++ t
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
@@ -1569,7 +1574,7 @@ instance NFData Sort where
   rnf s = case s of
     Type l   -> rnf l
     Prop l   -> rnf l
-    Inf _    -> ()
+    Inf _ _  -> ()
     SSet l   -> rnf l
     SizeUniv -> ()
     PiSort a b -> rnf (a, unAbs b)

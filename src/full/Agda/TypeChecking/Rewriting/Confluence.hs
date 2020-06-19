@@ -557,7 +557,7 @@ instance AllHoles Sort where
   allHoles _ = \case
     Type l       -> fmap Type <$> allHoles_ l
     Prop l       -> fmap Prop <$> allHoles_ l
-    Inf n        -> empty
+    Inf f n      -> empty
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
     PiSort{}     -> __IMPOSSIBLE__
@@ -640,7 +640,7 @@ instance MetasToVars Sort where
   metasToVars = \case
     Type l     -> Type     <$> metasToVars l
     Prop l     -> Prop     <$> metasToVars l
-    Inf n      -> pure $ Inf n
+    Inf f n    -> pure $ Inf f n
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
     PiSort s t -> PiSort   <$> metasToVars s <*> metasToVars t

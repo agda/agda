@@ -322,7 +322,7 @@ instance UsableRelevance Sort where
   usableRel rel s = case s of
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
-    Inf n  -> return True
+    Inf f n -> return True
     SSet l -> usableRel rel l
     SizeUniv -> return True
     PiSort a s -> usableRel rel (a,s)
@@ -500,7 +500,7 @@ isFibrant :: (LensSort a, MonadReduce m) => a -> m Bool
 isFibrant a = reduce (getSort a) <&> \case
   Type{}     -> True
   Prop{}     -> True
-  Inf{}      -> False
+  Inf f _    -> f == IsFibrant
   SSet{}     -> False
   SizeUniv{} -> False
   PiSort{}   -> False

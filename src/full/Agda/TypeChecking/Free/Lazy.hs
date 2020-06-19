@@ -547,7 +547,7 @@ instance Free Sort where
     case s of
       Type a     -> freeVars' a
       Prop a     -> freeVars' a
-      Inf _      -> mempty
+      Inf _ _    -> mempty
       SSet a     -> freeVars' a
       SizeUniv   -> mempty
       PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`

@@ -473,7 +473,7 @@ instance PrettyTCM NLPSort where
   prettyTCM = \case
     PType l   -> parens $ "Set" <+> prettyTCM l
     PProp l   -> parens $ "Prop" <+> prettyTCM l
-    PInf n    -> prettyTCM (Inf n :: Sort)
+    PInf f n  -> prettyTCM (Inf f n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where

@@ -63,8 +63,9 @@ primitive
   -- Needed for transp.
   primFaceForall : (I → I) → I
 
-transpProof : ∀ {l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp e i0 (a o)) ] ) → fiber (transp e i0) (outS b)
-transpProof e φ a b = f , \ j → comp e (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ i)) (~ i) (a 1=1)
+transpProof : ∀ {l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp (\ i → e i) i0 (a o)) ] ) → fiber (transp (\ i → e i) i0) (outS b)
+transpProof e φ a b = f , \ j → comp (\ i → e i) (\ i →
+                                               \ { (φ = i1) → transp (\ j → e (j ∧ i)) (~ i) (a 1=1)
                                                  ; (j = i0) → transp (\ j → e (j ∧ i)) (~ i) f
                                                  ; (j = i1) → g (~ i) })
                                         f

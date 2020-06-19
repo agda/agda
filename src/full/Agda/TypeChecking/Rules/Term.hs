@@ -144,9 +144,14 @@ isType_ e = traceCall (IsType_ e) $ do
         Suffix i -> return $ sort (mkProp i)
 
     -- Setωᵢ
-    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
-      NoSuffix -> return $ sort (Inf 0)
-      Suffix i -> return $ sort (Inf i)
+    A.Def' x suffix | x == nameOfSetOmega IsFibrant -> case suffix of
+      NoSuffix -> return $ sort (Inf IsFibrant 0)
+      Suffix i -> return $ sort (Inf IsFibrant i)
+
+    -- SSetωᵢ
+    A.Def' x suffix | x == nameOfSetOmega IsStrict -> case suffix of
+      NoSuffix -> return $ sort (Inf IsStrict 0)
+      Suffix i -> return $ sort (Inf IsStrict i)
 
     -- Set ℓ
     A.App i s arg

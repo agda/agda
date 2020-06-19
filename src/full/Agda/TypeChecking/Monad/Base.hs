@@ -1605,7 +1605,7 @@ data NLPType = NLPType
 data NLPSort
   = PType NLPat
   | PProp NLPat
-  | PInf Integer
+  | PInf IsFibrant Integer
   | PSizeUniv
   deriving (Data, Show)
 
@@ -4260,7 +4260,7 @@ instance KillRange NLPType where
 instance KillRange NLPSort where
   killRange (PType l) = killRange1 PType l
   killRange (PProp l) = killRange1 PProp l
-  killRange (PInf n)  = PInf n
+  killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
 
 instance KillRange RewriteRule where

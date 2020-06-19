@@ -1715,7 +1715,9 @@ transpTel delta phi args = do
             b' <- open b'
             axi <- open axi
             gTransp (Just l) b' phi axi
-          Inf n  ->
+          Inf _ n  ->
+            if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) then noTranspError b' else return axi
+          SSet _  ->
             if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) then noTranspError b' else return axi
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
@@ -1729,7 +1731,8 @@ transpTel delta phi args = do
       -- Γ ⊢ b : t[1], Γ,i ⊢ b : t[i]
       (b,bf) <- runNamesT [] $ do
         l <- case s of
-               Inf n -> return Nothing
+               SSet _ -> return Nothing
+               Inf _ n -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)

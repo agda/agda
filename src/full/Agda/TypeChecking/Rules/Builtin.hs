@@ -210,7 +210,7 @@ coreBuiltins =
                                                                nPi' "a" (pPi' "o" phi (\ _ -> el' la bA)) $ \ a -> do
                                                                let f = cl primTrans <#> lam "i" (\ _ -> la) <@> e <@> cl primIZero
                                                                    z = ilam "o" $ \ o -> f <@> (a <@> o)
-                                                               nPi' "b" (elSSet (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
+                                                               nPi' "b" (el's lb (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
                                                                let b = cl primSubOut <#> lb <#> bB <#> phi <#> z <@> b'
                                                                    fiber = el' la
                                                                                (cl primSigma <#> la <#> lb
@@ -318,6 +318,7 @@ coreBuiltins =
   , (builtinSet                              |-> BuiltinSort "primSet")
   , (builtinProp                             |-> BuiltinSort "primProp")
   , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
+  , (builtinSSetOmega                        |-> BuiltinSort "primStrictSetOmega")
   , (builtinStrictSet                        |-> BuiltinPrim "primStrictSet" (const $ return ()))
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
@@ -362,7 +363,7 @@ coreBuiltins =
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMQuoteTerm                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ elV 1 (varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMUnquoteTerm                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
-  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (El (Inf 0) <$> varM 0) --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (elInf $ varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMBlockOnMeta                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
@@ -389,7 +390,7 @@ coreBuiltins =
         elV x a = El (varSort x) <$> a
 
         tsetL l    = return $ sort (varSort l)
-        tsetOmega  = return $ sort $ Inf 0
+        tsetOmega  = return $ sort $ Inf IsFibrant 0
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         tmaybe x   = el $ tMaybe (fmap unEl x)
@@ -946,15 +947,15 @@ bindBuiltinNoDef b q = inTopContext $ do
 
     Just (BuiltinData mt cs) -> do
       t <- mt
-      addConstant q $ defaultDefn defaultArgInfo q t def
+      addConstant q $ defaultDefn defaultArgInfo q t (def t)
       bindBuiltinName b $ Def q []
       where
-        def = Datatype
+        def t = Datatype
               { dataPars       = 0
               , dataIxs        = 0
               , dataClause     = Nothing
               , dataCons       = []     -- Constructors are added later
-              , dataSort       = Inf 0
+              , dataSort       = getSort t
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPathCons   = []
@@ -964,7 +965,8 @@ bindBuiltinNoDef b q = inTopContext $ do
       let s = case sortname of
                 "primSet"      -> mkType 0
                 "primProp"     -> mkProp 0
-                "primSetOmega" -> Inf 0
+                "primSetOmega" -> Inf IsFibrant 0
+                "primStrictSetOmega" -> Inf IsStrict 0
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
       addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort s) def

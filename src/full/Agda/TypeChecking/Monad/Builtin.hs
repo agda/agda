@@ -186,7 +186,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primSet, primProp, primSetOmega, primStrictSet,
+    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -302,6 +302,7 @@ primLevelMax                          = getBuiltin builtinLevelMax
 primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
+primSSetOmega                         = getBuiltin builtinSSetOmega
 primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
@@ -433,7 +434,7 @@ coinductionKit = tryMaybe coinductionKit'
 data SortKit = SortKit
   { nameOfSet      :: QName
   , nameOfProp     :: QName
-  , nameOfSetOmega :: QName
+  , nameOfSetOmega :: IsFibrant -> QName
   }
 
 sortKit :: HasBuiltins m => m SortKit
@@ -441,10 +442,13 @@ sortKit = do
   Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
-    , nameOfSetOmega = setomega
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
     }
 
 

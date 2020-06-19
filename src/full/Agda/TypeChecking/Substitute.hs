@@ -817,7 +817,7 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
-    Inf n      -> Inf n
+    Inf f n    -> Inf f n
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
@@ -923,7 +923,7 @@ instance Subst NLPat NLPSort where
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
-    PInf n    -> PInf n
+    PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
 
 instance Subst NLPat RewriteRule where
@@ -1436,9 +1436,9 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 univSort' :: Sort -> Maybe Sort
 univSort' (Type l) = Just $ Type $ levelSuc l
 univSort' (Prop l) = Just $ Type $ levelSuc l
-univSort' (Inf n)  = Just $ Inf  $ 1 + n
+univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
-univSort' SizeUniv = Just $ Inf 0
+univSort' SizeUniv = Just $ Inf IsFibrant 0
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1447,12 +1447,12 @@ univSort s = fromMaybe (UnivSort s) $ univSort' s
 -- | Returns @Just True@ for (relatively) small sorts like @Set l@ and
 --   @Prop l@, returns @Just False@ for large sorts such as @Setω@ and
 --   @Nothing@ for unknown (meta) sorts.
-isSmallSort :: Sort -> Maybe Bool
-isSmallSort Type{}     = Just True
-isSmallSort Prop{}     = Just True
-isSmallSort SizeUniv   = Just True
-isSmallSort Inf{}      = Just False
-isSmallSort SSet{}     = Just True
+isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
+isSmallSort Type{}     = Just (True,IsFibrant)
+isSmallSort Prop{}     = Just (True,IsFibrant)
+isSmallSort SizeUniv   = Just (True,IsFibrant)
+isSmallSort (Inf f _)  = Just (False,f)
+isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
 isSmallSort FunSort{}  = Nothing
 isSmallSort PiSort{}   = Nothing
@@ -1460,16 +1460,21 @@ isSmallSort UnivSort{} = Nothing
 isSmallSort DefS{}     = Nothing
 isSmallSort DummyS{}   = Nothing
 
+fibrantLub :: IsFibrant -> IsFibrant -> IsFibrant
+fibrantLub IsStrict a = IsStrict
+fibrantLub a IsStrict = IsStrict
+fibrantLub a b = a
+
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
 funSort' :: Sort -> Sort -> Maybe Sort
 funSort' a b = case (a, b) of
-  (Inf m         , Inf n        ) -> Just $ Inf $ max m n
-  (Inf m         , b            ) | isSmallSort b == Just True -> Just $ Inf m
-  (a             , Inf n        ) | isSmallSort a == Just True -> Just $ Inf n
+  (Inf af m      , Inf bf n     ) -> Just $ Inf (fibrantLub af bf) $ max m n
+  (Inf af m      , b            ) | Just (True,bf) <- isSmallSort b -> Just $ Inf (fibrantLub af bf) m
+  (a             , Inf bf n     ) | Just (True,af) <- isSmallSort a -> Just $ Inf (fibrantLub af bf) n
   (Type a        , Type b       ) -> Just $ Type $ levelLub a b
   (SizeUniv      , b            ) -> Just b
-  (a             , SizeUniv     ) | isSmallSort a == Just True -> Just SizeUniv
+  (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b
   (Type a        , Prop b       ) -> Just $ Prop $ levelLub a b
   (Prop a        , Prop b       ) -> Just $ Prop $ levelLub a b
@@ -1487,12 +1492,12 @@ piSort' :: Dom Type -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' (getSort a) b
 piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
   Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
-  Just o | isSmallSort (getSort a) == Just True , isSmallSort b == Just True -> case o of
-    StronglyRigid -> Just $ Inf 0
-    Unguarded     -> Just $ Inf 0
-    WeaklyRigid   -> Just $ Inf 0
+  Just o | Just (True, fa) <- isSmallSort (getSort a), Just (True, fb) <- isSmallSort b -> case o of
+    StronglyRigid -> Just $ Inf (fibrantLub fa fb) 0
+    Unguarded     -> Just $ Inf (fibrantLub fa fb) 0
+    WeaklyRigid   -> Just $ Inf (fibrantLub fa fb) 0
     Flexible _    -> Nothing
-  Just o | Inf n <- getSort a , isSmallSort b == Just True -> Just $ Inf n
+  Just o | Inf fa n <- getSort a , Just (True, fb) <- isSmallSort b -> Just $ Inf (fibrantLub fa fb) n
   Just _ -> Nothing
 
 -- Andreas, 2019-06-20
