@@ -48,7 +48,8 @@ is a list of objects with a determined length.
 
 This code has 6 declarations:
 
-1. top level module declaration
+1. ``module hello-world-dep where`` is the top level module declaration
+   (aka module header).
 2. imports of the declarations of the datatype ``Nat`` and its constructors
    ``zero`` and ``suc`` from the Agda Builtin Library.
 3. declaration of the datatype ``Vec``.
