@@ -122,6 +122,8 @@ This code brings two instances of the operator ``_∙_`` in scope:
 * the second named ``_*_`` and with the fixity changed to act like a
   left associative operator of precedence 10.
 
+.. _associativity:
+
 Associativity
 =============
 
