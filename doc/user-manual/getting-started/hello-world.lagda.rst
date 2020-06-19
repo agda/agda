@@ -146,8 +146,9 @@ module. Now we bring to scope the datatype ``Nat`` and the addition operation
 
   open import Agda.Builtin.Nat using (Nat ; _+_)
 
-Next, we import the propositional equality between two terms ``_≡_``. This will
-allow us to state that two terms compute to the same normal form.
+Next, we import the propositional equality between two terms ``_≡_``. While
+definitional equality states that two terms compute to the same normal form,
+``_≡_`` will allow us to *prove* that the two terms are equal.
 
 .. code-block:: agda
 
