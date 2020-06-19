@@ -128,8 +128,8 @@ We will see in this section how to enunciate and prove with Agda the
 associativity of natural numbers under the addition. This time we will build
 the code line by line. You can load the file in each step.
 
-Enunciation of associativity
-----------------------------
+Statement of associativity
+--------------------------
 
 Please create a new ``.agda`` file named ``hello-world-proof.agda``.
 Paste or type the following code:
