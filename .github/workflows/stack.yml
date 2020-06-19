@@ -27,8 +27,7 @@ jobs:
         ghc-ver: [8.10.1, 8.8.3, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
-      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
-      FLAGS_2: "--flag Agda:enable-cluster-counting"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
     steps:
     - uses: actions/checkout@v2.3.1
@@ -49,14 +48,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        stack build ${ARGS} ${FLAGS_1} --only-dependencies
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
 
-    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
+    - name: Build Agda with the default flags in Agda.cabal
       run: |
-        stack build ${ARGS} ${FLAGS_1}
-    - name: Build Agda with -fenable-cluster-counting
+        stack build ${ARGS}
+    - name: Build Agda with the non-default flags Agda.cabal
       run: |
-        stack build ${ARGS} ${FLAGS_2}
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS}
 
   macOS:
     runs-on: macos-latest
@@ -67,8 +66,8 @@ jobs:
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
-      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
-      FLAGS_2: "--flag Agda:enable-cluster-counting"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+
     steps:
     - uses: actions/checkout@v2.3.1
 
@@ -83,15 +82,15 @@ jobs:
 
     - name: Install dependencies
       run: |
-        stack build ${ARGS} ${FLAGS_1} --only-dependencies
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
 
-    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
+    - name: Build Agda with the default flags in Agda.cabal
       run: |
-        stack build ${ARGS} ${FLAGS_1}
+        stack build ${ARGS}
 
-    - name: Build Agda with -fenable-cluster-counting
+    - name: Build Agda with the non-default flags Agda.cabal
       run: |
-        stack build ${ARGS} ${FLAGS_2}
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS}
 
   Windows:
     runs-on: windows-latest
@@ -119,10 +118,14 @@ jobs:
     #  as a list of arguments to pass to an executable. Anything I try causes Powershell
     #  to wrap the thing in quotation marks when it calls stack - thus making stack think
     #  it's a path to a package. So for now, I've written out the arguments explicitly.
-    - name: Build dependencies
+    - name: Install dependencies
       run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --only-dependencies
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug --only-dependencies
 
-    - name: Build with -fenable-cluster-counting
+    - name: Build Agda with the default flags in Agda.cabal
       run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
+
+    - name: Build Agda with the non-default flags in Agda.cabal
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug
