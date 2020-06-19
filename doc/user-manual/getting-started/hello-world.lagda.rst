@@ -34,6 +34,10 @@ Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via the
 We will model the notion of vector space with Agda. Roughly speaking, a vector
 is a list of objects with a determined length.
 
+.. hint:: Agda programs are structured in :ref:`modules <module-system>`. The
+  first module in each file is the *top-level* module whose name
+  matches the filename.
+
 .. code-block:: agda
 
   module hello-world-dep where
@@ -352,10 +356,6 @@ Agda Source Code
 
 First, we create a new file named ``hello-world-prog.agda`` with Emacs or Atom
 in a folder that we will refer to as our top-level folder.
-
-.. hint:: Agda programs are structured in :ref:`modules <module-system>`. The
-  first module in each file is the *top-level* module whose name
-  matches the filename.
 
 .. code-block:: agda
 
