@@ -9,9 +9,8 @@ import Control.Monad.Except
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
+import Data.Semigroup ((<>))
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
@@ -48,6 +47,8 @@ import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
 import Agda.Utils.Functor
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
@@ -1289,9 +1290,9 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       cumulativity <- optCumulativity <$> pragmaOptions
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
-          sep [ prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ levelMaxView a)
+          sep [ prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView a
               , "=<"
-              , prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ levelMaxView b)
+              , prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView b
               ]
 
       wrap $ case (levelMaxView a, levelMaxView b) of
@@ -1301,7 +1302,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
         -- any ≤ 0
         (as , SingleClosed 0 :| []) ->
-          sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
+          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
 
         -- closed ≤ closed
         (SingleClosed m :| [], SingleClosed n :| []) -> if m <= n then ok else notok
@@ -1316,7 +1317,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
         -- ⊔ as ≤ single
         (as@(_:|_:_), b :| []) ->
-          sequence_ [ leqLevel (unSingleLevel a') (unSingleLevel b) | a' <- NonEmpty.toList as ]
+          forM_ as $ \ a' -> leqLevel (unSingleLevel a') (unSingleLevel b)
 
         -- reduce constants
         (as, bs)
@@ -1328,10 +1329,10 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | (subsumed@(_:_) , as') <- List.partition isSubsumed (NonEmpty.toList as)
+          | (subsumed@(_:_) , as') <- List1.partition isSubsumed as
           -> leqLevel (unSingleLevels as') b
           where
-            isSubsumed a = any (`subsumes` a) (NonEmpty.toList bs)
+            isSubsumed a = any (`subsumes` a) bs
 
             subsumes :: SingleLevel -> SingleLevel -> Bool
             subsumes (SingleClosed m)        (SingleClosed n)        = m >= n
@@ -1344,7 +1345,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- (where _l' is a new metavariable)
         (as , bs)
           | cumulativity
-          , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (NonEmpty.toList bs)
+          , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
             mv <- lookupMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
@@ -1444,18 +1445,18 @@ equalLevel a b = do
       bs  = levelMaxView b'
   reportSDoc "tc.conv.level" 50 $
     sep [ text "equalLevel"
-        , vcat [ nest 2 $ sep [ prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ as)
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (pretty . unSingleLevel) as
                               , "=="
-                              , prettyList_ (map (pretty . unSingleLevel) $ NonEmpty.toList $ bs)
+                              , prettyList_ $ fmap (pretty . unSingleLevel) bs
                               ]
                ]
         ]
 
   reportSDoc "tc.conv.level" 80 $
     sep [ text "equalLevel"
-        , vcat [ nest 2 $ sep [ prettyList_ (map (text . show . unSingleLevel) $ NonEmpty.toList $ as)
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (text . show . unSingleLevel) as
                               , "=="
-                              , prettyList_ (map (text . show . unSingleLevel) $ NonEmpty.toList $ bs)
+                              , prettyList_ $ fmap (text . show . unSingleLevel) bs
                               ]
                ]
         ]
@@ -1477,9 +1478,9 @@ equalLevel a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
-          sequence_ [ equalLevel (ClosedLevel 0) (unSingleLevel b') | b' <- NonEmpty.toList bs ]
+          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel b')
         (as@(_:|_:_) , SingleClosed 0 :| []) ->
-          sequence_ [ equalLevel (unSingleLevel a') (ClosedLevel 0) | a' <- NonEmpty.toList as ]
+          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
 
         -- meta == any
         (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
@@ -1502,13 +1503,13 @@ equalLevel a b = do
 
         -- neutral/closed == neutral/closed
         (as , bs)
-          | all isNeutralOrClosed (NonEmpty.toList as ++ NonEmpty.toList bs)
+          | all isNeutralOrClosed (as <> bs)
           -- Andreas, 2013-10-31: There could be metas in neutral levels (see Issue 930).
           -- Should not we postpone there as well?  Yes!
-          , not (any hasMeta (NonEmpty.toList as ++ NonEmpty.toList bs))
+          , not (any hasMeta (as <> bs))
           , length as == length bs -> do
               reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
-              zipWithM_ ((===) `on` levelTm . unSingleLevel) (NonEmpty.toList as) (NonEmpty.toList bs)
+              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel) as bs
 
         -- more cases?
         _ | noMetas (Level a , Level b) -> notok
@@ -1554,8 +1555,8 @@ equalLevel a b = do
         hasMeta (SingleClosed _) = False
 
         removeSubsumed a b =
-          let as = NonEmpty.toList $ levelMaxView a
-              bs = NonEmpty.toList $ levelMaxView b
+          let as = List1.toList $ levelMaxView a
+              bs = List1.toList $ levelMaxView b
               a' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` bs)) as
               b' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` as)) bs
           in (a',b')

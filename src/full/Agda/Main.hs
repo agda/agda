@@ -113,9 +113,11 @@ runAgdaWithOptions backends generateHTML interaction progName opts
   where
     checkFile = Just <$> do
       opts <- addTrustedExecutables opts
-      when (optInteractive opts) $ liftIO $ putStr splashScreen
-      interaction $ do
+      when (optInteractive opts) $ do
         setCommandLineOptions opts
+        liftIO $ putStr splashScreen
+      interaction $ do
+        unless (optInteractive opts) $ setCommandLineOptions opts
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).

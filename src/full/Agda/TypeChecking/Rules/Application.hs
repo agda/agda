@@ -11,19 +11,16 @@ module Agda.TypeChecking.Rules.Application
 import Prelude hiding ( null )
 
 import Control.Applicative ((<|>))
-import Control.Arrow (first)
 import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
 
+import Data.Bifunctor
 import Data.Maybe
-import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
-import Data.Either (partitionEithers)
 import Data.Void
-import qualified Data.IntSet as IntSet
+import qualified Data.Foldable as Fold
+import qualified Data.IntSet   as IntSet
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
@@ -62,7 +59,9 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List hiding (Suffix)
+import Agda.Utils.List  ( (!!!), groupOn )
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -870,7 +869,7 @@ checkConstructorApplication cmp org t c args = do
         dropPar _ [] = Nothing
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: NonEmpty QName -> Type -> TCM (Either (TCM Bool) ConHead)
+disambiguateConstructor :: List1 QName -> Type -> TCM (Either (TCM Bool) ConHead)
 disambiguateConstructor cs0 t = do
   reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
@@ -883,21 +882,20 @@ disambiguateConstructor cs0 t = do
   -- since they may have different types (different parameters).
   -- See issue 279.
   -- Andreas, 2017-08-13, issue #2686: ignore abstract constructors
-  (cs, cons)  <- unzip . snd . partitionEithers <$> do
-     forM (NonEmpty.toList cs0) $ \ c -> mapRight (c,) <$> getConForm c
-  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow cons
-  case cons of
-    []    -> typeError $ AbstractConstructorNotInScope $ NonEmpty.head cs0
-    [con] -> do
-      let c = setConName (headWithDefault __IMPOSSIBLE__ cs) con
+  ccons  <- List1.rights <$> do
+     forM cs0 $ \ c -> mapRight (c,) <$> getConForm c
+  reportSLn "tc.check.term.con" 40 $ "  reduced: " ++ prettyShow (map snd ccons)
+  case ccons of
+    []    -> typeError $ AbstractConstructorNotInScope $ List1.head cs0
+    [(c0,con)] -> do
+      let c = setConName c0 con
       reportSLn "tc.check.term.con" 40 $ "  only one non-abstract constructor: " ++ prettyShow c
       storeDisambiguatedConstructor (conInductive c) (conName c)
       return (Right c)
-    _   -> do
-      dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
+    (c0,_):_   -> do
+      dcs <- forM ccons $ \ (c, con) -> (, setConName c con) . getData . theDef <$> getConInfo con
       -- Type error
-      let badCon t = typeError $ flip DoesNotConstructAnElementOf t $
-            headWithDefault __IMPOSSIBLE__ cs
+      let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
       -- Lets look at the target type at this point
       let getCon :: TCM (Maybe ConHead)
           getCon = do
@@ -913,10 +911,10 @@ disambiguateConstructor cs0 t = do
                      storeDisambiguatedConstructor (conInductive c) (conName c)
                      return $ Just c
                    []  -> badCon $ t' $> Def d []
-                   (c:cs) -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ fmap conName $ c :| cs
-      getCon >>= \ case
-        Nothing -> return $ Left $ isJust <$> getCon
-        Just c  -> return $ Right c
+                   c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
+                            fmap conName $ c :| cs
+      let unblock = isJust <$> getCon
+      maybeToEither unblock <$> getCon
 
 ---------------------------------------------------------------------------
 -- * Projections
@@ -925,7 +923,7 @@ disambiguateConstructor cs0 t = do
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-inferProjApp :: A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> TCM (Term, Type)
+inferProjApp :: A.Expr -> ProjOrigin -> List1 QName -> A.Args -> TCM (Term, Type)
 inferProjApp e o ds args0 = do
   (v, t, _) <- inferOrCheckProjApp e o ds args0 Nothing
   return (v, t)
@@ -933,7 +931,7 @@ inferProjApp e o ds args0 = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
-checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Type -> TCM Term
+checkProjApp  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> TCM Term
 checkProjApp cmp e o ds args0 t = do
   (v, ti, targetCheck) <- inferOrCheckProjApp e o ds args0 (Just (cmp, t))
   coerce' cmp targetCheck v ti t
@@ -941,7 +939,7 @@ checkProjApp cmp e o ds args0 t = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjAppToKnownPrincipalArg'.
 
-checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
 checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt = do
   (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt
   coerce' cmp targetCheck v ti t
@@ -956,7 +954,7 @@ inferOrCheckProjApp
      -- ^ The whole expression which constitutes the application.
   -> ProjOrigin
      -- ^ The origin of the projection involved in this projection application.
-  -> NonEmpty QName
+  -> List1 QName
      -- ^ The projection name (potentially ambiguous).
   -> A.Args
      -- ^ The arguments to the projection.
@@ -1004,7 +1002,7 @@ inferOrCheckProjApp e o ds args mt = do
       caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
-          case forMaybe fs $ \ f -> List.find (unDom f ==) (NonEmpty.toList ds) of
+          case forMaybe fs $ \ f -> Fold.find (unDom f ==) ds of
             [] -> refuseProjNoMatching ds
             [d] -> do
               storeDisambiguatedProjection d
@@ -1026,7 +1024,7 @@ inferOrCheckProjApp e o ds args mt = do
 -- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
 --   value and type of the principal argument.
 inferOrCheckProjAppToKnownPrincipalArg ::
-  A.Expr -> ProjOrigin -> NonEmpty QName -> A.Args -> Maybe (Comparison, Type) ->
+  A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Maybe (Comparison, Type) ->
   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
 inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
@@ -1097,7 +1095,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
             guard =<< do isNothing <$> do lift $ checkModality' d def
             return (orig, (d, (pars, (dom, u, tb))))
 
-      cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) (NonEmpty.toList ds)
+      cands <- groupOn fst . List1.catMaybes <$> mapM (runMaybeT . try) ds
       case cands of
         [] -> refuseProjNoMatching ds
         [[]] -> refuseProjNoMatching ds
@@ -1129,13 +1127,13 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
 
               return (v, tc, NotCheckedTarget)
 
-refuseProj :: NonEmpty QName -> String -> TCM a
+refuseProj :: List1 QName -> String -> TCM a
 refuseProj ds reason = typeError $ GenericError $
         "Cannot resolve overloaded projection "
-        ++ prettyShow (A.nameConcrete $ A.qnameName $ NonEmpty.head ds)
+        ++ prettyShow (A.nameConcrete $ A.qnameName $ List1.head ds)
         ++ " because " ++ reason
 
-refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: NonEmpty QName -> TCM a
+refuseProjNotApplied, refuseProjNoMatching, refuseProjNotRecordType :: List1 QName -> TCM a
 refuseProjNotApplied    ds = refuseProj ds "it is not applied to a visible argument"
 refuseProjNoMatching    ds = refuseProj ds "no matching candidate found"
 refuseProjNotRecordType ds = refuseProj ds "principal argument is not of record type"

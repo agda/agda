@@ -451,7 +451,7 @@ instance Pretty DeclarationException' where
     [ fsep $
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
         pwords "it could belong to any of:"
-    , vcat $ map (pretty . PrintRange) $ List1.toList xs
+    , vcat $ fmap (pretty . PrintRange) xs
     ]
   pretty (WrongContentBlock b _)      = fsep . pwords $
     case b of

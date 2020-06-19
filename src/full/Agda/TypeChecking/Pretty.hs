@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
 import Data.Semigroup (Semigroup((<>)))
+import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -60,13 +61,13 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-comma, colon, equals :: Monad m => m Doc
-comma  = return P.comma
-colon  = return P.colon
-equals = return P.equals
+comma, colon, equals :: Applicative m => m Doc
+comma  = pure P.comma
+colon  = pure P.colon
+equals = pure P.equals
 
-pretty :: (Monad m, P.Pretty a) => a -> m Doc
-pretty x = return $ P.pretty x
+pretty :: (Applicative m, P.Pretty a) => a -> m Doc
+pretty x = pure $ P.pretty x
 
 prettyA :: (P.Pretty c, ToConcrete a c, MonadAbsToCon m) => a -> m Doc
 prettyA x = AP.prettyA x
@@ -74,24 +75,24 @@ prettyA x = AP.prettyA x
 prettyAs :: (P.Pretty c, ToConcrete a [c], MonadAbsToCon m) => a -> m Doc
 prettyAs x = AP.prettyAs x
 
-text :: Monad m => String -> m Doc
-text s = return $ P.text s
+text :: Applicative m => String -> m Doc
+text s = pure $ P.text s
 
-multiLineText :: Monad m => String -> m Doc
-multiLineText s = return $ P.multiLineText s
+multiLineText :: Applicative m => String -> m Doc
+multiLineText s = pure $ P.multiLineText s
 
-pwords :: Monad m => String -> [m Doc]
-pwords s = map return $ P.pwords s
+pwords :: Applicative m => String -> [m Doc]
+pwords s = map pure $ P.pwords s
 
-fwords :: Monad m => String -> m Doc
-fwords s = return $ P.fwords s
+fwords :: Applicative m => String -> m Doc
+fwords s = pure $ P.fwords s
 
-sep, fsep, hsep, hcat, vcat :: Monad m => [m Doc] -> m Doc
-sep ds  = P.sep <$> sequence ds
-fsep ds = P.fsep <$> sequence ds
-hsep ds = P.hsep <$> sequence ds
-hcat ds = P.hcat <$> sequence ds
-vcat ds = P.vcat <$> sequence ds
+sep, fsep, hsep, hcat, vcat :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
+sep ds  = P.sep  <$> sequenceA (Fold.toList ds)
+fsep ds = P.fsep <$> sequenceA (Fold.toList ds)
+hsep ds = P.hsep <$> sequenceA (Fold.toList ds)
+hcat ds = P.hcat <$> sequenceA (Fold.toList ds)
+vcat ds = P.vcat <$> sequenceA (Fold.toList ds)
 
 hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
@@ -122,18 +123,20 @@ pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
 
 -- | Comma-separated list in brackets.
-prettyList :: (Monad m, Semigroup (m Doc)) => [m Doc] -> m Doc
-prettyList ds = P.pretty <$> sequence ds
+prettyList :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
+prettyList ds = P.pretty <$> sequenceA (Fold.toList ds)
 
 -- | 'prettyList' without the brackets.
-prettyList_ :: (Monad m, Semigroup (m Doc)) => [m Doc] -> m Doc
+prettyList_ :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
 prettyList_ ds = fsep $ punctuate comma ds
 
-punctuate :: (Applicative m, Semigroup (m Doc)) => m Doc -> [m Doc] -> [m Doc]
-punctuate _ [] = []
-punctuate d ds = zipWith (<>) ds (replicate n d ++ [pure empty])
+punctuate :: (Applicative m, Semigroup (m Doc), Foldable t) => m Doc -> t (m Doc) -> [m Doc]
+punctuate d ts
+  | null ds   = []
+  | otherwise = zipWith (<>) ds (replicate n d ++ [pure empty])
   where
-    n = length ds - 1
+    ds = Fold.toList ts
+    n  = length ds - 1
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
@@ -371,14 +374,14 @@ instance PrettyTCM TypeCheckingProblem where
         , nest 2 $ ":?" <+> prettyTCM t1 ]
   prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _) = prettyTCM (CheckExpr cmp e t)
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
-    sep [ return CP.lambda <+>
+    sep [ pure CP.lambda <+>
           (CP.prettyRelevance ai .
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
                                else P.parens) <$> do
             fsep $
               map prettyTCM (List1.toList xs) ++
               caseMaybe mt [] (\ a -> [":", prettyTCM a])) <+>
-          return CP.arrow <+>
+          pure CP.arrow <+>
           prettyTCM e <+>
           ":?"
         , prettyTCM t
@@ -406,10 +409,9 @@ instance PrettyTCM ConHead where
   prettyTCM = prettyTCM . conName
 
 instance PrettyTCM Telescope where
-  prettyTCM tel = P.fsep . map P.pretty <$> (do
+  prettyTCM tel = P.fsep . map P.pretty <$> do
       tel <- reify tel
       runAbsToCon $ bindToConcrete tel return
-    )
 
 newtype PrettyContext = PrettyContext Context
 

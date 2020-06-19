@@ -389,6 +389,6 @@ instance PrettyTCM (LHSState a) where
     [ "tel             = " <+> prettyTCM tel
     , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
     , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)
-    , "problemRestPats = " <+> prettyList_ (return $ prettyA rps)
+    , "problemRestPats = " <+> prettyList_ (map prettyA rps)
     , "target          = " <+> addContext tel (prettyTCM target)
     ]

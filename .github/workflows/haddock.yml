@@ -23,8 +23,8 @@ jobs:
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/checkout@v2.3.1
+    - uses: actions/setup-haskell@v1.1.1
       with:
         ghc-version: '8.10.1'
         cabal-version: '3.2'
@@ -34,11 +34,11 @@ jobs:
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2
       name: Cache dependencies
       with:
         path: "~/.cabal"
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-new-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       run: |
