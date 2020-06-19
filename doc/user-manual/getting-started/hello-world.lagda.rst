@@ -105,7 +105,8 @@ and ``where``.
 The constructors ``[]`` and ``_∷_``
 -----------------------------------
 
-Constructors are declared in new lines and indented with two spaces.
+Constructors are declared in new lines and indented with a strictly positive
+number of spaces (being two spaces, sometimes one the usual convention).
 
 We chose for the first constructor the identifier ``[]``. It represents the
 empty vector, and its type is the vector space of length ``0``.
