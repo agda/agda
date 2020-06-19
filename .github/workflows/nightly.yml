@@ -21,8 +21,8 @@ jobs:
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/checkout@v2.3.1
+    - uses: actions/setup-haskell@v1.1.1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
@@ -42,7 +42,7 @@ jobs:
         cp -avr src/data upload
         cp -av .github/*.sh upload
 
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.0.1
       with:
         name: agda-linux-${{ github.sha }}
         path: upload
@@ -59,7 +59,7 @@ jobs:
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
     - name: Install stack
       run: |
@@ -86,7 +86,7 @@ jobs:
         cp -av src/data upload
         cp -av .github/*.sh upload
 
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.0.1
       with:
         name: agda-macOS-${{ github.sha }}
         path: upload
@@ -102,7 +102,7 @@ jobs:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |
@@ -133,7 +133,7 @@ jobs:
         cp -avr src/data upload
         cp -av .github/*.bat upload
 
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.0.1
       with:
         name: agda-windows-${{ github.sha }}
         path: upload

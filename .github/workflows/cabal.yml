@@ -27,9 +27,9 @@ jobs:
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/setup-haskell@v1.1.1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -39,14 +39,14 @@ jobs:
         cabal update
         cabal configure -O0
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2
       name: Cache dependencies
       with:
         path: "~/.cabal"
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2
       name: Cache dist-newstyle
       with:
         path: dist-newstyle/build
@@ -65,7 +65,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
 
     - name: Install ghc and cabal-install
@@ -100,9 +100,9 @@ jobs:
   #     ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
   #   steps:
-  #   - uses: actions/checkout@v2
+  #   - uses: actions/checkout@v2.3.1
 
-  #   - uses: actions/setup-haskell@v1.1
+  #   - uses: actions/setup-haskell@v1.1.1
   #     with:
   #       ghc-version: ${{ matrix.ghc-ver }}
   #       cabal-version: ${{ matrix.cabal-ver }}
