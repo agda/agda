@@ -3,7 +3,7 @@ module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Arrow ((***), first, second)
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
 import Data.Map (Map)
@@ -13,7 +13,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid (Monoid, mempty, mappend)
-import Data.Semigroup (Semigroup, (<>))
+import Data.Semigroup ((<>))
 
 import Numeric.IEEE
 
@@ -47,7 +47,8 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
+import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
