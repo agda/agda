@@ -46,14 +46,14 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install libicu-dev
 
-    - name: Install dependencies
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: |
-        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
-    - name: Build Agda with the default flags in Agda.cabal
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
       run: |
-        stack build ${ARGS}
-    - name: Build Agda with the non-default flags Agda.cabal
+        stack build ${ARGS} --test --no-run-tests
+    - name: Build Agda with the non-default flags Agda.cabal.
       run: |
         stack build ${ARGS} ${NON_DEFAULT_FLAGS}
 
@@ -80,13 +80,13 @@ jobs:
       run: |
         printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
 
-    - name: Install dependencies
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: |
-        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --only-dependencies
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
-    - name: Build Agda with the default flags in Agda.cabal
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
       run: |
-        stack build ${ARGS}
+        stack build ${ARGS} --test --no-run-tests
 
     - name: Build Agda with the non-default flags Agda.cabal
       run: |
@@ -118,14 +118,14 @@ jobs:
     #  as a list of arguments to pass to an executable. Anything I try causes Powershell
     #  to wrap the thing in quotation marks when it calls stack - thus making stack think
     #  it's a path to a package. So for now, I've written out the arguments explicitly.
-    - name: Install dependencies
+    - name: Install dependencies for Agda.
       run: |
         stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug --only-dependencies
 
-    - name: Build Agda with the default flags in Agda.cabal
+    - name: Build Agda with the default flags in Agda.cabal.
       run: |
         stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
 
-    - name: Build Agda with the non-default flags in Agda.cabal
+    - name: Build Agda with the non-default flags in Agda.cabal.
       run: |
         stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug
