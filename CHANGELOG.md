@@ -185,7 +185,7 @@ Reflection
     numbered in order to update them to the new representation. As for
     the telescope types, the contents of a `dot` pattern can safely be
     set to `unknown`.
-    
+
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda
   execTC : String → List String → String → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
