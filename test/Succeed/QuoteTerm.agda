@@ -35,7 +35,7 @@ test₄ = refl
 -- Test that primShowQName prints something reasonable
 -- for quoted names.
 
-issue4734 : primShowQName (quote ℕ) ≡ "Agda.Builtin.Nat.ℕ"
+issue4734 : primShowQName (quote ℕ) ≡ "Agda.Builtin.Nat.Nat"
 issue4734 = refl
 
 -- Not sure this response is very reasonable, since

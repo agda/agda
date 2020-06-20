@@ -39,7 +39,8 @@ import Agda.Utils.Impossible
 --   source location of the binding site is also recorded.
 data Name = Name
   { nameId           :: !NameId
-  , nameConcrete     :: C.Name
+  , nameConcrete     :: C.Name  -- ^ The concrete name used for this instance
+  , nameCanonical    :: C.Name  -- ^ The concrete name in the original definition (needed by primShowQName, see #4735)
   , nameBindingSite  :: Range
   , nameFixity       :: Fixity'
   , nameIsRecordName :: Bool
@@ -49,7 +50,7 @@ data Name = Name
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
-uglyShowName (Name i c _ _ _) = show (i,c)
+uglyShowName x = show (nameId x, nameConcrete x)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -182,8 +183,10 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
+  mkName r i s = makeName i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
+makeName :: NameId -> C.Name -> Range -> Fixity' -> Bool -> Name
+makeName i c r f rec = Name i c c r f rec
 
 qnameToList0 :: QName -> [Name]
 qnameToList0 = List1.toList . qnameToList
@@ -386,7 +389,11 @@ instance Pretty ModuleName where
   pretty = hcat . punctuate "." . map pretty . mnameToList
 
 instance Pretty QName where
-  pretty = hcat . punctuate "." . map pretty . qnameToList0
+  pretty = hcat . punctuate "." . map pretty . qnameToList0 . useCanonical
+    where
+      -- #4735: When printing a fully qualified name (as done by primShowQName) we need to
+      -- use the origincal concrete name, not the possibly renamed concrete name in 'nameConcrete'.
+      useCanonical q = q { qnameName = (qnameName q) { nameConcrete = nameCanonical (qnameName q) } }
 
 instance Pretty AmbiguousQName where
   pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty $ List1.toList qs
@@ -436,8 +443,8 @@ instance SetRange ModuleName where
 -- ** KillRange
 
 instance KillRange Name where
-  killRange (Name a b c d e) =
-    (killRange4 Name a b c d e) { nameBindingSite = c }
+  killRange (Name a b c d e f) =
+    (killRange6 Name a b c d e f) { nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -480,7 +487,7 @@ instance Sized ModuleName where
 -- | The range is not forced.
 
 instance NFData Name where
-  rnf (Name _ a _ b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (Name _ a b _ c d) = rnf (a, b, c, d)
 
 instance NFData QName where
   rnf (QName a b) = rnf a `seq` rnf b
