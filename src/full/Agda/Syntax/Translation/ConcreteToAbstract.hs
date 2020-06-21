@@ -9,7 +9,6 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , concreteToAbstract_
     , concreteToAbstract
     , NewModuleQName(..)
-    , OldName(..)
     , TopLevel(..)
     , TopLevelInfo(..)
     , topLevelModuleName
@@ -559,11 +558,7 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
     case qx of
       VarName x' _         -> return $ Just $ A.Var x'
       DefinedName _ d suffix -> do
-        -- In case we find a defined name, we start by checking whether there's
-        -- a warning attached to it
-        reportSDoc "scope.warning" 50 $ text $ "Checking usage of " ++ prettyShow d
-        mstr <- Map.lookup (anameName d) <$> getUserWarnings
-        forM_ mstr (warning . UserWarning)
+        raiseWarningsOnUsage $ anameName d
         -- then we take note of generalized names used
         case anameKind d of
           GeneralizeName -> do
@@ -579,14 +574,29 @@ instance ToAbstract MaybeOldQName (Maybe A.Expr) where
           _ -> return ()
         -- and then we return the name
         return $ withSuffix suffix $ nameToExpr d
-      FieldName     ds     -> return $ Just $ A.Proj ProjPrefix $ AmbQ (fmap anameName ds)
-      ConstructorName _ ds -> return $ Just $ A.Con $ AmbQ (fmap anameName ds)
+        where
+          withSuffix NoSuffix   e         = Just e
+          withSuffix s@Suffix{} (A.Def x) = Just $ A.Def' x s
+          withSuffix _          _         = Nothing
+
+      FieldName     ds     -> ambiguous (A.Proj ProjPrefix) ds
+      ConstructorName _ ds -> ambiguous A.Con ds
+      PatternSynResName ds -> ambiguous A.PatternSyn ds
       UnknownName          -> pure Nothing
-      PatternSynResName ds -> return $ Just $ A.PatternSyn $ AmbQ (fmap anameName ds)
     where
-      withSuffix NoSuffix   e         = Just e
-      withSuffix s@Suffix{} (A.Def x) = Just $ A.Def' x s
-      withSuffix _          _         = Nothing
+      ambiguous :: (AmbiguousQName -> A.Expr) -> List1 AbstractName -> ScopeM (Maybe A.Expr)
+      ambiguous f ds = do
+        let xs = fmap anameName ds
+        raiseWarningsOnUsageIfUnambiguous xs
+        return $ Just $ f $ AmbQ xs
+
+      -- Note: user warnings on ambiguous names will be raised by the type checker,
+      -- see storeDiamsbiguatedName.
+      raiseWarningsOnUsageIfUnambiguous :: List1 A.QName -> ScopeM ()
+      raiseWarningsOnUsageIfUnambiguous = \case
+        x :| [] -> raiseWarningsOnUsage x
+        _       -> return ()
+
 
 instance ToAbstract ResolveQName ResolvedName where
   toAbstract (ResolveQName x) = resolveName x >>= \case
@@ -656,6 +666,17 @@ instance ToQName a => ToAbstract (OldName a) A.QName where
       PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
+
+-- | Resolve a non-local name and return its possibly ambiguous abstract name.
+toAbstractExistingName :: ToQName a => a -> ScopeM (List1 AbstractName)
+toAbstractExistingName x = resolveName (toQName x) >>= \case
+    DefinedName _ d NoSuffix -> return $ singleton d
+    DefinedName _ d Suffix{} -> notInScopeError (toQName x)
+    ConstructorName _ ds     -> return ds
+    FieldName ds             -> return ds
+    PatternSynResName ds     -> return ds
+    VarName x _              -> genericError $ "Not a defined name: " ++ prettyShow x
+    UnknownName              -> notInScopeError (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -2238,6 +2259,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
           return [ A.BuiltinPragma rb q ]
     where b = rangedThing rb
+
   toAbstract (C.EtaPragma _ x) = do
     e <- toAbstract $ OldQName x Nothing
     case e of
@@ -2246,6 +2268,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
        e <- showA e
        genericError $ "Pragma ETA: expected identifier, " ++
          "but found expression " ++ e
+
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x
@@ -2288,10 +2311,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
     rhs <- toAbstract rhs
     return [A.DisplayPragma hd ps rhs]
 
-  toAbstract (C.WarningOnUsage _ oqn str) = do
-    qn <- toAbstract $ OldName oqn
-    stLocalUserWarnings `modifyTCLens` Map.insert qn str
-    pure []
+  -- A warning attached to an ambiguous name shall apply to all disambiguations.
+  toAbstract (C.WarningOnUsage _ x str) = do
+    ys <- fmap anameName <$> toAbstractExistingName x
+    forM_ ys $ \ qn -> stLocalUserWarnings `modifyTCLens` Map.insert qn str
+    return []
 
   toAbstract (C.WarningOnImport _ str) = do
     stWarningOnImport `setTCLens` Just str

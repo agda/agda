@@ -1,8 +1,11 @@
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
+
 module Agda.TypeChecking.Warnings
   ( MonadWarning(..)
   , genericWarning
   , genericNonFatalError
   , warning'_, warning_, warning', warning, warnings
+  , raiseWarningsOnUsage
   , isUnsolvedWarning
   , isMetaWarning
   , isMetaTCWarning
@@ -22,17 +25,20 @@ import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
 import Control.Monad.Trans ( lift )
 
-import qualified Data.Set as Set
 import qualified Data.List as List
-import Data.Maybe ( catMaybes )
+import qualified Data.Map  as Map
+import qualified Data.Set  as Set
+import Data.Maybe     ( catMaybes )
 import Data.Semigroup ( Semigroup, (<>) )
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 
+import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
@@ -46,26 +52,21 @@ import qualified Agda.Utils.Pretty as P
 
 import Agda.Utils.Impossible
 
+
+-- * The warning monad
+---------------------------------------------------------------------------
+
 class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
-  -- | Render the warning
+  -- | Store a warning and generate highlighting from it.
   addWarning :: TCWarning -> m ()
 
-instance Applicative m => Semigroup (ReaderT s m P.Doc) where
-  d1 <> d2 = (<>) <$> d1 <*> d2
-
-instance MonadWarning m => MonadWarning (ReaderT r m) where
+  default addWarning
+    :: (MonadWarning n, MonadTrans t, t n ~ m)
+    => TCWarning -> m ()
   addWarning = lift . addWarning
 
-instance Monad m => Semigroup (StateT s m P.Doc) where
-  d1 <> d2 = (<>) <$> d1 <*> d2
-
-instance MonadWarning m => MonadWarning (StateT s m) where
-  addWarning = lift . addWarning
-
--- This instance is more specific than a generic instance
--- @Semigroup a => Semigroup (TCM a)@
-instance {-# OVERLAPPING #-} Semigroup (TCM P.Doc) where
-  d1 <> d2 = (<>) <$> d1 <*> d2
+instance MonadWarning m => MonadWarning (ReaderT r m)
+instance MonadWarning m => MonadWarning (StateT s m)
 
 instance MonadWarning TCM where
   addWarning tcwarn = do
@@ -77,6 +78,9 @@ instance MonadWarning TCM where
       add w tcwarn tcwarns
         | onlyOnce w && elem tcwarn tcwarns = tcwarns -- Eq on TCWarning only checks head constructor
         | otherwise                         = tcwarn : tcwarns
+
+-- * Raising warnings
+---------------------------------------------------------------------------
 
 {-# SPECIALIZE genericWarning :: P.Doc -> TCM () #-}
 genericWarning :: MonadWarning m => P.Doc -> m ()
@@ -145,6 +149,19 @@ warning :: (HasCallStack, MonadWarning m) => Warning -> m ()
 warning w = withFileAndLine' (freezeCallStack callStack)  $ \ file line ->
   warning' (AgdaSourceErrorLocation file line) w
 
+-- | Raise every 'WARNING_ON_USAGE' connected to a name.
+{-# SPECIALIZE raiseWarningsOnUsage :: QName -> TCM () #-}
+raiseWarningsOnUsage :: (MonadWarning m, ReadTCState m) => QName -> m ()
+raiseWarningsOnUsage d = do
+  -- In case we find a defined name, we start by checking whether there's
+  -- a warning attached to it
+  reportSLn "scope.warning.usage" 50 $ "Checking usage of " ++ P.prettyShow d
+  mapM_ (warning . UserWarning) =<< Map.lookup d <$> getUserWarnings
+
+
+-- * Classifying warnings
+---------------------------------------------------------------------------
+
 isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings
 
@@ -197,6 +214,9 @@ classifyWarnings ws = WarningsAndNonFatalErrors warnings errors
     partite = (< AllWarnings) . classifyWarning . tcWarning
     (errors, warnings) = List.partition partite ws
 
+
+-- * Warnings in the parser
+---------------------------------------------------------------------------
 
 -- | running the Parse monad
 
