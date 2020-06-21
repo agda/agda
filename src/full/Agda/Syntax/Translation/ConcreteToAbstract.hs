@@ -21,7 +21,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
 import Prelude hiding ( null )
 import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
-import Control.Applicative
+import Control.Applicative hiding ( empty )
 import Control.Monad.Except
 import Control.Monad.Reader
 
@@ -35,6 +35,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Monoid (First(..))
 import Data.Void
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
@@ -2543,17 +2544,24 @@ instance ToAbstract LeftHandSide A.LHS where
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
 
--- Merges adjacent EqualP patterns into one: typecheking expects only one pattern for each domain in the telescope.
-mergeEqualPs :: [NamedArg (Pattern' e)] -> [NamedArg (Pattern' e)]
-mergeEqualPs = go Nothing
+-- | Merges adjacent EqualP patterns into one:
+-- type checking expects only one pattern for each domain in the telescope.
+mergeEqualPs :: [NamedArg (Pattern' e)] -> ScopeM [NamedArg (Pattern' e)]
+mergeEqualPs = go (empty, [])
   where
-    go acc (Arg i (Named n (A.EqualP r es)) : ps) = go (fmap (fmap (++es)) acc `mplus` Just ((i,n,r),es)) ps
-    go Nothing [] = []
-    go Nothing (p : ps) = p : go Nothing ps
-    go (Just ((i,n,r),es)) ps = Arg i (Named n (A.EqualP r es)) :
-      case ps of
-        (p : ps) -> p : go Nothing ps
-        []     -> []
+    go acc (p@(Arg i (Named mn (A.EqualP r es))) : ps) = setCurrentRange p $ do
+      -- Face constraint patterns must be defaultNamedArg; check this:
+      when (not $ null $ getModality i) __IMPOSSIBLE__
+      when (hidden     i) $ warn i $ "Face constraint patterns cannot be hidden arguments"
+      when (isInstance i) $ warn i $ "Face constraint patterns cannot be instance arguments"
+      whenJust mn $ \ x -> setCurrentRange x $ warn x $ P.hcat
+          [ "Ignoring name `", P.pretty x, "` given to face constraint pattern" ]
+      go (acc `mappend` (r, es)) ps
+    go (r, es@(_:_)) ps = (defaultNamedArg (A.EqualP r es) :) <$> mergeEqualPs ps
+    go (_, []) []       = return []
+    go (_, []) (p : ps) = (p :) <$> mergeEqualPs ps
+
+    warn r d = warning $ GenericUseless (getRange r) d
 
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
@@ -2561,7 +2569,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         x <- withLocalVars $ do
           setLocalVars []
           toAbstract (OldName x)
-        A.LHSHead x . mergeEqualPs <$> toAbstract ps
+        A.LHSHead x <$> do mergeEqualPs =<< toAbstract ps
     toAbstract (C.LHSProj d ps1 l ps2) = do
         unless (null ps1) $ typeError $ GenericDocError $
           "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
@@ -2572,7 +2580,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ prettyShow d ++ " isn't one"
-        A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs <$> toAbstract ps2)
+        A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs =<< toAbstract ps2)
     toAbstract (C.LHSWith core wps ps) = do
       liftA3 A.LHSWith
         (toAbstract core)

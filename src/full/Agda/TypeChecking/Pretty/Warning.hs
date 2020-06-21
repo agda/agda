@@ -190,6 +190,8 @@ prettyWarning = \case
 
     GenericNonFatalError d -> return d
 
+    GenericUseless _r d -> return d
+
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
