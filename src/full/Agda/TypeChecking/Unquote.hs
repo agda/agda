@@ -825,5 +825,5 @@ tcExec exe args stdIn = do
 raiseExeNotFound :: ExeName -> Map ExeName FilePath -> TCM a
 raiseExeNotFound exe exes = genericDocError =<< do
   vcat . map pretty $
-    ("Could not find trusted executable '" ++ T.unpack exe ++ "' in list:") :
+    ("Could not find '" ++ T.unpack exe ++ "' in list of trusted executables:") :
     [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]

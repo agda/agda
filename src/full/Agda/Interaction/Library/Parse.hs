@@ -27,9 +27,7 @@ module Agda.Interaction.Library.Parse
   ( parseLibFile
   , splitCommas
   , trimLineComment
-  , LineNumber
   , runP
-  , LibWarning'(..)
   ) where
 
 import Control.Monad
@@ -54,11 +52,6 @@ type P = ExceptT String (Writer [LibWarning'])
 
 runP :: P a -> (Either String a, [LibWarning'])
 runP = runWriter . runExceptT
-
--- | Library Warnings.
-data LibWarning'
-  = UnknownField String
-  deriving (Show, Data)
 
 warningP :: LibWarning' -> P ()
 warningP = tell . pure
@@ -180,8 +173,6 @@ findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
   groupLines =<< concat <$> zipWithM parseLine [1..] (map stripComments $ lines s)
-
-type LineNumber = Int
 
 -- | Lines with line numbers.
 data GenericLine

@@ -188,8 +188,13 @@ Reflection
 
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda
-  execTC : String → List String → String → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
+  execTC : (exe : String) (args : List String) (stdIn : String)
+         → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
   ```
+  The `execTC` builtin takes three arguments: the basename of the executable (e.g., `"echo"`), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
+
+  The builtin is only available when `--allow-exec` is passed. (Note that `--allow-exec` is incompatible with ``--safe``.) To make an executable available to Agda, add the absolute path on a new line in `~/.agda/executables`.
+
 
 Emacs mode
 ----------
