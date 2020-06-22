@@ -335,7 +335,7 @@ associative to the left. More information about
 You can also check :ref:`this associativity example <associativity>`.
 
 Recursive call on ``+-Assoc``
-----------------------------
+-----------------------------
 
 It seems like proving ``+-Assoc`` for the case ``suc x`` amounts to proving
 ``+-Assoc`` for ``x`` and then applying the ``suc`` function to both sides of
