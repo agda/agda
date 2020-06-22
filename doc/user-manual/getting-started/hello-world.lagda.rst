@@ -218,15 +218,15 @@ definitional equality states that two terms compute to the same normal form,
 Now we can state associativity: given three (possibly different) natural
 numbers, adding the first to the addition of the second and the third
 computes to the same value as adding the addition of the first and the second
-to the third. We will name this statement ``+assoc-enun``.
+to the third. We will name this statement ``+-assoc-Enun``.
 
 .. code-block:: agda
 
-  +assoc-enun : Set
-  +assoc-enun = ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
+  +-assoc-Enun : Set
+  +-assoc-Enun = ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
 
 As an exercise, you can load the file with ``C-c C-l`` and then compute the
-normal form of ``+assoc-enun`` with ``C-c C-d``.
+normal form of ``+-assoc-Enun`` with ``C-c C-d``.
 
 .. note:: See :ref:`notation-for-key-combinations` for a full list of
   interactive commands (keybindings).
@@ -234,7 +234,7 @@ normal form of ``+assoc-enun`` with ``C-c C-d``.
 Proof of associativity
 ----------------------
 
-Note that the statement ``+assoc-enun`` is a member of ``Set``. Now that we
+Note that the statement ``+-assoc-Enun`` is a member of ``Set``. Now that we
 were able to state the property in a way that Agda understands, our objective
 is to prove it.
 
@@ -248,15 +248,15 @@ already imported datatype ``Nat`` and the definition ``cong`` from the
   open import Relation.Binary.PropositionalEquality using (cong)
   open import Agda.Builtin.Equality using (refl)
 
-In order to prove ``+assoc-enun`` we need just to find an element of that type.
-We will name this element ``+assoc``, but like always one can go ahead and try
+In order to prove ``+-assoc-Enun`` we need just to find an element of that type.
+We will name this element ``+-Assoc``, but like always one can go ahead and try
 to find a better name, or a name that is more suitable for a certain context.
 
 .. code-block:: agda
 
-  +assoc : ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
+  +-Assoc : ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
 
-If we load now the file, Agda will complain. The name ``+assoc`` was declared
+If we load now the file, Agda will complain. The name ``+-Assoc`` was declared
 correctly but a definition was not provided. That definition is actually the
 proof that we are looking for. To build the definition, we need to know more
 about holes and case splitting.
@@ -271,7 +271,7 @@ input variables, the symbol equal ``=`` and the question mark ``?``.
 
 .. code-block:: agda
 
-  +assoc x y z = ?
+  +-Assoc x y z = ?
 
 Now Agda is not throwing an error when loading the file, but returning
 ***All Goals***. We have entered the interactive proving mode. Agda turns
@@ -285,8 +285,8 @@ Agda will ask for the pattern variable, let's write ``x`` and press
 
 .. code-block:: agda
 
-  +assoc zero y z = {!  0!}
-  +assoc (suc x) y z = {!  1!}
+  +-Assoc zero y z = {!  0!}
+  +-Assoc (suc x) y z = {!  1!}
 
 Agda performs the case splitting of the clause, now we have one clause for
 the case ``zero`` and another for the case ``suc x``. That means also that
@@ -303,8 +303,8 @@ to resolve it.
 
 .. code-block:: agda
 
-  +assoc x y z = refl
-  +assoc (suc x) y z = {!  1!}
+  +-Assoc x y z = refl
+  +-Assoc (suc x) y z = {!  1!}
 
 Now we have again one hole to resolve. If you load the file again, you will
 get the type of the term that should be in the hole
@@ -334,11 +334,11 @@ associative to the left. More information about
 :ref:`mixfix operator <mixfix-operators>` like the arithmetic operations.
 You can also check :ref:`this associativity example <associativity>`.
 
-Recursive call on ``+assoc``
+Recursive call on ``+-Assoc``
 ----------------------------
 
-It seems like proving ``+assoc`` for the case ``suc x`` amounts to proving
-``+assoc`` for ``x`` and then applying the ``suc`` function to both sides of
+It seems like proving ``+-Assoc`` for the case ``suc x`` amounts to proving
+``+-Assoc`` for ``x`` and then applying the ``suc`` function to both sides of
 the equivalence. We can get the latter with ``cong suc``.
 
 Go ahead and infer its type with ``C-c C-d``. Agda returns
@@ -348,9 +348,9 @@ sides, just what we were looking for.
 
 Write ``cong suc`` after the ``=`` and before the hole now labeled ``0`` again
 and load the file. Now the goal is just proving
-``?0 : x + (y + z) ≡ x + y + z``, which is the proof of ``+assoc x y z``.
+``?0 : x + (y + z) ≡ x + y + z``, which is the proof of ``+-Assoc x y z``.
 
-As it is structurally smaller than ``+assoc (suc x) y z``, we can recursively
+As it is structurally smaller than ``+-Assoc (suc x) y z``, we can recursively
 use it as a proof. Agda performs
 :ref:`termination checking <termination-checking>` on recursive functions.
 Note that not all recusions are allowed, only the ones that are mechanically
@@ -360,16 +360,16 @@ The result of the definition we were looking for is:
 
 .. code-block:: agda
 
-  +assoc x y z = refl
-  +assoc (suc x) y z = cong suc (+assoc x y z)
+  +-Assoc x y z = refl
+  +-Assoc (suc x) y z = cong suc (+-Assoc x y z)
 
 Now just load the file again and you will see ***All Done***. This means that
-indeed ``+assoc`` is a member of ``+assoc-enun`` and therefore its proof.
+indeed ``+-Assoc`` is a member of ``+-assoc-Enun`` and therefore its proof.
 
 .. important::
-  The ``x`` in the type signature of ``+assoc`` is **not** the same as the
+  The ``x`` in the type signature of ``+-Assoc`` is **not** the same as the
   ``x`` pattern variable in the last clause where ``suc x`` is written. The
-  following would work also: ``+assoc (suc x₁) y z = cong suc (+assoc x₁ y z)``.
+  following would work also: ``+-Assoc (suc x₁) y z = cong suc (+-Assoc x₁ y z)``.
   The scope of a variable declared in a signature is restricted to the
   signature itself.
 
@@ -382,16 +382,16 @@ Here is the final code of the ‘Hello world’ proof example:
   open import Agda.Builtin.Nat using (Nat ; _+_)
   open import Agda.Builtin.Equality using (_≡_)
 
-  +assoc-enun : Set
-  +assoc-enun = ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
+  +-assoc-Enun : Set
+  +-assoc-Enun = ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
 
   open import Agda.Builtin.Nat using (zero ; suc)
   open import Relation.Binary.PropositionalEquality using (cong)
   open import Agda.Builtin.Equality using (refl)
 
-  +assoc : ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
-  +assoc zero y z = refl
-  +assoc (suc x) y z = cong suc (+assoc x y z)
+  +-Assoc : ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
+  +-Assoc zero y z = refl
+  +-Assoc (suc x) y z = cong suc (+-Assoc x y z)
 
 .. note:: You can learn more details about proving in the chapter
   `Proof by Induction <plfa-induction_>`_ of the
