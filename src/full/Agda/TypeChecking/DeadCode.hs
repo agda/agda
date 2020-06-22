@@ -1,44 +1,30 @@
-{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
-import Control.Monad
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (foldMap, Foldable)
-import Data.Traversable (traverse)
+import qualified Data.HashMap.Strict as HMap
 
-import Agda.Syntax.Common
-import Agda.Syntax.Literal
-import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad
 
 import qualified Agda.Benchmarking as Bench
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Reduce
 
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
-
-import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Run before serialisation to remove any definitions that are not reachable
 --   from the public interface to the module.
 eliminateDeadCode :: DisplayForms -> Signature -> TCM (DisplayForms, Signature)
 eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
-  public <- Set.map anameName . publicNames <$> getScope
+  public <- Set.mapMonotonic anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
   -- the pragmas not being checked. Simple solution: don't eliminate these.
@@ -62,4 +48,3 @@ reachableFrom names psyns defs = follow names (Set.toList names)
                 case HMap.lookup x defs of
                   Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
                   Just d  -> namesIn d
-

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Tools to manipulate patterns in abstract syntax
@@ -7,7 +6,6 @@
 module Agda.TypeChecking.Patterns.Abstract where
 
 import qualified Data.List as List
-import Data.Traversable hiding (mapM, sequence)
 import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
@@ -21,29 +19,25 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 
-import Agda.Utils.Functor
-
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.
 --
 expandLitPattern :: A.Pattern -> TCM A.Pattern
 expandLitPattern p = case asView p of
-  (xs, A.LitP (LitNat r n))
+  (xs, A.LitP info (LitNat n))
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> tooBig
     | otherwise -> do
       Con z _ _ <- primZero
       Con s _ _ <- primSuc
+      let r     = getRange info
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
-          info  = A.PatRange r
           cinfo = A.ConPatInfo ConOCon info ConPatEager
           p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr (A.AsP info) p' (map A.BindName xs)
+      return $ foldr ((A.AsP info) . A.mkBindName) p' xs
   _ -> return p
 
   where

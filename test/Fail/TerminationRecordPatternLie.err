@@ -1,12 +1,6 @@
-TerminationRecordPatternLie.agda:35,1-36,27
-Termination checking failed for the following functions:
-  f
-Problematic calls:
-  f (t lie)
-    (at TerminationRecordPatternLie.agda:36,18-19)
-TerminationRecordPatternLie.agda:39,1-40,21
+TerminationRecordPatternLie.agda:40,1-41,21
 Termination checking failed for the following functions:
   g
 Problematic calls:
   g (tail l lie)
-    (at TerminationRecordPatternLie.agda:40,7-8)
+    (at TerminationRecordPatternLie.agda:41,7-8)

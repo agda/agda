@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Tools to manipulate patterns in internal syntax
 --   in the TCM (type checking monad).
@@ -16,13 +14,9 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Reduce (reduce)
 import Agda.TypeChecking.Substitute.DeBruijn
 
-import Agda.Utils.Pretty
-
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.
@@ -42,7 +36,7 @@ instance (DeBruijn (Pattern' a)) => TermToPattern Term (Pattern' a) where
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Var i []    -> return $ deBruijnVar i
-    Lit l       -> return $ LitP l
+    Lit l       -> return $ litP l
     t           -> return $ dotP t
 
 dotPatternsToPatterns :: forall a. (DeBruijn (Pattern' a))

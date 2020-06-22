@@ -1,0 +1,128 @@
+name: Stack build
+
+on:
+  push:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
+    - '.github/*'
+    - '.github/workflows/stack.yml'
+    - 'Agda.cabal'
+    - 'Setup.hs'
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'stack*.yaml'
+    - '.github/*'
+    - '.github/workflows/stack.yml'
+    - 'Agda.cabal'
+    - 'Setup.hs'
+
+jobs:
+  Ubuntu:
+    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1, 8.8.3, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
+      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      FLAGS_2: "--flag Agda:enable-cluster-counting"
+
+    steps:
+    - uses: actions/checkout@v2.3.1
+    - uses: actions/setup-haskell@v1.1.1
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+
+    - uses: actions/cache@v2
+      name: Cache dependencies
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-new-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+    - name: Install needed Ubuntu packages
+      run: |
+        sudo apt-get update && sudo apt-get install libicu-dev
+
+    - name: Install dependencies
+      run: |
+        stack build ${ARGS} ${FLAGS_1} --only-dependencies
+
+    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
+      run: |
+        stack build ${ARGS} ${FLAGS_1}
+    - name: Build Agda with -fenable-cluster-counting
+      run: |
+        stack build ${ARGS} ${FLAGS_2}
+
+  macOS:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1]
+
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
+      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+      FLAGS_2: "--flag Agda:enable-cluster-counting"
+    steps:
+    - uses: actions/checkout@v2.3.1
+
+    - name: Install stack
+      run: |
+        brew install haskell-stack
+        stack update --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc
+
+    - name: Add text-icu path to stack configuration
+      run: |
+        printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
+
+    - name: Install dependencies
+      run: |
+        stack build ${ARGS} ${FLAGS_1} --only-dependencies
+
+    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
+      run: |
+        stack build ${ARGS} ${FLAGS_1}
+
+    - name: Build Agda with -fenable-cluster-counting
+      run: |
+        stack build ${ARGS} ${FLAGS_2}
+
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1]
+        icu-ver: [58.2-3]
+
+    env:
+      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+
+    steps:
+    - uses: actions/checkout@v2.3.1
+
+    - name: Download ICU ${{ matrix.icu-ver }}
+      run: |
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- wget -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
+
+    - name: Install text-icu ${{ matrix.icu-ver }}
+      run: |
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${env:ICU_FILE}
+        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
+
+    # I [Ed Nutting] don't understand how to make Powershell treat a string from ${env:ARGS}
+    #  as a list of arguments to pass to an executable. Anything I try causes Powershell
+    #  to wrap the thing in quotation marks when it calls stack - thus making stack think
+    #  it's a path to a package. So for now, I've written out the arguments explicitly.
+    - name: Build dependencies
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --only-dependencies
+
+    - name: Build with -fenable-cluster-counting
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting

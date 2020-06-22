@@ -2,3 +2,9 @@
 	path = std-lib
 	url = https://github.com/agda/agda-stdlib
 	branch = master
+[submodule "cubical"]
+	path = cubical
+	url = https://github.com/agda/cubical
+[submodule "src/fix-whitespace"]
+	path = src/fix-whitespace
+	url = https://github.com/agda/fix-whitespace.git

@@ -1,6 +1,6 @@
 ModuleInMutual.agda:7,3-9,12
 Module definitions in mutual blocks are not supported. Suggestion:
-get rid of mutual block by manually ordering declarations
+get rid of the mutual block by manually ordering declarations
 ModuleInMutual.agda:11,3-13,12
 Module definitions in mutual blocks are not supported. Suggestion:
-get rid of mutual block by manually ordering declarations
+get rid of the mutual block by manually ordering declarations

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Internal.TypeChecking ( tests ) where
@@ -15,7 +14,6 @@ import qualified Agda.Utils.VarSet as Set
 import Internal.Helpers
 import Internal.TypeChecking.Generators hiding ( tests )
 
-#include "undefined.h"
 
 ---------------------------------------------------------------------------
 -- * Tests for "Agda.Utils.Permutation"

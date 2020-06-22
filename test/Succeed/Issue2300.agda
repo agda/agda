@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting -v rewriting:80 #-}
+{-# OPTIONS --rewriting --confluence-check -v rewriting:80 #-}
 
 open import Agda.Builtin.Equality
 {-# BUILTIN REWRITE _≡_ #-}

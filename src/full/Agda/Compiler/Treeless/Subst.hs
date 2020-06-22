@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -7,15 +6,12 @@ module Agda.Compiler.Treeless.Subst where
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>), All(..), Any(..) )
 
 import Agda.Syntax.Treeless
-import Agda.Syntax.Internal (Substitution'(..))
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 instance DeBruijn TTerm where
   deBruijnVar = TVar
@@ -76,6 +72,11 @@ instance Semigroup Occurs where
 instance Monoid Occurs where
   mempty  = Occurs 0 mempty mempty
   mappend = (<>)
+
+
+-- Andreas, 2019-07-10: this free variable computation should be rewritten
+-- in the style of TypeChecking.Free.Lazy.
+-- https://github.com/agda/agda/commit/03eb3945114a4ccdb449f22d69db8d6eaa4699b8#commitcomment-34249120
 
 class HasFree a where
   freeVars :: a -> Map Int Occurs

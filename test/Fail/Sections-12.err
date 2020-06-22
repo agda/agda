@@ -1,5 +1,6 @@
 Sections-12.agda:4,1-14
 Could not parse the left-hand side m test_test n
+Problematic expression: ((m test_test) n)
 Operators used in the grammar:
   test_test (infix operator, level 20) [_test_test_ (Sections-12.agda:3,1-12)]
 when scope checking the left-hand side m test_test n in the

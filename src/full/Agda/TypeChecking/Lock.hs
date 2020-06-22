@@ -36,7 +36,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.VarSet as Set
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 
@@ -72,8 +71,8 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   let fv = freeVarsIgnore IgnoreInAnnotations t
   let
     rigid = rigidVars fv
-    flexible = IMap.keysSet $ flexibleVars fv
-    termVars = ISet.union rigid flexible
+    -- flexible = IMap.keysSet $ flexibleVars fv
+    termVars = allVars fv -- ISet.union rigid flexible
     earlierVars = ISet.fromList [i+1 .. size cxt - 1]
   if termVars `ISet.isSubsetOf` earlierVars then return () else do
 
@@ -107,7 +106,7 @@ isVar _ = return $ Nothing
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
-  ifBlockedType t (\ _ _ -> patternViolation) $ \ _ t -> do
+  ifBlocked t (\ _ _ -> patternViolation) $ \ _ t -> do
   timeless <- mapM getName' [builtinInterval, builtinIsOne]
   case unEl t of
     Def q _ | Just q `elem` timeless -> return True

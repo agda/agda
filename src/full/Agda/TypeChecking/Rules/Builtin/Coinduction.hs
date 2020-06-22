@@ -1,13 +1,9 @@
--- {-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
 ------------------------------------------------------------------------
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -18,7 +14,6 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
@@ -26,8 +21,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
-
-import Agda.Utils.Permutation
 
 -- | The type of @∞@.
 
@@ -85,7 +78,8 @@ bindBuiltinSharp x =
                   , recNamedCon       = True
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
-                  , recEtaEquality'   = Inferred NoEta
+                  , recEtaEquality'   = Inferred $ NoEta CopatternMatching
+                  , recPatternMatching= CopatternMatching
                   , recMutual         = Just []
                   , recAbstr          = ConcreteDef
                   , recComp           = emptyCompKit
@@ -99,9 +93,10 @@ bindBuiltinSharp x =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conComp   = (emptyCompKit, Nothing)
+                    , conComp   = emptyCompKit
+                    , conProj   = Nothing
                     , conForced = []
-                    , conErased = []
+                    , conErased = Nothing
                     }
                 }
     return sharpE
@@ -139,7 +134,9 @@ bindBuiltinFlat x =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
+          , clauseRecursive   = Just False
           , clauseUnreachable = Just False
+          , clauseEllipsis  = NoEllipsis
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
@@ -152,13 +149,13 @@ bindBuiltinFlat x =
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+               , defCopatternLHS = hasProjectionPatterns cc
                , theDef = emptyFunction
                    { funClauses      = [clause]
                    , funCompiled     = Just $ cc
                    , funProjection   = Just projection
                    , funMutual       = Just []
                    , funTerminates   = Just True
-                   , funCopatternLHS = hasProjectionPatterns cc
                    }
                 }
 
@@ -166,7 +163,7 @@ bindBuiltinFlat x =
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }
     modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultArg flat] }
+      def { recConHead = sharpCon, recFields = [defaultDom flat] }
     return flatE
 
 -- The coinductive primitives.

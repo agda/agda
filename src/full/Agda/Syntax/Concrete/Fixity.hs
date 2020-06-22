@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
 -- | Collecting fixity declarations (and polarity pragmas) for concrete
 --   declarations.
 module Agda.Syntax.Concrete.Fixity
@@ -8,26 +8,28 @@ module Agda.Syntax.Concrete.Fixity
   ) where
 
 import Prelude hiding (null)
+import GHC.Stack (HasCallStack)
+
 import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
+import Agda.Syntax.Builtin (isBuiltinNoDef)
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
-import Agda.Syntax.Builtin (builtinsNoDef)
+import Agda.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 
 import Agda.Utils.Functor
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 type Fixities   = Map Name Fixity'
 type Polarities = Map Name [Occurrence]
@@ -35,10 +37,10 @@ type Polarities = Map Name [Occurrence]
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: [(Name, [Fixity'])] -> m a
   throwMultiplePolarityPragmas        :: [Name] -> m a
-  warnUnknownNamesInFixityDecl        :: [Name] -> m ()
-  warnUnknownNamesInPolarityPragmas   :: [Name] -> m ()
-  warnUnknownFixityInMixfixDecl       :: [Name] -> m ()
-  warnPolarityPragmasButNotPostulates :: [Name] -> m ()
+  warnUnknownNamesInFixityDecl        :: HasCallStack => [Name] -> m ()
+  warnUnknownNamesInPolarityPragmas   :: HasCallStack => [Name] -> m ()
+  warnUnknownFixityInMixfixDecl       :: HasCallStack => [Name] -> m ()
+  warnPolarityPragmasButNotPostulates :: HasCallStack => [Name] -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -52,11 +54,11 @@ plusFixities m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
     mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
-              where f | f1 == noFixity = f2
-                      | f2 == noFixity = f1
+              where f | null f1 = f2
+                      | null f2 = f1
                       | otherwise = __IMPOSSIBLE__
-                    s | s1 == noNotation = s2
-                      | s2 == noNotation = s1
+                    s | null s1 = s2
+                      | null s2 = s1
                       | otherwise = __IMPOSSIBLE__
 
     -- Compute a list of conflicts in a format suitable for error reporting.
@@ -65,8 +67,8 @@ plusFixities m1 m2
 
     -- Check for no conflict.
     compatible (Fixity' f1 s1 _) (Fixity' f2 s2 _) =
-      (f1 == noFixity   || f2 == noFixity  ) &&
-      (s1 == noNotation || s2 == noNotation)
+      (null f1 || null f2) &&
+      (null s1 || null s2)
 
 -- | While 'Fixities' and Polarities are not semigroups under disjoint
 --   union (which might fail), we get a semigroup instance for the
@@ -140,12 +142,12 @@ fixitiesAndPolarities doWarn ds = do
   return (fixs, pols)
 
 fixitiesAndPolarities' :: MonadFixityError m => [Declaration] -> MonadicFixPol m
-fixitiesAndPolarities' = foldMap $ \ d -> case d of
+fixitiesAndPolarities' = foldMap $ \case
   -- These declarations define polarities:
   Pragma (PolarityPragma _ x occs) -> returnPol $ Map.singleton x occs
   -- These declarations define fixities:
   Syntax x syn    -> returnFix $ Map.singleton x (Fixity' noFixity syn $ getRange x)
-  Infix  f xs     -> returnFix $ Map.fromList $ for xs $ \ x -> (x, Fixity' f noNotation $ getRange x)
+  Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
   Abstract  _ ds' -> fixitiesAndPolarities' ds'
@@ -156,6 +158,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
   TypeSig     {}  -> mempty
+  FieldSig    {}  -> mempty
   Generalize  {}  -> mempty
   Field       {}  -> mempty
   FunClause   {}  -> mempty
@@ -176,7 +179,7 @@ fixitiesAndPolarities' = foldMap $ \ d -> case d of
   UnquoteDef  {}  -> mempty
   Pragma      {}  -> mempty
 
-data DeclaredNames = DeclaredNames { allNames, postulates, privateNames :: Set Name }
+data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
 instance Semigroup DeclaredNames where
   DeclaredNames xs ps as <> DeclaredNames ys qs bs =
@@ -202,18 +205,19 @@ declaresName x = declaresNames [x]
 --   i.e., do not go into modules.
 declaredNames :: Declaration -> DeclaredNames
 declaredNames d = case d of
-  TypeSig _ x _        -> declaresName x
-  Field _ x _          -> declaresName x
-  FunClause (LHS p [] []) _ _ _
-    | IdentP (QName x) <- removeSingletonRawAppP p
+  TypeSig _ _ x _      -> declaresName x
+  FieldSig _ _ x _     -> declaresName x
+  Field _ fs           -> foldMap declaredNames fs
+  FunClause (LHS p [] [] _) _ _ _
+    | IdentP (QName x) <- removeParenP p
                        -> declaresName x
   FunClause{}          -> mempty
-  DataSig _ _ x _ _    -> declaresName x
-  DataDef _ _ _ _ cs   -> foldMap declaredNames cs
-  Data _ _ x _ _ cs    -> declaresName x <> foldMap declaredNames cs
+  DataSig _ x _ _      -> declaresName x
+  DataDef _ _ _ cs     -> foldMap declaredNames cs
+  Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
-  RecordDef _ x _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
-  Record _ x _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  RecordDef _ x _ _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
+  Record _ x _ _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x
@@ -234,6 +238,5 @@ declaredNames d = case d of
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))
-    | b `elem` builtinsNoDef -> declaresName x
+    | isBuiltinNoDef $ rangedThing b -> declaresName x
   Pragma{}             -> mempty
-

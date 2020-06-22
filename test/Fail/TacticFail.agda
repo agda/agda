@@ -8,8 +8,8 @@ open import Common.Reflection
 failTactic : Term → TC ⊤
 failTactic hole =
   inferType hole >>= λ goal →
-  typeError (strErr "Surprisingly the" ∷ nameErr (quote failTactic) ∷
-             strErr "failed to prove" ∷ termErr goal ∷ [])
+  typeError (strErr "Surprisingly the " ∷ nameErr (quote failTactic) ∷
+             strErr " failed to prove " ∷ termErr goal ∷ [])
 
 macro
   proveIt = failTactic

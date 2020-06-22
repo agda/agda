@@ -1,32 +1,23 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- To define <>, we need to add with GHC >= 8.4
---
---   import Prelude hiding ((<>))
---
--- but using that gives warnings and doesn't silence -Wsemigroup in
--- some versions of GHC.
-#if __GLASGOW_HASKELL__ >= 800 && __GLASGOW_HASKELL__ < 804
-{-# OPTIONS_GHC -Wno-semigroup #-}
-#endif
+module Agda.TypeChecking.Pretty
+    ( module Agda.TypeChecking.Pretty
+    , module Data.Semigroup -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Reexport
+    ) where
 
-module Agda.TypeChecking.Pretty where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
-import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
+import Data.String
+import Data.Semigroup (Semigroup((<>)))
+import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -36,32 +27,32 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import qualified Agda.Syntax.Translation.AbstractToConcrete as Reexport (MonadAbsToCon)
 import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
-import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Scope.Base  (AbstractName(..))
 import Agda.Syntax.Scope.Monad (withContextPrecedence)
 
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -70,89 +61,103 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-comma, colon, equals :: TCM Doc
-comma  = return P.comma
-colon  = return P.colon
-equals = return P.equals
+comma, colon, equals :: Applicative m => m Doc
+comma  = pure P.comma
+colon  = pure P.colon
+equals = pure P.equals
 
-pretty :: P.Pretty a => a -> TCM Doc
-pretty x = return $ P.pretty x
+pretty :: (Applicative m, P.Pretty a) => a -> m Doc
+pretty x = pure $ P.pretty x
 
-prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
+prettyA :: (P.Pretty c, ToConcrete a c, MonadAbsToCon m) => a -> m Doc
 prettyA x = AP.prettyA x
 
-prettyAs :: (P.Pretty c, ToConcrete a [c]) => a -> TCM Doc
+prettyAs :: (P.Pretty c, ToConcrete a [c], MonadAbsToCon m) => a -> m Doc
 prettyAs x = AP.prettyAs x
 
-text :: String -> TCM Doc
-text s = return $ P.text s
+text :: Applicative m => String -> m Doc
+text s = pure $ P.text s
 
-multiLineText :: String -> TCM Doc
-multiLineText s = return $ P.multiLineText s
+multiLineText :: Applicative m => String -> m Doc
+multiLineText s = pure $ P.multiLineText s
 
-pwords :: String -> [TCM Doc]
-pwords s = map return $ P.pwords s
+pwords :: Applicative m => String -> [m Doc]
+pwords s = map pure $ P.pwords s
 
-fwords :: String -> TCM Doc
-fwords s = return $ P.fwords s
+fwords :: Applicative m => String -> m Doc
+fwords s = pure $ P.fwords s
 
-sep, fsep, hsep, hcat, vcat :: [TCM Doc] -> TCM Doc
-sep ds  = P.sep <$> sequence ds
-fsep ds = P.fsep <$> sequence ds
-hsep ds = P.hsep <$> sequence ds
-hcat ds = P.hcat <$> sequence ds
-vcat ds = P.vcat <$> sequence ds
+sep, fsep, hsep, hcat, vcat :: (Applicative m, Foldable t) => t (m Doc) -> m Doc
+sep ds  = P.sep  <$> sequenceA (Fold.toList ds)
+fsep ds = P.fsep <$> sequenceA (Fold.toList ds)
+hsep ds = P.hsep <$> sequenceA (Fold.toList ds)
+hcat ds = P.hcat <$> sequenceA (Fold.toList ds)
+vcat ds = P.vcat <$> sequenceA (Fold.toList ds)
 
-hang :: TCM Doc -> Int -> TCM Doc -> TCM Doc
+hang :: Applicative m => m Doc -> Int -> m Doc -> m Doc
 hang p n q = P.hang <$> p <*> pure n <*> q
 
-infixl 6 <>, <+>, <?>
+infixl 6 <+>, <?>
 infixl 5 $$, $+$
 
-($$), ($+$), (<>), (<+>), (<?>) :: TCM Doc -> TCM Doc -> TCM Doc
+($$), ($+$), (<+>), (<?>) :: Applicative m => m Doc -> m Doc -> m Doc
 d1 $$ d2  = (P.$$) <$> d1 <*> d2
 d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
-d1 <> d2  = (P.<>) <$> d1 <*> d2
 d1 <+> d2 = (P.<+>) <$> d1 <*> d2
 d1 <?> d2 = (P.<?>) <$> d1 <*> d2
 
-nest :: Int -> TCM Doc -> TCM Doc
+nest :: Functor m => Int -> m Doc -> m Doc
 nest n d   = P.nest n <$> d
 
-braces, dbraces, brackets, parens :: TCM Doc -> TCM Doc
+braces, dbraces, brackets, parens, parensNonEmpty
+  , doubleQuotes, quotes :: Functor m => m Doc -> m Doc
 braces d   = P.braces <$> d
 dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
+parensNonEmpty d = P.parensNonEmpty <$> d
+doubleQuotes   d = P.doubleQuotes   <$> d
+quotes         d = P.quotes         <$> d
 
-pshow :: Show a => a -> TCM Doc
+pshow :: (Applicative m, Show a) => a -> m Doc
 pshow = pure . P.pshow
 
 -- | Comma-separated list in brackets.
-prettyList :: [TCM Doc] -> TCM Doc
-prettyList ds = P.pretty <$> sequence ds
+prettyList :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
+prettyList ds = P.pretty <$> sequenceA (Fold.toList ds)
 
 -- | 'prettyList' without the brackets.
-prettyList_ :: [TCM Doc] -> TCM Doc
+prettyList_ :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
 prettyList_ ds = fsep $ punctuate comma ds
 
-punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc]
-punctuate _ [] = []
-punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
+punctuate :: (Applicative m, Semigroup (m Doc), Foldable t) => m Doc -> t (m Doc) -> [m Doc]
+punctuate d ts
+  | null ds   = []
+  | otherwise = zipWith (<>) ds (replicate n d ++ [pure empty])
   where
-    n = length ds - 1
+    ds = Fold.toList ts
+    n  = length ds - 1
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
 
+type MonadPretty m =
+  ( MonadReify m
+  , MonadAbsToCon m
+  , IsString (m Doc)
+  , Null (m Doc)
+  , Semigroup (m Doc)
+  )
+
 class PrettyTCM a where
-  prettyTCM :: a -> TCM Doc
+  prettyTCM :: MonadPretty m => a -> m Doc
 
 -- | Pretty print with a given context precedence
-prettyTCMCtx :: PrettyTCM a => Precedence -> a -> TCM Doc
+prettyTCMCtx :: (PrettyTCM a, MonadPretty m) => Precedence -> a -> m Doc
 prettyTCMCtx p = withContextPrecedence p . prettyTCM
 
+instance {-# OVERLAPPING #-} PrettyTCM String where prettyTCM = text
 instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
 instance PrettyTCM C.QName     where prettyTCM = pretty
@@ -168,8 +173,11 @@ instance PrettyTCM CheckpointId where prettyTCM = pretty
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
-instance PrettyTCM a => PrettyTCM [a] where
+instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
+
+instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM (Maybe a) where
+  prettyTCM = maybe empty prettyTCM
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
@@ -188,8 +196,11 @@ instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM IsForced     where prettyTCM = text . show
-instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
+prettyR
+  :: (R.ToAbstract r a, PrettyTCM a, MonadPretty m, MonadError TCErr m)
+  => r -> m Doc
+prettyR = prettyTCM <=< toAbstractWithoutImplicit
 
 instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = "idS"
@@ -206,7 +217,7 @@ instance PrettyTCM Clause where
     prettyTCM (QNamed x cl)
 
 instance PrettyTCM a => PrettyTCM (Judgement a) where
-  prettyTCM (HasType a t) = prettyTCM a <+> ":" <+> prettyTCM t
+  prettyTCM (HasType a cmp t) = prettyTCM a <+> ":" <+> prettyTCM t
   prettyTCM (IsSort  a t) = "Sort" <+> prettyTCM a <+> ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
@@ -215,7 +226,7 @@ instance PrettyTCM MetaId where
     pretty $ NamedMeta mn x
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
-  prettyTCM (Blocked x a) = "[" <+> prettyTCM a <+> "]" <> text (P.prettyShow x)
+  prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
@@ -231,8 +242,8 @@ instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
   prettyTCM m = "Map" <> braces (sep $ punctuate comma
     [ hang (prettyTCM k <+> "=") 2 (prettyTCM v) | (k, v) <- Map.toList m ])
 
-instance {-# OVERLAPPING #-} PrettyTCM ArgName where
-  prettyTCM = text . P.prettyShow
+-- instance {-# OVERLAPPING #-} PrettyTCM ArgName where
+--   prettyTCM = text . P.prettyShow
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
@@ -253,28 +264,36 @@ instance PrettyTCM A.TypedBinding where
   prettyTCM = prettyA
 
 instance PrettyTCM Relevance where
-  prettyTCM Irrelevant = "."
-  prettyTCM NonStrict  = ".."
-  prettyTCM Relevant   = empty
+  prettyTCM = pretty
+
+instance PrettyTCM Quantity where
+  prettyTCM = pretty
+
+instance PrettyTCM Modality where
+  prettyTCM mod = hsep
+    [ prettyTCM (getQuantity mod)
+    , prettyTCM (getRelevance mod)
+    ]
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids c)
-    | Set.null pids = prettyTCM c
-    | otherwise     = prettyList (map prettyTCM $ Set.toList pids) <+> prettyTCM c
+  prettyTCM (PConstr pids c) = prettyTCM c <?> prPids (Set.toList pids)
+    where
+      prPids []    = empty
+      prPids [pid] = parens $ "problem" <+> prettyTCM pid
+      prPids pids  = parens $ "problems" <+> fsep (punctuate "," $ map prettyTCM pids)
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-        ValueCmp cmp ty s t      -> prettyCmp (prettyTCM cmp) s t <?> (":" <+> prettyTCMCtx TopCtx ty)
+        ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
             <?> (":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
-        TypeCmp cmp a b          -> prettyCmp (prettyTCM cmp) a b
         TelCmp a b cmp tela telb -> prettyCmp (prettyTCM cmp) tela telb
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        Guarded c pid            -> prettyTCM c <?> (brackets $ "blocked on problem" <+> prettyTCM pid)
+        Guarded c pid            -> prettyTCM c <?> parens ("blocked by problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m
@@ -291,7 +310,7 @@ instance PrettyTCM Constraint where
               -- Thus, this case is not IMPOSSIBLE.
               --
               -- InstV args t -> do
-              --   reportSLn "impossible" 10 $ unlines
+              --   reportS "impossible" 10
               --     [ "UnBlock meta " ++ show m ++ " surprisingly has InstV instantiation:"
               --     , show m ++ show args ++ " := " ++ show t
               --     ]
@@ -310,8 +329,8 @@ instance PrettyTCM Constraint where
               case mcands of
                 Nothing -> "No candidates yet"
                 Just cnds ->
-                  hang "Candidates" 2 $
-                    vcat [ hang (overlap c <+> prettyTCM (candidateTerm c) <+> ":") 2 $
+                  hang "Candidates" 2 $ vcat
+                    [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
                             prettyTCM (candidateType c) | c <- cnds ]
               where overlap c | candidateOverlappable c = "overlap"
                               | otherwise               = empty
@@ -325,16 +344,28 @@ instance PrettyTCM Constraint where
         HasBiggerSort a -> "Has bigger sort:" <+> prettyTCM a
         HasPTSRule a b -> "Has PTS rule:" <+> case b of
           NoAbs _ b -> prettyTCM (a,b)
-          Abs x b   -> "(" <> prettyTCM a <+> "," <+> addContext x (prettyTCM b) <> ")"
+          Abs x b   -> "(" <> (prettyTCM a <+> "," <+> addContext x (prettyTCM b)) <> ")"
         UnquoteTactic _ v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
         CheckLockedVars t ty lk lk_ty -> do
           "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
+        CheckMetaInst x -> do
+          m <- lookupMeta x
+          case mvJudgement m of
+            HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
+            IsSort{} -> prettyTCM x <+> "is a sort"
+
       where
-        prettyCmp :: (PrettyTCM a, PrettyTCM b) => TCM Doc -> a -> b -> TCM Doc
+        prettyCmp
+          :: (PrettyTCM a, PrettyTCM b, MonadPretty m)
+          => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
+instance PrettyTCM CompareAs where
+  prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
+  prettyTCM AsSizes       = ":" <+> do prettyTCM =<< sizeType
+  prettyTCM AsTypes       = empty
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =
@@ -345,14 +376,14 @@ instance PrettyTCM TypeCheckingProblem where
         , nest 2 $ ":?" <+> prettyTCM t1 ]
   prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _) = prettyTCM (CheckExpr cmp e t)
   prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
-    sep [ return CP.lambda <+>
+    sep [ pure CP.lambda <+>
           (CP.prettyRelevance ai .
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
                                else P.parens) <$> do
             fsep $
-              map prettyTCM xs ++
+              map prettyTCM (List1.toList xs) ++
               caseMaybe mt [] (\ a -> [":", prettyTCM a])) <+>
-          return CP.arrow <+>
+          pure CP.arrow <+>
           prettyTCM e <+>
           ":?"
         , prettyTCM t
@@ -373,14 +404,16 @@ instance PrettyTCM QName where
 instance PrettyTCM ModuleName where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x
 
+instance PrettyTCM AbstractName where
+  prettyTCM = prettyTCM . anameName
+
 instance PrettyTCM ConHead where
   prettyTCM = prettyTCM . conName
 
 instance PrettyTCM Telescope where
-  prettyTCM tel = P.fsep . map P.pretty <$> (do
+  prettyTCM tel = P.fsep . map P.pretty <$> do
       tel <- reify tel
       runAbsToCon $ bindToConcrete tel return
-    )
 
 newtype PrettyContext = PrettyContext Context
 
@@ -399,24 +432,26 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         where
-        b = maybe False (/= PatOCon) $ conPRecord i
-        showRec :: TCM Doc
+        b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
+        showRec :: MonadPretty m => m Doc -- Defined, but currently not used
         showRec = sep
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
+        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
         showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
+        showCon :: MonadPretty m => m Doc -- NB:: Defined but not used
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
-  prettyTCM (LitP l)      = text (P.prettyShow l)
+  prettyTCM (LitP _ l)    = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 
 -- | Proper pretty printing of patterns:
-prettyTCMPatterns :: [NamedArg DeBruijnPattern] -> TCM [Doc]
+prettyTCMPatterns :: MonadPretty m => [NamedArg DeBruijnPattern] -> m [Doc]
 prettyTCMPatterns = mapM prettyA <=< reifyPatterns
 
-prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc
+prettyTCMPatternList :: MonadPretty m => [NamedArg DeBruijnPattern] -> m Doc
 prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
 
 instance PrettyTCM (Elim' DisplayTerm) where
@@ -426,22 +461,29 @@ instance PrettyTCM (Elim' DisplayTerm) where
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
-  prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = parens $
     text ("λ " ++ absName u ++ " →") <+>
-    (addContext (absName u) $ prettyTCM $ absBody u)
+    addContext (absName u) (prettyTCM $ absBody u)
   prettyTCM (PPi a b)   = parens $
-    text ("(" ++ absName b ++ " :") <+> prettyTCM (unDom a) <> ") →" <+>
-    (addContext (absName b) $ prettyTCM $ unAbs b)
+    text ("(" ++ absName b ++ " :") <+> (prettyTCM (unDom a) <> ") →") <+>
+    addContext (absName b) (prettyTCM $ unAbs b)
+  prettyTCM (PSort s)        = prettyTCM s
   prettyTCM (PBoundVar i []) = prettyTCM (var i)
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = "." <> parens (prettyTCM t)
 
 instance PrettyTCM NLPType where
-  prettyTCM (NLPType PWild a) = prettyTCM a
-  prettyTCM (NLPType l     a) = "{" <> prettyTCM l <> "}" <> prettyTCM a
+  prettyTCM (NLPType s a) = prettyTCM a
+
+instance PrettyTCM NLPSort where
+  prettyTCM = \case
+    PType l   -> parens $ "Set" <+> prettyTCM l
+    PProp l   -> parens $ "Prop" <+> prettyTCM l
+    PInf n    -> prettyTCM (Inf n :: Sort)
+    PSizeUniv -> prettyTCM (SizeUniv :: Sort)
+    PLockUniv -> prettyTCM (LockUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v
@@ -485,3 +527,8 @@ instance PrettyTCM SplitTag where
   prettyTCM (SplitCon c)  = prettyTCM c
   prettyTCM (SplitLit l)  = prettyTCM l
   prettyTCM SplitCatchall = return underscore
+
+instance PrettyTCM Candidate where
+  prettyTCM c = case candidateKind c of
+    (GlobalCandidate q) -> prettyTCM q
+    LocalCandidate      -> prettyTCM $ candidateTerm c

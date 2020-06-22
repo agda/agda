@@ -1,28 +1,32 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonoLocalBinds          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.Syntax.Abstract.Views where
 
+import Prelude hiding (null)
+
 import Control.Applicative ( Const(Const), getConst )
 import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
-import Data.Monoid
-import Data.Traversable
+import Data.Semigroup ((<>))
 import Data.Void
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
-import Agda.Syntax.Scope.Base (emptyScopeInfo)
+import Agda.Syntax.Scope.Base (KindOfName(..), conKindOfName, WithKind(..))
 
 import Agda.Utils.Either
-import Agda.Utils.Lens
+import Agda.Utils.List1 (List1)
+import Agda.Utils.Null
+import Agda.Utils.Singleton
+
+import Agda.Utils.Impossible
+
 
 data AppView' arg = Application Expr [NamedArg arg]
   deriving (Functor)
@@ -74,18 +78,11 @@ asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = first (unBind x :) $ asView p
 asView p             = ([], p)
 
--- | Check whether we are dealing with a universe.
-isSet :: Expr -> Bool
-isSet (ScopedExpr _ e) = isSet e
-isSet (App _ e _)      = isSet e
-isSet (Set{})          = True
-isSet _                = False
-
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
 unScope (ScopedExpr scope e) = unScope e
-unScope (QuestionMark i ii)  = QuestionMark (i {metaScope = emptyScopeInfo}) ii
-unScope (Underscore i)       = Underscore (i {metaScope = emptyScopeInfo})
+unScope (QuestionMark i ii)  = QuestionMark (i {metaScope = empty}) ii
+unScope (Underscore i)       = Underscore (i {metaScope = empty})
 unScope e                    = e
 
 -- | Remove 'ScopedExpr' wrappers everywhere.
@@ -102,11 +99,12 @@ deepUnscopeDecl :: A.Declaration -> [A.Declaration]
 deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
 deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
 deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc ind eta c bs e ds) = [A.RecDef i x uc ind eta c (deepUnscope bs) (deepUnscope e)
-                                                                           (deepUnscopeDecls ds)]
+deepUnscopeDecl (A.RecDef i x uc ind eta pat c bs e ds) =
+  [ A.RecDef i x uc ind eta pat c (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
 deepUnscopeDecl d                                = [deepUnscope d]
 
 -- * Traversal
+---------------------------------------------------------------------------
 
 -- | Apply an expression rewriting to every subexpression, inside-out.
 --   See "Agda.Syntax.Internal.Generic".
@@ -131,7 +129,7 @@ instance ExprLike Expr where
     let recurse e = recurseExpr f e
     case e0 of
       Var{}                   -> pure e0
-      Def{}                   -> pure e0
+      Def'{}                  -> pure e0
       Proj{}                  -> pure e0
       Con{}                   -> pure e0
       Lit{}                   -> pure e0
@@ -146,27 +144,23 @@ instance ExprLike Expr where
       Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
       Generalized  s e        -> Generalized s <$> recurse e
       Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
-      Set{}                   -> pure e0
-      Prop{}                  -> pure e0
       Let ei bs e             -> Let ei <$> recurse bs <*> recurse e
       ETel tel                -> ETel <$> recurse tel
       Rec ei bs               -> Rec ei <$> recurse bs
       RecUpdate ei e bs       -> RecUpdate ei <$> recurse e <*> recurse bs
       ScopedExpr sc e         -> ScopedExpr sc <$> recurse e
-      QuoteGoal ei n e        -> QuoteGoal ei n <$> recurse e
-      QuoteContext ei         -> pure e0
       Quote{}                 -> pure e0
       QuoteTerm{}             -> pure e0
       Unquote{}               -> pure e0
       DontCare e              -> DontCare <$> recurse e
       PatternSyn{}            -> pure e0
-      Tactic ei e xs ys       -> Tactic ei <$> recurse e <*> recurse xs <*> recurse ys
+      Tactic ei e xs          -> Tactic ei <$> recurse e <*> recurse xs
       Macro{}                 -> pure e0
 
   foldExpr f e =
     case e of
       Var{}                -> m
-      Def{}                -> m
+      Def'{}               -> m
       Proj{}               -> m
       Con{}                -> m
       PatternSyn{}         -> m
@@ -183,19 +177,15 @@ instance ExprLike Expr where
       Pi _ tel e           -> m `mappend` fold tel `mappend` fold e
       Generalized _ e      -> m `mappend` fold e
       Fun _ e e'           -> m `mappend` fold e `mappend` fold e'
-      Set{}                -> m
-      Prop{}               -> m
       Let _ bs e           -> m `mappend` fold bs `mappend` fold e
       ETel tel             -> m `mappend` fold tel
       Rec _ as             -> m `mappend` fold as
       RecUpdate _ e as     -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e       -> m `mappend` fold e
-      QuoteGoal _ _ e      -> m `mappend` fold e
-      QuoteContext _       -> m
       Quote{}              -> m
       QuoteTerm{}          -> m
       Unquote{}            -> m
-      Tactic _ e xs ys     -> m `mappend` fold e `mappend` fold xs `mappend` fold ys
+      Tactic _ e xs        -> m `mappend` fold e `mappend` fold xs
       DontCare e           -> m `mappend` fold e
    where
      m    = f e
@@ -205,7 +195,7 @@ instance ExprLike Expr where
     let trav e = traverseExpr f e
     case e of
       Var{}                   -> f e
-      Def{}                   -> f e
+      Def'{}                  -> f e
       Proj{}                  -> f e
       Con{}                   -> f e
       Lit{}                   -> f e
@@ -220,26 +210,24 @@ instance ExprLike Expr where
       Pi ei tel e             -> f =<< Pi ei <$> trav tel <*> trav e
       Generalized s e         -> f =<< Generalized s <$> trav e
       Fun ei arg e            -> f =<< Fun ei <$> trav arg <*> trav e
-      Set{}                   -> f e
-      Prop{}                  -> f e
       Let ei bs e             -> f =<< Let ei <$> trav bs <*> trav e
       ETel tel                -> f =<< ETel <$> trav tel
       Rec ei bs               -> f =<< Rec ei <$> trav bs
       RecUpdate ei e bs       -> f =<< RecUpdate ei <$> trav e <*> trav bs
       ScopedExpr sc e         -> f =<< ScopedExpr sc <$> trav e
-      QuoteGoal ei n e        -> f =<< QuoteGoal ei n <$> trav e
-      QuoteContext{}          -> f e
       Quote{}                 -> f e
       QuoteTerm{}             -> f e
       Unquote{}               -> f e
-      Tactic ei e xs ys       -> f =<< Tactic ei <$> trav e <*> trav xs <*> trav ys
+      Tactic ei e xs          -> f =<< Tactic ei <$> trav e <*> trav xs
       DontCare e              -> f =<< DontCare <$> trav e
       PatternSyn{}            -> f e
       Macro{}                 -> f e
 
-instance ExprLike a => ExprLike (Arg a)     where
-instance ExprLike a => ExprLike (Named x a) where
-instance ExprLike a => ExprLike [a]         where
+instance ExprLike a => ExprLike (Arg a)
+instance ExprLike a => ExprLike (Maybe a)
+instance ExprLike a => ExprLike (Named x a)
+instance ExprLike a => ExprLike [a]
+instance ExprLike a => ExprLike (List1 a)
 
 instance (ExprLike a, ExprLike b) => ExprLike (a, b) where
   recurseExpr f (x, y) = (,) <$> recurseExpr f x <*> recurseExpr f y
@@ -263,16 +251,16 @@ instance ExprLike QName where
 instance ExprLike LamBinding where
   recurseExpr f e =
     case e of
-      DomainFree{}  -> pure e
-      DomainFull bs -> DomainFull <$> recurseExpr f bs
+      DomainFree t x -> DomainFree <$> recurseExpr f t <*> pure x
+      DomainFull bs  -> DomainFull <$> recurseExpr f bs
   foldExpr f e =
     case e of
-      DomainFree{}  -> mempty
+      DomainFree t _ -> foldExpr f t
       DomainFull bs -> foldExpr f bs
   traverseExpr f e =
     case e of
-      DomainFree{}  -> pure e
-      DomainFull bs -> DomainFull <$> traverseExpr f bs
+      DomainFree t x -> DomainFree <$> traverseExpr f t <*> pure x
+      DomainFull bs  -> DomainFull <$> traverseExpr f bs
 
 instance ExprLike GeneralizeTelescope where
   recurseExpr  f (GeneralizeTel s tel) = GeneralizeTel s <$> recurseExpr f tel
@@ -287,16 +275,16 @@ instance ExprLike DataDefParams where
 instance ExprLike TypedBinding where
   recurseExpr f e =
     case e of
-      TBind r xs e -> TBind r xs <$> recurseExpr f e
-      TLet r ds    -> TLet r <$> recurseExpr f ds
+      TBind r t xs e -> TBind r <$> recurseExpr f t <*> pure xs <*> recurseExpr f e
+      TLet r ds      -> TLet r <$> recurseExpr f ds
   foldExpr f e =
     case e of
-      TBind _ _ e  -> foldExpr f e
-      TLet _ ds    -> foldExpr f ds
+      TBind _ t _ e -> foldExpr f t `mappend` foldExpr f e
+      TLet _ ds     -> foldExpr f ds
   traverseExpr f e =
     case e of
-      TBind r xs e -> TBind r xs <$> traverseExpr f e
-      TLet r ds    -> TLet r <$> traverseExpr f ds
+      TBind r t xs e -> TBind r <$> traverseExpr f t <*> pure xs <*> traverseExpr f e
+      TLet r ds      -> TLet r <$> traverseExpr f ds
 
 instance ExprLike LetBinding where
   recurseExpr f e = do
@@ -341,6 +329,11 @@ instance ExprLike RHS where
       RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
     where rec e = recurseExpr f e
 
+instance (ExprLike qn, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
+  recurseExpr f = \case
+    Rewrite es    -> Rewrite <$> recurseExpr f es
+    Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
+
 instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b
 
@@ -369,7 +362,8 @@ instance ExprLike Pragma where
 instance ExprLike LHS where
   recurseExpr f (LHS i p) = LHS i <$> recurseExpr f p
 
-instance ExprLike a => ExprLike (LHSCore' a) where
+instance ExprLike a => ExprLike (LHSCore' a)   where
+instance ExprLike a => ExprLike (WithHiding a) where
 
 instance ExprLike SpineLHS where
   recurseExpr f (SpineLHS i x ps) = SpineLHS i x <$> recurseExpr f ps
@@ -391,9 +385,180 @@ instance ExprLike Declaration where
       DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
-      RecDef i r uc n co c bs e ds -> RecDef i r uc n co c <$> rec bs <*> rec e <*> rec ds
+      RecDef i r uc ind eta pat c bs e ds -> RecDef i r uc ind eta pat c <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
     where rec e = recurseExpr f e
+
+
+-- * Getting all declared names
+---------------------------------------------------------------------------
+
+type KName = WithKind QName
+
+-- | Extracts "all" names which are declared in a 'Declaration'.
+--
+-- Includes: local modules and @where@ clauses.
+-- Excludes: @open public@, @let@, @with@ function names, extended lambdas.
+
+class DeclaredNames a where
+  declaredNames :: Collection KName m => a -> m
+
+  default declaredNames
+     :: (Foldable t, DeclaredNames b, t b ~ a)
+     => Collection KName m => a -> m
+  declaredNames = foldMap declaredNames
+
+instance DeclaredNames a => DeclaredNames [a]
+instance DeclaredNames a => DeclaredNames (List1 a)
+instance DeclaredNames a => DeclaredNames (Maybe a)
+instance DeclaredNames a => DeclaredNames (Arg a)
+instance DeclaredNames a => DeclaredNames (Named name a)
+instance DeclaredNames a => DeclaredNames (FieldAssignment' a)
+
+instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (Either a b) where
+  declaredNames = either declaredNames declaredNames
+
+instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (a,b) where
+  declaredNames (a,b) = declaredNames a <> declaredNames b
+
+instance DeclaredNames KName where
+  declaredNames = singleton
+
+instance DeclaredNames Declaration where
+  declaredNames = \case
+      Axiom _ di _ _ q _           -> singleton . (`WithKind` q) $
+                                      case defMacro di of
+                                        MacroDef    -> MacroName
+                                        NotMacroDef -> AxiomName
+      Generalize _ _ _ q _         -> singleton (WithKind GeneralizeName q)
+      Field _ q _                  -> singleton (WithKind FldName q)
+      Primitive _ q _              -> singleton (WithKind PrimName q)
+      Mutual _ decls               -> declaredNames decls
+      DataSig _ q _ _              -> singleton (WithKind DataName q)
+      DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
+      RecSig _ q _ _               -> singleton (WithKind RecName q)
+      RecDef _ q _ i _ _ c _ _ decls -> singleton (WithKind RecName q) <> kc <> declaredNames decls
+        where
+        kc = maybe mempty (singleton . WithKind k) c
+        k  = maybe ConName (conKindOfName . rangedThing) i
+      PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
+      UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
+      UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
+      FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
+      ScopedDecl _ decls           -> declaredNames decls
+      Section _ _ _ decls          -> declaredNames decls
+      Pragma _ pragma              -> declaredNames pragma
+      Apply{}                      -> mempty
+      Import{}                     -> mempty
+      Open{}                       -> mempty
+    where
+    con = \case
+      Axiom _ _ _ _ q _ -> singleton $ WithKind ConName q
+      _ -> __IMPOSSIBLE__
+
+instance DeclaredNames Pragma where
+  declaredNames = \case
+    BuiltinNoDefPragma _b kind x -> singleton $ WithKind kind x
+    BuiltinPragma{}         -> mempty
+    CompilePragma{}         -> mempty
+    RewritePragma{}         -> mempty
+    StaticPragma{}          -> mempty
+    EtaPragma{}             -> mempty
+    InjectivePragma{}       -> mempty
+    InlinePragma{}          -> mempty
+    DisplayPragma{}         -> mempty
+    OptionsPragma{}         -> mempty
+
+instance DeclaredNames Clause where
+  declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
+
+instance DeclaredNames WhereDeclarations where
+  declaredNames (WhereDecls _ ds) = declaredNames ds
+
+instance DeclaredNames RHS where
+  declaredNames = \case
+    RHS _ _                   -> mempty
+    AbsurdRHS                 -> mempty
+    WithRHS _q _es cls        -> declaredNames cls
+    RewriteRHS _qes _ rhs cls -> declaredNames rhs <> declaredNames cls
+
+-- Andreas, 2020-04-13: Migration from Agda.Syntax.Abstract.AllNames
+--
+-- Since we are not interested in names of extended lambdas, we do not
+-- traverse into expression.
+--
+-- However, we keep this code (originally Agda.Syntax.Abstract.AllNames) around
+-- should arise a need to collect extended lambda names.
+
+-- instance (DeclaredNames a, DeclaredNames b, DeclaredNames c) => DeclaredNames (a,b,c) where
+--   declaredNames (a,b,c) = declaredNames a <> declaredNames b <> declaredNames c
+
+-- instance DeclaredNames RHS where
+--   declaredNames = \case
+--     RHS e _                  -> declaredNames e
+--     AbsurdRHS{}              -> mempty
+--     WithRHS q _ cls          -> singleton (WithKind FunName q) <> declaredNames cls
+--     RewriteRHS qes _ rhs cls -> declaredNames (qes, rhs, cls)
+
+-- instance DeclaredNames ModuleName where
+--   declaredNames _ = mempty
+
+-- instance (DeclaredNames qn, DeclaredNames e) => DeclaredNames (RewriteEqn' qn p e) where
+--   declaredNames = \case
+--     Rewrite es    -> declaredNames es
+--     Invert qn pes -> declaredNames qn <> declaredNames pes
+
+-- instance DeclaredNames Expr where
+--   declaredNames = \case
+--     Var{}                 -> mempty
+--     Def{}                 -> mempty
+--     Proj{}                -> mempty
+--     Con{}                 -> mempty
+--     Lit{}                 -> mempty
+--     QuestionMark{}        -> mempty
+--     Underscore{}          -> mempty
+--     Dot _ e               -> declaredNames e
+--     App _ e1 e2           -> declaredNames e1 <> declaredNames e2
+--     WithApp _ e es        -> declaredNames e <> declaredNames es
+--     Lam _ b e             -> declaredNames b <> declaredNames e
+--     AbsurdLam{}           -> mempty
+--     ExtendedLam _ _ q cls -> singleton (WithKind FunName q) <> declaredNames cls
+--     Pi _ tel e            -> declaredNames tel <> declaredNames e
+--     Generalized s e       -> declaredNames e  -- NOT: fromList (map (WithKind GeneralizeName) $ Set.toList s) <> declaredNames e
+--     Fun _ e1 e2           -> declaredNames e1 <> declaredNames e2
+--     Set{}                 -> mempty
+--     Prop{}                -> mempty
+--     Let _ lbs e           -> declaredNames lbs <> declaredNames e
+--     ETel{}                -> __IMPOSSIBLE__
+--     Rec _ fields          -> declaredNames fields
+--     RecUpdate _ e fs      -> declaredNames e <> declaredNames fs
+--     ScopedExpr _ e        -> declaredNames e
+--     Quote{}               -> mempty
+--     QuoteTerm{}           -> mempty
+--     Unquote{}             -> mempty
+--     Tactic _ e xs         -> declaredNames e <> declaredNames xs
+--     DontCare{}            -> mempty
+--     PatternSyn{}          -> mempty
+--     Macro{}               -> mempty
+
+-- instance DeclaredNames LamBinding where
+--   declaredNames DomainFree{}       = mempty
+--   declaredNames (DomainFull binds) = declaredNames binds
+
+-- instance DeclaredNames TypedBinding where
+--   declaredNames (TBind _ t _ e) = declaredNames (t, e)
+--   declaredNames (TLet _ lbs)    = declaredNames lbs
+
+-- instance DeclaredNames LetBinding where
+--   declaredNames (LetBind _ _ _ e1 e2)   = declaredNames e1 <> declaredNames e2
+--   declaredNames (LetPatBind _ _ e)      = declaredNames e
+--   declaredNames (LetApply _ _ app _ _)  = declaredNames app
+--   declaredNames LetOpen{}               = mempty
+--   declaredNames (LetDeclaredVariable _) = mempty
+
+-- instance DeclaredNames ModuleApplication where
+--   declaredNames (SectionApp bindss _ es) = declaredNames bindss <> declaredNames es
+--   declaredNames RecordModuleInstance{}   = mempty

@@ -17,7 +17,7 @@ T false = Empty
 -- Thorsten suggests on the Agda list  thread "Coinductive families"
 -- to encode lists as records
 record List (A : Set) : Set where
-  inductive
+  inductive; pattern
   constructor list
   field
     isCons : Bool
@@ -28,6 +28,8 @@ open List public
 
 -- if the record constructor list was counted as structural increase
 -- Thorsten's function would not be rejected
+-- UPDATE: and indeed it's not. Safe because we don't translate away
+-- non-eta record patterns.
 append : {A : Set} -> List A -> List A -> List A
 append (list true  h t) l' = list true h (\ _ -> append (t _) l')
 append (list false _ _) l' = l'

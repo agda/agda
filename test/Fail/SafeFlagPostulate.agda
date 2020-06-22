@@ -1,3 +1,5 @@
+{-# OPTIONS --safe #-}
+
 module SafeFlagPostulate where
 
 data Empty : Set where

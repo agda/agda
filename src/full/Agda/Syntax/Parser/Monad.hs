@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -32,32 +31,22 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
-import Control.Exception (catch, displayException)
-import Data.Int
-
-import Data.Data (Data)
-import qualified Data.Text.Lazy as T
-
-import Control.Monad.State
+import Control.Exception ( displayException )
 import Control.Monad.Except
+import Control.Monad.State
+
+import Data.Int
+import Data.Data (Data)
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
-import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.Maybe.Strict as Strict
-
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
@@ -65,7 +54,7 @@ import Agda.Utils.Impossible
  --------------------------------------------------------------------------}
 
 -- | The parse monad.
-newtype Parser a = P { runP :: StateT ParseState (Either ParseError) a }
+newtype Parser a = P { _runP :: StateT ParseState (Either ParseError) a }
   deriving (Functor, Applicative, Monad, MonadState ParseState, MonadError ParseError)
 
 -- | The parser state. Contains everything the parser and the lexer could ever
@@ -137,6 +126,7 @@ data ParseError
     { errPath      :: !AbsolutePath
     , errIOError   :: IOError
     }
+  deriving Show
 
 -- | Warnings for parsing.
 data ParseWarning
@@ -145,7 +135,7 @@ data ParseWarning
     { warnRange    :: !(Range' SrcFile)
                       -- ^ The range of the bigger overlapping token
     }
-  deriving Data
+  deriving (Data, Show)
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
@@ -179,22 +169,19 @@ parseError msg = do
     Instances
  --------------------------------------------------------------------------}
 
-instance Show ParseError where
-  show = prettyShow
-
 instance Pretty ParseError where
   pretty ParseError{errPos,errSrcFile,errMsg,errPrevToken,errInput} = vcat
-      [ pretty (errPos { srcFile = errSrcFile }) <> colon <+>
+      [ (pretty (errPos { srcFile = errSrcFile }) <> colon) <+>
         text errMsg
       , text $ errPrevToken ++ "<ERROR>"
       , text $ take 30 errInput ++ "..."
       ]
   pretty OverlappingTokensError{errRange} = vcat
-      [ pretty errRange <> colon <+>
+      [ (pretty errRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
   pretty InvalidExtensionError{errPath,errValidExts} = vcat
-      [ pretty errPath <> colon <+>
+      [ (pretty errPath <> colon) <+>
         "Unsupported extension."
       , "Supported extensions are:" <+> prettyList_ errValidExts
       ]
@@ -213,12 +200,9 @@ instance HasRange ParseError where
     errPathRange = posToRange p p
       where p = startPos $ Just $ errPath err
 
-instance Show ParseWarning where
-  show = prettyShow
-
 instance Pretty ParseWarning where
   pretty OverlappingTokensWarning{warnRange} = vcat
-      [ pretty warnRange <> colon <+>
+      [ (pretty warnRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
 instance HasRange ParseWarning where
@@ -295,10 +279,11 @@ getParseInterval = do
   return $ posToInterval (parseSrcFile s) (parseLastPos s) (parsePos s)
 
 getLexState :: Parser [LexState]
-getLexState = parseLexState <$> get
+getLexState = gets parseLexState
 
-setLexState :: [LexState] -> Parser ()
-setLexState ls = modify $ \ s -> s { parseLexState = ls }
+-- UNUSED Liang-Ting Chen 2019-07-16
+--setLexState :: [LexState] -> Parser ()
+--setLexState ls = modify $ \ s -> s { parseLexState = ls }
 
 modifyLexState :: ([LexState] -> [LexState]) -> Parser ()
 modifyLexState f = modify $ \ s -> s { parseLexState = f (parseLexState s) }

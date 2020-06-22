@@ -6,7 +6,7 @@ import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
+import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icodeN' HR.Range a b
@@ -68,20 +68,25 @@ instance EmbPrj HP.Aspect where
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
-  icod_ HP.Error               = icodeN 0 ()
-  icod_ HP.DottedPattern       = icodeN' HP.DottedPattern
-  icod_ HP.UnsolvedMeta        = icodeN 2 ()
-  icod_ HP.TerminationProblem  = icodeN 3 ()
-  icod_ HP.IncompletePattern   = icodeN 4 ()
-  icod_ HP.TypeChecks          = icodeN 5 ()
-  icod_ HP.UnsolvedConstraint  = icodeN 6 ()
-  icod_ HP.PositivityProblem   = icodeN 7 ()
-  icod_ HP.Deadcode            = icodeN 8 ()
-  icod_ HP.CoverageProblem     = icodeN 9 ()
-  icod_ HP.CatchallClause      = icodeN 10 ()
+  icod_ HP.Error                = icodeN 0 ()
+  icod_ HP.ErrorWarning         = icodeN 1 ()
+  icod_ HP.DottedPattern        = icodeN' HP.DottedPattern
+  icod_ HP.UnsolvedMeta         = icodeN 2 ()
+  icod_ HP.TerminationProblem   = icodeN 3 ()
+  icod_ HP.IncompletePattern    = icodeN 4 ()
+  icod_ HP.TypeChecks           = icodeN 5 ()
+  icod_ HP.UnsolvedConstraint   = icodeN 6 ()
+  icod_ HP.PositivityProblem    = icodeN 7 ()
+  icod_ HP.Deadcode             = icodeN 8 ()
+  icod_ HP.CoverageProblem      = icodeN 9 ()
+  icod_ HP.CatchallClause       = icodeN 10 ()
+  icod_ HP.ConfluenceProblem    = icodeN 11 ()
+  icod_ HP.MissingDefinition    = icodeN 12 ()
+  icod_ HP.ShadowingInTelescope = icodeN 13 ()
 
   value = vcase valu where
     valu [0] = valuN HP.Error
+    valu [1] = valuN HP.ErrorWarning
     valu []  = valuN HP.DottedPattern
     valu [2] = valuN HP.UnsolvedMeta
     valu [3] = valuN HP.TerminationProblem
@@ -92,6 +97,9 @@ instance EmbPrj HP.OtherAspect where
     valu [8] = valuN HP.Deadcode
     valu [9] = valuN HP.CoverageProblem
     valu [10] = valuN HP.CatchallClause
+    valu [11] = valuN HP.ConfluenceProblem
+    valu [12] = valuN HP.MissingDefinition
+    valu [13] = valuN HP.ShadowingInTelescope
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where

@@ -1,0 +1,14 @@
+resolver: lts-15.7
+
+extra-deps:
+- data-hash-0.2.0.1
+- equivalence-0.3.5
+- geniplate-mirror-0.7.6
+- STMonadTrans-0.4.4
+- cpphs-1.20.9
+- text-icu-0.7.0.1
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'

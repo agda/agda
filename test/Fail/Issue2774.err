@@ -1,2 +1,2 @@
 Failed to solve the following constraints:
-  [16, 17] ∞ =< i ⊔ˢ j : Size
+  ∞ =< i ⊔ˢ j : Size

@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Highlighting.Vim where
 
@@ -7,6 +6,7 @@ import Control.Monad.Trans
 import Data.Function ( on )
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Maybe
 
 import System.FilePath
 
@@ -40,9 +40,13 @@ keyword _ [] = ""
 keyword cat ws  = "syn keyword " ++ unwords (cat : ws)
 
 match :: String -> [String] -> String
-match _ [] = ""
-match cat ws    = "syn match " ++ cat ++ " \"" ++
-                    concat (List.intersperse "\\|" $ map (wordBounded . escape) ws) ++ "\""
+match _   [] = ""
+match cat ws =
+  "syn match "
+    ++ cat
+    ++ " \""
+    ++ List.intercalate "\\|" (map (wordBounded . escape) ws)
+    ++ "\""
 
 matches :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String]
 matches cons icons defs idefs flds iflds =
@@ -54,8 +58,6 @@ matches cons icons defs idefs flds iflds =
         icons' = foo "agdaInfixConstructor" $ classify length icons
         defs'  = foo "agdaFunction"         $ classify length defs
         idefs' = foo "agdaInfixFunction"    $ classify length idefs
-        flds'  = foo "agdaProjection"       $ classify length flds
-        iflds' = foo "agdaInfixProjection"  $ classify length iflds
 
         classify f = List.groupBy ((==) `on` f)
                      . List.sortBy (compare `on` f)
@@ -66,9 +68,9 @@ matches cons icons defs idefs flds iflds =
 toVim :: NamesInScope -> String
 toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
     where
-        cons = [ x | (x, def:_) <- Map.toList ns, anameKind def == ConName ]
-        defs = [ x | (x, def:_) <- Map.toList ns, anameKind def == DefName ]
-        flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName ]
+        cons = [ x | (x, con:_) <- Map.toList ns, isJust $ isConName $ anameKind con ]
+        defs = [ x | (x, def:_) <- Map.toList ns, isDefName (anameKind def) ]
+        flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName  ]
 
         mcons = map show cons
         mdefs = map show defs
@@ -78,9 +80,9 @@ toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
         midefs = concatMap parts defs
         miflds = concatMap parts flds
 
-        parts (NoName _ _)    = []
-        parts (Name _ _ [_])  = []
-        parts (Name _ _ ps)   = [ rawNameToString x | Id x <- ps ]
+        parts n
+          | isOperator n = map rawNameToString $ nameStringParts n
+          | otherwise    = []
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do

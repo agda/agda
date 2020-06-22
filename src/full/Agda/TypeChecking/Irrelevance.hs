@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.
 
@@ -74,8 +74,7 @@ variable rule:
 
 module Agda.TypeChecking.Irrelevance where
 
-import Control.Arrow (first, second)
-import Control.Monad.Reader
+import Control.Arrow (second)
 
 import qualified Data.Map as Map
 
@@ -93,9 +92,6 @@ import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
-#include "undefined.h"
-import Agda.Utils.Impossible
-
 -- | data 'Relevance'
 --   see "Agda.Syntax.Common".
 
@@ -110,17 +106,19 @@ hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
-workOnTypes :: TCM a -> TCM a
+workOnTypes :: (MonadTCEnv m, HasOptions m, MonadDebug m)
+            => m a -> m a
 workOnTypes cont = do
   allowed <- optExperimentalIrrelevance <$> pragmaOptions
-  verboseBracket "tc.irr" 20 "workOnTypes" $ workOnTypes' allowed cont
+  verboseBracket "tc.irr" 60 "workOnTypes" $ workOnTypes' allowed cont
 
 -- | Internal workhorse, expects value of --experimental-irrelevance flag
 --   as argument.
-workOnTypes' :: Bool -> TCM a -> TCM a
+workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = modifyContext (map $ mapRelevance f)
-  . applyQuantityToContext Quantity0
+  = modifyContextInfo (mapRelevance f)
+  . applyQuantityToContext zeroQuantity
+  . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
   where
     f | experimental = irrToNonStrict
@@ -177,7 +175,7 @@ applyRelevanceToContextFunBody thing cont =
 applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
 applyQuantityToContext thing =
   case getQuantity thing of
-    Quantity1 -> id
+    Quantity1{} -> id
     q         -> applyQuantityToContextOnly   q
                . applyQuantityToJudgementOnly q
 
@@ -198,6 +196,25 @@ applyQuantityToContextOnly q = localTC
 --   Precondition: @Quantity /= Quantity1@
 applyQuantityToJudgementOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
 applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
+
+-- | Apply inverse composition with the given cohesion to the typing context.
+applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
+applyCohesionToContext thing =
+  case getCohesion thing of
+    m | m == mempty -> id
+      | otherwise   -> applyCohesionToContextOnly   m
+                       -- Cohesion does not apply to the judgment.
+
+applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
+applyCohesionToContextOnly q = localTC
+  $ over eContext     (map $ inverseApplyCohesion q)
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
+
+-- | Can we split on arguments of the given cohesion?
+splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool
+splittableCohesion a = do
+  let c = getCohesion a
+  pure (usableCohesion c) `and2M` (pure (c /= Flat) `or2M` do optFlatSplit <$> pragmaOptions)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -230,16 +247,18 @@ applyModalityToContextOnly m = localTC
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToJudgementOnly = localTC . over eModality . composeModality
 
--- | Like 'applyModalityToContext', but only act on context if
+-- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.
 --   See issue #2170.
 applyModalityToContextFunBody :: (MonadTCM tcm, LensModality r) => r -> tcm a -> tcm a
 applyModalityToContextFunBody thing cont = do
-  let m = getModality thing
-  if m == mempty then cont else
-    applyWhenM (optIrrelevantProjections <$> pragmaOptions)
-      (applyRelevanceToContextOnly (getRelevance m)) $    -- enable local irr. defs only when option
-      applyModalityToJudgementOnly m cont  -- enable global irr. defs alway
+    ifM (optIrrelevantProjections <$> pragmaOptions)
+      {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
+      {-else-} (applyRelevanceToContextFunBody (getRelevance m)
+               $ applyCohesionToContext (getCohesion m)
+               $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
+  where
+    m = getModality thing
 
 -- | Wake up irrelevant variables and make them relevant. This is used
 --   when type checking terms in a hole, in which case you want to be able to
@@ -252,7 +271,7 @@ applyModalityToContextFunBody thing cont = do
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
   = applyRelevanceToContextOnly Irrelevant
-  . applyQuantityToContextOnly  Quantity0
+  . applyQuantityToContextOnly  zeroQuantity
 
 -- | Check whether something can be used in a position of the given relevance.
 --
@@ -274,7 +293,7 @@ class UsableRelevance a where
 instance UsableRelevance Term where
   usableRel rel u = case u of
     Var i vs -> do
-      irel <- getRelevance <$> typeOfBV' i
+      irel <- getRelevance <$> domOfBV i
       let ok = irel `moreRelevant` rel
       reportSDoc "tc.irr" 50 $
         "Variable" <+> prettyTCM (var i) <+>
@@ -293,7 +312,7 @@ instance UsableRelevance Term where
     MetaV m vs -> do
       mrel <- getMetaRelevance <$> lookupMeta m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
-    DontCare _ -> return $ isIrrelevant rel
+    DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
 
 instance UsableRelevance a => UsableRelevance (Type' a) where
@@ -303,21 +322,21 @@ instance UsableRelevance Sort where
   usableRel rel s = case s of
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
-    Inf    -> return True
+    Inf n  -> return True
     SizeUniv -> return True
     LockUniv -> return True
-    PiSort s1 s2 -> usableRel rel (s1,s2)
+    PiSort a s -> usableRel rel (a,s)
+    FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
     DefS d es  -> usableRel rel $ Def d es
     DummyS{} -> return True
 
 instance UsableRelevance Level where
-  usableRel rel (Max ls) = usableRel rel ls
+  usableRel rel (Max _ ls) = usableRel rel ls
 
 instance UsableRelevance PlusLevel where
-  usableRel rel ClosedLevel{} = return True
-  usableRel rel (Plus _ l)    = usableRel rel l
+  usableRel rel (Plus _ l) = usableRel rel l
 
 instance UsableRelevance LevelAtom where
   usableRel rel l = case l of
@@ -371,7 +390,7 @@ class UsableModality a where
 instance UsableModality Term where
   usableMod mod u = case u of
     Var i vs -> do
-      imod <- getModality <$> typeOfBV' i
+      imod <- getModality <$> domOfBV i
       let ok = imod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Variable" <+> prettyTCM (var i) <+>
@@ -400,7 +419,7 @@ instance UsableModality Term where
         text ("has modality " ++ show mmod ++ ", which is a " ++
               (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
       return ok `and2M` usableMod mod vs
-    DontCare _ -> return $ isIrrelevant mod
+    DontCare v -> usableMod mod v
     Dummy{}  -> return True
 
 instance UsableRelevance a => UsableModality (Type' a) where
@@ -413,13 +432,13 @@ instance UsableModality Sort where
   --   Prop l -> usableMod mod l
   --   Inf    -> return True
   --   SizeUniv -> return True
-  --   PiSort s1 s2 -> usableMod mod (s1,s2)
+  --   PiSort a s -> usableMod mod (a,s)
   --   UnivSort s -> usableMod mod s
   --   MetaS x es -> usableMod mod es
   --   DummyS{} -> return True
 
 instance UsableModality Level where
-  usableMod mod (Max ls) = usableRel (getRelevance mod) ls
+  usableMod mod (Max _ ls) = usableRel (getRelevance mod) ls
 
 -- instance UsableModality PlusLevel where
 --   usableMod mod ClosedLevel{} = return True
@@ -463,10 +482,12 @@ instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
 
 -- | Is a type a proposition?  (Needs reduction.)
 
-isPropM :: (LensSort a, MonadReduce m) => a -> m Bool
-isPropM a = reduce (getSort a) <&> \case
-  Prop{} -> True
-  _      -> False
+isPropM :: (LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
+isPropM a = do
+  traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM (getSort a) <+> "in Prop?") $ do
+  reduce (getSort a) <&> \case
+    Prop{} -> True
+    _      -> False
 
-isIrrelevantOrPropM :: (LensRelevance a, LensSort a, MonadReduce m) => a -> m Bool
+isIrrelevantOrPropM :: (LensRelevance a, LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x

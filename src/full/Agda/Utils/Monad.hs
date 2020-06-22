@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -8,38 +7,18 @@ module Agda.Utils.Monad
     )
     where
 
-import Prelude       hiding (concat)
-import Control.Monad hiding (mapM, forM)
-
-#if __GLASGOW_HASKELL__ >= 800
-import qualified Control.Monad.Fail as Fail
-#endif
-
-import Control.Monad.Identity ( Identity )
+import Control.Applicative  (liftA2)
+import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
+
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
 
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , MonadError(catchError, throwError)
-  )
-
-import Agda.Utils.List
 import Agda.Utils.Null (ifNotNullM)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
-
----------------------------------------------------------------------------
-
-#if __GLASGOW_HASKELL__ >= 800
-instance Fail.MonadFail Identity where
-  fail = error
-#endif
 
 ---------------------------------------------------------------------------
 
@@ -61,9 +40,7 @@ guardM c = guard =<< c
 
 -- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM c m m' =
-    do  b <- c
-        if b then m else m'
+ifM c m m' = c >>= \b -> if b then m else m'
 
 -- | @ifNotM mc = ifM (not <$> mc)@
 ifNotM :: Monad m => m Bool -> m a -> m a -> m a
@@ -81,7 +58,7 @@ allM xs f = andM $ fmap f xs
 
 -- | Lazy monadic disjunction.
 or2M :: Monad m => m Bool -> m Bool -> m Bool
-or2M ma mb = ifM ma (return True) mb
+or2M ma = ifM ma (return True)
 
 orM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
 orM = Fold.foldl or2M (return False)
@@ -105,7 +82,7 @@ orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms
 
 -- Loops gathering results in a Monoid ------------------------------------
 
--- | Generalized version of @mapM_ :: Monad m => (a -> m ()) -> [a] -> m ()@
+-- | Generalized version of @traverse_ :: Applicative m => (a -> m ()) -> [a] -> m ()@
 --   Executes effects and collects results in left-to-right order.
 --   Works best with left-associative monoids.
 --
@@ -116,11 +93,11 @@ orEitherM (m : ms) = caseEitherM m (\e -> mapLeft (e `mappend`) <$> orEitherM ms
 --   that collects results in right-to-left order
 --   (effects still left-to-right).
 --   It might be preferable for right associative monoids.
-mapM' :: (Foldable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
-mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
+mapM' :: (Foldable t, Applicative m, Monoid b) => (a -> m b) -> t a -> m b
+mapM' f = Fold.foldl (\ mb a -> liftA2 mappend mb (f a)) (pure mempty)
 
--- | Generalized version of @forM_ :: Monad m => [a] -> (a -> m ()) -> m ()@
-forM' :: (Foldable t, Monad m, Monoid b) => t a -> (a -> m b) -> m b
+-- | Generalized version of @for_ :: Applicative m => [a] -> (a -> m ()) -> m ()@
+forM' :: (Foldable t, Applicative m, Monoid b) => t a -> (a -> m b) -> m b
 forM' = flip mapM'
 
 -- Variations of Traversable
@@ -130,6 +107,14 @@ mapMM f mxs = Trav.mapM f =<< mxs
 
 forMM :: (Traversable t, Monad m) => m (t a) -> (a -> m b) -> m (t b)
 forMM = flip mapMM
+
+-- Variations of Foldable
+
+mapMM_ :: (Foldable t, Monad m) => (a -> m ()) -> m (t a) -> m ()
+mapMM_ f mxs = Fold.mapM_ f =<< mxs
+
+forMM_ :: (Foldable t, Monad m) => m (t a) -> (a -> m ()) -> m ()
+forMM_ = flip mapMM_
 
 -- Continuation monad -----------------------------------------------------
 
@@ -150,9 +135,17 @@ forMM = flip mapMM
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
+-- | A version of @'mapMaybeM'@ with a computation for the input list.
+mapMaybeMM :: Monad m => (a -> m (Maybe b)) -> m [a] -> m [b]
+mapMaybeMM f m = mapMaybeM f =<< m
+
 -- | The @for@ version of 'mapMaybeM'.
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
+
+-- | The @for@ version of 'mapMaybeMM'.
+forMaybeMM :: Monad m => m [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeMM = flip mapMaybeMM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
 dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
@@ -167,11 +160,12 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
   ifM (p x) (return []) (return [x])
 
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
-partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a],[a])
-partitionM f [] =
-  pure ([], [])
-partitionM f (x:xs) =
-  (\ b (l, r) -> if b then (x:l, r) else (l, x:r)) <$> f x <*> partitionM f xs
+partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM f xs =
+  foldr
+    (\x -> (<*>) ((\b (l, r) -> if b then (x : l, r) else (l, x : r)) <$> f x))
+    (pure ([], []))
+    xs
 
 -- MonadPlus -----------------------------------------------------------------
 
@@ -191,7 +185,7 @@ catMaybesMP = (>>= fromMaybeMP)
 
 finally :: MonadError e m => m a -> m () -> m a
 first `finally` after = do
-  r <- catchError (liftM Right first) (return . Left)
+  r <- catchError (fmap Right first) (return . Left)
   after
   case r of
     Left e  -> throwError e
@@ -201,6 +195,16 @@ first `finally` after = do
 
 tryMaybe :: (MonadError e m, Functor m) => m a -> m (Maybe a)
 tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
+
+-- | Run a command, catch the exception and return it.
+
+tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
+tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
+
+-- | Like 'guard', but raise given error when condition fails.
+
+guardWithError :: MonadError e m => e -> Bool -> m ()
+guardWithError e b = if b then return () else throwError e
 
 -- State monad ------------------------------------------------------------
 
@@ -219,41 +223,3 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
-
--- Read -------------------------------------------------------------------
-
-readM :: (Error e, MonadError e m, Read a) => String -> m a
-readM s = case reads s of
-            [(x,"")]    -> return x
-            _           ->
-              throwError $ strMsg $ "readM: parse error string " ++ s
-
-
--- RETIRED STUFF ----------------------------------------------------------
-
-{- RETIRED, ASR, 09 September 2014. Not used.
--- | Bracket for the 'Error' class.
-
--- bracket :: (Error e, MonadError e m)
---         => m a         -- ^ Acquires resource. Run first.
---         -> (a -> m c)  -- ^ Releases resource. Run last.
---         -> (a -> m b)  -- ^ Computes result. Run in-between.
---         -> m b
--- bracket acquire release compute = do
---   resource <- acquire
---   compute resource `finally` release resource
--}
-
-{- RETIRED, Andreas, 2012-04-30. Not used.
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = concat <$> traverse f xs
-
--- | Depending on the monad you have to look at the result for
---   the force to be effective. For the 'IO' monad you do.
-forceM :: Monad m => [a] -> m ()
-forceM xs = do () <- length xs `seq` return ()
-               return ()
-
-commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
-commuteM = traverse id
--}

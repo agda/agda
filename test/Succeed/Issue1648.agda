@@ -11,7 +11,7 @@ B) p u v) is rewritten as HetEq idp u v using ap-cst (as expected),
 but then for some reason HetEq idp u v isn’t reduced to u == v. -}
 
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 -- {-# OPTIONS --show-implicit #-}
 
 data _==_ {i} {A : Set i} (a : A) : A → Set where

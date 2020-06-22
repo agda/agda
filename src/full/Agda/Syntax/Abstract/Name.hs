@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}
@@ -9,48 +7,45 @@ module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
+import Prelude hiding (length)
 
 import Control.DeepSeq
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Data (Data)
-import Data.List
+import Data.Foldable (length)
 import Data.Function
 import Data.Hashable (Hashable(..))
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.List
+import Data.Maybe
 import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
+import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId          :: !NameId
-                 , nameConcrete    :: C.Name
-                 , nameBindingSite :: Range
-                 , nameFixity      :: Fixity'
-                 , nameIsRecordName :: Bool
-                 }
-    deriving Data
+data Name = Name
+  { nameId           :: !NameId
+  , nameConcrete     :: C.Name
+  , nameBindingSite  :: Range
+  , nameFixity       :: Fixity'
+  , nameIsRecordName :: Bool
+      -- ^ Is this the name of the invisible record variable `self`?
+      --   Should not be printed or displayed in the context, see issue #3584.
+  } deriving Data
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
@@ -85,25 +80,31 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
-newtype AmbiguousQName = AmbQ { unAmbQ :: NonemptyList QName }
+newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
   deriving (Eq, Ord, Data)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
-unambiguous x = AmbQ (x :! [])
+unambiguous x = AmbQ (x :| [])
 
 -- | Get the first of the ambiguous names.
 headAmbQ :: AmbiguousQName -> QName
-headAmbQ (AmbQ xs) = headNe xs
+headAmbQ (AmbQ xs) = List1.head xs
 
 -- | Is a name ambiguous.
 isAmbiguous :: AmbiguousQName -> Bool
-isAmbiguous (AmbQ (_ :! xs)) = not (null xs)
+isAmbiguous (AmbQ (_ :| xs)) = not (null xs)
 
 -- | Get the name if unambiguous.
 getUnambiguous :: AmbiguousQName -> Maybe QName
-getUnambiguous (AmbQ (x :! [])) = Just x
+getUnambiguous (AmbQ (x :| [])) = Just x
 getUnambiguous _                = Nothing
+
+-- | A name suffix
+data Suffix
+  = NoSuffix
+  | Suffix Integer
+  deriving (Data, Show, Eq, Ord)
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
@@ -143,9 +144,9 @@ isAnonymousModuleName (MName ms) = isNoName $ last ms
 -- Precondition: The number of module name name parts has to be at
 -- least as large as the length of the list.
 
-withRangesOf :: ModuleName -> [C.Name] -> ModuleName
+withRangesOf :: ModuleName -> List1 C.Name -> ModuleName
 MName ms `withRangesOf` ns = if m < n then __IMPOSSIBLE__ else MName $
-      zipWith setRange (replicate (m - n) noRange ++ map getRange ns) ms
+      zipWith setRange (replicate (m - n) noRange ++ map getRange (List1.toList ns)) ms
   where
     m = length ms
     n = length ns
@@ -158,6 +159,12 @@ m `withRangesOfQ` q = m `withRangesOf` C.qnameParts q
 
 mnameFromList :: [Name] -> ModuleName
 mnameFromList = MName
+
+mnameFromList1 :: List1 Name -> ModuleName
+mnameFromList1 = MName . List1.toList
+
+mnameToList1 :: ModuleName -> List1 Name
+mnameToList1 (MName ns) = List1.ifNull ns __IMPOSSIBLE__ id
 
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
@@ -178,18 +185,20 @@ instance MkName String where
   mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
 
-qnameToList :: QName -> [Name]
-qnameToList (QName m x) = mnameToList m ++ [x]
+qnameToList0 :: QName -> [Name]
+qnameToList0 = List1.toList . qnameToList
 
-qnameFromList :: [Name] -> QName
-qnameFromList [] = __IMPOSSIBLE__
-qnameFromList xs = QName (mnameFromList $ init xs) (last xs)
+qnameToList :: QName -> List1 Name
+qnameToList (QName m x) = mnameToList m `List1.snoc` x
+
+qnameFromList :: List1 Name -> QName
+qnameFromList xs = QName (mnameFromList $ List1.init xs) (List1.last xs)
 
 qnameToMName :: QName -> ModuleName
-qnameToMName = mnameFromList . qnameToList
+qnameToMName = mnameFromList1 . qnameToList
 
 mnameToQName :: ModuleName -> QName
-mnameToQName = qnameFromList . mnameToList
+mnameToQName = qnameFromList . mnameToList1
 
 showQNameId :: QName -> String
 showQNameId q = show ns ++ "@" ++ show m
@@ -202,7 +211,7 @@ showQNameId q = show ns ++ "@" ++ show m
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName
 qnameToConcrete (QName m x) =
-  foldr C.Qual (C.QName $ nameConcrete x) $ map nameConcrete $ mnameToList m
+   foldr (C.Qual . nameConcrete) (C.QName $ nameConcrete x) (mnameToList m)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?
@@ -217,13 +226,14 @@ mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
 
 toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
 toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = C.TopLevelModuleName (getRange ms) $ map (C.nameToRawName . nameConcrete) ms
+toTopLevelModuleName (MName ms) = List1.ifNull ms __IMPOSSIBLE__ {-else-} $ \ ms1 ->
+  C.TopLevelModuleName (getRange ms1) $ fmap (C.nameToRawName . nameConcrete) ms1
 
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 
 qualifyQ :: ModuleName -> QName -> QName
-qualifyQ m x = qnameFromList $ mnameToList m ++ qnameToList x
+qualifyQ m x = qnameFromList $ mnameToList m `List1.prepend` qnameToList x
 
 qualify :: ModuleName -> Name -> QName
 qualify = QName
@@ -235,16 +245,26 @@ qualify_ = qualify noModuleName
 -- | Is the name an operator?
 
 isOperator :: QName -> Bool
-isOperator q = C.isOperator (nameConcrete (qnameName q))
+isOperator = C.isOperator . nameConcrete . qnameName
 
-isSubModuleOf :: ModuleName -> ModuleName -> Bool
-isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
-  where
-    xs = mnameToList x
-    ys = mnameToList y
+-- | Is the first module a weak parent of the second?
+isLeParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLeParentModuleOf = isPrefixOf `on` mnameToList
+
+-- | Is the first module a proper parent of the second?
+isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
+isLtParentModuleOf x y = isJust $ (stripPrefixBy (==) `on` mnameToList) x y
+
+-- | Is the first module a weak child of the second?
+isLeChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLeChildModuleOf = flip isLeParentModuleOf
+
+-- | Is the first module a proper child of the second?
+isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
+isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
-isInModule q m = mnameToList m `isPrefixOf` qnameToList q
+isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
@@ -299,6 +319,33 @@ instance NumHoles AmbiguousQName where
   numHoles = numHoles . headAmbQ
 
 ------------------------------------------------------------------------
+-- * name lenses
+------------------------------------------------------------------------
+
+lensQNameName :: Lens' Name QName
+lensQNameName f (QName m n) = QName m <$> f n
+
+------------------------------------------------------------------------
+-- * LensFixity' instances
+------------------------------------------------------------------------
+
+instance LensFixity' Name where
+  lensFixity' f n = f (nameFixity n) <&> \ fix' -> n { nameFixity = fix' }
+
+instance LensFixity' QName where
+  lensFixity' = lensQNameName . lensFixity'
+
+------------------------------------------------------------------------
+-- * LensFixity instances
+------------------------------------------------------------------------
+
+instance LensFixity Name where
+  lensFixity = lensFixity' . lensFixity
+
+instance LensFixity QName where
+  lensFixity = lensFixity' . lensFixity
+
+------------------------------------------------------------------------
 -- * LensInScope instances
 ------------------------------------------------------------------------
 
@@ -316,30 +363,17 @@ instance LensInScope QName where
 -- | Use 'prettyShow' to print names to the user.
 ------------------------------------------------------------------------
 
--- deriving instance Show Name
--- deriving instance Show ModuleName
--- deriving instance Show QName
+deriving instance Show Name
+deriving instance Show ModuleName
+deriving instance Show QName
 deriving instance Show a => Show (QNamed a)
 deriving instance Show AmbiguousQName
 
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'Name' into a string use @prettyShow@.
-instance Show Name where
-  -- Andreas, 2014-10-02: Reverted to nice printing.
-  -- Reason: I do not have time just now to properly fix the
-  -- use of Show Name for pretty printing everywhere.
-  -- But I want to push the fix for Issue 836 now.
-  show = prettyShow
+nameToArgName :: Name -> ArgName
+nameToArgName = stringToArgName . prettyShow
 
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'ModuleName' into a string use @prettyShow@.
-instance Show ModuleName where
-  show = prettyShow
-
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'QName' into a string use @prettyShow@.
-instance Show QName where
-  show = prettyShow
+namedArgName :: NamedArg Name -> ArgName
+namedArgName x = fromMaybe (nameToArgName $ namedArg x) $ bareNameOf x
 
 ------------------------------------------------------------------------
 -- * Pretty instances
@@ -352,10 +386,10 @@ instance Pretty ModuleName where
   pretty = hcat . punctuate "." . map pretty . mnameToList
 
 instance Pretty QName where
-  pretty = hcat . punctuate "." . map pretty . qnameToList
+  pretty = hcat . punctuate "." . map pretty . qnameToList0
 
 instance Pretty AmbiguousQName where
-  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty (toList qs)
+  pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty $ List1.toList qs
 
 instance Pretty a => Pretty (QNamed a) where
   pretty (QNamed a b) = pretty a <> "." <> pretty b
@@ -379,7 +413,7 @@ instance HasRange QName where
 -- | The range of an @AmbiguousQName@ is the range of any of its
 --   disambiguations (they are the same concrete name).
 instance HasRange AmbiguousQName where
-  getRange (AmbQ (c :! _)) = getRange c
+  getRange (AmbQ (c :| _)) = getRange c
 
 -- ** SetRange
 

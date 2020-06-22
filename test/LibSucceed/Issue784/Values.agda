@@ -6,21 +6,21 @@ open import Data.String.Properties public using (_≟_)
 
 open import Function public
 open import Data.List using (List; []; _∷_; _++_; [_]; boolFilter) renaming (map to mapL)
-open import Data.List.Any public using (Any; here; there) renaming (map to mapA; any to anyA)
+open import Data.List.Relation.Unary.Any public using (Any; here; there) renaming (map to mapA; any to anyA)
 open import Data.Product public using (Σ; Σ-syntax; proj₁; proj₂; _,_; _×_) renaming (map to mapΣ)
 open import Data.Unit public using (⊤)
 open import Data.Unit.NonEta public using (Unit; unit)
 open import Data.Empty public using (⊥; ⊥-elim)
-open import Relation.Binary.Core public
-open import Relation.Nullary public
+open import Relation.Binary.Core hiding (_⇔_) public
+open import Relation.Nullary hiding (Irrelevant) public
 import Level
 
 open import Relation.Binary.PropositionalEquality public hiding ([_]) renaming (cong to ≡-cong; cong₂ to ≡-cong₂)
 open import Relation.Binary.PropositionalEquality.Core public renaming (sym to ≡-sym; trans to ≡-trans)
-
+{-
 ≢-sym : ∀ {ℓ} {A : Set ℓ} {x y : A} → x ≢ y → y ≢ x
 ≢-sym x≢y = x≢y ∘ ≡-sym
-
+-}
 ≡-elim : ∀ {ℓ} {X Y : Set ℓ} → X ≡ Y → X → Y
 ≡-elim refl p = p
 

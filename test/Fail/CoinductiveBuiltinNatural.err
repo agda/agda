@@ -1,3 +1,3 @@
 CoinductiveBuiltinNatural.agda:9,21-22
-ℕ !=< ∞ ℕ of type Set
+ℕ !=< ∞ ℕ
 when checking that the expression suc has type ℕ → ℕ

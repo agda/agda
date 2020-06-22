@@ -152,10 +152,10 @@ Org_ files. Code blocks are surrounded by two lines including only
 
 
 .. _TeX: http://tug.org/
-.. _reStructuredText: http://docutils.sourceforge.net/rst.html
+.. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
 .. _Org: https://orgmode.org
 
 .. _lhs2TeX: https://www.andres-loeh.de/lhs2tex/
 .. _Sphinx: http://www.sphinx-doc.org/en/stable/
-.. _Pandoc: http://pandoc.org/
+.. _Pandoc: https://pandoc.org/

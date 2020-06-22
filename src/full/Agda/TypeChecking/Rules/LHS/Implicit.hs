@@ -1,36 +1,26 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.LHS.Implicit where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Control.Monad (forM)
-
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
-
-import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 implicitP :: ArgInfo -> NamedArg A.Pattern
@@ -82,7 +72,7 @@ insertImplicitPatternsT exh            ps a = do
          ]
   case ps of
     [] -> insImp dummy tel
-    p : _ -> do
+    p : _ -> setCurrentRange p $ do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
@@ -105,4 +95,4 @@ insertImplicitPatternsT exh            ps a = do
       NoSuchName x   -> typeError WrongHidingInLHS
       ImpInsert n    -> return $ map implicitArg n
 
-    implicitArg h = implicitP $ setHiding h $ defaultArgInfo
+    implicitArg d = implicitP $ getArgInfo d

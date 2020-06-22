@@ -1,0 +1,3 @@
+Issue4200.agda:7,6-12
+Erased constructors are not supported
+when checking the constructor c₂ in the declaration of D

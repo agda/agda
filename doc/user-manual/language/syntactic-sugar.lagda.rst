@@ -121,6 +121,10 @@ Desugaring
 |               |        where pᵢ → mᵢ |            p  → m'   |
 |               |      m'              |            pᵢ → mᵢ   |
 +---------------+----------------------+----------------------+
+| Absurd match  | ::                   | ::                   |
+|               |                      |                      |
+|               |   do () ← m          |     m >>= λ ()       |
++---------------+----------------------+----------------------+
 | Non-binding   | ::                   | ::                   |
 | statement     |                      |                      |
 |               |   do m               |     m >>             |
@@ -172,7 +176,7 @@ Next up, well-typed terms::
     app : ∀ {A B} (s : Term Γ (A => B)) (t : Term Γ A) → Term Γ B
     lam : ∀ A {B} (t : Term (A ∷ Γ) B) → Term Γ (A => B)
 
-Given a well-typed term we can mechaincally erase all the type
+Given a well-typed term we can mechanically erase all the type
 information (except the annotation on the lambda) to get the
 corresponding raw term::
 
@@ -308,6 +312,36 @@ desugars to
 .. code-block:: agda
 
   pure if_then_else_ <*> a <*> b <*> c
+
+Idiom brackets also support none or multiple applications. If the applicative
+functor has an additional binary operation
+
+.. code-block:: agda
+
+  _<|>_ : ∀ {A B} → F A → F A → F A
+
+then idiom brackets support multiple applications separated by a vertical bar ``|``, i.e.
+
+.. code-block:: agda
+
+  (| e₁ a₁ .. aₙ | e₂ a₁ .. aₘ | .. | eₖ a₁ .. aₗ |)
+
+which expands to (assuming right associative ``_<|>_``)
+
+.. code-block:: agda
+
+  (pure e₁ <*> a₁ <*> .. <*> aₙ) <|> ((pure e₂ <*> a₁ <*> .. <*> aₘ) <|> (pure eₖ <*> a₁ <*> .. <*> aₗ))
+
+Idiom brackets without any application ``(|)`` or ``⦇⦈`` expend to ``empty`` if
+
+.. code-block:: agda
+
+  empty :  ∀ {A} → F A
+
+is in scope. An applicative functor with ``empty`` and ``_<|>_`` is typically
+called ``Alternative``.
+
+Note that ``pure``, ``_<*>_``, and ``_<|>_`` need not be in scope to use ``(|)``.
 
 Limitations:
 

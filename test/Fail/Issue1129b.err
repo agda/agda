@@ -1,5 +1,8 @@
 Issue1129b.agda:22,3-24,20
-Could not parse the application act (a , b) ← mAB , return $ b , a
+Don't know how to parse act (a , b) ← mAB , return $ b , a. Could
+mean any one of:
+  id (bind mAB λ _ @ (a , b) → (((return $) b) , a))
+  id (bind (mAB , ((return $) b)) λ _ @ (a , b) → a)
 Operators used in the grammar:
   ,    (infix operator, level 20) [_,_ (Issue1129b.agda:3,3-6)]  
   _←_, (prefix notation, level 1) [bind (Issue1129b.agda:10,1-5)]

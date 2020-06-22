@@ -1,0 +1,5 @@
+Issue2170-unify.agda:19,39-45
+(.(unsquash₁ : _A_14) → Squash _A_14) !=< (A → Squash A) because
+one is a relevant function type and the other is an irrelevant
+function type
+when checking that the expression squash has type A → Squash A

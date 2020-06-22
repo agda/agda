@@ -40,6 +40,11 @@ prop_rangesInvariant2 = rangesInvariant . rToR
 prop_rangesInvariant3 :: Ranges -> Ranges -> Bool
 prop_rangesInvariant3 r1 r2 = rangesInvariant $ r1 `minus` r2
 
+prop_overlappings :: Ranges -> Ranges -> Bool
+prop_overlappings rs1 rs2 = overlappings rs1 rs2 == overlappings_spec rs1 rs2
+  where
+    overlappings_spec (Ranges r1s) (Ranges r2s) = or [ overlapping r1 r2 | r1 <- r1s, r2 <- r2s ]
+
 ------------------------------------------------------------------------
 -- Conversion
 

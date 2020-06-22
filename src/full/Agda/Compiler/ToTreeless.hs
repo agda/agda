@@ -1,54 +1,49 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.ToTreeless
   ( toTreeless
   , closedTermToTreeless
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first)
 import Control.Monad.Reader
-import Control.Monad.State
+
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
 import qualified Agda.Syntax.Treeless as C
 import Agda.Syntax.Treeless (TTerm, EvaluationStrategy)
-import Agda.Syntax.Literal
-import qualified Agda.TypeChecking.CompiledClause as CC
+
+import Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
-import Agda.TypeChecking.Records (getRecordConstructor)
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Telescope
-
-import Agda.Compiler.Treeless.Builtin
-import Agda.Compiler.Treeless.Simplify
-import Agda.Compiler.Treeless.Erase
-import Agda.Compiler.Treeless.Uncase
-import Agda.Compiler.Treeless.Pretty
-import Agda.Compiler.Treeless.Unused
-import Agda.Compiler.Treeless.AsPatterns
-import Agda.Compiler.Treeless.Identity
-
-import Agda.Syntax.Common
+import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
 import Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
+import Agda.Compiler.Treeless.AsPatterns
+import Agda.Compiler.Treeless.Builtin
+import Agda.Compiler.Treeless.Erase
+import Agda.Compiler.Treeless.Identity
+import Agda.Compiler.Treeless.Simplify
+import Agda.Compiler.Treeless.Uncase
+import Agda.Compiler.Treeless.Unused
+
+import Agda.Utils.Function
 import Agda.Utils.Functor
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Lens
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
+import qualified Agda.Utils.SmallSet as SmallSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 prettyPure :: P.Pretty a => a -> TCM Doc
@@ -231,7 +226,7 @@ casetree cc = do
     CC.Done xs v -> withContextSize (length xs) $ do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
-      v <- lift (putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v)
+      v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ normalise v)
       substTerm v
     CC.Case _ (CC.Branches True _ _ _ Just{} _ _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
@@ -252,13 +247,13 @@ casetree cc = do
                 c' <- lift (canonicalName c)
                 dtNm <- conData . theDef <$> lift (getConstInfo c')
                 return $ C.CTData dtNm
-              ([], (LitChar _ _):_)  -> return C.CTChar
-              ([], (LitString _ _):_) -> return C.CTString
-              ([], (LitFloat _ _):_) -> return C.CTFloat
-              ([], (LitQName _ _):_) -> return C.CTQName
+              ([], (LitChar _):_)  -> return C.CTChar
+              ([], (LitString _):_) -> return C.CTString
+              ([], (LitFloat _):_) -> return C.CTFloat
+              ([], (LitQName _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
-          x <- lookupLevel n <$> asks ccCxt
+          x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
           let caseInfo = C.CaseInfo { caseType = caseTy, caseLazy = lazy }
           C.TCase x caseInfo def <$> do
@@ -269,7 +264,7 @@ casetree cc = do
     -- normally, Agda should make sure that a pattern match is total,
     -- so we set the default to unreachable if no default has been provided.
     fromCatchAll :: CC C.TTerm
-    fromCatchAll = maybe C.tUnreachable C.TVar <$> asks ccCatchAll
+    fromCatchAll = asks (maybe C.tUnreachable C.TVar . ccCatchAll)
 
 commonArity :: CC.CompiledClauses -> Int
 commonArity cc =
@@ -279,7 +274,7 @@ commonArity cc =
   where
     arities cxt (Case (Arg _ x) (Branches False cons eta lits def _ _)) =
       concatMap (wArities cxt') (Map.elems cons) ++
-      concatMap (wArities cxt') (map snd $ maybeToList eta) ++
+      concatMap ((wArities cxt') . snd) (maybeToList eta) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
       where cxt' = max (x + 1) cxt
@@ -302,12 +297,13 @@ updateCatchAll (Just cc) cont = do
 -- MUST NOT be used inside `cont`.
 withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
 withContextSize n cont = do
-  diff <- (n -) . length <$> asks ccCxt
+  diff <- asks (((n -) . length) . ccCxt)
 
   if diff <= 0
   then do
-    local (\e -> e { ccCxt = shift diff $ drop (-diff) (ccCxt e)}) $
-      C.mkTApp <$> cont <*> pure [C.TVar i | i <- reverse [0..(-diff - 1)]]
+    let diff' = -diff
+    local (\e -> e { ccCxt = shift diff . drop diff' $ ccCxt e }) $
+      cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
   else do
     local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
       createLambdas diff <$> do
@@ -321,7 +317,7 @@ withContextSize n cont = do
 -- Updates the catchAll expression to take the additional lambdas into account.
 lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
 lambdasUpTo n cont = do
-  diff <- (n -) . length <$> asks ccCxt
+  diff <- asks (((n -) . length) . ccCxt)
 
   if diff <= 0 then cont -- no new lambdas needed
   else do
@@ -335,7 +331,7 @@ lambdasUpTo n cont = do
           -- we also bind the catch all to a let, to avoid code duplication
           local (\e -> e { ccCatchAll = Just 0
                          , ccCxt = shift 1 (ccCxt e)}) $ do
-            let catchAllArgs = map C.TVar $ reverse [0..(diff - 1)]
+            let catchAllArgs = map C.TVar $ downFrom diff
             C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
               <$> cont
         Nothing -> cont
@@ -353,8 +349,7 @@ litAlts x br = forM (Map.toList br) $ \ (l, cc) ->
     branch (C.TALit l ) cc
 
 branch :: (C.TTerm -> C.TAlt) -> CC.CompiledClauses -> CC C.TAlt
-branch alt cc = do
-  alt <$> casetree cc
+branch alt cc = alt <$> casetree cc
 
 -- | Replace de Bruijn Level @x@ by @n@ new variables.
 replaceVar :: Int -> Int -> CC a -> CC a
@@ -375,7 +370,7 @@ replaceVar x n cont = do
 mkRecord :: Map QName C.TTerm -> CC C.TTerm
 mkRecord fs = lift $ do
   -- Get the name of the first field
-  let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
+  let p1 = fst $ headWithDefault __IMPOSSIBLE__ $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
   I.ConHead c _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
   reportSDoc "treeless.convert.mkRecord" 60 $ vcat
@@ -383,7 +378,7 @@ mkRecord fs = lift $ do
     , text "to be filled with content: keys fs = " <+> (text . show) (Map.keys fs)
     ]
   -- Convert the constructor
-  let (args :: [C.TTerm]) = for xs $ \ (Arg ai x) -> Map.findWithDefault __IMPOSSIBLE__ x fs
+  let (args :: [C.TTerm]) = for xs $ \ x -> Map.findWithDefault __IMPOSSIBLE__ (unArg x) fs
   return $ C.mkTApp (C.TCon c) args
 
 
@@ -401,14 +396,14 @@ recConFromProj q = do
 --   indices in the environment as well.
 substTerm :: I.Term -> CC C.TTerm
 substTerm term = normaliseStatic term >>= \ term ->
-  case I.unSpine term of
+  case I.unSpine $ etaContractErased term of
     I.Var ind es -> do
-      ind' <- lookupIndex ind <$> asks ccCxt
+      ind' <- asks (lookupIndex ind . ccCxt)
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TVar ind') <$> substArgs args
     I.Lam _ ab ->
       C.TLam <$>
-        local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
+        local (\e -> e { ccCxt = 0 : shift 1 (ccCxt e) })
           (substTerm $ I.unAbs ab)
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit
@@ -424,6 +419,55 @@ substTerm term = normaliseStatic term >>= \ term ->
     I.MetaV _ _ -> __IMPOSSIBLE__   -- we don't compiled if unsolved metas
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
+
+-- Andreas, 2019-07-10, issue #3792
+-- | Eta-contract erased lambdas.
+--
+-- Should also be fine for strict backends:
+--
+--   * eta-contraction is semantics-preserving for total, effect-free languages.
+--   * should a user rely on thunking, better not used an erased abstraction!
+--
+-- A live-or-death issue for the GHC 8.0 backend.  Consider:
+-- @
+--   foldl : ∀ {A} (B : Nat → Set)
+--         → (f : ∀ {@0 n} → B n → A → B (suc n))
+--         → (z : B 0)
+--         → ∀ {@0 n} → Vec A n → B n
+--   foldl B f z (x ∷ xs) = foldl (λ n → B (suc n)) (λ{@0 x} → f {suc x}) (f z x) xs
+--   foldl B f z [] = z
+-- @
+-- The hidden composition of @f@ with @suc@, term @(λ{@0 x} → f {suc x})@,
+-- can be eta-contracted to just @f@ by the compiler, since the first argument
+-- of @f@ is erased.
+--
+-- GHC >= 8.2 seems to be able to do the optimization himself, but not 8.0.
+--
+etaContractErased :: I.Term -> I.Term
+etaContractErased = trampoline etaErasedOnce
+  where
+  etaErasedOnce :: I.Term -> Either I.Term I.Term  -- Left = done, Right = jump again
+  etaErasedOnce t =
+    case t of
+
+      -- If the abstraction is void, we don't have to strengthen.
+      I.Lam _ (NoAbs _ v) ->
+        case binAppView v of
+          -- If the body is an application ending with an erased argument, eta-reduce!
+          App u arg | not (usableModality arg) -> Right u
+          _ -> done
+
+      -- If the abstraction is non-void, only eta-contract if erased.
+      I.Lam ai (Abs _ v) | not (usableModality ai) ->
+        case binAppView v of
+          -- If the body is an application ending with an erased argument, eta-reduce!
+          -- We need to strengthen the function part then.
+          App u arg | not (usableModality arg) -> Right $ subst 0 (DontCare __DUMMY_TERM__) u
+          _ -> done
+
+      _ -> done
+    where
+    done = Left t
 
 normaliseStatic :: I.Term -> CC I.Term
 normaliseStatic v@(I.Def f es) = lift $ do

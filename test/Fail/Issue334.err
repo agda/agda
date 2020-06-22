@@ -1,6 +1,0 @@
-Issue334.agda:16,1-17,21
-Termination checking failed for the following functions:
-  f
-Problematic calls:
-  f e
-    (at Issue334.agda:17,18-19)

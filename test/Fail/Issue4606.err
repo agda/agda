@@ -1,0 +1,5 @@
+Issue4606.agda:34,1-40,28
+Termination checking failed for the following functions:
+Problematic calls:
+  α y
+    (at Issue4606.agda:40,24-25)

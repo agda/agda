@@ -72,10 +72,10 @@ module ReflectLibrary where
   lamʰ : Term → Term
   lamʰ t = lam hidden (abs "_" t)
 
-  argᵛʳ : ∀{A} → A → Arg A
+  argᵛʳ : ∀{a} {A : Set a} → A → Arg A
   argᵛʳ = arg (argInfo visible relevant)
 
-  argʰʳ : ∀{A} → A → Arg A
+  argʰʳ : ∀{a} {A : Set a} → A → Arg A
   argʰʳ = arg (argInfo hidden relevant)
 
   app` : (Args → Term) → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
@@ -115,7 +115,7 @@ module ReflectLibrary where
   `Set₀ : Term
   `Set₀ = sort sort₀
 
-  unArg : ∀ {A} → Arg A → A
+  unArg : ∀ {a} {A : Set a} → Arg A → A
   unArg (arg _ a) = a
 
   `Level : Term

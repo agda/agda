@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -7,19 +6,13 @@
 
 module Agda.TypeChecking.SizedTypes.Syntax where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null )
-#else
 import Prelude hiding ( null )
-#endif
 
-import Data.Maybe
-import Data.Foldable (Foldable)
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (Traversable)
 
 import Agda.TypeChecking.SizedTypes.Utils
 
@@ -33,7 +26,7 @@ import Agda.Utils.Pretty
 newtype Offset = O Int
   deriving (Eq, Ord, Num, Enum)
 
--- This Show instance is ok because of the Enum constraint.
+-- This Show instance is ok because of the Num constraint.
 instance Show Offset where
   show (O n) = show n
 

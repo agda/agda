@@ -13,9 +13,6 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import qualified Data.Set as Set
-import Data.Set (Set)
-import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -44,7 +41,7 @@ forceNotFree xs a = do
   -- Initially, all variables are marked as `NotFree`. This is changed
   -- to `MaybeFree` when we find an occurrence.
   let mxs = IntMap.fromSet (const NotFree) xs
-  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) Set.empty) mxs
+  (a, mxs) <- runStateT (runReaderT (forceNotFreeR $ precomputeFreeVars_ a) mempty) mxs
   return (mxs, a)
 
 type MonadFreeRed m =
@@ -64,7 +61,7 @@ class (PrecomputeFreeVars a, Subst Term a) => ForceNotFree a where
 -- Return the set of variables for which there is still hope that they
 -- may not occur.
 varsToForceNotFree :: (MonadFreeRed m) => m IntSet
-varsToForceNotFree = IntMap.keysSet . (IntMap.filter (== NotFree)) <$> get
+varsToForceNotFree = gets (IntMap.keysSet . (IntMap.filter (== NotFree)))
 
 -- Reduce the argument if there are offending free variables. Doesn't call the
 -- continuation when no reduction is required.
@@ -74,8 +71,9 @@ reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
       notfree = IntSet.null $ IntSet.intersection xs fvs
-  if | notfree   -> return a
-     | otherwise -> k . precomputeFreeVars_ =<< reduce a
+  if notfree
+    then return a
+    else k . precomputeFreeVars_ =<< reduce a
 
 -- Careful not to define forceNotFree' = forceNotFreeR since that would loop.
 forceNotFreeR :: (Reduce a, ForceNotFree a, MonadFreeRed m)
@@ -121,7 +119,7 @@ instance ForceNotFree Term where
       Var x <$> forceNotFree' es
     Def f es   -> Def f    <$> forceNotFree' es
     Con c h es -> Con c h  <$> forceNotFree' es
-    MetaV x es -> local (Set.insert x) $
+    MetaV x es -> local (insertMetaSet x) $
                   MetaV x  <$> forceNotFree' es
     Lam h b    -> Lam h    <$> forceNotFree' b
     Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
@@ -132,16 +130,14 @@ instance ForceNotFree Term where
     Dummy{}    -> return t
 
 instance ForceNotFree Level where
-  forceNotFree' (Max as) = Max <$> forceNotFree' as
+  forceNotFree' (Max m as) = Max m <$> forceNotFree' as
 
 instance ForceNotFree PlusLevel where
-  forceNotFree' l = case l of
-    ClosedLevel{} -> return l
-    Plus k a      -> Plus k <$> forceNotFree' a
+  forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
 instance ForceNotFree LevelAtom where
   forceNotFree' l = case l of
-    MetaLevel x es   -> local (Set.insert x) $
+    MetaLevel x es   -> local (insertMetaSet x) $
                         MetaLevel x    <$> forceNotFree' es
     BlockedLevel x t -> BlockedLevel x <$> forceNotFree' t
     NeutralLevel b t -> NeutralLevel b <$> forceNotFree' t
@@ -154,10 +150,11 @@ instance ForceNotFree Sort where
     Type l     -> Type     <$> forceNotFree' l
     Prop l     -> Prop     <$> forceNotFree' l
     PiSort a b -> PiSort   <$> forceNotFree' a <*> forceNotFree' b
+    FunSort a b -> FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
     DefS d es  -> DefS d   <$> forceNotFree' es
-    Inf        -> return s
+    Inf _      -> return s
     SizeUniv   -> return s
     LockUniv   -> return s
     DummyS{}   -> return s

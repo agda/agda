@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 ------------------------------------------------------------------------
 -- | Functions which map between module names and file names.
 --
@@ -8,10 +7,11 @@
 ------------------------------------------------------------------------
 
 module Agda.Interaction.FindFile
-  ( toIFile
+  ( SourceFile(..), InterfaceFile(intFilePath)
+  , toIFile, mkInterfaceFile
   , FindError(..), findErrorToTypeError
   , findFile, findFile', findFile''
-  , findInterfaceFile
+  , findInterfaceFile', findInterfaceFile
   , checkModuleName
   , moduleName
   , rootNameModule
@@ -20,41 +20,74 @@ module Agda.Interaction.FindFile
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans
-import qualified Data.List as List
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
 
-import Agda.Syntax.Common
+import Agda.Interaction.Library ( findProjectRoot )
+
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
 
+import Agda.Interaction.Options ( optLocalInterfaces )
+
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.Except
-import Agda.Utils.FileName
-import Agda.Utils.Lens
-import Agda.Utils.List ( stripSuffix )
-import Agda.Utils.Null
+import Agda.Version ( version )
 
-#include "undefined.h"
+import Agda.Utils.Applicative ( (?$>) )
+import Agda.Utils.FileName
+import Agda.Utils.List  ( stripSuffix, nubOn )
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
+
 import Agda.Utils.Impossible
 
--- | Converts an Agda file name to the corresponding interface file
--- name.
+-- | Type aliases for source files and interface files.
+--   We may only produce one of these if we know for sure that the file
+--   does exist. We can always output an @AbsolutePath@ if we are not sure.
 
-toIFile :: AbsolutePath -> AbsolutePath
-toIFile = replaceModuleExtension ".agdai"
+-- TODO: do not export @SourceFile@ and force users to check the
+-- @AbsolutePath@ does exist.
+newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq, Ord)
+newtype InterfaceFile = InterfaceFile { intFilePath :: AbsolutePath }
+
+-- | Makes an interface file from an AbsolutePath candidate.
+--   If the file does not exist, then fail by returning @Nothing@.
+
+mkInterfaceFile
+  :: AbsolutePath             -- ^ Path to the candidate interface file
+  -> IO (Maybe InterfaceFile) -- ^ Interface file iff it exists
+mkInterfaceFile fp = do
+  ex <- doesFileExistCaseSensitive $ filePath fp
+  pure (ex ?$> InterfaceFile fp)
+
+-- | Converts an Agda file name to the corresponding interface file
+--   name. Note that we do not guarantee that the file exists.
+
+toIFile :: (HasOptions m, MonadIO m) => SourceFile -> m AbsolutePath
+toIFile (SourceFile src) = do
+  let fp = filePath src
+  mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
+               {- then -} (pure Nothing)
+               {- else -} (liftIO $ findProjectRoot $ takeDirectory fp)
+  pure $ replaceModuleExtension ".agdai" $ case mroot of
+    Nothing   -> src
+    Just root ->
+      let buildDir = root </> "_build" </> version </> "agda"
+          fileName = makeRelative root fp
+      in mkAbsolute $ buildDir </> fileName
 
 replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
 replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
@@ -65,10 +98,10 @@ replaceModuleExtension ext = replaceModuleExtension ('.':ext)
 -- Invariant: All paths are absolute.
 
 data FindError
-  = NotFound [AbsolutePath]
+  = NotFound [SourceFile]
     -- ^ The file was not found. It should have had one of the given
     -- file names.
-  | Ambiguous [AbsolutePath]
+  | Ambiguous [SourceFile]
     -- ^ Several matching files were found.
     --
     -- Invariant: The list of matching files has at least two
@@ -78,16 +111,16 @@ data FindError
 -- converts a 'FindError' to a 'TypeError'.
 
 findErrorToTypeError :: TopLevelModuleName -> FindError -> TypeError
-findErrorToTypeError m (NotFound  files) = FileNotFound m files
+findErrorToTypeError m (NotFound  files) = FileNotFound m (map srcFilePath files)
 findErrorToTypeError m (Ambiguous files) =
-  AmbiguousTopLevelModuleName m files
+  AmbiguousTopLevelModuleName m (map srcFilePath files)
 
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
 --
 -- Raises an error if the file cannot be found.
 
-findFile :: TopLevelModuleName -> TCM AbsolutePath
+findFile :: TopLevelModuleName -> TCM SourceFile
 findFile m = do
   mf <- findFile' m
   case mf of
@@ -98,7 +131,7 @@ findFile m = do
 --   module name. The returned paths are absolute.
 --
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
-findFile' :: TopLevelModuleName -> TCM (Either FindError AbsolutePath)
+findFile' :: TopLevelModuleName -> TCM (Either FindError SourceFile)
 findFile' m = do
     dirs         <- getIncludeDirs
     modFile      <- useTC stModuleToSource
@@ -114,38 +147,46 @@ findFile''
   -> TopLevelModuleName
   -> ModuleToSource
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
-  -> IO (Either FindError AbsolutePath, ModuleToSource)
+  -> IO (Either FindError SourceFile, ModuleToSource)
 findFile'' dirs m modFile =
   case Map.lookup m modFile of
-    Just f  -> return (Right f, modFile)
+    Just f  -> return (Right (SourceFile f), modFile)
     Nothing -> do
-      files <- fileList acceptableFileExts
+      files          <- fileList acceptableFileExts
       filesShortList <- fileList parseFileExtsShortList
-      existingFiles <-
-        liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
-      return $ case List.nub existingFiles of
+      existingFiles  <-
+        liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
+      return $ case nubOn id existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
-        [file] -> (Right file, Map.insert m file modFile)
+        [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
         files  -> (Left (Ambiguous existingFiles), modFile)
   where
-    fileList exts = mapM absolute
+    fileList exts = mapM (fmap SourceFile . absolute)
                     [ filePath dir </> file
                     | dir  <- dirs
                     , file <- map (moduleNameToFileName m) exts
                     ]
 
 -- | Finds the interface file corresponding to a given top-level
--- module name. The returned paths are absolute.
+-- module file. The returned paths are absolute.
+--
+-- Raises 'Nothing' if the the interface file cannot be found.
+
+findInterfaceFile'
+  :: (HasOptions m, MonadIO m)
+  => SourceFile                 -- ^ Path to the source file
+  -> m (Maybe InterfaceFile)    -- ^ Maybe path to the interface file
+findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
+
+-- | Finds the interface file corresponding to a given top-level
+-- module file. The returned paths are absolute.
 --
 -- Raises an error if the source file cannot be found, and returns
 -- 'Nothing' if the source file can be found but not the interface
 -- file.
 
-findInterfaceFile :: TopLevelModuleName -> TCM (Maybe AbsolutePath)
-findInterfaceFile m = do
-  f  <- toIFile <$> findFile m
-  ex <- liftIO $ doesFileExistCaseSensitive $ filePath f
-  return $ if ex then Just f else Nothing
+findInterfaceFile :: TopLevelModuleName -> TCM (Maybe InterfaceFile)
+findInterfaceFile m = findInterfaceFile' =<< findFile m
 
 -- | Ensures that the module name matches the file name. The file
 -- corresponding to the module name (according to the include path)
@@ -154,23 +195,24 @@ findInterfaceFile m = do
 checkModuleName
   :: TopLevelModuleName
      -- ^ The name of the module.
-  -> AbsolutePath
+  -> SourceFile
      -- ^ The file from which it was loaded.
   -> Maybe TopLevelModuleName
      -- ^ The expected name, coming from an import statement.
   -> TCM ()
-checkModuleName name file mexpected =
+checkModuleName name (SourceFile file) mexpected =
   findFile' name >>= \case
 
     Left (NotFound files)  -> typeError $
       case mexpected of
-        Nothing       -> ModuleNameDoesntMatchFileName name files
+        Nothing -> ModuleNameDoesntMatchFileName name (map srcFilePath files)
         Just expected -> ModuleNameUnexpected name expected
 
     Left (Ambiguous files) -> typeError $
-      AmbiguousTopLevelModuleName name files
+      AmbiguousTopLevelModuleName name (map srcFilePath files)
 
-    Right file' -> do
+    Right src -> do
+      let file' = srcFilePath src
       file <- liftIO $ absolute (filePath file)
       if file === file' then
         return ()
@@ -194,26 +236,26 @@ moduleName
   -> TCM TopLevelModuleName
 moduleName file parsedModule = billTo [Bench.ModuleName] $
   case moduleNameParts name of
-    ["_"] -> do
+    "_" :| [] -> do
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
-             "The file name " ++ show file ++
+             "The file name " ++ prettyShow file ++
              " is invalid because it does not correspond to a valid module name."
       case m of
         Qual {} ->
           typeError $ GenericError $
-            "The file name " ++ show file ++ " is invalid because " ++
+            "The file name " ++ prettyShow file ++ " is invalid because " ++
             defaultName ++ " is not an unqualified module name."
         QName {} ->
-          return $ TopLevelModuleName (getRange m) [defaultName]
+          return $ TopLevelModuleName (getRange m) $ singleton defaultName
     _ -> return name
   where
   name        = topLevelModuleName parsedModule
   defaultName = rootNameModule file
 
 parseFileExtsShortList :: [String]
-parseFileExtsShortList = [".agda"] ++ literateExtsShortList
+parseFileExtsShortList = ".agda" : literateExtsShortList
 
 dropAgdaExtension :: String -> String
 dropAgdaExtension s = case catMaybes [ stripSuffix ext s

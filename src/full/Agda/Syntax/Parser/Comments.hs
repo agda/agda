@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 {-| This module defines the lex action to lex nested comments. As is well-known
     this cannot be done by regular expressions (which, incidently, is probably
@@ -18,8 +17,6 @@ import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.LookAhead
 import Agda.Syntax.Position
-
-import Agda.Utils.Monad
 
 -- | Should comment tokens be output?
 

@@ -1,0 +1,4 @@
+Issue3817.agda:16,21-24
+Confluence check failed: f (lsuc g) reduces to both a and
+f (lsuc h) which are not equal because a != b of type A
+when checking confluence of the rewrite rule f-g with g-h

@@ -1,6 +1,6 @@
-ConflictingRelevance2.agda:4,24-24
-ConflictingRelevance2.agda:4,24: Parse error
-@<ERROR>
-irrelevant A) → A
+ConflictingRelevance2.agda:4,37-37
+ConflictingRelevance2.agda:4,37: Parse error
+)<ERROR>
+ → A
 
--- Should f...
+-- Should fail.  (Curren...

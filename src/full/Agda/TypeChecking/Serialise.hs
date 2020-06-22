@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 -- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
 -- -O2 does not have any noticable effect on runtime
@@ -22,15 +23,20 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import System.Directory ( createDirectoryIfMissing )
+import System.FilePath ( takeDirectory )
+
 import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 
 import Data.Array.IArray
 import Data.Word
+import qualified Data.ByteString.Builder as L
 import qualified Data.ByteString.Lazy as L
 import qualified Data.HashTable.IO as H
 import qualified Data.Map as Map
@@ -39,70 +45,87 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup((<>))
+#endif
 
 import qualified Codec.Compression.GZip as G
+import qualified Codec.Compression.Zlib.Internal as Z
+
+#if __GLASGOW_HASKELL__ >= 804
+import GHC.Compact as C
+#endif
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances ()
+import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Hash
 import Agda.Utils.IORef
-import Agda.Utils.Lens
-
-import Agda.Utils.Except
 
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20190410 * 10 + 0
+currentInterfaceVersion = 20200620 * 10 + 0
+
+-- | The result of 'encode' and 'encodeInterface'.
+
+data Encoded = Encoded
+  { uncompressed :: L.ByteString
+    -- ^ The uncompressed bytestring, without hashes and the interface
+    -- version.
+  , compressed :: L.ByteString
+    -- ^ The compressed bytestring.
+  }
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encode :: EmbPrj a => a -> TCM L.ByteString
+encode :: EmbPrj a => a -> TCM Encoded
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD bD iD dD _tD
+    newD@(Dict nD ltD stD bD iD dD _tD
       _nameD
       _qnameD
-      nC sC bC iC dC tC
+      nC ltC stC bC iC dC tC
       nameC
       qnameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod  -- Only fills absPathD from fileMod
        icode a
-    nL <- benchSort $ l nD
-    sL <- benchSort $ l sD
-    bL <- benchSort $ l bD
-    iL <- benchSort $ l iD
-    dL <- benchSort $ l dD
+    nL  <- benchSort $ l nD
+    stL <- benchSort $ l stD
+    ltL <- benchSort $ l ltD
+    bL  <- benchSort $ l bD
+    iL  <- benchSort $ l iD
+    dL  <- benchSort $ l dD
     -- Record reuse statistics.
     verboseS "profile.sharing" 10 $ do
       statistics "pointers" tC
     verboseS "profile.serialize" 10 $ do
-      statistics "Integer"  iC
-      statistics "String"   sC
-      statistics "Text"     bC
-      statistics "Double"   dC
-      statistics "Node"     nC
+      statistics "Integer"     iC
+      statistics "Lazy Text"   ltC
+      statistics "Strict Text" stC
+      statistics "Text"        bC
+      statistics "Double"      dC
+      statistics "Node"        nC
       statistics "Shared Term" tC
-      statistics "A.QName"  qnameC
-      statistics "A.Name"  nameC
+      statistics "A.QName"     qnameC
+      statistics "A.Name"      nameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      return $!! B.encode (root, nL, sL, bL, iL, dL)
+      return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -110,15 +133,21 @@ encode a = do
     cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
       return $!! G.compressWith compressParams bits1
     let x = B.encode currentInterfaceVersion `L.append` cbits
-    return x
+    return (Encoded { uncompressed = bits1, compressed = x })
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = Bench.billTo [Bench.Serialization, Bench.Sort] . liftIO
     statistics :: String -> IORef FreshAndReuse -> TCM ()
     statistics kind ioref = do
-      FreshAndReuse fresh reused <- liftIO $ readIORef ioref
+      FreshAndReuse fresh
+#ifdef DEBUG
+                          reused
+#endif
+                                 <- liftIO $ readIORef ioref
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
+#ifdef DEBUG
       tickN (kind ++ " (reused)") $ fromIntegral reused
+#endif
 
 -- encode :: EmbPrj a => a -> TCM L.ByteString
 -- encode a = do
@@ -137,48 +166,47 @@ encode a = do
 --   where
 --   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
--- | Decodes something. The result depends on the include path.
+-- | Decodes an uncompressed bytestring (without extra hashes or magic
+-- numbers). The result depends on the include path.
 --
--- Returns 'Nothing' if the input does not start with the right magic
--- number or some other decoding error is encountered.
+-- Returns 'Nothing' if a decoding error is encountered.
 
 decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
   mf   <- useTC stModuleToSource
   incs <- getIncludeDirs
 
-  -- Note that B.runGetState and G.decompress can raise errors if the
-  -- input is malformed. The decoder is (intended to be) strict enough
-  -- to ensure that all such errors can be caught by the handler here.
+  -- Note that runGetState can raise errors if the input is malformed.
+  -- The decoder is (intended to be) strict enough to ensure that all
+  -- such errors can be caught by the handler here.
 
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
-    (ver, s, _) <- return $ runGetState B.get s 0
-    if ver /= currentInterfaceVersion
-     then noResult "Wrong interface version."
+    ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
+    if s /= L.empty
+     then noResult "Garbage at end."
      else do
 
-      ((r, nL, sL, bL, iL, dL), s, _) <-
-        return $ runGetState B.get (G.decompress s) 0
-      if s /= L.empty
-         -- G.decompress seems to throw away garbage at the end, so
-         -- the then branch is possibly dead code.
-       then noResult "Garbage at end."
-       else do
+      st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+              <$> liftIO H.new
+              <*> return mf <*> return incs
+      (r, st) <- runStateT (runExceptT (value r)) st
+      return (Just $ modFile st, r)
 
-        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
-                <$> liftIO H.new
-                <*> return mf <*> return incs
-        (r, st) <- runStateT (runExceptT (value r)) st
-        return (Just $ modFile st, r)
-
-  case mf of
-    Nothing -> return ()
-    Just mf -> stModuleToSource `setTCLens` mf
+  forM_ mf (setTCLens stModuleToSource)
 
   case r of
-    Right x   -> return (Just x)
-    Left  err -> do
+    Right x -> do
+#if __GLASGOW_HASKELL__ >= 804
+      -- "Compact" the interfaces (without breaking sharing) to
+      -- reduce the amount of memory that is traversed by the
+      -- garbage collector.
+      Bench.billTo [Bench.Deserialization, Bench.Compaction] $
+        liftIO (Just . C.getCompact <$> C.compactWithSharing x)
+#else
+      return (Just x)
+#endif
+    Left err -> do
       reportSLn "import.iface" 5 $ "Error when decoding interface file"
       -- Andreas, 2014-06-11 deactivated debug printing
       -- in order to get rid of dependency of Serialize on TCM.Pretty
@@ -192,25 +220,63 @@ decode s = do
 
   noResult s = return (Nothing, Left $ GenericError s)
 
-encodeInterface :: Interface -> TCM L.ByteString
-encodeInterface i = L.append hashes <$> encode i
+encodeInterface :: Interface -> TCM Encoded
+encodeInterface i = do
+  r <- encode i
+  return (r { compressed = L.append hashes (compressed r) })
   where
     hashes :: L.ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
 
--- | Encodes something. To ensure relocatability file paths in
+-- | Encodes an interface. To ensure relocatability file paths in
 -- positions are replaced with module names.
+--
+-- An uncompressed bytestring corresponding to the encoded interface
+-- is returned.
 
-encodeFile :: FilePath -> Interface -> TCM ()
-encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
+encodeFile :: FilePath -> Interface -> TCM L.ByteString
+encodeFile f i = do
+  r <- encodeInterface i
+  liftIO $ createDirectoryIfMissing True (takeDirectory f)
+  liftIO $ L.writeFile f (compressed r)
+  return (uncompressed r)
 
--- | Decodes something. The result depends on the include path.
+-- | Decodes an interface. The result depends on the include path.
 --
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
 decodeInterface :: L.ByteString -> TCM (Maybe Interface)
-decodeInterface s = decode $ L.drop 16 s
+decodeInterface s = do
+
+  -- Note that runGetState and the decompression code below can raise
+  -- errors if the input is malformed. The decoder is (intended to be)
+  -- strict enough to ensure that all such errors can be caught by the
+  -- handler here or the one in decode.
+
+  s <- liftIO $
+       E.handle (\(E.ErrorCall s) -> return (Left s)) $
+       E.evaluate $
+       let (ver, s', _) = runGetState B.get (L.drop 16 s) 0 in
+       if ver /= currentInterfaceVersion
+       then Left "Wrong interface version."
+       else Right $
+            L.toLazyByteString $
+            Z.foldDecompressStreamWithInput
+              (\s -> (L.byteString s <>))
+              (\s -> if L.null s
+                     then mempty
+                     else error "Garbage at end.")
+              (\err -> error (show err))
+              (Z.decompressST Z.gzipFormat Z.defaultDecompressParams)
+              s'
+
+  case s of
+    Right s  -> decode s
+    Left err -> do
+      reportSLn "import.iface" 5 $
+        "Error when decoding interface file: " ++ err
+      return Nothing
 
 decodeHashes :: L.ByteString -> Maybe (Hash, Hash)
 decodeHashes s

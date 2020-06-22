@@ -1,0 +1,3 @@
+Issue3855a.agda:16,15-22
+Identifier noWorld is declared erased, so it cannot be used here
+when checking that the expression noWorld has type String

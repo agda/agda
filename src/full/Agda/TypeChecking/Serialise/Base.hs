@@ -1,14 +1,15 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Base where
 
 import Control.Exception (evaluate)
-import Control.Monad
+
 import Control.Monad.Catch (catchAll)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
@@ -22,8 +23,9 @@ import Data.Int (Int32)
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
-import Data.Text.Lazy (Text)
-import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
+import Data.Typeable ( cast, Typeable, TypeRep, typeRep )
 
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
@@ -34,7 +36,6 @@ import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pointer
-import Agda.Utils.Except (ExceptT, throwError)
 import Agda.Utils.TypeLevel
 
 -- | Constructor tag (maybe omitted) and argument indices.
@@ -56,19 +57,30 @@ type HashTable k v = H.BasicHashTable k v
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
+#ifdef DEBUG
 data FreshAndReuse = FreshAndReuse
   { farFresh :: !Int32 -- ^ Number of hash map misses.
   , farReuse :: !Int32 -- ^ Number of hash map hits.
   }
+#else
+newtype FreshAndReuse = FreshAndReuse
+  { farFresh :: Int32 -- ^ Number of hash map misses.
+  }
+#endif
 
 farEmpty :: FreshAndReuse
-farEmpty = FreshAndReuse 0 0
+farEmpty = FreshAndReuse 0
+#ifdef DEBUG
+                           0
+#endif
 
 lensFresh :: Lens' Int32 FreshAndReuse
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
+#ifdef DEBUG
 lensReuse :: Lens' Int32 FreshAndReuse
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
+#endif
 
 -- | Two 'QName's are equal if their @QNameId@ is equal.
 type QNameId = [NameId]
@@ -82,7 +94,8 @@ data Dict = Dict
   -- Dictionaries which are serialized:
   { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
   , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
-  , textD        :: !(HashTable Text    Int32)    -- ^ Written to interface file.
+  , lTextD       :: !(HashTable TL.Text Int32)    -- ^ Written to interface file.
+  , sTextD       :: !(HashTable T.Text  Int32)    -- ^ Written to interface file.
   , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
   , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
@@ -95,7 +108,8 @@ data Dict = Dict
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
-  , textC        :: !(IORef FreshAndReuse)
+  , lTextC       :: !(IORef FreshAndReuse)
+  , sTextC       :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
@@ -122,6 +136,8 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -144,7 +160,8 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
   , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
-  , textE     :: !(Array Int32 Text)     -- ^ Obtained from interface file.
+  , lTextE    :: !(Array Int32 TL.Text)  -- ^ Obtained from interface file.
+  , sTextE    :: !(Array Int32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
@@ -193,7 +210,7 @@ class Typeable a => EmbPrj a where
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
 tickICode _ = whenM (asks collectStats) $ do
-    let key = "icode " ++ show (typeOf (undefined :: a))
+    let key = "icode " ++ show (typeRep (Proxy :: Proxy a))
     hmap <- asks stats
     liftIO $ do
       n <- fromMaybe 0 <$> H.lookup hmap key
@@ -243,7 +260,9 @@ icodeX dict counter key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -262,7 +281,9 @@ icodeInteger key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -277,7 +298,9 @@ icodeDouble key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -292,7 +315,9 @@ icodeString key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -307,7 +332,9 @@ icodeNode key = do
     mi <- H.lookup d key
     case mi of
       Just i  -> do
+#ifdef DEBUG
         modifyIORef' c $ over lensReuse (+1)
+#endif
         return i
       Nothing -> do
         fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
@@ -331,7 +358,9 @@ icodeMemo getDict getCounter a icodeP = do
     st <- asks getCounter
     case mi of
       Just i  -> liftIO $ do
+#ifdef DEBUG
         modifyIORef' st $ over lensReuse (+ 1)
+#endif
         return i
       Nothing -> do
         liftIO $ modifyIORef' st $ over lensFresh (+1)
@@ -348,7 +377,7 @@ vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
     -- compute run-time representation of type a
-    let aTyp = typeOf (undefined :: a)
+    let aTyp = typeRep (Proxy :: Proxy a)
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     maybeU <- liftIO $ H.lookup memo (ix, aTyp)

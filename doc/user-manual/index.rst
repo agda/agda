@@ -6,6 +6,10 @@
 Welcome to Agda's documentation!
 ================================
 
+.. image:: agda.svg
+  :width: 400
+  :alt: The official Agda logo
+
 .. toctree::
    :maxdepth: 2
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}  -- For type equality.
 
 -- | Tools for patterns in concrete syntax.
@@ -6,19 +5,22 @@
 module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
+import Control.Arrow ( first )
 import Control.Monad.Identity
-
-import Data.Foldable    (Foldable, foldMap)
-import Data.Traversable (Traversable, traverse)
-import Data.Monoid
+import Control.Monad.Writer
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 
 import Agda.Utils.AffineHole
 import Agda.Utils.Functor
+import Agda.Utils.Impossible
 import Agda.Utils.List
+import Agda.Utils.List1  ( List1, (<|) )
+import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton
+import qualified Agda.Utils.List1 as List1
 
 
 -- | Check for ellipsis @...@.
@@ -29,9 +31,8 @@ class IsEllipsis a where
 -- | Is the pattern just @...@?
 instance IsEllipsis Pattern where
   isEllipsis = \case
-    EllipsisP{}   -> True
-    RawAppP _ [p] -> isEllipsis p
-    ParenP _ p    -> isEllipsis p
+    EllipsisP{}         -> True
+    ParenP _ p          -> isEllipsis p
     _ -> False
 
 -- | Has the lhs an occurrence of the ellipsis @...@?
@@ -43,13 +44,13 @@ instance HasEllipsis Pattern where
   hasEllipsis p =
     case hasEllipsis' p of
       ZeroHoles _ -> False
-      OneHole   _ -> True
+      OneHole _ _ -> True
       ManyHoles   -> True
 
 -- | Does the lhs contain an ellipsis?
 instance HasEllipsis LHS where
-  hasEllipsis (LHS p _ _) = hasEllipsis p
-
+  hasEllipsis (LHS p _ _ _) = hasEllipsis p
+  -- clauses that are already expanded don't have an ellipsis
 
 -- | Check for with-pattern @| p@.
 
@@ -61,9 +62,8 @@ class IsWithP p where
 
 instance IsWithP Pattern where
   isWithP = \case
-    WithP _ p     -> Just p
-    RawAppP _ [p] -> isWithP p
-    ParenP _ p    -> isWithP p
+    WithP _ p           -> Just p
+    ParenP _ p          -> isWithP p
     _ -> Nothing
 
 instance IsWithP p => IsWithP (Arg p) where
@@ -196,7 +196,7 @@ instance CPatternLike Pattern where
       WildP _         -> mempty
       DotP _ _        -> mempty
       AbsurdP _       -> mempty
-      LitP _          -> mempty
+      LitP _ _        -> mempty
       QuoteP _        -> mempty
       EqualP _ _      -> mempty
       EllipsisP _     -> mempty
@@ -217,7 +217,7 @@ instance CPatternLike Pattern where
       WildP _         -> pure p0
       DotP _ _        -> pure p0
       AbsurdP _       -> pure p0
-      LitP _          -> pure p0
+      LitP _ _        -> pure p0
       QuoteP _        -> pure p0
       EqualP _ _      -> pure p0
       EllipsisP _     -> pure p0
@@ -240,7 +240,7 @@ instance CPatternLike Pattern where
       WildP _         -> return p0
       DotP _ _        -> return p0
       AbsurdP _       -> return p0
-      LitP _          -> return p0
+      LitP _ _        -> return p0
       QuoteP _        -> return p0
       EqualP _ _      -> return p0
       EllipsisP _     -> return p0
@@ -259,11 +259,13 @@ instance (CPatternLike a, CPatternLike b) => CPatternLike (a,b) where
       (traverseCPatternM pre post p)
       (traverseCPatternM pre post p')
 
-instance CPatternLike p => CPatternLike (Arg p)              where
-instance CPatternLike p => CPatternLike (Named n p)          where
-instance CPatternLike p => CPatternLike [p]                  where
-instance CPatternLike p => CPatternLike (Maybe p)            where
-instance CPatternLike p => CPatternLike (FieldAssignment' p) where
+instance CPatternLike p => CPatternLike (Arg p)
+instance CPatternLike p => CPatternLike (Named n p)
+instance CPatternLike p => CPatternLike [p]
+instance CPatternLike p => CPatternLike (List1 p)
+instance CPatternLike p => CPatternLike (List2 p)
+instance CPatternLike p => CPatternLike (Maybe p)
+instance CPatternLike p => CPatternLike (FieldAssignment' p)
 
 -- | Compute a value from each subpattern and collect all values in a monoid.
 
@@ -313,7 +315,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     WildP _        -> mempty
     AbsurdP _      -> mempty
     DotP _ _       -> mempty
-    LitP _         -> mempty
+    LitP _ _       -> mempty
     QuoteP _       -> mempty
     InstanceP _ _  -> mempty
     RecP _ _       -> mempty
@@ -345,5 +347,36 @@ numberOfWithPatterns = getSum . foldCPattern (Sum . f)
 hasEllipsis' :: CPatternLike p => p -> AffineHole Pattern p
 hasEllipsis' = traverseCPatternA $ \ p mp ->
   case p of
-    EllipsisP _ -> OneHole id
+    EllipsisP{} -> OneHole id p
     _           -> mp
+
+reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
+reintroduceEllipsis NoEllipsis p = p
+reintroduceEllipsis (ExpandedEllipsis r k) p =
+  let core  = EllipsisP r
+      wargs = snd $ splitEllipsis k $ List1.toList $ patternAppView p
+  in foldl AppP core wargs
+
+splitEllipsis :: (IsWithP p) => Int -> [p] -> ([p],[p])
+splitEllipsis k [] = ([] , [])
+splitEllipsis k (p:ps)
+  | isJust (isWithP p) = if
+      | k == 0    -> ([] , p:ps)
+      | otherwise -> first (p:) $ splitEllipsis (k-1) ps
+  | otherwise = first (p:) $ splitEllipsis k ps
+
+---------------------------------------------------------------------------
+-- * Helpers for pattern and lhs parsing
+---------------------------------------------------------------------------
+
+-- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
+--   (in most cases a constructor).
+--
+--  Pattern needs to be parsed already (operators resolved).
+patternAppView :: Pattern -> List1 (NamedArg Pattern)
+patternAppView = \case
+    AppP p arg      -> patternAppView p `List1.append` [arg]
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) <| ps
+    ParenP _ p      -> patternAppView p
+    RawAppP _ _     -> __IMPOSSIBLE__
+    p               -> singleton $ defaultNamedArg p

@@ -1,16 +1,52 @@
-{-# LANGUAGE CPP           #-}
+{- |
+
+"Injectivity", or more precisely, "constructor headedness", is a
+property of functions defined by pattern matching that helps us solve
+constraints involving blocked applications of such functions.
+"Blocked" shall mean here that pattern matching is blocked on a meta
+variable, and constructor headedness lets us learn more about that
+meta variable.
+
+Consider the simple example:
+@
+  isZero : Nat -> Bool
+  isZero zero    = true
+  isZero (suc n) = false
+@
+This function is constructor-headed, meaning that all rhss are headed
+by a distinct constructor.  Thus, on a constraint like
+@
+  isZero ?X = false : Bool
+@
+involving an application of @isZero@ that is blocked on meta variable @?X@,
+we can exploit injectivity and learn that @?X = suc ?Y@ for a new
+meta-variable @?Y@.
+
+Which functions qualify for injectivity?
+
+1. The function needs to have at least one non-absurd clause that has
+a proper match, meaning that the function can actually be blocked on a
+meta.  Proper matches are these patterns:
+
+  - data constructor (@ConP@, but not record constructor)
+  - literal (@LitP@)
+  - HIT-patterns (@DefP@)
+
+Projection patterns (@ProjP@) are excluded because metas cannot occupy their place!
+
+2. All the clauses that satisfy (1.) need to be headed by a distinct constructor.
+
+-}
 
 module Agda.TypeChecking.Injectivity where
 
-import Prelude hiding (mapM)
-
 import Control.Applicative
-import Control.Arrow (first, second)
-import Control.Monad.State hiding (mapM, forM)
-import Control.Monad.Reader hiding (mapM, forM)
+import Control.Monad.Except
+import Control.Monad.Fail
+import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -22,28 +58,23 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Pretty hiding ((<>))
-import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty ( prettyShow )
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)
@@ -73,10 +104,12 @@ headSymbol v = do -- ignoreAbstractMode $ do
             if Set.member f fs then no else yes
         Function{}    -> no
         Primitive{}   -> no
+        PrimitiveSort{} -> no
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
-    Con c _ _ -> Just . ConsHead <$> canonicalName (conName c)
+    -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
+    Con c _ _ -> ignoreAbstractMode $ Just . ConsHead <$> canonicalName (conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
@@ -86,11 +119,13 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
-    Dummy s -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
-headSymbol' :: Term -> TCM (Maybe TermHead)
+headSymbol'
+  :: (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  => Term -> m (Maybe TermHead)
 headSymbol' v = do
   v <- traverse constructorForm =<< reduceB v
   case v of
@@ -106,7 +141,7 @@ headSymbol' v = do
       Level{}    -> return Nothing
       MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
-      Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
 --   which one (index from the left).
@@ -127,20 +162,24 @@ updateHeads f m = joinHeadMaps <$> mapM f' (Map.toList m)
   where f' (h, c) = (`Map.singleton` c) <$> f h c
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
-checkInjectivity f cs
-  | pointless cs = do
-      reportSLn "tc.inj.check.pointless" 20 $
+checkInjectivity f cs0
+  | not (any properlyMatchingClause cs) = do
+      reportSLn "tc.inj.check.pointless" 35 $
         "Injectivity of " ++ prettyShow (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
+  | otherwise = checkInjectivity' f cs
   where
-    -- Is it pointless to use injectivity for this function?
-    pointless []      = True
-    pointless (_:_:_) = False
-    pointless [cl] = not $ any (properlyMatching . namedArg) $ namedClausePats cl
-        -- Andreas, 2014-06-12
-        -- If we only have record patterns, it is also pointless.
-        -- We need at least one proper match.
-checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
+    -- We can filter out absurd clauses.
+    cs = filter (isJust . clauseBody) cs0
+    -- We cannot filter out clauses that have no proper match, because
+    -- these could be catch-all clauses.
+    -- However, we need at least one proper match to get injectivity started.
+    properlyMatchingClause =
+      any (properlyMatching' False False . namedArg) . namedClausePats
+
+-- | Precondition: all the given clauses are non-absurd and contain a proper match.
+checkInjectivity' :: QName -> [Clause] -> TCM FunctionInverse
+checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ prettyShow f
 
   let varToArg :: Clause -> TermHead -> MaybeT TCM TermHead
@@ -148,8 +187,12 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
       varToArg _ h           = return h
 
   -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body } = do
-        h <- varToArg c =<< lift (fromMaybe UnknownHead <$> addContext (clauseTel c) (headSymbol body))
+  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
+          varToArg c =<< do
+            lift $ fromMaybe UnknownHead <$> do
+              addContext (clauseTel c) $
+                headSymbol body
         return [Map.singleton h [c]]
       computeHead _ = return []
 
@@ -172,10 +215,12 @@ checkInjectivity f cs = fromMaybe NotInjective <.> runMaybeT $ do
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
 --   .fst`. In this case the head will be the head of `u` rather than `_,_`.
-checkOverapplication :: Elims -> InversionMap Clause -> TCM (InversionMap Clause)
+checkOverapplication
+  :: forall m. (HasConstInfo m)
+  => Elims -> InversionMap Clause -> m (InversionMap Clause)
 checkOverapplication es = updateHeads overapplied
   where
-    overapplied :: TermHead -> [Clause] -> TCM TermHead
+    overapplied :: TermHead -> [Clause] -> m TermHead
     overapplied h cs | all (not . isOverapplied) cs = return h
     overapplied h cs = ifM (isSuperRigid h) (return h) (return UnknownHead)
 
@@ -197,6 +242,7 @@ checkOverapplication es = updateHeads overapplied
         Constructor{conSrcCon = ConHead{ conFields = fs }}
                        -> null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
+        PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
 
 
@@ -206,17 +252,21 @@ checkOverapplication es = updateHeads overapplied
 --   proper heads. These might still be `VarHead`, but in that case they refer to
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
-instantiateVarHeads :: QName -> Elims -> InversionMap c -> TCM (Maybe (InversionMap c))
+instantiateVarHeads
+  :: forall m c. (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  => QName -> Elims -> InversionMap c -> m (Maybe (InversionMap c))
 instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
-    instHead :: TermHead -> MaybeT TCM TermHead
+    instHead :: TermHead -> MaybeT m TermHead
     instHead h@(VarHead i)
       | Just (Apply arg) <- es !!! i = MaybeT $ headSymbol' (unArg arg)
       | otherwise = empty   -- impossible?
     instHead h = return h
 
 -- | Argument should be in weak head normal form.
-functionInverse :: Term -> TCM InvView
+functionInverse
+  :: (MonadReduce m, MonadError TCErr m, HasBuiltins m, HasConstInfo m)
+  => Term -> m InvView
 functionInverse v = case v of
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
@@ -231,11 +281,9 @@ functionInverse v = case v of
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
-data MaybeAbort = Abort | KeepGoing
-
 -- | Precondition: The first argument must be blocked and the second must be
 --                 neutral.
-useInjectivity :: CompareDirection -> Type -> Term -> Term -> TCM ()
+useInjectivity :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
@@ -252,11 +300,8 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, ":", prettyTCM ty ]
+        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
-          allUnique       = all isUnique hdMap
-          isUnique [_] = True
-          isUnique _   = False
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
@@ -295,7 +340,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
             where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
     fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
-    success blk' = app (compareTerm cmp ty) blk' neu
+    success blk' = app (compareAs cmp ty) blk' neu
 
     (cmp, app) = case dir of
       DirEq -> (CmpEq, id)
@@ -304,7 +349,9 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
-invertFunction :: Comparison -> Term -> InvView -> TermHead -> TCM () -> TCM () -> (Term -> TCM ()) -> TCM ()
+invertFunction
+  :: MonadConversion m
+  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
@@ -316,7 +363,7 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
       _:_:_ -> fallback
-      [cl@Clause{ clauseTel  = tel }] -> maybeAbort $ do
+      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
@@ -350,45 +397,49 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           compareElims pol fs fTy (Def f []) margs blkArgs'
 
           -- Check that we made progress.
-          r <- runReduceM $ unfoldDefinitionStep False blk f blkArgs
+          r <- liftReduce $ unfoldDefinitionStep False (Def f []) f blkArgs
           case r of
             YesReduction _ blk' -> do
               reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]
-              KeepGoing <$ success blk'
+              KeepMetas <$ success blk'
             NoReduction{}       -> do
               reportSDoc "tc.inj.invert" 30 $ vcat
                 [ "aborting inversion;" <+> prettyTCM blk
                 , "does not reduce"
                 ]
-              return Abort
+              return RollBackMetas
   where
-    maybeAbort m = do
-      (a, s) <- localTCStateSaving m
-      case a of
-        KeepGoing -> putTC s
-        Abort     -> fallback
-
+    nextMeta :: (MonadState [Term] m, MonadFail m) => m Term
     nextMeta = do
       m : ms <- get
       put ms
       return m
 
-    dotP :: Monad m => Term -> StateT [Term] (ReaderT Substitution m) Term
+    dotP :: MonadReader Substitution m => Term -> m Term
     dotP v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaElim (Arg _ (ProjP o p))  = lift $ lift $ Proj o <$> getOriginalProjection p
+    metaElim
+      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
+      => Arg DeBruijnPattern -> m Elim
+    metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
+    metaArgs
+      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      => [NamedArg DeBruijnPattern] -> m Args
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
+    metaPat
+      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      => DeBruijnPattern -> m Term
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
     metaPat (IApplyP{})      = nextMeta
     metaPat (ConP c mt args) = Con c (fromConPatternInfo mt) . map Apply <$> metaArgs args
     metaPat (DefP o q args)  = Def q . map Apply <$> metaArgs args
-    metaPat (LitP l)         = return $ Lit l
+    metaPat (LitP _ l)       = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__
 
 forcePiUsingInjectivity :: Type -> TCM Type

@@ -10,7 +10,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.6.0"
+(defvar agda2-version "2.6.2"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
@@ -326,12 +326,6 @@ terminate fairly quickly).")
 ;; Note that strings used with the display property are compared by
 ;; reference. If the agda2-*-brace definitions were inlined, then
 ;; goals would be displayed as "{{ }}n" instead of "{ }n".
-
-(defvar agda2-measure-data nil
-  "Used by `agda2-measure-load-time'.
-This value is either nil or a pair containing a continuation (or
-nil) and the time at which the measurement was started.")
-(make-variable-buffer-local 'agda2-measure-data)
 
 ;; The following variables are used by the filter process,
 ;; `agda2-output-filter'. Their values are only modified by the filter
@@ -702,18 +696,7 @@ reloaded from `agda2-highlighting-file', unless
                 agda2-in-progress nil
                 agda2-last-responses (nreverse agda2-last-responses))
 
-          (agda2-run-last-commands)
-
-          (when agda2-measure-data
-            (let ((elapsed
-                   (format "%.2fs"
-                           (float-time (time-since
-                                        (cdr agda2-measure-data)))))
-                  (continuation (car agda2-measure-data)))
-              (setq agda2-measure-data nil)
-              (message "Load time: %s." elapsed)
-              (when continuation
-                (funcall continuation elapsed))))))))))
+          (agda2-run-last-commands)))))))
 
 (defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
@@ -806,23 +789,6 @@ command is sent to Agda (if it is sent)."
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-program-args)
             ))
-
-(defun agda2-measure-load-time
-  (&optional highlighting-level continuation)
-  "Load the current buffer and print how much time it takes.
-\(Wall-clock time.)
-
-The given HIGHLIGHTING-LEVEL is used (if non-nil).
-
-If CONTINUATION is non-nil, then CONTINUATION is applied to the
-resulting time (represented as a string)."
-  (interactive)
-  (when agda2-in-progress
-    (error "Agda is busy with something"))
-  (let* ((agda2-highlight-level
-          (or highlighting-level agda2-highlight-level)))
-    (setq agda2-measure-data (cons continuation (current-time)))
-    (agda2-load)))
 
 (defun agda2-compile ()
   "Compile the current module.
@@ -927,17 +893,14 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Replace the line at point with new clauses NEWCLS and reload."
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
-         ;; (p1 (goto-char (agda2-decl-beginning)))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
          (indent (current-column))
          cl)
-    (goto-char p0)
-    (re-search-forward "!}" (line-end-position) 'noerr)
-    (delete-region p1 (point))
+    (delete-region p1 (line-end-position))
     (while (setq cl (pop newcls))
       (insert cl)
       (if newcls (insert "\n" (make-string indent ?  ))))
-    (goto-char p1))
+    (goto-char p0))
   (agda2-load))
 
 (defun agda2-make-case-action-extendlam (newcls)
@@ -1128,105 +1091,156 @@ is inserted, and point is placed before this text."
   (agda2-remove-annotations)
   (agda2-term))
 
-(defun agda2-term ()
-  "Interrupt the Agda process and kill its buffer."
-  (interactive)
-  (when (and agda2-process
-             (process-status agda2-process))
-    (interrupt-process agda2-process))
-  (when (buffer-live-p agda2-process-buffer)
+(defun agda2-term (&optional nicely)
+  "Interrupt the Agda process and kill its buffer.
+If this function is invoked with a prefix argument, then Agda is
+asked nicely to terminate itself after any previously invoked
+commands have completed."
+  (interactive "P")
+  (if nicely
+      (progn
+        ;; Set up things so that if the Agda process terminates, then
+        ;; its buffer is killed.
+        (when (and agda2-process
+                   (process-status agda2-process))
+          (set-process-sentinel agda2-process 'agda2-kill-process-buffer))
+        ;; Kill the process buffer if the Agda process has already
+        ;; been killed.
+        (agda2-kill-process-buffer)
+        ;; Try to kill the Agda process.
+        (agda2-send-command nil
+                            "IOTCM"
+                            (agda2-string-quote (buffer-file-name))
+                            "None"
+                            "Indirect"
+                            "Cmd_exit"))
+    ;; Try to kill the Agda process and the process buffer.
+    (when (and agda2-process
+               (process-status agda2-process))
+      (interrupt-process agda2-process))
+    (when (buffer-live-p agda2-process-buffer)
+      (kill-buffer agda2-process-buffer))))
+
+(defun agda2-kill-process-buffer (&optional process event)
+  "Kills the Agda process buffer, if any.
+But only if the Agda process does not exist or has terminated.
+
+This function can be used as a process sentinel."
+  (when (and (or (null agda2-process)
+                 (member (process-status agda2-process)
+                         '(exit signal failed nil)))
+             (buffer-live-p agda2-process-buffer))
     (kill-buffer agda2-process-buffer)))
 
-(defmacro agda2-maybe-normalised (name comment cmd want)
+(cl-defmacro agda2--with-gensyms ((&rest names) &body body)
+  "Bind NAMES to fresh symbols in BODY"
+  (declare (indent 1))
+  `(let ,(cl-loop for x in names collecting `(,x (make-symbol (symbol-name',x))))
+     ,@body))
+
+;; This macro is meant to be used to generate other macros which define
+;; functions which can be used either directly from a goal or at a global
+;; level and are modifiable using one of three levels of normalisation.
+
+(defmacro agda2-proto-maybe-normalised (name comment cmd norm0 norm1 norm2 norm3 spec)
   "This macro constructs a function NAME which runs CMD.
-COMMENT is used to build the function's comment. The function
-NAME takes a prefix argument which tells whether it should
-normalise types or not when running CMD (through
-`agda2-goal-cmd'; WANT is used as `agda2-goal-cmd's WANT
-argument, and nil as its SAVE argument)."
-  (let ((eval (make-symbol "eval")))
-  `(defun ,name (&optional prefix)
-     ,(concat comment ".
+COMMENT is used to build the function's comment.
+The function NAME takes a prefix argument which tells whether it
+should normalise types according to either NORM0, NORM1, NORM2, or NORM3
+when running CMD through `agda2-goal-cmd`.
+SPEC can be either (fromgoal want) or (global prompt).
+"
+
+  ;; Names bound in a macro should be ``uninterned'' to avoid name capture
+  ;; We use the macro `agda2--with-gensyms' to bind these.
+  (agda2--with-gensyms (eval prefix args)
+    `(defun ,name (,prefix &rest ,args)
+       ,(format "%s.
 
 The form of the result depends on the prefix argument:
 
 * If the prefix argument is `nil' (i.e., if no prefix argument is
-  given), then the result is simplified.
+  given), then the result is %s.
 
 * If the prefix argument is `(4)' (for instance if C-u is typed
   exactly once right before the command is invoked), then the
-  result is neither explicitly normalised nor simplified.
+  result is %s.
+
+* If the prefix argument is `(16)' (for instance if C-u is typed
+  exactly twice right before the command is invoked), then the
+  result is %s.
 
 * If any other prefix argument is used (for instance if C-u is
-  typed twice right before the command is invoked), then the
-  result is normalised.")
-     (interactive "P")
-     (let ((,eval (cond ((equal prefix nil) "Simplified")
-                        ((equal prefix '(4)) "Instantiated")
-                        ("Normalised"))))
-       (agda2-goal-cmd (concat ,cmd " " ,eval)
-                       nil ,want)))))
+  typed thrice right before the command is invoked), then the
+  result is %s." comment (nth 1 norm0) (nth 1 norm1) (nth 1 norm2) (nth 1 norm3))
+
+       ;; All the commands generated by the macro are interactive.
+       ;; Those called from a goal, grab the value present there (if any)
+       ;; Whereas those called globally always use a prompt
+       (interactive ,(pcase spec
+                       (`(fromgoal ,want)
+                        "P")
+                       (`(global ,prompt)
+                        (if prompt
+                            (concat "P\nM" prompt ": ")
+                          "P"))))
+       ;; Depending on the prefix's value we pick one of the three
+       ;; normalisation levels
+       (let ((,eval (cond ((null ,prefix)
+                           ,(car norm0))
+                          ((equal ,prefix '(4))
+                           ,(car norm1))
+                          ((equal ,prefix '(16))
+                           ,(car norm2))
+                          (t ,(car norm3)))))
+       ;; Finally, if the command is called from a goal, we use `agda2-goal-cmd'
+       ;; Otherwise we resort to `agda2-go'
+         ,(pcase spec
+            (`(fromgoal ,want)
+             `(agda2-goal-cmd (concat ,cmd " " ,eval) nil ,want))
+            (`(global ,prompt)
+             `(agda2-go nil t 'busy t
+                        (concat ,cmd " "
+                                ,eval " "
+                                (if ,prompt
+                                    (agda2-string-quote (car ,args))
+                                    "")))))))))
+
+(defmacro agda2-maybe-normalised (name comment cmd want)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("Simplified"   "simplified")
+    ("Instantiated" "neither explicitly normalised nor simplified")
+    ("Normalised"   "normalised")
+    ("HeadNormal"   "head normalised")
+    (fromgoal ,want)))
+
+(defmacro agda2-maybe-normalised-asis (name comment cmd want)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("AsIs"       "returned as is")
+    ("Simplified" "simplified")
+    ("Normalised" "normalised")
+    ("HeadNormal" "head normalised")
+    (fromgoal ,want)))
 
 (defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
-  "This macro constructs a function NAME which runs CMD.
-COMMENT is used to build the function's comments. The function
-NAME takes a prefix argument which tells whether it should
-normalise types or not when running CMD (through
-`agda2-go' nil nil 'busy t; the string PROMPT is used as the goal
-command prompt)."
-  (let ((eval (make-symbol "eval")))
-    `(defun ,name (prefix expr)
-       ,(concat comment ".
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("Simplified"   "simplified")
+    ("Instantiated" "neither explicitly normalised nor simplified")
+    ("Normalised"   "normalised")
+    ("HeadNormal"   "head normalised")
+    (global ,prompt)))
 
-The form of the result depends on the prefix argument:
-
-* If the prefix argument is `nil' (i.e., if no prefix argument is
-  given), then the result is simplified.
-
-* If the prefix argument is `(4)' (for instance if C-u is typed
-  exactly once right before the command is invoked), then the
-  result is neither explicitly normalised nor simplified.
-
-* If any other prefix argument is used (for instance if C-u is
-  typed twice right before the command is invoked), then the
-  result is normalised.")
-       (interactive ,(concat "P\nM" prompt ": "))
-       (let ((,eval (cond ((equal prefix nil) "Simplified")
-                          ((equal prefix '(4)) "Instantiated")
-                          ("Normalised"))))
-         (agda2-go nil nil 'busy t
-                   (concat ,cmd " " ,eval " "
-                           (agda2-string-quote expr)))))))
-
-(defmacro agda2-maybe-normalised-global (name comment cmd)
-  "This macro constructs a function NAME which runs CMD.
-COMMENT is used to build the function's comments. The function
-NAME takes a prefix argument which tells whether it should
-normalise types or not when running CMD (through
-`agda2-go' nil nil 'busy t;)."
-  (let ((eval (make-symbol "eval")))
-    `(defun ,name (prefix)
-       ,(concat comment ".
-
-The form of the result depends on the prefix argument:
-
-* If the prefix argument is `nil' (i.e., if no prefix argument is
-  given), then the result is simplified.
-
-* If the prefix argument is `(4)' (for instance if C-u is typed
-  exactly once right before the command is invoked), then the
-  result is neither explicitly normalised nor simplified.
-
-* If any other prefix argument is used (for instance if C-u is
-  typed twice right before the command is invoked), then the
-  result is normalised.")
-       (interactive "P")
-       (let ((,eval (cond ((equal prefix nil) "AsIs")
-                          ((equal prefix '(4)) "Simplified")
-                          ("Normalised"))))
-         (agda2-go nil nil 'busy t
-                   (concat ,cmd " " ,eval " "
-                           ))))))
+(defmacro agda2-maybe-normalised-toplevel-asis-noprompt (name comment cmd)
+  `(agda2-proto-maybe-normalised
+    ,name ,comment ,cmd
+    ("AsIs"       "returned as is")
+    ("Simplified" "simplified")
+    ("Normalised" "normalised")
+    ("HeadNormal" "head normalised")
+    (global nil)))
 
 (agda2-maybe-normalised
  agda2-goal-type
@@ -1265,7 +1279,7 @@ top-level scope."
 (defun agda2-why-in-scope-toplevel (name)
   "Explain why something is in scope at the top level."
   (interactive "MName: ")
-  (agda2-go nil nil 'busy t
+  (agda2-go nil t 'busy t
             "Cmd_why_in_scope_toplevel"
             (agda2-string-quote name)))
 
@@ -1306,7 +1320,7 @@ top-level scope."
  "Cmd_context"
  nil)
 
-(agda2-maybe-normalised
+(agda2-maybe-normalised-asis
  agda2-helper-function-type
   "Compute the type of a hypothetical helper function."
   "Cmd_helper_function"
@@ -1317,14 +1331,14 @@ top-level scope."
   "Shows all the top-level names in the given module.
 Along with their types."
   "Cmd_show_module_contents"
-  "Module name")
+  "Module name (empty for current module)")
 
 (agda2-maybe-normalised-toplevel
   agda2-module-contents-toplevel
   "Shows all the top-level names in the given module.
 Along with their types."
   "Cmd_show_module_contents_toplevel"
-  "Module name"
+  "Module name (empty for top-level module)"
 )
 
 (agda2-maybe-normalised-toplevel
@@ -1363,11 +1377,11 @@ Either only one if point is a goal, or all of them."
                           'agda2-autoAll))
 )
 
-(agda2-maybe-normalised-global
-  agda2-solveAll
-  "Solves all goals that are already instantiated internally."
-  "Cmd_solveAll"
-)
+(agda2-maybe-normalised-toplevel-asis-noprompt
+ agda2-solveAll
+ "Solves all goals that are already instantiated internally."
+ "Cmd_solveAll"
+ )
 
 (agda2-maybe-normalised
   agda2-solveOne
@@ -1393,17 +1407,20 @@ Either only one if point is a goal, or all of them."
 (defun agda2-compute-normalised (&optional arg)
   "Compute the normal form of the expression in the goal at point.
 
-With a prefix argument distinct from `(4)' the normal form of
+With the prefix argument `(4)' \"abstract\" is ignored during the
+computation.
+
+With a prefix argument `(16)' the normal form of
 \"show <expression>\" is computed, and then the resulting string
 is printed.
 
-With the prefix argument `(4)' \"abstract\" is ignored during the
-computation."
+With any other prefix the head normal form is computed."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
                       (cond ((equal arg nil) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
-                            (" UseShowInstance")))))
+                            ((equal arg '(16)) " UseShowInstance")
+                            (" HeadCompute")))))
     (agda2-goal-cmd cmd nil "expression to normalise")))
 
 (defun agda2-compute-normalised-toplevel (expr &optional arg)
@@ -1421,8 +1438,9 @@ computation."
   (let ((cmd (concat "Cmd_compute_toplevel"
                      (cond ((equal arg nil) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
-                            (" UseShowInstance")) " ")))
-    (agda2-go nil nil 'busy t
+                            ((equal arg '(16)) " UseShowInstance")
+                            (" HeadCompute")) " ")))
+    (agda2-go nil t 'busy t
               (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()

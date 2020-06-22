@@ -1,3 +1,4 @@
-Issue1413WrongHiding.agda:12,1-18
+Issue1413WrongHiding.agda:12,1-14
 Wrong hiding used for projection  Foo.foo
-when checking that the clause Foo.foo {bar} = _ has type Foo ⊤
+when checking the clause left hand side
+Foo.foo {bar}

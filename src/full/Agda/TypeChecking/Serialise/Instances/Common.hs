@@ -1,15 +1,11 @@
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Prelude hiding (mapM)
-
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State.Strict (gets, modify)
-import Control.Exception
+
 
 import Data.Array.IArray
 import Data.Word
@@ -17,18 +13,22 @@ import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
-import Data.Maybe
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text.Lazy (Text)
-import Data.Traversable ( mapM )
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
 import Data.Typeable
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 
 import Data.Void
 
@@ -37,8 +37,6 @@ import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 import Agda.Interaction.FindFile
 
@@ -46,32 +44,27 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.FileName
-import Agda.Utils.Maybe
-import Agda.Utils.NonemptyList
-import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Trie (Trie(..))
-import qualified Agda.Utils.Trie as Trie
-
-import Agda.Utils.Except
-
 import Agda.Utils.Empty (Empty)
 import qualified Agda.Utils.Empty as Empty
-
+import Agda.Utils.FileName
+import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
-instance EmbPrj Text where
-  icod_   = icodeX textD textC
-  value i = (! i) `fmap` gets textE
+instance EmbPrj TL.Text where
+  icod_   = icodeX lTextD lTextC
+  value i = (! i) `fmap` gets lTextE
+
+instance EmbPrj T.Text where
+  icod_   = icodeX sTextD sTextC
+  value i = (! i) `fmap` gets sTextE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
@@ -157,11 +150,11 @@ instance EmbPrj Bool where
     valu _   = malformed
 
 instance EmbPrj FileType where
-  icod_ AgdaFileType = icodeN' IsData
-  icod_ MdFileType   = icodeN 0 IsRecord
-  icod_ RstFileType  = icodeN 1 IsRecord
-  icod_ TexFileType  = icodeN 2 IsRecord
-  icod_ OrgFileType  = icodeN 3 IsRecord
+  icod_ AgdaFileType = icodeN'  AgdaFileType
+  icod_ MdFileType   = icodeN 0 MdFileType
+  icod_ RstFileType  = icodeN 1 RstFileType
+  icod_ TexFileType  = icodeN 2 TexFileType
+  icod_ OrgFileType  = icodeN 3 OrgFileType
 
   value = vcase $ \case
     []  -> valuN AgdaFileType
@@ -169,15 +162,6 @@ instance EmbPrj FileType where
     [1] -> valuN RstFileType
     [2] -> valuN TexFileType
     [3] -> valuN OrgFileType
-    _   -> malformed
-
-instance EmbPrj DataOrRecord where
-  icod_ IsData   = icodeN' IsData
-  icod_ IsRecord = icodeN 0 IsRecord
-
-  value = vcase $ \case
-    []  -> valuN IsData
-    [0] -> valuN IsRecord
     _   -> malformed
 
 instance EmbPrj AbsolutePath where
@@ -192,7 +176,7 @@ instance EmbPrj AbsolutePath where
         [ "Panic while serializing absolute path: " ++ show file
         , "The path could not be found in the dictionary:"
         ]
-      putStrLn . show =<< H.toList d
+      print =<< H.toList d
       __IMPOSSIBLE__
 
   value m = do
@@ -204,7 +188,7 @@ instance EmbPrj AbsolutePath where
     modify $ \s -> s { modFile = mf }
     case r of
       Left err -> throwError $ findErrorToTypeError m err
-      Right f  -> return f
+      Right f  -> return (srcFilePath f)
 
 instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icodeN' P.Pn file pos line col
@@ -235,9 +219,9 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 --                            valu [x, xs] = valu2 (:) x xs
 --                            valu _       = malformed
 
-instance EmbPrj a => EmbPrj (NonemptyList a) where
-  icod_ = icod_ . toList
-  value = listCaseNe malformed return <=< value
+instance EmbPrj a => EmbPrj (NonEmpty a) where
+  icod_ = icod_ . NonEmpty.toList
+  value = maybe malformed return . nonEmpty <=< value
 
 instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
   icod_ m = icode (BiMap.toList m)
@@ -333,7 +317,7 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (ImportedName' a b) where
     valu [2, a] = valuN ImportedName a
     valu _ = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.Associativity where
+instance EmbPrj Associativity where
   icod_ LeftAssoc  = icodeN' LeftAssoc
   icod_ RightAssoc = icodeN 1 RightAssoc
   icod_ NonAssoc   = icodeN 2 NonAssoc
@@ -344,7 +328,7 @@ instance EmbPrj Agda.Syntax.Fixity.Associativity where
     valu [2] = valuN NonAssoc
     valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
+instance EmbPrj FixityLevel where
   icod_ Unrelated   = icodeN' Unrelated
   icod_ (Related a) = icodeN' Related a
 
@@ -353,12 +337,12 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
     valu [a] = valuN Related a
     valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Fixity.Fixity where
+instance EmbPrj Fixity where
   icod_ (Fixity a b c) = icodeN' Fixity a b c
 
   value = valueN Fixity
 
-instance EmbPrj Agda.Syntax.Fixity.Fixity' where
+instance EmbPrj Fixity' where
   icod_ (Fixity' a b r) = icodeN' (\ a b -> Fixity' a b r) a b  -- discard theNameRange
 
   value = valueN (\ f n -> Fixity' f n noRange)
@@ -438,19 +422,16 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
   value = valueN Arg
 
-instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a b c d) = icodeN' Dom a b c d
-
-  value = valueN Dom
-
-instance EmbPrj HasEta where
-  icod_ YesEta = icodeN' YesEta
-  icod_ NoEta  = icodeN 1 NoEta
+instance EmbPrj a => EmbPrj (HasEta' a) where
+  icod_ YesEta    = icodeN' YesEta
+  icod_ (NoEta a) = icodeN' NoEta a
 
   value = vcase valu where
     valu []  = valuN YesEta
-    valu [1] = valuN NoEta
+    valu [a] = valuN NoEta a
     valu _   = malformed
+
+instance EmbPrj PatternOrCopattern
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive
@@ -473,21 +454,80 @@ instance EmbPrj Hiding where
   value 3 = return (Instance YesOverlap)
   value _ = malformed
 
-instance EmbPrj Quantity where
-  icod_ Quantity0 = return 0
-  icod_ Quantity1 = return 1
-  icod_ Quantityω = return 2
+instance EmbPrj Q0Origin where
+  icod_ = \case
+    Q0Inferred -> return 0
+    Q0 _       -> return 1
+    Q0Erased _ -> return 2
 
-  value 0 = return Quantity0
-  value 1 = return Quantity1
-  value 2 = return Quantityω
+  value = \case
+    0 -> return $ Q0Inferred
+    1 -> return $ Q0       noRange
+    2 -> return $ Q0Erased noRange
+    _ -> malformed
+
+instance EmbPrj Q1Origin where
+  icod_ = \case
+    Q1Inferred -> return 0
+    Q1 _       -> return 1
+    Q1Linear _ -> return 2
+
+  value = \case
+    0 -> return $ Q1Inferred
+    1 -> return $ Q1       noRange
+    2 -> return $ Q1Linear noRange
+    _ -> malformed
+
+instance EmbPrj QωOrigin where
+  icod_ = \case
+    QωInferred -> return 0
+    Qω _       -> return 1
+    QωPlenty _ -> return 2
+
+  value = \case
+    0 -> return $ QωInferred
+    1 -> return $ Qω       noRange
+    2 -> return $ QωPlenty noRange
+    _ -> malformed
+
+instance EmbPrj Quantity where
+  icod_ = \case
+    Quantity0 a -> icodeN 0 Quantity0 a
+    Quantity1 a -> icodeN 1 Quantity1 a
+    Quantityω a -> icodeN'  Quantityω a  -- default quantity, shorter code
+
+  value = vcase $ \case
+    [0, a] -> valuN Quantity0 a
+    [1, a] -> valuN Quantity1 a
+    [a]    -> valuN Quantityω a
+    _      -> malformed
+
+-- -- ALT: forget quantity origin when serializing?
+-- instance EmbPrj Quantity where
+--   icod_ Quantity0 = return 0
+--   icod_ Quantity1 = return 1
+--   icod_ Quantityω = return 2
+
+--   value 0 = return Quantity0
+--   value 1 = return Quantity1
+--   value 2 = return Quantityω
+--   value _ = malformed
+
+instance EmbPrj Cohesion where
+  icod_ Flat       = return 0
+  icod_ Continuous = return 1
+  icod_ Squash     = return 2
+
+  value 0 = return Flat
+  value 1 = return Continuous
+  value 2 = return Squash
   value _ = malformed
 
 instance EmbPrj Modality where
-  icod_ (Modality a b) = icodeN' Modality a b
+  icod_ (Modality a b c) = icodeN' Modality a b c
 
   value = vcase $ \case
-    [a, b] -> valuN Modality a b
+    [a, b, c] -> valuN Modality a b c
     _ -> malformed
 
 instance EmbPrj Relevance where
@@ -529,6 +569,11 @@ instance EmbPrj Origin where
   value 4 = return Substitution
   value _ = malformed
 
+instance EmbPrj a => EmbPrj (WithOrigin a) where
+  icod_ (WithOrigin a b) = icodeN' WithOrigin a b
+
+  value = valueN WithOrigin
+
 instance EmbPrj FreeVariables where
   icod_ UnknownFVs   = icodeN' UnknownFVs
   icod_ (KnownFVs a) = icodeN' KnownFVs a
@@ -561,22 +606,22 @@ instance EmbPrj ProjOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b)   = icodeN' LitNat a b
-  icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
-  icod_ (LitString a b)   = icodeN 2 LitString a b
-  icod_ (LitChar   a b)   = icodeN 3 LitChar a b
-  icod_ (LitQName  a b)   = icodeN 5 LitQName a b
-  icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
-  icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
+  icod_ (LitNat    a)   = icodeN' LitNat a
+  icod_ (LitFloat  a)   = icodeN 1 LitFloat a
+  icod_ (LitString a)   = icodeN 2 LitString a
+  icod_ (LitChar   a)   = icodeN 3 LitChar a
+  icod_ (LitQName  a)   = icodeN 5 LitQName a
+  icod_ (LitMeta   a b) = icodeN 6 LitMeta a b
+  icod_ (LitWord64 a)   = icodeN 7 LitWord64 a
 
   value = vcase valu where
-    valu [a, b]       = valuN LitNat    a b
-    valu [1, a, b]    = valuN LitFloat  a b
-    valu [2, a, b]    = valuN LitString a b
-    valu [3, a, b]    = valuN LitChar   a b
-    valu [5, a, b]    = valuN LitQName  a b
-    valu [6, a, b, c] = valuN LitMeta   a b c
-    valu [7, a, b]    = valuN LitWord64 a b
+    valu [a]       = valuN LitNat    a
+    valu [1, a]    = valuN LitFloat  a
+    valu [2, a]    = valuN LitString a
+    valu [3, a]    = valuN LitChar   a
+    valu [5, a]    = valuN LitQName  a
+    valu [6, a, b] = valuN LitMeta   a b
+    valu [7, a]    = valuN LitWord64 a
     valu _            = malformed
 
 instance EmbPrj IsAbstract where
@@ -612,3 +657,12 @@ instance EmbPrj Empty where
   icod_ a = icod_ =<< lift (Empty.toImpossible a)
 
   value = fmap throwImpossible . value
+
+instance EmbPrj ExpandedEllipsis where
+  icod_ NoEllipsis = icodeN' NoEllipsis
+  icod_ (ExpandedEllipsis a b) = icodeN 1 ExpandedEllipsis a b
+
+  value = vcase valu where
+    valu []      = valuN NoEllipsis
+    valu [1,a,b] = valuN ExpandedEllipsis a b
+    valu _       = malformed

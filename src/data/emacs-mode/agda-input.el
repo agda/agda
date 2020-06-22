@@ -362,7 +362,7 @@ order for the change to take effect."
   ("dr" . ,(agda-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
   ("dl" . ,(agda-input-to-string-list "↙⇙                                                                         "))
 
-  ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))
+  ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))  ("<="  . ("⇐"))
   ("r-"  . ("→"))  ("->"  . ("→"))  ("r="  . ("⇒"))  ("=>"  . ("⇒"))
   ("u-"  . ("↑"))                   ("u="  . ("⇑"))
   ("d-"  . ("↓"))                   ("d="  . ("⇓"))
@@ -654,7 +654,7 @@ order for the change to take effect."
   ("Gd"  . ("δ"))  ("GD"  . ("Δ"))
   ("Ge"  . ("ε"))  ("GE"  . ("Ε"))
   ("Gz"  . ("ζ"))  ("GZ"  . ("Ζ"))
-  ;; \eta \Eta
+  ("Gh"  . ("η"))  ("GH"  . ("Η"))
   ("Gth" . ("θ"))  ("GTH" . ("Θ"))
   ("Gi"  . ("ι"))  ("GI"  . ("Ι"))
   ("Gk"  . ("κ"))  ("GK"  . ("Κ"))
@@ -708,6 +708,7 @@ order for the change to take effect."
   ("Mie" . ("𝑒"))
   ("Mif" . ("𝑓"))
   ("Mig" . ("𝑔"))
+  ("Mih" . ("ℎ"))
   ("Mii" . ("𝑖"))
   ("Mij" . ("𝑗"))
   ("Mik" . ("𝑘"))
@@ -884,10 +885,13 @@ order for the change to take effect."
   ("MCz" . ("𝔃"))
   ("MfA" . ("𝔄"))
   ("MfB" . ("𝔅"))
+  ("MfC" . ("ℭ"))
   ("MfD" . ("𝔇"))
   ("MfE" . ("𝔈"))
   ("MfF" . ("𝔉"))
   ("MfG" . ("𝔊"))
+  ("MfH" . ("ℌ"))
+  ("MfI" . ("ℑ"))
   ("MfJ" . ("𝔍"))
   ("MfK" . ("𝔎"))
   ("MfL" . ("𝔏"))
@@ -896,6 +900,7 @@ order for the change to take effect."
   ("MfO" . ("𝔒"))
   ("MfP" . ("𝔓"))
   ("MfQ" . ("𝔔"))
+  ("MfR" . ("ℜ"))
   ("MfS" . ("𝔖"))
   ("MfT" . ("𝔗"))
   ("MfU" . ("𝔘"))
@@ -903,6 +908,7 @@ order for the change to take effect."
   ("MfW" . ("𝔚"))
   ("MfX" . ("𝔛"))
   ("MfY" . ("𝔜"))
+  ("MfZ" . ("ℨ"))
   ("Mfa" . ("𝔞"))
   ("Mfb" . ("𝔟"))
   ("Mfc" . ("𝔠"))
@@ -931,9 +937,21 @@ order for the change to take effect."
   ("Mfz" . ("𝔷"))
 
   ;; (Sub / Super) scripts
+  ;;
+  ;; Unicode 12.1 omits several latin characters from sub/superscript.
+  ;; https://www.quora.com/Why-is-there-no-character-for-superscript-q-in-Unicode
+  ;;
+  ;; Perhaps they will be added in future versions, however there are no
+  ;; proposals for it currently in the pipeline:
+  ;; https://www.unicode.org/alloc/Pipeline.html
 
   ("_a" . ("ₐ"))
+  ;; ("_b" . ("b"))
+  ;; ("_c" . ("c"))
+  ;; ("_d" . ("d"))
   ("_e" . ("ₑ"))
+  ;; ("_f" . ("f"))
+  ;; ("_g" . ("g"))
   ("_h" . ("ₕ"))
   ("_i" . ("ᵢ"))
   ("_j" . ("ⱼ"))
@@ -943,11 +961,16 @@ order for the change to take effect."
   ("_n" . ("ₙ"))
   ("_o" . ("ₒ"))
   ("_p" . ("ₚ"))
+  ;; ("_q" . ("q"))
   ("_r" . ("ᵣ"))
   ("_s" . ("ₛ"))
   ("_t" . ("ₜ"))
   ("_u" . ("ᵤ"))
+  ("_v" . ("ᵥ"))
+  ;; ("_w" . ("w"))
   ("_x" . ("ₓ"))
+  ;; ("_y" . ("y"))
+  ;; ("_z" . ("z"))
 
   ("^a" . ("ᵃ"))
   ("^b" . ("ᵇ"))
@@ -965,6 +988,7 @@ order for the change to take effect."
   ("^n" . ("ⁿ"))
   ("^o" . ("ᵒ"))
   ("^p" . ("ᵖ"))
+  ;; ("^q" . ("q"))
   ("^r" . ("ʳ"))
   ("^s" . ("ˢ"))
   ("^t" . ("ᵗ"))
@@ -977,8 +1001,10 @@ order for the change to take effect."
 
   ("^A" . ("ᴬ"))
   ("^B" . ("ᴮ"))
+  ;; ("^C" . ("C"))
   ("^D" . ("ᴰ"))
   ("^E" . ("ᴱ"))
+  ;; ("^F" . ("F"))
   ("^G" . ("ᴳ"))
   ("^H" . ("ᴴ"))
   ("^I" . ("ᴵ"))
@@ -989,11 +1015,16 @@ order for the change to take effect."
   ("^N" . ("ᴺ"))
   ("^O" . ("ᴼ"))
   ("^P" . ("ᴾ"))
+  ;; ("^Q" . ("Q"))
   ("^R" . ("ᴿ"))
+  ;; ("^S" . ("S"))
   ("^T" . ("ᵀ"))
   ("^U" . ("ᵁ"))
   ("^V" . ("ⱽ"))
   ("^W" . ("ᵂ"))
+  ;; ("^X" . ("X"))
+  ;; ("^Y" . ("Y"))
+  ;; ("^Z" . ("Z"))
 
   ;; Some ISO8859-1 characters.
 

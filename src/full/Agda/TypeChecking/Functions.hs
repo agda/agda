@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Functions
   ( etaExpandClause
@@ -13,7 +12,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -26,7 +24,6 @@ import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "undefined.h"
 
 -- | Expand a clause to the maximal arity, by inserting variable
 --   patterns and applying the body to variables.
@@ -41,9 +38,9 @@ import Agda.Utils.Size
 etaExpandClause :: MonadTCM tcm => Clause -> tcm Clause
 etaExpandClause clause = liftTCM $ do
   case clause of
-    Clause _  _  ctel ps _           Nothing  _ _ -> return clause
-    Clause _  _  ctel ps Nothing     (Just t) _ _ -> return clause
-    Clause rl rf ctel ps (Just body) (Just t) catchall unreachable -> do
+    Clause _  _  ctel ps _           Nothing  _ _ _ _ -> return clause
+    Clause _  _  ctel ps Nothing     (Just t) _ _ _ _ -> return clause
+    Clause rl rf ctel ps (Just body) (Just t) catchall recursive unreachable ell -> do
 
       -- Get the telescope to expand the clause with.
       TelV tel0 t' <- telView $ unArg t
@@ -61,11 +58,11 @@ etaExpandClause clause = liftTCM $ do
           body' = raise n body `apply` teleArgs tel
       reportSDoc "term.clause.expand" 30 $ inTopContext $ vcat
         [ "etaExpandClause"
-        , "  body    = " <+> (addContext ctel' $ prettyTCM body)
+        , "  body    = " <+> addContext ctel' (prettyTCM body)
         , "  xs      = " <+> text (prettyShow xs)
         , "  new tel = " <+> prettyTCM ctel'
         ]
-      return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall unreachable
+      return $ Clause rl rf ctel' ps' (Just body') (Just (t $> t')) catchall recursive unreachable ell
   where
     -- Get all initial lambdas of the body.
     peekLambdas :: Term -> [Arg ArgName]

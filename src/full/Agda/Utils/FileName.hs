@@ -10,7 +10,6 @@ module Agda.Utils.FileName
   , absolute
   , (===)
   , doesFileExistCaseSensitive
-  , rootPath
   ) where
 
 import System.Directory
@@ -30,7 +29,6 @@ import Data.Data (Data)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Paths which are known to be absolute.
@@ -39,18 +37,11 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
-  deriving (Eq, Ord, Data, Hashable)
+  deriving (Show, Eq, Ord, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
 filePath = Text.unpack . byteStringPath
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instance is deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for this type.
-
-instance Show AbsolutePath where
-  show = filePath
 
 instance Pretty AbsolutePath where
   pretty = text . filePath
@@ -65,16 +56,10 @@ mkAbsolute f
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
-rootPath :: FilePath
-#ifdef mingw32_HOST_OS
-rootPath = joinDrive "C:" [pathSeparator]
-#else
-rootPath = [pathSeparator]
-#endif
-
--- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
-rootName :: AbsolutePath -> String
-rootName = dropExtension . snd . splitFileName . filePath
+-- UNUSED Linag-Ting Chen 2019-07-16
+---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
+--rootName :: AbsolutePath -> String
+--rootName = dropExtension . snd . splitFileName . filePath
 
 -- | Makes the path absolute.
 --
@@ -85,16 +70,12 @@ absolute :: FilePath -> IO AbsolutePath
 absolute f = mkAbsolute <$> do
   -- canonicalizePath sometimes truncates paths pointing to
   -- non-existing files/directories.
-  ex <- doesFileExist f .||. doesDirectoryExist f
+  ex <- doesFileExist f `or2M` doesDirectoryExist f
   if ex then
     canonicalizePath f
    else do
     cwd <- getCurrentDirectory
     return (cwd </> f)
-  where
-  m1 .||. m2 = do
-    b1 <- m1
-    if b1 then return True else m2
 
 -- | Tries to establish if the two file paths point to the same file
 -- (or directory).
@@ -118,5 +99,5 @@ doesFileExistCaseSensitive f = do
     bracket (findFirstFile f) (findClose . fst) $
       fmap (takeFileName f ==) . getFindDataFileName . snd
 #else
-doesFileExistCaseSensitive f = doesFileExist f
+doesFileExistCaseSensitive = doesFileExist
 #endif

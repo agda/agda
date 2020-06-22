@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | The monad for the termination checker.
@@ -14,21 +12,16 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 
-#if __GLASGOW_HASKELL__ >= 800
 import qualified Control.Monad.Fail as Fail
-#endif
 
+import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Monad.State
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
-import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (IsProjP(..), AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -41,16 +34,15 @@ import Agda.Termination.RecCheck (anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List   ( hasElem )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Monoid
@@ -60,7 +52,6 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | The mutual block we are checking.
@@ -86,8 +77,6 @@ data TerEnv = TerEnv
 
   { terUseDotPatterns :: Bool
     -- ^ Are we mining dot patterns to find evindence of structal descent?
-  , terInlineWithFunctions :: Bool
-    -- ^ Do we inline with functions to enhance termination checking of with?
   , terSizeSuc :: Maybe QName
     -- ^ The name of size successor, if any.
   , terSharp   :: Maybe QName
@@ -150,15 +139,11 @@ data TerEnv = TerEnv
 --   of these values.
 --
 --   Values that do not have a safe default are set to
---   @IMPOSSIBLE@.
-
---   Note: Do not write @__IMPOSSIBLE__@ in the haddock comment above
---   since it will be expanded by the CPP, leading to a haddock parse error.
+--   @__IMPOSSIBLE__@.
 
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
   { terUseDotPatterns           = False -- must be False initially!
-  , terInlineWithFunctions      = True
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
   , terCutOff                   = defaultCutOff
@@ -193,12 +178,12 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving ( Functor
            , Applicative
            , Monad
-#if __GLASGOW_HASKELL__ >= 800
            , Fail.MonadFail
-#endif
            , MonadError TCErr
            , MonadBench Phase
+           , MonadStatistics
            , HasOptions
+           , HasBuiltins
            , MonadDebug
            , HasConstInfo
            , MonadIO
@@ -207,6 +192,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , MonadTCM
            , ReadTCState
            , MonadReduce
+           , MonadAddContext
            )
 
 instance MonadTer TerM where
@@ -232,13 +218,8 @@ runTerDefault cont = do
   -- The name of sharp (if available).
   sharp <- fmap nameOfSharp <$> coinductionKit
 
-  -- Andreas, 2014-08-28
-  -- We do not inline with functions if --without-K.
-  inlineWithFunctions <- not <$> withoutKOption
-
   let tenv = defaultTerEnv
-        { terInlineWithFunctions      = inlineWithFunctions
-        , terSizeSuc                  = suc
+        { terSizeSuc                  = suc
         , terSharp                    = sharp
         , terCutOff                   = cutoff
         }
@@ -261,9 +242,6 @@ instance (Semigroup m, Monoid m) => Monoid (TerM m) where
   mconcat = mconcat <.> sequence
 
 -- * Modifiers and accessors for the termination environment in the monad.
-
-terGetInlineWithFunctions :: TerM Bool
-terGetInlineWithFunctions = terAsks terInlineWithFunctions
 
 terGetUseDotPatterns :: TerM Bool
 terGetUseDotPatterns = terAsks terUseDotPatterns
@@ -386,9 +364,9 @@ withUsableVars pats m = do
 -- | Set 'terUseSizeLt' when going under constructor @c@.
 conUseSizeLt :: QName -> TerM a -> TerM a
 conUseSizeLt c m = do
-  caseMaybeM (liftTCM $ isRecordConstructor c)
+  ifM (liftTCM $ isEtaOrCoinductiveRecordConstructor c)  -- Non-eta inductive records are the same as datatypes
+    (terSetUseSizeLt False m)
     (terSetUseSizeLt True m)
-    (const $ terSetUseSizeLt False m)
 
 -- | Set 'terUseSizeLt' for arguments following projection @q@.
 --   We disregard j<i after a non-coinductive projection.
@@ -470,9 +448,9 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs mut =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
-                  "found" <+> if null names then "none" else sep (map prettyTCM names)
+                  "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
       _ -> do
         reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
@@ -510,7 +488,7 @@ patternDepth = getMaxNat . foldrPattern depth where
 --   for structural descent.
 
 unusedVar :: DeBruijnPattern
-unusedVar = LitP (LitString noRange "term.unused.pat.var")
+unusedVar = litP (LitString "term.unused.pat.var")
 
 -- | Extract variables from 'DeBruijnPattern's that could witness a decrease
 --   via a SIZELT constraint.
@@ -596,7 +574,7 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 --   Performance-wise, I could not see a difference between Set and list.
 
 newtype CallPath = CallPath { callInfos :: [CallInfo] }
-  deriving (Show, Semigroup, Monoid, AllNames)
+  deriving (Show, Semigroup, Monoid)
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where

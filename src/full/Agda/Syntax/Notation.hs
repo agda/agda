@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
@@ -14,22 +13,29 @@
 
 module Agda.Syntax.Notation where
 
-import Control.DeepSeq
+import Prelude hiding (null)
+
 import Control.Monad
+import Control.Monad.Except
 
 import qualified Data.List as List
 import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
 
-import Data.Data (Data)
-
+import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(throwError) )
+import Agda.Utils.Lens
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 --   before it leaves the Happy code.
@@ -44,67 +50,6 @@ data HoleName
 isLambdaHole :: HoleName -> Bool
 isLambdaHole (LambdaHole _ _) = True
 isLambdaHole _ = False
-
--- | Notation as provided by the @syntax@ declaration.
-type Notation = [GenPart]
-
--- | Part of a Notation
-data GenPart
-  = BindHole Range (Ranged Int)
-    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-    --   First range is the rhs range and second is the binder.
-  | NormalHole Range (NamedArg (Ranged Int))
-    -- ^ Argument is where the expression should go.
-  | WildHole (Ranged Int)
-    -- ^ An underscore in binding position.
-  | IdPart RString
-  deriving (Data, Show)
-
-instance Eq GenPart where
-  BindHole _ i   == BindHole _ j   = i == j
-  NormalHole _ x == NormalHole _ y = x == y
-  WildHole i     == WildHole j     = i == j
-  IdPart x       == IdPart y       = x == y
-  _              == _              = False
-
-instance Ord GenPart where
-  BindHole _ i   `compare` BindHole _ j   = i `compare` j
-  NormalHole _ x `compare` NormalHole _ y = x `compare` y
-  WildHole i     `compare` WildHole j     = i `compare` j
-  IdPart x       `compare` IdPart y       = x `compare` y
-  BindHole{}     `compare` _              = LT
-  _              `compare` BindHole{}     = GT
-  NormalHole{}   `compare` _              = LT
-  _              `compare` NormalHole{}   = GT
-  WildHole{}     `compare` _              = LT
-  _              `compare` WildHole{}     = GT
-
-instance HasRange GenPart where
-  getRange p = case p of
-    IdPart x       -> getRange x
-    BindHole r _   -> r
-    WildHole i     -> getRange i
-    NormalHole r _ -> r
-
-instance SetRange GenPart where
-  setRange r p = case p of
-    IdPart x       -> IdPart x
-    BindHole _ i   -> BindHole r i
-    WildHole i     -> WildHole i
-    NormalHole _ i -> NormalHole r i
-
-instance KillRange GenPart where
-  killRange p = case p of
-    IdPart x       -> IdPart $ killRange x
-    BindHole _ i   -> BindHole noRange $ killRange i
-    WildHole i     -> WildHole $ killRange i
-    NormalHole _ x -> NormalHole noRange $ killRange x
-
-instance NFData GenPart where
-  rnf (BindHole _ a)   = rnf a
-  rnf (NormalHole _ a) = rnf a
-  rnf (WildHole a)     = rnf a
-  rnf (IdPart a)       = rnf a
 
 -- | Get a flat list of identifier parts of a notation.
 stringParts :: Notation -> [String]
@@ -270,5 +215,184 @@ mkNotation holes ids = do
         [ _hole ]    -> True
         _            -> False
 
-noNotation :: Notation
-noNotation = []
+-- | All the notation information related to a name.
+data NewNotation = NewNotation
+  { notaName  :: QName
+  , notaNames :: Set A.Name
+    -- ^ The names the syntax and/or fixity belong to.
+    --
+    -- Invariant: The set is non-empty. Every name in the list matches
+    -- 'notaName'.
+  , notaFixity :: Fixity
+    -- ^ Associativity and precedence (fixity) of the names.
+  , notation :: Notation
+    -- ^ Syntax associated with the names.
+  , notaIsOperator :: Bool
+    -- ^ True if the notation comes from an operator (rather than a
+    -- syntax declaration).
+  } deriving Show
+
+instance LensFixity NewNotation where
+  lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
+
+-- | If an operator has no specific notation, then it is computed from
+-- its name.
+namesToNotation :: QName -> A.Name -> NewNotation
+namesToNotation q n = NewNotation
+  { notaName       = q
+  , notaNames      = Set.singleton n
+  , notaFixity     = f
+  , notation       = if null syn then syntaxOf (unqualify q) else syn
+  , notaIsOperator = null syn
+  }
+  where Fixity' f syn _ = A.nameFixity n
+
+-- | Replace 'noFixity' by 'defaultFixity'.
+useDefaultFixity :: NewNotation -> NewNotation
+useDefaultFixity n
+  | notaFixity n == noFixity = n { notaFixity = defaultFixity }
+  | otherwise                = n
+
+-- | Return the 'IdPart's of a notation, the first part qualified,
+--   the other parts unqualified.
+--   This allows for qualified use of operators, e.g.,
+--   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
+notationNames :: NewNotation -> [QName]
+notationNames (NewNotation q _ _ parts _) =
+  zipWith ($) (reQualify : repeat QName) [simpleName $ rangedThing x | IdPart x <- parts ]
+  where
+    -- The qualification of @q@.
+    modules     = List1.init (qnameParts q)
+    -- Putting the qualification onto @x@.
+    reQualify x = List.foldr Qual (QName x) modules
+
+-- | Create a 'Notation' (without binders) from a concrete 'Name'.
+--   Does the obvious thing:
+--   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
+--   If 'Name' has no 'Hole's, it returns 'noNotation'.
+syntaxOf :: Name -> Notation
+syntaxOf y
+  | isOperator y = mkSyn 0 $ List1.toList $ nameNameParts y
+  | otherwise    = noNotation
+  where
+    -- Turn a concrete name into a Notation,
+    -- numbering the holes from left to right.
+    -- Result will have no 'BindingHole's.
+    mkSyn :: Int -> [NamePart] -> Notation
+    mkSyn n []          = []
+    mkSyn n (Hole : xs) = NormalHole noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
+    mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
+
+-- | Merges 'NewNotation's that have the same precedence level and
+-- notation, with two exceptions:
+--
+-- * Operators and notations coming from syntax declarations are kept
+--   separate.
+--
+-- * If /all/ instances of a given 'NewNotation' have the same
+--   precedence level or are \"unrelated\", then they are merged. They
+--   get the given precedence level, if any, and otherwise they become
+--   unrelated (but related to each other).
+--
+-- If 'NewNotation's that are merged have distinct associativities,
+-- then they get 'NonAssoc' as their associativity.
+--
+-- Precondition: No 'A.Name' may occur in more than one list element.
+-- Every 'NewNotation' must have the same 'notaName'.
+--
+-- Postcondition: No 'A.Name' occurs in more than one list element.
+mergeNotations :: [NewNotation] -> [NewNotation]
+mergeNotations =
+  map merge .
+  concatMap groupIfLevelsMatch .
+  groupOn (\n -> ( notation n
+                 , notaIsOperator n
+                 ))
+  where
+  groupIfLevelsMatch :: [NewNotation] -> [[NewNotation]]
+  groupIfLevelsMatch []         = __IMPOSSIBLE__
+  groupIfLevelsMatch ns@(n : _) =
+    if allEqual (map fixityLevel related)
+    then [sameAssoc (sameLevel ns)]
+    else map (: []) ns
+    where
+    -- Fixities of operators whose precedence level is not Unrelated.
+    related = mapMaybe ((\f -> case fixityLevel f of
+                                Unrelated  -> Nothing
+                                Related {} -> Just f)
+                              . notaFixity) ns
+
+    -- Precondition: All related operators have the same precedence
+    -- level.
+    --
+    -- Gives all unrelated operators the same level.
+    sameLevel = map (set (_notaFixity . _fixityLevel) level)
+      where
+      level = case related of
+        f : _ -> fixityLevel f
+        []    -> Unrelated
+
+    -- If all related operators have the same associativity, then the
+    -- unrelated operators get the same associativity, and otherwise
+    -- all operators get the associativity NonAssoc.
+    sameAssoc = map (set (_notaFixity . _fixityAssoc) assoc)
+      where
+      assoc = case related of
+        f : _ | allEqual (map fixityAssoc related) -> fixityAssoc f
+        _                                          -> NonAssoc
+
+  merge :: [NewNotation] -> NewNotation
+  merge []         = __IMPOSSIBLE__
+  merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
+
+-- | Lens for 'Fixity' in 'NewNotation'.
+
+_notaFixity :: Lens' Fixity NewNotation
+_notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
+
+-- * Sections
+
+-- | Sections, as well as non-sectioned operators.
+
+data NotationSection = NotationSection
+  { sectNotation  :: NewNotation
+  , sectKind      :: NotationKind
+    -- ^ For non-sectioned operators this should match the notation's
+    -- 'notationKind'.
+  , sectLevel     :: Maybe FixityLevel
+    -- ^ Effective precedence level. 'Nothing' for closed notations.
+  , sectIsSection :: Bool
+    -- ^ 'False' for non-sectioned operators.
+  }
+  deriving Show
+
+-- | Converts a notation to a (non-)section.
+
+noSection :: NewNotation -> NotationSection
+noSection n = NotationSection
+  { sectNotation  = n
+  , sectKind      = notationKind (notation n)
+  , sectLevel     = Just (fixityLevel (notaFixity n))
+  , sectIsSection = False
+  }
+
+
+-- * Pretty printing
+
+instance Pretty NewNotation where
+  pretty (NewNotation x _xs fx nota isOp) = hsepWith "=" px pn
+    where
+    px = fsep [ if isOp then empty else "syntax" , pretty fx , pretty x ]
+    pn = if isOp then empty else pretty nota
+
+instance Pretty NotationKind where pretty = pshow
+
+instance Pretty NotationSection where
+  pretty (NotationSection nota kind mlevel isSection)
+    | isSection = fsep
+        [ "section"
+        , pretty kind
+        , maybe empty pretty mlevel
+        , pretty nota
+        ]
+    | otherwise = pretty nota

@@ -1,0 +1,5 @@
+RewriteExt-confluence.agda:32,17-21
+Confluence check failed: id unit x (f x) reduces to both g x and
+f x which are not equal because g x != f x of type B x
+when checking confluence of the rewrite rule f≡g′ with
+RewriteExt-confluence.id-clause1

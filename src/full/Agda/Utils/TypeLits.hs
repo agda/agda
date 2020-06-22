@@ -1,5 +1,5 @@
-{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE GADTs          #-}
 
 

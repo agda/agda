@@ -36,7 +36,6 @@ keywords
 
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
-  ``codata`` :ref:`coinductive <copatterns-coinductive-records>`
   ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
   :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
   ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``
@@ -46,13 +45,13 @@ keywords
   ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
   ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
   :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
-  :ref:`unquoteDef <unquoting-declarations>` ``using`` ``where``
-  ``with``
+  :ref:`unquoteDef <unquoting-declarations>` ``using``
+  :ref:`variable <generalization-of-declared-variables>`
+  ``where`` ``with``
 
-  The ``Set`` keyword can appear with a number suffix, optionally subscripted
-  (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
-  keywords.
-
+  The ``Set`` keyword can appear with a natural number suffix, optionally
+  subscripted (see :ref:`sort-system`). For instance ``Set42`` and
+  ``Set₄₂`` are both keywords.
 
 .. _names:
 

@@ -1,31 +1,22 @@
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE TypeFamilies           #-}  -- because of type equality ~
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.Monad.State
 
 import Data.Maybe
 import Data.Monoid
 import qualified Data.List as List
-import Data.Foldable
-import Data.Traversable
 
 import Agda.Syntax.Common
-import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Internal as I
 
-import Agda.Utils.Empty
-import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
-import Agda.Utils.Tuple
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Tools for clauses
@@ -85,18 +76,18 @@ instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
 instance LabelPatVars a b i => LabelPatVars [a] [b] i                 where
 
 instance LabelPatVars Pattern DeBruijnPattern Int where
-  labelPatVars p =
-    case p of
-      VarP o x     -> do i <- next
-                         return $ VarP o (DBPatVar x i)
-      DotP o t     -> DotP o t <$ next
-      ConP c mt ps -> ConP c mt <$> labelPatVars ps
-      DefP o q ps -> DefP o q <$> labelPatVars ps
-      LitP l       -> return $ LitP l
-      ProjP o q    -> return $ ProjP o q
-      IApplyP o u t x -> do i <- next
-                            return $ IApplyP o u t (DBPatVar x i)
-    where next = caseListM get __IMPOSSIBLE__ $ \ x xs -> do put xs; return x
+  labelPatVars p = case p of
+    VarP o x        -> VarP o . DBPatVar x <$> next
+    DotP o t        -> DotP o t <$ next
+    ConP c mt ps    -> ConP c mt <$> labelPatVars ps
+    DefP o q  ps    -> DefP o q <$> labelPatVars ps
+    LitP  o l       -> return $ LitP o l
+    ProjP o q       -> return $ ProjP o q
+    IApplyP o u t x -> IApplyP o u t . DBPatVar x <$> next
+   where
+    next = caseListM get __IMPOSSIBLE__ $ \x xs -> do
+      put xs
+      return x
   unlabelPatVars = fmap dbPatVarName
 
 -- | Augment pattern variables with their de Bruijn index.
@@ -138,14 +129,14 @@ dbPatPerm' countDots ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
-    picks = forM (downFrom n) $ \ i -> List.findIndex (Just i ==) ixs
+    picks = forM (downFrom n) $ \ i -> List.elemIndex (Just i) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP _ x)    = [Just $ dbPatVarIndex x]
     getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
     getIndices (DefP _ _ ps) = concatMap (getIndices . namedThing . unArg) ps
     getIndices (DotP _ _)    = [Nothing | countDots]
-    getIndices (LitP _)      = []
+    getIndices (LitP _ _)    = []
     getIndices ProjP{}       = []
     getIndices (IApplyP _ _ _ x) = [Just $ dbPatVarIndex x]
 
@@ -168,7 +159,7 @@ patternToElim (Arg ai (ConP c cpi ps)) = Apply $ Arg ai $ Con c ci $
 patternToElim (Arg ai (DefP o q ps)) = Apply $ Arg ai $ Def q $
       map (patternToElim . fmap namedThing) ps
 patternToElim (Arg ai (DotP o t)   ) = Apply $ Arg ai t
-patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
+patternToElim (Arg ai (LitP o l)    ) = Apply $ Arg ai $ Lit l
 patternToElim (Arg ai (ProjP o dest)) = Proj o dest
 patternToElim (Arg ai (IApplyP o t u x)) = IApply t u $ var $ dbPatVarIndex x
 
@@ -204,7 +195,7 @@ instance MapNamedArgPattern a (NamedArg (Pattern' a)) where
     case namedArg np of
       VarP o x    -> f np
       DotP  o t   -> f np
-      LitP  l     -> f np
+      LitP o l    -> f np
       ProjP o q   -> f np
       ConP c i ps -> f $ setNamedArg np $ ConP c i $ mapNamedArgPattern f ps
       DefP o q ps -> f $ setNamedArg np $ DefP o q $ mapNamedArgPattern f ps
@@ -274,7 +265,7 @@ instance PatternLike a (Pattern' a) where
     ConP _ _ ps -> foldrPattern f ps
     DefP _ _ ps -> foldrPattern f ps
     VarP _ _    -> mempty
-    LitP _      -> mempty
+    LitP _ _    -> mempty
     DotP _ _    -> mempty
     ProjP _ _   -> mempty
     IApplyP{}   -> mempty
@@ -285,7 +276,7 @@ instance PatternLike a (Pattern' a) where
       ConP c ci ps -> ConP c ci <$> traversePatternM pre post ps
       DefP o q ps  -> DefP o q <$> traversePatternM pre post ps
       VarP  _ _    -> return p
-      LitP  _      -> return p
+      LitP  _ _    -> return p
       DotP  _ _    -> return p
       ProjP _ _    -> return p
       IApplyP{}    -> return p
@@ -333,10 +324,11 @@ instance PatternVarModalities a x => PatternVarModalities (Arg a) x where
   patternVarModalities arg = map (second (m <>)) (patternVarModalities $ unArg arg)
     where m = getModality arg
 
-instance PatternVarModalities a x => PatternVarModalities (Elim' a) x where
-  patternVarModalities (Apply x) = patternVarModalities x -- Note: x :: Arg a
-  patternVarModalities (IApply x y p) = patternVarModalities [x, y, p]
-  patternVarModalities Proj{}    = []
+-- UNUSED:
+-- instance PatternVarModalities a x => PatternVarModalities (Elim' a) x where
+--   patternVarModalities (Apply x) = patternVarModalities x -- Note: x :: Arg a
+--   patternVarModalities (IApply x y p) = patternVarModalities [x, y, p]
+--   patternVarModalities Proj{}    = []
 
 instance PatternVarModalities (Pattern' x) x where
   patternVarModalities p =

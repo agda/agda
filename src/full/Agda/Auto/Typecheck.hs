@@ -1,16 +1,13 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Auto.Typecheck where
 
 import Data.IORef
-import Control.Monad (liftM)
 
 import Agda.Syntax.Common (Hiding (..))
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- ---------------------------------
@@ -154,8 +151,8 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
   mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case rawValue hnityp of
    HNPi hid2 possdep it (Abs _ ot)
      | ndfv > 0 || copyarg a || hid == hid2 -> mpret $
-    And (Just ((if possdep then [Term a] else []) ++ [Term ctx, Term ityptrs]))
-        (if ndfv > 0 then mpret OK else (tcExp (isdep || possdep) ctx (t it) a))
+    And (Just ([Term a | possdep] ++ [Term ctx, Term ityptrs]))
+        (if ndfv > 0 then mpret OK else tcExp (isdep || possdep) ctx (t it) a)
         (tcargs (ndfv - 1) isdep ctx (sub a (t ot)) as (addend hid a elimtrm) isconstructor cont)
    _ -> mpret $ Error "tcargs, inf type should be fun or pi (and same hid)"
 
@@ -467,7 +464,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
     fhn semifok mexpmeta hne cont =
      mmbpcase (iotastep True hne)
       (\m -> do
-        sf <- return False {- semiflex hne -}
+        let sf = False {- semiflex hne -}
         if semifok && sf then
           cont (CMFlex m (CMFSemi mexpmeta hne))
          else
@@ -618,7 +615,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        _ -> return False
 
     boringClos :: [CAction o] -> EE Bool
-    boringClos cl = liftM (all id) $ mapM f cl
+    boringClos cl = and <$> mapM f cl
      where f (Sub e) = boringExp e
            f Skip = return True
            f (Weak _) = return True
@@ -704,7 +701,7 @@ iotapossmeta :: ICExp o -> ICArgList o -> EE Bool
 iotapossmeta ce@(Clos cl _) cargs = do
  xs <- mapM ncaction cl
  y <- nccargs cargs
- return $ not (all id xs && y)
+ return $ not (and xs && y)
  where
   ncaction (Sub ce) = nonconstructor ce
   ncaction Skip = return True

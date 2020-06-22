@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module UserManual.Tests (tests, examplesInUserManual) where
 

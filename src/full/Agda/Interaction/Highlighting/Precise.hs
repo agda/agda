@@ -1,5 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
+{-# LANGUAGE CPP                        #-}
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
@@ -16,6 +15,7 @@ module Agda.Interaction.Highlighting.Precise
   , parserBased
   , singleton
   , several
+  , kindOfNameToNameKind
     -- ** Merging
   , merge
     -- ** Inspection
@@ -38,14 +38,17 @@ module Agda.Interaction.Highlighting.Precise
   , mergeC
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Prelude hiding (null)
+
 import Control.Arrow (second)
 import Control.Monad
 
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -54,13 +57,18 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Position as P
-import qualified Agda.Syntax.Common as Common
-import qualified Agda.Syntax.Concrete as SC
+import qualified Agda.Syntax.Common   as Common
+import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 
 import Agda.Interaction.Highlighting.Range
 
-import Agda.Utils.String
 import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Null
+import Agda.Utils.String
+
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Files
@@ -109,6 +117,8 @@ data NameKind
 
 data OtherAspect
   = Error
+  | ErrorWarning
+    -- ^ A warning that is considered fatal in the end.
   | DottedPattern
   | UnsolvedMeta
   | UnsolvedConstraint
@@ -119,15 +129,20 @@ data OtherAspect
   | Deadcode
     -- ^ Used for highlighting unreachable clauses, unreachable RHS
     -- (because of an absurd pattern), etc.
+  | ShadowingInTelescope
+    -- ^ Used for shadowed repeated variable names in telescopes.
   | CoverageProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
     -- ^ Code which is being type-checked.
+  | MissingDefinition
+    -- ^ Function declaration without matching definition
   -- NB: We put CatchallClause last so that it is overwritten by other,
   -- more important, aspects in the emacs mode.
   | CatchallClause
+  | ConfluenceProblem
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Meta information which can be associated with a
@@ -136,24 +151,25 @@ data OtherAspect
 data Aspects = Aspects
   { aspect       :: Maybe Aspect
   , otherAspects :: Set OtherAspect
-  , note         :: Maybe String
-    -- ^ This note, if present, can be displayed as a tool-tip or
+  , note         :: String
+    -- ^ This note, if not null, can be displayed as a tool-tip or
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
   , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
-    --   known. File positions are counted from 1.
+    --   known.
   , tokenBased :: !TokenBased
     -- ^ Is this entry token-based?
   }
   deriving Show
 
 data DefinitionSite = DefinitionSite
-  { defSiteModule :: SC.TopLevelModuleName
+  { defSiteModule :: C.TopLevelModuleName
       -- ^ The defining module.
   , defSitePos    :: Int
-      -- ^ The file position in that module.
+      -- ^ The file position in that module. File positions are
+      -- counted from 1.
   , defSiteHere   :: Bool
       -- ^ Has this @DefinitionSite@ been created at the defining site of the name?
   , defSiteAnchor :: Maybe String
@@ -206,6 +222,26 @@ singleton rs m = File {
 several :: [Ranges] -> Aspects -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
 
+-- | Conversion from classification of the scope checker.
+
+kindOfNameToNameKind :: KindOfName -> NameKind
+kindOfNameToNameKind = \case
+  -- Inductive is Constructor default, overwritten by CoInductive
+  ConName                  -> Constructor Common.Inductive
+  CoConName                -> Constructor Common.CoInductive
+  FldName                  -> Field
+  PatternSynName           -> Constructor Common.Inductive
+  GeneralizeName           -> Generalizable
+  DisallowedGeneralizeName -> Generalizable
+  MacroName                -> Macro
+  QuotableName             -> Function
+  DataName                 -> Datatype
+  RecName                  -> Record
+  FunName                  -> Function
+  AxiomName                -> Postulate
+  PrimName                 -> Primitive
+  OtherDefName             -> Function
+
 ------------------------------------------------------------------------
 -- Merging
 
@@ -217,21 +253,45 @@ instance Monoid TokenBased where
   mempty  = TokenBased
   mappend = (<>)
 
+-- | Some 'NameKind's are more informative than others.
+instance Semigroup NameKind where
+  -- During scope-checking of record, we build a constructor
+  -- whose arguments (@Bound@ variables) are the fields.
+  -- Later, we process them as @Field@s proper.
+  Field    <> Bound    = Field
+  Bound    <> Field    = Field
+  -- -- Projections are special functions.
+  -- -- TODO necessary?
+  -- Field    <> Function = Field
+  -- Function <> Field    = Field
+  -- TODO: more overwrites?
+  k1 <> k2 | k1 == k2  = k1
+           | otherwise = k1 -- TODO: __IMPOSSIBLE__
+
+-- | @NameKind@ in @Name@ can get more precise.
+instance Semigroup Aspect where
+  Name mk1 op1 <> Name mk2 op2 = Name (unionMaybeWith (<>) mk1 mk2) op1
+    -- (op1 || op2) breaks associativity
+  a1 <> a2 | a1 == a2  = a1
+           | otherwise = a1 -- TODO: __IMPOSSIBLE__
+
+instance Semigroup DefinitionSite where
+  d1 <> d2 | d1 == d2  = d1
+           | otherwise = d1 -- TODO: __IMPOSSIBLE__
+
 -- | Merges meta information.
 
 mergeAspects :: Aspects -> Aspects -> Aspects
 mergeAspects m1 m2 = Aspects
-  { aspect       = (mplus `on` aspect) m1 m2
+  { aspect       = (unionMaybeWith (<>) `on` aspect) m1 m2
   , otherAspects = (Set.union `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
-      (Just n1, Just n2) -> Just $
-         if n1 == n2
-           then n1
-           else addFinalNewLine n1 ++ "----\n" ++ n2
-      (Just n1, Nothing) -> Just n1
-      (Nothing, Just n2) -> Just n2
-      (Nothing, Nothing) -> Nothing
-  , definitionSite = (mplus `on` definitionSite) m1 m2
+      (n1, "") -> n1
+      ("", n2) -> n2
+      (n1, n2)
+        | n1 == n2  -> n1
+        | otherwise -> addFinalNewLine n1 ++ "----\n" ++ n2
+  , definitionSite = (unionMaybeWith (<>) `on` definitionSite) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
 
@@ -242,7 +302,7 @@ instance Monoid Aspects where
   mempty = Aspects
     { aspect         = Nothing
     , otherAspects   = Set.empty
-    , note           = Nothing
+    , note           = []
     , definitionSite = Nothing
     , tokenBased     = mempty
     }
@@ -295,7 +355,7 @@ compressedFileInvariant :: CompressedFile -> Bool
 compressedFileInvariant (CompressedFile []) = True
 compressedFileInvariant (CompressedFile f)  =
   all rangeInvariant rs &&
-  all (not . empty) rs &&
+  all (not . null) rs &&
   and (zipWith (<=) (map to $ init rs) (map from $ tail rs))
   where rs = map fst f
 
@@ -318,8 +378,7 @@ decompress :: CompressedFile -> File
 decompress =
   File .
   IntMap.fromList .
-  concat .
-  map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
+  concatMap (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
 
 -- | Clear any highlighting info for the given ranges. Used to make sure
@@ -341,7 +400,7 @@ noHighlightingInRange rs (CompressedFile hs) =
 
 singletonC :: Ranges -> Aspects -> CompressedFile
 singletonC (Ranges rs) m =
-  CompressedFile [(r, m) | r <- rs, not (empty r)]
+  CompressedFile [(r, m) | r <- rs, not (null r)]
 
 -- | Like 'singletonR', but with a list of 'Ranges' instead of a
 -- single one.
@@ -376,7 +435,7 @@ mergeC (CompressedFile f1) (CompressedFile f2) =
     [(a, ma), (b, _), (c, _), (d, md)] =
       List.sortBy (compare `on` fst)
              [(from i1, m1), (to i1, m1), (from i2, m2), (to i2, m2)]
-    fix = filter (not . empty . fst)
+    fix = filter (not . null . fst)
 
 instance Semigroup CompressedFile where
   (<>) = mergeC
@@ -407,8 +466,7 @@ splitAtC p f = (CompressedFile f1, CompressedFile f2)
 selectC :: P.Range -> CompressedFile -> CompressedFile
 selectC r cf = cf'
   where
-    empty         = (0,0)
-    (from, to)    = fromMaybe empty (rangeToEndPoints r)
+    (from, to)    = fromMaybe (0,0) (rangeToEndPoints r)
     (_, (cf', _)) = (second (splitAtC to)) . splitAtC from $ cf
 
 

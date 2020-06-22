@@ -1,0 +1,12 @@
+ConstructorRewriteConfluenceFail.agda:31,1-10
+Confluence check failed: count-suc (pred (suc x)) reduces to both
+count-suc (suc x) and count-suc x which are not equal because
+suc (count-suc x) != count-suc x of type ℕ
+when checking confluence of the rewrite rule
+ConstructorRewriteConfluenceFail.count-suc-clause1 with pred-suc
+ConstructorRewriteConfluenceFail.agda:31,1-10
+Confluence check failed: count-suc (suc (pred x)) reduces to both
+1 +ℕ count-suc (pred x) and count-suc x which are not equal because
+suc (count-suc x) != count-suc x of type ℕ
+when checking confluence of the rewrite rule
+ConstructorRewriteConfluenceFail.count-suc-clause2 with suc-pred

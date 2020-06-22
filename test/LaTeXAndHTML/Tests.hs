@@ -1,6 +1,4 @@
 {-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module LaTeXAndHTML.Tests where
 
@@ -115,6 +113,8 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
                   then "md"
                   else if "RsTHighlight" `List.isPrefixOf` inFileName
                   then "rst"
+                  else if "OrgHighlight" `List.isPrefixOf` inFileName
+                  then "org"
                   else "html"
 
   flags :: FilePath -> [String]
@@ -164,7 +164,7 @@ mkLaTeXOrHTMLTest k copy agdaBin inp =
     when copy $ copyFile inp newFile
     res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
     if ret /= ExitSuccess then
-      return $ AgdaFailed res
+      return $ AgdaFailed (toProgramResult res)
     else do
       output <- decodeUtf8 <$> BS.readFile (outDir </> outFileName)
       let done    = return $ Success output
@@ -214,7 +214,7 @@ printLaTeXResult dir r = case r of
   Success t         -> t
   AgdaFailed p      -> "AGDA_COMPILE_FAILED\n\n"
                          `T.append`
-                       mangle (printProcResult p)
+                       mangle (printProgramResult p)
   LaTeXFailed progs -> "LATEX_COMPILE_FAILED with "
                          `T.append`
                        T.intercalate ", " (map T.pack progs)

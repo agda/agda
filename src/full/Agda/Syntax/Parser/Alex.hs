@@ -24,7 +24,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
 
 import Agda.Utils.Lens
-import Agda.Utils.Monad
 import Agda.Utils.Tuple
 
 -- | This is what the lexer manipulates.
@@ -92,7 +91,7 @@ alexGetByte ai =
  --------------------------------------------------------------------------}
 
 getLexInput :: Parser AlexInput
-getLexInput = getInp <$> get
+getLexInput = gets getInp
     where
         getInp s = AlexInput
                     { lexSrcFile    = parseSrcFile s

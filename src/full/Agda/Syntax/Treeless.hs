@@ -14,7 +14,6 @@ module Agda.Syntax.Treeless
 
 import Control.Arrow (first, second)
 
-import Data.Map (Map)
 import Data.Data (Data)
 import Data.Word
 
@@ -95,17 +94,34 @@ data TPrim
 isPrimEq :: TPrim -> Bool
 isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ, PEq64]
 
+-- | Strip leading coercions and indicate whether there were some.
+coerceView :: TTerm -> (Bool, TTerm)
+coerceView = \case
+  TCoerce t -> (True,) $ snd $ coerceView t
+  t         -> (False, t)
+
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x           [] = x
 mkTApp (TApp x as) bs = TApp x (as ++ bs)
 mkTApp x           as = TApp x as
 
-tAppView :: TTerm -> [TTerm]
-tAppView = view
-  where
-    view t = case t of
-      TApp a bs -> view a ++ bs
-      _         -> [t]
+tAppView :: TTerm -> (TTerm, [TTerm])
+tAppView = \case
+  TApp a bs -> second (++ bs) $ tAppView a
+  t         -> (t, [])
+
+-- | Expose the format @coerce f args@.
+--
+--   We fuse coercions, even if interleaving with applications.
+--   We assume that coercion is powerful enough to satisfy
+--   @
+--      coerce (coerce f a) b = coerce f a b
+--   @
+coerceAppView :: TTerm -> ((Bool, TTerm), [TTerm])
+coerceAppView = \case
+  TCoerce t -> first ((True,) . snd) $ coerceAppView t
+  TApp a bs -> second (++ bs) $ coerceAppView a
+  t         -> ((False, t), [])
 
 tLetView :: TTerm -> ([TTerm], TTerm)
 tLetView (TLet e b) = first (e :) $ tLetView b
@@ -124,14 +140,14 @@ mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
 
 tInt :: Integer -> TTerm
-tInt = TLit . LitNat noRange
+tInt = TLit . LitNat
 
 intView :: TTerm -> Maybe Integer
-intView (TLit (LitNat _ x)) = Just x
+intView (TLit (LitNat x)) = Just x
 intView _ = Nothing
 
 word64View :: TTerm -> Maybe Word64
-word64View (TLit (LitWord64 _ x)) = Just x
+word64View (TLit (LitWord64 x)) = Just x
 word64View _ = Nothing
 
 tPlusK :: Integer -> TTerm -> TTerm
@@ -215,4 +231,3 @@ instance Unreachable TTerm where
 
 instance KillRange Compiled where
   killRange c = c -- bogus, but not used anyway
-

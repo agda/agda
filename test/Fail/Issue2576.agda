@@ -6,5 +6,6 @@ data ⊥ : Set where
 data ⊥ where
 
 -- Error was: Missing type signature for ⊥
+-- Error was: Duplicate definition of module ⊥ (fixed 2019-07-07)
 
--- Expected error: Duplicate definition
+-- Expected error: Multiple definitions of ⊥

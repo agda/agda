@@ -1,12 +1,15 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Interaction.CommandLine where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import qualified Data.List as List
 import Data.Maybe
 
+import Text.Read (readMaybe)
+
+import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
 import Agda.Interaction.Monad
 
@@ -29,11 +32,9 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
@@ -65,7 +66,8 @@ interaction prompt cmds eval = loop
                                     do  liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
                                         loop
                                 Left xs ->
-                                    do  liftIO $ putStrLn $ "More than one command match: " ++ concat (List.intersperse ", " xs)
+                                    do  liftIO $ putStrLn $ "More than one command match: " ++
+                                                            List.intercalate ", " xs
                                         loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
@@ -88,9 +90,7 @@ interactionLoop doTypeCheck =
             -- behaviour of agda -I may be surprising. If agda -I ever
             -- becomes properly supported again, then this behaviour
             -- should perhaps be fixed.
-            setScope $ case mi of
-              Just i  -> iInsideScope i
-              Nothing -> emptyScopeInfo
+            setScope $ maybe emptyScopeInfo iInsideScope mi
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s
@@ -146,13 +146,13 @@ showMetas [m] =
           s <- typeOfMeta AsIs i
           r <- getInteractionRange i
           d <- prettyA s
-          liftIO $ putStrLn $ show d ++ " " ++ show r
+          liftIO $ putStrLn $ render d ++ " " ++ prettyShow r
 showMetas [m,"normal"] =
     do  i <- InteractionId <$> readM m
         withInteractionId i $ do
           s <- prettyA =<< typeOfMeta Normalised i
           r <- getInteractionRange i
-          liftIO $ putStrLn $ show s ++ " " ++ show r
+          liftIO $ putStrLn $ render s ++ " " ++ prettyShow r
 showMetas [] =
     do  interactionMetas <- typesOfVisibleMetas AsIs
         hiddenMetas      <- typesOfHiddenMetas  AsIs
@@ -170,24 +170,22 @@ showMetas [] =
         print' x = do
             r <- getMetaRange $ nmid $ metaId x
             d <- showM x
-            liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
+            liftIO $ putStrLn $ render d ++ "  [ at " ++ prettyShow r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ print scope
+  liftIO $ putStrLn $ prettyShow scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do  m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ putStrLn $ show scope
-        let pos = case rStart r of
-                    Nothing  -> __IMPOSSIBLE__
-                    Just pos -> pos
+        -- liftIO $ putStrLn $ prettyShow scope
+        let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
         concreteToAbstract scope e
 
@@ -222,7 +220,7 @@ retryConstraints = liftTCM wakeupConstraints_
 
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
-    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
+    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent DefaultCompute e
         liftIO $ print d
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
@@ -236,13 +234,12 @@ evalTerm s =
     do  e <- parseExpr s
         v <- evalInCurrent e
         e <- prettyTCM v
-        liftIO $ putStrLn $ show e
+        liftIO $ print e
         return Continue
     where
         evalInCurrent e = do
           (v,t) <- inferExpr e
-          v'    <- normalise v
-          return v'
+          normalise v
 
 
 typeOf :: [String] -> TCM ()
@@ -265,7 +262,7 @@ showContext (meta:args) = do
     i <- InteractionId <$> readM meta
     mi <- lookupMeta =<< lookupInteractionId i
     withMetaInfo (getMetaInfo mi) $ do
-      ctx <- List.map unDom . telToList <$> getContextTelescope
+      ctx <- List.map I.unDom . telToList <$> getContextTelescope
       zipWithM_ display ctx $ reverse $ zipWith const [1..] ctx
     where
         display (x, t) n = do
@@ -273,7 +270,7 @@ showContext (meta:args) = do
                     ["normal"] -> normalise $ raise n t
                     _          -> return $ raise n t
             d <- prettyTCM t
-            liftIO $ print $ text (I.argNameToString x) <+> ":" <+> d
+            liftIO $ print $ text (argNameToString x) <+> ":" <+> d
 showContext _ = liftIO $ putStrLn ":Context meta"
 
 -- | The logo that prints when Agda is started in interactive mode.
@@ -300,3 +297,11 @@ help cs = putStr $ unlines $
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where
         explain (x,_) = ":" ++ x
+
+-- Read -------------------------------------------------------------------
+
+readM :: Read a => String -> TCM a
+readM s = maybe err return $ readMaybe s
+  where
+  err    = throwError $ strMsg $ "Cannot parse: " ++ s
+  strMsg = Exception noRange . text

@@ -1,4 +1,5 @@
 Issue3289.agda:15,6-8
 Cannot eliminate type R with pattern ⦃ .x ⦄ (suggestion: write .(x)
 for a dot pattern, or remove the braces for a postfix projection)
-when checking that the clause f₂ ⦃ .x ⦄ = 0 has type R
+when checking the clause left hand side
+f₂ ⦃ .x ⦄

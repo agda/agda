@@ -1,14 +1,19 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP       #-}
+{-# LANGUAGE PolyKinds #-}
+
 module MAlonzo.RTE where
 
 import Unsafe.Coerce
-#if __GLASGOW_HASKELL__ >= 802
 import qualified GHC.Exts as GHC (Any)
-#else
-import qualified GHC.Prim as GHC (Any)
-#endif
 import qualified Data.Word
-import Numeric.IEEE ( IEEE(identicalIEEE) )
+import Numeric.IEEE ( IEEE(identicalIEEE, nan) )
+#if __GLASGOW_HASKELL__ >= 804
+import GHC.Float (castDoubleToWord64)
+#else
+import System.IO.Unsafe (unsafePerformIO)
+import qualified Foreign          as F
+import qualified Foreign.Storable as F
+#endif
 
 type AgdaAny = GHC.Any
 
@@ -22,8 +27,9 @@ coe = unsafeCoerce
 data QName = QName { nameId, moduleId :: Integer, qnameString :: String, qnameFixity :: Fixity }
 
 data Assoc      = NonAssoc | LeftAssoc | RightAssoc
-data Precedence = Unrelated | Related Integer
+data Precedence = Unrelated | Related PrecedenceLevel
 data Fixity     = Fixity Assoc Precedence
+type PrecedenceLevel = Double
 
 instance Eq QName where
   QName a b _ _ == QName c d _ _ = (a, b) == (c, d)
@@ -107,6 +113,21 @@ ltFloat x y = case compareFloat x y of
                 LT -> True
                 _  -> False
 
+#if __GLASGOW_HASKELL__ < 804
+castDoubleToWord64 :: Double -> Word64
+castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
+  F.poke (F.castPtr buf) float
+  F.peek buf
+#endif
+
+normaliseNaN :: Double -> Double
+normaliseNaN x
+  | isNaN x   = nan
+  | otherwise = x
+
+doubleToWord64 :: Double -> Word64
+doubleToWord64 = castDoubleToWord64 . normaliseNaN
+
 -- Words --
 
 type Word64 = Data.Word.Word64
@@ -147,5 +168,5 @@ lt64 = (<)
 
 -- Support for musical coinduction.
 
-data Inf a            = Sharp { flat :: a }
-type Infinity level a = Inf a
+data Inf                   a = Sharp { flat :: a }
+type Infinity (level :: *) a = Inf a

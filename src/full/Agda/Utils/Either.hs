@@ -2,7 +2,34 @@
 -- | Utilities for the 'Either' type.
 ------------------------------------------------------------------------
 
-module Agda.Utils.Either where
+module Agda.Utils.Either
+  ( whileLeft
+  , caseEitherM
+  , mapLeft
+  , mapRight
+  , traverseEither
+  , isLeft
+  , isRight
+  , fromLeft
+  , fromRight
+  , fromLeftM
+  , fromRightM
+  , maybeLeft
+  , maybeRight
+  , allLeft
+  , allRight
+  , groupByEither
+  , maybeToEither
+  , swapEither
+  ) where
+
+import Data.Bifunctor
+import Data.Either (isLeft, isRight)
+
+import Agda.Utils.List ( listCase )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 -- | Loop while we have an exception.
 
@@ -18,39 +45,20 @@ whileLeft test left right = loop where
 caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
 caseEitherM mm f g = either f g =<< mm
 
--- | 'Either' is a bifunctor.
-
-mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
-mapEither f g = either (Left . f) (Right . g)
-
 -- | 'Either _ b' is a functor.
 
 mapLeft :: (a -> c) -> Either a b -> Either c b
-mapLeft f = mapEither f id
+mapLeft = first
 
 -- | 'Either a' is a functor.
 
 mapRight :: (b -> d) -> Either a b -> Either a d
-mapRight = mapEither id
+mapRight = second
 
 -- | 'Either' is bitraversable.
-
+-- Note: From @base >= 4.10.0.0@ already present in `Data.Bitraversable`.
 traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Either c d)
 traverseEither f g = either (fmap Left . f) (fmap Right . g)
-
--- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
---
---   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight (Left  _) = False
-
--- | Returns 'True' iff the argument is @'Left' x@ for some @x@.
---
---   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
-isLeft :: Either a b -> Bool
-isLeft (Right _) = False
-isLeft (Left _)  = True
 
 -- | Analogue of 'Data.Maybe.fromMaybe'.
 fromLeft :: (b -> a) -> Either a b -> a
@@ -103,6 +111,27 @@ allLeft = mapM maybeLeft
 allRight :: [Either a b] -> Maybe [b]
 allRight = mapM maybeRight
 
--- | Convert 'Maybe' to @'Either' ()@.
-maybeToEither :: Maybe a -> Either () a
-maybeToEither = maybe (Left ()) Right
+-- | Groups a list into alternating chunks of 'Left' and 'Right' values
+groupByEither :: forall a b. [Either a b] -> [Either (List1 a) (List1 b)]
+groupByEither = listCase [] (go . init) where
+
+  go :: Either (List1 a) (List1 b) -> [Either a b] -> [Either (List1 a) (List1 b)]
+  go acc         []              = adjust acc : []
+  -- match: next value can be tacked onto the accumulator
+  go (Left  acc) (Left  a : abs) = go (Left  $ a <| acc) abs
+  go (Right acc) (Right b : abs) = go (Right $ b <| acc) abs
+  -- mismatch: switch the accumulator to the other mode
+  go acc         (ab      : abs) = adjust acc : go (init ab) abs
+
+  adjust = bimap List1.reverse List1.reverse
+  init   = bimap singleton singleton
+
+-- | Convert 'Maybe' to @'Either' e@, given an error @e@ for the 'Nothing' case.
+maybeToEither :: e -> Maybe a -> Either e a
+maybeToEither e = maybe (Left e) Right
+
+-- | Swap tags 'Left' and 'Right'.
+swapEither :: Either a b -> Either b a
+swapEither = \case
+  Left a -> Right a
+  Right b -> Left b

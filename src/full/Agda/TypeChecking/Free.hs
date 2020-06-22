@@ -1,4 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances       #-}
+
 -- | Computing the free variables of a term.
 --
 -- The distinction between rigid and strongly rigid occurrences comes from:
@@ -15,262 +17,197 @@
 -- Also, function types and lambdas do not establish strong rigidity.
 -- Only inductive constructors do so.
 -- (See issue 1271).
+--
+-- If you need the occurrence information for all free variables, you can use
+-- @freeVars@ which has amoungst others this instance
+-- @
+--    freeVars :: Term -> VarMap
+-- @
+-- From @VarMap@, specific information can be extracted, e.g.,
+-- @
+--    relevantVars :: VarMap -> VarSet
+--    relevantVars = filterVarMap isRelevant
+-- @
+--
+-- To just check the status of a single free variable, there are more
+-- efficient methods, e.g.,
+-- @
+--    freeIn :: Nat -> Term -> Bool
+-- @
+--
+-- Tailored optimized variable checks can be implemented as semimodules to 'VarOcc',
+-- see, for example, 'VarCounts' or 'SingleFlexRig'.
 
 module Agda.TypeChecking.Free
-    ( FreeVars(..)
-    , VarCounts(..)
+    ( VarCounts(..)
     , Free
     , IsVarSet(..)
     , IgnoreSorts(..)
-    , runFree , rigidVars, relevantVars, allVars
-    , allFreeVars, allFreeVarsWithOcc
+    , freeVars, freeVars', filterVarMap, filterVarMapToList
+    , runFree, rigidVars, stronglyRigidVars, unguardedVars, allVars
+    , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
     , freeVarsIgnore
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
-    , Occurrence(..)
-    , VarOcc(..)
-    , occurrence
+    , FlexRig'(..), FlexRig
+    , LensFlexRig(..), isFlexible, isUnguarded, isStronglyRigid, isWeaklyRigid
+    , VarOcc'(..), VarOcc
+    , varOccurrenceIn
+    , flexRigOccurrenceIn
     , closed
-    , freeVars -- only for testing
-    , freeVars'
     , MetaSet
+    , insertMetaSet, foldrMetaSet
     ) where
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
-
-import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
-import qualified Data.IntSet as Set
+import qualified Data.IntSet as IntSet
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as Map
-import Data.Set (Set)
-import Data.Proxy
+import qualified Data.IntMap as IntMap
 
 import qualified Agda.Benchmarking as Bench
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common hiding (Arg, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy
-  ( Free(..) , FreeEnv(..), initFreeEnv
-  , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
-  , MetaSet, IsVarSet(..), runFreeM
-  )
-import qualified Agda.TypeChecking.Free.Lazy as Free
+  -- ( Free(..) , FreeEnv(..), initFreeEnv
+  -- , FlexRig, FlexRig'(..)
+  -- , VarOcc(..), topVarOcc, TheVarMap, theVarMap, IgnoreSorts(..), Variable, SingleVar
+  -- , MetaSet, insertMetaSet, foldrMetaSet
+  -- , IsVarSet(..), runFreeM
+  -- )
 
-import Agda.Utils.Null
 import Agda.Utils.Singleton
+
+---------------------------------------------------------------------------
+-- * Simple variable set implementations.
 
 type VarSet = IntSet
 
--- | Free variables of a term, (disjointly) partitioned into strongly and
---   and weakly rigid variables, flexible variables and irrelevant variables.
-data FreeVars = FV
-  { stronglyRigidVars :: VarSet
-    -- ^ Variables under only and at least one inductive constructor(s).
-  , unguardedVars     :: VarSet
-    -- ^ Variables at top or only under inductive record constructors
-    --   λs and Πs.
-    --   The purpose of recording these separately is that they
-    --   can still become strongly rigid if put under a constructor
-    --   whereas weakly rigid ones stay weakly rigid.
-  , weaklyRigidVars   :: VarSet
-    -- ^ Ordinary rigid variables, e.g., in arguments of variables or functions.
-  , flexibleVars      :: IntMap MetaSet
-    -- ^ Variables occuring in arguments of metas.
-    --   These are only potentially free, depending how the meta variable is instantiated.
-    --   The set contains the id's of the meta variables that this variable is an argument to.
-  , irrelevantVars    :: VarSet
-    -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e.,
-    --   in irrelevant positions.
-  } deriving (Eq, Show)
-
-mapSRV, mapUGV, mapWRV, mapIRV
-  :: (VarSet -> VarSet) -> FreeVars -> FreeVars
-mapSRV f fv = fv { stronglyRigidVars = f $ stronglyRigidVars fv }
-mapUGV f fv = fv { unguardedVars     = f $ unguardedVars     fv }
-mapWRV f fv = fv { weaklyRigidVars   = f $ weaklyRigidVars   fv }
-mapIRV f fv = fv { irrelevantVars    = f $ irrelevantVars    fv }
-
-mapFXV :: (IntMap MetaSet -> IntMap MetaSet) -> FreeVars -> FreeVars
-mapFXV f fv = fv { flexibleVars      = f $ flexibleVars      fv }
-
--- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
-rigidVars :: FreeVars -> VarSet
-rigidVars fv = Set.unions
-  [ stronglyRigidVars fv
-  ,     unguardedVars fv
-  ,   weaklyRigidVars fv
-  ]
-
--- | All but the irrelevant variables.
-relevantVars :: FreeVars -> VarSet
-relevantVars fv = Set.unions [rigidVars fv, Map.keysSet (flexibleVars fv)]
-
--- | @allVars fv@ includes irrelevant variables.
-allVars :: FreeVars -> VarSet
-allVars fv = Set.unions [relevantVars fv, irrelevantVars fv]
-
-data Occurrence
-  = NoOccurrence
-  | Irrelevantly
-  | StronglyRigid     -- ^ Under at least one and only inductive constructors.
-  | Unguarded         -- ^ In top position, or only under inductive record constructors.
-  | WeaklyRigid       -- ^ In arguments to variables and definitions.
-  | Flexible MetaSet  -- ^ In arguments of metas.
-  deriving (Eq,Show)
-
--- | Compute an occurrence of a single variable in a piece of internal syntax.
-occurrence :: Free a => Nat -> a -> Occurrence
-occurrence x v = occurrenceFV x $ freeVars v
-
--- | Extract occurrence of a single variable from computed free variables.
-occurrenceFV :: Nat -> FreeVars -> Occurrence
-occurrenceFV x fv
-  | x `Set.member` stronglyRigidVars fv = StronglyRigid
-  | x `Set.member` unguardedVars     fv = Unguarded
-  | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
-  | Just ms <- Map.lookup x (flexibleVars fv) = Flexible ms
-  | x `Set.member` irrelevantVars    fv = Irrelevantly
-  | otherwise                           = NoOccurrence
-
--- | Mark variables as flexible.  Useful when traversing arguments of metas.
-flexible :: MetaSet -> FreeVars -> FreeVars
-flexible ms fv =
-    fv { stronglyRigidVars = Set.empty
-       , unguardedVars     = Set.empty
-       , weaklyRigidVars   = Set.empty
-       , flexibleVars      = Map.unionsWith mappend
-                               [ Map.fromSet (const ms) (rigidVars fv)
-                               , fmap (mappend ms) (flexibleVars fv) ]
-       }
-
--- | Mark rigid variables as non-strongly.  Useful when traversing arguments of variables.
-weakly :: FreeVars -> FreeVars
-weakly fv = fv
-  { stronglyRigidVars = Set.empty
-  , unguardedVars     = Set.empty
-  , weaklyRigidVars   = rigidVars fv
-  }
-
--- | Mark unguarded variables as strongly rigid.  Useful when traversing arguments of inductive constructors.
-strongly :: FreeVars -> FreeVars
-strongly fv = fv
-  { stronglyRigidVars = stronglyRigidVars fv `Set.union` unguardedVars fv
-  , unguardedVars     = Set.empty
-  }
-
--- | What happens to the variables occurring under a constructor?
-underConstructor :: ConHead -> FreeVars -> FreeVars
-underConstructor (ConHead c i fs) =
-  case (i,fs) of
-    -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> weakly
-    -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> strongly
-    -- Inductive record constructors do not admit infinite cycles,
-    -- but this cannot be proven inside Agda.
-    -- Thus, unification should not prove it either.
-    (Inductive, (_:_)) -> id
-
--- | Mark all free variables as irrelevant.
-irrelevantly :: FreeVars -> FreeVars
-irrelevantly fv = empty { irrelevantVars = allVars fv }
-
--- | Pointwise union.
-union :: FreeVars -> FreeVars -> FreeVars
-union (FV sv1 gv1 rv1 fv1 iv1) (FV sv2 gv2 rv2 fv2 iv2) =
-  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Map.unionWith mappend fv1 fv2) (Set.union iv1 iv2)
-
-unions :: [FreeVars] -> FreeVars
-unions = foldr union empty
-
-instance Null FreeVars where
-  empty = FV Set.empty Set.empty Set.empty Map.empty Set.empty
-  null (FV a b c d e) = null a && null b && null c && null d && null e
-
--- | Free variable sets form a monoid under 'union'.
-instance Semigroup FreeVars where
-  (<>) = union
-
-instance Monoid FreeVars where
-  mempty  = empty
-  mappend = (<>)
-  mconcat = unions
-
--- | @delete x fv@ deletes variable @x@ from variable set @fv@.
-delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv gv rv fv iv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Map.delete n fv) (Set.delete n iv)
-
-instance Singleton Variable FreeVars where
-  singleton i = mapUGV (Set.insert i) mempty
-
-instance IsVarSet FreeVars where
-  withVarOcc (VarOcc o r) = goOcc o . goRel r
-    where
-      goOcc o = case o of
-        Free.Flexible ms   -> flexible ms
-        Free.WeaklyRigid   -> weakly
-        Free.Unguarded     -> id
-        Free.StronglyRigid -> strongly
-      goRel r = case r of
-        Relevant   -> id
-        NonStrict  -> id    -- we don't track non-strict in FreeVars
-        Irrelevant -> irrelevantly
-
 -- In most cases we don't care about the VarOcc.
 
-instance IsVarSet VarSet where withVarOcc _ = id
-instance IsVarSet [Int]  where withVarOcc _ = id
-instance IsVarSet Any    where withVarOcc _ = id
-instance IsVarSet All    where withVarOcc _ = id
+instance IsVarSet () VarSet where withVarOcc _ = id
+instance IsVarSet () [Int]  where withVarOcc _ = id
+instance IsVarSet () Any    where withVarOcc _ = id
+instance IsVarSet () All    where withVarOcc _ = id
+
+---------------------------------------------------------------------------
+-- * Plain variable occurrence counting.
 
 newtype VarCounts = VarCounts { varCounts :: IntMap Int }
 
 instance Semigroup VarCounts where
-  VarCounts fv1 <> VarCounts fv2 = VarCounts (Map.unionWith (+) fv1 fv2)
+  VarCounts fv1 <> VarCounts fv2 = VarCounts (IntMap.unionWith (+) fv1 fv2)
 
 instance Monoid VarCounts where
-  mempty = VarCounts Map.empty
+  mempty = VarCounts IntMap.empty
   mappend = (<>)
 
-instance IsVarSet VarCounts where withVarOcc _ = id
+instance IsVarSet () VarCounts where
+  withVarOcc _ = id
 
 instance Singleton Variable VarCounts where
-  singleton i = VarCounts $ Map.singleton i 1
+  singleton i = VarCounts $ IntMap.singleton i 1
 
--- * Collecting free variables.
+---------------------------------------------------------------------------
+-- * Collecting free variables (generic).
 
-bench :: a -> a
-bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
-
--- | Doesn't go inside solved metas, but collects the variables from a
+-- | Collect all free variables together with information about their occurrence.
+--
+-- Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
-{-# SPECIALIZE freeVars :: Free a => a -> FreeVars #-}
-freeVars :: (IsVarSet c, Singleton Variable c, Free a) => a -> c
+{-# SPECIALIZE freeVars :: Free a => a -> VarMap #-}
+freeVars :: (IsVarSet a c, Singleton Variable c, Free t) => t -> c
 freeVars = freeVarsIgnore IgnoreNot
 
-{-# SPECIALIZE freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars #-}
-freeVarsIgnore :: (IsVarSet c, Singleton Variable c, Free a) =>
-                  IgnoreSorts -> a -> c
+freeVarsIgnore :: (IsVarSet a c, Singleton Variable c, Free t) =>
+                  IgnoreSorts -> t -> c
 freeVarsIgnore = runFree singleton
 
 -- Specialization to typical monoids
 {-# SPECIALIZE runFree :: Free a => SingleVar Any      -> IgnoreSorts -> a -> Any #-}
-{-# SPECIALIZE runFree :: Free a => SingleVar FreeVars -> IgnoreSorts -> a -> FreeVars #-}
 -- Specialization to Term
 {-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
-{-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
 
 -- | Compute free variables.
-runFree :: (IsVarSet c, Free a) => SingleVar c -> IgnoreSorts -> a -> c
+runFree :: (IsVarSet a c, Free t) => SingleVar c -> IgnoreSorts -> t -> c
 runFree single i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   runFreeM single i (freeVars' t)
+  where
+  bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
+
+---------------------------------------------------------------------------
+-- * Occurrence computation for a single variable.
+
+-- ** Full free occurrence info for a single variable.
+
+-- | Get the full occurrence information of a free variable.
+varOccurrenceIn :: Free a => Nat -> a -> Maybe VarOcc
+varOccurrenceIn = varOccurrenceIn' IgnoreNot
+
+varOccurrenceIn' :: Free a => IgnoreSorts -> Nat -> a -> Maybe VarOcc
+varOccurrenceIn' ig x t = theSingleVarOcc $ runFree sg ig t
+  where
+  sg y = if x == y then oneSingleVarOcc else mempty
+
+-- | "Collection" just keeping track of the occurrence of a single variable.
+--   'Nothing' means variable does not occur freely.
+newtype SingleVarOcc = SingleVarOcc { theSingleVarOcc :: Maybe VarOcc }
+
+oneSingleVarOcc :: SingleVarOcc
+oneSingleVarOcc = SingleVarOcc $ Just $ oneVarOcc
+
+-- | Hereditary Semigroup instance for 'Maybe'.
+--   (The default instance for 'Maybe' may not be the hereditary one.)
+instance Semigroup SingleVarOcc where
+  SingleVarOcc Nothing <> s = s
+  s <> SingleVarOcc Nothing = s
+  SingleVarOcc (Just o) <> SingleVarOcc (Just o') = SingleVarOcc $ Just $ o <> o'
+
+instance Monoid SingleVarOcc where
+  mempty = SingleVarOcc Nothing
+  mappend = (<>)
+
+instance IsVarSet MetaSet SingleVarOcc where
+  withVarOcc o = SingleVarOcc . fmap (composeVarOcc o) . theSingleVarOcc
+
+-- ** Flexible /rigid occurrence info for a single variable.
+
+-- | Get the full occurrence information of a free variable.
+flexRigOccurrenceIn :: Free a => Nat -> a -> Maybe (FlexRig' ())
+flexRigOccurrenceIn = flexRigOccurrenceIn' IgnoreNot
+
+flexRigOccurrenceIn' :: Free a => IgnoreSorts -> Nat -> a -> Maybe (FlexRig' ())
+flexRigOccurrenceIn' ig x t = theSingleFlexRig $ runFree sg ig t
+  where
+  sg y = if x == y then oneSingleFlexRig else mempty
+
+-- | "Collection" just keeping track of the occurrence of a single variable.
+--   'Nothing' means variable does not occur freely.
+newtype SingleFlexRig = SingleFlexRig { theSingleFlexRig :: Maybe (FlexRig' ()) }
+
+oneSingleFlexRig :: SingleFlexRig
+oneSingleFlexRig = SingleFlexRig $ Just $ oneFlexRig
+
+-- | Hereditary Semigroup instance for 'Maybe'.
+--   (The default instance for 'Maybe' may not be the hereditary one.)
+instance Semigroup SingleFlexRig where
+  SingleFlexRig Nothing <> s = s
+  s <> SingleFlexRig Nothing = s
+  SingleFlexRig (Just o) <> SingleFlexRig (Just o') = SingleFlexRig $ Just $ addFlexRig o o'
+
+instance Monoid SingleFlexRig where
+  mempty = SingleFlexRig Nothing
+  mappend = (<>)
+
+instance IsVarSet () SingleFlexRig where
+  withVarOcc o = SingleFlexRig . fmap (composeFlexRig $ () <$ varFlexRig o) . theSingleFlexRig
+
+-- ** Plain free occurrence.
 
 -- | Check if a variable is free, possibly ignoring sorts.
 freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
@@ -283,47 +220,103 @@ freeIn = freeIn' IgnoreNot
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts = freeIn' IgnoreAll
 
-freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
-
-newtype RelevantIn a = RelevantIn {getRelevantIn :: a}
-  deriving (Semigroup, Monoid)
-
-instance IsVarSet a => IsVarSet (RelevantIn a) where
-  withVarOcc o x
-    | isIrrelevant (varRelevance o) = mempty
-    | otherwise = RelevantIn $ withVarOcc o $ getRelevantIn x
-
-relevantIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
-relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
-
-relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
-
-relevantIn :: Free a => Nat -> a -> Bool
-relevantIn = relevantIn' IgnoreAll
+-- UNUSED Liang-Ting Chen 2019-07-16
+--freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
+--freeInIgnoringSortAnn = freeIn' IgnoreInAnnotations
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
 isBinderUsed NoAbs{}   = False
 isBinderUsed (Abs _ x) = 0 `freeIn` x
 
+-- ** Relevant free occurrence.
+
+newtype RelevantIn c = RelevantIn {getRelevantIn :: c}
+  deriving (Semigroup, Monoid)
+
+instance IsVarSet a c => IsVarSet a (RelevantIn c) where  -- UndecidableInstances
+  withVarOcc o x
+    | isIrrelevant o = mempty
+    | otherwise = RelevantIn $ withVarOcc o $ getRelevantIn x
+
+relevantIn' :: Free t => IgnoreSorts -> Nat -> t -> Bool
+relevantIn' ig x t = getAny . getRelevantIn $ runFree (RelevantIn . Any . (x ==)) ig t
+
+relevantInIgnoringSortAnn :: Free t => Nat -> t -> Bool
+relevantInIgnoringSortAnn = relevantIn' IgnoreInAnnotations
+
+relevantIn :: Free t => Nat -> t -> Bool
+relevantIn = relevantIn' IgnoreAll
+
+---------------------------------------------------------------------------
+-- * Occurrences of all free variables.
+
 -- | Is the term entirely closed (no free variables)?
-closed :: Free a => a -> Bool
+closed :: Free t => t -> Bool
 closed t = getAll $ runFree (const $ All False) IgnoreNot t
 
 -- | Collect all free variables.
-allFreeVars :: Free a => a -> VarSet
-allFreeVars = runFree Set.singleton IgnoreNot
-
--- | Collect all free variables together with information about their occurrence.
-allFreeVarsWithOcc :: Free a => a -> TheVarMap
-allFreeVarsWithOcc = theVarMap . runFree (singleton . (,topVarOcc)) IgnoreNot
+allFreeVars :: Free t => t -> VarSet
+allFreeVars = runFree IntSet.singleton IgnoreNot
 
 -- | Collect all relevant free variables, possibly ignoring sorts.
-allRelevantVarsIgnoring :: Free a => IgnoreSorts -> a -> VarSet
-allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . Set.singleton) ig
+allRelevantVarsIgnoring :: Free t => IgnoreSorts -> t -> VarSet
+allRelevantVarsIgnoring ig = getRelevantIn . runFree (RelevantIn . IntSet.singleton) ig
 
 -- | Collect all relevant free variables, excluding the "unused" ones.
-allRelevantVars :: Free a => a -> VarSet
+allRelevantVars :: Free t => t -> VarSet
 allRelevantVars = allRelevantVarsIgnoring IgnoreNot
+
+---------------------------------------------------------------------------
+-- * Backwards-compatible interface to 'freeVars'.
+
+filterVarMap :: (VarOcc -> Bool) -> VarMap -> VarSet
+filterVarMap f = IntMap.keysSet . IntMap.filter f . theVarMap
+
+filterVarMapToList :: (VarOcc -> Bool) -> VarMap -> [Variable]
+filterVarMapToList f = map fst . filter (f . snd) . IntMap.toList . theVarMap
+
+-- | Variables under only and at least one inductive constructor(s).
+stronglyRigidVars :: VarMap -> VarSet
+stronglyRigidVars = filterVarMap $ \case
+  VarOcc StronglyRigid _ -> True
+  _ -> False
+
+-- | Variables at top or only under inductive record constructors
+--   λs and Πs.
+--   The purpose of recording these separately is that they
+--   can still become strongly rigid if put under a constructor
+--   whereas weakly rigid ones stay weakly rigid.
+unguardedVars :: VarMap -> VarSet
+unguardedVars = filterVarMap $ \case
+  VarOcc Unguarded _ -> True
+  _ -> False
+
+-- UNUSED Liang-Ting Chen 2019-07-16
+---- | Ordinary rigid variables, e.g., in arguments of variables or functions.
+--weaklyRigidVars :: VarMap -> VarSet
+--weaklyRigidVars = filterVarMap $ \case
+--  VarOcc WeaklyRigid _ -> True
+--  _ -> False
+
+-- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
+rigidVars :: VarMap -> VarSet
+rigidVars = filterVarMap $ \case
+  VarOcc o _ -> o `elem` [ WeaklyRigid, Unguarded, StronglyRigid ]
+
+-- UNUSED Liang-Ting Chen 2019-07-16
+-- | Variables occuring in arguments of metas.
+--   These are only potentially free, depending how the meta variable is instantiated.
+--   The set contains the id's of the meta variables that this variable is an argument to.
+--flexibleVars :: VarMap -> IntMap MetaSet
+--flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
+--  VarOcc (Flexible ms) _ -> Just ms
+--  _ -> Nothing
+--
+---- | Variables in irrelevant arguments and under a @DontCare@, i.e.,
+----   in irrelevant positions.
+--irrelevantVars :: VarMap -> VarSet
+--irrelevantVars = filterVarMap isIrrelevant
+
+allVars :: VarMap -> VarSet
+allVars = IntMap.keysSet . theVarMap

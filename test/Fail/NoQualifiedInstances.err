@@ -1,0 +1,3 @@
+NoQualifiedInstances.agda:10,8-9
+No instance of type A was found in scope.
+when checking that the expression f has type A

@@ -43,7 +43,7 @@ elements of some type ``A`` as follows,
 As opposed to inductive record types, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
-It is interesting to note that is not neccessary to give an explicit
+It is interesting to note that is not necessary to give an explicit
 constructor to the record type ``Stream A``.
 
 ..
@@ -88,7 +88,7 @@ the even positions and the other the elements in odd positions.
     odd : ∀ {A} → Stream A → Stream A
     odd x = even (tl x)
 
-    split : ∀ {A } → Stream A → Stream A × Stream A
+    split : ∀ {A} → Stream A → Stream A × Stream A
     split xs = even xs , odd xs
 
 And merge a pair of ``Stream`` by interleaving their elements.
@@ -116,7 +116,7 @@ Old Coinduction
    This is the old way of coinduction support in Agda. You are advised to use
    :ref:`copatterns-coinductive-records` instead.
 
-To use coinduction it is recommended that you import the module Coinduction from the `standard library <http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
+To use coinduction it is recommended that you import the module Coinduction from the `standard library <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary>`_. Coinductive types can then be defined by labelling coinductive occurrences using the delay operator ``∞``:
 
 ..
   ::
@@ -186,5 +186,3 @@ The recommended definition is the following one:
   data _≈_ : Coℕ → Coℕ → Set where
     zero : zero ≈ zero
     suc  : ∀ {m n} → ∞ (♭ m ≈ ♭ n) → suc m ≈ suc n
-
-The current implementation of coinductive types comes with some `limitations <http://article.gmane.org/gmane.comp.lang.agda/763/>`_.

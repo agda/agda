@@ -1,15 +1,10 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ( (<>), null, truncate )
-#else
 import Prelude hiding ( null, truncate )
-#endif
 
-import Control.Applicative hiding (Const, empty)
+
 import Control.Monad
 
 import Data.Function (on)
@@ -32,7 +27,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph r f a = Graph.Graph (Node r f) a
@@ -273,9 +267,6 @@ nodeToSizeExpr n =
 instance Negative a => Negative (Edge' r f a) where
   negative = negative . label
 
--- instance Show a => Show (Edge' a) where
---   show (Edge u v l) = show u ++ " -(" ++ show l ++ ")-> " ++ show v
-
 instance (Ord r, Ord f, MeetSemiLattice a) => MeetSemiLattice (Edge' r f a) where
   e@(Edge u v l) `meet` e'@(Edge u' v' l')
     | u == u' && v == v' = Edge u v $ l `meet` l'
@@ -354,10 +345,10 @@ instance (Ord r, Ord f, Negative a) => Negative (Graphs r f a) where
 implies :: (Ord r, Ord f, Pretty r, Pretty f, Pretty a, Top a, Ord a, Negative a)
   => Graph r f a -> Graph r f a -> Bool
 -- iterate 'test' over all edges in g
-implies h g = and $ map test $ graphToList g
-  -- NB: doing the @test k l@ before the recursive @b@ gives
-  -- opportunity to short-cut the conjunction @&&@.
+implies h g = all test (graphToList g)
   where
+    -- NB: doing the @test k l@ before the recursive @b@ gives
+    -- opportunity to short-cut the conjunction @&&@.
     -- test :: Key -> a -> Bool
     test k@(Edge src dest l)
       | isZeroNode src, not (negative l) = True
@@ -367,9 +358,15 @@ implies h g = and $ map test $ graphToList g
       | isTop l                          = True
       | otherwise = case lookupEdge h src dest of
         Nothing -> False
-        Just l' -> if l' <= l then True else
-          trace ("edge " ++ prettyShow (l <$ k) ++ " not implied by " ++ prettyShow (l' <$ k)) $
-            False
+        Just l' ->
+          (l' <= l) || ( trace
+                           ( "edge " ++ prettyShow (l <$ k)
+                               ++ " not implied by "
+                               ++ prettyShow (l' <$ k)
+                           )
+                           $ False
+                       )
+
 -- implies h g = Map.foldlWithKey (\ b k l -> test k l && b) True g
 --   -- NB: doing the @test k l@ before the recursive @b@ gives
 --   -- opportunity to short-cut the conjunction @&&@.

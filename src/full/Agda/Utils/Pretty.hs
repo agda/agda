@@ -1,34 +1,39 @@
-{-# LANGUAGE CPP #-}
 
 {-| Pretty printing functions.
 -}
 module Agda.Utils.Pretty
     ( module Agda.Utils.Pretty
     , module Text.PrettyPrint
+    -- This re-export can be removed once <GHC-8.4 is dropped.
+    , module Data.Semigroup
     ) where
 
-import Data.Int ( Int32 )
-import Data.Data (Data(..))
-import qualified Data.Map as Map
+import Prelude hiding (null)
 
-#if __GLASGOW_HASKELL__ < 800
-import qualified Data.Semigroup as S
-#endif
+import Data.Data (Data(..))
+import qualified Data.Foldable as Fold
+import Data.Int (Int32)
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Word (Word64)
 
 import qualified Text.PrettyPrint as P
-import Text.PrettyPrint hiding (TextDetails(Str), empty)
+import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate)
+import Data.Semigroup ((<>))
 
-import Agda.Utils.NonemptyList
+import Agda.Utils.Float
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
+import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
-
-#if __GLASGOW_HASKELL__ < 800
--- ASR (2019-03-27). I used @(<>)@ from the monoid instance because I
--- cannot hide this instance.
-instance S.Semigroup Doc where
-  (<>) = (<>)
-#endif
 
 -- * Pretty class
 
@@ -59,6 +64,8 @@ instance Pretty Bool    where pretty = text . show
 instance Pretty Int     where pretty = text . show
 instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
+instance Pretty Word64  where pretty = text . show
+instance Pretty Double  where pretty = text . toStringWithoutDotZero
 
 instance Pretty Char where
   pretty c = text [c]
@@ -71,14 +78,38 @@ instance Pretty () where
   pretty _ = P.empty
 
 instance Pretty a => Pretty (Maybe a) where
-  prettyPrec p Nothing  = "Nothing"
-  prettyPrec p (Just x) = mparens (p > 0) $ "Just" <+> prettyPrec 10 x
+  prettyPrec p Nothing  = "(nothing)"
+  prettyPrec p (Just x) = prettyPrec p x
 
 instance Pretty a => Pretty [a] where
   pretty = prettyList
 
-instance Pretty a => Pretty (NonemptyList a) where
-  pretty = prettyList . toList
+instance Pretty a => Pretty (List1 a) where
+  pretty = prettyList . List1.toList
+
+instance Pretty IntSet where
+  pretty = prettySet . IntSet.toList
+
+instance Pretty a => Pretty (Set a) where
+  pretty = prettySet . Set.toList
+
+instance Pretty a => Pretty (IntMap a) where
+  pretty = prettyMap . IntMap.toList
+
+instance (Pretty k, Pretty v) => Pretty (Map k v) where
+  pretty = prettyMap . Map.toList
+
+-- * Generalizing the original type from list to Foldable
+
+sep, fsep, hsep, hcat, vcat :: Foldable t => t Doc -> Doc
+sep  = P.sep  . Fold.toList
+fsep = P.fsep . Fold.toList
+hsep = P.hsep . Fold.toList
+hcat = P.hcat . Fold.toList
+vcat = P.vcat . Fold.toList
+
+punctuate :: Foldable t => Doc -> t Doc -> [Doc]
+punctuate d = P.punctuate d . Fold.toList
 
 -- * 'Doc' utilities
 
@@ -88,9 +119,29 @@ pwords = map text . words
 fwords :: String -> Doc
 fwords = fsep . pwords
 
+-- | Separate, but only if both separees are not null.
+
+hsepWith :: Doc -> Doc -> Doc -> Doc
+hsepWith sep d1 d2
+  | null d2   = d1
+  | null d1   = d2
+  | otherwise = d1 <+> sep <+> d2
+
 -- | Comma separated list, without the brackets.
 prettyList_ :: Pretty a => [a] -> Doc
 prettyList_ = fsep . punctuate comma . map pretty
+
+-- | Pretty print a set.
+prettySet :: Pretty a => [a] -> Doc
+prettySet = braces . prettyList_
+
+-- | Pretty print an association list.
+prettyMap :: (Pretty k, Pretty v) => [(k,v)] -> Doc
+prettyMap = braces . fsep . punctuate comma . map prettyAssign
+
+-- | Pretty print a single association.
+prettyAssign :: (Pretty k, Pretty v) => (k,v) -> Doc
+prettyAssign (k, v) = sep [ prettyPrec 1 k <+> "->", nest 2 $ pretty v ]
 
 -- ASR (2016-12-13): In pretty >= 1.1.2.0 the below function 'mparens'
 -- is called 'maybeParens'. I didn't use that name due to the issue
@@ -100,6 +151,10 @@ prettyList_ = fsep . punctuate comma . map pretty
 mparens :: Bool -> Doc -> Doc
 mparens True  = parens
 mparens False = id
+
+-- | Only wrap in parens if not 'empty'
+parensNonEmpty :: Doc -> Doc
+parensNonEmpty d = if null d then empty else parens d
 
 -- | @align max rows@ lays out the elements of @rows@ in two columns,
 -- with the second components aligned. The alignment column of the
@@ -128,6 +183,16 @@ infixl 6 <?>
 (<?>) :: Doc -> Doc -> Doc
 a <?> b = hang a 2 b
 
--- | @pshow = text . pretty@
+-- | @pshow = text . show@
 pshow :: Show a => a -> Doc
 pshow = text . show
+
+singPlural :: Sized a => a -> c -> c -> c
+singPlural xs singular plural = if size xs == 1 then singular else plural
+
+-- | Used for with-like 'telescopes'
+
+prefixedThings :: Doc -> [Doc] -> Doc
+prefixedThings kw = \case
+  []           -> P.empty
+  (doc : docs) -> fsep $ (kw <+> doc) : map ("|" <+>) docs

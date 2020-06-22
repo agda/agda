@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE ImplicitParams             #-}
 
 -- | Call graphs and related concepts, more or less as defined in
@@ -27,13 +27,14 @@ module Agda.Termination.CallGraph
 import Prelude hiding (null)
 
 import qualified Data.List as List
+#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
+#endif
 import Data.Set (Set)
 
 import Agda.Termination.CallMatrix (CallMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.CutOff
-import Agda.Termination.SparseMatrix as Matrix
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
@@ -41,10 +42,10 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 import Agda.Utils.Function
-import Agda.Utils.Monad
+
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
@@ -101,8 +102,8 @@ toList = Graph.edges . theCallGraph
 -- | Converts a list of calls with associated meta information to a
 --   call graph.
 
-fromList :: [Call cinfo] -> CallGraph cinfo
-fromList = CallGraph . Graph.fromEdgesWith CMSet.union
+fromListCG :: [Call cinfo] -> CallGraph cinfo
+fromListCG = CallGraph . Graph.fromEdgesWith CMSet.union
 
 -- | 'null' checks whether the call graph is completely disconnected.
 instance Null (CallGraph cinfo) where
@@ -123,6 +124,12 @@ instance Semigroup (CallGraph cinfo) where
 instance Monoid (CallGraph cinfo) where
   mempty  = empty
   mappend = (<>)
+
+instance Singleton (Call cinfo) (CallGraph cinfo) where
+  singleton = fromList . singleton
+
+instance Collection (Call cinfo) (CallGraph cinfo) where
+  fromList = fromListCG
 
 -- | Inserts a call into a call graph.
 

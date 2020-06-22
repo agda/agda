@@ -16,9 +16,9 @@ data Check : Set₁ where
 
 pattern _==_ x y = equal x y refl
 
-check-cons = getFixity (quote _∷_)  == fixity right-assoc (related (pos 5))
-check-to   = getFixity (quote _to_) == fixity left-assoc  (related (negsuc 1728))
-check-eq   = getFixity (quote _≡_)  == fixity non-assoc   (related (pos 4))
+check-cons = getFixity (quote _∷_)  == fixity right-assoc (related 5.0)
+check-to   = getFixity (quote _to_) == fixity left-assoc  (related -1729.0)
+check-eq   = getFixity (quote _≡_)  == fixity non-assoc   (related 4.0)
 check-list = getFixity (quote List) == fixity non-assoc   unrelated
 
 showAssoc : Associativity → String
@@ -28,7 +28,7 @@ showAssoc non-assoc   = "infix"
 
 showFixity : Fixity → String
 showFixity (fixity a unrelated)   = "(no fixity)"
-showFixity (fixity a (related p)) = showAssoc a +S+ " " +S+ intToString p
+showFixity (fixity a (related p)) = showAssoc a +S+ " " +S+ floatToString p
 
 showFix : Name → String
 showFix x = showFixity (getFixity x)

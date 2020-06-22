@@ -1,3 +1,3 @@
 Issue183.agda:15,13-14
-E _x_10 _x_10 !=< L (E f f) of type Set
+E _x_10 _x_10 !=< L (E f f)
 when checking that the expression e has type L (E f f)

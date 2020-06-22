@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Stuff for sized types that does not require modules
 --   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"
@@ -6,31 +5,27 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
-import qualified Data.Foldable as Fold
-import qualified Data.Traversable as Trav
+import Control.Monad.Except
 
-import Agda.Interaction.Options
+import qualified Data.Foldable as Fold
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Substitute ()
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -46,7 +41,7 @@ data BoundedSize
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
 class IsSizeType a where
-  isSizeType :: a -> TCM (Maybe BoundedSize)
+  isSizeType :: (HasOptions m, HasBuiltins m) => a -> m (Maybe BoundedSize)
 
 instance IsSizeType a => IsSizeType (Dom a) where
   isSizeType = isSizeType . unDom
@@ -60,7 +55,12 @@ instance IsSizeType a => IsSizeType (Type' a) where
 instance IsSizeType Term where
   isSizeType v = isSizeTypeTest <*> pure v
 
-isSizeTypeTest :: TCM (Term -> Maybe BoundedSize)
+instance IsSizeType CompareAs where
+  isSizeType (AsTermsOf a) = isSizeType a
+  isSizeType AsSizes       = return $ Just BoundedNo
+  isSizeType AsTypes       = return Nothing
+
+isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM sizedTypesOption) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
@@ -69,24 +69,24 @@ isSizeTypeTest =
         testType _                                    = Nothing
     return testType
 
-getBuiltinDefName :: String -> TCM (Maybe QName)
+getBuiltinDefName :: (HasBuiltins m) => String -> m (Maybe QName)
 getBuiltinDefName s = fromDef <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
     fromDef _                 = Nothing
 
-getBuiltinSize :: TCM (Maybe QName, Maybe QName)
+getBuiltinSize :: (HasBuiltins m) => m (Maybe QName, Maybe QName)
 getBuiltinSize = do
   size   <- getBuiltinDefName builtinSize
   sizelt <- getBuiltinDefName builtinSizeLt
   return (size, sizelt)
 
-isSizeNameTest :: TCM (QName -> Bool)
+isSizeNameTest :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTest = ifM sizedTypesOption
   isSizeNameTestRaw
   (return $ const False)
 
-isSizeNameTestRaw :: TCM (QName -> Bool)
+isSizeNameTestRaw :: (HasOptions m, HasBuiltins m) => m (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
@@ -140,32 +140,32 @@ sizeType_ :: QName -> Type
 sizeType_ size = El sizeSort $ Def size []
 
 -- | The built-in type @SIZE@.
-sizeType :: TCM Type
-sizeType = El sizeSort <$> primSize
+sizeType :: (HasBuiltins m, MonadTCEnv m, ReadTCState m) => m Type
+sizeType = El sizeSort . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSize
 
 -- | The name of @SIZESUC@.
-sizeSucName :: TCM (Maybe QName)
+sizeSucName :: (HasBuiltins m, HasOptions m) => m (Maybe QName)
 sizeSucName = do
-  ifM (not <$> sizedTypesOption) (return Nothing) $ tryMaybe $ do
-    Def x [] <- primSizeSuc
-    return x
+  ifM (not <$> sizedTypesOption) (return Nothing) $ do
+    getBuiltin' builtinSizeSuc >>= \case
+      Just (Def x []) -> return $ Just x
+      _               -> return Nothing
 
-sizeSuc :: Nat -> Term -> TCM Term
+sizeSuc :: HasBuiltins m => Nat -> Term -> m Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
-  Def suc [] <- primSizeSuc
-  return $ case iterate (sizeSuc_ suc) v !!! n of
-             Nothing -> __IMPOSSIBLE__
-             Just t  -> t
+  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
+  return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
-sizeMax :: NonemptyList Term -> TCM Term
+sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+        => NonEmpty Term -> m Term
 sizeMax vs = case vs of
-  v :! [] -> return v
+  v :| [] -> return v
   vs  -> do
     Def max [] <- primSizeMax
     return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
@@ -179,7 +179,8 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: Term -> TCM SizeView
+sizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+         => Term -> m SizeView
 sizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
@@ -259,7 +260,8 @@ unSizeView SizeInf       = primSizeInf
 unSizeView (SizeSuc v)   = sizeSuc 1 v
 unSizeView (OtherSize v) = return v
 
-unDeepSizeView :: DeepSizeView -> TCM Term
+unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+               => DeepSizeView -> m Term
 unDeepSizeView v = case v of
   DSizeInf         -> primSizeInf
   DSizeVar i     n -> sizeSuc n $ var i
@@ -270,37 +272,38 @@ unDeepSizeView v = case v of
 -- * View on sizes where maximum is pulled to the top
 ------------------------------------------------------------------------
 
-type SizeMaxView = NonemptyList DeepSizeView
+type SizeMaxView = NonEmpty DeepSizeView
 type SizeMaxView' = [DeepSizeView]
 
 maxViewMax :: SizeMaxView -> SizeMaxView -> SizeMaxView
 maxViewMax v w = case (v,w) of
-  (DSizeInf :! _, _) -> singleton DSizeInf
-  (_, DSizeInf :! _) -> singleton DSizeInf
+  (DSizeInf :| _, _) -> singleton DSizeInf
+  (_, DSizeInf :| _) -> singleton DSizeInf
   _                 -> Fold.foldr maxViewCons w v
 
 -- | @maxViewCons v ws = max v ws@.  It only adds @v@ to @ws@ if it is not
 --   subsumed by an element of @ws@.
 maxViewCons :: DeepSizeView -> SizeMaxView -> SizeMaxView
-maxViewCons _ (DSizeInf :! _) = singleton DSizeInf
+maxViewCons _ (DSizeInf :| _) = singleton DSizeInf
 maxViewCons DSizeInf _        = singleton DSizeInf
 maxViewCons v ws = case sizeViewComparableWithMax v ws of
-  NotComparable  -> consNe v ws
-  YesAbove _ ws' -> v :! ws'
+  NotComparable  -> NonEmpty.cons v ws
+  YesAbove _ ws' -> v :| ws'
   YesBelow{}     -> ws
 
 -- | @sizeViewComparableWithMax v ws@ tries to find @w@ in @ws@ that compares with @v@
 --   and singles this out.
 --   Precondition: @v /= DSizeInv@.
 sizeViewComparableWithMax :: DeepSizeView -> SizeMaxView -> SizeViewComparable SizeMaxView'
-sizeViewComparableWithMax v (w :! ws) =
+sizeViewComparableWithMax v (w :| ws) =
   case (ws, sizeViewComparable v w) of
-    (w':ws', NotComparable) -> fmap (w:) $ sizeViewComparableWithMax v (w' :! ws')
+    (w':ws', NotComparable) -> (w:) <$> sizeViewComparableWithMax v (w' :| ws')
     (ws    , r)             -> fmap (const ws) r
 
 
 maxViewSuc_ :: QName -> SizeMaxView -> SizeMaxView
 maxViewSuc_ suc = fmap (sizeViewSuc_ suc)
 
-unMaxView :: SizeMaxView -> TCM Term
+unMaxView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+          => SizeMaxView -> m Term
 unMaxView vs = sizeMax =<< Trav.mapM unDeepSizeView vs

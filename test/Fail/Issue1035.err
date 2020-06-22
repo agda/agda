@@ -2,5 +2,7 @@ Issue1035.agda:22,5-25,72
 Termination checking failed for the following functions:
   M.to-∈-intersection′
 Problematic calls:
+  to-∈-intersection′ Key x h | intersection′-₁ x
+  Issue1035.M.with-48 (prop h)
   to-∈-intersection′ ! !
     (at Issue1035.agda:25,50-68)

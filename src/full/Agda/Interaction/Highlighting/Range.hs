@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Ranges.
 
@@ -8,6 +7,7 @@ module Agda.Interaction.Highlighting.Range
   , Ranges(..)
   , rangesInvariant
   , overlapping
+  , overlappings
   , empty
   , rangeToPositions
   , rangesToPositions
@@ -16,10 +16,13 @@ module Agda.Interaction.Highlighting.Range
   , minus
   ) where
 
-import Control.Applicative ((<$>))
+import Prelude hiding (null)
 
 import qualified Agda.Syntax.Position as P
+
 import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 
 -- | Character ranges. The first character in the file has position 1.
 -- Note that the 'to' position is considered to be outside of the
@@ -29,6 +32,10 @@ import Agda.Utils.List
 
 data Range = Range { from, to :: Int }
              deriving (Eq, Ord, Show)
+
+instance Null Range where
+  empty  = Range 0 0
+  null r = to r <= from r
 
 -- | The 'Range' invariant.
 
@@ -55,13 +62,16 @@ rangesInvariant (Ranges rs) =
 -- The ranges are assumed to be well-formed.
 
 overlapping :: Range -> Range -> Bool
-overlapping r1 r2 = not $
-  to r1 <= from r2 || to r2 <= from r1
+overlapping r1 r2 = (not $ r1 `isLeftOf` r2) && (not $ r2 `isLeftOf` r1)
 
--- | 'True' iff the range is empty.
+isLeftOf :: Range -> Range -> Bool
+isLeftOf r1 r2 = to r1 <= from r2
 
-empty :: Range -> Bool
-empty r = to r <= from r
+overlappings :: Ranges -> Ranges -> Bool
+-- specification: overlappings (Ranges r1s) (Ranges r2s) = or [ overlapping r1 r2 | r1 <- r1s, r2 <- r2s ]
+overlappings (Ranges r1s) (Ranges r2s) =
+  isNothing $ mergeStrictlyOrderedBy isLeftOf r1s r2s
+
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -108,7 +118,7 @@ minus (Ranges rs1) (Ranges rs2) = Ranges (m rs1 rs2)
   m []     _      = []
   m xs     []     = xs
   m (x:xs) (y:ys)
-    | empty y         = m (x:xs) ys
+    | null y          = m (x:xs) ys
     | to x < from y   = x : m xs (y:ys)
     | to y < from x   = m (x:xs) ys
     | from x < from y = Range { from = from x, to = from y } :

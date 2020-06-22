@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE UndecidableInstances #-}  -- for Arg a => Elim' a
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
@@ -10,7 +9,6 @@ import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Data.Foldable (all)
-import qualified Data.Set as Set
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -23,14 +21,11 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except
 import Agda.Utils.Functor
-import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert a 'DisplayTerm' into a 'Term'.
@@ -44,14 +39,22 @@ dtermToTerm dt = case dt of
   DTerm v          -> v
 
 -- | Get the arities of all display forms for a name.
-displayFormArities :: QName -> TCM [Int]
+displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
+
+type MonadDisplayForm m =
+  ( MonadReduce m
+  , ReadTCState m
+  , HasConstInfo m
+  , HasBuiltins m
+  , MonadDebug m
+  )
 
 -- | Find a matching display form for @q es@.
 --   In essence this tries to rewrite @q es@ with any
 --   display form @q ps --> dt@ and returns the instantiated
 --   @dt@ if successful.  First match wins.
-displayForm :: QName -> Elims -> TCM (Maybe DisplayTerm)
+displayForm :: MonadDisplayForm m => QName -> Elims -> m (Maybe DisplayTerm)
 displayForm q es = do
   -- Get display forms for name q.
   odfs  <- getDisplayForms q
@@ -77,15 +80,15 @@ displayForm q es = do
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
-    unlessDebugPrinting $ reportSLn "tc.display.top" 100 $ unlines
+    unlessDebugPrinting $ reportS "tc.display.top" 100
       [ "name        : " ++ prettyShow q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show es
       , "matches     : " ++ show ms
-      , "result      : " ++ show (headMaybe ms)
+      , "result      : " ++ show (listToMaybe ms)
       ]
     -- Return the first display form that matches.
-    return $ headMaybe ms
+    return $ listToMaybe ms
   where
     -- Look at the original display form, not the instantiated result when
     -- checking if it's well-scoped. Otherwise we might pick up out of scope
@@ -102,7 +105,8 @@ displayForm q es = do
 -- | Match a 'DisplayForm' @q ps = v@ against @q es@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
 --   i.e., @es / ps = Just us@.
-matchDisplayForm :: DisplayForm -> Elims -> MaybeT TCM (DisplayForm, DisplayTerm)
+matchDisplayForm :: MonadDisplayForm m
+                 => DisplayForm -> Elims -> MaybeT m (DisplayForm, DisplayTerm)
 matchDisplayForm d@(Display _ ps v) es
   | length ps > length es = mzero
   | otherwise             = do
@@ -126,7 +130,7 @@ matchDisplayForm d@(Display _ ps v) es
 --   (It has been substituted by __IMPOSSIBLE__ which corresponds to
 --   a raise by -1).
 class Match a where
-  match :: a -> a -> MaybeT TCM [WithOrigin Term]
+  match :: MonadDisplayForm m => a -> a -> MaybeT m [WithOrigin Term]
 
 instance Match a => Match [a] where
   match xs ys = concat <$> zipWithM match xs ys
@@ -138,8 +142,11 @@ instance Match a => Match (Elim' a) where
   match p v =
     case (p, v) of
       (Proj _ f, Proj _ f') | f == f' -> return []
-      (Apply a, Apply a')         -> match a a'
-      _                           -> mzero
+      _ | Just a  <- isApplyElim p
+        , Just a' <- isApplyElim v    -> match a a'
+      -- we do not care to differentiate between Apply and IApply for
+      -- printing.
+      _                               -> mzero
 
 instance Match Term where
   match p v = lift (instantiate v) >>= \ v -> case (p, v) of

@@ -32,7 +32,7 @@ import Lexer hiding (options)
 import Lexer
 #endif
 
-import DriverPipeline
+import DriverPipeline ( preprocess )
 import FastString
 import DriverPhases
 import ErrUtils
@@ -81,17 +81,29 @@ goFile :: FilePath -> Ghc [Tag]
 goFile file = do
   liftIO $ hPutStrLn stderr $ "Processing " ++ file
   env <- getSession
+#if MIN_VERSION_ghc(8,8,1)
+  r <- liftIO $
+       preprocess env file Nothing (Just $ Cpp HsSrcFile)
+  let (dflags, srcFile) = case r of
+                            Left _  -> error $ "preprocessing " ++ file
+                            Right x -> x
+#else
   (dflags, srcFile) <- liftIO $
       preprocess env (file, Just $ Cpp HsSrcFile)
+#endif
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
     POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
-#if MIN_VERSION_ghc(8,4,0)
+#if MIN_VERSION_ghc(8,10,1)
+    PFailed pState -> liftIO $ do
+      printBagOfErrors dflags $ getErrorMessages pState dflags
+#elif MIN_VERSION_ghc(8,4,0)
     PFailed _ loc err -> liftIO $ do
+      print (mkPlainErrMsg dflags loc err)
 #else
     PFailed loc err -> liftIO $ do
-#endif
       print (mkPlainErrMsg dflags loc err)
+#endif
       exitWith $ ExitFailure 1
 
 runCmd :: String -> IO String
@@ -110,8 +122,9 @@ extractLangSettings ::
   GenericPackageDescription
   -> ([Extension], Maybe LHE.Language)
 extractLangSettings gpd =
-  fromMaybe ([], Nothing) $
-    (defaultExtensions &&& defaultLanguage) . libBuildInfo <$> (library . configurePackageDescription) gpd
+  maybe ([], Nothing)
+  ((defaultExtensions &&& defaultLanguage) . libBuildInfo)
+  ((library . configurePackageDescription) gpd)
 
 extToOpt :: Extension -> String
 extToOpt (UnknownExtension e) = "-X" ++ e
@@ -149,15 +162,11 @@ main = do
               dynFlags <- getSessionDynFlags
               let dynFlags' =
                     dynFlags {
-                    settings = (settings dynFlags) {
-                        sOpt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
-                                 opt_P dynFlags
-                        }
 #if MIN_VERSION_ghc(8,6,1)
-                    , includePaths = case includePaths dynFlags of
+                      includePaths = case includePaths dynFlags of
                                        IncludeSpecs qs gs -> IncludeSpecs qs (optIncludePath opts ++ gs)
 #else
-                    , includePaths = optIncludePath opts ++ includePaths dynFlags
+                      includePaths = optIncludePath opts ++ includePaths dynFlags
 #endif
                     }
               (dynFlags'', _, _) <- parseDynamicFilePragma dynFlags' $ map noLoc $ concatMap cabalConfToOpts (maybeToList pkgDesc)

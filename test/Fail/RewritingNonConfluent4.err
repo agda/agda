@@ -1,0 +1,19 @@
+RewritingNonConfluent4.agda:38,13-23
+Confluence check failed: (k * l) * suc n reduces to both
+k * (l * suc n) and ((k * l) * n) + (k * l)
+which are not equal because
+k * (l * suc n) != ((k * l) * n) + (k * l) of type Nat
+when checking confluence of the rewrite rule mult-assoc with
+mult-suc-r
+RewritingNonConfluent4.agda:38,13-23
+Confluence check failed: (k * suc n) * m reduces to both
+k * (suc n * m) and ((k * n) + k) * m which are not equal because
+k != (k * n) + k of type Nat
+when checking confluence of the rewrite rule mult-assoc with
+mult-suc-r
+RewritingNonConfluent4.agda:38,13-23
+Confluence check failed: (suc m * l) * m₁ reduces to both
+suc m * (l * m₁) and (l + (m * l)) * m₁ which are not equal because
+(l * m) + (m₁ * (l * m)) != (l + (m₁ * l)) * m of type Nat
+when checking confluence of the rewrite rule mult-assoc with
+mult-suc-l

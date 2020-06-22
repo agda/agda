@@ -1,7 +1,3 @@
-{-# LANGUAGE CPP                       #-}
-{-# LANGUAGE IncoherentInstances       #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Agda-specific benchmarking structure.
@@ -15,7 +11,7 @@ import Data.IORef
 import System.IO.Unsafe
 
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Benchmark (MonadBench(..))
 import qualified Agda.Utils.Benchmark as B
@@ -64,6 +60,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | ModuleName
     -- ^ Subphase for 'Import'.
+  | Compaction
+    -- ^ Subphase for 'Deserialization': compacting interfaces.
   | BuildInterface
     -- ^ Subphase for 'Serialization'.
   | Sort

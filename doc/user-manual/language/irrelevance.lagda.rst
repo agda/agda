@@ -16,6 +16,10 @@ Irrelevance
 
 Since version 2.2.8 Agda supports irrelevancy annotations. The general rule is that anything prepended by a dot (.) is marked irrelevant, which means that it will only be typechecked but never evaluated.
 
+.. note::
+  This section is about compile-time irrelevance. See :ref:`runtime-irrelevance` for the section on
+  run-time irrelevance.
+
 Motivating example
 ==================
 
@@ -213,7 +217,10 @@ This axiom is not provable inside Agda, but it is often very useful when working
 Irrelevant record fields
 ========================
 
-Record fields (see :ref:`record-types`) can be marked as irrelevant by prefixing their name with a dot in the definition of the record type.  Projections for irrelevant fields are only created if option ``--irrelevant-projections`` is supplied (since Agda > 2.5.4).
+Record fields (see :ref:`record-types`) can be marked as irrelevant by
+prefixing their name with a dot in the definition of the record type.
+Projections for irrelevant fields are only created if option
+:option:`--irrelevant-projections` is supplied (since Agda > 2.5.4).
 
 **Example 1.** A record type containing pairs of numbers satisfying certain properties. ::
 
@@ -298,3 +305,12 @@ Contrary to normal instance arguments, irrelevant instance arguments (see :ref:`
 
   find-nonzero : (n : Nat) {{x y : NonZero n}} → Nat
   find-nonzero n = pred′ n
+
+
+Subtyping of irrelevant function spaces
+=======================================
+
+Normally, if ``f : .(x : A) → B`` then we have ``λ x → f x : (x : A) →
+B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
+enabled, Agda will make use of the subtyping rule ``.(x : A) → B <: (x
+: A) → B``, so there is no need for eta-expanding the function ``f``.

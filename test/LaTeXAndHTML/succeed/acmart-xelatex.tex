@@ -9,6 +9,7 @@
 % Use special font families without TeX ligatures for Agda code. (This
 % code is inspired by a comment by Enrico Gregorio/egreg:
 % https://tex.stackexchange.com/a/103078.)
+\usepackage{fontspec}
 \newfontfamily{\AgdaSerifFont}{Linux Libertine O}
 \newfontfamily{\AgdaSansSerifFont}{Linux Biolinum O}
 \newfontfamily{\AgdaTypewriterFont}{inconsolata}
@@ -44,9 +45,9 @@ Some code:
 \\[\AgdaEmptyExtraSkip]%
 \>[0]\AgdaFunction{Θ₁}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaPrimitiveType{Set}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
-\AgdaPrimitiveType{Set}\<%
+\AgdaPrimitive{Set}\<%
 \\
 \>[0]\AgdaFunction{Θ₁}\AgdaSpace{}%
 \AgdaSymbol{=}\AgdaSpace{}%
@@ -62,7 +63,7 @@ Some code:
 \AgdaSymbol{∀}\AgdaSpace{}%
 \AgdaSymbol{\{}\AgdaBound{A}\AgdaSpace{}%
 \AgdaSymbol{:}\AgdaSpace{}%
-\AgdaPrimitiveType{Set}\AgdaSymbol{\}}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSymbol{\}}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%
 \AgdaBound{A}\AgdaSpace{}%
 \AgdaSymbol{→}\AgdaSpace{}%

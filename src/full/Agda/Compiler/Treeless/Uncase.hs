@@ -1,16 +1,11 @@
-{-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
-import Data.Monoid
-
 import Agda.Syntax.Treeless
-import Agda.Syntax.Literal
 import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare
 
 import Agda.Utils.Impossible
-#include "undefined.h"
 
 caseToSeq :: Monad m => TTerm -> m TTerm
 caseToSeq t = return $ uncase t

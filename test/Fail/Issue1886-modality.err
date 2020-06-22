@@ -1,3 +1,3 @@
 Issue1886-modality.agda:7,17-18
-Unexpected modality/relevance annotation in A
+Unexpected modality/relevance annotation in (@erased A)
 when checking the definition of D

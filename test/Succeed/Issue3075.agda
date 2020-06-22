@@ -26,7 +26,7 @@ f₂ n = id-inline n
 macro
   rhs : Name → Term → TC ⊤
   rhs f hole = do
-    function (clause _ rhs ∷ _) ← getDefinition f
+    function (clause _ _ rhs ∷ _) ← getDefinition f
       where _ → typeError (strErr "fail" ∷ [])
     `rhs ← quoteTC rhs
     unify hole `rhs

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -11,21 +10,18 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Serialise.Base
-import Agda.TypeChecking.Serialise.Instances.Common ()
+import Agda.TypeChecking.Serialise.Instances.Common () --instance only
 
-import Agda.TypeChecking.Monad
-
-import Agda.Utils.Except
-
-#include "undefined.h"
+import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.Impossible
 
+-- Don't serialize the tactic.
 instance EmbPrj A.BindName where
-  icod_ (A.BindName n) = icodeN' A.BindName n
+  icod_ (A.BindName a) = icodeN' A.BindName a
   value = valueN A.BindName
 
 instance EmbPrj Scope where
@@ -33,30 +29,35 @@ instance EmbPrj Scope where
 
   value = valueN Scope
 
+instance EmbPrj DataOrRecordModule where
+  icod_ IsDataModule   = icodeN' IsDataModule
+  icod_ IsRecordModule = icodeN 0 IsRecordModule
+
+  value = vcase $ \case
+    []  -> valuN IsDataModule
+    [0] -> valuN IsRecordModule
+    _   -> malformed
+
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icodeN' PublicNS
   icod_ PrivateNS       = icodeN 1 PrivateNS
   icod_ ImportedNS      = icodeN 2 ImportedNS
-  icod_ OnlyQualifiedNS = icodeN 3 OnlyQualifiedNS
 
   value = vcase valu where
     valu []  = valuN PublicNS
     valu [1] = valuN PrivateNS
     valu [2] = valuN ImportedNS
-    valu [3] = valuN OnlyQualifiedNS
     valu _   = malformed
 
 instance EmbPrj Access where
   icod_ (PrivateAccess UserWritten) = icodeN 0 ()
   icod_ PrivateAccess{}             = icodeN 1 ()
   icod_ PublicAccess                = icodeN' PublicAccess
-  icod_ OnlyQualified               = icodeN 2 ()
 
   value = vcase valu where
     valu [0] = valuN $ PrivateAccess UserWritten
     valu [1] = valuN $ PrivateAccess Inserted
     valu []  = valuN PublicAccess
-    valu [2] = valuN OnlyQualified
     valu _   = malformed
 
 instance EmbPrj NameSpace where
@@ -75,10 +76,25 @@ instance EmbPrj WhyInScope where
     valu [1, a, b] = valuN Applied a b
     valu _         = malformed
 
-instance EmbPrj AbstractName where
-  icod_ (AbsName a b c d) = icodeN' AbsName a b c d
+-- Issue #1346: QNames are shared on their nameIds, so serializing will lose fixity information for
+-- rebound fixities. We don't care about that in terms, but in the scope it's important to keep the
+-- right fixity. Thus serialize the fixity separately.
 
-  value = valueN AbsName
+data AbsNameWithFixity = AbsNameWithFixity Fixity A.QName KindOfName WhyInScope NameMetadata
+
+toAbsName :: AbsNameWithFixity -> AbstractName
+toAbsName (AbsNameWithFixity fx a b c d) = AbsName (set lensFixity fx a) b c d
+
+fromAbsName :: AbstractName -> AbsNameWithFixity
+fromAbsName (AbsName a b c d) = AbsNameWithFixity (a ^. lensFixity) a b c d
+
+instance EmbPrj AbsNameWithFixity where
+  icod_ (AbsNameWithFixity a b c d e) = icodeN' AbsNameWithFixity a b c d e
+  value = valueN AbsNameWithFixity
+
+instance EmbPrj AbstractName where
+  icod_ a = icod_ (fromAbsName a)
+  value = toAbsName <.> value
 
 instance EmbPrj NameMetadata where
   icod_ NoMetadata                  = icodeN' NoMetadata
@@ -89,33 +105,44 @@ instance EmbPrj NameMetadata where
     valu [a] = valuN GeneralizedVarsMetadata a
     valu _   = malformed
 
+instance EmbPrj A.Suffix where
+  icod_ A.NoSuffix   = icodeN' A.NoSuffix
+  icod_ (A.Suffix a) = icodeN' A.Suffix a
+
+  value = vcase valu where
+    valu []  = valuN A.NoSuffix
+    valu [a] = valuN A.Suffix a
+    valu _   = malformed
+
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b
 
   value = valueN AbsModule
 
 instance EmbPrj KindOfName where
-  icod_ DefName        = icodeN' DefName
-  icod_ ConName        = icodeN 1 ConName
-  icod_ FldName        = icodeN 2 FldName
-  icod_ PatternSynName = icodeN 3 PatternSynName
-  icod_ QuotableName   = icodeN 4 QuotableName
-  icod_ MacroName      = icodeN 5 MacroName
-  icod_ GeneralizeName = icodeN 6 GeneralizeName
-  icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
+  -- -- Enums have a generic EmbPrj
+  --
+  -- icod_ DefName        = icodeN' DefName
+  -- icod_ ConName        = icodeN 1 ConName
+  -- icod_ FldName        = icodeN 2 FldName
+  -- icod_ PatternSynName = icodeN 3 PatternSynName
+  -- icod_ QuotableName   = icodeN 4 QuotableName
+  -- icod_ MacroName      = icodeN 5 MacroName
+  -- icod_ GeneralizeName = icodeN 6 GeneralizeName
+  -- icod_ DisallowedGeneralizeName = icodeN 7 DisallowedGeneralizeName
 
-  value = vcase valu where
-    valu []  = valuN DefName
-    valu [1] = valuN ConName
-    valu [2] = valuN FldName
-    valu [3] = valuN PatternSynName
-    valu [4] = valuN QuotableName
-    valu [5] = valuN MacroName
-    valu [6] = valuN GeneralizeName
-    valu [7] = valuN DisallowedGeneralizeName
-    valu _   = malformed
+  -- value = vcase valu where
+  --   valu []  = valuN DefName
+  --   valu [1] = valuN ConName
+  --   valu [2] = valuN FldName
+  --   valu [3] = valuN PatternSynName
+  --   valu [4] = valuN QuotableName
+  --   valu [5] = valuN MacroName
+  --   valu [6] = valuN GeneralizeName
+  --   valu [7] = valuN DisallowedGeneralizeName
+  --   valu _   = malformed
 
-instance EmbPrj Binder where
+instance EmbPrj BindingSource where
   icod_ LambdaBound   = icodeN' LambdaBound
   icod_ PatternBound  = icodeN 1 PatternBound
   icod_ LetBound      = icodeN 2 LetBound
@@ -147,7 +174,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
   icod_ (A.DotP p a)          = icodeN 5 (A.DotP p) a
   icod_ t@(A.AbsurdP _)       = icodeN 6 t
-  icod_ (A.LitP a)            = icodeN 7 A.LitP a
+  icod_ (A.LitP i a)          = icodeN 7 (A.LitP i) a
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
   icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
   icod_ (A.RecP p a)          = icodeN 10 (A.RecP p) a
@@ -162,7 +189,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [4, a, b]    = valuN (A.AsP i) a b
     valu [5, a]       = valuN (A.DotP i) a
     valu [6]          = valuN (A.AbsurdP i)
-    valu [7, a]       = valuN (A.LitP) a
+    valu [7, a]       = valuN (A.LitP i) a
     valu [8, a, b]    = valuN (A.ProjP i) a b
     valu [9, a, b]    = valuN (A.PatternSynP i) a b
     valu [10, a]      = valuN (A.RecP i) a
@@ -208,3 +235,5 @@ instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d e f g h i j) = icodeN' (\ a b c d e -> ScopeInfo a b c d e f g h i j) a b c d e
 
   value = valueN (\ a b c d e -> ScopeInfo a b c d e Map.empty Map.empty Set.empty Map.empty Map.empty)
+
+instance EmbPrj NameOrModule

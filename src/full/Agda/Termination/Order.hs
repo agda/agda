@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE ImplicitParams    #-}
 
 -- | An Abstract domain of relative sizes, i.e., differences
@@ -29,7 +28,6 @@ import qualified Agda.Termination.Semiring as Semiring
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -209,7 +207,7 @@ isDecr o = decreasing o
 
 instance Pretty Order where
   pretty (Decr u 0) = "="
-  pretty (Decr u k) = mparens (not u) $ text $ show (0 - k)
+  pretty (Decr u k) = mparens (not u) $ text $ show (negate k)
   pretty Unknown    = "?"
   pretty (Mat m)    = "Mat" <+> pretty m
 
@@ -255,7 +253,7 @@ collapseO o       = o
 
 -- | Can two matrices be multplied together?
 okM :: Matrix Int Order -> Matrix Int Order -> Bool
-okM m1 m2 = (rows $ size m2) == (cols $ size m1)
+okM m1 m2 = rows (size m2) == cols (size m1)
 
 -- | The supremum of a (possibly empty) list of 'Order's.
 --   More information (i.e., more decrease) is bigger.

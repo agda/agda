@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Functions which give precise syntax highlighting info in JSON format.
 
@@ -7,6 +6,7 @@ module Agda.Interaction.Highlighting.JSON (jsonifyHighlightingInfo) where
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
 import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Interaction.JSON
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
@@ -16,7 +16,6 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Encode meta information into a JSON Value
@@ -37,6 +36,7 @@ showAspects modFile (range, aspect) = object
       , "position" .= position
       ]
 
+instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where
     toJSON TokenBased = String "TokenBased"
     toJSON NotOnlyTokenBased = String "NotOnlyTokenBased"

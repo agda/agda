@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
@@ -12,50 +10,39 @@ module Agda.Syntax.Abstract
     , module Agda.Syntax.Abstract.Name
     ) where
 
-import Prelude
-import Control.Arrow (first, second, (***))
+import Prelude hiding (null)
 
-import Data.Foldable (Foldable)
+import Data.Bifunctor
 import qualified Data.Foldable as Fold
 import Data.Function (on)
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Traversable
 import Data.Void
-
 import Data.Data (Data)
-import Data.Monoid (mappend)
 
-import Agda.Syntax.Concrete.Name (NumHoles(..))
-import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA, HoleContent'(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty ()
-
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Abstract.Name as A (QNamed)
-
 import qualified Agda.Syntax.Internal as I
-
 import Agda.Syntax.Common
 import Agda.Syntax.Info
-import Agda.Syntax.Fixity ( Fixity' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Functor
-import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.NonemptyList
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A name in a binding position: we also compare the nameConcrete
@@ -67,15 +54,18 @@ import Agda.Utils.Impossible
 -- e.g. in @{_ : A} -> ..@ vs. @{r : A} -> ..@.
 
 newtype BindName = BindName { unBind :: Name }
-  deriving (Show, Data, HasRange, SetRange, KillRange)
+  deriving (Show, Data, HasRange, KillRange, SetRange)
+
+mkBindName :: Name -> BindName
+mkBindName x = BindName x
 
 instance Eq BindName where
-  (BindName n) == (BindName m)
+  BindName n == BindName m
     = ((==) `on` nameId) n m
       && ((==) `on` nameConcrete) n m
 
 instance Ord BindName where
-  (BindName n) `compare` (BindName m)
+  BindName n `compare` BindName m
     = (compare `on` nameId) n m
       `mappend` (compare `on` nameConcrete) n m
 
@@ -84,12 +74,13 @@ type Args = [NamedArg Expr]
 -- | Expressions after scope checking (operators parsed, names resolved).
 data Expr
   = Var  Name                          -- ^ Bound variable.
-  | Def  QName                         -- ^ Constant: axiom, function, data or record type.
+  | Def'  QName Suffix                 -- ^ Constant: axiom, function, data or record type,
+                                       --   with a possible suffix.
   | Proj ProjOrigin AmbiguousQName     -- ^ Projection (overloaded).
   | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn AmbiguousQName          -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
-  | Lit Literal                        -- ^ Literal.
+  | Lit ExprInfo Literal               -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
     -- ^ Meta variable for interaction.
     --   The 'InteractionId' is usually identical with the
@@ -104,31 +95,31 @@ data Expr
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
-  | ExtendedLam ExprInfo DefInfo QName [Clause]
-  | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
-  | Generalized (Set.Set QName) Expr   -- ^ Like a Pi, but the ordering is not known
+  | ExtendedLam ExprInfo DefInfo QName (List1 Clause)
+  | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
+  | Generalized (Set QName) Expr       -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
-  | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
-  | Prop ExprInfo Integer              -- ^ @Prop@, @Prop1@, @Prop2@, ...
   | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
-  | QuoteGoal ExprInfo Name Expr       -- ^ Binds @Name@ to current type in @Expr@.
-  | QuoteContext ExprInfo              -- ^ Returns the current context.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-  | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
-                                       -- ^ @tactic e x1 .. xn | y1 | .. | yn@
+  | Tactic ExprInfo Expr [NamedArg Expr]
+                                       -- ^ @tactic e x1 .. xn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show)
 
+-- | Pattern synonym for regular Def
+pattern Def :: QName -> Expr
+pattern Def x = Def' x NoSuffix
+
 -- | Smart constructor for Generalized
-generalized :: Set.Set QName -> Expr -> Expr
+generalized :: Set QName -> Expr -> Expr
 generalized s e
-    | Set.null s = e
+    | null s    = e
     | otherwise = Generalized s e
 
 -- | Record field assignment @f = e@.
@@ -137,15 +128,8 @@ type Assigns = [Assign]
 type RecordAssign  = Either Assign ModuleName
 type RecordAssigns = [RecordAssign]
 
--- | Is a type signature a `postulate' or a function signature?
-data Axiom
-  = FunSig    -- ^ A function signature.
-  | NoFunSig  -- ^ Not a function signature, i.e., a postulate (in user input)
-              --   or another (e.g. data/record) type signature (internally).
-  deriving (Data, Eq, Ord, Show)
-
 -- | Renaming (generic).
-type Ren a = [(a, a)]
+type Ren a = Map a (List1 a)
 
 data ScopeCopyInfo = ScopeCopyInfo
   { renModules :: Ren ModuleName
@@ -154,29 +138,31 @@ data ScopeCopyInfo = ScopeCopyInfo
 
 initCopyInfo :: ScopeCopyInfo
 initCopyInfo = ScopeCopyInfo
-  { renModules = []
-  , renNames   = []
+  { renModules = mempty
+  , renNames   = mempty
   }
 
 instance Pretty ScopeCopyInfo where
   pretty i = vcat [ prRen "renModules =" (renModules i)
                   , prRen "renNames   =" (renNames i) ]
     where
-      prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
+      prRen s r = sep [ text s, nest 2 $ vcat (map pr xs) ]
+        where
+          xs = [ (k, v) | (k, vs) <- Map.toList r, v <- List1.toList vs ]
       pr (x, y) = pretty x <+> "->" <+> pretty y
 
 data Declaration
-  = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
+  = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
     -- polarities to arguments.
-  | Generalize (Set.Set QName) DefInfo ArgInfo QName Expr
+  | Generalize (Set QName) DefInfo ArgInfo QName Expr
     -- ^ First argument is set of generalizable variables used in the type.
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
-  | Primitive  DefInfo QName Expr                    -- ^ primitive function
+  | Primitive  DefInfo QName (Arg Expr)              -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-  | Section    ModuleInfo ModuleName GeneralizeTelescope [Declaration]
+  | Section    Range ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
@@ -187,34 +173,19 @@ data Declaration
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
-      -- ^ the 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
   | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta) (Maybe QName) DataDefParams Expr [Declaration]
-      -- ^ The 'LamBinding's are 'DomainFree' and bind the parameters of the datatype.
-      --   The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+  | RecDef     DefInfo QName UniverseCheck (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe QName) DataDefParams Expr [Declaration]
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
-  | PatternSynDef QName [Arg Name] (Pattern' Void)
+      --   The optional 'Range' is for the @pattern@ attribute.
+  | PatternSynDef QName [Arg BindName] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show)
 
-class GetDefInfo a where
-  getDefInfo :: a -> Maybe DefInfo
-
-instance GetDefInfo Declaration where
-  getDefInfo (Axiom _ i _ _ _ _)    = Just i
-  getDefInfo (Generalize _ i _ _ _) = Just i
-  getDefInfo (Field i _ _)          = Just i
-  getDefInfo (Primitive i _ _)      = Just i
-  getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
-  getDefInfo (FunDef i _ _ _)       = Just i
-  getDefInfo (DataSig i _ _ _)      = Just i
-  getDefInfo (DataDef i _ _ _ _)    = Just i
-  getDefInfo (RecSig i _ _ _)       = Just i
-  getDefInfo (RecDef i _ _ _ _ _ _ _ _) = Just i
-  getDefInfo _ = Nothing
+type DefInfo = DefInfo' Expr
 
 type ImportDirective = ImportDirective' QName ModuleName
 type Renaming        = Renaming'        QName ModuleName
@@ -229,14 +200,15 @@ data ModuleApplication
 
 data Pragma
   = OptionsPragma [String]
-  | BuiltinPragma String ResolvedName
+  | BuiltinPragma RString ResolvedName
     -- ^ 'ResolvedName' is not 'UnknownName'.
     --   Name can be ambiguous e.g. for built-in constructors.
-  | BuiltinNoDefPragma String QName
+  | BuiltinNoDefPragma RString KindOfName QName
     -- ^ Builtins that do not come with a definition,
     --   but declare a name for an Agda concept.
-  | RewritePragma QName
-  | CompilePragma String QName String
+  | RewritePragma Range [QName]
+    -- ^ Range is range of REWRITE keyword.
+  | CompilePragma RString QName String
   | StaticPragma QName
   | EtaPragma QName
     -- ^ For coinductive records, use pragma instead of regular
@@ -269,12 +241,35 @@ type TypeSignature  = Declaration
 type Constructor    = TypeSignature
 type Field          = TypeSignature
 
+type TacticAttr = Maybe Expr
+
+-- A Binder @x\@p@, the pattern is optional
+data Binder' a = Binder
+  { binderPattern :: Maybe Pattern
+  , binderName    :: a
+  } deriving (Data, Show, Eq, Functor, Foldable, Traversable)
+
+type Binder = Binder' BindName
+
+mkBinder :: a -> Binder' a
+mkBinder = Binder Nothing
+
+mkBinder_ :: Name -> Binder
+mkBinder_ = mkBinder . mkBindName
+
+extractPattern :: Binder' a -> Maybe (Pattern, a)
+extractPattern (Binder p a) = (,a) <$> p
+
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-  = DomainFree (NamedArg BindName)  -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@
-  | DomainFull TypedBinding         -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+  = DomainFree TacticAttr (NamedArg Binder)
+    -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
+  | DomainFull TypedBinding
+    -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Data, Show, Eq)
 
+mkDomainFree :: NamedArg Binder -> LamBinding
+mkDomainFree = DomainFree Nothing
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -291,13 +286,16 @@ data LamBinding
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range [NamedArg BindName] Expr
+  = TBind Range TacticAttr (List1 (NamedArg Binder)) Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
+mkTBind :: Range -> List1 (NamedArg Binder) -> Expr -> TypedBinding
+mkTBind r = TBind r Nothing
 
+type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
 data GeneralizeTelescope = GeneralizeTel
@@ -332,7 +330,7 @@ noDataDefParams = DataDefParams Set.empty []
 data ProblemEq = ProblemEq
   { problemInPat :: Pattern
   , problemInst  :: I.Term
-  , problemType  :: Dom I.Type
+  , problemType  :: I.Dom I.Type
   } deriving (Data, Show)
 
 -- These are not relevant for caching purposes
@@ -353,14 +351,21 @@ data Clause' lhs = Clause
 
 data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
-  , whereDecls  :: [Declaration]
+      -- #2897: we need to restrict named where modules in refined contexts,
+      --        so remember whether it was named here
+  , whereDecls  :: Maybe Declaration
+      -- ^ The declaration is a 'Section'.
   } deriving (Data, Show, Eq)
 
+instance Null WhereDeclarations where
+  empty = WhereDecls empty empty
+
 noWhereDecls :: WhereDeclarations
-noWhereDecls = WhereDecls Nothing []
+noWhereDecls = empty
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
+type RewriteEqn  = RewriteEqn' QName Pattern Expr
 
 data RHS
   = RHS
@@ -371,10 +376,10 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [Expr] [Clause]
+  | WithRHS QName [WithHiding Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
-    { rewriteExprs      :: [(QName, Expr)]
+    { rewriteExprs      :: [RewriteEqn]
       -- ^ The 'QName's are the names of the generated with functions,
       --   one for each 'Expr'.
     , rewriteStrippedPats :: [ProblemEq]
@@ -392,7 +397,7 @@ data RHS
 instance Eq RHS where
   RHS e _          == RHS e' _            = e == e'
   AbsurdRHS        == AbsurdRHS           = True
-  WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
+  WithRHS a b c    == WithRHS a' b' c'    = (a == a') && (b == b') && (c == c')
   RewriteRHS a b c d == RewriteRHS a' b' c' d' = and [ a == a', b == b', c == c' , d == d' ]
   _                == _                   = False
 
@@ -469,7 +474,7 @@ data Pattern' e
   | DotP PatInfo e
     -- ^ Dot pattern @.e@
   | AbsurdP PatInfo
-  | LitP Literal
+  | LitP PatInfo Literal
   | PatternSynP PatInfo AmbiguousQName (NAPs e)
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
@@ -477,6 +482,7 @@ data Pattern' e
   deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type NAPs e   = [NamedArg (Pattern' e)]
+type NAPs1 e  = List1 (NamedArg (Pattern' e))
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 
@@ -496,7 +502,7 @@ instance IsProjP Expr where
     Things we parse but are not part of the Agda file syntax
  --------------------------------------------------------------------------}
 
-type HoleContent = C.HoleContent' Expr
+type HoleContent = C.HoleContent' () Pattern Expr
 
 {--------------------------------------------------------------------------
     Instances
@@ -514,7 +520,7 @@ instance Eq Expr where
   Con a1                  == Con a2                  = a1 == a2
   PatternSyn a1           == PatternSyn a2           = a1 == a2
   Macro a1                == Macro a2                = a1 == a2
-  Lit a1                  == Lit a2                  = a1 == a2
+  Lit r1 a1               == Lit r2 a2               = (r1, a1) == (r2, a2)
   QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
   Underscore a1           == Underscore a2           = a1 == a2
   Dot r1 e1               == Dot r2 e2               = (r1, e1) == (r2, e2)
@@ -526,18 +532,14 @@ instance Eq Expr where
   Pi a1 b1 c1             == Pi a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Generalized a1 b1       == Generalized a2 b2       = (a1, b1) == (a2, b2)
   Fun a1 b1 c1            == Fun a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
-  Set a1 b1               == Set a2 b2               = (a1, b1) == (a2, b2)
-  Prop a1 b1              == Prop a2 b2              = (a1, b1) == (a2, b2)
   Let a1 b1 c1            == Let a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   ETel a1                 == ETel a2                 = a1 == a2
   Rec a1 b1               == Rec a2 b2               = (a1, b1) == (a2, b2)
   RecUpdate a1 b1 c1      == RecUpdate a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
-  QuoteGoal a1 b1 c1      == QuoteGoal a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
-  QuoteContext a1         == QuoteContext a2         = a1 == a2
   Quote a1                == Quote a2                = a1 == a2
   QuoteTerm a1            == QuoteTerm a2            = a1 == a2
   Unquote a1              == Unquote a2              = a1 == a2
-  Tactic a1 b1 c1 d1      == Tactic a2 b2 c2 d2      = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  Tactic a1 b1 c1         == Tactic a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   DontCare a1             == DontCare a2             = a1 == a2
 
   _                       == _                       = False
@@ -561,7 +563,7 @@ instance Eq Declaration where
   DataSig a1 b1 c1 d1            == DataSig a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   DataDef a1 b1 c1 d1 e1         == DataDef a2 b2 c2 d2 e2         = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   RecSig a1 b1 c1 d1             == RecSig a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  RecDef a1 b1 c1 d1 e1 f1 g1 h1 i1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 i2 = (a1, b1, c1, d1, e1, f1, g1, h1, i1) == (a2, b2, c2, d2, e2, f2, g2, h2, i2)
+  RecDef a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 = (a1, b1, c1, d1, e1, f1, g1, h1, i1, j1) == (a2, b2, c2, d2, e2, f2, g2, h2, i2, j2)
   PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
   UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
@@ -573,32 +575,34 @@ instance Underscore Expr where
   isUnderscore = __IMPOSSIBLE__
 
 instance LensHiding LamBinding where
-  getHiding   (DomainFree x)  = getHiding x
-  getHiding   (DomainFull tb) = getHiding tb
-  mapHiding f (DomainFree x)  = DomainFree $ mapHiding f x
-  mapHiding f (DomainFull tb) = DomainFull $ mapHiding f tb
+  getHiding   (DomainFree _ x) = getHiding x
+  getHiding   (DomainFull tb)  = getHiding tb
+  mapHiding f (DomainFree t x) = DomainFree t $ mapHiding f x
+  mapHiding f (DomainFull tb)  = DomainFull $ mapHiding f tb
 
 instance LensHiding TypedBinding where
-  getHiding (TBind _ (x : _) _) = getHiding x   -- Slightly dubious
-  getHiding (TBind _ [] _)      = __IMPOSSIBLE__
-  getHiding TLet{}              = mempty
-  mapHiding f (TBind r xs e) = TBind r ((map . mapHiding) f xs) e
-  mapHiding f b@TLet{}       = b
+  getHiding (TBind _ _ (x :|_) _) = getHiding x   -- Slightly dubious
+  getHiding TLet{}                = mempty
+  mapHiding f (TBind r t xs e)    = TBind r t ((fmap . mapHiding) f xs) e
+  mapHiding f b@TLet{}            = b
+
+instance HasRange a => HasRange (Binder' a) where
+  getRange (Binder p n) = fuseRange p n
 
 instance HasRange LamBinding where
-    getRange (DomainFree x) = getRange x
-    getRange (DomainFull b) = getRange b
+    getRange (DomainFree _ x) = getRange x
+    getRange (DomainFull b)   = getRange b
 
 instance HasRange TypedBinding where
-    getRange (TBind r _ _) = r
+    getRange (TBind r _ _ _) = r
     getRange (TLet r _)    = r
 
 instance HasRange Expr where
     getRange (Var x)               = getRange x
-    getRange (Def x)               = getRange x
+    getRange (Def' x _)            = getRange x
     getRange (Proj _ x)            = getRange x
     getRange (Con x)               = getRange x
-    getRange (Lit l)               = getRange l
+    getRange (Lit i _)             = getRange i
     getRange (QuestionMark i _)    = getRange i
     getRange (Underscore  i)       = getRange i
     getRange (Dot i _)             = getRange i
@@ -610,19 +614,15 @@ instance HasRange Expr where
     getRange (Pi i _ _)            = getRange i
     getRange (Generalized _ x)     = getRange x
     getRange (Fun i _ _)           = getRange i
-    getRange (Set i _)             = getRange i
-    getRange (Prop i _)            = getRange i
     getRange (Let i _ _)           = getRange i
     getRange (Rec i _)             = getRange i
     getRange (RecUpdate i _ _)     = getRange i
     getRange (ETel tel)            = getRange tel
     getRange (ScopedExpr _ e)      = getRange e
-    getRange (QuoteGoal _ _ e)     = getRange e
-    getRange (QuoteContext i)      = getRange i
     getRange (Quote i)             = getRange i
     getRange (QuoteTerm i)         = getRange i
     getRange (Unquote i)           = getRange i
-    getRange (Tactic i _ _ _)      = getRange i
+    getRange (Tactic i _ _)        = getRange i
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
     getRange (Macro x)             = getRange x
@@ -643,7 +643,7 @@ instance HasRange Declaration where
     getRange (DataSig    i _ _ _    ) = getRange i
     getRange (DataDef    i _ _ _ _  ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
-    getRange (RecDef i _ _ _ _ _ _ _ _) = getRange i
+    getRange (RecDef i _ _ _ _ _ _ _ _ _) = getRange i
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
@@ -657,7 +657,7 @@ instance HasRange (Pattern' e) where
     getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
-    getRange (LitP l)            = getRange l
+    getRange (LitP i l)          = getRange i
     getRange (PatternSynP i _ _) = getRange i
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
@@ -678,10 +678,10 @@ instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS                = noRange
-    getRange (RHS e _)                = getRange e
-    getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS xes _ rhs wh) = getRange (map snd xes, rhs, wh)
+    getRange AbsurdRHS                 = noRange
+    getRange (RHS e _)                 = getRange e
+    getRange (WithRHS _ e cs)          = fuseRange e cs
+    getRange (RewriteRHS xes _ rhs wh) = getRange (xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
   getRange (WhereDecls _ ds) = getRange ds
@@ -703,15 +703,18 @@ instance SetRange (Pattern' a) where
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
-    setRange r (LitP l)             = LitP (setRange r l)
+    setRange r (LitP _ l)           = LitP (PatRange r) l
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) n as
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
 
+instance KillRange a => KillRange (Binder' a) where
+  killRange (Binder a b) = killRange2 Binder a b
+
 instance KillRange LamBinding where
-  killRange (DomainFree x) = killRange1 DomainFree x
-  killRange (DomainFull b) = killRange1 DomainFull b
+  killRange (DomainFree t x) = killRange2 DomainFree t x
+  killRange (DomainFull b)   = killRange1 DomainFull b
 
 instance KillRange GeneralizeTelescope where
   killRange (GeneralizeTel s tel) = GeneralizeTel s (killRange tel)
@@ -720,15 +723,15 @@ instance KillRange DataDefParams where
   killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
 instance KillRange TypedBinding where
-  killRange (TBind r xs e) = killRange3 TBind r xs e
-  killRange (TLet r lbs)   = killRange2 TLet r lbs
+  killRange (TBind r t xs e) = killRange4 TBind r t xs e
+  killRange (TLet r lbs)     = killRange2 TLet r lbs
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
-  killRange (Def x)                = killRange1 Def x
+  killRange (Def' x v)             = killRange2 Def' x v
   killRange (Proj o x)             = killRange1 (Proj o) x
   killRange (Con x)                = killRange1 Con x
-  killRange (Lit l)                = killRange1 Lit l
+  killRange (Lit i l)              = killRange2 Lit i l
   killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
   killRange (Underscore  i)        = killRange1 Underscore i
   killRange (Dot i e)              = killRange2 Dot i e
@@ -740,22 +743,21 @@ instance KillRange Expr where
   killRange (Pi i a b)             = killRange3 Pi i a b
   killRange (Generalized s x)      = killRange1 (Generalized s) x
   killRange (Fun i a b)            = killRange3 Fun i a b
-  killRange (Set i n)              = killRange2 Set i n
-  killRange (Prop i n)             = killRange2 Prop i n
   killRange (Let i ds e)           = killRange3 Let i ds e
   killRange (Rec i fs)             = killRange2 Rec i fs
   killRange (RecUpdate i e fs)     = killRange3 RecUpdate i e fs
   killRange (ETel tel)             = killRange1 ETel tel
   killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
-  killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
-  killRange (QuoteContext i)       = killRange1 QuoteContext i
   killRange (Quote i)              = killRange1 Quote i
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
-  killRange (Tactic i e xs ys)     = killRange4 Tactic i e xs ys
+  killRange (Tactic i e xs)        = killRange3 Tactic i e xs
   killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
   killRange (Macro x)              = killRange1 Macro x
+
+instance KillRange Suffix where
+  killRange = id
 
 instance KillRange Declaration where
   killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
@@ -773,7 +775,7 @@ instance KillRange Declaration where
   killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
   killRange (DataDef i a b c d        ) = killRange5 DataDef i a b c d
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
-  killRange (RecDef  i a b c d e f g h) = killRange9 RecDef  i a b c d e f g h
+  killRange (RecDef  i a b c d e f g h j) = killRange10 RecDef  i a b c d e f g h j
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
@@ -794,7 +796,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (AsP i a b)         = killRange3 AsP i a b
   killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
-  killRange (LitP l)            = killRange1 LitP l
+  killRange (LitP i l)          = killRange2 LitP i l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
   killRange (RecP i as)         = killRange2 RecP i as
   killRange (EqualP i es)       = killRange2 EqualP i es
@@ -833,140 +835,11 @@ instance KillRange LetBinding where
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
 
--- See Agda.Utils.GeniPlate:
--- Does not descend into ScopeInfo and renaming maps, for instance.
-
-instanceUniverseBiT' [] [t| (Declaration, QName)          |]
-instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
-instanceUniverseBiT' [] [t| (Declaration, Expr)           |]
-instanceUniverseBiT' [] [t| (Declaration, LetBinding)     |]
-instanceUniverseBiT' [] [t| (Declaration, LamBinding)     |]
-instanceUniverseBiT' [] [t| (Declaration, TypedBinding)   |]
-instanceUniverseBiT' [] [t| (Declaration, Pattern)        |]
-instanceUniverseBiT' [] [t| (Declaration, Pattern' Void)  |]
-instanceUniverseBiT' [] [t| (Declaration, Declaration)    |]
-instanceUniverseBiT' [] [t| (Declaration, ModuleName)     |]
-instanceUniverseBiT' [] [t| (Declaration, ModuleInfo)     |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg LHSCore)  |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg BindName) |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg Expr)     |]
-instanceUniverseBiT' [] [t| (Declaration, NamedArg Pattern)  |]
-
 ------------------------------------------------------------------------
 -- Queries
 ------------------------------------------------------------------------
 
--- | Extracts all the names which are declared in a 'Declaration'.
--- This does not include open public or let expressions, but it does
--- include local modules, where clauses and the names of extended
--- lambdas.
-
-class AllNames a where
-  allNames :: a -> Seq QName
-
-instance AllNames a => AllNames [a] where
-  allNames = Fold.foldMap allNames
-
-instance AllNames a => AllNames (Maybe a) where
-  allNames = Fold.foldMap allNames
-
-instance AllNames a => AllNames (Arg a) where
-  allNames = Fold.foldMap allNames
-
-instance AllNames a => AllNames (Named name a) where
-  allNames = Fold.foldMap allNames
-
-instance (AllNames a, AllNames b) => AllNames (a,b) where
-  allNames (a,b) = allNames a >< allNames b
-
-instance AllNames QName where
-  allNames q = Seq.singleton q
-
-instance AllNames Declaration where
-  allNames (Axiom   _ _ _ _ q _)      = Seq.singleton q
-  allNames (Generalize _ _ _ q _)     = Seq.singleton q
-  allNames (Field     _   q _)        = Seq.singleton q
-  allNames (Primitive _   q _)        = Seq.singleton q
-  allNames (Mutual     _ defs)        = allNames defs
-  allNames (DataSig _ q _ _)          = Seq.singleton q
-  allNames (DataDef _ q _ _ decls)    = q <| allNames decls
-  allNames (RecSig _ q _ _)           = Seq.singleton q
-  allNames (RecDef _ q _ _ _ c _ _ decls) = q <| allNames c >< allNames decls
-  allNames (PatternSynDef q _ _)      = Seq.singleton q
-  allNames (UnquoteDecl _ _ qs _)     = Seq.fromList qs
-  allNames (UnquoteDef _ qs _)        = Seq.fromList qs
-  allNames (FunDef _ q _ cls)         = q <| allNames cls
-  allNames (Section _ _ _ decls)      = allNames decls
-  allNames Apply{}                    = Seq.empty
-  allNames Import{}                   = Seq.empty
-  allNames Pragma{}                   = Seq.empty
-  allNames Open{}                     = Seq.empty
-  allNames (ScopedDecl _ decls)       = allNames decls
-
-instance AllNames Clause where
-  allNames cl = allNames (clauseRHS cl, clauseWhereDecls cl)
-
-instance AllNames RHS where
-  allNames (RHS e _)                 = allNames e
-  allNames AbsurdRHS{}               = Seq.empty
-  allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qes _ rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
-
-instance AllNames WhereDeclarations where
-  allNames (WhereDecls _ ds) = allNames ds
-
-instance AllNames Expr where
-  allNames Var{}                   = Seq.empty
-  allNames Def{}                   = Seq.empty
-  allNames Proj{}                  = Seq.empty
-  allNames Con{}                   = Seq.empty
-  allNames Lit{}                   = Seq.empty
-  allNames QuestionMark{}          = Seq.empty
-  allNames Underscore{}            = Seq.empty
-  allNames (Dot _ e)               = allNames e
-  allNames (App _ e1 e2)           = allNames e1 >< allNames e2
-  allNames (WithApp _ e es)        = allNames e >< allNames es
-  allNames (Lam _ b e)             = allNames b >< allNames e
-  allNames AbsurdLam{}             = Seq.empty
-  allNames (ExtendedLam _ _ q cls) = q <| allNames cls
-  allNames (Pi _ tel e)            = allNames tel >< allNames e
-  allNames (Generalized s e)       = Seq.fromList (Set.toList s) >< allNames e  -- TODO: or just (allNames e)?
-  allNames (Fun _ e1 e2)           = allNames e1 >< allNames e2
-  allNames Set{}                   = Seq.empty
-  allNames Prop{}                  = Seq.empty
-  allNames (Let _ lbs e)           = allNames lbs >< allNames e
-  allNames ETel{}                  = __IMPOSSIBLE__
-  allNames (Rec _ fields)          = allNames [ a ^. exprFieldA | Left a <- fields ]
-  allNames (RecUpdate _ e fs)      = allNames e >< allNames (map (view exprFieldA) fs)
-  allNames (ScopedExpr _ e)        = allNames e
-  allNames (QuoteGoal _ _ e)       = allNames e
-  allNames (QuoteContext _)        = Seq.empty
-  allNames Quote{}                 = Seq.empty
-  allNames QuoteTerm{}             = Seq.empty
-  allNames Unquote{}               = Seq.empty
-  allNames (Tactic _ e xs ys)      = allNames e >< allNames xs >< allNames ys
-  allNames DontCare{}              = Seq.empty
-  allNames PatternSyn{}            = Seq.empty
-  allNames Macro{}                 = Seq.empty
-
-instance AllNames LamBinding where
-  allNames DomainFree{}       = Seq.empty
-  allNames (DomainFull binds) = allNames binds
-
-instance AllNames TypedBinding where
-  allNames (TBind _ _ e) = allNames e
-  allNames (TLet _ lbs)  = allNames lbs
-
-instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)  = allNames e1 >< allNames e2
-  allNames (LetPatBind _ _ e)      = allNames e
-  allNames (LetApply _ _ app _ _)  = allNames app
-  allNames LetOpen{}               = Seq.empty
-  allNames (LetDeclaredVariable _) = Seq.empty
-
-instance AllNames ModuleApplication where
-  allNames (SectionApp bindss _ es) = allNames bindss >< allNames es
-  allNames RecordModuleInstance{}   = Seq.empty
+-- class AllNames moved to Abstract.Views.DeclaredNames
 
 -- | The name defined by the given axiom.
 --
@@ -994,38 +867,57 @@ instance AnyAbstract Declaration where
   anyAbstract (Section _ _ _ ds)     = anyAbstract ds
   anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _)      = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
+-- | Turn a name into an expression.
+
 class NameToExpr a where
-  nameExpr :: a -> Expr
+  nameToExpr :: a -> Expr
 
--- | Turn an 'AbstractName' to an expression.
+-- | Turn an 'AbstractName' into an expression.
+
 instance NameToExpr AbstractName where
-  nameExpr d = mk (anameKind d) $ anameName d
+  nameToExpr d =
+    case anameKind d of
+      DataName                 -> Def x
+      RecName                  -> Def x
+      AxiomName                -> Def x
+      PrimName                 -> Def x
+      FunName                  -> Def x
+      OtherDefName             -> Def x
+      GeneralizeName           -> Def x
+      DisallowedGeneralizeName -> Def x
+      FldName                  -> Proj ProjSystem ux
+      ConName                  -> Con ux
+      CoConName                -> Con ux
+      PatternSynName           -> PatternSyn ux
+      MacroName                -> Macro x
+      QuotableName             -> App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
     where
-    mk DefName        x = Def x
-    mk GeneralizeName x = Def x
-    mk DisallowedGeneralizeName x = Def x
-    mk FldName        x = Proj ProjSystem $ unambiguous x
-    mk ConName        x = Con $ unambiguous x
-    mk PatternSynName x = PatternSyn $ unambiguous x
-    mk MacroName      x = Macro x
-    mk QuotableName   x = App (defaultAppInfo r) (Quote i) (defaultNamedArg $ Def x)
-      where i = ExprRange r
-            r = getRange x
+    x  = anameName d
+    ux = unambiguous x
+    r  = getRange x
+    i  = ExprRange r
 
--- | Assumes name is not 'UnknownName'.
+-- | Turn a 'ResolvedName' into an expression.
+--
+--   Assumes name is not 'UnknownName'.
+
 instance NameToExpr ResolvedName where
-  nameExpr = \case
+  nameToExpr = \case
     VarName x _          -> Var x
-    DefinedName _ x      -> nameExpr x  -- Can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName _ x s    -> withSuffix s $ nameToExpr x  -- Can be 'isDefName', 'MacroName', 'QuotableName'.
     FieldName xs         -> Proj ProjSystem . AmbQ . fmap anameName $ xs
-    ConstructorName xs   -> Con . AmbQ . fmap anameName $ xs
+    ConstructorName _ xs -> Con . AmbQ . fmap anameName $ xs
     PatternSynResName xs -> PatternSyn . AmbQ . fmap anameName $ xs
     UnknownName          -> __IMPOSSIBLE__
+    where
+      withSuffix NoSuffix   e       = e
+      withSuffix s@Suffix{} (Def x) = Def' x s
+      withSuffix _          _       = __IMPOSSIBLE__
 
 app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App defaultAppInfo_)
@@ -1035,35 +927,41 @@ mkLet i [] e = e
 mkLet i ds e = Let i ds e
 
 patternToExpr :: Pattern -> Expr
-patternToExpr (VarP x)           = Var (unBind x)
-patternToExpr (ConP _ c ps)       =
-  Con c `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (ProjP _ o ds)      = Proj o ds
-patternToExpr (DefP _ fs ps) =
-  Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (WildP _)           = Underscore emptyMetaInfo
-patternToExpr (AsP _ _ p)         = patternToExpr p
-patternToExpr (DotP _ e)          = e
-patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
-patternToExpr (LitP l)            = Lit l
-patternToExpr (PatternSynP _ c ps) = PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
-patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
-patternToExpr EqualP{}            = __IMPOSSIBLE__  -- Andrea TODO: where is this used?
-patternToExpr (WithP r p)         = __IMPOSSIBLE__
+patternToExpr = \case
+  VarP x             -> Var (unBind x)
+  ConP _ c ps        -> Con c `app` map (fmap (fmap patternToExpr)) ps
+  ProjP _ o ds       -> Proj o ds
+  DefP _ fs ps       -> Def (headAmbQ fs) `app` map (fmap (fmap patternToExpr)) ps
+  WildP _            -> Underscore emptyMetaInfo
+  AsP _ _ p          -> patternToExpr p
+  DotP _ e           -> e
+  AbsurdP _          -> Underscore emptyMetaInfo  -- TODO: could this happen?
+  LitP (PatRange r) l-> Lit (ExprRange r) l
+  PatternSynP _ c ps -> PatternSyn c `app` (map . fmap . fmap) patternToExpr ps
+  RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
+  EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
+  WithP r p          -> __IMPOSSIBLE__
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
-lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam exprNoRange (DomainFree $ defaultNamedArg $ BindName n) $
-                            lambdaLiftExpr ns e
-
+lambdaLiftExpr ns e
+  = foldr
+      (\ n -> Lam exprNoRange (mkDomainFree $ defaultNamedArg $ mkBinder_ n))
+      e
+      ns
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
 
+instance SubstExpr a => SubstExpr (Maybe a) where
+  substExpr = fmap . substExpr
+
 instance SubstExpr a => SubstExpr [a] where
+  substExpr = fmap . substExpr
+
+instance SubstExpr a => SubstExpr (List1 a) where
   substExpr = fmap . substExpr
 
 instance SubstExpr a => SubstExpr (Arg a) where
@@ -1091,10 +989,10 @@ instance SubstExpr Assign where
 instance SubstExpr Expr where
   substExpr s e = case e of
     Var n                 -> fromMaybe e (lookup n s)
-    Def _                 -> e
+    Def' _ _              -> e
     Proj{}                -> e
     Con _                 -> e
-    Lit _                 -> e
+    Lit _ _               -> e
     QuestionMark{}        -> e
     Underscore   _        -> e
     Dot i e               -> Dot i (substExpr s e)
@@ -1106,20 +1004,16 @@ instance SubstExpr Expr where
     Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
     Generalized ns e      -> Generalized ns (substExpr s e)
     Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
-    Set  i n              -> e
-    Prop i n              -> e
     Let  i ls e           -> Let i (substExpr s ls) (substExpr s e)
     ETel t                -> e
     Rec  i nes            -> Rec i (substExpr s nes)
     RecUpdate i e nes     -> RecUpdate i (substExpr s e) (substExpr s nes)
     -- XXX: Do we need to do more with ScopedExprs?
     ScopedExpr si e       -> ScopedExpr si (substExpr s e)
-    QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
-    QuoteContext i        -> e
     Quote i               -> e
     QuoteTerm i           -> e
     Unquote i             -> e
-    Tactic i e xs ys      -> Tactic i (substExpr s e) (substExpr s xs) (substExpr s ys)
+    Tactic i e xs         -> Tactic i (substExpr s e) (substExpr s xs)
     DontCare e            -> DontCare (substExpr s e)
     PatternSyn{}          -> e
     Macro{}               -> e
@@ -1132,12 +1026,17 @@ instance SubstExpr LetBinding where
 
 instance SubstExpr TypedBinding where
   substExpr s tb = case tb of
-    TBind r ns e -> TBind r ns $ substExpr s e
-    TLet r lbs   -> TLet r $ substExpr s lbs
+    TBind r t ns e -> TBind r (substExpr s t) ns $ substExpr s e
+    TLet r lbs     -> TLet r $ substExpr s lbs
 
 -- TODO: more informative failure
-insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->
-                            Maybe ([(Name, a)], [Arg Name])
+insertImplicitPatSynArgs
+  :: HasRange a
+  => (Range -> a)
+  -> Range
+  -> [Arg Name]
+  -> [NamedArg a]
+  -> Maybe ([(Name, a)], [Arg Name])
 insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
   where
     matchNextArg r n as@(~(a : as'))
@@ -1146,10 +1045,9 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
       | otherwise      = return (wild r, as)
 
     matchNext _ [] = False
-    matchNext n (a:as) = sameHiding n a && matchName
+    matchNext n (a:as) = sameHiding n a && maybe True (x ==) (bareNameOf a)
       where
-        x = unranged $ C.nameToRawName $ nameConcrete $ unArg n
-        matchName = maybe True (== x) (nameOf $ unArg a)
+        x = C.nameToRawName $ nameConcrete $ unArg n
 
     matchArgs r [] []     = return ([], [])
     matchArgs r [] as     = Nothing

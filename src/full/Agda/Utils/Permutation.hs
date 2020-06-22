@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 
 module Agda.Utils.Permutation where
@@ -11,18 +10,13 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Array
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
-
 import Data.Data (Data)
 
-import Agda.Syntax.Position (KillRange(..))
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Partial permutations. Examples:
@@ -53,9 +47,6 @@ instance Sized Permutation where
 instance Null Permutation where
   empty = Perm 0 []
   null (Perm _ picks) = null picks
-
-instance KillRange Permutation where
-  killRange = id
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
@@ -101,7 +92,7 @@ instance InversePermute [Maybe a] [Maybe a] where
     where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
 instance InversePermute (Int -> a) [Maybe a] where
-  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> List.findIndex (x ==) xs
+  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> List.elemIndex x xs
 
 -- | Identity permutation.
 idP :: Int -> Permutation
@@ -196,7 +187,7 @@ expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
 -- | Stable topologic sort. The first argument decides whether its first
 --   argument is an immediate parent to its second argument.
 topoSort :: (a -> a -> Bool) -> [a] -> Maybe Permutation
-topoSort parent xs = fmap (Perm (size xs)) $ topo g
+topoSort parent xs = Perm (size xs) <$> topo g
   where
     nodes     = zip [0..] xs
     g         = [ (n, parents x) | (n, x) <- nodes ]
@@ -223,9 +214,6 @@ data Drop a = Drop
   , dropFrom :: a    -- ^ Where to drop from.
   }
   deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
-
-instance KillRange a => KillRange (Drop a) where
-  killRange = fmap killRange
 
 -- | Things that support delayed dropping.
 class DoDrop a where

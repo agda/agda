@@ -1,4 +1,5 @@
 Issue3130ParenthesizedProjectionPattern.agda:11,7-11
 Cannot eliminate type R with dot pattern .f (did you supply too
 many arguments?)
-when checking that the clause mkR A .f = A has type Set → R
+when checking the clause left hand side
+mkR A .f

@@ -1,13 +1,13 @@
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE CPP          #-}
 
 -- | Tree traversal for internal syntax.
 
 module Agda.Syntax.Internal.Generic where
 
-import Data.Traversable
-import Data.Monoid
-import Data.Foldable
+#if __GLASGOW_HASKELL__ < 804
+import Data.Monoid ((<>))
+#endif
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -58,14 +58,15 @@ instance TermLike QName where
 
 -- Functors
 
-instance TermLike a => TermLike (Elim' a)   where
-instance TermLike a => TermLike (Arg a)     where
-instance TermLike a => TermLike (Dom a)     where
-instance TermLike a => TermLike [a]         where
-instance TermLike a => TermLike (Maybe a)   where
-instance TermLike a => TermLike (Abs a)     where
-instance TermLike a => TermLike (Blocked a) where
-instance TermLike a => TermLike (Tele a)    where
+instance TermLike a => TermLike (Elim' a)      where
+instance TermLike a => TermLike (Arg a)        where
+instance TermLike a => TermLike (Dom a)        where
+instance TermLike a => TermLike [a]            where
+instance TermLike a => TermLike (Maybe a)      where
+instance TermLike a => TermLike (Abs a)        where
+instance TermLike a => TermLike (Blocked a)    where
+instance TermLike a => TermLike (Tele a)       where
+instance TermLike a => TermLike (WithHiding a) where
 
 -- Tuples
 
@@ -112,15 +113,12 @@ instance TermLike Term where
     Dummy{}     -> mempty
 
 instance TermLike Level where
-  traverseTermM f (Max as) = Max <$> traverseTermM f as
-  foldTerm f      (Max as) = foldTerm f as
+  traverseTermM f (Max n as) = Max n <$> traverseTermM f as
+  foldTerm f      (Max n as) = foldTerm f as
 
 instance TermLike PlusLevel where
-  traverseTermM f l = case l of
-    ClosedLevel{} -> return l
-    Plus n l      -> Plus n <$> traverseTermM f l
-  foldTerm f ClosedLevel{} = mempty
-  foldTerm f (Plus _ l)    = foldTerm f l
+  traverseTermM f (Plus n l) = Plus n <$> traverseTermM f l
+  foldTerm f (Plus _ l)      = foldTerm f l
 
 instance TermLike LevelAtom where
   traverseTermM f l = case l of
@@ -142,10 +140,11 @@ instance TermLike Sort where
   traverseTermM f s = case s of
     Type l     -> Type <$> traverseTermM f l
     Prop l     -> Prop <$> traverseTermM f l
-    Inf        -> pure s
+    Inf _      -> pure s
     SizeUniv   -> pure s
     LockUniv   -> pure s
     PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
+    FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
     DefS q es  -> DefS q   <$> traverseTermM f es
@@ -154,10 +153,11 @@ instance TermLike Sort where
   foldTerm f s = case s of
     Type l     -> foldTerm f l
     Prop l     -> foldTerm f l
-    Inf        -> mempty
+    Inf _      -> mempty
     SizeUniv   -> mempty
     LockUniv   -> mempty
     PiSort a b -> foldTerm f a <> foldTerm f b
+    FunSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a
     MetaS _ es -> foldTerm f es
     DefS _ es  -> foldTerm f es

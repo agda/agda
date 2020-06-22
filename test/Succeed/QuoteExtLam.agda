@@ -2,6 +2,7 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Agda.Builtin.Sigma
 
 magic₁ : ⊥ → Nat
 magic₁ = λ ()
@@ -36,13 +37,13 @@ pattern `Wrap a = def (quote Wrap) (vArg a ∷ [])
 pattern `⊥ = def (quote ⊥) []
 
 pattern expected₄ = funDef
-  (absurdClause (vArg (con (quote wrap) (vArg absurd ∷ [])) ∷ [])
-    ∷ [])
+  (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (con (quote wrap) (vArg absurd ∷ [])) ∷ [])
+  ∷ [])
 
 check₄ : OK
 check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
 
-expected = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
+expected = extLam (absurdClause (("()" , vArg `⊥) ∷ []) (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
 
 macro
 
@@ -59,7 +60,7 @@ check₂ : quoteTermNormalised magic₂ ≡ expected
 check₂ = refl
 
 pattern expectedDef =
-  funDef (absurdClause (vArg absurd ∷ []) ∷ [])
+  funDef (absurdClause (("()" , vArg `⊥) ∷ []) (vArg absurd ∷ []) ∷ [])
 
 check₃ : OK
 check₃ = checkDefinition (λ { expectedDef → true; _ → false }) magic₃

@@ -1,27 +1,20 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.CompiledClause.Match where
 
-import Control.Monad.Reader (asks)
-
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getBuiltinName', builtinIZero, builtinIOne)
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
+import Agda.Utils.Pretty (prettyShow)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 matchCompiled :: CompiledClauses -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Args) Term)
@@ -159,7 +152,7 @@ match' ((c, es, patch) : stack) = do
             --    mo <- getBuiltinName' builtinIOne
             --    return $ Set.fromList $ catMaybes [mi,mo]
 
-            fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
+            fallThrough <- return $ (Just True ==) (fallThrough bs) && isJust (catchAllBranch bs)
 
             let
               isCon b =
@@ -167,8 +160,7 @@ match' ((c, es, patch) : stack) = do
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
             -- Now do the matching on the @n@ths argument:
-            id $
-             case eb of
+            case eb of
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
@@ -207,5 +199,5 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
       traceSLn "impossible" 10
-        ("Incomplete pattern matching when applying " ++ show f)
+        ("Incomplete pattern matching when applying " ++ prettyShow f)
         __IMPOSSIBLE__

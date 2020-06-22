@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
@@ -7,36 +6,39 @@ module Agda.TypeChecking.Rules.LHS.Problem
        , problemRestPats, problemCont, problemInPats
        , AsBinding(..) , DotPattern(..) , AbsurdPattern(..)
        , LHSState(..) , lhsTel , lhsOutPat , lhsProblem , lhsTarget
+       , LeftoverPatterns(..), getLeftoverPatterns, getUserVariableNames
        ) where
 
 import Prelude hiding (null)
 
-import Control.Applicative hiding (empty)
-import Data.Foldable ( Foldable )
-import Data.Maybe ( fromMaybe )
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
+import Control.Arrow ( (***) )
+import Control.Monad.Writer hiding ((<>))
+
+import Data.Functor (($>))
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.List ( partition )
 import Data.Semigroup ( Semigroup, (<>) )
-import Data.Traversable
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
-import Agda.Syntax.Info
-import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext, lookupSection, currentModule)
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import qualified Agda.TypeChecking.Pretty as P
-import Agda.TypeChecking.Pretty hiding ((<>))
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null
-import Agda.Utils.Permutation
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as PP
 
@@ -57,20 +59,21 @@ data FlexibleVarKind
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
 data FlexibleVar a = FlexibleVar
-  { flexHiding :: Hiding
-  , flexOrigin :: Origin
-  , flexKind   :: FlexibleVarKind
-  , flexPos    :: Maybe Int
-  , flexVar    :: a
+  { flexArgInfo :: ArgInfo
+  , flexForced  :: IsForced
+  , flexKind    :: FlexibleVarKind
+  , flexPos     :: Maybe Int
+  , flexVar     :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-instance LensHiding (FlexibleVar a) where
-  getHiding     = flexHiding
-  mapHiding f x = x { flexHiding = f (flexHiding x) }
+instance LensArgInfo (FlexibleVar a) where
+  getArgInfo = flexArgInfo
+  setArgInfo ai fl = fl { flexArgInfo = ai }
+  mapArgInfo f  fl = fl { flexArgInfo = f (flexArgInfo fl) }
 
-instance LensOrigin (FlexibleVar a) where
-  getOrigin     = flexOrigin
-  mapOrigin f x = x { flexOrigin = f (flexOrigin x) }
+instance LensHiding (FlexibleVar a)
+instance LensOrigin (FlexibleVar a)
+instance LensModality (FlexibleVar a)
 
 -- UNUSED
 -- defaultFlexibleVar :: a -> FlexibleVar a
@@ -80,10 +83,12 @@ instance LensOrigin (FlexibleVar a) where
 -- flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 -- flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
 
-allFlexVars :: Telescope -> FlexibleVars
-allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
+allFlexVars :: [IsForced] -> Telescope -> FlexibleVars
+allFlexVars forced tel = zipWith3 makeFlex (downFrom n) (telToList tel) fs
   where
-    makeFlex i d = FlexibleVar (getHiding d) (getOrigin d) ImplicitFlex (Just i) i
+    n  = size tel
+    fs = forced ++ repeat NotForced
+    makeFlex i d f = FlexibleVar (getArgInfo d) f ImplicitFlex (Just i) i
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -126,6 +131,16 @@ instance ChooseFlex a => ChooseFlex (Maybe a) where
   chooseFlex (Just x) Nothing = ChooseRight
   chooseFlex (Just x) (Just y) = chooseFlex x y
 
+instance ChooseFlex ArgInfo where
+  chooseFlex ai1 ai2 = firstChoice [ chooseFlex (getOrigin ai1) (getOrigin ai2)
+                                   , chooseFlex (getHiding ai1) (getHiding ai2) ]
+
+instance ChooseFlex IsForced where
+  chooseFlex NotForced NotForced = ChooseEither
+  chooseFlex NotForced Forced    = ChooseRight
+  chooseFlex Forced    NotForced = ChooseLeft
+  chooseFlex Forced    Forced    = ChooseEither
+
 instance ChooseFlex Hiding where
   chooseFlex Hidden     Hidden     = ChooseEither
   chooseFlex Hidden     _          = ChooseLeft
@@ -151,19 +166,20 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 o1 f1 p1 i1) (FlexibleVar h2 o2 f2 p2 i2) =
-    firstChoice [ chooseFlex f1 f2, chooseFlex o1 o2, chooseFlex h1 h2
+  chooseFlex (FlexibleVar ai1 fc1 f1 p1 i1) (FlexibleVar ai2 fc2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex fc1 fc2, chooseFlex ai1 ai2
                 , chooseFlex p1 p2, chooseFlex i1 i2]
-      where
-        firstChoice :: [FlexChoice] -> FlexChoice
-        firstChoice []                  = ChooseEither
-        firstChoice (ChooseEither : xs) = firstChoice xs
-        firstChoice (x            : _ ) = x
+
+firstChoice :: [FlexChoice] -> FlexChoice
+firstChoice []                  = ChooseEither
+firstChoice (ChooseEither : xs) = firstChoice xs
+firstChoice (x            : _ ) = x
 
 -- | The user patterns we still have to split on.
 data Problem a = Problem
   { _problemEqs      :: [ProblemEq]
-    -- ^ User patterns.
+    -- ^ User patterns which are typed
+    --   (including the ones generated from implicit arguments).
   , _problemRestPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
     --   Example:
@@ -181,6 +197,7 @@ data Problem a = Problem
     --   As we instantiate @b@ to @false@, the 'targetType' reduces to
     --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemEqs@.
   , _problemCont     :: LHSState a -> TCM a
+    -- ^ The code that checks the RHS.
   }
   deriving Show
 
@@ -216,7 +233,8 @@ data LHSState a = LHSState
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
     --   be type-checked in irrelevant mode.
-  , _lhsPartialSplit :: ![Maybe Int] -- ^ have we splitted with a PartialFocus?
+  , _lhsPartialSplit :: ![Maybe Int]
+    -- ^ have we splitted with a PartialFocus?
   }
 
 lhsTel :: Lens' Telescope (LHSState a)
@@ -231,8 +249,97 @@ lhsProblem f p = f (_lhsProblem p) <&> \x -> p {_lhsProblem = x}
 lhsTarget :: Lens' (Arg Type) (LHSState a)
 lhsTarget f p = f (_lhsTarget p) <&> \x -> p {_lhsTarget = x}
 
-lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
-lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
+-- UNUSED Liang-Ting Chen 2019-07-16
+--lhsPartialSplit :: Lens' [Maybe Int] (LHSState a)
+--lhsPartialSplit f p = f (_lhsPartialSplit p) <&> \x -> p {_lhsPartialSplit = x}
+
+data PatVarPosition = PVLocal | PVParam
+  deriving (Show, Eq)
+
+data LeftoverPatterns = LeftoverPatterns
+  { patternVariables :: IntMap [(A.Name,PatVarPosition)]
+  , asPatterns       :: [AsBinding]
+  , dotPatterns      :: [DotPattern]
+  , absurdPatterns   :: [AbsurdPattern]
+  , otherPatterns    :: [A.Pattern]
+  }
+
+instance Semigroup LeftoverPatterns where
+  x <> y = LeftoverPatterns
+    { patternVariables = IntMap.unionWith (++) (patternVariables x) (patternVariables y)
+    , asPatterns       = asPatterns x ++ asPatterns y
+    , dotPatterns      = dotPatterns x ++ dotPatterns y
+    , absurdPatterns   = absurdPatterns x ++ absurdPatterns y
+    , otherPatterns    = otherPatterns x ++ otherPatterns y
+    }
+
+instance Monoid LeftoverPatterns where
+  mempty  = LeftoverPatterns empty [] [] [] []
+  mappend = (<>)
+
+instance PrettyTCM LeftoverPatterns where
+  prettyTCM (LeftoverPatterns varp asb dotp absurdp otherp) = vcat
+    [ "pattern variables: " <+> text (show varp)
+    , "as bindings:       " <+> prettyList_ (map prettyTCM asb)
+    , "dot patterns:      " <+> prettyList_ (map prettyTCM dotp)
+    , "absurd patterns:   " <+> prettyList_ (map prettyTCM absurdp)
+    , "other patterns:    " <+> prettyList_ (map prettyA otherp)
+    ]
+
+-- | Classify remaining patterns after splitting is complete into pattern
+--   variables, as patterns, dot patterns, and absurd patterns.
+--   Precondition: there are no more constructor patterns.
+getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
+getLeftoverPatterns eqs = do
+  reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
+  params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
+  let isParamName = (`Set.member` params) . nameToArgName
+  mconcat <$> mapM (getLeftoverPattern isParamName) eqs
+  where
+    patternVariable x i  = LeftoverPatterns (singleton (i,[(x,PVLocal)])) [] [] [] []
+    moduleParameter x i  = LeftoverPatterns (singleton (i,[(x,PVParam)])) [] [] [] []
+    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
+    dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
+    absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
+    otherPattern p       = LeftoverPatterns empty [] [] [] [p]
+
+    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern isParamName (ProblemEq p v a) = case p of
+      (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
+        Just i  | isParamName x -> return $ moduleParameter x i
+                | otherwise     -> return $ patternVariable x i
+        Nothing -> return $ asPattern x v a
+      (A.WildP _)       -> return mempty
+      (A.AsP info A.BindName{unBind = x} p)  -> (asPattern x v a `mappend`) <$> do
+        getLeftoverPattern isParamName $ ProblemEq p v a
+      (A.DotP info e)   -> return $ dotPattern e v a
+      (A.AbsurdP info)  -> return $ absurdPattern (getRange info) (unDom a)
+      _                 -> return $ otherPattern p
+
+-- | Build a renaming for the internal patterns using variable names from
+--   the user patterns. If there are multiple user names for the same internal
+--   variable, the unused ones are returned as as-bindings.
+--   Names that are not also module parameters are preferred over
+--   those that are.
+getUserVariableNames
+  :: Telescope                         -- ^ The telescope of pattern variables
+  -> IntMap [(A.Name,PatVarPosition)]  -- ^ The list of user names for each pattern variable
+  -> ([Maybe A.Name], [AsBinding])
+getUserVariableNames tel names = runWriter $
+  zipWithM makeVar (flattenTel tel) (downFrom $ size tel)
+
+  where
+    makeVar :: Dom Type -> Int -> Writer [AsBinding] (Maybe A.Name)
+    makeVar a i = case partitionIsParam (IntMap.findWithDefault [] i names) of
+      ([]     , [])   -> return Nothing
+      ((x:xs) , [])   -> tellAsBindings xs $> (Just x)
+      (xs     , y:ys) -> tellAsBindings (xs ++ ys) $> (Just y)
+      where
+        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
+
+    partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
+    partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
+
 
 instance Subst Term (Problem a) where
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
@@ -255,7 +362,7 @@ instance PrettyTCM ProblemEq where
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =
-    sep [ prettyTCM x P.<> "@" P.<> parens (prettyTCM v)
+    sep [ prettyTCM x <> "@" <> parens (prettyTCM v)
         , nest 2 $ ":" <+> prettyTCM a
         ]
 
@@ -276,3 +383,12 @@ instance PP.Pretty AsBinding where
 
 instance InstantiateFull AsBinding where
   instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
+
+instance PrettyTCM (LHSState a) where
+  prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat
+    [ "tel             = " <+> prettyTCM tel
+    , "outPat          = " <+> addContext tel (prettyTCMPatternList outPat)
+    , "problemEqs      = " <+> addContext tel (prettyList_ $ map prettyTCM eqs)
+    , "problemRestPats = " <+> prettyList_ (map prettyA rps)
+    , "target          = " <+> addContext tel (prettyTCM target)
+    ]

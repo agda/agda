@@ -1,21 +1,21 @@
-{-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.Writer
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -24,13 +24,12 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Functor
 import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty)
+import Agda.Utils.Pretty (Pretty, prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -38,7 +37,6 @@ import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.Warshall as W
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -115,7 +113,7 @@ checkSizeNeverZero u = do
 --     let yes     = return True
 --         no      = cont
 --         perhaps = cont >>= \ res -> if res then return res else patternViolation
---     ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
+--     ifBlocked t (\ _ _ -> perhaps) $ \ t -> do
 --       caseMaybeM (isSizeType t) no $ \ b -> do
 --         case b of
 --           BoundedNo -> no
@@ -156,7 +154,7 @@ checkSizeVarNeverZero i = do
         perhaps = tell (Any True) >> cont
     -- If we encounter a blocked type in the context, we cannot
     -- give a definite answer.
-    ifBlockedType t (\ _ _ -> perhaps) $ \ _ t -> do
+    ifBlocked t (\ _ _ -> perhaps) $ \ _ t -> do
       caseMaybeM (liftTCM $ isSizeType t) cont $ \ b -> do
         case b of
           BoundedNo -> cont
@@ -177,8 +175,9 @@ checkSizeVarNeverZero i = do
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.
-isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
-isBounded i = liftTCM $ do
+isBounded :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
+          => Nat -> m BoundedSize
+isBounded i = do
   t <- reduce =<< typeOfBV i
   case unEl t of
     Def x [Apply u] -> do
@@ -189,7 +188,15 @@ isBounded i = liftTCM $ do
 -- | Whenever we create a bounded size meta, add a constraint
 --   expressing the bound.
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
-boundedSizeMetaHook :: Term -> Telescope -> Type -> TCM ()
+boundedSizeMetaHook
+  :: ( MonadConstraint m
+     , MonadTCEnv m
+     , ReadTCState m
+     , MonadAddContext m
+     , HasOptions m
+     , HasBuiltins m
+     )
+  => Term -> Telescope -> Type -> m ()
 boundedSizeMetaHook v tel0 a = do
   res <- isSizeType a
   case res of
@@ -200,8 +207,7 @@ boundedSizeMetaHook v tel0 a = do
       addContext tel $ do
         v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
         -- compareSizes CmpLeq v u
-        size <- sizeType
-        addConstraint $ ValueCmp CmpLeq size v u
+        addConstraint $ ValueCmp CmpLeq AsSizes v u
     _ -> return ()
 
 -- | @trySizeUniv cmp t m n x els1 y els2@
@@ -213,8 +219,10 @@ boundedSizeMetaHook v tel0 a = do
 --   like @Size< i =< Size@.
 --
 --   If it does not succeed it reports failure of conversion check.
-trySizeUniv :: Comparison -> Type -> Term -> Term
-  -> QName -> Elims -> QName -> Elims -> TCM ()
+trySizeUniv
+  :: MonadConversion m
+  => Comparison -> CompareAs -> Term -> Term
+  -> QName -> Elims -> QName -> Elims -> m ()
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
@@ -253,7 +261,7 @@ deepSizeView v = do
           _                          -> return $ DOtherSize v
   loop v
 
-sizeMaxView :: Term -> TCM SizeMaxView
+sizeMaxView :: (MonadReduce m, HasBuiltins m) => Term -> m SizeMaxView
 sizeMaxView v = do
   inf <- getBuiltinDefName builtinSizeInf
   suc <- getBuiltinDefName builtinSizeSuc
@@ -274,7 +282,7 @@ sizeMaxView v = do
 ------------------------------------------------------------------------
 
 -- | Compare two sizes.
-compareSizes :: Comparison -> Term -> Term -> TCM ()
+compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
 compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ "Comparing sizes"
@@ -294,18 +302,18 @@ compareSizes cmp u v = verboseBracket "tc.conv.size" 10 "compareSizes" $ do
   compareMaxViews cmp us vs
 
 -- | Compare two sizes in max view.
-compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
+compareMaxViews :: (MonadConversion m) => Comparison -> SizeMaxView -> SizeMaxView -> m ()
 compareMaxViews cmp us vs = case (cmp, us, vs) of
-  (CmpLeq, _, (DSizeInf :! _)) -> return ()
-  (cmp, u:![], v:![]) -> compareSizeViews cmp u v
-  (CmpLeq, us, v:![]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, _, (DSizeInf :| _)) -> return ()
+  (cmp, u:|[], v:|[]) -> compareSizeViews cmp u v
+  (CmpLeq, us, v:|[]) -> Fold.forM_ us $ \ u -> compareSizeViews cmp u v
   (CmpLeq, us, vs)    -> Fold.forM_ us $ \ u -> compareBelowMax u vs
   (CmpEq,  us, vs)    -> do
     compareMaxViews CmpLeq us vs
     compareMaxViews CmpLeq vs us
 
 -- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
-compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
+compareBelowMax :: (MonadConversion m) => DeepSizeView -> SizeMaxView -> m ()
 compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   reportSDoc "tc.conv.size" 45 $ sep
     [ pretty u
@@ -326,7 +334,7 @@ compareBelowMax u vs = verboseBracket "tc.conv.size" 45 "compareBelowMax" $ do
   where
   alt c1 c2 = c1 `catchError` const c2
 
-compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
+compareSizeViews :: (MonadConversion m) => Comparison -> DeepSizeView -> DeepSizeView -> m ()
 compareSizeViews cmp s1' s2' = do
   reportSDoc "tc.conv.size" 45 $ hsep
     [ "compareSizeViews"
@@ -340,8 +348,8 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v size
-      continue cmp = withUnView $ compareAtom cmp size
+      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v AsSizes
+      continue cmp = withUnView $ compareAtom cmp AsSizes
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
     (CmpEq,  DSizeInf,     DSizeInf)   -> return ()
@@ -367,14 +375,14 @@ compareSizeViews cmp s1' s2' = do
 
 -- | If 'envAssignMetas' then postpone as constraint, otherwise, fail hard.
 --   Failing is required if we speculatively test several alternatives.
-giveUp :: Comparison -> Type -> Term -> Term -> TCM ()
+giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
-    {-then-} (addConstraint $ ValueCmp CmpLeq size u v)
-    {-else-} (typeError $ UnequalTerms cmp u v size)
+    {-then-} (addConstraint $ ValueCmp CmpLeq AsSizes u v)
+    {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
-trivial :: Term -> Term -> TCM Bool
+trivial :: (MonadConversion m) => Term -> Term -> m Bool
 trivial u v = do
     a@(e , n ) <- oldSizeExpr u
     b@(e', n') <- oldSizeExpr v
@@ -394,35 +402,38 @@ trivial u v = do
 ------------------------------------------------------------------------
 
 -- | Test whether a problem consists only of size constraints.
-isSizeProblem :: ProblemId -> TCM Bool
-isSizeProblem pid = andM . map (isSizeConstraint . theConstraint) =<< getConstraintsForProblem pid
-
--- | Test is a constraint speaks about sizes.
-isSizeConstraint :: Closure Constraint -> TCM Bool
-isSizeConstraint Closure{ clValue = ValueCmp _ s _ _ } = isJust <$> isSizeType s
-isSizeConstraint _ = return False
-
--- | Take out all size constraints (DANGER!).
-takeSizeConstraints :: TCM [Closure Constraint]
-takeSizeConstraints = do
+isSizeProblem :: (ReadTCState m, HasOptions m, HasBuiltins m) => ProblemId -> m Bool
+isSizeProblem pid = do
   test <- isSizeTypeTest
-  let sizeConstraint :: Closure Constraint -> Bool
-      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
-              | isJust (test $ unEl s) = True
-      sizeConstraint _ = False
-  cs <- filter sizeConstraint . map theConstraint <$> getAllConstraints
-  dropConstraints $ sizeConstraint . theConstraint
-  return cs
+  all (mkIsSizeConstraint test (const True) . theConstraint) <$> getConstraintsForProblem pid
 
--- | Find the size constraints.
-getSizeConstraints :: TCM [Closure Constraint]
-getSizeConstraints = do
+-- | Test whether a constraint speaks about sizes.
+isSizeConstraint :: (HasOptions m, HasBuiltins m) => (Comparison -> Bool) -> Closure Constraint -> m Bool
+isSizeConstraint p c = isSizeTypeTest <&> \ test -> mkIsSizeConstraint test p c
+
+mkIsSizeConstraint :: (Term -> Maybe BoundedSize) -> (Comparison -> Bool) -> Closure Constraint -> Bool
+mkIsSizeConstraint test = isSizeConstraint_ $ isJust . test . unEl
+
+isSizeConstraint_
+  :: (Type -> Bool)       -- ^ Test for being a sized type
+  -> (Comparison -> Bool) -- ^ Restriction to these directions.
+  -> Closure Constraint
+  -> Bool
+isSizeConstraint_ _isSizeType p Closure{ clValue = ValueCmp cmp AsSizes       _ _ } = p cmp
+isSizeConstraint_  isSizeType p Closure{ clValue = ValueCmp cmp (AsTermsOf s) _ _ } = p cmp && isSizeType s
+isSizeConstraint_ _isSizeType _ _ = False
+
+-- | Take out all size constraints of the given direction (DANGER!).
+takeSizeConstraints :: (Comparison -> Bool) -> TCM [Closure Constraint]
+takeSizeConstraints p = do
   test <- isSizeTypeTest
-  let sizeConstraint :: Closure Constraint -> Bool
-      sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
-              | isJust (test $ unEl s) = True
-      sizeConstraint _ = False
-  filter sizeConstraint . map theConstraint <$> getAllConstraints
+  map theConstraint <$> takeConstraints (mkIsSizeConstraint test p . theConstraint)
+
+-- | Find the size constraints of the matching direction.
+getSizeConstraints :: (Comparison -> Bool) -> TCM [Closure Constraint]
+getSizeConstraints p = do
+  test <- isSizeTypeTest
+  filter (mkIsSizeConstraint test p) . map theConstraint <$> getAllConstraints
 
 -- | Return a list of size metas and their context.
 getSizeMetas :: Bool -> TCM [(MetaId, Type, Telescope)]
@@ -435,7 +446,7 @@ getSizeMetas interactionMetas = do
         mi <- lookupMeta m
         case mvJudgement mi of
           _ | BlockedConst{} <- mvInstantiation mi -> no  -- Blocked terms should not be touched (#2637, #2881)
-          HasType _ a -> do
+          HasType _ cmp a -> do
             TelV tel b <- telView a
             -- b is reduced
             caseMaybe (test $ unEl b) no $ \ _ -> do
@@ -541,7 +552,8 @@ oldComputeSizeConstraint c =
 -- | Turn a term with de Bruijn indices into a size expression with offset.
 --
 --   Throws a 'patternViolation' if the term isn't a proper size expression.
-oldSizeExpr :: Term -> TCM (OldSizeExpr, Int)
+oldSizeExpr :: (MonadReduce m, MonadDebug m, MonadError TCErr m, HasBuiltins m)
+            => Term -> m (OldSizeExpr, Int)
 oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
@@ -583,17 +595,17 @@ oldCanonicalizeSizeConstraint c@(Leq a n b) =
   case (a,b) of
     (Rigid{}, Rigid{})       -> return c
     (SizeMeta m xs, Rigid i) -> do
-      j <- List.findIndex (==i) xs
+      j <- List.elemIndex i xs
       return $ Leq (SizeMeta m [0..size xs-1]) n (Rigid j)
     (Rigid i, SizeMeta m xs) -> do
-      j <- List.findIndex (==i) xs
+      j <- List.elemIndex i xs
       return $ Leq (Rigid j) n (SizeMeta m [0..size xs-1])
     (SizeMeta m xs, SizeMeta l ys)
          -- try to invert xs on ys
-       | Just ys' <- mapM (\ y -> List.findIndex (==y) xs) ys ->
+       | Just ys' <- mapM (\ y -> List.elemIndex y xs) ys ->
            return $ Leq (SizeMeta m [0..size xs-1]) n (SizeMeta l ys')
          -- try to invert ys on xs
-       | Just xs' <- mapM (\ x -> List.findIndex (==x) ys) xs ->
+       | Just xs' <- mapM (\ x -> List.elemIndex x ys) xs ->
            return $ Leq (SizeMeta m xs') n (SizeMeta l [0..size ys-1])
          -- give up
        | otherwise -> Nothing
@@ -605,7 +617,7 @@ oldCanonicalizeSizeConstraint c@(Leq a n b) =
 oldSolveSizeConstraints :: TCM ()
 oldSolveSizeConstraints = whenM haveSizedTypes $ do
   reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
-  cs0 <- getSizeConstraints
+  cs0 <- getSizeConstraints (== CmpLeq)
   cs <- oldComputeSizeConstraints cs0
   ms <- getSizeMetas True -- get all size metas, also interaction metas
 
@@ -621,7 +633,7 @@ oldSolveSizeConstraints = whenM haveSizedTypes $ do
 
         -- Size metas in constraints.
         metas0 :: [(MetaId, Int)]  -- meta id + arity
-        metas0 = List.nub $ map (mapSnd length) $ concatMap flexibleVariables cs
+        metas0 = List.nubOn id $ map (mapSnd length) $ concatMap flexibleVariables cs
 
         -- Unconstrained size metas that do not occur in constraints.
         metas1 :: [(MetaId, Int)]
@@ -671,7 +683,7 @@ oldSolver metas cs = do
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
     Nothing  -> cannotSolve
     Just sol -> do
-      reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
+      reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ prettyShow sol
       suc   <- primSizeSuc
       infty <- primSizeInf
       let plus v 0 = v

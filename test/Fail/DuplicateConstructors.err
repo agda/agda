@@ -1,5 +1,5 @@
 DuplicateConstructors.agda:5,3-6,4
-Duplicate constructors c in datatype
+Duplicate constructor c in datatype
 when scope checking the declaration
   data D where
     c : D

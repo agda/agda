@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 ------------------------------------------------------------------------
 -- | Code for instructing Emacs to do things
@@ -13,10 +12,6 @@ module Agda.Interaction.EmacsCommand
   , clearWarning
   , displayRunningInfo
   ) where
-
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
 
 import qualified Data.List as List
 
@@ -42,14 +37,14 @@ instance Pretty a => Pretty (Lisp a) where
   pretty (L xs)     = parens (hsep (map pretty xs))
   pretty (Q x)      = "'" <> pretty x
 
-instance Show (Lisp String) where
-  showsPrec _ (A a)      = showString a
-  showsPrec p (Cons a b) = showString "(" . showsPrec p a . showString " . " .
-                                            showsPrec p b . showString ")"
-  showsPrec p (L xs)     = showString "(" . foldr (.) (showString ")")
-                                              (List.intersperse (showString " ")
-                                                 (map (showsPrec p) xs))
-  showsPrec p (Q x)      = showString "'" . showsPrec p x
+-- instance Show (Lisp String) where
+--   showsPrec _ (A a)      = showString a
+--   showsPrec p (Cons a b) = showString "(" . showsPrec p a . showString " . " .
+--                                             showsPrec p b . showString ")"
+--   showsPrec p (L xs)     = showString "(" . foldr (.) (showString ")")
+--                                               (List.intersperse (showString " ")
+--                                                  (map (showsPrec p) xs))
+--   showsPrec p (Q x)      = showString "'" . showsPrec p x
 
 -- | Formats a response command.
 --

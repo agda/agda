@@ -1,6 +1,6 @@
 -- The Agda primitives (preloaded).
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --no-subtyping --no-import-sorts #-}
 
 module Agda.Primitive where
 
@@ -9,6 +9,10 @@ module Agda.Primitive where
 ------------------------------------------------------------------------
 
 infixl 6 _⊔_
+
+{-# BUILTIN TYPE Set #-}
+{-# BUILTIN PROP Prop #-}
+{-# BUILTIN SETOMEGA Setω #-}
 
 -- Level is the first thing we need to define.
 -- The other postulates can only be checked if built-in Level is known.
@@ -19,7 +23,6 @@ postulate
 -- MAlonzo compiles Level to (). This should be safe, because it is
 -- not possible to pattern match on levels.
 
-{-# COMPILE GHC Level = type () #-}
 {-# BUILTIN LEVEL Level #-}
 
 postulate
@@ -30,5 +33,3 @@ postulate
 {-# BUILTIN LEVELZERO lzero #-}
 {-# BUILTIN LEVELSUC  lsuc  #-}
 {-# BUILTIN LEVELMAX  _⊔_   #-}
-
-{-# BUILTIN SETOMEGA Setω #-}

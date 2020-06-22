@@ -3,7 +3,6 @@ Not in scope:
   foo
   at CantOpenConstructorsFromRecordModule.agda:14,7-10
     (did you mean
-       'Datatypes.Foo.foo' or
        'Datatypes.Foo' or
        'Datatypes.foo'?)
 when scope checking foo

@@ -1,0 +1,5 @@
+Issue4586LetEllipsis.agda:5,12-19
+Could not parse the left-hand side ... | _
+Operators used in the grammar:
+  None
+when scope checking let ... | _ = Set in Set

@@ -2,13 +2,50 @@
   ::
   module language.reflection where
 
-  open import language.built-ins
   open import Agda.Builtin.Sigma
+  open import Agda.Builtin.Unit
+  open import Agda.Builtin.Nat
+  open import Agda.Builtin.List
+  open import Agda.Builtin.Float
+  open import Agda.Builtin.Bool
+  open import Agda.Builtin.Char
+  open import Agda.Builtin.String
+  open import Agda.Builtin.Word
+  open import Agda.Builtin.Equality
+  open import Agda.Primitive
+
+  data ⊥ : Set where
+
+  pattern [_] x = x ∷ []
 
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
 
   infixl 2 ¬_
+
+  data Associativity : Set where
+    left-assoc  : Associativity
+    right-assoc : Associativity
+    non-assoc   : Associativity
+
+  data Precedence : Set where
+    related   : Float → Precedence
+    unrelated : Precedence
+
+  data Fixity : Set where
+    fixity : Associativity → Precedence → Fixity
+
+  {-# BUILTIN ASSOC      Associativity #-}
+  {-# BUILTIN ASSOCLEFT  left-assoc    #-}
+  {-# BUILTIN ASSOCRIGHT right-assoc   #-}
+  {-# BUILTIN ASSOCNON   non-assoc     #-}
+
+  {-# BUILTIN PRECEDENCE    Precedence #-}
+  {-# BUILTIN PRECRELATED   related    #-}
+  {-# BUILTIN PRECUNRELATED unrelated  #-}
+
+  {-# BUILTIN FIXITY       Fixity #-}
+  {-# BUILTIN FIXITYFIXITY fixity #-}
 
 .. _reflection:
 
@@ -23,7 +60,7 @@ Names
 ~~~~~
 
 The built-in ``QNAME`` type represents quoted names and comes equipped with
-equality, ordering and a show function.
+equality, ordering, and a show function.
 
 ::
 
@@ -34,6 +71,28 @@ equality, ordering and a show function.
     primQNameEquality : Name → Name → Bool
     primQNameLess     : Name → Name → Bool
     primShowQName     : Name → String
+
+The fixity of a name can also be retrived.
+
+::
+
+  primitive
+    primQNameFixity    : Name → Fixity
+
+To define a decidable propositional equality with the option
+:option:`--safe`, one can use the conversion to a pair of built-in
+64-bit machine words
+
+::
+
+  primitive
+    primQNameToWord64s : Name → Σ Word64 (λ _ → Word64)
+
+with the injectivity proof in the ``Properties`` module.::
+
+  primitive
+    primQNameToWord64sInjective : ∀ a b → primQNameToWord64s a ≡ primQNameToWord64s b → a ≡ b
+
 
 Name literals are created using the ``quote`` keyword and can appear both in
 terms and in patterns
@@ -53,7 +112,7 @@ Metavariables
 ~~~~~~~~~~~~~
 
 Metavariables are represented by the built-in ``AGDAMETA`` type. They have
-primitive equality, ordering and show::
+primitive equality, ordering, show, and conversion to Nat::
 
   postulate Meta : Set
   {-# BUILTIN AGDAMETA Meta #-}
@@ -62,8 +121,18 @@ primitive equality, ordering and show::
     primMetaEquality : Meta → Meta → Bool
     primMetaLess     : Meta → Meta → Bool
     primShowMeta     : Meta → String
+    primMetaToNat    : Meta → Nat
 
-Builtin metavariables show up in reflected terms.
+Builtin metavariables show up in reflected terms. In ``Properties``, there is a proof of injectivity
+of ``primMetaToNat``
+
+::
+
+  primitive
+    primMetaToNatInjective : ∀ a b → primMetaToNat a ≡ primMetaToNat b → a ≡ b
+
+which can be used to define a decidable propositional equality with
+the option :option:`--safe`.
 
 Literals
 ~~~~~~~~
@@ -125,29 +194,6 @@ Visibility and relevance characterise the behaviour of an argument::
   {-# BUILTIN ARG        Arg      #-}
   {-# BUILTIN ARGARG     arg      #-}
 
-Patterns
-~~~~~~~~
-
-Reflected patterns are bound to the ``AGDAPATTERN`` built-in using the
-following data type.
-
-::
-
-  data Pattern : Set where
-    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
-    dot    : Pattern
-    var    : (s : String)  → Pattern
-    lit    : (l : Literal) → Pattern
-    proj   : (f : Name)    → Pattern
-    absurd : Pattern
-
-  {-# BUILTIN AGDAPATTERN   Pattern #-}
-  {-# BUILTIN AGDAPATCON    con     #-}
-  {-# BUILTIN AGDAPATDOT    dot     #-}
-  {-# BUILTIN AGDAPATVAR    var     #-}
-  {-# BUILTIN AGDAPATLIT    lit     #-}
-  {-# BUILTIN AGDAPATPROJ   proj    #-}
-  {-# BUILTIN AGDAPATABSURD absurd  #-}
 
 Name abstraction
 ~~~~~~~~~~~~~~~~
@@ -163,16 +209,19 @@ Name abstraction
 Terms
 ~~~~~
 
-Terms, sorts and clauses are mutually recursive and mapped to the ``AGDATERM``,
-``AGDASORT`` and ``AGDACLAUSE`` built-ins respectively. Types are simply
-terms. Terms use de Bruijn indices to represent variables.
+Terms, sorts, patterns, and clauses are mutually recursive and mapped
+to the ``AGDATERM``, ``AGDASORT``, ``AGDAPATTERN`` and ``AGDACLAUSE``
+built-ins respectively. Types are simply terms. Terms and patterns use
+de Bruijn indices to represent variables.
 
 ::
 
   data Term : Set
   data Sort : Set
+  data Pattern : Set
   data Clause : Set
   Type = Term
+  Telescope = List (Σ String λ _ → Arg Type)
 
   data Term where
     var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -191,12 +240,21 @@ terms. Terms use de Bruijn indices to represent variables.
     lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
     unknown : Sort
 
-  data Clause where
-    clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
-    absurd-clause : (ps : List (Arg Pattern)) → Clause
+  data Pattern where
+    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
+    dot    : (t : Term)    → Pattern
+    var    : (x : Nat   )  → Pattern
+    lit    : (l : Literal) → Pattern
+    proj   : (f : Name)    → Pattern
+    absurd : Pattern
 
-  {-# BUILTIN AGDASORT    Sort   #-}
+  data Clause where
+    clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
+    absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
+
   {-# BUILTIN AGDATERM    Term   #-}
+  {-# BUILTIN AGDASORT    Sort   #-}
+  {-# BUILTIN AGDAPATTERN Pattern #-}
   {-# BUILTIN AGDACLAUSE  Clause #-}
 
   {-# BUILTIN AGDATERMVAR         var       #-}
@@ -213,6 +271,13 @@ terms. Terms use de Bruijn indices to represent variables.
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+  {-# BUILTIN AGDAPATCON    con     #-}
+  {-# BUILTIN AGDAPATDOT    dot     #-}
+  {-# BUILTIN AGDAPATVAR    var     #-}
+  {-# BUILTIN AGDAPATLIT    lit     #-}
+  {-# BUILTIN AGDAPATPROJ   proj    #-}
+  {-# BUILTIN AGDAPATABSURD absurd  #-}
 
   {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
   {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
@@ -344,6 +409,9 @@ following primitive operations::
     -- Unquote a Term, returning the corresponding value.
     unquoteTC : ∀ {a} {A : Set a} → Term → TC A
 
+    -- Quote a value in Setω, returning the corresponding Term
+    quoteωTC : ∀ {A : Setω} → A → TC Term
+
     -- Create a fresh name.
     freshName : String → TC Name
 
@@ -375,8 +443,12 @@ following primitive operations::
     -- normalisation.
     withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
-    -- Prints the third argument if the corresponding verbosity level is turned
-    -- on (with the -v flag to Agda).
+    -- Prints the third argument to the debug buffer in Emacs
+    -- if the verbosity level (set by the -v flag to Agda)
+    -- is higher than the second argument. Note that Level 0 and 1 are printed
+    -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
+    -- printing from debugPrint "a.b.c.d" 10 msg.
+
     debugPrint : String → Nat → List ErrorPart → TC ⊤
 
     -- Fail if the given computation gives rise to new, unsolved
@@ -388,31 +460,32 @@ following primitive operations::
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
-  {-# BUILTIN AGDATCMUNIFY              unify              #-}
-  {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
-  {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
-  {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
-  {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
-  {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
-  {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
-  {-# BUILTIN AGDATCMREDUCE             reduce             #-}
-  {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
-  {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
-  {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
-  {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
-  {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
-  {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
-  {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
-  {-# BUILTIN AGDATCMDECLAREPOSTULATE   declarePostulate   #-}
-  {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
-  {-# BUILTIN AGDATCMGETTYPE            getType            #-}
-  {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
-  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
-  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
-  {-# BUILTIN AGDATCMWITHNORMALISATION  withNormalisation  #-}
-  {-# BUILTIN AGDATCMDEBUGPRINT         debugPrint         #-}
-  {-# BUILTIN AGDATCMNOCONSTRAINTS      noConstraints      #-}
-  {-# BUILTIN AGDATCMRUNSPECULATIVE     runSpeculative     #-}
+  {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
+  {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
+  {-# BUILTIN AGDATCMBLOCKONMETA                blockOnMeta                #-}
+  {-# BUILTIN AGDATCMCATCHERROR                 catchTC                    #-}
+  {-# BUILTIN AGDATCMINFERTYPE                  inferType                  #-}
+  {-# BUILTIN AGDATCMCHECKTYPE                  checkType                  #-}
+  {-# BUILTIN AGDATCMNORMALISE                  normalise                  #-}
+  {-# BUILTIN AGDATCMREDUCE                     reduce                     #-}
+  {-# BUILTIN AGDATCMGETCONTEXT                 getContext                 #-}
+  {-# BUILTIN AGDATCMEXTENDCONTEXT              extendContext              #-}
+  {-# BUILTIN AGDATCMINCONTEXT                  inContext                  #-}
+  {-# BUILTIN AGDATCMQUOTETERM                  quoteTC                    #-}
+  {-# BUILTIN AGDATCMUNQUOTETERM                unquoteTC                  #-}
+  {-# BUILTIN AGDATCMQUOTEOMEGATERM             quoteωTC                   #-}
+  {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
+  {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
+  {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
+  {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
+  {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
+  {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
+  {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
+  {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+  {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+  {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
+  {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 
 Metaprogramming
 ---------------
@@ -479,7 +552,8 @@ Silly example:
 
     macro
         plus-to-times : Term → Term → TC ⊤
-        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole =
+          unify hole (def (quote _*_) (a ∷ b ∷ []))
         plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
@@ -519,6 +593,56 @@ This lets you apply the magic tactic as a normal function:
     thm = by-magic
 
 .. _unquoting-declarations:
+
+Tactic Arguments
+~~~~~~~~~~~~~~~~
+
+You can declare tactics to be used to solve a particular implicit argument
+using a ``@(tactic t)`` annotation. The provided tactic should be a term
+``t : Term → TC ⊤``. For instance,
+
+::
+
+  defaultTo : {A : Set} (x : A) → Term → TC ⊤
+  defaultTo x hole = bindTC (quoteTC x) (unify hole)
+
+  f : {@(tactic defaultTo true) x : Bool} → Bool
+  f {x} = x
+
+  test-f : f ≡ true
+  test-f = refl
+
+At calls to `f`, `defaultTo true` is called on the
+metavariable inserted for `x` if it is not given explicitly.
+The tactic can depend on previous arguments to the function.
+For instance,
+
+::
+
+  g : (x : Nat) {@(tactic defaultTo x) y : Nat} → Nat
+  g x {y} = x + y
+
+  test-g : g 4 ≡ 8
+  test-g = refl
+
+Record fields can also be annotated with a tactic, allowing them to be
+omitted in constructor applications, record constructions and co-pattern
+matches::
+
+  record Bools : Set where
+    constructor mkBools
+    field fst : Bool
+          @(tactic defaultTo fst) {snd} : Bool
+  open Bools
+
+  tt₀ tt₁ tt₂ tt₃ : Bools
+  tt₀ = mkBools true {true}
+  tt₁ = mkBools true
+  tt₂ = record{ fst = true }
+  tt₃ .fst = true
+
+  test-tt : tt₁ ∷ tt₂ ∷ tt₃ ∷ [] ≡ tt₀ ∷ tt₀ ∷ tt₀ ∷ []
+  test-tt = refl
 
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -568,8 +692,11 @@ Example usage:
     defId id-name = do
       defineFun id-name
         [ clause
-          ( arg (arg-info hidden relevant) (var "A")
-          ∷ arg (arg-info visible relevant) (var "x")
+          ( ("x" , arg (arg-info visible relevant) (var 0 []))
+          ∷ ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
+          ∷ [])
+          ( arg (arg-info hidden relevant) (var 1)
+          ∷ arg (arg-info visible relevant) (var 0)
           ∷ [] )
           (var 0 [])
         ]

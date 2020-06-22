@@ -1,0 +1,13 @@
+Issue3545.agda:12,1-14,6
+The backend JS erases createElem so the COMPILE pragma will be
+ignored.
+when checking the pragma
+COMPILE JS createElem = function (x0) { return x0; }
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3545.agda:12,1-14,6
+The backend JS erases createElem so the COMPILE pragma will be
+ignored.
+when checking the pragma
+COMPILE JS createElem = function (x0) { return x0; }

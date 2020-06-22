@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Generate an import dependency graph for a given module.
 
@@ -9,7 +8,6 @@ import Control.Monad.State
 import qualified Data.Map as M
 import Data.Map(Map)
 import Data.Maybe
-import Data.Monoid
 
 import qualified Data.Set as S
 import Data.Set (Set)
@@ -18,7 +16,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
-#include "undefined.h"
+import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 -- | Internal module identifiers for construction of dependency graph.
@@ -92,7 +90,7 @@ generateDot inter = do
     mkDot :: DotState -> String
     mkDot st = unlines $
         [ "digraph dependencies {"
-        ] ++ ["   " ++ repr ++ "[label=\"" ++ show (mnameToConcrete modulename) ++ "\"];"
+        ] ++ ["   " ++ repr ++ "[label=\"" ++ prettyShow (mnameToConcrete modulename) ++ "\"];"
              | (modulename, repr) <- M.toList (dsModules st)]
           ++ ["   " ++ r1 ++ " -> " ++ r2 ++ ";"
              | (r1 , r2) <- S.toList (dsConnection st) ]

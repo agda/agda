@@ -1,3 +1,5 @@
+{-# OPTIONS --subtyping #-}
+
 -- Andreas, 2012-09-13
 module RelevanceSubtyping where
 

@@ -1,12 +1,14 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Data where
 
-import Control.Monad
+import Prelude hiding (null)
 
-import Data.List (genericTake)
-import Data.Maybe (fromMaybe, catMaybes, isJust)
+import Control.Monad
+import Control.Monad.Except
+import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -18,12 +20,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity
 
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin -- (primLevel)
-import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
@@ -31,26 +30,25 @@ import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence (Occurrence(StrictPos))
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.ProjectionLike
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Interaction.Options
-
-import Agda.Utils.Except
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -59,7 +57,7 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
+checkDataDef :: A.DefInfo -> QName -> UniverseCheck -> A.DataDefParams -> [A.Constructor] -> TCM ()
 checkDataDef i name uc (A.DataDefParams gpars ps) cs =
     traceCall (CheckDataDef (getRange name) name ps cs) $ do
 
@@ -121,7 +119,10 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let s' = case s of
                   Prop l -> Type l
                   _      -> s
-            whenM withoutKOption $ checkIndexSorts s' ixTel
+            -- Andreas, 2019-07-16, issue #3916:
+            -- NoUniverseCheck should also disable the index sort check!
+            unless (uc == NoUniverseCheck) $
+              whenM withoutKOption $ checkIndexSorts s' ixTel
 
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
@@ -140,7 +141,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let dataDef = Datatype
                   { dataPars       = npars
                   , dataIxs        = nofIxs
-                  , dataInduction  = Inductive
                   , dataClause     = Nothing
                   , dataCons       = []     -- Constructors are added later
                   , dataSort       = s
@@ -149,7 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            escapeContext npars $ do
+            escapeContext __IMPOSSIBLE__ npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -162,8 +162,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- Return the data definition
             return dataDef{ dataPathCons = catMaybes pathCons }
 
-        let s      = dataSort dataDef
-            cons   = map A.axiomName cs  -- get constructor names
+        let cons   = map A.axiomName cs  -- get constructor names
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
@@ -210,10 +209,16 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           Relevant   -> return ()
           Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
+        case getQuantity ai of
+          Quantityω{} -> return ()
+          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- checkConstructorType e d
-        -- compute which constructor arguments are forced
-        forcedArgs <- computeForcingAnnotations c t
+        -- compute which constructor arguments are forced (only point constructors)
+        forcedArgs <- if isPathCons == PointCons
+                      then computeForcingAnnotations c t
+                      else return []
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -234,28 +239,33 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- of the datatype in an empty context (c.f. getContextSize above).
         params <- getContextTelescope
 
+        -- Cannot compose indexed inductive types yet.
+        (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+          then return (ConHead c Inductive [], emptyCompKit, Nothing)
+          else do
+            -- Name for projection of ith field of constructor c is just c-i
+            names <- forM [0 .. size fields - 1] $ \ i ->
+              freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
+
+            -- nofIxs == 0 means the data type can be reconstructed
+            -- by appling the QName d to the parameters.
+            let dataT = El s $ Def d $ map Apply $ teleArgs params
+
+            reportSDoc "tc.data.con.comp" 5 $ inTopContext $ vcat $
+              [ "params =" <+> pretty params
+              , "dataT  =" <+> pretty dataT
+              , "fields =" <+> pretty fields
+              , "names  =" <+> pretty names
+              ]
+
+            let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+
+            defineProjections d con params names fields dataT
+            comp <- inTopContext $ defineCompData d con params names fields dataT boundary
+            return (con, comp, Just names)
+
         -- add parameters to constructor type and put into signature
-        let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
-        escapeContext (size tel) $ do
-
-          cnames <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef) then return (emptyCompKit, Nothing) else do
-            inTopContext $ do
-              names <- forM [0 .. size fields - 1] (\ i -> freshAbstractQName'_ (P.prettyShow (A.qnameName c) ++ "-" ++ show i))
-
-              -- nofIxs == 0 means the data type can be reconstructed
-              -- by appling the QName d to the parameters.
-              dataT <- El s <$> (pure $ Def d $ map Apply $ teleArgs params)
-
-              reportSDoc "tc.data.con.comp" 5 $ vcat $
-                [ "params =" <+> pretty params
-                , "dataT  =" <+> pretty dataT
-                , "fields =" <+> pretty fields
-                , "names  =" <+> pretty names
-                ]
-
-              defineProjections d con params names fields dataT
-              comp <- defineCompData d con params names fields dataT boundary
-              return $ (comp, Just names)
+        escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
@@ -265,18 +275,23 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , conData   = d
               , conAbstr  = Info.defAbstract i
               , conInd    = Inductive
-              , conComp   = cnames
+              , conComp   = comp
+              , conProj   = projNames
               , conForced = forcedArgs
-              , conErased = []  -- computed during compilation to treeless
+              , conErased = Nothing  -- computed during compilation to treeless
               }
 
-          case snd cnames of
-            Nothing -> return ()
-            Just names -> mapM_ makeProjection names
-
         -- Add the constructor to the instance table, if needed
-        when (Info.defInstance i == InstanceDef) $ do
-          addNamedInstance c d
+        case Info.defInstance i of
+          InstanceDef _r -> setCurrentRange c $ do
+            -- Including the range of the @instance@ keyword, like
+            -- @(getRange (r,c))@, does not produce good results.
+            -- Andreas, 2020-01-28, issue #4360:
+            -- Use addTypedInstance instead of addNamedInstance
+            -- to detect unusable instances.
+            addTypedInstance c t
+            -- addNamedInstance c d
+          NotInstanceDef -> pure ()
 
         return isPathCons
 
@@ -341,10 +356,9 @@ defineCompData d con params names fsT t boundary = do
     , builtinPOr
     , builtinItIsOne
     ]
-  sortsOk <- sortOk t `and2M` allM (map unDom (flattenTel fsT)) sortOkField
-  if not sortsOk || not (all isJust required) then return $ emptyCompKit else do
+  if not (all isJust required) then return $ emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans] (defineTranspOrHCompD DoHComp  d con params names fsT t boundary)
-    transp <- whenDefined True [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
+    transp <- whenDefined True            [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
     return $ CompKit
       { nameOfTransp = transp
       , nameOfHComp  = hcomp
@@ -353,12 +367,14 @@ defineCompData d con params names fsT t boundary = do
     -- Δ^I, i : I |- sub Δ : Δ
     sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
     withArgInfo tel = zipWith Arg (map domInfo . telToList $ tel)
-    defineTranspOrHCompD cmd d con params names fsT t boundary
-      = do
-      ((theName, gamma , ty, _cl_types , bodies), theSub) <-
-        (case cmd of DoTransp -> defineTranspForFields' (guard (not $ null boundary) >> (Just $ Con con ConOSystem $ teleElims fsT boundary))
-                     ; DoHComp -> defineHCompForFields)
-          (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
+
+    defineTranspOrHCompD cmd d con params names fsT t boundary = do
+      let project = (\ t p -> apply (Def p []) [argN t])
+      stuff <- defineTranspOrHCompForFields cmd
+                 (guard (not $ null boundary) >> Just (Con con ConOSystem $ teleElims fsT boundary))
+                 project d params fsT (map argN names) t
+      caseMaybe stuff (return Nothing) $ \ ((theName, gamma , ty, _cl_types , bodies), theSub) -> do
+
       iz <- primIZero
       body <- do
         case cmd of
@@ -420,7 +436,7 @@ defineCompData d con params names fsT t boundary = do
               ineg r = pure tINeg <@> r
               lvlOfType = (\ (Type l) -> Level l) . getSort
               pOr la i j u0 u1 = pure tPOr <#> (lvlOfType <$> la) <@> i <@> j
-                                           <#> (ilam "o" $ \ _ -> unEl <$> la) <@> u0 <@> u1
+                                           <#> ilam "o" (\ _ -> unEl <$> la) <@> u0 <@> u1
               absAp x y = liftM2 absApp x y
 
               mkFace (r,(u1,u2)) = runNamesT [] $ do
@@ -436,8 +452,8 @@ defineCompData d con params names fsT t boundary = do
                   let
                     -- Γ, i ⊢ squeeze u = primTrans (\ j -> ty [i := i ∨ j]) (φ ∨ i) u
                     squeeze u = cl primTrans
-                                          <#> (lam "j" $ \ j -> lvlOfType <$> ty `absAp` (imax i j))
-                                          <@> (lam "j" $ \ j -> unEl <$> ty `absAp` (imax i j))
+                                          <#> lam "j" (\ j -> lvlOfType <$> ty `absAp` (imax i j))
+                                          <@> lam "j" (\ j -> unEl <$> ty `absAp` (imax i j))
                                           <@> (phi `imax` i)
                                           <@> u
                   alpha <- pOr (ty `absAp` i)
@@ -491,7 +507,7 @@ defineCompData d con params names fsT t boundary = do
 
         -- Δ.Φ ⊢ u = Con con ConOSystem $ teleElims fsT boundary : R δ
 --        u = Con con ConOSystem $ teleElims fsT boundary
-        up = ConP con (ConPatternInfo Nothing False Nothing False) $
+        up = ConP con (ConPatternInfo defaultPatternInfo False False Nothing False) $
                telePatterns (d0 `applySubst` fsT) (liftS (size fsT) d0 `applySubst` boundary)
 --        gamma' = telFromList $ take (size gamma - 1) $ telToList gamma
 
@@ -502,32 +518,25 @@ defineCompData d con params names fsT t boundary = do
 --        (tel',theta) = (abstract gamma' (d0 `applySubst` fsT), (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT))
 
       let
-        clause | null boundary
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = teleNamedArgs gamma
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            }
-
-               | otherwise
-           = Clause
-            { clauseTel = gamma
-            , clauseType = Just . argN $ ty
-            , namedClausePats = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
-            , clauseFullRange = noRange
-            , clauseLHSRange  = noRange
-            , clauseCatchall = False
-            , clauseBody = Just $ body
-            , clauseUnreachable = Just False
-            }
+        pats | null boundary = teleNamedArgs gamma
+             | otherwise     = take (size gamma - size fsT) (teleNamedArgs gamma) ++ [argN $ unnamed $ up]
+        clause = Clause
+          { clauseTel         = gamma
+          , clauseType        = Just . argN $ ty
+          , namedClausePats   = pats
+          , clauseFullRange   = noRange
+          , clauseLHSRange    = noRange
+          , clauseCatchall    = False
+          , clauseBody        = Just $ body
+          , clauseRecursive   = Nothing
+              -- Andreas 2020-02-06 TODO
+              -- Or: Just False;  is it known to be non-recursive?
+          , clauseUnreachable = Just False
+          , clauseEllipsis    = NoEllipsis
+          }
         cs = [clause]
       addClauses theName cs
-      (mst, cc) <- inTopContext (compileClauses Nothing cs)
+      (mst, _, cc) <- inTopContext (compileClauses Nothing cs)
       whenJust mst $ setSplitTree theName
       setCompiledClauses theName cc
       setTerminates theName True
@@ -538,19 +547,11 @@ defineCompData d con params names fsT t boundary = do
       xs <- mapM getTerm' xs
       if all isJust xs then m else return Nothing
 
-    sortOk :: Type -> TCM Bool
-    sortOk a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      _      -> return False
-
-    sortOkField :: Type -> TCM Bool
-    sortOkField a = reduce (getSort a) >>= \case
-      Type{} -> return True
-      -- fields might be elements of the interval
-      Inf    -> return True
-      _      -> return False
-
 -- Andrea: TODO handle Irrelevant fields somehow.
+-- | Define projections for non-indexed data types (families don't work yet).
+--   Of course, these projections are partial functions in general.
+--
+--   Precondition: we are in the context Γ of the data type parameters.
 defineProjections :: QName      -- datatype name
                   -> ConHead
                   -> Telescope  -- Γ parameters
@@ -558,78 +559,152 @@ defineProjections :: QName      -- datatype name
                   -> Telescope  -- Γ ⊢ Φ field types
                   -> Type       -- Γ ⊢ T target type
                   -> TCM ()
-defineProjections dataname con params names fsT t = do
+defineProjections dataName con params names fsT t = do
   let
     -- Γ , (d : T) ⊢ Φ[n ↦ proj n d]
     fieldTypes = ([ Def f [] `apply` [argN $ var 0] | f <- reverse names ] ++# raiseS 1) `applySubst`
                     flattenTel fsT  -- Γ , Φ ⊢ Φ
     -- ⊢ Γ , (d : T)
-    projTel = abstract params (ExtendTel (defaultDom t) (Abs "d" EmptyTel))
+    projTel    = abstract params (ExtendTel (defaultDom t) (Abs "d" EmptyTel))
+    np         = size params
+
   forM_ (zip3 (downFrom (size fieldTypes)) names fieldTypes) $ \ (i,projName,ty) -> do
     let
       projType = abstract projTel <$> ty
-
-    inTopContext $ do
-      reportSDoc "tc.data.proj" 20 $ sep [ "proj" <+> prettyTCM (i,ty) , nest 2 $ prettyTCM projType ]
-
-    let
-      cpi  = ConPatternInfo Nothing False (Just $ argN $ raise (size fsT) t) False
-      conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
-      clause = Clause
-          { clauseTel = abstract params fsT
-          , clauseType = Just . argN $ ([Con con ConOSystem (map Apply $ teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
-          , namedClausePats = raise (size fsT) (teleNamedArgs params) ++ [Named Nothing <$> conp]
-          , clauseFullRange = noRange
-          , clauseLHSRange  = noRange
-          , clauseCatchall = False
-          , clauseBody = Just $ var i
+      cpi    = ConPatternInfo defaultPatternInfo False False (Just $ argN $ raise (size fsT) t) False
+      conp   = defaultNamedArg $ ConP con cpi $ teleNamedArgs fsT
+      sigma  = Con con ConOSystem (map Apply $ teleArgs fsT) `consS` raiseS (size fsT)
+      clause = empty
+          { clauseTel         = abstract params fsT
+          , namedClausePats   = [ conp ]
+          , clauseBody        = Just $ var i
+          , clauseType        = Just $ argN $ applySubst sigma $ unDom ty
+          , clauseRecursive   = Just False  -- non-recursive
           , clauseUnreachable = Just False
           }
 
+    reportSDoc "tc.data.proj" 20 $ inTopContext $ sep
+      [ "proj" <+> prettyTCM (i,ty)
+      , nest 2 $ sep [ prettyTCM projName, ":", prettyTCM projType ]
+      ]
+
+    -- Andreas, 2020-02-14, issue #4437
+    -- Define data projections as projection-like from the start.
     noMutualBlock $ do
-      let cs = [clause]
-      (mst , cc) <- inTopContext $ compileClauses Nothing cs
+      let cs = [ clause ]
+      (mst, _, cc) <- compileClauses Nothing cs
       let fun = emptyFunction
-                { funClauses = cs
+                { funClauses    = cs
+                , funCompiled   = Just cc
+                , funSplitTree  = mst
+                , funProjection = Just $ Projection
+                    { projProper   = Nothing
+                    , projOrig     = projName
+                    , projFromType = Arg (getArgInfo ty) dataName
+                    , projIndex    = np + 1
+                    , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
+                    }
+                , funMutual     = Just []
                 , funTerminates = Just True
-                , funCompiled = Just cc
-                , funSplitTree = mst
-                , funMutual = Just []
                 }
-      addConstant projName $
+      inTopContext $ addConstant projName $
         (defaultDefn defaultArgInfo projName (unDom projType) fun)
-          { defNoCompilation = True }
-      inTopContext $ do
-        reportSDoc "tc.data.proj.fun" 60 $ sep [ "proj" <+> prettyTCM i, nest 2 $ pretty fun ]
+          { defNoCompilation  = True
+          , defArgOccurrences = [StrictPos]
+          }
+
+      reportSDoc "tc.data.proj.fun" 60 $ inTopContext $ vcat
+        [ "proj" <+> prettyTCM i
+        , nest 2 $ pretty fun
+        ]
 
 
 freshAbstractQName'_ :: String -> TCM QName
-freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
+freshAbstractQName'_ = freshAbstractQName noFixity' . C.simpleName
 
 
-defineTranspForFields
-  :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
-  -> QName       -- ^ some name, e.g. record name
-  -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
-  -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type Δ ⊢ T
-  -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
-defineTranspForFields = defineTranspForFields' Nothing
+-- * Special cases of Type
+-----------------------------------------------------------
+
+-- | A @Type@ with sort @Type l@
+--   Such a type supports both hcomp and transp.
+data LType = LEl Level Term deriving (Eq,Show)
+
+fromLType :: LType -> Type
+fromLType (LEl l t) = El (Type l) t
+
+lTypeLevel :: LType -> Level
+lTypeLevel (LEl l t) = l
+
+toLType :: MonadReduce m => Type -> m (Maybe LType)
+toLType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LEl l (unEl ty)
+    _      -> return $ Nothing
+
+instance Subst Term LType where
+  applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
+
+-- | A @Type@ that either has sort @Type l@ or is a closed definition.
+--   Such a type supports some version of transp.
+--   In particular we want to allow the Interval as a @ClosedType@.
+data CType = ClosedType QName | LType LType deriving (Eq,Show)
+
+fromCType :: CType -> Type
+fromCType (ClosedType q) = El (Inf 0) (Def q [])
+fromCType (LType t) = fromLType t
+
+toCType :: MonadReduce m => Type -> m (Maybe CType)
+toCType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LType (LEl l (unEl ty))
+    Inf 0  -> do
+      t <- reduce (unEl ty)
+      case t of
+        Def q [] -> return $ Just $ ClosedType q
+        _        -> return $ Nothing
+    _      -> return $ Nothing
+
+instance Subst Term CType where
+  applySubst rho t@ClosedType{} = t
+  applySubst rho (LType t) = LType $ applySubst rho t
 
 
--- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (a0 : ...)
---            where a0 has type matching the arguments of primTrans.
-defineTranspForFields'
-  :: (Maybe Term)                    -- ^ PathCons, Δ.Φ ⊢ u : R δ
+defineTranspOrHCompForFields
+  :: TranspOrHComp
+  -> (Maybe Term)            -- ^ PathCons, Δ.Φ ⊢ u : R δ
   -> (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
   -> QName       -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
   -> Telescope   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
+  -> TCM (Maybe ((QName, Telescope, Type, [Dom Type], [Term]), Substitution))
+defineTranspOrHCompForFields cmd pathCons project name params fsT fns rect =
+   case cmd of
+       DoTransp -> runMaybeT $ do
+         fsT' <- traverse (traverse (MaybeT . toCType)) fsT
+         lift $ defineTranspForFields pathCons project name params fsT' fns rect
+       DoHComp -> runMaybeT $ do
+         fsT' <- traverse (traverse (MaybeT . toLType)) fsT
+         rect' <- MaybeT $ toLType rect
+         lift $ defineHCompForFields project name params fsT' fns rect'
+
+
+-- invariant: resulting tel Γ is such that Γ = ... , (φ : I), (a0 : ...)
+--            where a0 has type matching the arguments of primTrans.
+defineTranspForFields
+  :: (Maybe Term)            -- ^ PathCons, Δ.Φ ⊢ u : R δ
+  -> (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
+  -> QName       -- ^ some name, e.g. record name
+  -> Telescope   -- ^ param types Δ
+  -> Tele (Dom CType)   -- ^ fields' types Δ ⊢ Φ
+  -> [Arg QName] -- ^ fields' names
+  -> Type        -- ^ record type Δ ⊢ T
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
-defineTranspForFields' pathCons applyProj name params fsT fns rect = do
+defineTranspForFields pathCons applyProj name params fsT fns rect = do
   interval <- elInf primInterval
   let deltaI = expTelescope interval params
   iz <- primIZero
@@ -676,7 +751,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
                        flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ[δ i1] ⊢ flatten Φ[δ i1]
 
       -- Γ, i : I ⊢ [δ i] : Δ
-      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)
+      delta_i = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params) -- Defined but not used
 
       -- Γ, i : I ⊢ Φ[δ i]
       fsT' = (liftS 1 (raiseS (size gamma - size deltaI)) `composeS` sub params)  `applySubst`
@@ -703,7 +778,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       (tel,theta,the_phi,the_u0, the_fields) =
         case pathCons of
           -- (δ : Δ).Φ ⊢ u : R δ
-          Just u -> (abstract gamma' (d0 `applySubst` fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
+          Just u -> (abstract gamma' (d0 `applySubst` fmap (fmap fromCType) fsT) -- Ξ = δ : Δ^I, φ : F, _ : Φ[δ i0]
                     , (liftS (size fsT) d0 `applySubst` u) `consS` raiseS (size fsT)
                     , raise (size fsT) (var 0)
                     , (liftS (size fsT) d0 `applySubst` u)
@@ -719,11 +794,11 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
       -- .. ⊢ field : filled_ty' i0
       mkBody (field, filled_ty') = do
         let
-          filled_ty = lam_i $ (unEl . unDom) filled_ty'
+          filled_ty = lam_i $ (unEl . fromCType . unDom) filled_ty'
           -- Γ ⊢ l : I -> Level of filled_ty
-        sort <- reduce $ getSort $ unDom filled_ty'
-        case sort of
-          Type l -> do
+        -- sort <- reduce $ getSort $ unDom filled_ty'
+        case unDom filled_ty' of
+          LType (LEl l _) -> do
             let lvl = lam_i $ Level l
             return $ runNames [] $ do
              lvl <- open lvl
@@ -732,11 +807,10 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
                                  <@> phi
                                  <@> field
           -- interval arg
-          Inf  ->
+          ClosedType{}  ->
             return $ runNames [] $ do
             [field] <- mapM open [field]
             field
-          _ -> __IMPOSSIBLE__
 
   let
         -- ' Ξ , i : I ⊢ τ = [(\ j → δ (i ∧ j)), φ ∨ ~ i, u] : Ξ
@@ -765,7 +839,7 @@ defineTranspForFields' pathCons applyProj name params fsT fns rect = do
   let
     -- Ξ, i : I ⊢ ... : Δ.Φ
     theSubst = reverse (tau `applySubst` bodys) ++# (liftS 1 (raiseS (size tel - size deltaI)) `composeS` sub params)
-  return $ ((theName, tel, theta `applySubst` rtype, clause_types, bodys), theSubst)
+  return $ ((theName, tel, theta `applySubst` rtype, map (fmap fromCType) clause_types, bodys), theSubst)
   where
     -- record type in 'exponentiated' context
     -- (params : Δ^I), i : I |- T[params i]
@@ -789,9 +863,9 @@ defineHCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
   -> QName       -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
-  -> Telescope   -- ^ fields' types Δ ⊢ Φ
+  -> Tele (Dom LType)   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
-  -> Type        -- ^ record type (δ : Δ) ⊢ R[δ]
+  -> LType        -- ^ record type (δ : Δ) ⊢ R[δ]
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]),Substitution)
 defineHCompForFields applyProj name params fsT fns rect = do
   interval <- elInf primInterval
@@ -816,14 +890,14 @@ defineHCompForFields applyProj name params fsT fns rect = do
   reportSLn "hcomp.rec" 5 $ ("Generated name: " ++ show theName ++ " " ++ showQNameId theName)
 
   theType <- (abstract delta <$>) $ runNamesT [] $ do
-              rect <- open rect
+              rect <- open $ fromLType rect
               nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
+               nPi' "i" (elInf $ cl primInterval) (\ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 
   reportSDoc "hcomp.rec" 20 $ prettyTCM theType
-  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (getSort rect)
+  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel rect)
 
   noMutualBlock $ addConstant theName $ (defaultDefn defaultArgInfo theName theType
     (emptyFunction { funTerminates = Just True }))
@@ -835,7 +909,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   let -- Γ ⊢ R δ
       drect_gamma = raiseS (size gamma - size delta) `applySubst` rect
 
-  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (getSort drect_gamma)
+  reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel drect_gamma)
 
   let
 
@@ -851,8 +925,8 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
       -- ' (δ, φ, u, u0) : Γ ⊢ fillR Γ : (i : I) → rtype[ δ ↦ (\ j → δ (i ∧ j))]
       fillTerm = runNames [] $ do
-        rect <- open                           $ unEl    drect_gamma
-        lvl  <- open . (\ (Type l) -> Level l) $ getSort drect_gamma
+        rect <- open . unEl  . fromLType  $ drect_gamma
+        lvl  <- open . Level . lTypeLevel $ drect_gamma
         params     <- mapM open $ take (size delta) $ teleArgs gamma
         [phi,w,w0] <- mapM open [the_phi,the_u,the_u0]
         -- (δ : Δ, φ : I, w : .., w0 : R δ) ⊢
@@ -864,14 +938,12 @@ defineHCompForFields applyProj name params fsT fns rect = do
           u <- lam "j" (\ j -> pure por <#> lvl
                                         <@> phi
                                         <@> (pure ineg <@> i)
-                                        <#> (lam "_" $ \ o -> rect)
+                                        <#> lam "_" (\ o -> rect)
                                         <@> (w <@> (pure imin <@> i <@> j))
-                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
+                                        <@> lam "_" (\ o -> w0) -- TODO wait for i = 0
                        )
           u0 <- w0
           pure $ Def theName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
 
       -- (γ : Γ) ⊢ (flatten Φ)[n ↦ f_n (compR γ)]
       clause_types = parallelS [compTerm `applyProj` (unArg fn)
@@ -890,22 +962,22 @@ defineHCompForFields applyProj name params fsT fns rect = do
   comp <- do
         let
           imax i j = pure tIMax <@> i <@> j
-        let forward la bA r u = pure transp <#> (lam "i" $ \ i -> la <@> (i `imax` r))
-                                            <@> (lam "i" $ \ i -> bA <@> (i `imax` r))
+        let forward la bA r u = pure transp <#> lam "i" (\ i -> la <@> (i `imax` r))
+                                            <@> lam "i" (\ i -> bA <@> (i `imax` r))
                                             <@> r
                                             <@> u
         return $ \ la bA phi u u0 ->
           pure hcomp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                      <@> (lam "i" $ \ i -> ilam "o" $ \ o ->
+                      <@> lam "i" (\ i -> ilam "o" $ \ o ->
                               forward la bA i (u <@> i <..> o))
                       <@> forward la bA (pure iz) u0
   let
       mkBody (fname, filled_ty') = do
         let
           proj t = (`applyProj` unArg fname) <$> t
-          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
+          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . fromLType . unDom) filled_ty')
           -- Γ ⊢ l : I -> Level of filled_ty
-        Type l <- reduce $ getSort $ unDom filled_ty'
+        l <- reduce $ lTypeLevel $ unDom filled_ty'
         let lvl = Lam defaultArgInfo (Abs "i" $ Level l)
         return $ runNames [] $ do
              lvl <- open lvl
@@ -918,10 +990,10 @@ defineHCompForFields applyProj name params fsT fns rect = do
                   (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
                   (proj w0)
 
-  reportSDoc "hcomp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . unDom) filled_types)
+  reportSDoc "hcomp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . fromLType . unDom) filled_types)
 
   bodys <- mapM mkBody (zip fns filled_types)
-  return $ ((theName, gamma, rtype, clause_types, bodys),IdS)
+  return $ ((theName, gamma, rtype, map (fmap fromLType) clause_types, bodys),IdS)
 
 
 getGeneralizedParameters :: Set Name -> QName -> TCM [Maybe Name]
@@ -979,25 +1051,25 @@ bindParameters npars [] t ret =
                     , text (absName b) <+> text ":" <+> prettyTCM (unDom a) ]
     _ -> __IMPOSSIBLE__
 
-bindParameters npars par@(A.DomainFull (A.TBind _ xs e) : bs) a ret =
+bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   setCurrentRange par $
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA xs)
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
-bindParameters _ (par@(A.DomainFree arg) : ps) _ _
+bindParameters _ (par@(A.DomainFree _ arg) : ps) _ _
   | getModality arg /= defaultModality = setCurrentRange par $
      typeError . GenericDocError =<< do
        text "Unexpected modality/relevance annotation in" <+> prettyA par
 
-bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
+bindParameters npars ps0@(par@(A.DomainFree _ arg) : ps) t ret = do
   let x          = namedArg arg
       TelV tel _ = telView' t
   case insertImplicit arg $ telToList tel of
-    NoInsertNeeded -> continue ps $ A.unBind x
+    NoInsertNeeded -> continue ps $ A.unBind $ A.binderName x
     ImpInsert _    -> continue ps0 =<< freshName_ (absName b)
     BadImplicits   -> setCurrentRange par $
      typeError . GenericDocError =<< do
@@ -1006,7 +1078,7 @@ bindParameters npars ps0@(par@(A.DomainFree arg) : ps) t ret = do
       typeError . GenericDocError =<< do
         text ("No parameter of name " ++ x)
   where
-    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t
+    Pi dom@(Dom{domInfo = info', unDom = a}) b = unEl t -- TODO:: Defined but not used: info', a
     continue ps x = bindParameter npars ps x dom b ret
 
 bindParameter :: Int -> [A.LamBinding] -> Name -> Dom Type -> Abs Type -> (Telescope -> Type -> TCM a) -> TCM a
@@ -1093,7 +1165,7 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                       return PathCons
                 Def d es | d == q -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  (pars, ixs) <- normalise $ splitAt nofPars vs
+                  let (pars, ixs) = splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars
                   return PointCons
@@ -1129,24 +1201,6 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                     equalTerm t (unArg arg) (var i)
 
 
-{- UNUSED, Andreas 2012-09-13
--- | Force a type to be a specific datatype.
-forceData :: QName -> Type -> TCM Type
-forceData d (El s0 t) = liftTCM $ do
-    t' <- reduce t
-    d  <- canonicalName d
-    case t' of
-        Def d' _
-            | d == d'   -> return $ El s0 t'
-            | otherwise -> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
-        MetaV m vs          -> do
-            Defn {defType = t, theDef = Datatype{dataSort = s}} <- getConstInfo d
-            ps <- newArgsMeta t
-            noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
-            reduce $ El s0 t'
-        _ -> typeError $ ShouldBeApplicationOf (El s0 t) d
--}
-
 -- | Is the type coinductive? Returns 'Nothing' if the answer cannot
 -- be determined.
 
@@ -1160,13 +1214,13 @@ isCoinductive t = do
         Axiom       {} -> return (Just False)
         DataOrRecSig{} -> return Nothing
         Function    {} -> return Nothing
-        Datatype    { dataInduction = CoInductive } -> return (Just True)
-        Datatype    { dataInduction = Inductive   } -> return (Just False)
+        Datatype    {} -> return (Just False)
         Record      {  recInduction = Just CoInductive } -> return (Just True)
         Record      {  recInduction = _                } -> return (Just False)
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
+        PrimitiveSort{} -> __IMPOSSIBLE__
         AbstractDefn{} -> __IMPOSSIBLE__
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__
@@ -1177,4 +1231,4 @@ isCoinductive t = do
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__
-    Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s

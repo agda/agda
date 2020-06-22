@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Case trees.
@@ -14,9 +13,9 @@ import Prelude hiding (null)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Semigroup hiding (Arg(..))
-import Data.Foldable hiding (null)
-import Data.Traversable
-import Data.Maybe
+
+
+
 
 import Data.Data (Data)
 
@@ -27,9 +26,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty hiding ((<>))
+import Agda.Utils.Pretty
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }
@@ -164,7 +162,7 @@ instance Pretty a => Pretty (WithArity a) where
 
 instance Pretty a => Pretty (Case a) where
   prettyPrec p (Branches _cop cs eta ls m b lazy) =
-    mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap cs ++ prEta eta ++ prettyMap ls ++ prC m)
+    mparens (p > 0) $ prLazy lazy <+> vcat (prettyMap_ cs ++ prEta eta ++ prettyMap_ ls ++ prC m)
     where
       prLazy True  = "~"
       prLazy False = empty
@@ -173,10 +171,8 @@ instance Pretty a => Pretty (Case a) where
       prEta Nothing = []
       prEta (Just (c, cc)) = [("eta" <+> pretty c <+> "->") <?> pretty cc]
 
-prettyMap :: (Pretty k, Pretty v) => Map k v -> [Doc]
-prettyMap m = [ sep [ pretty k <+> "->"
-                    , nest 2 $ pretty v ]
-              | (k, v) <- Map.toList m ]
+prettyMap_ :: (Pretty k, Pretty v) => Map k v -> [Doc]
+prettyMap_ = map prettyAssign . Map.toList
 
 instance Pretty CompiledClauses where
   pretty (Done hs t) = ("done" <> pretty hs) <?> pretty t

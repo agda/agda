@@ -1,9 +1,8 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Imports where
 
 import Control.Monad.State
-import Control.Monad.Reader
+
 
 import Data.Set (Set)
 import qualified Data.Map as Map
@@ -12,11 +11,9 @@ import qualified Data.Set as Set
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
-import Agda.Utils.Lens
 import Agda.Utils.List ( caseListM )
-import Agda.Utils.Monad
 
-#include "undefined.h"
+
 import Agda.Utils.Impossible
 
 addImport :: ModuleName -> TCM ()
@@ -73,7 +70,7 @@ storeDecodedModule i = modifyTC $ \s ->
   s { stPersistentState =
         (stPersistentState s) { stDecodedModules =
           Map.insert (toTopLevelModuleName $ iModuleName i) i $
-            (stDecodedModules $ stPersistentState s)
+            stDecodedModules (stPersistentState s)
         }
   }
 

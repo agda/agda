@@ -5,4 +5,4 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad.Base
 
-compileClauses :: Maybe (QName, Type) -> [Clause] -> TCM (Maybe SplitTree, CompiledClauses)
+compileClauses :: Maybe (QName, Type) -> [Clause] -> TCM (Maybe SplitTree, Bool, CompiledClauses)

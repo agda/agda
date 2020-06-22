@@ -1,6 +1,6 @@
 -- Andreas, 2016-06-01, issue 1997 reported by Andres
 
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --confluence-check #-}
 
 infix  4 _≡_
 infixl 6 _+_

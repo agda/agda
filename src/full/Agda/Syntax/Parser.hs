@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser
@@ -26,16 +24,13 @@ module Agda.Syntax.Parser
     , runPMIO
     ) where
 
-import Control.Arrow (second)
 import Control.Exception
-import Control.Monad ((>=>), forM_)
+import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
 
+import Data.Bifunctor
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -45,21 +40,11 @@ import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Literate
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Definitions
 import Agda.Syntax.Parser.Tokens
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict
-import Agda.Utils.Pretty
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Wrapping parse results

@@ -2,6 +2,9 @@ TOP = ../..
 
 include $(TOP)/mk/paths.mk
 
+# Extra options when running agda --interaction
+AGDA_OPT=--no-default-libraries
+
 # Enable read -n and 2>&1 |.
 SHELL=/usr/bin/env bash
 
@@ -33,6 +36,7 @@ Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 default : $(Tests)
 
 export TMPDIR=highlighting-tmp
+export BUILDDIR=_build/
 
 # Filter out absolute pathes, make all whitespace equal, remove
 # "Linking..." messages since GHC 7.0 doesn't have them.
@@ -58,10 +62,10 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces --no-default-libraries $(RTS_$*) \
+         | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces $(AGDA_OPT) $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \
-    then /usr/bin/env runhaskell ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
+    then /usr/bin/env runhaskell --ghc-arg=-v0 --ghc-arg=-w ./$*.hs $(AGDA_BIN) 2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
@@ -123,6 +127,10 @@ $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 # Comparing output
 ########################################################################
 
+# Andreas, 2020-06-09, issue #4736
+# If the output has changed, the test case is "interesting",
+# thus, we sort it up for the next run by touching the .agda file.
+
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
@@ -132,13 +140,14 @@ $(Tests) : %.cmp : %.out
 	@if diff -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
+			for file in ls `$*.*agda`; do touch $file; done ; \
 			echo "=== Old output ==="; \
 			cat $*.out; \
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			wdiff $*.out $*.tmp | colordiff; \
-			echo -n "Accept new error [y/N/q]? "; \
+			echo -n "Accept new error [y/n/Q] (default: no)? "; \
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
@@ -146,11 +155,11 @@ $(Tests) : %.cmp : %.out
 			       rm -f $*.tmp; \
                                rm -rf $(TMPDIR); \
 			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
-			       [ "X$$REPLY" != "Xq" ]; \
+			       [ "X$$REPLY" != "XQ" ]; \
 			  else echo "Replacing output, continuing..."; \
 			    mv $*.tmp $*.out; \
 			    true; \
 			fi; \
 	 fi
 	@$(cleanup_$*)
-	@rm -rf $(TMPDIR)
+	@rm -rf $(TMPDIR) $(BUILDDIR)

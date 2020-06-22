@@ -87,18 +87,18 @@ With-functions
 Pragmas and Options
 -------------------
 
-.. _non_terminating_pragma:
+.. _non_terminating-pragma:
 
 * The ``NON_TERMINATING`` pragma
 
-  This is a safer version of :ref:`TERMINATING <terminating_pragma>`
+  This is a safer version of :ref:`TERMINATING <terminating-pragma>`
   which doesn't treat the affected functions as terminating. This
   means that ``NON_TERMINATING`` functions do not reduce during type
   checking. They do reduce at run-time and when invoking ``C-c C-n``
   at top-level (but not in a hole). The pragma was added in Agda
   2.4.2.
 
-.. _terminating_pragma:
+.. _terminating-pragma:
 
 * The ``TERMINATING`` pragma
 
@@ -107,7 +107,7 @@ Pragmas and Options
   replaced the ``NO_TERMINATION_CHECK`` pragma.
 
   The pragma must precede a function definition or a mutual block. The
-  pragma cannot be used in ``--safe`` mode.
+  pragma cannot be used in :option:`--safe` mode.
 
   Examples:
 

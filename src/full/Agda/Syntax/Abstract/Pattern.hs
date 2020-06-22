@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
@@ -11,21 +10,16 @@ module Agda.Syntax.Abstract.Pattern where
 import Prelude hiding (null)
 
 import Control.Arrow ((***), second)
-import Control.Monad ((>=>))
 import Control.Monad.Identity
-import Control.Applicative (Applicative, liftA2)
+import Control.Applicative (liftA2)
 
-import Data.Foldable (Foldable, foldMap)
-import Data.Functor
-
-import Data.Traversable (Traversable, traverse)
 
 import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment')
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pattern (IsWithP(..))
 import Agda.Syntax.Info
@@ -35,7 +29,6 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Generic traversals
@@ -152,7 +145,7 @@ instance APatternLike a (Pattern' a) where
       WildP _            -> mempty
       DotP _ _           -> mempty
       AbsurdP _          -> mempty
-      LitP _             -> mempty
+      LitP _ _           -> mempty
       EqualP _ _         -> mempty
 
   traverseAPatternM pre post = pre >=> recurse >=> post
@@ -236,11 +229,8 @@ containsAbsurdPattern = containsAPattern $ \case
 
 -- | Check if a pattern contains an @-pattern.
 --
---   Precondition: contains no pattern synonyms.
-
 containsAsPattern :: APatternLike a p => p -> Bool
 containsAsPattern = containsAPattern $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
     A.AsP{}         -> True
     _               -> False
 
@@ -280,7 +270,7 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   ProjP _ _ _       -> p
   WildP _           -> p
   AbsurdP _         -> p
-  LitP _            -> p
+  LitP _ _          -> p
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p

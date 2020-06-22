@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | An empty type with some useful instances.
@@ -6,12 +5,10 @@ module Agda.Utils.Empty where
 
 import Control.Exception (evaluate)
 
-import Data.Functor ((<$))
 import Data.Data (Data)
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
 
 data Empty
 deriving instance Data Empty

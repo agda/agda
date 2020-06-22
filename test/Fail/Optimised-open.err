@@ -4,6 +4,22 @@ ScopeInfo
   context = []
   modules
     scope
+      private
+        names
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+      imports
+        [Agda.Primitive]
+    scope Agda.Primitive
+      public
+        names
+          _⊔_ --> [Agda.Primitive._⊔_]
+          Level --> [Agda.Primitive.Level]
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+          Setω --> [Agda.Primitive.Setω]
+          lsuc --> [Agda.Primitive.lsuc]
+          lzero --> [Agda.Primitive.lzero]
     scope Optimised-open
       private
         names
@@ -28,6 +44,22 @@ ScopeInfo
   context = []
   modules
     scope
+      private
+        names
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+      imports
+        [Agda.Primitive]
+    scope Agda.Primitive
+      public
+        names
+          _⊔_ --> [Agda.Primitive._⊔_]
+          Level --> [Agda.Primitive.Level]
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+          Setω --> [Agda.Primitive.Setω]
+          lsuc --> [Agda.Primitive.lsuc]
+          lzero --> [Agda.Primitive.lzero]
     scope Optimised-open
       private
         names
@@ -57,5 +89,5 @@ ScopeInfo
         names
           P′ --> [Optimised-open.M₂._.P]
 Optimised-open.agda:35,9-10
-(A → Set) !=< A of type Set₁
+(A → Set) !=< A
 when checking that the expression P has type A

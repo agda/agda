@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# LANGUAGE CPP               #-}
 
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 
@@ -9,10 +8,12 @@ module Agda.Utils.Null where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import Data.Function
+
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet (HashSet)
@@ -24,16 +25,18 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Text.PrettyPrint (Doc, render)
+import Text.PrettyPrint (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
+
+import Agda.Utils.Impossible
 
 class Null a where
   empty :: a
@@ -50,6 +53,14 @@ instance Null () where
 instance (Null a, Null b) => Null (a,b) where
   empty      = (empty, empty)
   null (a,b) = null a && null b
+
+instance (Null a, Null b, Null c) => Null (a,b,c) where
+  empty        = (empty, empty, empty)
+  null (a,b,c) = null a && null b && null c
+
+instance (Null a, Null b, Null c, Null d) => Null (a,b,c,d) where
+  empty          = (empty, empty, empty, empty)
+  null (a,b,c,d) = null a && null b && null c && null d
 
 instance Null ByteString where
   empty = ByteString.empty
@@ -99,7 +110,15 @@ instance Null (Maybe a) where
 
 instance Null Doc where
   empty = mempty
-  null  = (== mempty)
+  null  = isEmpty
+
+instance (Null (m a), Monad m) => Null (ReaderT r m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
+
+instance (Null (m a), Monad m) => Null (StateT r m a) where
+  empty = lift empty
+  null  = __IMPOSSIBLE__
 
 -- * Testing for null.
 

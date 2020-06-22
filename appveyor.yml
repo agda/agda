@@ -5,7 +5,6 @@ environment:
  matrix:
   - GHC_VER: 8.2.1
   - GHC_VER: 8.0.2
-  - GHC_VER: 7.10.3.2
 
 matrix:
   fast_finish: true

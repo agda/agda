@@ -1,0 +1,12 @@
+RewritingNonConfluent3.agda:38,13-30
+Confluence check failed: suc m * (l + m₁) reduces to both
+(suc m * l) + (suc m * m₁) and (l + m₁) + (m * (l + m₁))
+which are not equal because m * l != m₁ of type Nat
+when checking confluence of the rewrite rule plus-mult-distr-l with
+mult-suc-l
+RewritingNonConfluent3.agda:38,13-30
+Confluence check failed: k * (suc m + m₁) reduces to both
+(k * suc m) + (k * m₁) and k * suc (m + m₁)
+which are not equal because k != k * m of type Nat
+when checking confluence of the rewrite rule plus-mult-distr-l with
+plus-suc-l

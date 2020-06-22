@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Substitute.Class where
 
 import Control.Arrow ((***), second)
-import Data.Maybe
+
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -14,7 +14,6 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.List
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -51,7 +50,7 @@ class Abstract t where
   abstract :: Telescope -> t -> t
 
 ---------------------------------------------------------------------------
--- * Substitution and raising/shifting/weakening
+-- * Substitution and shifting\/weakening\/strengthening
 ---------------------------------------------------------------------------
 
 -- | Apply a substitution.
@@ -66,6 +65,11 @@ class Abstract t where
 class DeBruijn t => Subst t a | a -> t where
   applySubst :: Substitution' t -> a -> a
 
+  default applySubst :: (a ~ f b, Functor f, Subst t b) => Substitution' t -> a -> a
+  applySubst rho = fmap (applySubst rho)
+
+
+-- | Raise de Bruijn index, i.e. weakening
 raise :: Subst t a => Nat -> a -> a
 raise = raiseFrom 0
 
@@ -222,6 +226,14 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS err             -> absurd err
 
+
+-- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
+
+listS :: Subst a a => [(Int,a)] -> Substitution' a
+listS ((i,t):ts) = singletonS i t `composeS` listS ts
+listS []         = IdS
+
+
 ---------------------------------------------------------------------------
 -- * Functions on abstractions
 --   and things we couldn't do before we could define 'absBody'
@@ -272,7 +284,7 @@ underAbs cont a b = case b of
 --   and puts the 'Lam's back.  @a@ is raised correctly
 --   according to the number of abstractions.
 underLambdas :: Subst Term a => Int -> (a -> Term -> Term) -> a -> Term -> Term
-underLambdas n cont a v = loop n a v where
+underLambdas n cont a = loop n a where
   loop 0 a v = cont a v
   loop n a v = case v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b

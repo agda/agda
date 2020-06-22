@@ -1,4 +1,4 @@
 WrongNamedArgument.agda:7,8-9
-Function does not accept argument {B = _}
+Function does not accept argument {B = _} (possible arguments: A)
 when checking that {B = Set} is a valid argument to a function of
 type {A : Set₁} → A → A

@@ -1,27 +1,22 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Datatypes where
 
 import Control.Monad.Except
 
 import Data.Maybe (fromMaybe)
-import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Functor
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Size
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -78,9 +73,10 @@ consOfHIT c = do
 --   @Nothing@ if @t@ is not a data/record type or does not have
 --   a constructor @c@.
 getConType
-  :: ConHead  -- ^ Constructor.
+  :: (MonadReduce m, MonadAddContext m, HasConstInfo m, MonadDebug m)
+  => ConHead  -- ^ Constructor.
   -> Type     -- ^ Ending in data/record type.
-  -> TCM (Maybe ((QName, Type, Args), Type))
+  -> m (Maybe ((QName, Type, Args), Type))
        -- ^ @Nothing@ if not ends in data or record type.
        --
        --   @Just ((d, dt, pars), ct)@ otherwise, where
@@ -134,7 +130,7 @@ getFullyAppliedConType
        --     @pars@ are the reconstructed parameters,
        --     @ct@   is the type of the constructor instantiated to the parameters.
 getFullyAppliedConType c t = do
-  reportSLn "tc.getConType" 35 $ List.intercalate " " $
+  reportSLn "tc.getConType" 35 $ unwords $
     [ "getFullyAppliedConType", prettyShow c, prettyShow t ]
   c <- fromRight __IMPOSSIBLE__ <$> do getConHead $ conName c
   case unEl t of
@@ -142,7 +138,7 @@ getFullyAppliedConType c t = do
     -- then the non-parameter arguments of @es@ might contain __IMPOSSIBLE__
     -- coming from strengthening.  (Thus, printing them is not safe.)
     Def d es -> do
-      reportSLn "tc.getConType" 35 $ List.intercalate " " $
+      reportSLn "tc.getConType" 35 $ unwords $
         [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       def <- getConstInfo d
       let cont n = do
@@ -158,14 +154,14 @@ getFullyAppliedConType c t = do
 
 data ConstructorInfo
   = DataCon Nat                  -- ^ Arity.
-  | RecordCon HasEta [Arg QName] -- ^ List of field names.
+  | RecordCon HasEta [Dom QName] -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
 --
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
-getConstructorInfo :: QName -> TCM ConstructorInfo
+getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
 getConstructorInfo c = do
   (theDef <$> getConstInfo c) >>= \case
     Constructor{ conData = d, conArity = n } -> do
@@ -190,23 +186,26 @@ isDatatype d = do
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
 
+data DataOrRecord
+  = IsData
+  | IsRecord PatternOrCopattern
+  deriving (Show, Eq)
+
 -- | Check if a name refers to a datatype or a record.
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
-  def <- getConstInfo d
-  case theDef def of
+  (theDef <$> getConstInfo d) >>= \case
+    Record{ recPatternMatching } -> return $ Just $ IsRecord recPatternMatching
     Datatype{} -> return $ Just IsData
-    Record{}   -> return $ Just IsRecord
     _          -> return $ Nothing
 
 -- | Precodition: 'Term' is 'reduce'd.
 isDataOrRecord :: Term -> TCM (Maybe QName)
-isDataOrRecord v = do
-  case v of
+isDataOrRecord = \case
     Def d _ -> fmap (const d) <$> isDataOrRecordType d
     _       -> return Nothing
 
-getNumberOfParameters :: QName -> TCM (Maybe Nat)
+getNumberOfParameters :: HasConstInfo m => QName -> m (Maybe Nat)
 getNumberOfParameters d = do
   def <- getConstInfo d
   case theDef def of
@@ -238,14 +237,22 @@ getConHeads d = fromMaybe __IMPOSSIBLE__ <$>
 
 -- | 'Nothing' if not data or record type name.
 getConHeads' :: QName -> TCM (Maybe [ConHead])
-getConHeads' d = getConHeads_ . theDef <$> getConstInfo d
+getConHeads' d = theDef <$> getConstInfo d >>= \case
+  Record{recConHead = h}  -> return $ Just [h]
+  Datatype{dataCons = cs} -> Just <$> mapM makeConHead cs
+  _                       -> return $ Nothing
 
--- | 'Nothing' if not data or record definition.
-getConHeads_ :: Defn -> Maybe [ConHead]
-getConHeads_ = \case
-    Datatype{dataCons = cs} -> Just $ map (\ c -> ConHead c Inductive []) cs
-    Record{recConHead = h}  -> Just [h]
-    _                       -> Nothing
+-- | Fills in the fields.
+makeConHead :: QName -> TCM ConHead
+makeConHead c = do
+  def <- getConstInfo c
+  case theDef def of
+    Constructor{conPars = n, conProj = Just fs} -> do
+      TelV tel _ <- telView (defType def)
+      let ai = map getArgInfo $ drop n $ telToList tel
+      return $ ConHead c Inductive $ zipWith Arg ai fs
+    Constructor{conProj = Nothing} -> return $ ConHead c Inductive []
+    _ -> __IMPOSSIBLE__
 
 {- UNUSED
 data DatatypeInfo = DataInfo

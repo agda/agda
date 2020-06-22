@@ -1,7 +1,6 @@
-{-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE TypeApplications   #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -19,13 +18,14 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
+import Control.Monad (guard)
+import Data.Coerce
 import Data.Function
-import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
 import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
@@ -37,7 +37,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Position (Range)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options (typeInType)
@@ -51,36 +50,55 @@ import Agda.TypeChecking.Substitute.DeBruijn
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.HashMap (HashMap)
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
-instance Apply Term where
-  applyE m [] = m
-  applyE m es =
-    case m of
+
+-- | Apply @Elims@ while using the given function to report ill-typed
+--   redexes.
+--   Recursive calls for @applyE@ and @applySubst@ happen at type @t@ to
+--   propagate the same strategy to subtrees.
+{-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> Term -> Elims -> Term #-}
+{-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> BraveTerm -> Elims -> BraveTerm #-}
+applyTermE :: forall t. (Coercible Term t, Apply t, Subst t t)
+           => (Empty -> Term -> Elims -> Term) -> t -> Elims -> t
+applyTermE err' m [] = m
+applyTermE err' m es = coerce $
+    case coerce m of
       Var i es'   -> Var i (es' ++ es)
       Def f es'   -> defApp f es' es  -- remove projection redexes
-      Con c ci args -> conApp c ci args es
+      Con c ci args -> conApp @t err' c ci args es
       Lam _ b     ->
         case es of
-          Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
-          IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
-          _             -> __IMPOSSIBLE__
+          Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
+          IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
+          _             -> err __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
-      Lit{}       -> __IMPOSSIBLE__
-      Level{}     -> __IMPOSSIBLE__
-      Pi _ _      -> __IMPOSSIBLE__
+      Lit{}       -> err __IMPOSSIBLE__
+      Level{}     -> err __IMPOSSIBLE__
+      Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
-      Dummy{}     -> __IMPOSSIBLE__
-      DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
+      Dummy s es' -> Dummy s (es' ++ es)
+      DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
+   where
+     app :: Coercible t x => x -> Elims -> Term
+     app t es = coerce $ (coerce t :: t) `applyE` es
+     err e = err' e (coerce m) es
+
+instance Apply Term where
+  applyE = applyTermE absurd
+
+instance Apply BraveTerm where
+  applyE = applyTermE (\ _ t es ->  Dummy "applyE" (Apply (defaultArg t) : es))
 
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
@@ -89,29 +107,38 @@ canProject f v =
   case v of
     (Con (ConHead _ _ fs) _ vs) -> do
       (fld, i) <- findWithIndex ((f==) . unArg) fs
+      -- Jesper, 2019-10-17: dont unfold irrelevant projections
+      guard $ not $ isIrrelevant fld
       -- Andreas, 2018-06-12, issue #2170
       -- The ArgInfo from the ConHead is more accurate (relevance subtyping!).
-      setArgInfo (getArgInfo fld) <.> isApplyElim =<< headMaybe (drop i vs)
+      setArgInfo (getArgInfo fld) <.> isApplyElim =<< listToMaybe (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
-conApp :: ConHead -> ConInfo -> Elims -> Elims -> Term
-conApp ch                  ci args []             = Con ch ci args
-conApp ch                  ci args (a@Apply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch                  ci args (a@IApply{} : es) = conApp ch ci (args ++ [a]) es
-conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
+conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
+conApp fk ch                  ci args []             = Con ch ci args
+conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
+conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
+conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
-        "conApp: constructor " ++ show c ++
-        " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
+        "conApp: constructor " ++ prettyShow c ++
+        " with fields\n" ++ unlines (map (("  " ++) . prettyShow) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
-        " projected by " ++ show f
+        " projected by " ++ prettyShow f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      (fld, i) = fromMaybe (failure __IMPOSSIBLE__) $ findWithIndex ((f==) . unArg) fs
+      stuck err = fk err (Con ch ci args) [Proj o f]
+      -- Recurse using the instance for 't', see @applyTermE@
+      app :: Term -> Elims -> Term
+      app v es = coerce $ applyE (coerce v :: t) es
+  in
+   case findWithIndex ((f==) . unArg) fs of
+     Nothing -> failure $ stuck __IMPOSSIBLE__ `app` es
+     Just (fld, i) -> let
       -- Andreas, 2018-06-12, issue #2170
       -- We safe-guard the projected value by DontCare using the ArgInfo stored at the record constructor,
       -- since the ArgInfo in the constructor application might be inaccurate because of subtyping.
-      v = maybe (failure __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ headMaybe $ drop i args
-  in  applyE v es
+      v = maybe (failure $ stuck __IMPOSSIBLE__) (relToDontCare fld . argToDontCare . isApply) $ listToMaybe $ drop i args
+      in v `app` es
 
   -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
   --     fallback = v
@@ -132,10 +159,10 @@ conApp ch@(ConHead c _ fs) ci args (Proj o f : es) =
 
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
-      v = maybe failure unArg $ headMaybe $ drop i args
+      v = maybe failure unArg $ listToMaybe $ drop i args
       -- Andreas, 2013-10-20 see Issue543a:
       -- protect result of irrelevant projection.
-      r = maybe __IMPOSSIBLE__ getRelevance $ headMaybe $ drop i fs
+      r = maybe __IMPOSSIBLE__ getRelevance $ listToMaybe $ drop i fs
       u | Irrelevant <- r = DontCare v
         | otherwise       = v
   in  applyE v es
@@ -201,8 +228,8 @@ instance Subst Term a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -272,16 +299,17 @@ instance Apply Defn where
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ apply d args
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Nothing } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
+        , funCovering   = apply cov args
         , funInv        = apply inv args
         , funExtLam     = modifySystem (`apply` args) <$> extLam
         }
 
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Just p0} ->
       case p0 `apply` args of
@@ -293,6 +321,7 @@ instance Apply Defn where
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
+                , funCovering       = apply cov args'
                 , funInv            = apply inv args'
                 , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
@@ -329,6 +358,7 @@ instance Apply Defn where
       d { conPars = np - size args }
     Primitive{ primClauses = cs } ->
       d { primClauses = apply cs args }
+    PrimitiveSort{} -> d
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -341,7 +371,7 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause rl rf tel ps b t catchall unreachable) args
+    apply cls@(Clause rl rf tel ps b t catchall recursive unreachable ell) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
       Clause rl rf
@@ -350,7 +380,9 @@ instance Apply Clause where
              (applySubst rho b)
              (applySubst rho t)
              catchall
+             recursive
              unreachable
+             ell
       where
         -- We have
         --  Γ ⊢ args, for some outer context Γ
@@ -508,6 +540,10 @@ instance Apply t => Apply (Maybe t) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
 
+instance Apply t => Apply (Strict.Maybe t) where
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
+
 instance Apply v => Apply (Map k v) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
@@ -555,7 +591,7 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply t args                    =
-  trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
+  trace ("piApply t = " ++ prettyShow t ++ "\n  args = " ++ prettyShow args) __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Abstraction
@@ -576,9 +612,9 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj d) =
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
-                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj (abstract tel d)
+                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj copat blk (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -618,15 +654,16 @@ instance Abstract Defn where
     DataOrRecSig n -> DataOrRecSig (size tel + n)
     GeneralizableVar{} -> d
     AbstractDefn d -> AbstractDefn $ abstract tel d
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Nothing  } ->
       d { funClauses  = abstract tel cs
         , funCompiled = abstract tel cc
+        , funCovering = abstract tel cov
         , funInv      = abstract tel inv
         , funExtLam   = modifySystem (abstract tel) <$> extLam
         }
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+    Function{ funClauses = cs, funCompiled = cc, funCovering = cov, funInv = inv
             , funExtLam = extLam
             , funProjection = Just p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
@@ -634,6 +671,7 @@ instance Abstract Defn where
       if projIndex p > 0 then d' else
         d' { funClauses  = abstract tel1 cs
            , funCompiled = abstract tel1 cc
+           , funCovering = abstract tel1 cov
            , funInv      = abstract tel1 inv
            , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
@@ -654,19 +692,22 @@ instance Abstract Defn where
       d { conPars = np + size tel }
     Primitive{ primClauses = cs } ->
       d { primClauses = abstract tel cs }
+    PrimitiveSort{} -> d
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause rl rf tel' ps b t catchall unreachable) =
+  abstract tel (Clause rl rf tel' ps b t catchall recursive unreachable ell) =
     Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
            t -- nothing to do for t, since it lives under the telescope
            catchall
+           recursive
            unreachable
+           ell
       where m = size tel + size tel'
 
 instance Abstract CompiledClauses where
@@ -717,7 +758,7 @@ abstractArgs args x = abstract tel x
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
 
 ---------------------------------------------------------------------------
--- * Substitution and raising/shifting/weakening
+-- * Substitution and shifting\/weakening\/strengthening
 ---------------------------------------------------------------------------
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
@@ -739,46 +780,61 @@ renameP err p = applySubst (renaming err p)
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm
 
-instance Subst Term Term where
-  applySubst IdS t = t
-  applySubst rho t    = case t of
-    Var i es    -> lookupS rho i `applyE` applySubst rho es
-    Lam h m     -> Lam h $ applySubst rho m
-    Def f es    -> defApp f [] $ applySubst rho es
-    Con c ci vs -> Con c ci $ applySubst rho vs
-    MetaV x es  -> MetaV x $ applySubst rho es
+{-# SPECIALIZE applySubstTerm :: Substitution -> Term -> Term #-}
+{-# SPECIALIZE applySubstTerm :: Substitution' BraveTerm -> BraveTerm -> BraveTerm #-}
+applySubstTerm :: forall t. (Coercible t Term, Subst t t, Apply t) => Substitution' t -> t -> t
+applySubstTerm IdS t = t
+applySubstTerm rho t    = coerce $ case coerce t of
+    Var i es    -> coerce $ lookupS rho i  `applyE` subE es
+    Lam h m     -> Lam h $ sub @(Abs t) m
+    Def f es    -> defApp f [] $ subE es
+    Con c ci vs -> Con c ci $ subE vs
+    MetaV x es  -> MetaV x $ subE es
     Lit l       -> Lit l
-    Level l     -> levelTm $ applySubst rho l
-    Pi a b      -> uncurry Pi $ applySubst rho (a,b)
-    Sort s      -> Sort $ applySubst rho s
-    DontCare mv -> dontCare $ applySubst rho mv
-    Dummy{}     -> t
+    Level l     -> levelTm $ sub @(Level' t) l
+    Pi a b      -> uncurry Pi $ subPi (a,b)
+    Sort s      -> Sort $ sub @(Sort' t) s
+    DontCare mv -> dontCare $ sub @t mv
+    Dummy s es  -> Dummy s $ subE es
+ where
+   sub :: forall a b. (Coercible b a, Subst t a) => b -> b
+   sub t = coerce $ applySubst rho (coerce t :: a)
+   subE :: Elims -> Elims
+   subE  = sub @[Elim' t]
+   subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
+   subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
 
-instance Subst Term a => Subst Term (Type' a) where
+instance Subst Term Term where
+  applySubst = applySubstTerm
+
+instance Subst BraveTerm BraveTerm where
+  applySubst = applySubstTerm
+
+instance (Coercible a Term, Subst t a, Subst t b) => Subst t (Type'' a b) where
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
-instance Subst Term Sort where
+instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
-    Inf        -> Inf
+    Inf n      -> Inf n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
-    PiSort s1 s2 -> piSort (sub s1) (sub s2)
-    UnivSort s -> univSort Nothing $ sub s
+    PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
+    FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
+    UnivSort s -> coerce $ univSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     DummyS{}   -> s
     where sub x = applySubst rho x
 
-instance Subst Term Level where
-  applySubst rho (Max as) = Max $ applySubst rho as
+instance Subst t a => Subst t (Level' a) where
+  applySubst rho (Max n as) = Max n $ applySubst rho as
 
-instance Subst Term PlusLevel where
-  applySubst rho l@ClosedLevel{} = l
+instance Subst t a => Subst t (PlusLevel' a) where
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
-instance Subst Term LevelAtom where
+instance Subst t a => Subst t (LevelAtom' a) where
   applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
   applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
   applySubst rho (NeutralLevel _ v) = UnreducedLevel $ applySubst rho v
@@ -799,7 +855,7 @@ instance Subst Term Pattern where
     DefP o q ps  -> DefP o q $ applySubst rho ps
     DotP o t     -> DotP o $ applySubst rho t
     VarP o s     -> p
-    LitP l       -> p
+    LitP o l     -> p
     ProjP{}      -> p
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
@@ -807,16 +863,19 @@ instance Subst Term A.ProblemEq where
   applySubst rho (A.ProblemEq p v a) =
     uncurry (A.ProblemEq p) $ applySubst rho (v,a)
 
+instance DeBruijn BraveTerm where
+  deBruijnVar = BraveTerm . deBruijnVar
+  deBruijnView = deBruijnView . unBrave
 
 instance DeBruijn NLPat where
   deBruijnVar i = PVar i []
   deBruijnView p = case p of
     PVar i []   -> Just i
     PVar{}      -> Nothing
-    PWild{}     -> Nothing
     PDef{}      -> Nothing
     PLam{}      -> Nothing
     PPi{}       -> Nothing
+    PSort{}     -> Nothing
     PBoundVar{} -> Nothing -- or... ?
     PTerm{}     -> Nothing -- or... ?
 
@@ -827,19 +886,22 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
     nlPatToTerm p = case p of
       PVar i xs      -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
-      PWild          -> __IMPOSSIBLE__
       PDef f es      -> __IMPOSSIBLE__
       PLam i u       -> __IMPOSSIBLE__
       PPi a b        -> __IMPOSSIBLE__
+      PSort s        -> __IMPOSSIBLE__
       PBoundVar i es -> __IMPOSSIBLE__
+
+applyNLSubstToDom :: Subst NLPat a => Substitution' NLPat -> Dom a -> Dom a
+applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
 
 instance Subst NLPat NLPat where
   applySubst rho p = case p of
     PVar i bvs -> lookupS rho i `applyBV` bvs
-    PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
-    PPi a b -> PPi (applySubst rho a) (applySubst rho b)
+    PPi a b -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
+    PSort s -> PSort $ applySubst rho s
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applyNLPatSubst rho u
 
@@ -848,14 +910,22 @@ instance Subst NLPat NLPat where
       applyBV p ys = case p of
         PVar i xs      -> PVar i (xs ++ ys)
         PTerm u        -> PTerm $ u `apply` map (fmap var) ys
-        PWild          -> __IMPOSSIBLE__
         PDef f es      -> __IMPOSSIBLE__
         PLam i u       -> __IMPOSSIBLE__
         PPi a b        -> __IMPOSSIBLE__
+        PSort s        -> __IMPOSSIBLE__
         PBoundVar i es -> __IMPOSSIBLE__
 
 instance Subst NLPat NLPType where
   applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
+
+instance Subst NLPat NLPSort where
+  applySubst rho = \case
+    PType l   -> PType $ applySubst rho l
+    PProp l   -> PProp $ applySubst rho l
+    PInf n    -> PInf n
+    PSizeUniv -> PSizeUniv
+    PLockUniv -> PLockUniv
 
 instance Subst NLPat RewriteRule where
   applySubst rho (RewriteRule q gamma f ps rhs t) =
@@ -889,7 +959,6 @@ instance Subst Term Constraint where
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
-    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
     TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
@@ -900,11 +969,17 @@ instance Subst Term Constraint where
     UnBlock{}                -> c
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
-    HasPTSRule s1 s2         -> HasPTSRule (rf s1) (rf s2)
+    HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
     CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
+    CheckMetaInst m          -> CheckMetaInst m
     where
       rf x = applySubst rho x
+
+instance Subst Term CompareAs where
+  applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
+  applySubst rho AsSizes       = AsSizes
+  applySubst rho AsTypes       = AsTypes
 
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
@@ -923,18 +998,15 @@ instance Subst t a => Subst t (Arg a) where
 instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst t a => Subst t (Dom a) where
+instance (Subst t a, Subst t b) => Subst t (Dom' a b) where
   applySubst IdS dom = dom
-  applySubst rho dom = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) dom
+  applySubst rho dom = setFreeVariables unknownFreeVariables $
+    fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
-instance Subst t a => Subst t (Maybe a) where
-  applySubst rho = fmap (applySubst rho)
-
-instance Subst t a => Subst t [a] where
-  applySubst rho = map (applySubst rho)
-
-instance (Ord k, Subst t a) => Subst t (Map k a) where
-  applySubst rho = fmap (applySubst rho)
+instance Subst t a          => Subst t (Maybe a)      where
+instance Subst t a          => Subst t [a]            where
+instance (Ord k, Subst t a) => Subst t (Map k a)      where
+instance Subst t a          => Subst t (WithHiding a) where
 
 instance Subst Term () where
   applySubst _ _ = ()
@@ -949,7 +1021,7 @@ instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) wh
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
 instance Subst Term Candidate where
-  applySubst rho (Candidate u t ov) = Candidate (applySubst rho u) (applySubst rho t) ov
+  applySubst rho (Candidate q u t ov) = Candidate q (applySubst rho u) (applySubst rho t) ov
 
 instance Subst Term EqualityView where
   applySubst rho (OtherType t) = OtherType
@@ -962,8 +1034,8 @@ instance Subst Term EqualityView where
     (applySubst rho a)
     (applySubst rho b)
 
-instance DeBruijn DeBruijnPattern where
-  debruijnNamedVar n i             = varP $ DBPatVar n i
+instance DeBruijn a => DeBruijn (Pattern' a) where
+  debruijnNamedVar n i             = varP $ debruijnNamedVar n i
   -- deBruijnView returns Nothing, to prevent consS and the like
   -- from dropping the names and origins when building a substitution.
   deBruijnView _                   = Nothing
@@ -976,36 +1048,40 @@ applyPatSubst = applySubst . fromPatternSubstitution
 
 
 usePatOrigin :: PatOrigin -> Pattern' a -> Pattern' a
-usePatOrigin o p = case patternOrigin p of
+usePatOrigin o p = case patternInfo p of
+  Nothing -> p
+  Just i  -> usePatternInfo (i { patOrigin = o }) p
+
+usePatternInfo :: PatternInfo -> Pattern' a -> Pattern' a
+usePatternInfo i p = case patternOrigin p of
   Nothing         -> p
   Just PatOSplit  -> p
   Just PatOAbsurd -> p
   Just _          -> case p of
-    (VarP _ x) -> VarP o x
-    (DotP _ u) -> DotP o u
-    (ConP c (ConPatternInfo (Just _) ft b l) ps)
-      -> ConP c (ConPatternInfo (Just o) ft b l) ps
-    DefP _ q ps -> DefP o q ps
-    ConP{}  -> __IMPOSSIBLE__
-    LitP{}  -> __IMPOSSIBLE__
+    (VarP _ x) -> VarP i x
+    (DotP _ u) -> DotP i u
+    (ConP c (ConPatternInfo _ r ft b l) ps)
+      -> ConP c (ConPatternInfo i r ft b l) ps
+    DefP _ q ps -> DefP i q ps
+    (LitP _ l) -> LitP i l
     ProjP{} -> __IMPOSSIBLE__
-    (IApplyP _ t u x) -> IApplyP o t u x
+    (IApplyP _ t u x) -> IApplyP i t u x
 
 instance Subst DeBruijnPattern DeBruijnPattern where
   applySubst IdS p = p
   applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+    VarP i x     ->
+      usePatternInfo i $
       useName (dbPatVarName x) $
       lookupS rho $ dbPatVarIndex x
-    DotP o u     -> DotP o $ applyPatSubst rho u
+    DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps  -> DefP o q $ applySubst rho ps
-    LitP x       -> p
+    DefP i q ps  -> DefP i q $ applySubst rho ps
+    LitP i x     -> p
     ProjP{}      -> p
-    IApplyP o t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
-                        IApplyP _ _ _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
-                        VarP  _ y -> IApplyP o (applyPatSubst rho t) (applyPatSubst rho u) y
+    IApplyP i t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
+                        IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
+                        VarP  _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
                         _ -> __IMPOSSIBLE__
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
@@ -1025,15 +1101,18 @@ instance Subst Term Range where
 --
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
-projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
-projDropParsApply (Projection prop d r _ lams) o args =
+projDropParsApply :: Projection -> ProjOrigin -> Relevance -> Args -> Term
+projDropParsApply (Projection prop d r _ lams) o rel args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
     Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
-      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d]
-                           else Lam i $ Abs y $ Def d [Apply $ Var 0 [] <$ r] -- Issue2226: get ArgInfo for principal argument from projFromType
+      let irr = isIrrelevant rel
+          core
+            | proper && not irr = Lam i $ Abs y $ Var 0 [Proj o d]
+            | otherwise         = Lam i $ Abs y $ Def d [Apply $ Var 0 [] <$ r]
+            -- Issue2226: get ArgInfo for principal argument from projFromType
       -- Now drop pars many args
           (pars', args') = dropCommon pars args
       -- We only have to abstract over the parameters that exceed the arguments.
@@ -1051,8 +1130,8 @@ type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Show, Functor)
 
-deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
-deriving instance (Subst t a, Ord a) => Ord (TelV a)
+deriving instance (Subst Term a, Eq  a) => Eq  (TelV a)
+deriving instance (Subst Term a, Ord a) => Ord (TelV a)
 
 -- | Takes off all exposed function domains from the given type.
 --   This means that it does not reduce to expose @Pi@-types.
@@ -1080,17 +1159,26 @@ bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
 bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
 
+bindsToTel'1 :: (Name -> a) -> List1 Name -> Dom Type -> ListTel' a
+bindsToTel'1 f = bindsToTel' f . List1.toList
+
+bindsToTel1 :: List1 Name -> Dom Type -> ListTel
+bindsToTel1 = bindsToTel . List1.toList
+
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 namedBindsToTel :: [NamedArg Name] -> Type -> Telescope
 namedBindsToTel []       t = EmptyTel
 namedBindsToTel (x : xs) t =
   ExtendTel (t <$ domFromNamedArgName x) $ Abs (nameToArgName $ namedArg x) $ namedBindsToTel xs (raise 1 t)
 
+namedBindsToTel1 :: List1 (NamedArg Name) -> Type -> Telescope
+namedBindsToTel1 = namedBindsToTel . List1.toList
+
 domFromNamedArgName :: NamedArg Name -> Dom ()
 domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
   where
     -- If no explicit name is given we use the bound name for the label.
-    forceName (Named Nothing x) = Named (Just $ Ranged (getRange x) $ nameToArgName x) x
+    forceName (Named Nothing x) = Named (Just $ WithOrigin Inserted $ Ranged (getRange x) $ nameToArgName x) x
     forceName x = x
 
 -- ** Abstracting in terms and types
@@ -1101,7 +1189,7 @@ mkPi !dom b = el $ Pi a (mkAbs x b)
   where
     x = fst $ unDom dom
     a = snd <$> dom
-    el = El $ piSort (getSort a) (Abs x (getSort b)) -- piSort checks x freeIn
+    el = El $ piSort a (Abs x (getSort b)) -- piSort checks x freeIn
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
@@ -1112,7 +1200,7 @@ telePi' reAbs = telePi where
   telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
     where
       b  = (`telePi` t) <$> tel
-      el = El $ piSort (getSort u) (getSort <$> b)
+      el = El $ piSort u (getSort <$> b)
 
 -- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
@@ -1121,6 +1209,21 @@ telePi = telePi' reAbs
 -- | Everything will be an 'Abs'.
 telePi_ :: Telescope -> Type -> Type
 telePi_ = telePi' id
+
+-- | Only abstract the visible components of the telescope,
+--   and all that bind variables.  Everything will be an 'Abs'!
+-- Caution: quadratic time!
+
+telePiVisible :: Telescope -> Type -> Type
+telePiVisible EmptyTel t = t
+telePiVisible (ExtendTel u tel) t
+    -- If u is not declared visible and b can be strengthened, skip quantification of u.
+    | notVisible u, NoAbs x t' <- b' = t'
+    -- Otherwise, include quantification over u.
+    | otherwise = El (piSort u $ getSort <$> b) $ Pi u b
+  where
+    b  = tel <&> (`telePiVisible` t)
+    b' = reAbs b
 
 -- | Abstract over a telescope in a term, producing lambdas.
 --   Dumb abstraction: Always produces 'Abs', never 'NoAbs'.
@@ -1135,7 +1238,7 @@ class TeleNoAbs a where
   teleNoAbs :: a -> Term -> Term
 
 instance TeleNoAbs ListTel where
-  teleNoAbs tel t = foldr (\ (Dom{domInfo = ai, unDom = (x, _)}) -> Lam ai . NoAbs x) t tel
+  teleNoAbs tel t = foldr (\ Dom{domInfo = ai, unDom = (x, _)} -> Lam ai . NoAbs x) t tel
 
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel
@@ -1177,20 +1280,32 @@ deriving instance Ord Level
 deriving instance Eq PlusLevel
 deriving instance Eq NotBlocked
 deriving instance Eq t => Eq (Blocked t)
+deriving instance Eq CandidateKind
 deriving instance Eq Candidate
 
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
-deriving instance Eq Constraint
+-- Andreas, 2019-11-16, issue #4201: to avoid potential unintended
+-- performance loss, the Eq instance for Constraint is disabled:
+--
+-- -- deriving instance Eq Constraint
+--
+-- I am tempted to write
+--
+--   instance Eq Constraint where (==) = undefined
+--
+-- but this does not give a compilation error anymore when trying
+-- to use equality on constraints.
+-- Therefore, I hope this comment is sufficient to prevent a resurrection
+-- of the Eq instance for Constraint.
+
+deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where
-  compare ClosedLevel{} Plus{}            = LT
-  compare Plus{} ClosedLevel{}            = GT
-  compare (ClosedLevel n) (ClosedLevel m) = compare n m
   -- Compare on the atom first. Makes most sense for levelMax.
-  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
+  compare (Plus n a) (Plus m b) = compare (a,n) (b,m)
 
 instance Eq LevelAtom where
   (==) = (==) `on` unLevelAtom
@@ -1224,7 +1339,7 @@ instance Eq a => Eq (Pattern' a) where
   VarP _ x        == VarP _ y          = x == y
   DotP _ u        == DotP _ v          = u == v
   ConP c _ ps     == ConP c' _ qs      = c == c && ps == qs
-  LitP l          == LitP l'           = l == l'
+  LitP _ l        == LitP _ l'         = l == l'
   ProjP _ f       == ProjP _ g         = f == g
   IApplyP _ u v x == IApplyP _ u' v' y = u == u' && v == v' && x == y
   DefP _ f ps     == DefP _ g qs       = f == g && ps == qs
@@ -1287,14 +1402,14 @@ instance Ord Term where
 --   which is a special case of renaming
 --   which is a special case of substitution.
 instance (Subst t a, Eq a) => Eq (Abs a) where
-  NoAbs _ a == NoAbs _ b = a == b
-  Abs   _ a == Abs   _ b = a == b
+  NoAbs _ a == NoAbs _ b = a == b  -- no need to raise if both are NoAbs
   a         == b         = absBody a == absBody b
 
 instance (Subst t a, Ord a) => Ord (Abs a) where
-  NoAbs _ a `compare` NoAbs _ b = a `compare` b
-  Abs   _ a `compare` Abs   _ b = a `compare` b
+  NoAbs _ a `compare` NoAbs _ b = a `compare` b  -- no need to raise if both are NoAbs
   a         `compare` b         = absBody a `compare` absBody b
+
+deriving instance Ord a => Ord (Dom a)
 
 instance (Subst t a, Eq a)  => Eq  (Elim' a) where
   Apply  a == Apply  b = a == b
@@ -1316,140 +1431,166 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 -- * Sort stuff
 ---------------------------------------------------------------------------
 
--- | Get the next higher sort.
-univSort' :: Maybe Sort -> Sort -> Maybe Sort
-univSort' univInf (Type l) = Just $ Type $ levelSuc l
-univSort' univInf (Prop l) = Just $ Type $ levelSuc l
-univSort' univInf LockUniv = Just $ Type $ levelSuc $ Max []
-univSort' univInf Inf      = univInf
-univSort' univInf s        = Nothing
+-- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
+--   known (i.e. it is not just @UnivSort s@).
+--
+--   Precondition: @s@ is reduced
+univSort' :: Sort -> Maybe Sort
+univSort' (Type l) = Just $ Type $ levelSuc l
+univSort' (Prop l) = Just $ Type $ levelSuc l
+univSort' (Inf n)  = Just $ Inf  $ 1 + n
+univSort' SizeUniv = Just $ Inf 0
+univSort' LockUniv = Just $ Type $ levelSuc $ Max 0 [] -- TODO Lock: do we need this?
+univSort' s        = Nothing
 
-univSort :: Maybe Sort -> Sort -> Sort
-univSort univInf s = fromMaybe (UnivSort s) $ univSort' univInf s
+univSort :: Sort -> Sort
+univSort s = fromMaybe (UnivSort s) $ univSort' s
 
-univInf :: (HasOptions m) => m (Maybe Sort)
-univInf =
-  ifM ((optOmegaInOmega <$> pragmaOptions) `or2M` typeInType)
-  {-then-} (return $ Just Inf)
-  {-else-} (return Nothing)
+-- | Returns @Just True@ for (relatively) small sorts like @Set l@ and
+--   @Prop l@, returns @Just False@ for large sorts such as @Setω@ and
+--   @Nothing@ for unknown (meta) sorts.
+isSmallSort :: Sort -> Maybe Bool
+isSmallSort Type{}     = Just True
+isSmallSort Prop{}     = Just True
+isSmallSort SizeUniv   = Just True
+isSmallSort LockUniv   = Just True
+isSmallSort Inf{}      = Just False
+isSmallSort MetaS{}    = Nothing
+isSmallSort FunSort{}  = Nothing
+isSmallSort PiSort{}   = Nothing
+isSmallSort UnivSort{} = Nothing
+isSmallSort DefS{}     = Nothing
+isSmallSort DummyS{}   = Nothing
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
 funSort' :: Sort -> Sort -> Maybe Sort
 funSort' a b = case (a, b) of
-  (Inf           , _            ) -> Just Inf
-  (_             , Inf          ) -> Just Inf
-  (Type (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
+  (Inf m         , Inf n        ) -> Just $ Inf $ max m n
+  (Inf m         , b            ) | isSmallSort b == Just True -> Just $ Inf m
+  (a             , Inf n        ) | isSmallSort a == Just True -> Just $ Inf n
+  (Type a , Type b) -> Just $ Type $ levelLub a b
   (LockUniv      , b            ) -> Just b
   (a             , LockUniv     ) -> Nothing
   (SizeUniv      , b            ) -> Just b
-  (_             , SizeUniv     ) -> Just SizeUniv
-  (Prop (Max as) , Type (Max bs)) -> Just $ Type $ levelMax $ as ++ bs
-  (Type (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
-  (Prop (Max as) , Prop (Max bs)) -> Just $ Prop $ levelMax $ as ++ bs
+  (a             , SizeUniv     ) | isSmallSort a == Just True -> Just SizeUniv
+  (Prop a , Type b) -> Just $ Type $ levelLub a b
+  (Type a , Prop b) -> Just $ Prop $ levelLub a b
+  (Prop a , Prop b) -> Just $ Prop $ levelLub a b
   (a             , b            ) -> Nothing
 
 funSort :: Sort -> Sort -> Sort
-funSort a b = fromMaybe (PiSort a (NoAbs underscore b)) $ funSort' a b
+funSort a b = fromMaybe (FunSort a b) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
-piSort' :: Sort -> Abs Sort -> Maybe Sort
-piSort' a      (NoAbs _ b) = funSort' a b
-piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
-    -- Andreas, Jesper, AIM XXIX, 2019-03-18, issue #3631
-    -- Remember the NoAbs here!
-    NoOccurrence  -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
-    -- Andreas, 2017-01-18, issue #2408:
-    -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
-    -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
-    -- Alternatives:
-    -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
-    --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
-    --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
-    --    and that if we already have a neutral level @f a@
-    --    it should not hurt to have @f *@ even if type @A@ is empty.
-    --    However: sorts are printed in error messages when sorts do not match.
-    --    Also, sorts with a dummy like Prop would be ill-typed.
-    -- 2. We keep the DLub, and serialize it.
-    --    That's clean and principled, even though DLubs make level solving harder.
-    -- Jesper, 2018-04-20: another alternative:
-    -- 3. Return @Inf@ as in the relevant case. This is conservative and might result
-    --    in more occurrences of @Setω@ than desired, but at least it doesn't pollute
-    --    the sort system with new 'exotic' sorts.
-    Irrelevantly  -> Just Inf
-    StronglyRigid -> Just Inf
-    Unguarded     -> Just Inf
-    WeaklyRigid   -> Just Inf
+piSort' :: Dom Type -> Abs Sort -> Maybe Sort
+piSort' a      (NoAbs _ b) = funSort' (getSort a) b
+piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
+  Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
+  Just o | isSmallSort (getSort a) == Just True , isSmallSort b == Just True -> case o of
+    StronglyRigid -> Just $ Inf 0
+    Unguarded     -> Just $ Inf 0
+    WeaklyRigid   -> Just $ Inf 0
     Flexible _    -> Nothing
+  Just o | Inf n <- getSort a , isSmallSort b == Just True -> Just $ Inf n
+  Just _ -> Nothing
 
-piSort :: Sort -> Abs Sort -> Sort
-piSort a b = fromMaybe (PiSort a b) $ piSort' a b
+-- Andreas, 2019-06-20
+-- KEEP the following commented out code for the sake of the discussion on irrelevance.
+-- piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of
+--     -- Andreas, Jesper, AIM XXIX, 2019-03-18, issue #3631
+--     -- Remember the NoAbs here!
+--     NoOccurrence  -> Just $ funSort a $ noabsApp __IMPOSSIBLE__ bAbs
+--     -- Andreas, 2017-01-18, issue #2408:
+--     -- The sort of @.(a : A) → Set (f a)@ in context @f : .A → Level@
+--     -- is @dLub Set λ a → Set (lsuc (f a))@, but @DLub@s are not serialized.
+--     -- Alternatives:
+--     -- 1. -- Irrelevantly -> sLub s1 (absApp b $ DontCare $ Sort Prop)
+--     --    We cheat here by simplifying the sort to @Set (lsuc (f *))@
+--     --    where * is a dummy value.  The rationale is that @f * = f a@ (irrelevance!)
+--     --    and that if we already have a neutral level @f a@
+--     --    it should not hurt to have @f *@ even if type @A@ is empty.
+--     --    However: sorts are printed in error messages when sorts do not match.
+--     --    Also, sorts with a dummy like Prop would be ill-typed.
+--     -- 2. We keep the DLub, and serialize it.
+--     --    That's clean and principled, even though DLubs make level solving harder.
+--     -- Jesper, 2018-04-20: another alternative:
+--     -- 3. Return @Inf@ as in the relevant case. This is conservative and might result
+--     --    in more occurrences of @Setω@ than desired, but at least it doesn't pollute
+--     --    the sort system with new 'exotic' sorts.
+--     Irrelevantly  -> Just Inf
+--     StronglyRigid -> Just Inf
+--     Unguarded     -> Just Inf
+--     WeaklyRigid   -> Just Inf
+--     Flexible _    -> Nothing
+
+piSort :: Dom Type -> Abs Sort -> Sort
+piSort a b = case piSort' a b of
+  Just s -> s
+  Nothing | NoAbs _ b' <- b -> FunSort (getSort a) b'
+          | otherwise       -> PiSort a b
 
 ---------------------------------------------------------------------------
 -- * Level stuff
 ---------------------------------------------------------------------------
 
-levelMax :: [PlusLevel] -> Level
-levelMax as0 = Max $ ns ++ List.sort bs
+-- ^ Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
+levelMax :: Integer -> [PlusLevel] -> Level
+levelMax n0 as0 = Max n as
   where
-    as = Prelude.concatMap expand as0
-    -- ns is empty or a singleton
-    ns = case [ n | ClosedLevel n <- as, n > 0 ] of
-      []  -> []
-      ns  -> [ ClosedLevel n | let n = Prelude.maximum ns, n > greatestB ]
-    bs = subsume [ b | b@Plus{} <- as ]
-    greatestB | null bs   = 0
-              | otherwise = Prelude.maximum [ n | Plus n _ <- bs ]
+    -- step 1: flatten nested @Level@ expressions in @LevelAtom@s
+    Max n1 as1 = expandLevel $ Max n0 as0
+    -- step 2: remove subsumed @PlusLevel@s
+    as2       = removeSubsumed as1
+    -- step 3: sort remaining @PlusLevel@s
+    as        = List.sort as2
+    -- step 4: set constant to 0 if it is subsumed by one of the @PlusLevel@s
+    greatestB = Prelude.maximum $ 0 : [ n | Plus n _ <- as ]
+    n | n1 > greatestB = n1
+      | otherwise      = 0
 
-    expand l@ClosedLevel{} = [l]
-    expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
+    lmax :: Integer -> [PlusLevel] -> [Level] -> Level
+    lmax m as []              = Max m as
+    lmax m as (Max n bs : ls) = lmax (max m n) (bs ++ as) ls
 
-    expand0 [] = [ClosedLevel 0]
-    expand0 as = as
+    expandLevel :: Level -> Level
+    expandLevel (Max m as) = lmax m [] $ map expandPlus as
 
+    expandPlus :: PlusLevel -> Level
+    expandPlus (Plus m l) = levelPlus m $ expandAtom l
+
+    expandAtom :: LevelAtom -> Level
     expandAtom l = case l of
       BlockedLevel _ v -> expandTm v
       NeutralLevel _ v -> expandTm v
       UnreducedLevel v -> expandTm v
-      MetaLevel{}      -> [Plus 0 l]
+      MetaLevel{}      -> Max 0 [Plus 0 l]
       where
-        expandTm v = case v of
-          Level (Max as)       -> as
-          Sort (Type (Max as)) -> as
-          _                    -> [Plus 0 l]
+        expandTm (Level l)       = expandLevel l
+        expandTm (Sort (Type l)) = expandLevel l -- TODO: get rid of this horrible hack!
+        expandTm v               = Max 0 [Plus 0 l]
 
-    plus n (ClosedLevel m) = ClosedLevel (n + m)
-    plus n (Plus m l)      = Plus (n + m) l
-
-    subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
-    subsume [] = []
-    subsume (Plus n a : bs)
-      | not $ null ns = subsume bs
-      | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
+    removeSubsumed [] = []
+    removeSubsumed (Plus n a : bs)
+      | not $ null ns = removeSubsumed bs
+      | otherwise     = Plus n a : removeSubsumed [ b | b@(Plus _ a') <- bs, a /= a' ]
       where
-        ns = [ m | Plus m a'  <- bs, a == a', m > n ]
+        ns = [ m | Plus m a' <- bs, a == a', m > n ]
+
+-- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
+--   canonical form.
+levelLub :: Level -> Level -> Level
+levelLub (Max m as) (Max n bs) = levelMax (max m n) $ as ++ bs
 
 levelTm :: Level -> Term
 levelTm l =
   case l of
-    Max [Plus 0 l] -> unLevelAtom l
-    _              -> Level l
+    Max 0 [Plus 0 l] -> unLevelAtom l
+    _                -> Level l
 
 unLevelAtom :: LevelAtom -> Term
 unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
-
-levelSucView :: Level -> Maybe Level
-levelSucView (Max []) = Nothing
-levelSucView (Max as) = Max <$> traverse atomPred as
-  where
-    atomPred :: PlusLevel -> Maybe PlusLevel
-    atomPred (ClosedLevel n)
-      | n > 0     = Just $ ClosedLevel (n-1)
-      | otherwise = Nothing
-    atomPred (Plus n l)
-      | n > 0     = Just $ Plus (n-1) l
-      | otherwise = Nothing

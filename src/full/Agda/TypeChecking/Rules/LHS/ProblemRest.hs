@@ -1,22 +1,13 @@
-{-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE CPP           #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
-#if __GLASGOW_HASKELL__ <= 708
-import Data.Functor ( (<$), (<$>) )
-#endif
-
-import Control.Arrow (first, second)
 import Control.Monad
 
-import Data.Functor ((<$))
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -28,11 +19,8 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
-import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Permutation
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Rename the variables in a telescope using the names from a given pattern.
@@ -51,15 +39,21 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         -- Andreas, 2017-10-12, issue #2803, also preserve user-written hidden names.
         -- However, not if the argument is named, because then the name in the telescope
         -- is significant for implicit insertion.
-        A.VarP (A.BindName x)
+        A.VarP A.BindName{unBind = x}
           | not (isNoName x)
-          , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
+          , visible dom || (getOrigin ai == UserWritten && isNothing nm) ->
           dom{ unDom = (nameToArgName x, a) }
         A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
         -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
         _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom
+
+useNamesFromProblemEqs :: [ProblemEq] -> Telescope -> TCM Telescope
+useNamesFromProblemEqs eqs tel = addContext tel $ do
+  names <- fst . getUserVariableNames tel . patternVariables <$> getLeftoverPatterns eqs
+  let argNames = map (fmap nameToArgName) names
+  return $ renameTel argNames tel
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
 useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
@@ -86,7 +80,9 @@ noProblemRest (Problem _ rp _) = null rp
 --   @
 --      lhsTel        = [A : Set, m : Maybe A]
 --      lhsOutPat     = ["A", "m"]
---      lhsProblem    = Problem ["_", "just a"] [] [] []
+--      lhsProblem    = Problem ["A" = _, "just a" = "a"]
+--                              ["_", "just a"]
+--                              ["just b"] []
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
 --   @
 initLHSState
@@ -113,7 +109,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   let m = length $ takeWhile (isNothing . A.isProjP) ps
   (TelV gamma b, boundary) <- telViewUpToPathBoundaryP m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
-    unless (sameHiding p a) $ typeError WrongHidingInLHS
+    unless (sameHiding p a) $ setCurrentRange p $ typeError WrongHidingInLHS
   let tel1      = useNamesFromPattern ps gamma
       n         = size tel1
       (ps1,ps2) = splitAt n ps
@@ -137,7 +133,13 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
     ]
   reportSDoc "tc.lhs.problem" 60 $ addContext tel0 $ vcat
     [ nest 2 $ vcat
-      [ "qs1    =" <+> fsep (map pretty qs1)
+      [ "ps    =" <+> (text . show) ps
+      , "a     =" <+> (text . show) a
+      , "tel1  =" <+> (text . show) tel1
+      , "ps1   =" <+> (text . show) ps1
+      , "ps2   =" <+> (text . show) ps2
+      , "b     =" <+> (text . show) b
+      , "qs1   =" <+> fsep (map pretty qs1)
       ]
     ]
   return $ LHSState

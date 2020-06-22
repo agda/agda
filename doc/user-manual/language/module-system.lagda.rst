@@ -21,9 +21,11 @@ Module application
 Anonymous modules
 -----------------
 
+.. _module-basics:
+
 Basics
 ------
-First let us introduce some terminology. A definition is a syntactic construction defining an entity such as a function or a datatype. A name is a string used to identify definitions. The same definition can have many names and at different points in the program it will have different names. It may also be the case that two definitions have the same name. In this case there will be an error if the name is used.
+First let us introduce some terminology. A **definition** is a syntactic construction defining an entity such as a function or a datatype. A name is a string used to identify definitions. The same definition can have many names and at different points in the program it will have different names. It may also be the case that two definitions have the same name. In this case there will be an error if the name is used.
 
 The main purpose of the module system is to structure the way names are used in a program. This is done by organising the program in an hierarchical structure of modules where each module contains a number of definitions and submodules. For instance,
 ::
@@ -104,7 +106,27 @@ An alternative to making definitions private is to exert finer control over what
   open A using (xs) renaming (ys to zs)
 
 is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
-An omitted renaming modifier is equivalent to an empty renaming.
+An omitted ``renaming`` modifier is equivalent to an empty renaming.
+
+To refer to a module ``M`` inside ``A`` you write ``module M``. For instance,
+
+.. code-block:: agda
+
+  open A using (module M)
+
+Since 2.6.1: The fixity of an operator can be set or changed in a ``renaming`` directive::
+
+  module ExampleRenamingFixity where
+
+    module ArithFoo where
+      postulate
+        A : Set
+        _&_ _^_ : A → A → A
+      infixr 10 _&_
+
+    open ArithFoo renaming (_&_ to infixl 8 _+_; _^_ to infixl 10 _^_)
+
+Here, we change the fixity of ``_&_`` while renaming it to ``_+_``, and assign a new fixity to ``_^_`` which has the default fixity in module ``ArithFoo``.
 
 Re-exporting names
 ------------------
@@ -230,6 +252,7 @@ Sometimes the name of an imported module clashes with a local module. In this ca
   import M as M’
 
 It is also possible to attach modifiers to import statements, limiting or changing what names are visible from inside the module.
+Note that modifiers attached to ``open import`` statements apply to the ``open`` statement and not the ``import`` statement.
 
 Datatype modules and record modules
 -----------------------------------

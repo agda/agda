@@ -9,6 +9,17 @@
 # the master branch of the GitHub repository, they only have 1471 and
 # 72 commits, respectively. I couldn't fix it.
 
+# Format of a line:
+#
+# Proper Name <Proper@email> commit name <commit@email>
+# \-----------+------------/ \----------+-------------/
+#             |                         |
+#          replace                     find
+#
+# <Proper@email> is never optional and cannot appear by itself.
+# Besides that, the other parts are optional (as long as 2 parts
+# are present).
+
 # Please keep this file in alphabetic order!
 
 ##############################################################################
@@ -29,13 +40,19 @@ Darin Morrison <dwm@cs.nott.ac.uk> dwm
 Darin Morrison <dwm@cs.nott.ac.uk> darinmorrison <darinmorrison@gmail.com>
 Dominique Devriese <dominique.devriese@cs.kuleuven.be> dominique.devriese <dominique.devriese@gmail.com>
 Dominique Devriese <dominique.devriese@cs.kuleuven.be> dominique.devriese
+Ed Nutting <ed@beyondrisc.com> Ed Nutting <1746336+EdNutting@users.noreply.github.com>
+Evgenii Akentev <i@ak3n.com> Eugene Akentyev <ak3ntev@gmail.com>
 Fabien Renaud <fabienr@chalmers.se>
+Fabian Ruch <bafain@gmail.com>
 Fredrik Lindblad <frelindb@chalmers.se> frelindb <frelindb@gmail.com>
 Fredrik Lindblad <frelindb@chalmers.se> frelindb
 Fredrik Nordvall Forsberg <csfnf@swansea.ac.uk> <fredrik.nordvall-forsberg@strath.ac.uk>
 Fredrik Nordvall Forsberg <csfnf@swansea.ac.uk> csfnf <csfnf@swansea.ac.uk>
 Guillaume Brunerie <guillaume.brunerie@gmail.com>
 Guillaume Allais <guillaume.allais@ens-lyon.org> gallais
+Herminie Pagel <nlp@fairbill.com> herminie <47478084+pnlph@users.noreply.github.com>
+Herminie Pagel <nlp@fairbill.com> pnlph
+Holger Borum <holger.stadel.borum@gmail.com> blaavogn
 James Burton <j.burton@brighton.ac.uk>
 James Chapman <james@cs.ioc.ee> james
 James Chapman <james@cs.ioc.ee> James Chapman <jmchapman@gmail.com>
@@ -45,8 +62,12 @@ Jesper Cockx <jesper.cockx@cs.kuleuven.be> <jesper@sikanda.be>
 Karl Mehltretter <mehltret@cip.ifi.lmu.de>
 Kuen-Bang Hou (Favonia) <favonia@gmail.com>
 Lennart Augustsson <lennart@augustsson.net>
+Liang-Ting Chen <liang.ting.chen.tw@gmail.com>
+LUA Ting-Gan <banacorn@gmail.com>
 Makoto Takeyama <makoto.takeyama@aist.go.jp> makoto.takeyama
 Marcin Benke <marcin.benke@gmail.com> marcin.benke
+Marko Dimjašević <marko@dimjasevic.net> Marko Dimjašević <mdimjasevic@users.noreply.github.com>
+Matthew Daggitt <matthewdaggitt@gmail.com>
 Nils Anders Danielsson <nils.anders.danielsson@gmail.com> <nad@cs.chalmers.se>
 Nils Anders Danielsson <nils.anders.danielsson@gmail.com> <nad@cse.gu.se>
 Nils Anders Danielsson <nils.anders.danielsson@gmail.com> nils.anders.danielsson <nils.anders.danielsson@86b02449-c53c-0410-81b4-87051234213d>
@@ -56,11 +77,13 @@ Olle Fredriksson <fredriksson.olle@gmail.com> fredriksson.olle
 Patrick Palka <patrick@parcs.ath.cx>
 Patrik Jansson <patrikj@chalmers.se> patrikj
 Péter Diviánszky <divipp@gmail.com> divipp
+Philipp Hausmann <ph_git@314.ch> Philipp Hausmann <philipp@xpc001.lenzburg>
 Ryan Scott <ryan.gl.scott@ku.edu>
 Samuel Gélineau <gelisam@gmail.com>
 Shin-Cheng Mu <scm@iis.sinica.edu.tw>
 Stefan Monnier <monnier@iro.umontreal.ca> monnier
 Steven Keuchel <steven.keuchel@gmail.com>
+Tesla Ice Zhang <ice1000kotlin@foxmail.com> ice1000
 Thomas Anberree <thomas.anberree@nottingham.edu.cn>
 Thorsten Altenkirch <txa@cs.nott.ac.uk>
 Ulf Norell <ulfn@chalmers.se> ulfn <ulfn@cs.chalmers.se>
@@ -68,5 +91,7 @@ Ulf Norell <ulfn@chalmers.se> ulf.norell <ulf.norell@gmail.com>
 Ulf Norell <ulfn@chalmers.se> ulf.norell <ulf.norell@86b02449-c53c-0410-81b4-87051234213d>
 Ulf Norell <ulfn@chalmers.se> ulfn
 <ulfn@chalmers.se> <ulf.norell@gmail.com>
-<w.s.swierstra@uu.nl> <wss@cs.nott.ac.uk>
+Víctor López Juan <victor@lopezjuan.com>
+Wen Kokke <wen.kokke@gmail.com> Pepijn Kokke <pepijn.kokke@gmail.com>
+Wouter Swierstra <w.s.swierstra@uu.nl> <wss@cs.nott.ac.uk>
 Wojciech Jedynak <wjedynak@gmail.com>

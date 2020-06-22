@@ -1,0 +1,64 @@
+# This file contains the project-specific settings for `fix-whitespace` a tiny
+# but useful tool to
+#
+# * Removes trailing whitespace.
+# * Removes trailing lines containing nothing but whitespace.
+# * Ensures that the file ends in a newline character.
+#
+# By default, fix-whitespace checks every directory under the current working
+# directory but no files. This program should be placed under a text-based
+# project.
+#
+# For directories,
+#
+# 1) excluded-dirs is a black-list of directories,
+# 2) included-dirs is a white-list of excluded-dirs
+#
+# For files,
+#
+# 3) included-files is a white-list of files,
+# 4) excluded-files is a black-list of included-files.
+#
+# The extended glob pattern can be used to specify file/direcotory names.
+# For details, see http://hackage.haskell.org/package/filemanip-0.3.6.3/docs/System-FilePath-GlobPattern.html
+#
+included-dirs:
+  - src/full/Agda/Compiler/MAlonzo
+    # Without this line the above path will be excluded.
+
+excluded-dirs:
+  - "**/MAlonzo" # matches every MAlonzo in any directory including the src/full/Agda/Compiler/MAlonzo
+  - "**/dist*"   # matches every dist* in any directory
+  - .stack-work
+  - _darcs
+  - .git
+  - std-lib
+  - test/Succeed/LineEndings
+  - examples/uptodate
+
+# Every matched filename is included unless it is matched by excluded-files.
+included-files:
+  - "*.agda"
+  - "*.cabal"
+  - "*.el"
+  - "*.hs"
+  - "*.hs-boot"
+  - "*.lagda"
+  - "*.lhs"
+  - "*.md"
+  - "*.rst"
+  - "*.x"
+  - "*.y"
+  - "*.yaml"
+  - "*.yml"
+
+excluded-files:
+# Andreas (24 Sep 2014).
+# The following files are exempt from the whitespace check,
+# as they test behavior of Agda with regard to tab characters.
+  - "test/Succeed/Whitespace.agda"
+  - "test/Succeed/Issue1337.agda"
+  - "test/Fail/Tabs.agda"
+  - "test/Fail/TabsInPragmas.agda"
+  - "src/full/Agda/Syntax/Parser/Lexer.hs"
+  - "test/LaTeXAndHTML/succeed/AccidentalSpacesAfterBeginCode.lagda"

@@ -1,3 +1,3 @@
 IdiomBracketsNotInScope.agda:12,10-21
-_<*>_ needs to be in scope to use idiom brackets (| ... |)
-when scope checking (| suc a |)
+_<*>_ needs to be in scope to use idiom brackets ⦇ ... ⦈
+when scope checking ⦇ suc a ⦈

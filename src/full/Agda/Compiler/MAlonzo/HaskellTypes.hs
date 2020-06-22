@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- | Translating Agda types to Haskell types. Used to ensure that imported
 --   Haskell functions have the right type.
@@ -9,11 +8,10 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   , hsTelApproximation, hsTelApproximation'
   ) where
 
-#if MIN_VERSION_base(4,11,0)
-import Prelude hiding ((<>))
-#endif
-
 import Control.Monad (zipWithM)
+import Control.Monad.Except
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Fail (MonadFail)
 import Data.Maybe (fromMaybe)
 import Data.List (intercalate)
 
@@ -21,7 +19,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
@@ -31,14 +28,12 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Compiler.MAlonzo.Pragmas
 import Agda.Compiler.MAlonzo.Misc
-import Agda.Compiler.MAlonzo.Pretty
+import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Agda.Utils.Except
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
 hsQCon :: String -> String -> HS.Type
@@ -76,8 +71,8 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
     reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
     reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
     reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
-    reason (NoPragmaFor      x) = [prettyTCM x] ++ pwords "which does not have a COMPILE pragma."
-    reason (WrongPragmaFor _ x) = [prettyTCM x] ++ pwords "which has the wrong kind of COMPILE pragma."
+    reason (NoPragmaFor      x) = prettyTCM x : pwords "which does not have a COMPILE pragma."
+    reason (WrongPragmaFor _ x) = prettyTCM x : pwords "which has the wrong kind of COMPILE pragma."
 
     possibleFix BadLambda{}     = empty
     possibleFix BadMeta{}       = empty
@@ -103,11 +98,8 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
 runToHs :: Term -> ToHs a -> TCM a
 runToHs top m = either (notAHaskellType top) return =<< runExceptT m
 
-liftE1 :: (forall a. m a -> m a) -> ExceptT e m a -> ExceptT e m a
-liftE1 f = mkExceptT . f . runExceptT
-
 liftE1' :: (forall b. (a -> m b) -> m b) -> (a -> ExceptT e m b) -> ExceptT e m b
-liftE1' f k = mkExceptT (f (runExceptT . k))
+liftE1' f k = ExceptT (f (runExceptT . k))
 
 -- Only used in hsTypeApproximation below, and in that case we catch the error.
 getHsType' :: QName -> TCM HS.Type
@@ -117,6 +109,7 @@ getHsType :: QName -> ToHs HS.Type
 getHsType x = do
   d <- liftTCM $ getHaskellPragma x
   list <- liftTCM $ getBuiltinName builtinList
+  mayb <- liftTCM $ getBuiltinName builtinMaybe
   inf  <- liftTCM $ getBuiltinName builtinInf
   let namedType = liftTCM $ do
         -- For these builtin types, the type name (xhqn ...) refers to the
@@ -127,15 +120,16 @@ getHsType x = do
         if  | Just x `elem` [nat, int] -> return $ hsCon "Integer"
             | Just x == bool           -> return $ hsCon "Bool"
             | otherwise                -> hsCon . prettyShow <$> xhqn "T" x
-  liftE1 (setCurrentRange d) $ case d of
+  mapExceptT (setCurrentRange d) $ case d of
     _ | Just x == list -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == mayb -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for Maybe
     _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
     Just HsDefn{}      -> throwError $ WrongPragmaFor (getRange d) x
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
     _                  -> throwError $ NoPragmaFor x
 
-getHsVar :: MonadTCM tcm => Nat -> tcm HS.Name
+getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i = HS.Ident . encodeName <$> nameOfBV i
   where
     encodeName x = "x" ++ concatMap encode (prettyShow x)
@@ -177,15 +171,15 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Sort{}     -> return hsUnit
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
-        Dummy s    -> __IMPOSSIBLE_VERBOSE__ s
+        Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 haskellType :: QName -> TCM HS.Type
 haskellType q = do
   def <- getConstInfo q
   let (np, erased) =
         case theDef def of
-          Constructor{ conPars = np, conErased = erased }
-            -> (np, erased ++ repeat False)
+          Constructor{ conPars, conErased }
+            -> (conPars, fromMaybe [] conErased ++ repeat False)
           _ -> (0, repeat False)
       stripErased (True  : es) (HS.TyFun _ t)     = stripErased es t
       stripErased (False : es) (HS.TyFun s t)     = HS.TyFun s $ stripErased es t
@@ -199,7 +193,7 @@ haskellType q = do
           Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
           _       -> __IMPOSSIBLE__
   ty <- underPars np $ defType def
-  reportSDoc "tc.pragma.compile" 10 $ ("Haskell type for" <+> prettyTCM q <> ":") <?> pretty ty
+  reportSDoc "tc.pragma.compile" 10 $ (("Haskell type for" <+> prettyTCM q) <> ":") <?> pretty ty
   return ty
 
 checkConstructorCount :: QName -> [QName] -> [HaskellCode] -> TCM ()
@@ -214,7 +208,7 @@ checkConstructorCount d cs hsCons
              | otherwise = ""
 
     genericDocError =<<
-      fsep ([prettyTCM d] ++ pwords ("has " ++ show n ++
+      fsep (prettyTCM d : pwords ("has " ++ show n ++
             " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hsCons ++ "]"))
   where
     n  = length cs
@@ -228,6 +222,7 @@ data PolyApprox = PolyApprox | NoPolyApprox
 hsTypeApproximation :: PolyApprox -> Int -> Type -> TCM HS.Type
 hsTypeApproximation poly fv t = do
   list <- getBuiltinName builtinList
+  mayb <- getBuiltinName builtinMaybe
   bool <- getBuiltinName builtinBool
   int  <- getBuiltinName builtinInteger
   nat  <- getBuiltinName builtinNat
@@ -243,8 +238,10 @@ hsTypeApproximation poly fv t = do
           Pi a b -> HS.TyFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
-            | q `is` list, Apply t <- last ([Proj ProjSystem __IMPOSSIBLE__] ++ els)
+            | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
                         -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
+            | q `is` mayb, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
+                        -> HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
             | q `is` bool -> return $ tyCon "Bool"
             | q `is` int  -> return $ tyCon "Integer"
             | q `is` nat  -> return $ tyCon "Integer"

@@ -122,6 +122,9 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-error-face
              :foreground "red"
              :underline t)
+            (agda2-highlight-error-warning-face
+             :background "light coral"
+             :underline t)
             (agda2-highlight-unsolved-meta-face
              :foreground "black"
              :background "yellow")
@@ -233,17 +236,26 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-keyword-face
-  '((t (:foreground "DarkOrange3")))
+  '((((background light))
+     (:foreground "DarkOrange3"))
+    (((background dark))
+     (:foreground "#FF9932")))
   "The face used for keywords."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-string-face
-  '((t (:foreground "firebrick")))
+  '((((background light))
+     (:foreground "firebrick"))
+    (((background dark))
+     (:foreground "#DD4D4D")))
   "The face used for strings."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-number-face
-  '((t (:foreground "purple")))
+  '((((background light))
+     (:foreground "purple"))
+    (((background dark))
+     (:foreground "#9010E0")))
   "The face used for numbers."
   :group 'agda2-highlight-faces)
 
@@ -256,7 +268,10 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-primitive-type-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for primitive types (like Set and Prop)."
   :group 'agda2-highlight-faces)
 
@@ -271,37 +286,58 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-inductive-constructor-face
-  '((t (:foreground "green4")))
+  '((((background light))
+     :foreground "green4")
+    (((background dark))
+     :foreground "#29CC29"))
   "The face used for inductive constructors."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-coinductive-constructor-face
-  '((t (:foreground "gold4")))
+  '((((background light))
+     :foreground "gold4")
+    (((background dark))
+     :foreground "#FFEA75"))
   "The face used for coinductive constructors."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-datatype-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for datatypes."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-field-face
-  '((t (:foreground "DeepPink2")))
+  '((((background light))
+     (:foreground "DeepPink2"))
+    (((background dark))
+     (:foreground "#F570B7")))
   "The face used for record fields."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-function-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for functions."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-module-face
-  '((t (:foreground "purple")))
+  '((((background light))
+     (:foreground "purple"))
+    (((background dark))
+     (:foreground "#CD80FF")))
   "The face used for module names."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-postulate-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for postulates."
   :group 'agda2-highlight-faces)
 
@@ -311,17 +347,26 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-primitive-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for primitive functions."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-macro-face
-  '((t (:foreground "aquamarine4")))
+  '((((background light))
+     (:foreground "aquamarine4"))
+    (((background dark))
+     (:foreground "#73BAA2")))
   "The face used for macros."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-record-face
-  '((t (:foreground "medium blue")))
+  '((((background light))
+     (:foreground "medium blue"))
+    (((background dark))
+     (:foreground "#8080FF")))
   "The face used for record types."
   :group 'agda2-highlight-faces)
 
@@ -336,56 +381,114 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-error-face
-  '((t (:foreground "red" :underline t)))
+  '((((background light))
+     (:foreground "red" :underline t))
+    (((background dark))
+     (:foreground "#FF0000" :underline t)))
   "The face used for errors."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-error-warning-face
+  '((((background light))
+     (:background "light coral" :underline t))
+    (((background dark))
+     (:background "#802400" :underline t)))
+  "The face used for fatal warnings."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-unsolved-meta-face
-  '((t (:background "yellow")))
+  '((((background light))
+     (:background "yellow"))
+    (((background dark))
+     (:background "#806B00")))
   "The face used for unsolved meta variables."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-unsolved-constraint-face
-  '((t (:background "yellow")))
+  '((((background light))
+     (:background "yellow"))
+    (((background dark))
+     (:background "#806B00")))
   "The face used for unsolved constraints which are not connected to metas."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-termination-problem-face
-  '((t (:background "light salmon")))
+  '((((background light))
+     (:background "light salmon"))
+    (((background dark))
+     (:background "#802400")))
   "The face used for termination problems."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-positivity-problem-face
-  '((t (:background "peru")))
+  '((((background light))
+     (:background "peru"))
+    (((background dark))
+     (:background "#803F00")))
   "The face used for positivity problems."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-deadcode-face
-  '((t (:background "dark gray")))
+  '((((background light))
+     (:background "dark gray"))
+    (((background dark))
+     (:background "#808080")))
   "The face used for dead code (unreachable clauses, etc.)."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-shadowing-in-telescope-face
+  '((((background light))
+     (:background "dark gray"))
+    (((background dark))
+     (:background "#808080")))
+  "The face used for shadowed repeated variable names in telescopes."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-coverage-problem-face
-  '((t (:background "wheat")))
+  '((((background light))
+     (:background "wheat"))
+    (((background dark))
+     (:background "#805300")))
   "The face used for coverage problems."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-catchall-clause-face
-  '((t (:background "white smoke")))
+  '((((background light))
+     (:background "white smoke"))
+    (((background dark))
+     (:background "#404040")))
   "The face used for catchall clauses."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-confluence-problem-face
+  '((((background light))
+     (:background "pink"))
+    (((background dark))
+     (:background "#800080")))
+  "The face used for confluence problems."
+  :group 'agda2-highlight-faces)
+
+(defface agda2-highlight-missing-definition-face
+  '((((background light))
+     (:background "orange"))
+    (((background dark))
+     (:background "#804040")))
+  "The face used for type declarations with missing definitions."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-typechecks-face
-  '((t (:background "light blue"
-        :foreground "black")))
+  '((((background light))
+     (:background "light blue" :foreground "black"))
+    (((background dark))
+     (:background "#006080" :foreground "white")))
   "The face used for code which is being type-checked."
   :group 'agda2-highlight-faces)
 
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (comment                . font-lock-comment-face)
-    (background             . font-lock-comment-face)
-    (markup                 . font-lock-comment-face)
+    (background             . default)
+    (markup                 . font-lock-comment-delimiter-face)
     (string                 . agda2-highlight-string-face)
     (number                 . agda2-highlight-number-face)
     (symbol                 . agda2-highlight-symbol-face)
@@ -406,55 +509,61 @@ If `agda2-highlight-face-groups' is nil."
     (dotted                 . agda2-highlight-dotted-face)
     (operator               . agda2-highlight-operator-face)
     (error                  . agda2-highlight-error-face)
+    (errorwarning           . agda2-highlight-error-warning-face)
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (deadcode               . agda2-highlight-deadcode-face)
+    (shadowingintelescope   . agda2-highlight-shadowing-in-telescope-face)
     (coverageproblem        . agda2-highlight-coverage-problem-face)
     (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (catchallclause         . agda2-highlight-catchall-clause-face)
+    (confluenceproblem      . agda2-highlight-confluence-problem-face)
+    (missingdefinition      . agda2-highlight-missing-definition-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
 
+`background'             Non-Agda code contents in literate mode.
 `bound'                  Bound variables.
+`catchallclause'         Clause not holding definitionally.
 `coinductiveconstructor' Coinductive constructors.
+`comment'                Comments.
+`coverageproblem'        Coverage problems.
 `datatype'               Data types.
+`deadcode'               Deadcode (like unreachable clauses or RHS).
 `dotted'                 Dotted patterns.
 `error'                  Errors.
+`errorwarning'           Fatal warnings.
 `field'                  Record fields.
 `function'               Functions.
 `generalizable'          Generalizable variables.
 `incompletepattern'      Incomplete patterns.
 `inductiveconstructor'   Inductive constructors.
 `keyword'                Keywords.
+`macro'                  Macros.
+`markup'                 Delimiters to separate the Agda code blocks
+                           from other contents.
 `module'                 Module names.
 `number'                 Numbers.
 `operator'               Operators.
+`positivityproblem'      Positivity problems.
 `postulate'              Postulates.
 `pragma'                 Text occurring in pragmas that does not have
                            a more specific (syntactic) aspect.
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
-`macro'                  Macros.
 `record'                 Record types.
+`shadowingintelescope'   Shadowed repeated variable names in telescopes.
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
-`positivityproblem'      Positivity problems.
-`deadcode'               Deadcode (like unreachable clauses or RHS)
-`coverageproblem'        Coverage problems.
-`catchallclause'         Clause not holding definitionally.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
-`unsolvedmeta'           Unsolved meta variables.
-`background'             Non-Agda code contents in literate mode.
-`markup'                 Delimiters to separate the Agda code blocks
-                           from other contents
-`comment'                Comments.")
+`unsolvedmeta'           Unsolved meta variables.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables

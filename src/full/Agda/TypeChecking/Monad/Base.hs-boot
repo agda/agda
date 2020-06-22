@@ -1,14 +1,27 @@
 module Agda.TypeChecking.Monad.Base where
 
-import Control.Applicative (Applicative)
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
 import Data.Map (Map)
 
+import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
+data Warning
+
+data TCErr
+data TCWarning
+data NamedMeta
 data HighlightingMethod
+instance Show HighlightingMethod
+instance Read HighlightingMethod
+
+data HighlightingLevel
+instance Show HighlightingLevel
+instance Read HighlightingLevel
+
+
 data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
@@ -21,3 +34,9 @@ instance MonadIO m => MonadIO (TCMT m)
 type TCM = TCMT IO
 
 type ModuleToSource = Map TopLevelModuleName AbsolutePath
+
+type BackendName = String
+
+data Comparison
+newtype ProblemId = ProblemId Nat
+data Polarity

@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 
 {-| This module contains the lex actions that handle the layout rules. The way
     it works is that the 'Parser' monad keeps track of a stack of
@@ -40,8 +39,7 @@ import Agda.Syntax.Position
 openBrace :: LexAction Token
 openBrace = token $ \_ ->
     do  pushContext NoLayout
-        i <- getParseInterval
-        return (TokSymbol SymOpenBrace i)
+        TokSymbol SymOpenBrace <$> getParseInterval
 
 
 {-| Executed upon lexing a close brace (@\'}\'@). Exits the current layout
@@ -52,8 +50,7 @@ openBrace = token $ \_ ->
 closeBrace :: LexAction Token
 closeBrace = token $ \_ ->
     do  popContext
-        i <- getParseInterval
-        return (TokSymbol SymCloseBrace i)
+        TokSymbol SymCloseBrace <$> getParseInterval
 
 
 {-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol').

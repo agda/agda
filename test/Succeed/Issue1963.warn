@@ -1,0 +1,21 @@
+Issue1963.agda:24,5-12
+'pattern' attribute ignored for coinductive record
+when scope checking the declaration
+  record Stream A where
+    coinductive
+    pattern
+    field
+      head : A
+      tail : Stream A
+
+———— All done; warnings encountered ————————————————————————
+
+Issue1963.agda:24,5-12
+'pattern' attribute ignored for coinductive record
+when scope checking the declaration
+  record Stream A where
+    coinductive
+    pattern
+    field
+      head : A
+      tail : Stream A

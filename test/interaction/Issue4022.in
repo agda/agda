@@ -1,0 +1,10 @@
+top_command (cmd_load currentFile [])
+top_command (cmd_search_about_toplevel AsIs "_≡_")
+-- In the following we should not get refl
+top_command (cmd_search_about_toplevel AsIs "_≡_ \"prim\"")
+-- The following should get us plus : Binary
+top_command (cmd_search_about_toplevel AsIs "Binary")
+-- Because Binary = Nat → Nat → Nat, the following should also give use plus
+top_command (cmd_search_about_toplevel Normalised "Nat \"plus\"")
+-- without the "plus" filter, we get a lot of answers
+top_command (cmd_search_about_toplevel Normalised "Nat")

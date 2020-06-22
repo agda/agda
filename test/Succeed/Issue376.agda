@@ -38,13 +38,16 @@ bla3 : (A : Set)(B : A -> Set) ->
 bla3 A B x y C k = refl
 
 -- nested irrelevance
-bla4 : (A : Set) ->
-  let A' = Squash (Squash A) in
-  let X : .(z : A') -> (C : .A' -> Set) -> (.(z : A') -> C z) -> C z
-      X = _
-  in  (a : A)(C : .A' -> Set)(k : .(z : A') -> C z) ->
-      X (squash (squash a)) C k ≡ k (squash (squash a))
-bla4 A a C k = refl
+-- Jesper, 2019-10-15: This constructs the solution
+-- `X := \z C k → k (squash (squash (unsquash (unsquash a))))`
+-- which is invalid unless --irrelevant-projections is enabled.
+--bla4 : (A : Set) ->
+--  let A' = Squash (Squash A) in
+--let X : .(z : A') -> (C : .A' -> Set) -> (.(z : A') -> C z) -> C z
+--      X = _
+--  in  (a : A)(C : .A' -> Set)(k : .(z : A') -> C z) ->
+--      X (squash (squash a)) C k ≡ k (squash (squash a))
+--bla4 A a C k = refl
 
 -- projected bound var
 bla5 : (A : Set) (B : A -> Set) ->

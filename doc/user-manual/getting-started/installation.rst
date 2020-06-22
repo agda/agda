@@ -56,6 +56,48 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
+If you use `Nix-style Local Builds
+<https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
+by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
+following error when compiling with the GHC backend::
+
+  Compilation error:
+
+  MAlonzo/RTE.hs:13:1: error:
+      Failed to load interface for ‘Numeric.IEEE’
+      Use -v to see a list of the files searched for.
+
+This is because packages are sandboxed in ``$HOME/.cabal/store``
+and you have to explicitly register required packaged in a `GHC environment
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
+This can be done by running the following command:
+
+.. code-block:: bash
+
+  cabal v2-install --lib Agda ieee754
+
+This will register `ieee754
+<http://hackage.haskell.org/package/ieee754>`_ in the GHC default environment.
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create separate Agda
+environment by running:
+
+.. code-block:: bash
+
+  cabal v2-install --package-env agda --lib Agda ieee754
+
+You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
+
+.. code-block:: bash
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+.. NOTE::
+
+  Actually it is not necessary to register the Agda library,
+  but doing so forces Cabal to install the same version of `ieee754
+  <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
 
 .. _prebuilt-packages:
 
@@ -71,10 +113,12 @@ The following prebuilt packages are available:
 
 * `Agda standard library <https://www.archlinux.org/packages/community/x86_64/agda-stdlib/>`_
 
+However, due to significant packaging bugs such as `this <https://bugs.archlinux.org/task/61904?project=5&string=agda>`_, you might want to use alternative installation methods.
+
 Debian / Ubuntu
 ---------------
 
-Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karmic onwards. To install:
+Prebuilt packages are available for Debian and Ubuntu from Karmic onwards. To install:
 
 .. code-block:: bash
 
@@ -82,7 +126,7 @@ Prebuilt packages are available for Debian testing/unstable and Ubuntu from Karm
 
 This should install Agda and the Emacs mode.
 
-The standard library is available in Debian testing/unstable and Ubuntu from Lucid onwards. To install:
+The standard library is available in Debian and Ubuntu from Lucid onwards. To install:
 
 .. code-block:: bash
 
@@ -126,8 +170,8 @@ Packages are available from `FreshPorts
 Agda and Agda standard library.
 
 
-NixOS
------
+Nix or NixOS
+------------
 
 Agda is part of the Nixpkgs collection that is used by
 https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
@@ -141,42 +185,59 @@ If you’re just interested in the library, you can also install the
 library without the executable. The Agda standard library is currently
 not installed automatically.
 
+However, if using existing Agda libraries (including the standard library) it
+may be more convenient to use a nix expression for ``nix-shell``.  A third-party
+`example repository
+<https://github.com/bbarker/LearningAgda>`_
+is available to create a ``nix-shell`` environment that loads
+``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs.
+
 OS X
 ----
 
-`Homebrew <https://brew.sh>`_ provides prebuilt packages for OS X.  To install:
+`Homebrew <https://brew.sh>`_ is a free and open-source software package
+management system that provides prebuilt packages for OS X. Once it is
+installed in your system, you are ready to install agda. Open the
+Terminal app and run the following command:
 
 .. code-block:: bash
 
   brew install agda
 
-This should take less than a minute, and install Agda together with
-the Emacs mode and the standard library.
+This process should take less than a minute, and it installs Agda together with
+its Emacs mode and its standard library. For more information about the ``brew``
+command, please refer to the `Homebrew documentation <https://docs.brew.sh/>`_
+and `Homebrew FAQ <https://docs.brew.sh/FAQ>`_.
 
-By default, the standard library is installed in
+By default, the standard library is installed in the folder
 ``/usr/local/lib/agda/``.  To use the standard library, it is
-convenient to add ``/usr/local/lib/agda/standard-library.agda-lib`` to
-``~/.agda/libraries``, and specify ``standard-library`` in
-``~/.agda/defaults``.  Note this is not performed automatically.
+convenient to add the location of the agda-lib file ``/usr/local/lib/agda/standard-library.agda-lib``
+to the ``~/.agda/libraries`` file, and write the line ``standard-library`` in
+the ``~/.agda/defaults`` file. To do this, run the following commands:
 
-It is also possible to install ``--without-stdlib``,
-``--without-ghc``, or from ``--HEAD``.  Note this will require
+.. code-block:: bash
+
+  mkdir -p ~/.agda
+  echo /usr/local/lib/agda/standard-library.agda-lib >>~/.agda/libraries
+  echo standard-library >>~/.agda/defaults
+
+Please note that this configuration is not performed automatically. You can
+learn more about :ref:`using the standard library <use-std-lib>` or
+:ref:`using a library in general <use-lib>`.
+
+It is also possible to install with the command-line option keywords
+``--without-stdlib``, ``--without-ghc``, or from ``--HEAD``.  This requires
 building Agda from source.
 
-For more information, refer to the `Homebrew documentation
-<https://docs.brew.sh/>`_.
+To configure the way of editing agda files, follow the section
+:ref:`Emacs mode <emacs-mode>`.
 
 .. NOTE::
 
    If Emacs cannot find the ``agda-mode`` executable, it might help to
    install the exec-path-from-shell_ package by doing ``M-x
-   package-install RET exec-path-from-shell RET``, and adding
-
-   .. code-block:: elisp
-
-     (exec-path-from-shell-initialize)
-
-   to your ``.emacs`` file.
+   package-install RET exec-path-from-shell RET`` and adding the line
+   ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
 .. _installation-development-version:
 
@@ -184,7 +245,7 @@ Installation of the Development Version
 =======================================
 
 After getting the development version following the instructions in
-the `Agda wiki <http://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
 
 * Install the :ref:`prerequisites <prerequisites>`
 
@@ -215,17 +276,45 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-:samp:`cpphs`
-   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: off.
+.. option:: cpphs
 
-:samp:`debug`
-   Enable debugging features that may slow Agda down. Default: off.
+     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
+     of cpp. Default: off.
 
-:samp:`flag enable-cluster-counting`
-   Enable the ``--count-clusters`` flag (see
-   :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
-   is ``False``, then the ``--count-clusters`` flag triggers an error
-   message. Default: off.
+.. option:: debug
+
+     Enable debugging features that may slow Agda down. Default: off.
+
+.. option:: enable-cluster-counting
+
+     Enable the :option:`--count-clusters` flag. Note that if
+     ``enable-cluster-counting`` is ``False``, then the
+     :option:`--count-clusters` flag triggers an error
+     message. Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell
+
+.. _installing-multiple-versions-of-Agda:
+
+Installing multiple versions of Agda
+====================================
+
+Multiple versions of Agda can be installed concurrently by using the --program-suffix flag.
+For example:
+
+.. code-block:: bash
+
+  cabal install Agda-2.6.1 --program-suffix=-2.6.1
+
+will install version 2.6.1 under the name agda-2.6.1. You can then switch to this version
+of Agda in Emacs via
+
+.. code-block:: bash
+
+   C-c C-x C-s 2.6.1 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+.. code-block:: bash
+
+   C-c C-x C-s RETURN

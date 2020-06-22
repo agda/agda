@@ -8,6 +8,8 @@
   open import Agda.Builtin.Nat
   open import Agda.Builtin.Bool
 
+.. _generalization-of-declared-variables:
+
 ************************************
 Generalization of Declared Variables
 ************************************
@@ -40,7 +42,7 @@ as an argument to ``_∷_``. The resulting declaration is
 
 .. code-block:: agda
 
-  data Vec {ℓ : Set} (A : Set ℓ) : Nat → Set ℓ where
+  data Vec {ℓ : Level} (A : Set ℓ) : Nat → Set ℓ where
     []  : Vec A 0
     _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 

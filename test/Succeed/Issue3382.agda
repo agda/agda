@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --rewriting #-}
+{-# OPTIONS --cubical --rewriting --confluence-check #-}
 
 open import Agda.Primitive.Cubical public
 

@@ -23,7 +23,9 @@ end_      :: LexAction Token
 keyword    :: Keyword -> LexAction Token
 symbol     :: Symbol -> LexAction Token
 identifier :: LexAction Token
-literal    :: Read a => (Range -> a -> Literal) -> LexAction Token
+literal    :: Read a => (a -> Literal) -> LexAction Token
+literal'   :: (String -> a) -> (a -> Literal) -> LexAction Token
+integer    :: String -> Integer
 
 followedBy    :: Char -> LexPredicate
 eof           :: LexPredicate

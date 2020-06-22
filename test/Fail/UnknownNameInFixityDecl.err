@@ -1,4 +1,4 @@
-UnknownNameInFixityDecl.agda:5,11-14
+UnknownNameInFixityDecl.agda:4,10-5,14
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module): _*_,

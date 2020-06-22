@@ -1,12 +1,11 @@
-{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Primitives where
 
-import Control.Monad.State
-import Data.Char
 import qualified Data.List as List
-import Data.Map as M
+import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
+import qualified Data.Text as T
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -17,38 +16,56 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Lens
-import Agda.Utils.Monad
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Haskell.Syntax as HS
 
-#include "undefined.h"
 import Agda.Utils.Impossible
 
-isMainFunction :: QName -> Bool
-isMainFunction q = "main" == show (nameConcrete $ qnameName q)
-
-hasMainFunction :: Interface -> IsMain
-hasMainFunction i
-  | List.any isMainFunction names = IsMain
-  | otherwise                     = NotMain
+-- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
+-- TODO: Also only consider top-level definition (not buried inside a module).
+isMainFunction :: QName -> Defn -> Bool
+isMainFunction q = \case
+    Axiom{}                             -> perhaps
+    Function{ funProjection = Nothing } -> perhaps
+    Function{ funProjection = Just{}  } -> no
+    AbstractDefn{}                      -> no
+    GeneralizableVar{}                  -> no
+    DataOrRecSig{}                      -> no
+    Datatype{}                          -> no
+    Record{}                            -> no
+    Constructor{}                       -> no
+    Primitive{}                         -> no
+    PrimitiveSort{}                     -> no
   where
-    names = HMap.keys $ iSignature i ^. sigDefinitions
+  perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
+  no      = False
+
+-- | Check for "main" function, but only in the main module.
+hasMainFunction
+  :: IsMain    -- ^ Are we looking at the main module?
+  -> Interface -- ^ The module.
+  -> IsMain    -- ^ Did we find a "main" function?
+hasMainFunction NotMain _ = NotMain
+hasMainFunction IsMain i
+  | List.any (\ (x, def) -> isMainFunction x $ theDef def) names = IsMain
+  | otherwise = NotMain
+  where
+    names = HMap.toList $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
-checkTypeOfMain q ty ret
-  | not (isMainFunction q) = ret
+checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl] -> TCM [HS.Decl]
+checkTypeOfMain NotMain q def ret = ret
+checkTypeOfMain  IsMain q def ret
+  | not (isMainFunction q $ theDef def) = ret
   | otherwise = do
     Def io _ <- primIO
-    ty <- normalise ty
+    ty <- reduce $ defType def
     case unEl ty of
       Def d _ | d == io -> (mainAlias :) <$> ret
       _                 -> do
@@ -115,7 +132,7 @@ importsForPrim =
 xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
   qs <- HMap.keys <$> curDefs
-  bs <- toList <$> getsTC stBuiltinThings
+  bs <- Map.toList <$> getsTC stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
@@ -158,10 +175,12 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primNatModSucAux" |-> binNat4 "(\\ k m n j -> if n > j then mod (n - j - 1) (m + 1) else (k + n))"
   , "primNatEquality"  |-> relNat "(==)"
   , "primNatLess"      |-> relNat "(<)"
+  , "primShowNat"      |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
 
   -- Machine word functions
   , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
   , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
+  , "primWord64ToNatInjective" |-> return "erased"
 
   -- Floating point functions
   , "primNatToFloat"        |-> return "(fromIntegral :: Integer -> Double)"
@@ -178,9 +197,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatNumericalEquality" |-> return "MAlonzo.RTE.eqNumFloat"
   , "primFloatNumericalLess"     |-> return "MAlonzo.RTE.ltNumFloat"
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
-  , "primRound"             |-> return "(round :: Double -> Integer)"
-  , "primFloor"             |-> return "(floor :: Double -> Integer)"
-  , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"
+  , "primRound"             |-> return "(round . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
+  , "primFloor"             |-> return "(floor . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
+  , "primCeiling"           |-> return "(ceiling . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
@@ -191,6 +210,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primATan"              |-> return "(atan :: Double -> Double)"
   , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
+  , "primFloatToWord64"     |-> return "MAlonzo.RTE.doubleToWord64"
+  , "primFloatToWord64Injective" |-> return "erased"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"
@@ -210,6 +231,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primCharToNatInjective" |-> return "erased"
 
   -- String functions
+  , "primStringUncons"   |-> return "Data.Text.uncons"
   , "primStringToList"   |-> return "Data.Text.unpack"
   , "primStringFromList" |-> return "Data.Text.pack"
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
@@ -222,9 +244,13 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName"
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
+  , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
+  , "primQNameToWord64sInjective" |-> return "erased"
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
   , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
+  , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
+  , "primMetaToNatInjective" |-> return "erased"
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
@@ -239,11 +265,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   ]
   where
   x |-> s = (x, Left <$> s)
-  bin blt op ty from to = do
-    from' <- bltQual' blt from
-    to'   <- bltQual' blt to
-    return $ repl [op, opty ty, from', to'] $
-               "\\ x y -> <<3>> ((<<0>> :: <<1>>) (<<2>> x) (<<2>> y))"
   binNat  op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
   binNat4 op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"
@@ -256,8 +277,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
   axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
-  unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
-                | otherwise = typeError $ NotImplemented s
+  unimplemented
+    | s `List.elem` axiom_prims =
+                   return $ rtmError $ T.pack $ "primitive with no body evaluated: " ++ s
+    | otherwise = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)
