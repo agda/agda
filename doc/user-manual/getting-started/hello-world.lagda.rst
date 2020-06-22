@@ -431,8 +431,8 @@ in a folder that we will refer to as our top-level folder.
 
 This code is self-contained and has several declarations:
 
-1. imports of the ``ÌO``, ``⊤`` and ``String`` datatypes from the
-   `standard library <std-lib_>`_.
+1. imports of the ``ÌO``, ``⊤`` and ``String`` datatypes from the Agda Builtin
+   library.
 2. postulate of the function type ``putStrLn``.
 3. declaration of compilation :ref:`pragmas <pragmas>`.
 4. definition of ``main``.
