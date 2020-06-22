@@ -63,8 +63,8 @@ This code has 6 declarations:
 6. specification of the :ref:`precedence` for the append operation
 
 .. note:: Paste or type the code above in a new file with extension ``.agda``.
-  Load the file with ``C-c C-l``. This also saves the file. You should see
-  ***All done*** if the agda source code was loaded correctly. Find more
+  Load the file (in Emacs ``C-c C-l``). This also saves the file. You should
+  see ***All done*** if the agda source code was loaded correctly. Find more
   information about errors in our
   `issue tracker <https://github.com/agda/agda/issues>`_.
 
@@ -438,8 +438,8 @@ This code is self-contained and has several declarations:
 4. definition of ``main``.
 
 .. note:: Paste or type the code above in a new file with extension ``.agda``.
-  Load the file with ``C-c C-l``. This also saves the file. You should see
-  ***All done*** if the agda source code was loaded correctly. Find more
+  Load the file (in Emacs ``C-c C-l``). This also saves the file. You should
+  see ***All done*** if the agda source code was loaded correctly. Find more
   information about errors in our
   `issue tracker <https://github.com/agda/agda/issues>`_.
 
