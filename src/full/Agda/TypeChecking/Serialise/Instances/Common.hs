@@ -378,10 +378,10 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e) = icodeMemo nameD nameC a $
-    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d e
+  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+    icodeN' (\ a b c -> A.Name a b c . underlyingRange) a b c (SerialisedRange d) e f
 
-  value = valueN (\a b c -> A.Name a b (underlyingRange c))
+  value = valueN (\a b c d -> A.Name a b c (underlyingRange d))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b

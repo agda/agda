@@ -323,7 +323,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         xs' = fmap (modMod lamOrPi experimental) xs
     let tel = setTac tac $ namedBindsToTel1 xs t
 
-    addContext (xs', t) $ addTypedPatterns (List1.toList xps) (ret tel)
+    addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -340,20 +340,15 @@ checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
 
 -- | After a typed binding has been checked, add the patterns it binds
-addTypedPatterns :: [NamedArg A.Binder] -> TCM a -> TCM a
+addTypedPatterns :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
 addTypedPatterns xps ret = do
-  let ps  = mapMaybe (A.extractPattern . namedArg) xps
-  let lbs = fmap letBinding ps
+  let ps  = List1.mapMaybe (A.extractPattern . namedArg) xps
+  let lbs = map letBinding ps
   checkLetBindings lbs ret
-
   where
-
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
     letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
       where r = fuseRange p n
-
-addTypedPatterns1 :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
-addTypedPatterns1 = addTypedPatterns . List1.toList
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
 checkTacticAttribute :: LamOrPi -> A.Expr -> TCM Term
@@ -479,7 +474,7 @@ checkLambda' cmp b xps typ body target = do
       -- DONT USE tel for addContext, as it loses NameIds.
       -- WRONG: v <- addContext tel $ checkExpr body t1
       (target0 , w) <- postponeOnBlockedPattern $
-         addContext (xs, argsT) $ addTypedPatterns1 xps $ do
+         addContext (xs, argsT) $ addTypedPatterns xps $ do
            t1 <- workOnTypes newTypeMeta_
            v  <- checkExpr' cmp body t1
            return (telePi tel t1 , teleLam tel v)
@@ -516,7 +511,7 @@ checkLambda' cmp b xps typ body target = do
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
         v <- lambdaAddContext (namedArg x) y (defaultArgDom info argT) $
-               addTypedPatterns1 xps $ checkExpr' cmp body btyp
+               addTypedPatterns xps $ checkExpr' cmp body btyp
         blockTermOnProblem target (Lam info $ Abs (namedArgName x) v) pid
 
     useTargetType _ _ = __IMPOSSIBLE__
@@ -1569,7 +1564,7 @@ inferExprForWith e = do
 -- * Let bindings
 ---------------------------------------------------------------------------
 
-checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
+checkLetBindings :: Foldable t => t A.LetBinding -> TCM a -> TCM a
 checkLetBindings = foldr ((.) . checkLetBinding) id
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a

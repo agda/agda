@@ -266,6 +266,7 @@ freshAbstractName fx x = do
   return $ A.Name
     { nameId          = i
     , nameConcrete    = x
+    , nameCanonical   = x
     , nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False

@@ -8,8 +8,11 @@ module Agda.TypeChecking.Pretty
 
 import Prelude hiding ( null )
 
+import Control.Applicative  (liftA2)
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Reader (ReaderT)
+import Control.Monad.State  (StateT)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -149,6 +152,15 @@ type MonadPretty m =
   , Null (m Doc)
   , Semigroup (m Doc)
   )
+
+-- These instances are to satify the constraints of superclass MonadPretty:
+
+-- | This instance is more specific than a generic instance
+-- @Semigroup a => Semigroup (TCM a)@.
+instance {-# OVERLAPPING #-} Semigroup (TCM Doc)         where (<>) = liftA2 (<>)
+instance Applicative m    => Semigroup (ReaderT s m Doc) where (<>) = liftA2 (<>)
+instance Monad m          => Semigroup (StateT s m Doc)  where (<>) = liftA2 (<>)
+
 
 class PrettyTCM a where
   prettyTCM :: MonadPretty m => a -> m Doc

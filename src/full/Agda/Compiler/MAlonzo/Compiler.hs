@@ -1,7 +1,9 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
+import Control.Arrow ((***), first, second)
 import Control.Monad.Reader
+import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.List as List
 import Data.Map (Map)
@@ -10,6 +12,8 @@ import Data.Maybe
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Monoid (Monoid, mempty, mappend)
+import Data.Semigroup ((<>))
 
 import Numeric.IEEE
 
@@ -43,7 +47,8 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
+import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
@@ -68,7 +73,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv IsMain [HS.Decl]
+ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -157,20 +162,21 @@ ghcPostModule
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
-  -> [[HS.Decl]]   -- ^ Compiled module content.
+  -> [(UsesFloat, [HS.Decl])]   -- ^ Compiled module content.
   -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
-ghcPostModule _ _ isMain _ defs = do
+ghcPostModule _ _ isMain _ defs0 = do
+  let (impFloat, defs) = (mconcat *** concat) $ unzip defs0
   m      <- curHsMod
-  imps   <- imports
+  imps   <- (mazRTEFloatImport impFloat ++) <$> imports
   -- Get content of FOREIGN pragmas.
   (headerPragmas, hsImps, code) <- foreignHaskell
   writeModule $ HS.Module m
     (map HS.OtherPragma headerPragmas)
     imps
-    (map fakeDecl (hsImps ++ code) ++ concat defs)
+    (map fakeDecl (hsImps ++ code) ++ defs)
   hasMainFunction isMain <$> curIF
 
-ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
+ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
 ghcCompileDef _ env isMain def = definition env isMain def
 
 -- | We do not erase types that have a 'HsData' pragma.
@@ -203,9 +209,9 @@ imports = (hsImps ++) <$> imps where
                       | x <- [mazCoerceName, mazErasedName, mazAnyTypeName] ++
                              map treelessPrimName rtePrims ])
 
-  rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF,
+  rtePrims = [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI,
               T.PAdd64, T.PSub64, T.PMul64, T.PQuot64, T.PRem64, T.PLt64, T.PEq64,
-              T.PITo64, T.P64ToI]
+              T.PITo64, T.P64ToI] -- Excludes T.PEqF, which is defined in MAlonzo.RTE.Float
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -220,11 +226,27 @@ imports = (hsImps ++) <$> imps where
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
   uniq = List.map head . List.group . List.sort
 
+-- Should we import MAlonzo.RTE.Float
+data UsesFloat = YesFloat | NoFloat
+  deriving (Eq, Show)
+
+instance Semigroup UsesFloat where
+  NoFloat  <> i        = i
+  i        <> NoFloat  = i
+  YesFloat <> YesFloat = YesFloat
+
+instance Monoid UsesFloat where
+  mempty  = NoFloat
+  mappend = (<>)
+
+mazRTEFloatImport :: UsesFloat -> [HS.ImportDecl]
+mazRTEFloatImport i = [ HS.ImportDecl mazRTEFloat True Nothing | i == YesFloat ]
+
 --------------------------------------------------
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> IsMain -> Definition -> TCM [HS.Decl]
+definition :: GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
@@ -232,7 +254,7 @@ definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."
-  return []
+  return mempty
 definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
@@ -244,8 +266,10 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   mmaybe <- getBuiltinName builtinMaybe
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
-  checkTypeOfMain isMain q def $ do
-    infodecl q <$> case d of
+  let retDecls ds = return (mempty, ds)
+  main <- checkTypeOfMain isMain q def
+  second ((main ++) . infodecl q) <$>
+    case d of
 
       _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
           if Just q == mflat
@@ -261,7 +285,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
             inline <- (^. funInline) . theDef <$> getConstInfo q
             when inline $ warning $ UselessInline q
 
-            return $ fbWithType hsty (fakeExp hs)
+            retDecls $ fbWithType hsty (fakeExp hs)
 
       -- Compiling Bool
       Datatype{} | Just q == mbool -> do
@@ -270,9 +294,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
         cs <- mapM compiledcondecl [false, true]
-        return $ [ compiledTypeSynonym q "Bool" 0
-                 , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
-                 cs
+        retDecls $ [ compiledTypeSynonym q "Bool" 0
+                   , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                   cs
 
       -- Compiling List
       Datatype{ dataPars = np } | Just q == mlist -> do
@@ -285,9 +309,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         Just cons <- getBuiltinName builtinCons
         let vars f n = map (f . ihname "a") [0 .. n - 1]
         cs <- mapM compiledcondecl [nil, cons]
-        return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
-                 , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
-                 cs
+        retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
+                   , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                   cs
 
       -- Compiling Maybe
       Datatype{ dataPars = np } | Just q == mmaybe -> do
@@ -300,9 +324,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         Just just    <- getBuiltinName builtinJust
         let vars f n = map (f . ihname "a") [0 .. n - 1]
         cs <- mapM compiledcondecl [nothing, just]
-        return $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
-                 , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
-                 cs
+        retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
+                   , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
+                   cs
 
       -- Compiling Inf
       _ | Just q == minf -> do
@@ -311,22 +335,22 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         sharpC     <- compiledcondecl sharp
         let d   = unqhname "d" q
             err = "No term-level implementation of the INFINITY builtin."
-        return $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
-                 , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
-                     (HS.UnGuardedRhs (HS.FakeExp ("error " ++ show err)))
-                     emptyBinds]
-                 , sharpC
-                 ]
+        retDecls $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
+                   , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
+                       (HS.UnGuardedRhs (HS.FakeExp ("error " ++ show err)))
+                       emptyBinds]
+                   , sharpC
+                   ]
 
       DataOrRecSig{} -> __IMPOSSIBLE__
 
       Axiom{} -> do
         ar <- typeArity ty
-        return $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
-                 fb axiomErr
-      Primitive{ primName = s } -> fb <$> primBody s
+        retDecls $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
+                   fb axiomErr
+      Primitive{ primName = s } -> (mempty,) . fb <$> primBody s
 
-      PrimitiveSort{ primName = s } -> return []
+      PrimitiveSort{ primName = s } -> retDecls []
 
       Function{} -> function pragma $ functionViaTreeless q
 
@@ -343,14 +367,14 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
               , cds
               , ccscov
               ]
-        return result
+        retDecls result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
                 dataCons = cs } -> do
         computeErasedConstructorArgs q
         cds <- mapM (flip condecl Inductive) cs
-        return $ tvaldecl q Inductive (np + ni) cds cl
-      Constructor{} -> return []
-      GeneralizableVar{} -> return []
+        retDecls $ tvaldecl q Inductive (np + ni) cds cl
+      Constructor{} -> retDecls []
+      GeneralizableVar{} -> retDecls []
       Record{ recPars = np, recClause = cl, recConHead = con,
               recInduction = ind } ->
         let -- Non-recursive record types are treated as being
@@ -362,18 +386,19 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
             computeErasedConstructorArgs q
             ccscov <- constructorCoverageCode q np cs ty hsCons
             cds <- mapM compiledcondecl cs
-            return $
+            retDecls $
               tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
               [compiledTypeSynonym q ty np] ++ cds ++ ccscov
           _ -> do
             computeErasedConstructorArgs q
             cd <- condecl (conName con) inductionKind
-            return $ tvaldecl q inductionKind (I.arity ty) [cd] cl
+            retDecls $ tvaldecl q inductionKind (I.arity ty) [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
-  function :: Maybe HaskellPragma -> TCM [HS.Decl] -> TCM [HS.Decl]
+  function :: Maybe HaskellPragma -> TCM (UsesFloat, [HS.Decl]) -> TCM (UsesFloat, [HS.Decl])
   function mhe fun = do
-    ccls  <- mkwhere <$> fun
+    (imp, defs) <- fun
+    let ccls = mkwhere defs
     mflat <- getBuiltinName builtinFlat
     case mhe of
       Just (HsExport r name) -> setCurrentRange r $
@@ -387,11 +412,11 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
 
               def :: HS.Decl
               def = HS.FunBind [HS.Match (HS.Ident name) [] (HS.UnGuardedRhs (hsCoerce $ hsVarUQ $ dname q)) emptyBinds]
-          return ([tsig,def] ++ ccls)
-      _ -> return ccls
+          return (imp, [tsig,def] ++ ccls)
+      _ -> return (imp, ccls)
 
-  functionViaTreeless :: QName -> TCM [HS.Decl]
-  functionViaTreeless q = caseMaybeM (toTreeless LazyEvaluation q) (pure []) $ \ treeless -> do
+  functionViaTreeless :: QName -> TCM (UsesFloat, [HS.Decl])
+  functionViaTreeless q = caseMaybeM (toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
 
     used <- getCompiledArgUse q
     let dostrip = any not used
@@ -405,8 +430,8 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         argTypes  = drop pars argTypes0
         argTypesS = [ t | (t, True) <- zip argTypes (used ++ repeat True) ]
 
-    e <- if dostrip then closedTerm (stripUnusedArguments used treeless)
-                    else closedTerm treeless
+    (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
+                                else closedTerm treeless
     let (ps, b) = lamView e
         lamView e =
           case e of
@@ -420,13 +445,14 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
           in [tydecl f ts' t, funbind f ps b]
 
     -- The definition of the non-stripped function
-    (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
+    (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
     let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
 
-    return $ if dostrip
-      then tyfunbind (dname q) argTypes resType ps0 b0 ++
-           tyfunbind (duname q) argTypesS resType ps b
-      else tyfunbind (dname q) argTypes resType ps b
+    return (useFloat,
+            if dostrip
+              then tyfunbind (dname q) argTypes resType ps0 b0 ++
+                   tyfunbind (duname q) argTypesS resType ps b
+              else tyfunbind (dname q) argTypes resType ps b)
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
@@ -443,7 +469,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
 
   fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
-                                (HS.UnGuardedRhs $ e) emptyBinds]]
+                                (HS.UnGuardedRhs e) emptyBinds]]
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ T.pack $ "postulate evaluated: " ++ prettyShow q
@@ -483,7 +509,10 @@ initCCEnv = CCEnv
 lookupIndex :: Int -> CCContext -> HS.Name
 lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
-type CC = ReaderT CCEnv TCM
+type CC = ReaderT CCEnv (WriterT UsesFloat TCM)
+
+liftCC :: TCM a -> CC a
+liftCC = lift . lift
 
 freshNames :: Int -> ([HS.Name] -> CC a) -> CC a
 freshNames n _ | n < 0 = __IMPOSSIBLE__
@@ -520,16 +549,19 @@ checkCover q ty n cs hsCons = do
                                 (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
-closedTerm :: T.TTerm -> TCM HS.Exp
+closedTerm_ :: T.TTerm -> TCM HS.Exp
+closedTerm_ t = fst <$> closedTerm t
+
+closedTerm :: T.TTerm -> TCM (HS.Exp, UsesFloat)
 closedTerm v = do
   v <- addCoercions v
-  term v `runReaderT` initCCEnv
+  runWriterT (term v `runReaderT` initCCEnv)
 
 -- Translate case on bool to if
 mkIf :: T.TTerm -> CC T.TTerm
 mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
-  mTrue  <- lift $ getBuiltinName builtinTrue
-  mFalse <- lift $ getBuiltinName builtinFalse
+  mTrue  <- liftCC $ getBuiltinName builtinTrue
+  mFalse <- liftCC $ getBuiltinName builtinFalse
   let isTrue  c = Just c == mTrue
       isFalse c = Just c == mFalse
   if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TCoerce $ TVar e) b1 b2
@@ -550,32 +582,32 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
     (T.TPrim T.PIf, [c, x, y]) -> coe <$> do HS.If <$> term c <*> term x <*> term y
 
     (T.TDef f, ts) -> do
-      used <- lift $ getCompiledArgUse f
+      used <- liftCC $ getCompiledArgUse f
       -- #2248: no unused argument pruning for COMPILE'd functions
-      isCompiled <- lift $ isJust <$> getHaskellPragma f
+      isCompiled <- liftCC $ isJust <$> getHaskellPragma f
       let given   = length ts
           needed  = length used
           missing = drop given used
           notUsed = not
       if not isCompiled && any not used
         then if any notUsed missing then term (etaExpand (needed - given) tm0) else do
-          f <- lift $ HS.Var <$> xhqn "du" f  -- use stripped function
+          f <- liftCC $ HS.Var <$> xhqn "du" f  -- use stripped function
           -- Andreas, 2019-11-07, issue #4169.
           -- Insert coercion unconditionally as erasure of arguments
           -- that are matched upon might remove the unfolding of codomain types.
           -- (Hard to explain, see test/Compiler/simple/Issue4169.)
           hsCoerce f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
         else do
-          f <- lift $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
+          f <- liftCC $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
           coe f `apps` ts
 
     (T.TCon c, ts) -> do
-      erased  <- lift $ getErasedConArgs c
+      erased  <- liftCC $ getErasedConArgs c
       let missing = drop (length ts) erased
           notErased = not
       if all notErased missing
         then do
-                f <- lift $ HS.Con <$> conhqn c
+                f <- liftCC $ HS.Con <$> conhqn c
                 hsCoerce f `apps` [ t | (t, False) <- zip ts erased ]
         else do
                 let n = length missing
@@ -611,7 +643,7 @@ noApplication = \case
     let defAlt = HS.Alt HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
     return $ HS.Case (hsCoerce sc') (alts' ++ [defAlt])
 
-  T.TLit l    -> return $ literal l
+  T.TLit l    -> literal l
   T.TPrim p   -> return $ compilePrim p
   T.TUnit     -> return $ HS.unit_con
   T.TSort     -> return $ HS.unit_con
@@ -630,13 +662,13 @@ alt sc a = do
   case a of
     T.TACon {T.aCon = c} -> do
       intros (T.aArity a) $ \ xs -> do
-        erased <- lift $ getErasedConArgs c
-        nil  <- lift $ getBuiltinName builtinNil
-        cons <- lift $ getBuiltinName builtinCons
+        erased <- liftCC $ getErasedConArgs c
+        nil  <- liftCC $ getBuiltinName builtinNil
+        cons <- liftCC $ getBuiltinName builtinCons
         hConNm <-
           if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
              | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
-             | otherwise      -> lift $ conhqn c
+             | otherwise      -> liftCC $ conhqn c
         mkAlt (HS.PApp hConNm $ [HS.PVar x | (x, False) <- zip xs erased])
     T.TAGuard g b -> do
       g <- term g
@@ -645,7 +677,10 @@ alt sc a = do
                       (HS.GuardedRhss [HS.GuardedRhs [HS.Qualifier g] b])
                       emptyBinds
     T.TALit { T.aLit = LitQName q } -> mkAlt (litqnamepat q)
-    T.TALit { T.aLit = l@LitFloat{}, T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
+    T.TALit { T.aLit = l@LitFloat{}, T.aBody = b } -> do
+      tell YesFloat
+      l <- literal l
+      mkGuarded (treelessPrimName T.PEqF) l b
     T.TALit { T.aLit = LitString s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
     T.TALit {} -> mkAlt (HS.PLit $ hslit $ T.aLit a)
   where
@@ -666,30 +701,30 @@ alt sc a = do
         body' <- term $ T.aBody a
         return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
 
-literal :: Literal -> HS.Exp
+literal :: Literal -> CC HS.Exp
 literal l = case l of
-  LitNat    _   -> typed "Integer"
-  LitWord64 _   -> typed "MAlonzo.RTE.Word64"
+  LitNat    _   -> return $ typed "Integer"
+  LitWord64 _   -> return $ typed "MAlonzo.RTE.Word64"
   LitFloat  x   -> floatExp x "Double"
-  LitQName  x   -> litqname x
-  LitString s   -> litString s
-  _             -> l'
+  LitQName  x   -> return $ litqname x
+  LitString s   -> return $ litString s
+  _             -> return $ l'
   where
     l'    = HS.Lit $ hslit l
     typed = HS.ExpTypeSig l' . HS.TyCon . rtmQual
 
     -- ASR (2016-09-14): See Issue #2169.
     -- Ulf, 2016-09-28: and #2218.
-    floatExp :: Double -> String -> HS.Exp
+    floatExp :: Double -> String -> CC HS.Exp
     floatExp x s
       | isNegativeZero x = rte "negativeZero"
       | isNegativeInf  x = rte "negativeInfinity"
       | isInfinite x     = rte "positiveInfinity"
       | isNegativeNaN x  = rte "negativeNaN"
       | isNaN x          = rte "positiveNaN"
-      | otherwise        = typed s
-
-    rte = HS.Var . HS.Qual mazRTE . HS.Ident
+      | otherwise        = return $ typed s
+      where
+        rte s = do tell YesFloat; return $ HS.Var $ HS.Qual mazRTEFloat $ HS.Ident s
 
     isNegativeInf x = isInfinite x && x < 0.0
     isNegativeNaN x = isNaN x && not (identicalIEEE x (0.0 / 0.0))

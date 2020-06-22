@@ -224,6 +224,9 @@ instance Monoid Hiding where
   mempty = NotHidden
   mappend = (<>)
 
+instance HasRange Hiding where
+  getRange _ = noRange
+
 instance KillRange Hiding where
   killRange = id
 
@@ -363,6 +366,9 @@ data Modality = Modality
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
+instance Null Modality where
+  empty = defaultModality
+
 -- | Pointwise composition.
 instance Semigroup Modality where
   Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
@@ -437,8 +443,11 @@ sameModality x y = case (getModality x , getModality y) of
 
 -- boilerplate instances
 
+instance HasRange Modality where
+  getRange (Modality r q c) = getRange (r, q, c)
+
 instance KillRange Modality where
-  killRange = id
+  killRange (Modality r q c) = killRange3 Modality r q c
 
 instance NFData Modality where
 
@@ -1299,6 +1308,9 @@ data Origin
   | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   deriving (Data, Show, Eq, Ord)
 
+instance HasRange Origin where
+  getRange _ = noRange
+
 instance KillRange Origin where
   killRange = id
 
@@ -1378,6 +1390,9 @@ instance Monoid FreeVariables where
   mempty  = KnownFVs IntSet.empty
   mappend = (<>)
 
+instance KillRange FreeVariables where
+  killRange = id
+
 instance NFData FreeVariables where
   rnf UnknownFVs    = ()
   rnf (KnownFVs fv) = rnf fv
@@ -1438,8 +1453,11 @@ data ArgInfo = ArgInfo
     --   supporting any of the @Modality@ interface.
   } deriving (Data, Eq, Ord, Show)
 
+instance HasRange ArgInfo where
+  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+
 instance KillRange ArgInfo where
-  killRange i = i -- There are no ranges in ArgInfo's
+  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo

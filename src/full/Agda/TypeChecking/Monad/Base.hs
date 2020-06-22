@@ -773,7 +773,7 @@ freshName r s = do
 freshNoName :: MonadFresh NameId m => Range -> m Name
 freshNoName r =
     do  i <- fresh
-        return $ Name i (C.NoName noRange i) r noFixity' False
+        return $ makeName i (C.NoName noRange i) r noFixity' False
 
 freshNoName_ :: MonadFresh NameId m => m Name
 freshNoName_ = freshNoName noRange
@@ -781,7 +781,7 @@ freshNoName_ = freshNoName noRange
 freshRecordName :: MonadFresh NameId m => m Name
 freshRecordName = do
   i <- fresh
-  return $ Name i (C.setNotInScope $ C.simpleName "r") noRange noFixity' True
+  return $ makeName i (C.setNotInScope $ C.simpleName "r") noRange noFixity' True
 
 -- | Create a fresh name from @a@.
 class FreshName a where
@@ -3112,11 +3112,16 @@ data Warning
   --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
+
   -- Generic warnings for one-off things
   | GenericWarning           Doc
     -- ^ Harmless generic warning (not an error)
   | GenericNonFatalError     Doc
     -- ^ Generic error which doesn't abort proceedings (not a warning)
+  | GenericUseless  Range    Doc
+    -- ^ Generic warning when code is useless and thus ignored.
+    --   'Range' is for dead code highlighting.
+
   -- Safe flag errors
   | SafeFlagPostulate C.Name
   | SafeFlagPragma [String]                -- ^ Unsafe OPTIONS.
@@ -3202,6 +3207,7 @@ warningName = \case
   DuplicateUsing{}             -> DuplicateUsing_
   FixityInRenamingModule{}     -> FixityInRenamingModule_
   GenericNonFatalError{}       -> GenericNonFatalError_
+  GenericUseless{}             -> GenericUseless_
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   ModuleDoesntExport{}         -> ModuleDoesntExport_

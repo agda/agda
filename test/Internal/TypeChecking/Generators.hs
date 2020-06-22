@@ -153,6 +153,7 @@ makeConfiguration ds cs ps vs = TermConf
                      , qnameName   = Name
                         { nameId          = NameId n 1
                         , nameConcrete    = C.simpleName s
+                        , nameCanonical   = C.simpleName s
                         , nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False

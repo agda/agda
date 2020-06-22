@@ -51,7 +51,7 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad  as TCM
 import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Positivity.Occurrence
-import Agda.TypeChecking.Warnings (runPM)
+import Agda.TypeChecking.Warnings ( raiseWarningsOnUsage, runPM )
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete.Definitions as W ( DeclarationWarning(..), DeclarationWarning'(..) )
@@ -429,6 +429,7 @@ warningHighlighting' b w = case tcWarning w of
   ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
+  GenericUseless r _         -> deadcodeHighlighting r
   -- Andreas, 2020-03-21, issue #4456:
   -- Error warnings that do not have dedicated highlighting
   -- are highlighted as errors.
@@ -636,11 +637,17 @@ storeDisambiguatedProjection = storeDisambiguatedField
 storeDisambiguatedConstructor :: Common.Induction -> A.QName -> TCM ()
 storeDisambiguatedConstructor i = storeDisambiguatedName $ Constructor i
 
+-- TODO: move the following function to a new module TypeChecking.Overloading
+-- that gathers functions concerning disambiguation of overloading.
+
 -- | Remember a name disambiguation (during type checking).
 --   To be used later during syntax highlighting.
+--   Also: raise user warnings associated with the name.
 storeDisambiguatedName :: NameKind -> A.QName -> TCM ()
-storeDisambiguatedName k q = whenJust (start $ getRange q) $ \ i ->
-  modifyTCLens stDisambiguatedNames $ IntMap.insert i $ DisambiguatedName k q
+storeDisambiguatedName k q = do
+  raiseWarningsOnUsage q
+  whenJust (start $ getRange q) $ \ i ->
+    modifyTCLens stDisambiguatedNames $ IntMap.insert i $ DisambiguatedName k q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
 

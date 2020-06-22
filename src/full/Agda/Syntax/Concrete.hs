@@ -33,6 +33,7 @@ module Agda.Syntax.Concrete
   , Telescope, Telescope1
   , lamBindingsToTelescope
   , makePi
+  , mkLam, mkLet, mkTLet
     -- * Declarations
   , Declaration(..)
   , ModuleApplication(..)
@@ -148,7 +149,7 @@ data Expr
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
-  | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
+  | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
   | DoBlock Range (List1 DoStmt)               -- ^ ex: @do x <- m1; m2@
@@ -200,7 +201,7 @@ data Pattern
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
-  | DoLet Range [Declaration]
+  | DoLet Range (List1 Declaration)
   deriving (Data, Eq)
 
 -- | A Binder @x\@p@, the pattern is optional
@@ -249,7 +250,7 @@ type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
   = TBind Range (List1 (NamedArg Binder)) e
     -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
-  | TLet  Range [Declaration]
+  | TLet  Range (List1 Declaration)
     -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
@@ -271,6 +272,24 @@ lamBindingsToTelescope r = fmap $ \case
 makePi :: Telescope -> Expr -> Expr
 makePi []     = id
 makePi (b:bs) = Pi (b :| bs)
+
+-- | Smart constructor for @Lam@: check for non-zero bindings.
+
+mkLam :: Range -> [LamBinding] -> Expr -> Expr
+mkLam r []     e = e
+mkLam r (x:xs) e = Lam r (x :| xs) e
+
+-- | Smart constructor for @Let@: check for non-zero let bindings.
+
+mkLet :: Range -> [Declaration] -> Expr -> Expr
+mkLet r []     e = e
+mkLet r (d:ds) e = Let r (d :| ds) (Just e)
+
+-- | Smart constructor for @TLet@: check for non-zero let bindings.
+
+mkTLet :: Range -> [Declaration] -> Maybe (TypedBinding' e)
+mkTLet r []     = Nothing
+mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 
 {-| Left hand sides can be written in infix style. For example:
 

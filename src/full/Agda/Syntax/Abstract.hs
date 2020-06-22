@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -99,7 +99,8 @@ data Expr
   | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
   | Generalized (Set QName) Expr       -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
-  | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
+  | Let  ExprInfo (List1 LetBinding) Expr
+                                       -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
@@ -288,15 +289,23 @@ mkDomainFree = DomainFree Nothing
 data TypedBinding
   = TBind Range TacticAttr (List1 (NamedArg Binder)) Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
-  | TLet Range [LetBinding]
+  | TLet Range (List1 LetBinding)
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Expr -> TypedBinding
 mkTBind r = TBind r Nothing
 
+mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
+mkTLet _ []     = Nothing
+mkTLet r (d:ds) = Just $ TLet r (d :| ds)
+
 type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
+
+mkPi :: ExprInfo -> Telescope -> Expr -> Expr
+mkPi i []     e = e
+mkPi i (x:xs) e = Pi i (x :| xs) e
 
 data GeneralizeTelescope = GeneralizeTel
   { generalizeTelVars :: Map QName Name
@@ -923,8 +932,8 @@ app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App defaultAppInfo_)
 
 mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
-mkLet i [] e = e
-mkLet i ds e = Let i ds e
+mkLet _ []     e = e
+mkLet i (d:ds) e = Let i (d :| ds) e
 
 patternToExpr :: Pattern -> Expr
 patternToExpr = \case
@@ -955,20 +964,17 @@ lambdaLiftExpr ns e
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
 
-instance SubstExpr a => SubstExpr (Maybe a) where
+  default substExpr
+    :: (Functor t, SubstExpr b, t b ~ a)
+    => [(Name, Expr)] -> a -> a
   substExpr = fmap . substExpr
 
-instance SubstExpr a => SubstExpr [a] where
-  substExpr = fmap . substExpr
-
-instance SubstExpr a => SubstExpr (List1 a) where
-  substExpr = fmap . substExpr
-
-instance SubstExpr a => SubstExpr (Arg a) where
-  substExpr = fmap . substExpr
-
-instance SubstExpr a => SubstExpr (Named name a) where
-  substExpr = fmap . substExpr
+instance SubstExpr a => SubstExpr (Maybe a)
+instance SubstExpr a => SubstExpr [a]
+instance SubstExpr a => SubstExpr (List1 a)
+instance SubstExpr a => SubstExpr (Arg a)
+instance SubstExpr a => SubstExpr (Named name a)
+instance SubstExpr a => SubstExpr (FieldAssignment' a)
 
 instance (SubstExpr a, SubstExpr b) => SubstExpr (a, b) where
   substExpr s (x, y) = (substExpr s x, substExpr s y)
@@ -982,9 +988,6 @@ instance SubstExpr C.Name where
 
 instance SubstExpr ModuleName where
   substExpr _ = id
-
-instance SubstExpr Assign where
-  substExpr s (FieldAssignment n x) = FieldAssignment n (substExpr s x)
 
 instance SubstExpr Expr where
   substExpr s e = case e of
