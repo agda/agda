@@ -454,10 +454,6 @@ navigate to your top-level folder and run:
 
   agda --compile hello-world-prog.agda
 
-.. warning:: Frequent error when compiling: ``primFloatEquality`` requires the
-  `ieee754 <http://hackage.haskell.org/package/ieee754>`_ haskell library.
-  Usually ``cabal install ieee754`` in the command line does the trick.
-
 The ``--compile`` flag here creates via the :ref:`GHC backend <ghc-backend>`
 a binary file in the top-level folder that the computer can execute.
 
