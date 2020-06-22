@@ -36,8 +36,8 @@ mathematical sense) with Agda. Roughly speaking, a vector is a list of objects
 with a determined length.
 
 .. hint:: Agda programs are structured in :ref:`modules <module-system>`. The
-  first module in each file is the *top-level* module whose name
-  matches the filename.
+  module in each file whose name matches the filename is referred to as the
+  *top-level* module .
 
 .. code-block:: agda
 
