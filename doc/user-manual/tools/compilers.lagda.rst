@@ -70,7 +70,7 @@ After compiling the example
 
 you can run the HelloWorld program which prints ``Hello, World!``.
 
-.. warning:: Frequent error when compiling: ``primFloatEquality`` requires the
+.. warning:: Frequent error when compiling: ``Float`` requires the
   `ieee754 <http://hackage.haskell.org/package/ieee754>`_ haskell library.
   Usually ``cabal install ieee754`` in the command line does the trick.
 
