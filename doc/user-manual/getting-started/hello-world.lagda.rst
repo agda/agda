@@ -16,9 +16,9 @@ Before proceeding, make sure that you :ref:`installed Agda <installation>`
 and a compatible version of the `standard library
 <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
 You will also need an editor with *interactive* capabilities, currently
-Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via the
-`agda mode for Atom <agda-mode_>`_ and VSCode via the
-`agda mode for VSCode <vs-code_>`_ are supported.
+supported editors are Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via
+the `agda mode for Atom <agda-mode_>`_ and VSCode via the
+`agda mode for VSCode <vs-code_>`_.
 
 .. _agda-mode: https://github.com/banacorn/agda-mode
 .. _vs-code: https://github.com/banacorn/agda-mode-vscode
@@ -31,8 +31,9 @@ Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via the
 ‘Hello world’ dependent type
 ============================
 
-We will model the notion of vector space with Agda. Roughly speaking, a vector
-is a list of objects with a determined length.
+We will model the notion of vector (in the computer science sense, not in the
+mathematical sense) with Agda. Roughly speaking, a vector is a list of objects
+with a determined length.
 
 .. hint:: Agda programs are structured in :ref:`modules <module-system>`. The
   first module in each file is the *top-level* module whose name
