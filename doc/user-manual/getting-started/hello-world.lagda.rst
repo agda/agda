@@ -123,8 +123,64 @@ increased by one.
 
 The declaration with keyword ``ìnfixr`` does not belong to the datatype
 declaration; therefore it is not indented. It establishes the
-:ref:`precedence <precedence>` of the operator append. This finishes our
-explanation of the ‘Hello world’ dependent type example.
+:ref:`precedence <precedence>` of the operator append.
+
+The total function ``lookup``
+-----------------------------
+
+Now that ``Vec`` is defined, we can define the ``lookup`` function that
+given a vector object and a position, returns the object of the vector at
+the given position.
+
+I order to do so, we need to import the ``Fin`` datatype. ``Fin n`` is a type
+with ``n`` elements that models in this example the notion of position. Create
+a new ``.agda`` file and type or paste:
+
+.. code-block:: agda
+
+  module hello-world-dep-lookup where
+
+  open import Agda.Builtin.Nat using (Nat)
+  open import Data.Vec using (Vec ; _∷_)
+  open import Data.Fin using (Fin ; zero ; suc)
+
+  variable
+    A : Set
+    n : Nat
+
+  lookup : Vec A n -> Fin n -> A
+  lookup (a ∷ as) zero = a
+  lookup (a ∷ as) (suc i) = lookup as i
+
+In the latter code, we declared ``A`` and ``n`` as
+:ref:`generalizable variables <generalization-of-declared-variables>` to
+avoid the declaratkion of implicit arguments. An equivalent Agda program would
+be:
+
+.. code-block:: agda
+
+  module hello-world-dep-lookup where
+
+  open import Agda.Builtin.Nat using (Nat)
+  open import Data.Vec using (Vec ; _∷_)
+  open import Data.Fin using (Fin ; zero ; suc)
+
+  lookup : {A : Set} → {n : Nat} → Vec A n -> Fin n -> A
+  lookup (a ∷ as) zero = a
+  lookup (a ∷ as) (suc i) = lookup as i
+
+.. warning:: ``zero`` and ``suc`` are **not** the constructors of ``Nat``
+  that we saw before. Agda allows overloading of constructor identifiers.
+  You can always check the type of an identifier in scope with ``C-c C-d``.
+
+The ``Vec`` type that we saw before is actually already in the standard
+library. We can bring it to scope by importin it from the ``Data.Vec`` module.
+
+The ``lookup`` function can also be defined in other programming languages, but
+it won't be a total function (defined the whole range of its domain). This is
+necessary to guarantee that all Agda programs terminate.
+
+This finishes our explanation of the ‘Hello world’ dependent type example.
 
 ‘Hello world’ proof
 ===================
