@@ -104,7 +104,7 @@ We can infer that ``Vec A n`` will also range over ``Set`` (the lower upper
 bound of the types involved). We are now entitled to write the signature of
 our datatype: ``Vec (A : Set) : ℕ → Set``.
 
-To declare the datytype, we place its signature between the keywords ``data``
+To declare the datatype, we place its signature between the keywords ``data``
 and ``where``.
 
 The constructors ``[]`` and ``_∷_``
@@ -185,7 +185,7 @@ This finishes our explanation of the ‘Hello world’ dependent type example.
 ‘Hello world’ proof
 ===================
 
-We will see in this section how to enunciate and prove with Agda the
+We will see in this section how to state and prove with Agda the
 associativity of natural numbers under the addition. This time we will build
 the code line by line. You can load the file in each step.
 
@@ -215,8 +215,8 @@ definitional equality states that two terms compute to the same normal form,
 
   open import Agda.Builtin.Equality using (_≡_)
 
-Now we can enunciate the associativity: given three (possibly different)
-natural numbers, adding the first to the addition of the second and the third
+Now we can state associativity: given three (possibly different) natural
+numbers, adding the first to the addition of the second and the third
 computes to the same value as adding the addition of the first and the second
 to the third. We will name this statement ``+assoc-enun``.
 
