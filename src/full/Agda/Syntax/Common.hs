@@ -1071,6 +1071,12 @@ data Annotation = Annotation
     --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
   } deriving (Data, Eq, Ord, Show, Generic)
 
+instance HasRange Annotation where
+  getRange _ = noRange
+
+instance KillRange Annotation where
+  killRange = id
+
 defaultAnnotation :: Annotation
 defaultAnnotation = Annotation defaultLock
 
@@ -1454,10 +1460,10 @@ data ArgInfo = ArgInfo
   } deriving (Data, Eq, Ord, Show)
 
 instance HasRange ArgInfo where
-  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+  getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
+  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
