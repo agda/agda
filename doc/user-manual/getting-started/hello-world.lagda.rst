@@ -59,8 +59,8 @@ This code has 6 declarations:
    ``zero`` and ``suc`` from the Agda Builtin Library.
 3. declaration of the datatype ``Vec``.
 4. declaration of the empty vector constructor ``[]``.
-5. declaration of the append constructor ``_∷_``
-6. specification of the :ref:`precedence` for the append operation
+5. declaration of the *cons* constructor ``_∷_``
+6. specification of the :ref:`precedence` for the *cons* operation
 
 .. note:: Paste or type the code above in a new file with extension ``.agda``.
   Load the file (in Emacs ``C-c C-l``). This also saves the file. You should
@@ -117,13 +117,13 @@ We chose for the first constructor the identifier ``[]``. It represents the
 empty vector, and its type is the vector space of length ``0``.
 
 The second constructor is a :ref:`mixfix operator <mixfix-operators>` named
-``_∷_`` (pronounced append). For all numbers, it takes as input an element
+``_∷_`` (pronounced *cons*). For all numbers, it takes as input an element
 of ``A`` and a vector. As output, it produces a vector with a length
 increased by one.
 
 The declaration with keyword ``ìnfixr`` does not belong to the datatype
 declaration; therefore it is not indented. It establishes the
-:ref:`precedence <precedence>` of the operator append.
+:ref:`precedence <precedence>` of the operator *cons*.
 
 The total function ``lookup``
 -----------------------------
