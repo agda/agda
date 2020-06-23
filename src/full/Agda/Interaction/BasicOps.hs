@@ -671,12 +671,18 @@ getIPBoundary norm ii = do
 -- | Goals and Warnings
 
 getGoals :: TCM Goals
-getGoals = do
+getGoals = getGoals' AsIs Simplified
   -- visible metas (as-is)
-  visibleMetas <- typesOfVisibleMetas AsIs
   -- hidden metas (unsolved implicit arguments simplified)
+
+getGoals'
+  :: Rewrite    -- ^ Degree of normalization of goals.
+  -> Rewrite    -- ^ Degree of normalization of hidden goals.
+  -> TCM Goals
+getGoals' normVisible normHidden = do
+  visibleMetas <- typesOfVisibleMetas normVisible
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas normHidden
   return (visibleMetas, hiddenMetas)
 
 -- | Print open metas nicely.

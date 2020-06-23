@@ -1054,10 +1054,6 @@ is inserted, and point is placed before this text."
   (kill-new text)
   (agda2-info-action name text append))
 
-(defun agda2-show-goals()
-  "Show all goals." (interactive)
-  (agda2-go nil t 'busy t "Cmd_metas"))
-
 (defun agda2-show-constraints()
   "Show constraints." (interactive)
   (agda2-go nil t 'busy t "Cmd_constraints"))
@@ -1376,6 +1372,12 @@ Either only one if point is a goal, or all of them."
                           'agda2-autoOne
                           'agda2-autoAll))
 )
+
+(agda2-maybe-normalised-toplevel-asis-noprompt
+ agda2-show-goals
+ "Show all goals."
+ "Cmd_metas"
+ )
 
 (agda2-maybe-normalised-toplevel-asis-noprompt
  agda2-solveAll
