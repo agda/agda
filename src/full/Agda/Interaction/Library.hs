@@ -59,6 +59,8 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Environment
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
+import Agda.Utils.List1 ( List1 )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -121,8 +123,8 @@ getAgdaAppDir = do
 --   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
 --   by default.
 --
-defaultLibraryFiles :: [FilePath]
-defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
+defaultLibraryFiles :: List1 FilePath
+defaultLibraryFiles = List1.fromList ["libraries-" ++ version, "libraries"]
 
 -- | The @defaultsFile@ contains a list of library names relevant for each Agda project.
 --
@@ -137,8 +139,8 @@ defaultsFile = "defaults"
 --   @defaultExecutablesFiles@ gives a list of all @executables@ Agda should process
 --   by default.
 --
-defaultExecutableFiles :: [FilePath]
-defaultExecutableFiles = ["executables-" ++ version, "executables"]
+defaultExecutableFiles :: List1 FilePath
+defaultExecutableFiles = List1.fromList ["executables-" ++ version, "executables"]
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project
@@ -221,11 +223,11 @@ getLibrariesFile (Just overrideLibFile) =
   return $ LibrariesFile overrideLibFile True  -- Existence checked in cmdline option parser.
 getLibrariesFile Nothing = do
   agdaDir <- getAgdaAppDir
-  let defaults = map (agdaDir </>) defaultLibraryFiles  -- NB: non-empty list
-  files <- filterM doesFileExist defaults
+  let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
+  files <- filterM doesFileExist (List1.toList defaults)
   case files of
     file : _ -> return $ LibrariesFile file True
-    []       -> return $ LibrariesFile (last defaults) False -- doesn't exist, but that's ok
+    []       -> return $ LibrariesFile (List1.last defaults) False -- doesn't exist, but that's ok
 
 -- | Parse the descriptions of the libraries Agda knows about.
 --
@@ -279,11 +281,11 @@ getExecutablesFile
   :: IO ExecutablesFile
 getExecutablesFile = do
   agdaDir <- getAgdaAppDir
-  let defaults = map (agdaDir </>) defaultExecutableFiles  -- NB: non-empty list
-  files <- filterM doesFileExist defaults
+  let defaults = List1.map (agdaDir </>) defaultExecutableFiles  -- NB: very short list
+  files <- filterM doesFileExist (List1.toList defaults)
   case files of
     file : _ -> return $ ExecutablesFile file True
-    []       -> return $ ExecutablesFile (last defaults) False -- doesn't exist, but that's ok
+    []       -> return $ ExecutablesFile (List1.last defaults) False -- doesn't exist, but that's ok
 
 -- | Return the trusted executables Agda knows about.
 --
