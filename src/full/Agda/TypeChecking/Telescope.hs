@@ -329,9 +329,11 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
 
-    cpi         = noConPatternInfo
+    cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
+      , conPFallThrough
+                   = False
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
