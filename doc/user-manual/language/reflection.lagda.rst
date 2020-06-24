@@ -739,6 +739,7 @@ The ``execTC`` builtin takes three arguments: the basename of the executable (e.
 It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file:
 
 .. code-block:: text
+
   # contents of ~/.agda/executables
   /bin/echo
 
