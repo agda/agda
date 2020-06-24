@@ -32,10 +32,19 @@ Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
 Fixes to outdated instructions welcome!
 
-Working with git
+Working with Git
 ================
 
 Since: 2013-06-15.
+
+Cloning
+--------
+
+Since Agda's repository uses submodules, you should cloning the
+repository by running:
+```bash
+git clone --recurse-submodules git@github.com:agda/agda.git
+```
 
 Branches
 ---------

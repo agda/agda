@@ -186,6 +186,7 @@ data WarningName
   | DuplicateUsing_
   | FixityInRenamingModule_
   | GenericNonFatalError_
+  | GenericUseless_
   | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
@@ -332,6 +333,7 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   DeprecationWarning_              -> "Feature deprecation."
   GenericNonFatalError_            -> ""
+  GenericUseless_                  -> "Useless code."
   GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
