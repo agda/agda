@@ -20,8 +20,8 @@ supported editors are Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via
 the `agda mode for Atom <agda-mode_>`_ and VSCode via the
 `agda mode for VSCode <vs-code_>`_.
 
-.. _agda-mode: https://github.com/banacorn/agda-mode
-.. _vs-code: https://github.com/banacorn/agda-mode-vscode
+.. _agda-mode: https://atom.io/packages/agda-mode
+.. _vs-code: https://marketplace.visualstudio.com/items?itemName=banacorn.agda-mode
 
 .. hint:: If you want a sneak peek of Agda without installing it, try the
   `Agda Pad <agda-pad_>`_
