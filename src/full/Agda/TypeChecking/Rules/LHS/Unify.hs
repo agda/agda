@@ -210,11 +210,11 @@ unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
-          , nest 2 $ prettyTCM tel
-          , nest 2 $ addContext tel $ text $ show $ map flexVar flex
-          , nest 2 $ addContext tel $ parens (prettyTCM a)
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM us
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
+          , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
+          , ("flex =" <+>) $ nest 2 $ addContext tel $ text $ show $ map flexVar flex
+          , ("a    =" <+>) $ nest 2 $ addContext tel $ parens (prettyTCM a)
+          , ("us   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM us
+          , ("vs   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
