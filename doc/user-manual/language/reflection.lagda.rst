@@ -736,8 +736,9 @@ It is possible to run system calls as part of a metaprogram, using the ``execTC`
 
 The ``execTC`` builtin takes three arguments: the basename of the executable (e.g., ``"echo"``), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
 
-It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file::
+It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file:
 
+.. code-block:: text
   # contents of ~/.agda/executables
   /bin/echo
 
