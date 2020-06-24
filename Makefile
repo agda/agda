@@ -74,7 +74,7 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 ifeq ("$(shell ghc --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_OPTS           = "+RTS -M1.7G -RTS"
 else
-GHC_OPTS           = "+RTS -M3G -RTS"
+GHC_OPTS           = "+RTS -M4G -RTS"
 endif
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
