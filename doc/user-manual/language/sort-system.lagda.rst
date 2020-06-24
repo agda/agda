@@ -268,7 +268,7 @@ If ``sA`` and ``sB`` happen to be known, then ``funSort sA sB`` can be computed
 to a sort value. We list below all the possible computations that ``funSort``
 can perform:
 
-.. code-block::
+.. code-block:: agda
 
   funSort Setωᵢ    Setωⱼ    = Setωₖ            (where k = max(i,j))
   funSort Setωᵢ    (Set b)  = Setωᵢ
@@ -293,7 +293,7 @@ where:
   function type ``∀ {A} → A → A → A`` evaluates to ``funSort (univSort
   _5) (funSort _5 (funSort _5 _5))``
 
-.. _univSort:
+.. _univSort: agda
 
 univSort
 --------
@@ -308,7 +308,7 @@ Example: the sort of the function type ``∀ {A} → A`` with normal form
 
 We list below all the possible computations that ``univSort`` can perform:
 
-.. code-block::
+.. code-block:: agda
 
   univSort (Set a)  = Set (lsuc a)
   univSort (Prop a) = Set (lsuc a)
@@ -339,7 +339,7 @@ well-defined sort ``piSort sA sB``, specified in terms of the element
 
 We list below all the possible computations that ``piSort`` can perform:
 
-.. code-block::
+.. code-block:: agda
 
   piSort s1       (λ x → s2) = funSort s1 s2          (if x does not occur freely in s2)
   piSort (Set ℓ)  (λ x → s2) = Setω                   (if x occurs rigidly in s2)
