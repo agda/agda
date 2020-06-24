@@ -31,6 +31,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -201,7 +202,7 @@ instance Match () NLPSort Sort where
       (_ , UnivSort{}) -> matchingBlocked b
       (_ , PiSort{}  ) -> matchingBlocked b
       (_ , FunSort{} ) -> matchingBlocked b
-      (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
+      (_ , MetaS m _ ) -> matchingBlocked $ blocked_ m
 
       -- all other cases do not match
       (_ , _) -> no
@@ -253,7 +254,7 @@ instance Match Type NLPat Term where
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
         maybeBlock w = case w of
-          MetaV m es -> matchingBlocked $ Blocked m ()
+          MetaV m es -> matchingBlocked $ blocked_ m
           _          -> no ""
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
@@ -307,14 +308,14 @@ instance Match Type NLPat Term where
                   | otherwise      = map (Apply . fmap mkField) flds
             match r gamma k (ct, Con c ci) ps' (map Apply vs)
           MetaV m es -> do
-            matchingBlocked $ Blocked m ()
+            matchingBlocked $ blocked_ m
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
-        MetaV m es -> matchingBlocked $ Blocked m ()
+        MetaV m es -> matchingBlocked $ blocked_ m
         v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do
@@ -358,8 +359,8 @@ reallyFree xs v = do
   case IntMap.foldr pickFree NotFree mxs of
     MaybeFree ms
       | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $
-        foldrMetaSet (\ m -> mappend $ Blocked m ()) (notBlocked ()) ms
+      | otherwise -> return $ Left $ Blocked blocker ()
+      where blocker = unblockOnAll $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
     NotFree -> return $ Right (Just v')
 
   where
@@ -424,6 +425,4 @@ equal a u v = pureEqualTerm a u v >>= \case
     return $ Just block
 
   where
-    block = caseMaybe (firstMeta (u, v))
-              (NotBlocked ReallyNotBlocked ())
-              (\m -> Blocked m ())
+    block = blockedOn (unblockOnAllMetasIn (u, v)) ()

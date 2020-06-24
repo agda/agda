@@ -1,10 +1,11 @@
 Failed to solve the following constraints:
-  Resolve instance argument
+  Resolve instance argument (blocked on any())
     _8
       : (n₁ : Nat) ⦃ x = x₁ : NonZero n₁ ⦄ ⦃ y = y₁ : NonZero n₁ ⦄ →
         NonZero n₁
   Candidates
     y : NonZero n
     x : NonZero n
+    (stuck)
 Unsolved metas at the following locations:
   NonUniqueInstance1.agda:16,10-17

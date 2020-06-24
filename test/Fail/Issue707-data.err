@@ -1,4 +1,4 @@
 Failed to solve the following constraints:
-  Check definition of fixIx : (b : Bool) → D b → D b
+  Check definition of fixIx : (b : Bool) → D b → D b (blocked on _9)
 Unsolved interaction metas at the following locations:
   Issue707-data.agda:8,13-14

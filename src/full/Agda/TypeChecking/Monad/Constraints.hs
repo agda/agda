@@ -3,12 +3,15 @@ module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Arrow ((&&&))
 import Control.Monad.Except
+import Control.Monad.Reader
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Semigroup ((<>))
 
+import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Debug
@@ -27,11 +30,8 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-        wakeConstraints (return . blockedOn pid . clValue . theConstraint)
+        wakeConstraints (wakeUpIfBlockedOnProblem pid)
   return x
-  where
-    blockedOn pid (Guarded _ pid') = pid == pid'
-    blockedOn _ _ = False
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
 isProblemSolved pid =
@@ -109,7 +109,7 @@ getAllConstraints = do
   return $ s^.stAwakeConstraints ++ s^.stSleepingConstraints
 
 withConstraint :: MonadConstraint m => (Constraint -> m a) -> ProblemConstraint -> m a
-withConstraint f (PConstr pids c) = do
+withConstraint f (PConstr pids _ c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
   (pids', isSolving) <- asksTC $ envActiveProblems &&& envSolvingConstraints
   enterClosure c $ \c ->
@@ -118,16 +118,35 @@ withConstraint f (PConstr pids c) = do
 
 buildProblemConstraint
   :: (MonadTCEnv m, ReadTCState m)
-  => Set ProblemId -> Constraint -> m ProblemConstraint
-buildProblemConstraint pids c = PConstr pids <$> buildClosure c
+  => Set ProblemId -> Blocker -> Constraint -> m ProblemConstraint
+buildProblemConstraint pids unblock c = PConstr pids unblock <$> buildClosure c
 
 buildProblemConstraint_
   :: (MonadTCEnv m, ReadTCState m)
-  => Constraint -> m ProblemConstraint
+  => Blocker -> Constraint -> m ProblemConstraint
 buildProblemConstraint_ = buildProblemConstraint Set.empty
 
-buildConstraint :: Constraint -> TCM ProblemConstraint
-buildConstraint c = flip buildProblemConstraint c =<< asksTC envActiveProblems
+buildConstraint :: Blocker -> Constraint -> TCM ProblemConstraint
+buildConstraint unblock c = do
+  pids <- asksTC envActiveProblems
+  buildProblemConstraint pids unblock c
+
+-- | Should a constraint wake up or not? If not, we might refine the unblocker.
+data WakeUp = WakeUp | DontWakeUp (Maybe Blocker)
+  deriving (Show, Eq)
+
+wakeUpWhen :: Applicative m => (ProblemConstraint -> Bool) -> (ProblemConstraint -> m WakeUp) -> ProblemConstraint -> m WakeUp
+wakeUpWhen guard wake c | guard c   = wake c
+                        | otherwise = pure $ DontWakeUp Nothing
+
+wakeUpWhen_ :: Applicative m => (ProblemConstraint -> Bool) -> ProblemConstraint -> m WakeUp
+wakeUpWhen_ p = wakeUpWhen p (const $ pure WakeUp)
+
+wakeUpIfBlockedOnProblem :: Applicative m => ProblemId -> ProblemConstraint -> m WakeUp
+wakeUpIfBlockedOnProblem pid = wakeUpWhen_ (blockedOn pid . clValue . theConstraint)
+  where
+    blockedOn pid (Guarded _ pid') = pid == pid'
+    blockedOn _ _                  = False
 
 -- | Monad service class containing methods for adding and solving
 --   constraints
@@ -138,14 +157,14 @@ class ( MonadTCEnv m
       , MonadDebug m
       ) => MonadConstraint m where
   -- | Unconditionally add the constraint.
-  addConstraint :: Constraint -> m ()
+  addConstraint :: Blocker -> Constraint -> m ()
 
   -- | Add constraint as awake constraint.
-  addAwakeConstraint :: Constraint -> m ()
+  addAwakeConstraint :: Blocker -> Constraint -> m ()
 
   -- | `catchPatternErr handle m` runs m, handling pattern violations
   --    with `handle` (doesn't roll back the state)
-  catchPatternErr :: m a -> m a -> m a
+  catchPatternErr :: (Blocker -> m a) -> m a -> m a
 
   solveConstraint :: Constraint -> m ()
 
@@ -153,7 +172,7 @@ class ( MonadTCEnv m
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
 
-  wakeConstraints :: (ProblemConstraint-> m Bool) -> m ()
+  wakeConstraints :: (ProblemConstraint-> m WakeUp) -> m ()
 
   stealConstraints :: ProblemId -> m ()
 
@@ -161,21 +180,41 @@ class ( MonadTCEnv m
 
   modifySleepingConstraints  :: (Constraints -> Constraints) -> m ()
 
+instance MonadConstraint m => MonadConstraint (ReaderT e m) where
+  addConstraint             = (lift .) . addConstraint
+  addAwakeConstraint        = (lift .) . addAwakeConstraint
+  solveConstraint           = lift . solveConstraint
+  solveSomeAwakeConstraints = (lift .) . solveSomeAwakeConstraints
+  stealConstraints          = lift . stealConstraints
+  modifyAwakeConstraints    = lift . modifyAwakeConstraints
+  modifySleepingConstraints = lift . modifySleepingConstraints
+
+  catchPatternErr h m = ReaderT $ \ e ->
+    let run = flip runReaderT e in catchPatternErr (run . h) (run m)
+  wakeConstraints wake = ReaderT $ \ e ->
+    let run = flip runReaderT e in wakeConstraints (run . wake)
+
+addAndUnblocker :: MonadConstraint m => Blocker -> m a -> m a
+addAndUnblocker u = catchPatternErr $ \ u' -> patternViolation (u <> u')
+
+addOrUnblocker :: MonadConstraint m => Blocker -> m a -> m a
+addOrUnblocker u = catchPatternErr $ \ u' -> patternViolation (unblockOnEither u u')
+
 -- | Add new a constraint
-addConstraint' :: Constraint -> TCM ()
+addConstraint' :: Blocker -> Constraint -> TCM ()
 addConstraint' = addConstraintTo stSleepingConstraints
 
-addAwakeConstraint' :: Constraint -> TCM ()
+addAwakeConstraint' :: Blocker -> Constraint -> TCM ()
 addAwakeConstraint' = addConstraintTo stAwakeConstraints
 
-addConstraintTo :: Lens' Constraints TCState -> Constraint -> TCM ()
-addConstraintTo bucket c = do
+addConstraintTo :: Lens' Constraints TCState -> Blocker -> Constraint -> TCM ()
+addConstraintTo bucket unblock c = do
     pc <- build
     stDirty `setTCLens` True
     bucket `modifyTCLens` (pc :)
   where
-    build | isBlocking c = buildConstraint c
-          | otherwise    = buildProblemConstraint_ c
+    build | isBlocking c = buildConstraint unblock c
+          | otherwise    = buildProblemConstraint_ unblock c
     isBlocking = \case
       SortCmp{}        -> False
       LevelCmp{}       -> False
@@ -203,7 +242,7 @@ isSolvingConstraints = asksTC envSolvingConstraints
 
 -- | Add constraint if the action raises a pattern violation
 catchConstraint :: MonadConstraint m => Constraint -> m () -> m ()
-catchConstraint c = catchPatternErr $ addConstraint c
+catchConstraint c = catchPatternErr $ \ unblock -> addConstraint unblock c
 
 ---------------------------------------------------------------------------
 -- * Lenses

@@ -65,7 +65,7 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     isBlocked = not . null . blocking . clValue . theConstraint
     cs' = filter interestingConstraint cs
     interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
     blocking (Guarded c pid) = pid : blocking c
     blocking _               = []
 

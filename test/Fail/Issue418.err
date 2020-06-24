@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Set = _3 : Set₁
+  Set = _3 : Set₁ (blocked on _3)
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18

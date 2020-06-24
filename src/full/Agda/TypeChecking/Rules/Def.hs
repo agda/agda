@@ -98,11 +98,11 @@ checkFunDef delayed i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
-    `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+    `catchIlltypedPatternBlockedOnMeta` \ (err, blocker) -> do
         reportSDoc "tc.def" 20 $ vcat $
-          [ "checking function definition got stuck on meta: " <+> text (show x) ]
-        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked x ()
-        addConstraint $ CheckFunDef delayed i name cs
+          [ "checking function definition got stuck on: " <+> pretty blocker ]
+        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
+        addConstraint blocker $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do

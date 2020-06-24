@@ -11,9 +11,12 @@ import qualified Data.Foldable as Fold
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -54,14 +57,14 @@ checkSizeLtSat t = whenM haveSizeLt $ do
         "in context " <+> inTopContext (prettyTCM tel)
       ]
   reportSLn "tc.size" 60 $ "- raw type = " ++ show t
-  let postpone :: Term -> TCM ()
-      postpone t = do
+  let postpone :: Blocker -> Term -> TCM ()
+      postpone b t = do
         reportSDoc "tc.size.lt" 20 $ sep
           [ "- postponing `not empty type of sizes' check for " <+> prettyTCM t ]
-        addConstraint $ CheckSizeLtSat t
+        addConstraint b $ CheckSizeLtSat t
   let ok :: TCM ()
       ok = reportSLn "tc.size.lt" 20 $ "- succeeded: not an empty type of sizes"
-  ifBlocked t (const postpone) $ \ _ t -> do
+  ifBlocked t postpone $ \ _ t -> do
     reportSLn "tc.size.lt" 20 $ "- type is not blocked"
     caseMaybeM (isSizeType t) ok $ \ b -> do
       reportSLn "tc.size.lt" 20 $ " - type is a size type"
@@ -69,7 +72,7 @@ checkSizeLtSat t = whenM haveSizeLt $ do
         BoundedNo -> ok
         BoundedLt b -> do
           reportSDoc "tc.size.lt" 20 $ " - type is SIZELT" <+> prettyTCM b
-          ifBlocked b (\ _ _ -> postpone t) $ \ _ b -> do
+          ifBlocked b (\ x _ -> postpone x t) $ \ _ b -> do
             reportSLn "tc.size.lt" 20 $ " - size bound is not blocked"
             catchConstraint (CheckSizeLtSat t) $ do
               unlessM (checkSizeNeverZero b) $ do
@@ -136,13 +139,16 @@ checkSizeVarNeverZero i = do
   ts <- map (snd . unDom) . take i <$> getContext
   -- If we encountered a blocking meta in the context, we cannot
   -- say ``no'' for sure.
-  (n, Any meta) <- runWriterT $ minSizeValAux ts $ repeat 0
+  (n, blockers) <- runWriterT $ minSizeValAux ts $ repeat 0
+  let blocker = unblockOnAll blockers
   if n > 0 then return True else
-    if meta then patternViolation else return False
+    if blocker == alwaysUnblock
+      then return False
+      else patternViolation blocker
   where
   -- Compute the least valuation for size context ts above the
   -- given valuation and return its last value.
-  minSizeValAux :: [Type] -> [Int] -> WriterT Any TCM Int
+  minSizeValAux :: [Type] -> [Int] -> WriterT (Set Blocker) TCM Int
   minSizeValAux _        []      = __IMPOSSIBLE__
   minSizeValAux []       (n : _) = return n
   minSizeValAux (t : ts) (n : ns) = do
@@ -151,14 +157,14 @@ checkSizeVarNeverZero i = do
              " t =") <+> (text . show) t  -- prettyTCM t  -- Wrong context!
     -- n is the min. value for variable 0 which has type t.
     let cont = minSizeValAux ts ns
-        perhaps = tell (Any True) >> cont
+        perhaps x = tell (Set.singleton x) >> cont
     -- If we encounter a blocked type in the context, we cannot
     -- give a definite answer.
-    ifBlocked t (\ _ _ -> perhaps) $ \ _ t -> do
+    ifBlocked t (\ x _ -> perhaps x) $ \ _ t -> do
       caseMaybeM (liftTCM $ isSizeType t) cont $ \ b -> do
         case b of
           BoundedNo -> cont
-          BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ _ u -> do
+          BoundedLt u -> ifBlocked u (\ x _ -> perhaps x) $ \ _ u -> do
             reportSLn "tc.size" 60 $ "minSizeVal upper bound u = " ++ show u
             v <- liftTCM $ deepSizeView u
             case v of
@@ -170,7 +176,7 @@ checkSizeVarNeverZero i = do
                 let ns' = List.updateAt j (max $ n+1-m) ns
                 reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
                 minSizeValAux ts ns'
-              DSizeMeta{} -> perhaps
+              DSizeMeta x _ _ -> perhaps (unblockOnMeta x)
               _ -> cont
 
 -- | Check whether a variable in the context is bounded by a size expression.
@@ -186,7 +192,7 @@ isBounded i = do
     _ -> return BoundedNo
 
 -- | Whenever we create a bounded size meta, add a constraint
---   expressing the bound.
+--   expressing the bound. First argument is the new meta and must be a @MetaV{}@.
 --   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
 boundedSizeMetaHook
   :: ( MonadConstraint m
@@ -197,7 +203,7 @@ boundedSizeMetaHook
      , HasBuiltins m
      )
   => Term -> Telescope -> Type -> m ()
-boundedSizeMetaHook v tel0 a = do
+boundedSizeMetaHook v@(MetaV x _) tel0 a = do
   res <- isSizeType a
   case res of
     Just (BoundedLt u) -> do
@@ -207,8 +213,9 @@ boundedSizeMetaHook v tel0 a = do
       addContext tel $ do
         v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
         -- compareSizes CmpLeq v u
-        addConstraint $ ValueCmp CmpLeq AsSizes v u
+        addConstraint (unblockOnMeta x) $ ValueCmp CmpLeq AsSizes v u
     _ -> return ()
+boundedSizeMetaHook _ _ _ = __IMPOSSIBLE__
 
 -- | @trySizeUniv cmp t m n x els1 y els2@
 --   is called as a last resort when conversion checking @m `cmp` n : t@
@@ -378,8 +385,10 @@ compareSizeViews cmp s1' s2' = do
 giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
-    {-then-} (addConstraint $ ValueCmp CmpLeq AsSizes u v)
+    {-then-} (addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
     {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
+  where
+    unblock = unblockOnAnyMetaIn [u, v]
 
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: (MonadConversion m) => Term -> Term -> m Bool
@@ -560,13 +569,13 @@ oldSizeExpr u = do
   reportSDoc "tc.conv.size" 60 $ "oldSizeExpr:" <+> prettyTCM u
   s <- sizeView u
   case s of
-    SizeInf     -> patternViolation
+    SizeInf     -> patternViolation neverUnblock
     SizeSuc u   -> mapSnd (+1) <$> oldSizeExpr u
     OtherSize u -> case u of
       Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs
                 -> return (SizeMeta m xs, 0)
-      _ -> patternViolation
+      _ -> patternViolation neverUnblock
   where
     isVar (Proj{})  = Nothing
     isVar (IApply _ _ v) = isVar (Apply (defaultArg v))

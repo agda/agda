@@ -281,10 +281,9 @@ functionInverse v = case v of
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
--- | Precondition: The first argument must be blocked and the second must be
---                 neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
-useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
+-- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
+useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
+useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
@@ -339,7 +338,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
           Just hd -> invertFunction cmp blk inv hd fallback err success
             where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
-    fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
+    fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
     success blk' = app (compareAs cmp ty) blk' neu
 
     (cmp, app) = case dir of

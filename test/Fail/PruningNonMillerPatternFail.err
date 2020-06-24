@@ -1,7 +1,8 @@
 Failed to solve the following constraints:
   _13 (_19 x (λ k₁ → k₁ y)) y = _13 x x : Nat
-  _19 x (λ k₁ → k₁ x) = x : Nat
-  _13 x x = suc (_19 x (λ k₁ → k₁ y)) : Nat
+    (blocked on any(_13, _19))
+  _19 x (λ k₁ → k₁ x) = x : Nat (blocked on _19)
+  _13 x x = suc (_19 x (λ k₁ → k₁ y)) : Nat (blocked on _13)
 Unsolved metas at the following locations:
   PruningNonMillerPatternFail.agda:13,17-18
   PruningNonMillerPatternFail.agda:15,17-18

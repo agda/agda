@@ -57,6 +57,7 @@ import Agda.Syntax.Concrete.Definitions
   (NiceDeclaration, DeclarationWarning, dwWarning, declarationWarningName)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
@@ -1008,8 +1009,9 @@ buildClosure x = do
 type Constraints = [ProblemConstraint]
 
 data ProblemConstraint = PConstr
-  { constraintProblems :: Set ProblemId
-  , theConstraint      :: Closure Constraint
+  { constraintProblems  :: Set ProblemId
+  , constraintUnblocker :: Blocker
+  , theConstraint       :: Closure Constraint
   }
   deriving (Data, Show)
 
@@ -1034,13 +1036,13 @@ data Constraint
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
-  | FindInstance MetaId (Maybe MetaId) (Maybe [Candidate])
-    -- ^ the first argument is the instance argument, the second one is the meta
+  | FindInstance MetaId Blocker (Maybe [Candidate])
+    -- ^ the first argument is the instance argument, the second one is the metas
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
     --   candidates yet)
   | CheckFunDef Delayed A.DefInfo QName [A.Clause]
-  | UnquoteTactic (Maybe MetaId) Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   deriving (Data, Show)
 
 instance HasRange Constraint where
@@ -1074,7 +1076,7 @@ instance Free Constraint where
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
-      UnquoteTactic _ t h g -> freeVars' (t, (h, g))
+      UnquoteTactic t h g   -> freeVars' (t, (h, g))
       CheckMetaInst m       -> mempty
 
 instance TermLike Constraint where
@@ -1085,7 +1087,7 @@ instance TermLike Constraint where
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
-      UnquoteTactic _ t h g  -> foldTerm f (t, h, g)
+      UnquoteTactic t h g    -> foldTerm f (t, h, g)
       Guarded c _            -> foldTerm f c
       TelCmp _ _ _ tel1 tel2 -> foldTerm f (tel1, tel2)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)
@@ -2250,7 +2252,7 @@ notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
 reduced b = case b of
-  NotBlocked _ (Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
+  NotBlocked _ (Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked (unblockOnMeta x) ()) v
   _                                -> MaybeRed (Reduced $ () <$ b)      v
   where
     v = ignoreBlocking b
@@ -3335,7 +3337,7 @@ data UnquoteError
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
-  | BlockedOnMeta TCState MetaId
+  | BlockedOnMeta TCState Blocker
   | UnquotePanic String
   deriving (Show)
 
@@ -3567,10 +3569,12 @@ data TCErr
   | IOException TCState Range E.IOException
     -- ^ The first argument is the state in which the error was
     -- raised.
-  | PatternErr
+  | PatternErr Blocker
       -- ^ The exception which is usually caught.
       --   Raised for pattern violations during unification ('assignV')
       --   but also in other situations where we want to backtrack.
+      --   Contains an unblocker to control when the computation should
+      --   be retried.
 
 instance Show TCErr where
   show (TypeError _ _ e)   = prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
@@ -4023,8 +4027,8 @@ instance MonadError TCErr TCM where
       -- Reset the state, but do not forget changes to the persistent
       -- component. Not for pattern violations.
       case err of
-        PatternErr -> return ()
-        _          ->
+        PatternErr{} -> return ()
+        _            ->
           liftIO $ do
             newState <- readIORef r
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
@@ -4132,8 +4136,8 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
-patternViolation :: MonadError TCErr m => m a
-patternViolation = throwError PatternErr
+patternViolation :: MonadError TCErr m => Blocker -> m a
+patternViolation b = throwError (PatternErr b)
 
 internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
 internalError s = withFileAndLine $ \ file line ->

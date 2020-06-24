@@ -975,9 +975,9 @@ inferOrCheckProjApp e o ds args mt = do
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from)
       -- is blocked by meta m.
-      postpone m = do
+      postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ isInstantiatedMeta m
+        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ ((== alwaysUnblock) <$> instantiate b)
         return (v, tc, NotCheckedTarget)
 
   -- The following cases need to be considered:
@@ -1028,9 +1028,9 @@ inferOrCheckProjAppToKnownPrincipalArg ::
   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
 inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone m = do
+      postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ isInstantiatedMeta m
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ ((== alwaysUnblock) <$> instantiate b)
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
   (vargs, ta) <- implicitArgs (-1) (not . visible) ta
