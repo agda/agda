@@ -111,7 +111,7 @@ The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
-Setω`` (the reason this is in ``Setω`` is because it doesn't support
+SSet`` (the reason this is in ``SSet`` is because it doesn't support
 the ``transp`` and ``hcomp`` operations). A variable ``i : I``
 intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
@@ -342,9 +342,9 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
 .. code-block:: agda
 
-  Partial : ∀ {ℓ} → I → Set ℓ → Setω
+  Partial : ∀ {ℓ} → I → Set ℓ → SSet ℓ
 
-  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
+  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → SSet ℓ
 
 There is a new form of pattern matching that can be used to introduce partial elements:
 
@@ -385,7 +385,7 @@ Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
 ::
 
-  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
+  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → SSet ℓ
   A [ φ ↦ u ] = Sub A φ u
 
 A term ``v : A [ φ ↦ u ]`` should be thought of as a term of type
@@ -828,7 +828,7 @@ the following ``BUILTIN``, primitives and postulates:
 
 .. code-block:: agda
 
-  {-# BUILTIN INTERVAL I    #-} -- I : Setω
+  {-# BUILTIN INTERVAL I    #-} -- I : SSet
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
@@ -840,7 +840,7 @@ the following ``BUILTIN``, primitives and postulates:
     primIMax : I → I → I   -- _∨_
     primINeg : I → I       -- ~_
 
-  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → Setω
+  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → SSet
 
   postulate
     itIsOne : IsOne i1     -- 1=1
