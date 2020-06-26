@@ -40,7 +40,7 @@ requireCubical :: String -> TCM ()
 requireCubical s = do
   cubical <- optCubical <$> pragmaOptions
   unless cubical $
-    typeError $ GenericError $ "Missing option --cubical: " ++ s
+    typeError $ GenericError $ "Missing option --cubical" ++ s
 
 primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
 primIntervalType = El (SSet $ ClosedLevel 0) <$> primInterval
