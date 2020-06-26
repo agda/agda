@@ -1189,6 +1189,9 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
+      let isRec = case dr of
+            IsData{}   -> False
+            IsRecord{} -> True
 
       checkMatchingAllowed dr  -- No splitting on coinductive constructors.
       checkSortOfSplitVar dr a (Just target)
@@ -1240,6 +1243,7 @@ checkLHS mf = updateModality checkLHS_ where
             , nest 2 $ vcat
               [ "c      =" <+> prettyTCM c <+> ":" <+> prettyTCM b
               , "d      =" <+> prettyTCM (Def d (map Apply pars)) <+> ":" <+> prettyTCM da
+              , "isRec  =" <+> (text . show) isRec
               , "gamma  =" <+> prettyTCM gamma
               , "pars   =" <+> brackets (fsep $ punctuate comma $ map prettyTCM pars)
               , "ixs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ixs)
@@ -1324,11 +1328,10 @@ checkLHS mf = updateModality checkLHS_ where
           -- Andreas, 2010-09-09, save the type.
           -- It is relative to Δ₁, but it should be relative to Δ₁'
           let a' = applyPatSubst rho1 a
-          -- Also remember if we are a record pattern.
-          isRec <- isRecord d
 
+          -- Also remember if we are a record pattern.
           let cpi = ConPatternInfo { conPInfo   = PatternInfo PatOCon []
-                                   , conPRecord = isJust isRec
+                                   , conPRecord = isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
                                    , conPLazy   = False } -- Don't mark eta-record matches as lazy (#4254)
@@ -1418,6 +1421,7 @@ data DataOrRecord
     { recordInduction   :: Maybe Induction
     , recordEtaEquality :: EtaEquality
     }
+  deriving (Show)
 
 -- | Check if the type is a data or record type and return its name,
 --   definition, parameters, and indices. Fails softly if the type could become

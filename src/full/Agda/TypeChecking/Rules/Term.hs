@@ -574,6 +574,7 @@ lambdaCohesionCheck dom info
         typeError WrongCohesionInLambda
       return info
 
+-- Andreas, issue #630: take name from function type if lambda name is "_".
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
   | isNoName x = addContext (y, dom)                 -- Note: String instance

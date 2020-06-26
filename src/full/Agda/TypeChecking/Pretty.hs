@@ -439,9 +439,11 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (DotP _ t)    = ".(" <> prettyTCM t <> ")"
   prettyTCM (DefP o q ps) = parens $
         prettyTCM q <+> fsep (map (prettyTCM . namedArg) ps)
-  prettyTCM (ConP c i ps) = (if b then braces else parens) $ prTy $
+  prettyTCM (ConP c i ps) = -- (if b then braces else parens) $ prTy $
+        parens $
         prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
-        where
+      where
+        -- NONE OF THESE BINDINGS IS USED AT THE MOMENT:
         b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
         showRec :: MonadPretty m => m Doc -- Defined, but currently not used
         showRec = sep
@@ -453,7 +455,7 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
         showCon :: MonadPretty m => m Doc -- NB:: Defined but not used
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
-        prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
+        prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP _ l)    = text (P.prettyShow l)
   prettyTCM (ProjP _ q)   = text ("." ++ P.prettyShow q)
 

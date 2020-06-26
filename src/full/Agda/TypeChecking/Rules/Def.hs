@@ -388,9 +388,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Jesper, 2019-05-30: if the constructors used in the
         -- lhs of a clause have rewrite rules, we need to check
         -- confluence here
-        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+        whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> inTopContext $
           forM_ (zip cs [0..]) $ \(c , clauseNo) ->
-            checkConfluenceOfClause name clauseNo c
+            checkConfluenceOfClause confChk name clauseNo c
 
         -- Add the definition
         inTopContext $ addConstant name =<< do

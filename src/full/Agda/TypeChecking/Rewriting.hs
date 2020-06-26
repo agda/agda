@@ -151,8 +151,8 @@ addRewriteRules qs = do
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
-  whenM (optConfluenceCheck <$> pragmaOptions) $
-    checkConfluenceOfRules rews
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk ->
+    checkConfluenceOfRules confChk rews
 
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
@@ -286,6 +286,9 @@ checkRewriteRule q = do
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
     checkNoLhsReduction f es = do
+      -- Skip this check when global confluence check is enabled, as
+      -- redundant rewrite rules may be required to prove confluence.
+      unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = Def f es
       v' <- reduce v
       let fail = do
