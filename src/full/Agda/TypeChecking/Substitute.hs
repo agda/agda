@@ -1444,9 +1444,10 @@ univSort' s        = Nothing
 univSort :: Sort -> Sort
 univSort s = fromMaybe (UnivSort s) $ univSort' s
 
--- | Returns @Just True@ for (relatively) small sorts like @Set l@ and
---   @Prop l@, returns @Just False@ for large sorts such as @Setω@ and
---   @Nothing@ for unknown (meta) sorts.
+-- | Returns @Nothing@ for unknown (meta) sorts, and otherwise returns
+--   @Just (b,f)@ where @b@ indicates smallness and @f@ fibrancy.
+--   I.e., @b@ is @True@ for (relatively) small sorts like @Set l@ and
+--   @Prop l@, and instead @b@ is @False@ for large sorts such as @Setω@.
 isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
 isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
