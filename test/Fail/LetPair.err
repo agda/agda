@@ -1,3 +1,4 @@
-LetPair.agda:17,7-18
-Expected record pattern
-when checking the let binding a , b = p
+LetPair.agda:17,8-13
+Cannot eliminate fibrant type A × B
+unless target type is also fibrant
+when checking that the pattern a , b has type A × B

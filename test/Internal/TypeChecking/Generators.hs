@@ -455,7 +455,7 @@ instance ShrinkC Sort Sort where
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
     SSet l     -> []
     Prop{}     -> []
-    Inf _      -> []
+    Inf f _    -> []
     SizeUniv   -> []
     PiSort s1 s2 -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__
