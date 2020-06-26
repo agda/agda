@@ -1223,8 +1223,8 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- for the exhaustiveness checker)
       (Inf f m , Inf f' n) ->
         if leqFib f f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
-      (Type{}  , Inf f _) -> if f == IsFibrant then yes else no
-      (Prop{}  , Inf f _) -> if f == IsFibrant then yes else no
+      (Type{}  , Inf f _) -> yes
+      (Prop{}  , Inf f _) -> yes
       (Inf f _, Type{}  ) -> if f == IsFibrant && typeInTypeEnabled then yes else no
       (Inf f _, SSet{}  ) -> if f == IsStrict  && typeInTypeEnabled then yes else no
       (Inf _ _, Prop{}  ) -> no
