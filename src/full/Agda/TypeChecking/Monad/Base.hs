@@ -3423,6 +3423,8 @@ data TypeError
         | MetaErasedSolution MetaId Term
         | GenericError String
         | GenericDocError Doc
+        | SortOfSplitVarError (Maybe MetaId) Doc
+          -- ^ the meta is what we might be blocked on.
         | BuiltinMustBeConstructor String A.Expr
         | NoSuchBuiltinName String
         | DuplicateBuiltinBinding String Term Term

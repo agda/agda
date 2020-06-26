@@ -1772,11 +1772,11 @@ checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCSta
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    Type{}
+    sa@Type{}
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> do
           reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
-          unlessM (isFibrant target) splitOnFibrantError
+          unlessM (isFibrant target) $ splitOnFibrantError mtarget
           forM_ (telToList tel) $ \ d -> do
             let ty = snd $ unDom d
             unlessM (isFibrant ty) $
@@ -1784,7 +1784,7 @@ checkSortOfSplitVar dr a tel mtarget = do
                 splitOnFibrantError' ty
       | otherwise              -> do
           reportSDoc "tc.sort.check" 20 $ "no target"
-          splitOnFibrantError
+          splitOnFibrantError mtarget
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> do
@@ -1795,8 +1795,8 @@ checkSortOfSplitVar dr a tel mtarget = do
           splitOnPropError
     Inf{} -> return () -- see #4109
     SSet{} -> return ()
-    _      -> softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
+    sa      -> softTypeError =<< do
+      liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
 
   where
@@ -1804,13 +1804,13 @@ checkSortOfSplitVar dr a tel mtarget = do
       "Cannot split on datatype in Prop unless target is in Prop"
 
     splitOnFibrantError' t = softTypeError =<< do
-      liftTCM $ GenericDocError <$> fsep
+      liftTCM $ SortOfSplitVarError <$> (mplus <$> isBlocked (getSort t) <*> isBlocked t) <*> fsep
         [ "Cannot eliminate fibrant type" , prettyTCM a
         , "unless context type", prettyTCM t, "is also fibrant."
         ]
 
-    splitOnFibrantError = softTypeError =<< do
-      liftTCM $ GenericDocError <$> fsep
+    splitOnFibrantError tgt = softTypeError =<< do
+      liftTCM $ SortOfSplitVarError <$> (maybe (return Nothing) (isBlocked . getSort) tgt) <*> fsep
         [ "Cannot eliminate fibrant type" , prettyTCM a
         , "unless target type is also fibrant"
         ]

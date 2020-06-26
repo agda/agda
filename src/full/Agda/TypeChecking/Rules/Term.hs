@@ -801,6 +801,8 @@ catchIlltypedPatternBlockedOnMeta m handle = do
           enterClosure cl $ \case
             IlltypedPattern p a -> isBlocked a
 
+            SortOfSplitVarError m _ -> return m
+
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403
               -- The following computation of meta-variables and picking

@@ -254,6 +254,7 @@ errorString err = case err of
   NonFatalErrors{}                         -> "NonFatalErrors"
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
   TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
+  SortOfSplitVarError{}                    -> "SortOfSplitVarError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1139,6 +1140,7 @@ instance PrettyTCM TypeError where
 
     TriedToCopyConstrainedPrim q -> fsep $
       pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
+    SortOfSplitVarError _ doc -> return doc
 
     where
     mpar n args
