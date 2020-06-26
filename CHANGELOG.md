@@ -42,7 +42,7 @@ Pragmas and options
 
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
-  
+
 * New option `--local-confluence-check` to restore the old behaviour
   of the `--confluence-check` flag (see below for the new behaviour).
 
