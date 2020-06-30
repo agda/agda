@@ -21,6 +21,7 @@ import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -214,6 +215,9 @@ hasInputFile = isJust . optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
+
+isTwoLevelEnabled :: HasOptions m => m Bool
+isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool

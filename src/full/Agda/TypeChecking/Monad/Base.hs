@@ -3526,6 +3526,7 @@ data TypeError
         | NeedOptionCopatterns
         | NeedOptionRewriting
         | NeedOptionProp
+        | NeedOptionTwoLevel
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors

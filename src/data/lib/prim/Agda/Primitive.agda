@@ -13,6 +13,7 @@ infixl 6 _⊔_
 {-# BUILTIN TYPE Set #-}
 {-# BUILTIN PROP Prop #-}
 {-# BUILTIN SETOMEGA Setω #-}
+{-# BUILTIN STRICTSET      SSet  #-}
 {-# BUILTIN STRICTSETOMEGA SSetω #-}
 
 -- Level is the first thing we need to define.
@@ -34,5 +35,3 @@ postulate
 {-# BUILTIN LEVELZERO lzero #-}
 {-# BUILTIN LEVELSUC  lsuc  #-}
 {-# BUILTIN LEVELMAX  _⊔_   #-}
-
-{-# BUILTIN STRICTSET SSet #-}

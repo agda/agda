@@ -319,7 +319,7 @@ coreBuiltins =
   , (builtinProp                             |-> BuiltinSort "primProp")
   , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
   , (builtinSSetOmega                        |-> BuiltinSort "primStrictSetOmega")
-  , (builtinStrictSet                        |-> BuiltinPrim "primStrictSet" (const $ return ()))
+  , (builtinStrictSet                        |-> BuiltinSort "primStrictSet")
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
@@ -965,6 +965,7 @@ bindBuiltinNoDef b q = inTopContext $ do
       let s = case sortname of
                 "primSet"      -> mkType 0
                 "primProp"     -> mkProp 0
+                "primStrictSet" -> mkSSet 0
                 "primSetOmega" -> Inf IsFibrant 0
                 "primStrictSetOmega" -> Inf IsStrict 0
                 _              -> __IMPOSSIBLE__

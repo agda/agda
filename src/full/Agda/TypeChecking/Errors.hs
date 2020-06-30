@@ -163,6 +163,7 @@ errorString err = case err of
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NeedOptionProp{}                         -> "NeedOptionProp"
+  NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -1112,6 +1113,9 @@ instance PrettyTCM TypeError where
 
     NeedOptionProp       -> fsep $
       pwords "Universe Prop is disabled (use options --prop and --no-prop to enable/disable Prop)"
+
+    NeedOptionTwoLevel   -> fsep $
+      pwords "Universe SSet is disabled (use option --two-level to enable SSet)"
 
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"

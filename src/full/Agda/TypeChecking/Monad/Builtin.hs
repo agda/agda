@@ -434,6 +434,7 @@ coinductionKit = tryMaybe coinductionKit'
 data SortKit = SortKit
   { nameOfSet      :: QName
   , nameOfProp     :: QName
+  , nameOfSSet     :: QName
   , nameOfSetOmega :: IsFibrant -> QName
   }
 
@@ -442,10 +443,12 @@ sortKit = do
   Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
   Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
+    , nameOfSSet     = sset
     , nameOfSetOmega = \case
         IsFibrant -> setomega
         IsStrict  -> ssetomega

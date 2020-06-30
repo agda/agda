@@ -959,6 +959,9 @@ mkType n = Type $ ClosedLevel n
 mkProp :: Integer -> Sort
 mkProp n = Prop $ ClosedLevel n
 
+mkSSet :: Integer -> Sort
+mkSSet n = SSet $ ClosedLevel n
+
 isSort :: Term -> Maybe Sort
 isSort v = case v of
   Sort s -> Just s

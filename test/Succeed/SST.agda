@@ -3,7 +3,7 @@
 -- Altenkirch, Paolo Capriotti, Nicolai Kraus (2016)
 -- (https://arxiv.org/abs/1604.03799).
 
-{-# OPTIONS --without-K --rewriting #-}
+{-# OPTIONS --without-K --two-level --rewriting #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.Nat

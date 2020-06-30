@@ -226,6 +226,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
     A.Def' x s | x == nameOfSet      -> inferSet e x s args
     A.Def' x s | x == nameOfProp     -> inferProp e x s args
+    A.Def' x s | x == nameOfSSet     -> inferSSet e x s args
     A.Def' x s | x == nameOfSetOmega IsFibrant -> inferSetOmega e x IsFibrant s args
     A.Def' x s | x == nameOfSetOmega IsStrict  -> inferSetOmega e x IsStrict s args
     _ -> do
@@ -458,6 +459,7 @@ checkHeadApplication cmp e t hd args = do
   case hd of
     A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
     A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
+    A.Def' c s | c == nameOfSSet     -> checkSSet cmp e t c s args
     A.Def' c s | c == nameOfSetOmega IsFibrant -> checkSetOmega cmp e t c IsFibrant s args
     A.Def' c s | c == nameOfSetOmega IsStrict  -> checkSetOmega cmp e t c IsStrict s args
 
@@ -1158,11 +1160,24 @@ checkProp cmp e t q s args = do
   unlessM isPropEnabled $ typeError NeedOptionProp
   checkSetOrProp Prop cmp e t q s args
 
+checkSSet
+  :: Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSSet cmp e t q s args = do
+  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+  checkLeveledSort SSet SSet cmp e t q s args
+
 checkSetOrProp
   :: (Level -> Sort) -> Comparison -> A.Expr -> Type
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
 checkSetOrProp mkSort cmp e t q suffix args = do
-  (v, t0) <- inferSetOrProp mkSort e q suffix args
+  checkLeveledSort mkSort Type cmp e t q suffix args
+
+checkLeveledSort
+  :: (Level -> Sort) -> (Level -> Sort) -> Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkLeveledSort mkSort mkSortOfSort cmp e t q suffix args = do
+  (v, t0) <- inferLeveledSort mkSort mkSortOfSort e q suffix args
   coerce cmp v t0 t
 
 inferSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
@@ -1173,21 +1188,31 @@ inferProp e q s args = do
   unlessM isPropEnabled $ typeError NeedOptionProp
   inferSetOrProp Prop e q s args
 
+inferSSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSSet e q s args = do
+  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+  inferLeveledSort SSet SSet e q s args
+
 inferSetOrProp
   :: (Level -> Sort) -> A.Expr
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOrProp mkSort e q suffix args = case args of
+inferSetOrProp mkSort e q suffix args = inferLeveledSort mkSort Type e q suffix args
+
+inferLeveledSort
+  :: (Level -> Sort) -> (Level -> Sort) -> A.Expr
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferLeveledSort mkSort mkSortOfSort e q suffix args = case args of
   [] -> do
     let n = case suffix of
               NoSuffix -> 0
               Suffix n -> n
-    return (Sort (mkSort $ ClosedLevel n) , sort (Type $ ClosedLevel $ n + 1))
+    return (Sort (mkSort $ ClosedLevel n) , sort (mkSortOfSort $ ClosedLevel $ n + 1))
   [arg] -> do
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ mkSort $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ genericError
       "Use --universe-polymorphism to enable level arguments to Set"
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
-    return (Sort $ mkSort l , sort (Type $ levelSuc l))
+    return (Sort $ mkSort l , sort (mkSortOfSort $ levelSuc l))
   arg : _ -> typeError . GenericDocError =<< fsep
     [ prettyTCM q , "cannot be applied to more than one argument" ]
 
@@ -1198,6 +1223,8 @@ checkSetOmega cmp e t q f s args = do
 
 inferSetOmega :: A.Expr -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
 inferSetOmega e q f suffix args = do
+  when (f == IsStrict) $
+    unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
   let n = case suffix of
             NoSuffix -> 0
             Suffix n -> n
