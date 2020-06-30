@@ -1084,13 +1084,13 @@ instance TermLike Constraint where
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
-      LevelCmp _ l l'        -> foldTerm f (Level l, Level l')
+      LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
       Guarded c _            -> foldTerm f c
       TelCmp _ _ _ tel1 tel2 -> foldTerm f (tel1, tel2)
-      SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)
+      SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
       FindInstance _ _ _     -> mempty
       CheckFunDef _ _ _ _    -> mempty
@@ -1099,6 +1099,7 @@ instance TermLike Constraint where
       CheckMetaInst m        -> mempty
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
+instance AllMetas Constraint
 
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Data, Show)
@@ -1159,6 +1160,8 @@ instance TermLike CompareAs where
     AsTermsOf a -> AsTermsOf <$> traverseTermM f a
     AsSizes     -> return AsSizes
     AsTypes     -> return AsTypes
+
+instance AllMetas CompareAs
 
 ---------------------------------------------------------------------------
 -- * Open things
