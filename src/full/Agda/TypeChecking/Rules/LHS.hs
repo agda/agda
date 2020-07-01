@@ -1772,7 +1772,8 @@ checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCSta
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{}
+    sa@Type{} -> whenM isTwoLevelEnabled $ do
+     if
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> do
           reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target

@@ -24,7 +24,7 @@ Marisa:
    <a id="298" class="Comment">-- Alice:</a>
    <a id="311" class="Comment">--    A trial of guts.</a>
 
-     <a id="340" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#560" class="Postulate">Level</a>
+     <a id="340" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#597" class="Postulate">Level</a>
 
    <a id="354" class="Comment">-- Mokou:</a>
    <a id="367" class="Comment">--    Uh, which one is it?</a>
