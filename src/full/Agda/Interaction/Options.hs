@@ -202,6 +202,7 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optHeterogeneousUnification  :: Bool
   }
   deriving (Show, Eq)
 
@@ -320,6 +321,7 @@ defaultPragmaOptions = PragmaOptions
   , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
+  , optHeterogeneousUnification  = False
   }
 
 -- | The default termination depth.
@@ -437,6 +439,7 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . not . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
+  , (B . optHeterogeneousUnification, "--heterogeneous-unification")
   , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
@@ -892,6 +895,9 @@ withCompilerFlag fp o = case optWithCompiler o of
 noImportSorts :: Flag PragmaOptions
 noImportSorts o = return $ o { optImportSorts = False }
 
+heterogeneousUnificationFlag :: Flag PragmaOptions
+heterogeneousUnificationFlag o = return $ o { optHeterogeneousUnification = True }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -995,6 +1001,7 @@ pragmaOptions =
     , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
                     "allow termination checker to count decrease/increase upto N (default N=1)"
     , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
+
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
@@ -1124,7 +1131,9 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
-    ]
+    , Option []     ["heterogeneous-unification"] (NoArg heterogeneousUnificationFlag)
+                    "use heterogeneous unification; hopefully slower but smaller chance of internal errors"
+   ]
 
 -- | Pragma options of previous versions of Agda.
 --   Should not be listed in the usage info, put parsed by GetOpt for good error messaging.
