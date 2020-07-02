@@ -278,12 +278,3 @@ The tactic can be an arbitrary term of the right type and may depend on previous
   check₁ : example ≡ 10
   check₁ = refl
 
-.. _metavariables:
-
-Metavariables
--------------
-
-.. _unification:
-
-Unification
------------
