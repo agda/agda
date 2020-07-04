@@ -443,6 +443,13 @@ primStringToListInjective = do
   toList <- primFunName <$> getPrimitive "primStringToList"
   mkPrimInjective string chars toList
 
+primStringFromListInjective :: TCM PrimitiveImpl
+primStringFromListInjective = do
+  chars  <- primType (undefined :: String)
+  string <- primType (undefined :: Text)
+  fromList <- primFunName <$> getPrimitive "primStringFromList"
+  mkPrimInjective chars string fromList
+
 primWord64ToNatInjective :: TCM PrimitiveImpl
 primWord64ToNatInjective =  do
   word  <- primType (undefined :: Word64)
@@ -823,13 +830,14 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
-  , "primStringToList"          |-> mkPrimFun1 T.unpack
-  , "primStringToListInjective" |-> primStringToListInjective
-  , "primStringFromList"        |-> mkPrimFun1 T.pack
-  , "primStringAppend"          |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
-  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Text)
-  , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString)
-  , "primStringUncons"          |-> mkPrimFun1 T.uncons
+  , "primStringToList"            |-> mkPrimFun1 T.unpack
+  , "primStringToListInjective"   |-> primStringToListInjective
+  , "primStringFromList"          |-> mkPrimFun1 T.pack
+  , "primStringFromListInjective" |-> primStringFromListInjective
+  , "primStringAppend"            |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
+  , "primStringEquality"          |-> mkPrimFun2 ((==) :: Rel Text)
+  , "primShowString"              |-> mkPrimFun1 (T.pack . prettyShow . LitString)
+  , "primStringUncons"            |-> mkPrimFun1 T.uncons
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

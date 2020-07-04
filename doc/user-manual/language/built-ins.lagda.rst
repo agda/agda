@@ -565,10 +565,11 @@ functions are available on strings (given suitable bindings for
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
 
-Converting to a list is injective, and its proof::
+Converting to and from a list is injective, and their proofs::
 
   primitive
     primStringToListInjective : ∀ a b → primStringToList a ≡ primStringToList b → a ≡ b
+    primStringFromListInjective : ∀ a b → primStringFromList a ≡ primStringFromList b → a ≡ b
 
 can found in the ``Properties`` module.
 
