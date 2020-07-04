@@ -46,6 +46,10 @@ Pragmas and options
 * New option `--local-confluence-check` to restore the old behaviour
   of the `--confluence-check` flag (see below for the new behaviour).
 
+* New primitive `primStringFromListInjective` internalising the fact that
+  `primStringFromList` is an injective function. It is bound in
+  `Agda.Builtin.String.Properties`.
+
 Language
 --------
 
