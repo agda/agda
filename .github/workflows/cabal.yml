@@ -18,6 +18,9 @@ on:
 
 jobs:
   Ubuntu:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
 
     runs-on: ubuntu-18.04
 
@@ -61,6 +64,9 @@ jobs:
         cabal build
 
   macOS:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
 
     runs-on: macos-latest
 
@@ -88,6 +94,10 @@ jobs:
         cabal build
 
   # Windows:
+  #   if: |
+  #     !contains(github.event.head_commit.message, '[skip ci]')
+  #     && !contains(github.event.head_commit.message, '[ci skip]')
+  #
   #   runs-on: windows-latest
   #   strategy:
   #     matrix:
