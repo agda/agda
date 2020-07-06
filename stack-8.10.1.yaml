@@ -82,6 +82,7 @@ extra-deps:
 - text-icu-0.7.0.1
 - th-abstraction-0.3.2.0
 - time-compat-1.9.3
+- transformers-base-0.4.5.2
 - transformers-compat-0.6.5
 - unbounded-delays-0.1.1.0
 - unix-compat-0.5.2
