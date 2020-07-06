@@ -197,7 +197,7 @@ data PragmaOptions = PragmaOptions
   , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
-     -- ^ Can we split on a (x :{flat} A) argument?
+     -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
@@ -1007,9 +1007,9 @@ pragmaOptions =
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (x :{flat} A) arguments (default)"
+                    "allow split on (@flat x : A) arguments (default)"
     , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
-                    "disable split on (x :{flat} A) arguments"
+                    "disable split on (@flat x : A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
