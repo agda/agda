@@ -13,6 +13,8 @@ import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Bifunctor
+import Data.Foldable (toList)
 import Data.Function (on)
 import Data.Monoid hiding ((<>))
 
@@ -52,28 +54,28 @@ import Agda.Utils.Impossible
 -- | Compute a list of instance candidates.
 --   'Nothing' if target type or any context type is a meta, error if
 --   type is not eligible for instance search.
-initialInstanceCandidates :: Type -> TCM (Maybe [Candidate])
+initialInstanceCandidates :: Type -> TCM (Either Blocker [Candidate])
 initialInstanceCandidates t = do
   (_ , otn) <- getOutputTypeName t
   case otn of
     NoOutputTypeName -> typeError $ GenericError $
       "Instance search can only be used to find elements in a named type"
-    OutputTypeNameNotYetKnown -> do
+    OutputTypeNameNotYetKnown b -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is not yet known. "
-      return Nothing
+      return (Left b)
     OutputTypeVisiblePi -> typeError $ GenericError $
       "Instance search cannot be used to find elements in an explicit function type"
     OutputTypeVar    -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
-      maybeRight <$> runExceptT getContextVars
+      runExceptT getContextVars
     OutputTypeName n -> do
       reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
       runExceptT getContextVars >>= \case
-        Left b -> return Nothing
-        Right ctxVars -> Just . (ctxVars ++) <$> getScopeDefs n
+        Left b -> return $ Left b
+        Right ctxVars -> Right . (ctxVars ++) <$> getScopeDefs n
   where
     -- get a list of variables with their type, relative to current context
-    getContextVars :: ExceptT Blocked_ TCM [Candidate]
+    getContextVars :: ExceptT Blocker TCM [Candidate]
     getContextVars = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
@@ -124,12 +126,12 @@ initialInstanceCandidates t = do
                 else return Nothing
         r -> return r
 
-    instanceFields :: (CandidateKind,Term,Type) -> ExceptT Blocked_ TCM [Candidate]
+    instanceFields :: (CandidateKind,Term,Type) -> ExceptT Blocker TCM [Candidate]
     instanceFields = instanceFields' True
 
-    instanceFields' :: Bool -> (CandidateKind,Term,Type) -> ExceptT Blocked_ TCM [Candidate]
+    instanceFields' :: Bool -> (CandidateKind,Term,Type) -> ExceptT Blocker TCM [Candidate]
     instanceFields' etaOnce (q, v, t) =
-      ifBlocked t (\m _ -> throwError $ Blocked m ()) $ \ _ t -> do
+      ifBlocked t (\ m _ -> throwError m) $ \ _ t -> do
       caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
         (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
@@ -216,23 +218,23 @@ findInstance m Nothing = do
     TelV tel t <- telViewUpTo' (-1) notVisible t
     cands <- addContext tel $ initialInstanceCandidates t
     case cands of
-      Nothing -> do
+      Left unblock -> do
         reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
-        addConstraint $ FindInstance m Nothing Nothing
-      Just {} -> findInstance m cands
+        addConstraint unblock $ FindInstance m unblock Nothing
+      Right cs -> findInstance m (Just cs)
 
-findInstance m (Just cands) =
-  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint $ FindInstance m b $ Just cands)
+findInstance m (Just cands) =                          -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
+  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m b $ Just cands)
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
-findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
+findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Blocker))
 findInstance' m cands = ifM (isFrozen m) (do
     reportSLn "tc.instance" 20 "Refusing to solve frozen instance meta."
-    return (Just (cands, Nothing))) $ do
+    return (Just (cands, neverUnblock))) $ do
   ifM shouldPostponeInstanceSearch (do
     reportSLn "tc.instance" 20 "Postponing possibly recursive instance search."
-    return $ Just (cands, Nothing)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
+    return $ Just (cands, neverUnblock)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
   mv <- lookupMeta m
@@ -290,7 +292,7 @@ findInstance' m cands = ifM (isFrozen m) (do
           reportSDoc "tc.instance" 15 $
             text ("findInstance 5: refined candidates: ") <+>
             prettyTCM (List.map candidateTerm cs)
-          return (Just (cs, Nothing))
+          return (Just (cs, neverUnblock))
 
 insidePi :: Type -> (Type -> TCM a) -> TCM a
 insidePi t ret = reduce (unEl t) >>= \case
@@ -549,7 +551,7 @@ nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 wakeupInstanceConstraints :: TCM ()
 wakeupInstanceConstraints =
   unlessM shouldPostponeInstanceSearch $ do
-    wakeConstraints (return . isInstance)
+    wakeConstraints (wakeUpWhen_ isInstance)
     solveSomeAwakeConstraints isInstance False
   where
     isInstance = isInstanceConstraint . clValue . theConstraint

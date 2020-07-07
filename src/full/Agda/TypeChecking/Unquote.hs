@@ -607,7 +607,7 @@ evalTCM v = do
     tcBlockOnMeta :: MetaId -> UnquoteM Term
     tcBlockOnMeta x = do
       s <- gets snd
-      throwError (BlockedOnMeta s x)
+      throwError (BlockedOnMeta s $ unblockOnMeta x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do

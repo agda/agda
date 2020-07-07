@@ -613,7 +613,7 @@ data OutputTypeName
   = OutputTypeName QName
   | OutputTypeVar
   | OutputTypeVisiblePi
-  | OutputTypeNameNotYetKnown
+  | OutputTypeNameNotYetKnown Blocker
   | NoOutputTypeName
 
 -- | Strips all hidden and instance Pi's and return the argument
@@ -621,7 +621,7 @@ data OutputTypeName
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
 getOutputTypeName t = do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
-  ifBlocked (unEl t') (\ _ _ -> return (tel , OutputTypeNameNotYetKnown)) $ \ _ v ->
+  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
       -- Possible base types:
       Def n _  -> return (tel , OutputTypeName n)
@@ -643,7 +643,7 @@ addTypedInstance x t = do
   (tel , n) <- getOutputTypeName t
   case n of
     OutputTypeName n -> addNamedInstance x n
-    OutputTypeNameNotYetKnown -> addUnknownInstance x
+    OutputTypeNameNotYetKnown{} -> addUnknownInstance x
     NoOutputTypeName -> warning $ WrongInstanceDeclaration
     OutputTypeVar -> warning $ WrongInstanceDeclaration
     OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x

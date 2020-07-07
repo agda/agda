@@ -3,6 +3,7 @@ module Agda.TypeChecking.MetaVars.Mention where
 
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -39,9 +40,14 @@ instance MentionsMeta PlusLevel where
 instance MentionsMeta LevelAtom where
   mentionsMetas xs l = case l of
     MetaLevel m vs   -> HashSet.member m xs || mentionsMetas xs vs
-    BlockedLevel m _ -> HashSet.member m xs  -- if it's blocked on a different meta it doesn't matter if it mentions the meta somewhere else
+    BlockedLevel b _ -> mentionsMetas xs b  -- if it's blocked on a different meta it doesn't matter if it mentions the meta somewhere else
     UnreducedLevel l -> mentionsMetas xs l
     NeutralLevel _ l -> mentionsMetas xs l
+
+instance MentionsMeta Blocker where
+  mentionsMetas xs (UnblockOnAll bs) = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnAny bs) = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnMeta x) = HashSet.member x xs
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
@@ -115,9 +121,7 @@ instance MentionsMeta Constraint where
     CheckFunDef{}       -> True   -- not sure what metas this depends on
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
-    UnquoteTactic bl tac hole goal -> case bl of
-      Nothing -> False
-      Just m  -> HashSet.member m xs
+    UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
     where
       mm v = mentionsMetas xs v

@@ -14,6 +14,7 @@ module Agda.TypeChecking.Primitive
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -632,7 +633,7 @@ mkPrimSetOmega = do
   let t = sort $ Inf 1
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -642,10 +643,10 @@ mkPrimFun1TCM mt f = do
       case ts of
         [v] ->
           redBind (toA v) singleton $ \ x -> do
-            b <- f x
-            case firstMeta b of
-              Just m  -> return $ NoReduction [reduced (Blocked m v)]
-              Nothing -> redReturn =<< fromB b
+            b <- fromB =<< f x
+            case allMetas Set.singleton b of
+              ms | Set.null ms -> redReturn b
+                 | otherwise   -> return $ NoReduction [reduced (Blocked (unblockOnAllMetas ms) v)]
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
