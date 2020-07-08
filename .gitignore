@@ -58,6 +58,8 @@ dist/
 doc/user-manual.pdf
 exec-test*
 hlint-report.html
+module-dependency-graph.dot
+module-dependency-graph.pdf
 pkg-build*
 stack.yaml
 stack.yaml.lock
