@@ -1,7 +1,11 @@
 # Keep this file in alphabetic order please!
 # Sort with the command `sort -uf`
 *.agdai
+*.dump-hi
 *.hi
+*.hie
+*.hie-boot
+*.imports
 *.o
 *.project.local
 *.tmp
