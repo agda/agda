@@ -983,7 +983,7 @@ primTransHComp cmd ts nelims = do
                mId   <- getBuiltinName' builtinId
                pathV <- pathView'
                case famThing t of
-                 MetaV m _ -> fallback' (fmap famThing $ Blocked m () *> sbA)
+                 MetaV m _ -> fallback' (fmap famThing $ blocked_ m *> sbA)
                  -- absName t instead of "i"
                  Pi a b | nelims > 0  -> maybe fallback redReturn =<< compPi cmd "i" ((a,b) <$ t) (ignoreBlocking sphi) u u0
                         | otherwise -> fallback

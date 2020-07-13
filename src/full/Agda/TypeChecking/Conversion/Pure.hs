@@ -79,32 +79,32 @@ instance Monad m => Null (PureConversionT m Doc) where
 
 instance (MonadTCEnv m, ReadTCState m, HasOptions m, MonadDebug m)
   => MonadConstraint (PureConversionT m) where
-  addConstraint c = patternViolation
-  addAwakeConstraint c = patternViolation
+  addConstraint u _ = patternViolation u
+  addAwakeConstraint u _ = patternViolation u
   catchPatternErr handle m = m `catchError` \case
-    PatternErr{} -> handle
+    PatternErr u -> handle u
     err          -> throwError err
-  solveConstraint c = patternViolation
+  solveConstraint c = patternViolation alwaysUnblock
   solveSomeAwakeConstraints _ _ = return ()
   wakeConstraints _ = return ()
   stealConstraints _ = return ()
-  modifyAwakeConstraints _ = patternViolation
-  modifySleepingConstraints _ = patternViolation
+  modifyAwakeConstraints _ = patternViolation alwaysUnblock
+  modifySleepingConstraints _ = patternViolation alwaysUnblock
 
 instance (MonadTCEnv m, MonadReduce m, MonadAddContext m, ReadTCState m, HasBuiltins m, HasConstInfo m, MonadDebug m)
   => MonadMetaSolver (PureConversionT m) where
-  newMeta' _ _ _ _ _ _ = patternViolation
-  assignV _ _ _ _ _ = patternViolation
-  assignTerm' _ _ _ = patternViolation
+  newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock
+  assignV _ _ _ _ _ = patternViolation alwaysUnblock
+  assignTerm' _ _ _ = patternViolation alwaysUnblock
   etaExpandMeta _ _ = return ()
-  updateMetaVar _ _ = patternViolation
+  updateMetaVar _ _ = patternViolation alwaysUnblock
   speculateMetas fallback m = m >>= \case
     KeepMetas     -> return ()
     RollBackMetas -> fallback
 
 instance (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints (PureConversionT m) where
-  freshInteractionId = patternViolation
-  modifyInteractionPoints _ = patternViolation
+  freshInteractionId = patternViolation alwaysUnblock
+  modifyInteractionPoints _ = patternViolation alwaysUnblock
 
 -- This is a bogus instance that promptly forgets all concrete names,
 -- but we don't really care
@@ -116,7 +116,7 @@ instance ReadTCState m => MonadStConcreteNames (PureConversionT m) where
 instance (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
   => MonadWarning (PureConversionT m) where
   addWarning w = case classifyWarning (tcWarning w) of
-    ErrorWarnings -> patternViolation
+    ErrorWarnings -> patternViolation neverUnblock
     AllWarnings   -> return ()
 
 instance ReadTCState m => MonadStatistics (PureConversionT m) where

@@ -14,6 +14,7 @@ module Agda.TypeChecking.Primitive
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -443,6 +444,13 @@ primStringToListInjective = do
   toList <- primFunName <$> getPrimitive "primStringToList"
   mkPrimInjective string chars toList
 
+primStringFromListInjective :: TCM PrimitiveImpl
+primStringFromListInjective = do
+  chars  <- primType (undefined :: String)
+  string <- primType (undefined :: Text)
+  fromList <- primFunName <$> getPrimitive "primStringFromList"
+  mkPrimInjective chars string fromList
+
 primWord64ToNatInjective :: TCM PrimitiveImpl
 primWord64ToNatInjective =  do
   word  <- primType (undefined :: Word64)
@@ -625,7 +633,7 @@ mkPrimSetOmega = do
   let t = sort $ Inf 1
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -635,10 +643,10 @@ mkPrimFun1TCM mt f = do
       case ts of
         [v] ->
           redBind (toA v) singleton $ \ x -> do
-            b <- f x
-            case firstMeta b of
-              Just m  -> return $ NoReduction [reduced (Blocked m v)]
-              Nothing -> redReturn =<< fromB b
+            b <- fromB =<< f x
+            case allMetas Set.singleton b of
+              ms | Set.null ms -> redReturn b
+                 | otherwise   -> return $ NoReduction [reduced (Blocked (unblockOnAllMetas ms) v)]
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
@@ -848,13 +856,14 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
-  , "primStringToList"          |-> mkPrimFun1 T.unpack
-  , "primStringToListInjective" |-> primStringToListInjective
-  , "primStringFromList"        |-> mkPrimFun1 T.pack
-  , "primStringAppend"          |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
-  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Text)
-  , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString)
-  , "primStringUncons"          |-> mkPrimFun1 T.uncons
+  , "primStringToList"            |-> mkPrimFun1 T.unpack
+  , "primStringToListInjective"   |-> primStringToListInjective
+  , "primStringFromList"          |-> mkPrimFun1 T.pack
+  , "primStringFromListInjective" |-> primStringFromListInjective
+  , "primStringAppend"            |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
+  , "primStringEquality"          |-> mkPrimFun2 ((==) :: Rel Text)
+  , "primShowString"              |-> mkPrimFun1 (T.pack . prettyShow . LitString)
+  , "primStringUncons"            |-> mkPrimFun1 T.uncons
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

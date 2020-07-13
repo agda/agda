@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: suc i ≅ zero
+  Is empty: suc i ≅ zero (stuck)
       [ at Issue1408a.agda:23,30-32 ]
-  Is empty: zero ≅ suc j
+  Is empty: zero ≅ suc j (stuck)
       [ at Issue1408a.agda:22,31-33 ]

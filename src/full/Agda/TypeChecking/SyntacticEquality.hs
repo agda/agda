@@ -125,8 +125,8 @@ instance SynEq LevelAtom where
     where
       unBlock l =
         case l of
-          BlockedLevel m v ->
-            ifM (isInstantiatedMeta m)
+          BlockedLevel b v ->
+            ifM ((alwaysUnblock ==) <$> instantiate b)
                 (pure $ UnreducedLevel v)
                 (pure l)
           _ -> pure l

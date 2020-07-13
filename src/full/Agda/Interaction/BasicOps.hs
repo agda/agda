@@ -218,7 +218,7 @@ give force ii mr e = liftTCM $ do
      giveExpr force (Just ii) mi e
     `catchError` \ case
       -- Turn PatternErr into proper error:
-      PatternErr -> typeError . GenericDocError =<< do
+      PatternErr{} -> typeError . GenericDocError =<< do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   removeInteractionPoint ii
@@ -384,7 +384,7 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = withClosure cl $ \ c ->
+  reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
     OutputForm (getRange c) (Set.toList pids) <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
@@ -416,7 +416,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (Guarded c pid) = do
         o  <- reify c
         return $ Guard o pid
-    reify (UnquoteTactic _ tac _ goal) = do
+    reify (UnquoteTactic tac _ goal) = do
         tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
         OfType tac <$> reify goal
     reify (UnBlock m) = do
@@ -569,7 +569,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
-            cl <- reify (PConstr Set.empty c)
+            cl <- reify (PConstr Set.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
@@ -621,16 +621,16 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
-      forM cs $ \(PConstr s c) -> do
+      forM cs $ \(PConstr s ub c) -> do
         c <- normalForm norm c
         case allApplyElims =<< hasHeadMeta (clValue c) of
           Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
             unifyElimsMeta m as_m c $ \ eqs c -> do
-              flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
+              flip enterClosure abstractToConcrete_ =<< reify . PConstr s ub =<< buildClosure c
           _ -> do
-            cl <- reify $ PConstr s c
+            cl <- reify $ PConstr s ub c
             enterClosure cl abstractToConcrete_
 
 -- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
@@ -639,7 +639,7 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
   where
     isBlocked = not . null . blocking . clValue . theConstraint
     interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
     blocking (Guarded c pid) = pid : blocking c
     blocking _               = []
 

@@ -247,6 +247,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
   , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
   , "primStringToListInjective" |-> return "erased"
+  , "primStringFromListInjective" |-> return "erased"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"

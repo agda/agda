@@ -968,7 +968,7 @@ instance Subst Term Constraint where
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
-    UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
+    UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
       rf x = applySubst rho x

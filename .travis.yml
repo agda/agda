@@ -22,8 +22,9 @@ branches:
     - maint-2.4
     - stable-2.5
     - /^release-.*/
-    # Test all issue* branches. Saves you opening a PR.
+    # Test all issue* and future-.* branches. Saves you opening a PR.
     - /^issue.*/
+    - /^future-.*/
 
 ##############################################################################
 # The submodules are only needed by the tests using the standard library

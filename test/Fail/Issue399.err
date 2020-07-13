@@ -1,18 +1,20 @@
 Failed to solve the following constraints:
-  _7 (m = Maybe) (mzero = mymaybemzero) = Set
-  _10 (m = Maybe) (mzero = mymaybemzero) = Set
-  _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
-  _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a
-  _2 (m = Maybe) = Set
-  _4 (m = Maybe) =< Maybe a
-  Set (Agda.Primitive.lsuc _a_30) = _0
-  Set _a_30 → Set _a_30 =< _1
+  _7 (m = Maybe) (mzero = mymaybemzero) = Set (blocked on _7)
+  _10 (m = Maybe) (mzero = mymaybemzero) = Set (blocked on _10)
+  _12 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _12)
+  _9 (m = Maybe) (mzero = mymaybemzero) =< Maybe a (blocked on _9)
+  _2 (m = Maybe) = Set (blocked on _2)
+  _4 (m = Maybe) =< Maybe a (blocked on _4)
+  Set (Agda.Primitive.lsuc _a_30) = _0 (blocked on _0)
+  Set _a_30 → Set _a_30 =< _1 (blocked on _1)
   piSort Set₁
   (λ a →
      funSort (_7 (m = m) (mzero = mzero))
      (funSort (_10 (m = m) (mzero = mzero)) Set))
     =< Set₁
+    (blocked on any(_7, _10))
   piSort Set₁ (λ a → funSort (_2 (m = m)) Set) =< Set₁
+    (blocked on _2)
 Unsolved metas at the following locations:
   Issue399.agda:7,20-21
   Issue399.agda:8,30-33

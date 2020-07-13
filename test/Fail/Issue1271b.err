@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: A ≡ (B → A)
+  Is empty: A ≡ (B → A) (stuck)
       [ at Issue1271b.agda:13,7-9 ]
-  Is empty: A ≡ (A → B)
+  Is empty: A ≡ (A → B) (stuck)
       [ at Issue1271b.agda:9,6-8 ]
