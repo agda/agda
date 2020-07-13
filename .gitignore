@@ -7,7 +7,7 @@
 .ghc.environment.*
 .ghci.local
 .stack-work/
-.stack-work-quick/
+.stack-work-*/
 .sw[a-p]
 .\#*
 \#*\#
