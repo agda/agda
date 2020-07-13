@@ -609,6 +609,7 @@ library
   -- NOTE: If adding flags, also add to `.ghci-8.0`
   ghc-options: -fexpose-all-unfoldings
                -fspecialise-aggressively
+               -fprint-potential-instances
                -- Initially, we disable all the warnings.
                -w
                -Werror
