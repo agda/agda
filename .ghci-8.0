@@ -6,6 +6,7 @@
 
 :set -hide-package Agda
 
+:set -fprint-potential-instances
 :set -fexpose-all-unfoldings
 :set -fspecialise-aggressively
 :set -threaded
