@@ -172,7 +172,7 @@ SK⃗ (suc k) (X , Y) f (x , h) = SK⃗ k X f x , λ g →
 
     transport Y (trans (α k X (f ∘ h) g x) (α k X h f (SK⃗ k X g x))) (y (g ∘ (f ∘ h)))
 
-      ≡⟨ sym (transport-merge {e₂ = α k X h f (SK⃗ k X g x)} {p = y (g ∘ (f ∘ h))}) ⟩ₛ
+      ≡⟨ sym (transport-merge {e₁ = α k X (f ∘ h) g x} {e₂ = α k X h f (SK⃗ k X g x)} {p = y (g ∘ (f ∘ h))}) ⟩ₛ
 
     transport Y (α k X h f (SK⃗ k X g x)) (transport Y (α k X (f ∘ h) g x) (y (g ∘ (f ∘ h))))
       ∎ₛ

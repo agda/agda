@@ -5,7 +5,7 @@ module Agda.Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
-import Agda.Syntax.Literal (Literal)
+import Agda.Syntax.Literal (RLiteral)
 import Agda.Syntax.Position
 
 data Keyword
@@ -62,7 +62,7 @@ data Token
                         -- Non-empty namespace. The intervals for
                         -- "A.B.x" correspond to "A.", "B." and "x".
           -- Literals
-        | TokLiteral    Literal
+        | TokLiteral    RLiteral
           -- Special symbols
         | TokSymbol Symbol Interval
           -- Other tokens

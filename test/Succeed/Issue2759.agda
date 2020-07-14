@@ -27,3 +27,13 @@ mutual
 abstract private instance macro
 
 -- Empty macro block.
+
+-- Empty blocks are also tolerated in lets and lambdas.
+
+_ = λ (let abstract ) → let abstract  in Set
+_ = λ (let field    ) → let field     in Set
+_ = λ (let instance ) → let instance  in Set
+_ = λ (let macro    ) → let macro     in Set
+_ = λ (let mutual   ) → let mutual    in Set
+_ = λ (let postulate) → let postulate in Set
+_ = λ (let private  ) → let private   in Set

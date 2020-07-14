@@ -16,6 +16,7 @@ import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.IO.TempFile (writeToTempFile)
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String (quote)
 
 import qualified Data.List as List
@@ -92,7 +93,7 @@ lispifyHighlightingInfo h remove method modFile =
 
   indirect :: IO (Lisp String)
   indirect = do
-    filepath <- writeToTempFile (show $ L info)
+    filepath <- writeToTempFile (prettyShow $ L info)
     return $ L [ A "agda2-highlight-load-and-delete-action"
                , A (quote filepath)
                ]

@@ -163,7 +163,7 @@ data Interaction' range
 
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
-  | Cmd_metas
+  | Cmd_metas Rewrite
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
@@ -421,8 +421,9 @@ instance Read CompilerBackend where
               _            -> OtherBackend t
     return (b, s)
 
+-- | Ordered ascendingly by degree of normalization.
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
-    deriving (Show, Read)
+    deriving (Show, Read, Eq, Ord)
 
 data ComputeMode = DefaultCompute | HeadCompute | IgnoreAbstract | UseShowInstance
   deriving (Show, Read, Eq)

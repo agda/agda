@@ -151,8 +151,8 @@ addRewriteRules qs = do
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
-  whenM (optConfluenceCheck <$> pragmaOptions) $
-    checkConfluenceOfRules rews
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk ->
+    checkConfluenceOfRules confChk rews
 
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
@@ -243,7 +243,7 @@ checkRewriteRule q = do
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
-          addContext gamma1 $ checkParametersAreGeneral c (size gamma1) pars
+          addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
@@ -286,6 +286,9 @@ checkRewriteRule q = do
   where
     checkNoLhsReduction :: QName -> Elims -> TCM ()
     checkNoLhsReduction f es = do
+      -- Skip this check when global confluence check is enabled, as
+      -- redundant rewrite rules may be required to prove confluence.
+      unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
       let v = Def f es
       v' <- reduce v
       let fail = do
@@ -334,15 +337,15 @@ checkRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
-    checkParametersAreGeneral :: ConHead -> Int -> Args -> TCM ()
-    checkParametersAreGeneral c k vs = do
+    checkParametersAreGeneral :: ConHead -> Args -> TCM ()
+    checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
       where
         loop []       = return []
         loop (v : vs) = case unArg v of
-          Var i [] | i < k -> (i :) <$> loop vs
-          _                -> errorNotGeneral
+          Var i [] -> (i :) <$> loop vs
+          _        -> errorNotGeneral
 
         errorNotGeneral :: TCM a
         errorNotGeneral = typeError . GenericDocError =<< vcat
@@ -354,60 +357,67 @@ checkRewriteRule q = do
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
-            -> Term
+            -> (Elims -> Term)
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b) es = do
   traceSDoc "rewriting.rewrite" 50 (sep
-    [ "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
-    , " having head " <+> prettyTCM v <+> " of type " <+> prettyTCM t
+    [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
+    , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
     , " with rule " <+> prettyTCM rew
     ]) $ do
   traceSDoc "rewriting.rewrite" 90 (sep
-    [ "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
-    , " having head " <+> (text . show) v <+> " of type " <+> (text . show) t
+    [ "raw: attempting to rewrite term " <+> (text . show) (hd es)
+    , " having head " <+> (text . show) (hd []) <+> " of type " <+> (text . show) t
     , " with rule " <+> (text . show) rew
     ]) $ do
-  result <- nonLinMatch gamma (t,v) ps es
+  result <- nonLinMatch gamma (t,hd) ps es
   case result of
     Left block -> traceSDoc "rewriting.rewrite" 50 "}" $
-      return $ Left $ block $> v `applyE` es -- TODO: remember reductions
+      return $ Left $ block $> hd es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
       traceSDoc "rewriting.rewrite" 50 (sep
-        [ "rewrote " <+> prettyTCM (v `applyE` es)
+        [ "rewrote " <+> prettyTCM (hd es)
         , " to " <+> prettyTCM v' <+> "}"
         ]) $ do
       return $ Right v'
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-rewrite block v rules es = do
+rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    t <- case v of
+    t <- case hd [] of
       Def f []   -> defType <$> getConstInfo f
-      Con c _ [] -> typeOfConst $ conName c
+      Con (ConHead { conName = c }) _ [] -> do
         -- Andreas, 2018-09-08, issue #3211:
         -- discount module parameters for constructor heads
+        vs <- freeVarsToApply c
+        -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
+        -- case we don't have enough parameters
+        npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
+        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+        t <- defType <$> getConstInfo c
+        t `piApplyM` (vs ++ ws)
       _ -> __IMPOSSIBLE__
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
-    return $ NoReduction (block $> v `applyE` es)
+    return $ NoReduction (block $> hd es)
   where
     loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep
-        [ "failed to rewrite " <+> prettyTCM (v `applyE` es)
+        [ "failed to rewrite " <+> prettyTCM (hd es)
         , "blocking tag" <+> text (show block)
         ]) $ do
-      return $ NoReduction $ block $> v `applyE` es
+      return $ NoReduction $ block $> hd es
     loop block t (rew:rews) es
      | let n = rewArity rew, length es >= n = do
           let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith t v rew es1
+          result <- rewriteWith t hd rew es1
           case result of
             Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
             Left (NotBlocked _ _) -> loop block t rews es

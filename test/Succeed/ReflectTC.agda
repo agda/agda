@@ -4,6 +4,7 @@ module _ where
 open import Common.Reflection
 open import Common.Prelude hiding (_>>=_)
 open import Common.Equality
+open import Agda.Builtin.Sigma
 
 -- Some helpers --
 
@@ -40,7 +41,10 @@ newMeta! : TC Term
 newMeta! = newMeta unknown
 
 absurdLam : Term
-absurdLam = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
+absurdLam = extLam (absurdClause
+                      (("()" , arg (argInfo visible relevant) unknown) ∷ [])
+                      (arg (argInfo visible relevant) absurd ∷ [])
+                   ∷ []) []
 
 -- Simple assumption tactic --
 

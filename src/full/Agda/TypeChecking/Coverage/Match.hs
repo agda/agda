@@ -472,7 +472,7 @@ isLitP (DotP _ u) = reduce u >>= \case
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
   if c == zero
-    then return $ Just $ LitNat (getRange c) 0
+    then return $ Just $ LitNat 0
     else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
   Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
@@ -481,12 +481,12 @@ isLitP (ConP c ci [a]) | visible a && isRelevant a = do
     else return Nothing
   where
     inc :: Literal -> Literal
-    inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
+    inc (LitNat n) = LitNat $ n + 1
     inc _ = __IMPOSSIBLE__
 isLitP _ = return Nothing
 
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
-unLitP (LitP info l@(LitNat _ n)) | n >= 0 = do
+unLitP (LitP info l@(LitNat n)) | n >= 0 = do
   Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
                                   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
                                   (Lit l)

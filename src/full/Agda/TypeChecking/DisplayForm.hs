@@ -142,8 +142,11 @@ instance Match a => Match (Elim' a) where
   match p v =
     case (p, v) of
       (Proj _ f, Proj _ f') | f == f' -> return []
-      (Apply a, Apply a')         -> match a a'
-      _                           -> mzero
+      _ | Just a  <- isApplyElim p
+        , Just a' <- isApplyElim v    -> match a a'
+      -- we do not care to differentiate between Apply and IApply for
+      -- printing.
+      _                               -> mzero
 
 instance Match Term where
   match p v = lift (instantiate v) >>= \ v -> case (p, v) of

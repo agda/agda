@@ -416,7 +416,7 @@ highlight_ hlmod d = do
       -- * fields become bound variables,
       -- * declarations become let-bound variables.
       -- We do not need that crap.
-      dummy = A.Lit $ LitString noRange $
+      dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.
@@ -670,8 +670,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
-checkPrimitive :: A.DefInfo -> QName -> A.Expr -> TCM ()
-checkPrimitive i x e =
+checkPrimitive :: A.DefInfo -> QName -> Arg A.Expr -> TCM ()
+checkPrimitive i x (Arg info e) =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     -- Certain "primitive" functions are BUILTIN rather than
@@ -697,9 +697,18 @@ checkPrimitive i x e =
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
+    -- Checking the modality. Currently all primitives require default
+    -- modalities, and likely very few will have different modalities in the
+    -- future. Thus, rather than, the arguably nicer solution of adding a
+    -- modality to PrimImpl we simply check the few special primitives here.
+    let expectedInfo =
+          case name of
+            -- Currently no special primitives
+            _ -> defaultArgInfo
+    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
     bindPrimitive s pf
     addConstant x $
-      defaultDefn defaultArgInfo x t $
+      defaultDefn info x t $
         Primitive { primAbstr    = Info.defAbstract i
                   , primName     = s
                   , primClauses  = []

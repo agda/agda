@@ -6,6 +6,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (null)
+import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Arrow ((***))
 import Control.Monad
@@ -16,8 +17,6 @@ import Control.Monad.State
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -37,7 +36,8 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
+import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
+  -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
@@ -46,17 +46,19 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
-import Agda.TypeChecking.Warnings ( warning )
+import Agda.TypeChecking.Warnings ( warning, warning' )
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Suffix as C
 
 import Agda.Utils.Impossible
@@ -75,6 +77,11 @@ printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
+
+scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
+scopeWarning d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
+  warning' (AgdaSourceErrorLocation file line)  $ NicifierIssue $
+    DeclarationWarning (AgdaSourceErrorLocation file line) $ d
 
 ---------------------------------------------------------------------------
 -- * General operations
@@ -220,7 +227,7 @@ checkNoShadowing old new = do
     let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
     -- Warn if we have two or more occurrences of the same name.
     unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-      warning $ NicifierIssue $ ShadowingInTelescope conflicts
+      scopeWarning $ ShadowingInTelescope conflicts
   where
     pairWithRange :: C.Name -> (C.Name, [Range])
     pairWithRange n = (n, [getRange n])
@@ -259,6 +266,7 @@ freshAbstractName fx x = do
   return $ A.Name
     { nameId          = i
     , nameConcrete    = x
+    , nameCanonical   = x
     , nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
@@ -283,9 +291,8 @@ freshAbstractQName' x = do
 -- | Create a concrete name that is not yet in scope.
 freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
 freshConcreteName r i s = do
-  let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-  rn <- resolveName $ C.QName cname
-  case rn of
+  let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
+  resolveName (C.QName cname) >>= \case
     UnknownName -> return cname
     _           -> freshConcreteName r (i+1) s
 
@@ -310,7 +317,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, HasBuiltins m, MonadError (NonEmpty A.QName) m)
+  :: (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -412,10 +419,10 @@ instance MonadFixityError ScopeM where
   throwMultiplePolarityPragmas xs     = case xs of
     x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
     []    -> __IMPOSSIBLE__
-  warnUnknownNamesInFixityDecl        = warning   . NicifierIssue . UnknownNamesInFixityDecl
-  warnUnknownNamesInPolarityPragmas   = warning   . NicifierIssue . UnknownNamesInPolarityPragmas
-  warnUnknownFixityInMixfixDecl       = warning   . NicifierIssue . UnknownFixityInMixfixDecl
-  warnPolarityPragmasButNotPostulates = warning   . NicifierIssue . PolarityPragmasButNotPostulates
+  warnUnknownNamesInFixityDecl        = scopeWarning . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas   = scopeWarning . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
+  warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
@@ -447,7 +454,7 @@ getNotation x ns = do
   where
     notation = namesToNotation x . qnameName . anameName
     oneNotation ds =
-      case mergeNotations $ map notation $ NonEmpty.toList ds of
+      case mergeNotations $ map notation $ List1.toList ds of
         [n] -> n
         _   -> __IMPOSSIBLE__
 
@@ -499,7 +506,7 @@ bindName'' acc kind meta x y = do
 
     ambiguous f ds =
       if f kind && all (f . anameKind) ds
-      then success else clash $ anameName (NonEmpty.head ds)
+      then success else clash $ anameName (List1.head ds)
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
@@ -684,13 +691,33 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
 checkNoFixityInRenamingModule ren = do
   whenJust (nonEmpty $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
-    traceCall (SetRange $ getRange rs) $ do
+    setCurrentRange rs $ do
       warning $ FixityInRenamingModule rs
   where
   rangeOfUselessInfix :: C.Renaming -> Maybe Range
   rangeOfUselessInfix = \case
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
+
+-- Moved here carefully from Parser.y to preserve the archaeological artefact
+-- dating from Oct 2005 (5ba14b647b9bd175733f9563e744176425c39126).
+-- | Check that an import directive doesn't contain repeated names.
+verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
+verifyImportDirective usn hdn ren =
+    case filter ((>1) . length)
+         $ List.group
+         $ List.sort xs
+    of
+        []  -> return ()
+        yss -> setCurrentRange yss $ genericError $
+                "Repeated name" ++ s ++ " in import directive: " ++
+                concat (List.intersperse ", " $ map (prettyShow . head) yss)
+            where
+                s = case yss of
+                        [_] -> ""
+                        _   -> "s"
+    where
+        xs = usn ++ hdn ++ map renFrom ren
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
@@ -701,15 +728,24 @@ applyImportDirectiveM
   -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
   -> Scope                             -- ^ Input scope.
   -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
-applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
+applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
     -- Module names do not come with fixities, thus, we should complain if the
     -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
 
+    -- Andreas, 2020-06-06, issue #4707
+    -- Duplicates in @using@ directive are dropped with a warning.
+    usingList <- discardDuplicatesInUsing usn'
+
+    -- The following check was originally performed by the parser.
+    -- The Great Ulf Himself added the check back in the dawn of time
+    -- (5ba14b647b9bd175733f9563e744176425c39126)
+    -- when Agda 2 wasn't even believed to exist yet.
+    verifyImportDirective usingList hdn' ren'
+
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
-    let usingList = fromUsing usn'
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
       reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
@@ -769,11 +805,28 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
-    -- | Names in the @using@ directive
-    fromUsing :: Using' a b -> [ImportedName' a b]
-    fromUsing = \case
-      Using  xs     -> xs
-      UseEverything -> []
+    -- Andreas, 2020-06-23, issue #4773, fixing regression in 2.5.1.
+    -- Import directive may not mention private things.
+    -- ```agda
+    --   module M where private X = Set
+    --   module N = M using (X)
+    -- ```
+    -- Further, modules (N) need not copy private things (X) from other
+    -- modules (M) ever, since they cannot legally referred to
+    -- (neither through qualification (N.X) nor open N).
+    -- Thus, we can unconditionally remove private definitions
+    -- before we apply the import directive.
+    scope = restrictPrivate scope0
+
+    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Monadic for the sake of throwing warnings.
+    discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
+    discardDuplicatesInUsing = \case
+      UseEverything -> return []
+      Using  xs     -> do
+        let (ys, dups) = nubAndDuplicatesOn id xs
+        List1.unlessNull dups $ warning . DuplicateUsing
+        return ys
 
     -- | If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
@@ -783,12 +836,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
           let useless = \case
                 ImportedName{}   -> True
                 ImportedModule y -> notMentioned (ImportedName y)
-          unlessNull (filter useless ys) $ \ uselessHiding -> do
-            typeError $ GenericError $ unwords $
-              [ "Hiding"
-              , List.intercalate ", " $ map prettyShow uselessHiding
-              , "has no effect"
-              ]
+          unlessNull (filter useless ys) $ warning . UselessHiding
           -- We can empty @hiding@ now, since there is an explicit @using@ directive
           -- and @hiding@ served its purpose to prevent modules to enter the @Using@ list.
           return dir{ hiding = [] }
@@ -905,8 +953,7 @@ openModule kind mam cm dir = do
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
-                noGeneralizedVarsIfLetOpen kind .
-                restrictPrivate =<< getNamedScope m
+                noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)

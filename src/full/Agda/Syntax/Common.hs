@@ -13,6 +13,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
+import Control.Applicative ((<|>))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -73,6 +74,18 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
+
+---------------------------------------------------------------------------
+-- * Agda Source location of errors
+---------------------------------------------------------------------------
+
+data AgdaSourceErrorLocation = AgdaSourceErrorLocation
+  { slocFile :: String -- ^ File the error was raised in
+  , slocLine :: Int    -- ^ Line number in this file
+  } deriving (Show, Data)
+
+instance Pretty AgdaSourceErrorLocation where
+  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
 
 ---------------------------------------------------------------------------
 -- * Eta-equality
@@ -210,6 +223,9 @@ instance Monoid Overlappable where
 instance Monoid Hiding where
   mempty = NotHidden
   mappend = (<>)
+
+instance HasRange Hiding where
+  getRange _ = noRange
 
 instance KillRange Hiding where
   killRange = id
@@ -350,6 +366,9 @@ data Modality = Modality
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
+instance Null Modality where
+  empty = defaultModality
+
 -- | Pointwise composition.
 instance Semigroup Modality where
   Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
@@ -424,8 +443,11 @@ sameModality x y = case (getModality x , getModality y) of
 
 -- boilerplate instances
 
+instance HasRange Modality where
+  getRange (Modality r q c) = getRange (r, q, c)
+
 instance KillRange Modality where
-  killRange = id
+  killRange (Modality r q c) = killRange3 Modality r q c
 
 instance NFData Modality where
 
@@ -1204,6 +1226,9 @@ data Origin
   | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   deriving (Data, Show, Eq, Ord)
 
+instance HasRange Origin where
+  getRange _ = noRange
+
 instance KillRange Origin where
   killRange = id
 
@@ -1283,6 +1308,9 @@ instance Monoid FreeVariables where
   mempty  = KnownFVs IntSet.empty
   mappend = (<>)
 
+instance KillRange FreeVariables where
+  killRange = id
+
 instance NFData FreeVariables where
   rnf UnknownFVs    = ()
   rnf (KnownFVs fv) = rnf fv
@@ -1340,8 +1368,11 @@ data ArgInfo = ArgInfo
   , argInfoFreeVariables :: FreeVariables
   } deriving (Data, Eq, Ord, Show)
 
+instance HasRange ArgInfo where
+  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+
 instance KillRange ArgInfo where
-  killRange i = i -- There are no ranges in ArgInfo's
+  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1796,17 +1827,17 @@ data Ranged a = Ranged
 unranged :: a -> Ranged a
 unranged = Ranged noRange
 
+-- | Ignores range.
 instance Pretty a => Pretty (Ranged a) where
   pretty = pretty . rangedThing
 
--- instance Show a => Show (Ranged a) where
---   show = show . rangedThing
-
+-- | Ignores range.
 instance Eq a => Eq (Ranged a) where
-  Ranged _ x == Ranged _ y = x == y
+  (==) = (==) `on` rangedThing
 
+-- | Ignores range.
 instance Ord a => Ord (Ranged a) where
-  compare (Ranged _ x) (Ranged _ y) = compare x y
+  compare = compare `on` rangedThing
 
 instance HasRange (Ranged a) where
   getRange = rangeOf
@@ -2212,11 +2243,14 @@ instance LensFixity' Fixity' where
 data ImportDirective' n m = ImportDirective
   { importDirRange :: Range
   , using          :: Using' n m
-  , hiding         :: [ImportedName' n m]
-  , impRenaming    :: [Renaming' n m]
+  , hiding         :: HidingDirective' n m
+  , impRenaming    :: RenamingDirective' n m
   , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
+
+type HidingDirective'   n m = [ImportedName' n m]
+type RenamingDirective' n m = [Renaming' n m]
 
 -- | @null@ for import directives holds when everything is imported unchanged
 --   (no names are hidden or renamed).
@@ -2225,6 +2259,19 @@ instance Null (ImportDirective' n m) where
     ImportDirective _ UseEverything [] [] _ -> True
     _ -> False
   empty = defaultImportDir
+
+instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+  i1 <> i2 = ImportDirective
+    { importDirRange = fuseRange i1 i2
+    , using          = using i1 <> using i2
+    , hiding         = hiding i1 ++ hiding i2
+    , impRenaming    = impRenaming i1 ++ impRenaming i2
+    , publicOpen     = publicOpen i1 <|> publicOpen i2
+    }
+
+instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+  mempty  = empty
+  mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m
@@ -2475,7 +2522,7 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
 -- * Information on expanded ellipsis (@...@)
 -----------------------------------------------------------------------------
 
--- ^ When the ellipsis in a clause are expanded, we remember that we
+-- ^ When the ellipsis in a clause is expanded, we remember that we
 --   did so. We also store the number of with-arguments that are
 --   included in the expanded ellipsis.
 data ExpandedEllipsis

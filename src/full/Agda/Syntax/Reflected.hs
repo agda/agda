@@ -2,6 +2,8 @@
 
 module Agda.Syntax.Reflected where
 
+import Data.Text (Text)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
@@ -43,14 +45,23 @@ data Sort = SetS Term
   deriving (Show)
 
 data Pattern = ConP QName [Arg Pattern]
-             | DotP
-             | VarP String
+             | DotP Term
+             | VarP Int
              | LitP Literal
              | AbsurdP
              | ProjP QName
   deriving (Show)
 
-data Clause = Clause [Arg Pattern] Term | AbsurdClause [Arg Pattern]
+data Clause
+  = Clause
+    { clauseTel  :: [(Text, Arg Type)]
+    , clausePats :: [Arg Pattern]
+    , clauseRHS  :: Term
+    }
+  | AbsurdClause
+    { clauseTel  :: [(Text, Arg Type)]
+    , clausePats :: [Arg Pattern]
+    }
   deriving (Show)
 
 data Definition = FunDef Type [Clause]

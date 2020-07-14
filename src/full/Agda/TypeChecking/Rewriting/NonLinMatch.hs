@@ -31,6 +31,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -137,22 +138,28 @@ instance Match t a b => Match (Dom t) (Arg a) (Arg b) where
   match r gamma k t p v = let r' = r `composeRelevance` getRelevance p
                           in  match r' gamma k (unDom t) (unArg p) (unArg v)
 
-instance Match (Type, Term) [Elim' NLPat] Elims where
+instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
   match r gamma k (t, hd) [] [] = return ()
   match r gamma k (t, hd) [] _  = matchingBlocked $ NotBlocked ReallyNotBlocked ()
   match r gamma k (t, hd) _  [] = matchingBlocked $ NotBlocked ReallyNotBlocked ()
-  match r gamma k (t, hd) (p:ps) (v:vs) = case (p,v) of
+  match r gamma k (t, hd) (p:ps) (v:vs) =
+   traceSDoc "rewriting.match" 50 (sep
+     [ "matching elimination " <+> addContext (gamma `abstract` k) (prettyTCM p)
+     , "  with               " <+> addContext k (prettyTCM v)
+     , "  eliminating head   " <+> addContext k (prettyTCM $ hd []) <+> ":" <+> addContext k (prettyTCM t)]) $ do
+   case (p,v) of
     (Apply p, Apply v) -> do
-      ~(Pi a b) <- unEl <$> reduce t
+      ~(Pi a b) <- addContext k $ unEl <$> reduce t
       match r gamma k a p v
-      t' <- addContext k $ t `piApplyM` v
-      let hd' = hd `apply` [ v ]
+      let t'  = absApp b (unArg v)
+          hd' = hd . (Apply v:)
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
-      ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
-      let t' = b `absApp` hd
-      hd' <- addContext k $ applyDef o f (argFromDom a $> hd)
+      ~(Just (El _ (Pi a b))) <- addContext k $ getDefType f =<< reduce t
+      let u = hd []
+          t' = b `absApp` u
+      hd' <- addContext k $ applyE <$> applyDef o f (argFromDom a $> u)
       match r gamma k (t',hd') ps vs
 
     (Proj _ f, Proj _ f') | otherwise -> do
@@ -176,7 +183,7 @@ instance Match () NLPType Type where
 
 instance Match () NLPSort Sort where
   match r gamma k _ p s = do
-    bs <- reduceB s
+    bs <- addContext k $ reduceB s
     let b = void bs
         s = ignoreBlocking bs
         yes = return ()
@@ -195,7 +202,7 @@ instance Match () NLPSort Sort where
       (_ , UnivSort{}) -> matchingBlocked b
       (_ , PiSort{}  ) -> matchingBlocked b
       (_ , FunSort{} ) -> matchingBlocked b
-      (_ , MetaS m _ ) -> matchingBlocked $ Blocked m ()
+      (_ , MetaS m _ ) -> matchingBlocked $ blocked_ m
 
       -- all other cases do not match
       (_ , _) -> no
@@ -247,7 +254,7 @@ instance Match Type NLPat Term where
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
         maybeBlock w = case w of
-          MetaV m es -> matchingBlocked $ Blocked m ()
+          MetaV m es -> matchingBlocked $ blocked_ m
           _          -> no ""
     case p of
       PVar i bvs -> traceSDoc "rewriting.match" 60 ("matching a PVar: " <+> text (show i)) $ do
@@ -274,11 +281,11 @@ instance Match Type NLPat Term where
           Def f' es
             | f == f'   -> do
                 ft <- addContext k $ defType <$> getConstInfo f
-                match r gamma k (ft , Def f []) ps es
+                match r gamma k (ft , Def f) ps es
           Con c ci vs
             | f == conName c -> do
                 ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
-                match r gamma k (ct , Con c ci []) ps vs
+                match r gamma k (ct , Con c ci) ps vs
           _ | Pi a b <- unEl t -> do
             let ai    = domInfo a
                 pbody = PDef f $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -299,16 +306,16 @@ instance Match Type NLPat Term where
                 ps'
                   | conName c == f = ps
                   | otherwise      = map (Apply . fmap mkField) flds
-            match r gamma k (ct, Con c ci []) ps' (map Apply vs)
+            match r gamma k (ct, Con c ci) ps' (map Apply vs)
           MetaV m es -> do
-            matchingBlocked $ Blocked m ()
+            matchingBlocked $ blocked_ m
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
-        MetaV m es -> matchingBlocked $ Blocked m ()
+        MetaV m es -> matchingBlocked $ blocked_ m
         v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do
@@ -322,7 +329,7 @@ instance Match Type NLPat Term where
       PBoundVar i ps -> case v of
         Var i' es | i == i' -> do
           let ti = unDom $ indexWithDefault __IMPOSSIBLE__ (flattenTel k) i
-          match r gamma k (ti , var i) ps es
+          match r gamma k (ti , Var i) ps es
         _ | Pi a b <- unEl t -> do
           let ai    = domInfo a
               pbody = PBoundVar (1+i) $ raise 1 ps ++ [ Apply $ Arg ai $ PTerm $ var 0 ]
@@ -335,7 +342,7 @@ instance Match Type NLPat Term where
           ~(Just (_ , ct)) <- addContext k $ getFullyAppliedConType c t
           let flds = map argFromDom $ recFields def
               ps'  = map (fmap $ \fld -> PBoundVar i (ps ++ [Proj ProjSystem fld])) flds
-          match r gamma k (ct, Con c ci []) (map Apply ps') (map Apply vs)
+          match r gamma k (ct, Con c ci) (map Apply ps') (map Apply vs)
         v -> maybeBlock v
       PTerm u -> traceSDoc "rewriting.match" 60 ("matching a PTerm" <+> addContext (gamma `abstract` k) (prettyTCM u)) $
         tellEq gamma k t u v
@@ -352,8 +359,8 @@ reallyFree xs v = do
   case IntMap.foldr pickFree NotFree mxs of
     MaybeFree ms
       | null ms   -> return $ Right Nothing
-      | otherwise -> return $ Left $
-        foldrMetaSet (\ m -> mappend $ Blocked m ()) (notBlocked ()) ms
+      | otherwise -> return $ Left $ Blocked blocker ()
+      where blocker = unblockOnAll $ foldrMetaSet (Set.insert . unblockOnMeta) Set.empty ms
     NotFree -> return $ Right (Just v')
 
   where
@@ -371,7 +378,7 @@ reallyFree xs v = do
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
-  prependS __IMPOSSIBLE__ (map val [0 .. size gamma-1]) IdS
+  parallelS $ map (fromMaybe __DUMMY_TERM__ . val) [0 .. size gamma-1]
     where
       val i = case IntMap.lookup i sub of
                 Just (Irrelevant, v) -> Just $ dontCare v
@@ -418,6 +425,4 @@ equal a u v = pureEqualTerm a u v >>= \case
     return $ Just block
 
   where
-    block = caseMaybe (firstMeta (u, v))
-              (NotBlocked ReallyNotBlocked ())
-              (\m -> Blocked m ())
+    block = blockedOn (unblockOnAllMetasIn (u, v)) ()

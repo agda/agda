@@ -23,16 +23,16 @@ import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 import Agda.Utils.Pretty
 import Agda.Utils.List  ( spanEnd )
-import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
 placeholder p =
   doc (text ("_" ++ show p)) $
-  sat $ \t ->
-  case t of
+  sat $ \case
     Placeholder p' | p' == p -> True
     _                        -> False
 
@@ -45,8 +45,7 @@ maybePlaceholder mp p = case mp of
   p' = noPlaceholder <$> p
 
 satNoPlaceholder :: (e -> Maybe a) -> Parser e a
-satNoPlaceholder p = sat' $ \tok ->
-  case tok of
+satNoPlaceholder p = sat' $ \case
     NoPlaceholder _ e -> p e
     Placeholder _     -> Nothing
 
@@ -55,7 +54,7 @@ data ExprView e
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV QName (Set A.Name) [NamedArg (MaybePlaceholder (OpApp e))]
+    | OpAppV QName (Set A.Name) (OpAppArgs' e)
       -- ^ The 'QName' is possibly ambiguous, but it must correspond
       -- to one of the names in the set.
     | HiddenArgV (Named_ e)
@@ -73,7 +72,7 @@ instance IsExpr e => HasRange (ExprView e) where
   getRange = getRange . unExprView
 
 instance IsExpr Expr where
-    exprView e = case e of
+    exprView = \case
         Ident x         -> LocalV x
         App _ e1 e2     -> AppV e1 e2
         OpApp r d ns es -> OpAppV d ns es
@@ -81,9 +80,9 @@ instance IsExpr Expr where
         InstanceArg _ e -> InstanceArgV e
         Paren _ e       -> ParenV e
         Lam _ bs    e   -> LamV bs e
-        Underscore{}    -> WildV e
-        _               -> OtherV e
-    unExprView e = case e of
+        e@Underscore{}  -> WildV e
+        e               -> OtherV e
+    unExprView = \case
         LocalV x       -> Ident x
         AppV e1 e2     -> App (fuseRange e1 e2) e1 e2
         OpAppV d ns es -> OpApp (fuseRange d es) d ns es
@@ -97,22 +96,21 @@ instance IsExpr Expr where
     patternView = isPattern
 
 instance IsExpr Pattern where
-    exprView e = case e of
+    exprView = \case
         IdentP x         -> LocalV x
         AppP e1 e2       -> AppV e1 e2
-        OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap)
-                                           (noPlaceholder . Ordinary) es)
+        OpAppP r d ns es -> OpAppV d ns $ (fmap . fmap . fmap) (noPlaceholder . Ordinary) es
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
-        WildP{}          -> WildV e
-        _                -> OtherV e
-    unExprView e = case e of
+        e@WildP{}        -> WildV e
+        e                -> OtherV e
+    unExprView = \case
         LocalV x       -> IdentP x
         AppV e1 e2     -> AppP e1 e2
-        OpAppV d ns es -> let ess :: [NamedArg Pattern]
-                              ess = (map . fmap . fmap)
-                                      (\x -> case x of
+        OpAppV d ns es -> let ess :: List1 (NamedArg Pattern)
+                              ess = (fmap . fmap . fmap)
+                                      (\case
                                           Placeholder{}     -> __IMPOSSIBLE__
                                           NoPlaceholder _ x -> fromOrdinary __IMPOSSIBLE__ x)
                                       es
@@ -137,18 +135,18 @@ data ParseSections = ParseSections | DoNotParseSections
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
 parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
+parse (ParseSections,      p) es = P.parse p (List1.concat $ map splitExpr es)
   where
-  splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
+  splitExpr :: IsExpr e => e -> List1 (MaybePlaceholder e)
   splitExpr e = case exprView e of
     LocalV n -> splitName n
     _        -> noSplit
     where
-    noSplit = [noPlaceholder e]
+    noSplit = singleton $ noPlaceholder e
 
     splitName n = case List1.last ns of
-      Name r nis ps@(_ : _ : _) -> splitParts r nis (List1.init ns) Beginning ps
-      _                         -> noSplit
+      Name r nis ps@(_ :| _ : _) -> splitParts r nis (List1.init ns) Beginning ps
+      _                          -> noSplit
       where
       ns = qnameParts n
 
@@ -159,16 +157,15 @@ parse (ParseSections,      p) es = P.parse p (concatMap splitExpr es)
       -- Note also that the module qualifier, if any, is only applied
       -- to the first name part.
 
-      splitParts _ _   _ _ []          = __IMPOSSIBLE__
-      splitParts _ _   _ _ (Hole : []) = [Placeholder End]
-      splitParts r nis m _ (Id s : []) = [part r nis m End s]
-      splitParts r nis m w (Hole : ps) = Placeholder w : splitParts r nis m  Middle ps
-      splitParts r nis m w (Id s : ps) = part r nis m w s : splitParts r nis [] Middle ps
+      splitParts _ _   _ _ (Hole :| [])     = singleton $ Placeholder End
+      splitParts r nis m _ (Id s :| [])     = singleton $ part r nis m End s
+      splitParts r nis m w (Hole :| p : ps) = Placeholder w    <| splitParts r nis m  Middle (p :| ps)
+      splitParts r nis m w (Id s :| p : ps) = part r nis m w s <| splitParts r nis [] Middle (p :| ps)
 
       part r nis m w s =
         NoPlaceholder (Strict.Just w)
                       (unExprView $ LocalV $
-                         foldr Qual (QName (Name r nis [Id s])) m)
+                         foldr Qual (QName $ Name r nis $ singleton $ Id s) m)
 
 ---------------------------------------------------------------------------
 -- * Parser combinators
@@ -183,7 +180,7 @@ partP ms s =
   doc (text (show str)) $
   satNoPlaceholder isLocal
   where
-  str = prettyShow $ foldr Qual (QName $ Name noRange InScope [Id s]) ms
+  str = prettyShow $ foldr Qual (QName $ simpleName s) ms
   isLocal e = case exprView e of
       LocalV y | str == prettyShow y -> Just $ getRange y
       _ -> Nothing
@@ -198,22 +195,22 @@ partP ms s =
 atLeastTwoParts :: IsExpr e => Parser e Name
 atLeastTwoParts =
   (\p1 ps p2 ->
-      let all = p1 : ps ++ [p2] in
-      case mapMaybe fst all of
-        (r,nis) : _ -> Name r nis (map snd all)
+      let all = p1 :| ps ++ [p2] in
+      case List1.mapMaybe fst all of
+        (r,nis) : _ -> Name r nis (fmap snd all)
         []          -> __IMPOSSIBLE__)
   <$> part Beginning
   <*> many (part Middle)
   <*> part End
   where
-  part pos = sat' $ \tok -> case tok of
+  part pos = sat' $ \case
     Placeholder pos'                   | pos == pos' -> Just ( Nothing
                                                              , Hole
                                                              )
     NoPlaceholder (Strict.Just pos') e | pos == pos' ->
       case exprView e of
-        LocalV (QName (Name r nis [Id s])) -> Just (Just (r,nis), Id s)
-        _                                  -> Nothing
+        LocalV (QName (Name r nis (Id s :| []))) -> Just (Just (r, nis), Id s)
+        _ -> Nothing
     _ -> Nothing
 
 -- | Parses a potentially pattern-matching binder
@@ -269,7 +266,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
         else
           unExprView (OpAppV q' names args)
         where
-        args = map (findExprFor (f normal) binders) [0..lastHole]
+        args = List1.fromList $ map (findExprFor (f normal) binders) [0..lastHole]
         q'   = setRange range q
   in
 
@@ -310,7 +307,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
             p
       <*> worker ms xs
   worker ms (WildHole h : xs) =
-    (\(r, es) -> let anon = mkBinder_ (Name noRange InScope [Hole])
+    (\(r, es) -> let anon = mkBinder_ simpleHole
                  in (r, Right (mkBinding h anon) : es))
       <$> worker ms xs
   worker ms (BindHole _ h : xs) = do
@@ -337,8 +334,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
         {-else-} $ \ bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__
 
-  noPlaceholders :: [NamedArg (MaybePlaceholder (OpApp e))] -> Int
-  noPlaceholders = sum . map (isPlaceholder . namedArg)
+  noPlaceholders :: OpAppArgs' e -> Int
+  noPlaceholders = sum . fmap (isPlaceholder . namedArg)
     where
     isPlaceholder NoPlaceholder{} = 0
     isPlaceholder Placeholder{}   = 1

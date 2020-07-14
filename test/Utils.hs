@@ -3,6 +3,7 @@ module Utils (module Utils,
               AgdaError(..)) where
 
 import Control.Applicative
+import Control.Arrow ((&&&))
 
 import Data.Array
 import Data.Bifunctor (first)
@@ -10,8 +11,9 @@ import qualified Data.ByteString as BS
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Ord
-import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -25,6 +27,7 @@ import System.FilePath.GlobPattern
 import System.IO.Temp
 import System.PosixCompat.Time (epochTime)
 import System.PosixCompat.Files (modificationTime)
+import System.Process (proc, CreateProcess(..) )
 import qualified System.Process.Text as PT
 
 import Test.Tasty.Silver
@@ -38,31 +41,32 @@ import Agda.Utils.Maybe
 
 data ProgramResult = ProgramResult
   { exitCode :: ExitCode
-  , stdOut   :: T.Text
-  , stdErr   :: T.Text
+  , stdOut   :: Text
+  , stdErr   :: Text
   } deriving (Read, Show, Eq)
 
-fromProgramResult :: ProgramResult -> (ExitCode, T.Text, T.Text)
+fromProgramResult :: ProgramResult -> (ExitCode, Text, Text)
 fromProgramResult (ProgramResult c o e) = (c, o, e)
 
-toProgramResult :: (ExitCode, T.Text, T.Text) -> ProgramResult
+toProgramResult :: (ExitCode, Text, Text) -> ProgramResult
 toProgramResult (c, o, e) = ProgramResult c o e
 
-printProgramResult :: ProgramResult -> T.Text
+printProgramResult :: ProgramResult -> Text
 printProgramResult = printProcResult . fromProgramResult
 
 type AgdaArgs = [String]
 
 
-readAgdaProcessWithExitCode :: AgdaArgs -> T.Text
-                            -> IO (ExitCode, T.Text, T.Text)
+readAgdaProcessWithExitCode :: AgdaArgs -> Text
+                            -> IO (ExitCode, Text, Text)
 readAgdaProcessWithExitCode args inp = do
   agdaBin <- getAgdaBin
   envArgs <- getEnvAgdaArgs
-  PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
+  let agdaProc = (proc agdaBin (envArgs ++ args)) { create_group = True }
+  PT.readCreateProcessWithExitCode agdaProc inp
 
 data AgdaResult
-  = AgdaSuccess (Maybe T.Text) -- ^ A success can come with warnings
+  = AgdaSuccess (Maybe Text)          -- ^ A success can come with warnings
   | AgdaFailure Int (Maybe AgdaError) -- ^ A failure, with exit code
 
 runAgdaWithOptions
@@ -94,7 +98,7 @@ runAgdaWithOptions testName opts mflag = do
     ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
     ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
 
-hasWarning :: T.Text -> Bool
+hasWarning :: Text -> Bool
 hasWarning t =
  "———— All done; warnings encountered ————————————————————————"
  `T.isInfixOf` t
@@ -104,11 +108,9 @@ getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
-getAgdaBin = do
-  agda <- getEnvVar "AGDA_BIN"
-  case agda of
-    Just x -> return x
-    Nothing -> fail "AGDA_BIN environment variable not set, aborting..."
+getAgdaBin = fromMaybeM err $ getEnvVar "AGDA_BIN"
+  where
+  err = fail "AGDA_BIN environment variable not set, aborting..."
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
@@ -121,55 +123,98 @@ getEnvVar :: String -> IO (Maybe String)
 getEnvVar v =
   lookup v <$> getEnvironment
 
+-- | List of possible extensions of agda files.
+agdaExtensions :: [String]
+agdaExtensions =
+  [ ".agda"
+  , ".lagda"
+  , ".lagda.tex"
+  , ".lagda.rst"
+  , ".lagda.md"
+  , ".lagda.org"
+  ]
+
+-- | List of files paired with agda files by the test suites.
+-- E.g. files recording the accepted output or error message.
+helperExtensions :: [String]
+helperExtensions =
+  [ ".flags"        -- Supplementary file
+  , ".warn"         -- Produced by test/Succeed
+  , ".err"          -- Produced by test/Fail
+  , ".in", ".out"   -- For running test/interaction
+  ]
+
+-- | Generalizes 'stripExtension'.
+stripAnyOfExtensions :: [String] -> FilePath -> Maybe FilePath
+stripAnyOfExtensions exts p = listToMaybe $ catMaybes $ map (`stripExtension` p) exts
+
+stripAgdaExtension :: FilePath -> Maybe FilePath
+stripAgdaExtension = stripAnyOfExtensions agdaExtensions
+
+stripHelperExtension :: FilePath -> Maybe FilePath
+stripHelperExtension = stripAnyOfExtensions helperExtensions
+
 -- | Checks if a String has Agda extension
 hasAgdaExtension :: FilePath -> Bool
-hasAgdaExtension = isJust . dropAgdaExtension'
-
-data SearchMode = Rec | NonRec deriving (Eq)
-
-dropAgdaExtension' :: FilePath -> Maybe FilePath
-dropAgdaExtension' p =  stripExtension ".agda" p
-                        <|> stripExtension ".lagda" p
-                        <|> stripExtension ".lagda.tex" p
-                        <|> stripExtension ".lagda.rst" p
-                        <|> stripExtension ".lagda.md" p
-                        <|> stripExtension ".lagda.org" p
+hasAgdaExtension = isJust . stripAgdaExtension
 
 dropAgdaExtension :: FilePath -> FilePath
 dropAgdaExtension p =
-  fromMaybe (error$ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
-  dropAgdaExtension' p
+  fromMaybe (error $ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
+  stripAgdaExtension p
 
 dropAgdaOrOtherExtension :: FilePath -> FilePath
-dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> dropAgdaExtension'
+dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> stripAgdaExtension
+
+data SearchMode = Rec | NonRec deriving (Eq)
 
 -- | Find (non)recursively all Agda files in the given directory
 --   and order them alphabetically, with the exception that
 --   the ones from the last week come first, ordered by age (youngest first).
 --   This heuristic should run the interesting tests first.
+--   The age computation also considers helper file modification time
+--   (.err, .in, .out, .warn).
 getAgdaFilesInDir :: SearchMode -> FilePath -> IO [FilePath]
 getAgdaFilesInDir recurse dir = do
-  now <- epochTime
+  -- Get all agda files...
+  agdaFiles <- findWithInfo recP (hasAgdaExtension <$> Find.filePath) dir
+  -- ...and organize them in a map @baseName ↦ (modificationTime, baseName.ext)@.
+  -- We may assume that all agda files have different @baseName@s.
+  -- (Otherwise agda will complain when trying to load them.)
+  let m = Map.fromList $ flip map agdaFiles $
+            {-key-} (dropAgdaExtension . Find.infoPath) &&&
+            {-val-} (modificationTime . Find.infoStatus) &&& Find.infoPath
+  -- Andreas, 2020-06-08, issue #4736: Go again through all the files.
+  -- If we find one whose baseName is in the map and
+  -- that has a newer modificationTime than what is stored in the map,
+  -- we update the modificationTime in the map.
+  m <- Find.fold recP (flip updateModificationTime) m dir
   -- Andreas, 2017-04-29 issue #2546
   -- We take first the new test cases, then the rest.
   -- Both groups are ordered alphabetically,
   -- but for the first group, the younger ones come first.
-  let order :: Find.FileInfo -> Find.FileInfo -> Ordering
-      order = comparing $ \ info ->
-        let age = now - modificationTime (Find.infoStatus info) in
-        -- Building a tuple for lexicographic comparison:
-        ( Down $  -- This Down reverses the usual order Nothing < Just
-            if age > consideredNew then Nothing else Just $
-              Down age -- This Down reverses the effect of the first Down
-        , Find.infoPath info
-        )
-      -- Test cases from up to one week ago are considered new.
-      consideredNew = 7 * 24 * 60 * 60
-      -- If @recurse /= Rec@ don't go into subdirectories
-      recP = pure (recurse == Rec) Find.||? Find.depth Find.<? 1
-  map Find.infoPath  . sortBy order <$>
-    findWithInfo recP (hasAgdaExtension <$> Find.filePath) dir
-
+  -- Ignore first (i.e., the time) component if older than @consideredNew@.
+  -- The second component is the filepath.
+  now <- epochTime
+  let order = comparing $ first $ \ t -> let age = now - t in
+        Down $  -- This Down reverses the usual order Nothing < Just
+          if age > consideredNew then Nothing else Just $
+            Down age -- This Down reverses the effect of the first Down
+  return $ map snd $ sortBy order $ Map.elems m
+  where
+  -- If @recurse /= Rec@ don't go into subdirectories
+  recP = pure (recurse == Rec) Find.||? Find.depth Find.<? 1
+  -- Updating the map of agda files to take modification
+  -- of secondary files (.err, .in, .out) into account.
+  updateModificationTime f =
+    case stripHelperExtension $ Find.infoPath f of
+      Just k  -> Map.adjust (updIfNewer $ modificationTime $ Find.infoStatus f) k
+      Nothing -> id
+  updIfNewer tNew old@(tOld, f)
+    | tNew > tOld = (tNew, f)
+    | otherwise   = old
+  -- Test cases from up to one week ago are considered new.
+  consideredNew = 7 * 24 * 60 * 60
 
 -- | Search a directory recursively, with recursion controlled by a
 --   'RecursionPredicate'.  Lazily return a unsorted list of all files
@@ -184,9 +229,11 @@ findWithInfo recurse filt dir = Find.fold recurse act [] dir
   where
   -- Add file to list front when it matches the filter
   act :: [Find.FileInfo] -> Find.FileInfo -> [Find.FileInfo]
-  act fs f
-    | Find.evalClause filt f = f:fs
-    | otherwise = fs
+  act = flip $ consIf $ Find.evalClause filt
+
+-- | Prepend element if it satisfies the given condition.
+consIf :: (a -> Bool) -> a -> [a] -> [a]
+consIf p a = if p a then (a :) else id
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
@@ -208,7 +255,7 @@ writeTextFile f = BS.writeFile f . encodeUtf8
 -- | Replaces all matches of a regex with the given text.
 --
 -- (There doesn't seem to be any such function in the regex-tdfa libraries?)
-replace :: R.Regex -> T.Text -> T.Text -> T.Text
+replace :: R.Regex -> Text -> Text -> Text
 replace rgx new inp =
   foldr repl inp matches
   where
@@ -218,17 +265,17 @@ replace rgx new inp =
 
     matches = R.matchAll rgx inp
 
-    repl :: R.MatchArray -> T.Text -> T.Text
+    repl :: R.MatchArray -> Text -> Text
     repl match t =
       T.take off t `T.append` new `T.append` T.drop (off + len) t
       where
         (off, len) = match ! 0
 
-mkRegex :: T.Text -> R.Regex
+mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput :: T.Text -> IO T.Text
+cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
 

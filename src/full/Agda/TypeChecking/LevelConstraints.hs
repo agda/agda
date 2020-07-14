@@ -2,7 +2,6 @@
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
@@ -12,6 +11,7 @@ import Agda.TypeChecking.Level
 
 import Agda.Utils.Impossible
 import Agda.Utils.List (nubOn)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Update
 
 -- | @simplifyLevelConstraint c cs@ turns an @c@ into an equality
@@ -66,7 +66,7 @@ matchLeq (a :=< b) (c :=< d)
 inequalities :: Constraint -> Maybe [Leq]
 
 inequalities (LevelCmp CmpLeq a b)
-  | Just b' <- singleLevelView b = Just $ map (:=< b') $ NonEmpty.toList $ levelMaxView a
+  | Just b' <- singleLevelView b = Just $ map (:=< b') $ List1.toList $ levelMaxView a
   -- Andreas, 2016-09-28
   -- Why was this most natural case missing?
   -- See test/Succeed/LevelLeqGeq.agda for where it is useful!
@@ -76,13 +76,13 @@ inequalities (LevelCmp CmpLeq a b)
 
 inequalities (LevelCmp CmpEq a b)
   | Just a' <- singleLevelView a =
-  case break (== a') (NonEmpty.toList $ levelMaxView b) of
+  case List1.break (== a') (levelMaxView b) of
     (bs0, _ : bs1) -> Just [ b' :=< a' | b' <- bs0 ++ bs1 ]
     _              -> Nothing
 
 inequalities (LevelCmp CmpEq a b)
   | Just b' <- singleLevelView b =
-  case break (== b') (NonEmpty.toList $ levelMaxView a) of
+  case List1.break (== b') (levelMaxView a) of
     (as0, _ : as1) -> Just [ a' :=< b' | a' <- as0 ++ as1 ]
     _              -> Nothing
 inequalities _ = Nothing

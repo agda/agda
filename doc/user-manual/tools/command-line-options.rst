@@ -215,12 +215,12 @@ Copatterns and projections
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --confluence-check
+.. option:: --confluence-check, --local-confluence-check
 
      .. versionadded:: 2.6.1
 
-     Enable optional confluence checking of REWRITE rules (see
-     :ref:`confluence-check`).
+     Enable optional (global or local) confluence checking of REWRITE
+     rules (see :ref:`confluence-check`).
 
 .. option:: --cubical
 

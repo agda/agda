@@ -1,0 +1,65 @@
+Issue3734.agda:16,5-6
+Used a
+when scope checking a
+Issue3734.agda:21,5-6
+Used a
+when scope checking a
+Issue3734.agda:32,5-6
+Used c
+when scope checking c
+Issue3734.agda:37,5-6
+Used a
+when scope checking a
+Issue3734.agda:52,6-10
+Warning on D2.cons (should show)
+when checking that the expression cons has type D2
+Issue3734.agda:55,4-8
+Warning on D2.cons (should show)
+when checking that the pattern cons has type D2
+Issue3734.agda:55,4-8
+Warning on D2.cons (should show)
+when checking that the pattern cons has type D2
+Issue3734.agda:66,9-12
+Ambiguous constructor amb was used
+when checking that the expression amb has type Amb1
+Issue3734.agda:69,9-12
+Ambiguous constructor amb was used
+when checking that the expression amb has type Amb2
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3734.agda:16,5-6
+Used a
+when scope checking a
+
+Issue3734.agda:21,5-6
+Used a
+when scope checking a
+
+Issue3734.agda:32,5-6
+Used c
+when scope checking c
+
+Issue3734.agda:37,5-6
+Used a
+when scope checking a
+
+Issue3734.agda:52,6-10
+Warning on D2.cons (should show)
+when checking that the expression cons has type D2
+
+Issue3734.agda:55,4-8
+Warning on D2.cons (should show)
+when checking that the pattern cons has type D2
+
+Issue3734.agda:55,4-8
+Warning on D2.cons (should show)
+when checking that the pattern cons has type D2
+
+Issue3734.agda:66,9-12
+Ambiguous constructor amb was used
+when checking that the expression amb has type Amb1
+
+Issue3734.agda:69,9-12
+Ambiguous constructor amb was used
+when checking that the expression amb has type Amb2

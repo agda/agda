@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --confluence-check #-}
+{-# OPTIONS --rewriting --local-confluence-check #-}
 
 open import Agda.Builtin.Nat using (Nat; zero; suc)
 open import Agda.Builtin.Equality

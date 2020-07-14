@@ -2,8 +2,8 @@ EXECUTED_PROGRAM
 
 ret > ExitSuccess
 out > Word.NumWord =
-out >   Agda.Builtin.FromNat.recCon-NOT-PRINTED _ (λ a _ → toWord64 a)
-out > Word.NumNat = Agda.Builtin.FromNat.recCon-NOT-PRINTED _ (λ a _ → a)
+out >   Agda.Builtin.FromNat.Number.constructor _ (λ a _ → toWord64 a)
+out > Word.NumNat = Agda.Builtin.FromNat.Number.constructor _ (λ a _ → a)
 out > Word.natOp = λ a b c → toWord64 (a (fromWord64 b) (fromWord64 c))
 out > Word._^_ =
 out >   λ a b →

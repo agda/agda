@@ -9,6 +9,7 @@ module Agda.Interaction.Options
     , Verbosity, VerboseKey, VerboseLevel
     , HtmlHighlight(..)
     , WarningMode(..)
+    , ConfluenceCheck(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -161,6 +162,7 @@ data PragmaOptions = PragmaOptions
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
+  , optFirstOrder                :: Bool  -- ^ Should we speculatively unify function applications as if they were injective?
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
       --   postfix (True) or prefix (False).
@@ -193,14 +195,19 @@ data PragmaOptions = PragmaOptions
     -- ^ Use the Agda abstract machine (fastReduce)?
   , optCallByName                :: Bool
     -- ^ Use call-by-name instead of call-by-need
-  , optConfluenceCheck           :: Bool
+  , optConfluenceCheck           :: Maybe ConfluenceCheck
     -- ^ Check confluence of rewrite rules?
   , optFlatSplit                 :: Bool
-     -- ^ Can we split on a (x :{flat} A) argument?
+     -- ^ Can we split on a (@flat x : A) argument?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
   }
+  deriving (Show, Eq)
+
+data ConfluenceCheck
+  = LocalConfluenceCheck
+  | GlobalConfluenceCheck
   deriving (Show, Eq)
 
 -- | The options from an @OPTIONS@ pragma.
@@ -290,6 +297,7 @@ defaultPragmaOptions = PragmaOptions
   , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
+  , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
   , optTopLevelInteractionNoPrivate = False
@@ -309,7 +317,7 @@ defaultPragmaOptions = PragmaOptions
   , optPrintPatternSynonyms      = True
   , optFastReduce                = True
   , optCallByName                = False
-  , optConfluenceCheck           = False
+  , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
   }
@@ -462,7 +470,8 @@ restartOptions =
   , (I . optInstanceSearchDepth, "--instance-search-depth")
   , (I . optInversionMaxDepth, "--inversion-max-depth")
   , (W . optWarningMode, "--warning")
-  , (B . optConfluenceCheck, "--confluence-check")
+  , (B . (== Just LocalConfluenceCheck) . optConfluenceCheck, "--local-confluence-check")
+  , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
   , (B . not . optImportSorts, "--no-import-sorts")
   ]
 
@@ -748,6 +757,9 @@ noExactSplitFlag o = do
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
 
+firstOrderFlag :: Flag PragmaOptions
+firstOrderFlag o = return $ o { optFirstOrder = True }
+
 cubicalFlag :: Flag PragmaOptions
 cubicalFlag o = do
   let withoutK = optWithoutK o
@@ -866,11 +878,11 @@ terminationDepthFlag s o =
        return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
-confluenceCheckFlag :: Flag PragmaOptions
-confluenceCheckFlag o = return $ o { optConfluenceCheck = True }
+confluenceCheckFlag :: ConfluenceCheck -> Flag PragmaOptions
+confluenceCheckFlag f o = return $ o { optConfluenceCheck = Just f }
 
 noConfluenceCheckFlag :: Flag PragmaOptions
-noConfluenceCheckFlag o = return $ o { optConfluenceCheck = False }
+noConfluenceCheckFlag o = return $ o { optConfluenceCheck = Nothing }
 
 withCompilerFlag :: FilePath -> Flag CommandLineOptions
 withCompilerFlag fp o = case optWithCompiler o of
@@ -1005,9 +1017,9 @@ pragmaOptions =
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
                     "disable sized types"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
-                    "allow split on (x :{flat} A) arguments (default)"
+                    "allow split on (@flat x : A) arguments (default)"
     , Option []     ["no-flat-split"] (NoArg noFlatSplitFlag)
-                    "disable split on (x :{flat} A) arguments"
+                    "disable split on (@flat x : A) arguments"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (default, inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)
@@ -1046,12 +1058,16 @@ pragmaOptions =
                     "disable the analysis whether function signatures liken those of projections (optimisation)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
-    , Option []     ["confluence-check"] (NoArg confluenceCheckFlag)
-                    "enable confluence checking of REWRITE rules"
+    , Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
+                    "enable checking of local confluence of REWRITE rules"
+    , Option []     ["confluence-check"] (NoArg $ confluenceCheckFlag GlobalConfluenceCheck)
+                    "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
-                    "disalbe confluence checking of REWRITE rules (default)"
+                    "disable confluence checking of REWRITE rules (default)"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+    , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
+                    "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)

@@ -52,8 +52,10 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Monad (guardWithError)
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
@@ -184,7 +186,7 @@ buildParsers kind exprNames = do
         namesInExpr :: Set QName
         namesInExpr = Set.fromList exprNames
 
-        partListsInExpr' = map (nameParts . unqualify) $
+        partListsInExpr' = map (List1.toList . nameParts . unqualify) $
                            Set.toList namesInExpr
 
         partListTrie f =
@@ -399,6 +401,8 @@ buildParsers kind exprNames = do
               , pAtom   = atomP isAtom
               }
 
+    -- Andreas, 2020-06-03 #4712
+    -- Note: needs Agda to be compiled with DEBUG to print the grammar.
     reportSDoc "scope.grammar" 10 $ return $
       "Operator grammar:" $$ nest 2 (grammar (pTop g))
 
@@ -523,11 +527,14 @@ buildParsers kind exprNames = do
 ---------------------------------------------------------------------------
 
 -- | Returns the list of possible parses.
-parsePat :: ([Pattern] -> [Pattern]) -> Pattern -> [Pattern]
+parsePat
+  :: ([Pattern] -> [Pattern]) -- ^ Turns a 'RawAppP' into possible parses.
+  -> Pattern                  -- ^ Pattern possibly containing 'RawAppP's.
+  -> [Pattern]                -- ^ Possible parses, not containing 'RawAppP's.
 parsePat prs = \case
     AppP p (Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List1.toList ps))
+    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< prs (List2.toList ps))
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
@@ -606,7 +613,7 @@ parseLHS'
        -- ^ The returned list contains all operators/notations/sections that
        -- were used to generate the grammar.
 
-parseLHS' IsLHS (Just qn) (RawAppP _ (WildP{} :| [])) =
+parseLHS' IsLHS (Just qn) WildP{} =
     return (ParseLHS qn $ LHSHead qn [], [])
 
 parseLHS' lhsOrPatSyn top p = do
@@ -669,12 +676,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
+    Arg _ (Named _ (IdentP x)) :| ps | Just x == topName conf -> do
       mapM_ (valid . namedArg) ps
       return $ ParseLHS x $ lhsCoreAddSpine (LHSHead x []) ps
 
     -- case @d ps@
-    Arg _ (Named _ (IdentP x)) : ps | fldName conf x -> do
+    Arg _ (Named _ (IdentP x)) :| ps | fldName conf x -> do
 
       -- Step 1: check for valid copattern lhs.
       ps0 :: [NamedArg ParseLHS] <- mapM classPat ps
@@ -764,7 +771,7 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> IdentP op :| map namedArg ps `mappend` reverse acc
+    OpAppP _ op _ ps -> IdentP op <| fmap namedArg ps `List1.append` reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__
@@ -790,11 +797,10 @@ qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
   nubOn id $ filter (not . null) $ map (List1.init . qnameParts) qs
 
--- | Parse a list of expressions into an application.
-parseApplication :: List1 Expr -> ScopeM Expr
-parseApplication (e :| []) = return e
+-- | Parse a list of expressions (typically from a 'RawApp') into an application.
+parseApplication :: List2 Expr -> ScopeM Expr
 parseApplication es  = billToParser IsExpr $ do
-    let es0 = List1.toList es
+    let es0 = List2.toList es
     -- Build the parser
     p <- buildParsers IsExpr [ q | Ident q <- es0 ]
 
@@ -815,8 +821,9 @@ parseModuleIdentifier :: Expr -> ScopeM QName
 parseModuleIdentifier (Ident m) = return m
 parseModuleIdentifier e = typeError $ NotAModuleExpr e
 
-parseRawModuleApplication :: List1 Expr -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es@(e :| es_args) = billToParser IsExpr $ do
+parseRawModuleApplication :: List2 Expr -> ScopeM (QName, [NamedArg Expr])
+parseRawModuleApplication es@(List2 e e2 rest) = billToParser IsExpr $ do
+    let es_args = e2:rest
     m <- parseModuleIdentifier e
 
     -- Build the arguments parser
@@ -868,7 +875,7 @@ fullParen' e = case exprView e of
                 Hidden     -> e2
                 Instance{} -> e2
                 NotHidden  -> fullParen' <$> e2
-    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (map . fmap . fmap . fmap . fmap) fullParen' es
+    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (fmap . fmap . fmap . fmap . fmap) fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV

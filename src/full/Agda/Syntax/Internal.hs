@@ -19,6 +19,8 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Data.Traversable
 import Data.Data (Data)
@@ -322,7 +324,7 @@ type PlusLevel = PlusLevel' Term
 data LevelAtom' t
   = MetaLevel MetaId [Elim' t]
     -- ^ A meta variable targeting @Level@ under some eliminations.
-  | BlockedLevel MetaId t
+  | BlockedLevel Blocker t
     -- ^ A term of type @Level@ whose reduction is blocked by a meta.
   | NeutralLevel NotBlocked t
     -- ^ A neutral term of type @Level@.
@@ -383,31 +385,97 @@ instance Monoid NotBlocked where
   mempty  = ReallyNotBlocked
   mappend = (<>)
 
+-- | What is causing the blocking? Or in other words which metas need to be solved to unblock the
+--   blocked computation/constraint.
+data Blocker = UnblockOnAll (Set Blocker)
+             | UnblockOnAny (Set Blocker)
+             | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
+  deriving (Data, Show, Eq, Ord)
+
+alwaysUnblock :: Blocker
+alwaysUnblock = UnblockOnAll Set.empty
+
+neverUnblock :: Blocker
+neverUnblock = UnblockOnAny Set.empty
+
+unblockOnAll :: Set Blocker -> Blocker
+unblockOnAll us =
+  case allViewS us of
+    us | [u] <- Set.toList us -> u
+    us                        -> UnblockOnAll us
+  where
+    allViewS = Set.unions . map allView . Set.toList
+    allView (UnblockOnAll us) = allViewS us
+    allView u                 = Set.singleton u
+
+unblockOnAny :: Set Blocker -> Blocker
+unblockOnAny us =
+  case anyViewS us of
+    us | [u] <- Set.toList us        -> u
+    us | Set.member alwaysUnblock us -> alwaysUnblock
+       | otherwise                   -> UnblockOnAny us
+  where
+    anyViewS = Set.unions . map anyView . Set.toList
+    anyView (UnblockOnAny us) = anyViewS us
+    anyView u                 = Set.singleton u
+
+unblockOnEither :: Blocker -> Blocker -> Blocker
+unblockOnEither a b = unblockOnAny $ Set.fromList [a, b]
+
+unblockOnMeta :: MetaId -> Blocker
+unblockOnMeta = UnblockOnMeta
+
+unblockOnAllMetas :: Set MetaId -> Blocker
+unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
+
+unblockOnAnyMeta :: Set MetaId -> Blocker
+unblockOnAnyMeta = unblockOnAny . Set.mapMonotonic unblockOnMeta
+
+onBlockingMetasM :: Monad m => (MetaId -> m Blocker) -> Blocker -> m Blocker
+onBlockingMetasM f (UnblockOnAll bs) = unblockOnAll . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
+onBlockingMetasM f (UnblockOnAny bs) = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
+onBlockingMetasM f (UnblockOnMeta x) = f x
+
+allBlockingMetas :: Blocker -> Set MetaId
+allBlockingMetas (UnblockOnAll us) = Set.unions $ map allBlockingMetas $ Set.toList us
+allBlockingMetas (UnblockOnAny us) = Set.unions $ map allBlockingMetas $ Set.toList us
+allBlockingMetas (UnblockOnMeta x) = Set.singleton x
+
+-- Note: We pick the All rather than the Any as the semigroup instance.
+instance Semigroup Blocker where
+  x <> y = unblockOnAll $ Set.fromList [x, y]
+
+instance Monoid Blocker where
+  mempty = alwaysUnblock
+  mappend = (<>)
+
+instance Pretty Blocker where
+  pretty (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
+  pretty (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
+  pretty (UnblockOnMeta m) = pretty m
+
 -- | Something where a meta variable may block reduction.
 data Blocked t
-  = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
+  = Blocked    { theBlocker      :: Blocker,  ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
   deriving (Data, Show, Functor, Foldable, Traversable)
-  -- deriving (Eq, Ord, Functor, Foldable, Traversable)
 
--- | Blocking by a meta is dominant.
+instance Decoration Blocked where
+  traverseF f (Blocked b x)     = Blocked b <$> f x
+  traverseF f (NotBlocked nb x) = NotBlocked nb <$> f x
+
+-- | Blocking on _all_ blockers.
 instance Applicative Blocked where
   pure = notBlocked
   f <*> e = ((f $> ()) `mappend` (e $> ())) $> ignoreBlocking f (ignoreBlocking e)
-
--- -- | Blocking by a meta is dominant.
--- instance Applicative Blocked where
---   pure = notBlocked
---   Blocked x f     <*> e                = Blocked x $ f (ignoreBlocking e)
---   NotBlocked nb f <*> Blocked    x   e = Blocked x $ f e
---   NotBlocked nb f <*> NotBlocked nb' e = NotBlocked (nb `mappend` nb') $ f e
 
 -- | @'Blocked' t@ without the @t@.
 type Blocked_ = Blocked ()
 
 instance Semigroup Blocked_ where
-  b@Blocked{}    <> _              = b
-  _              <> b@Blocked{}    = b
+  Blocked x _    <> Blocked y _    = Blocked (x <> y) ()
+  b@Blocked{}    <> NotBlocked{}   = b
+  NotBlocked{}   <> b@Blocked{}    = b
   NotBlocked x _ <> NotBlocked y _ = NotBlocked (x <> y) ()
 
 instance Monoid Blocked_ where
@@ -927,6 +995,12 @@ pattern ClosedLevel n = Max n []
 atomicLevel :: LevelAtom -> Level
 atomicLevel a = Max 0 [ Plus 0 a ]
 
+levelAtomTerm :: LevelAtom -> Term
+levelAtomTerm (MetaLevel m vs)   = MetaV m vs
+levelAtomTerm (NeutralLevel _ v) = v
+levelAtomTerm (BlockedLevel _ v) = v
+levelAtomTerm (UnreducedLevel v) = v
+
 unreducedLevel :: Term -> Level
 unreducedLevel v = atomicLevel $ UnreducedLevel v
 
@@ -1049,12 +1123,12 @@ instance SgTel (Dom Type) where
 -- * Handling blocked terms.
 ---------------------------------------------------------------------------
 
-blockingMeta :: Blocked t -> Maybe MetaId
-blockingMeta (Blocked m _) = Just m
-blockingMeta NotBlocked{}  = Nothing
+blockedOn :: Blocker -> a -> Blocked a
+blockedOn b | alwaysUnblock == b = notBlocked
+            | otherwise          = Blocked b
 
 blocked :: MetaId -> a -> Blocked a
-blocked = Blocked
+blocked = Blocked . unblockOnMeta
 
 notBlocked :: a -> Blocked a
 notBlocked = NotBlocked ReallyNotBlocked
@@ -1526,6 +1600,7 @@ instance Pretty tm => Pretty (Elim' tm) where
   prettyPrec p (Apply v)    = prettyPrec p v
   prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
   prettyPrec p (IApply x y r) = prettyPrec p r
+--  prettyPrec p (IApply x y r) = text "@[" <> prettyPrec 0 x <> text ", " <> prettyPrec 0 y <> text "]" <> prettyPrec p r
 
 instance Pretty DBPatVar where
   prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
@@ -1550,6 +1625,8 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec _ (LitP _ l)    = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
+--  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
+
 -----------------------------------------------------------------------------
 -- * NFData instances
 -----------------------------------------------------------------------------

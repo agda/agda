@@ -45,8 +45,8 @@ import Agda.Utils.Impossible
 
 desugarDoNotation :: Range -> List1 DoStmt -> ScopeM Expr
 desugarDoNotation r ss = do
-  let qBind = QName $ Name noRange InScope [Hole, Id ">>=", Hole]
-      qThen = QName $ Name noRange InScope [Hole, Id ">>", Hole]
+  let qBind = QName $ simpleBinaryOperator ">>="
+      qThen = QName $ simpleBinaryOperator ">>"
       isBind DoBind{} = True
       isBind _        = False
       isThen DoThen{} = True
@@ -105,8 +105,7 @@ desugarDo qBind qThen = \case
 
 singleName :: Pattern -> Maybe Name
 singleName = \case
-  IdentP (QName x)    -> Just x
-  RawAppP _ (p :| []) -> singleName p
+  IdentP (QName x) -> Just x
   _ -> Nothing
 
 matchingBind :: QName -> Range -> Pattern -> Expr -> Expr -> [LamClause] -> Expr
@@ -123,8 +122,7 @@ matchingBind qBind r p e body cs =
     addParens c = c { lamLHS = addP (lamLHS c) }
       where
       addP []       = __IMPOSSIBLE__
-      addP [p]      = [ParenP noRange p]
-      addP (p : ps) = [ParenP noRange $ RawAppP (getRange (p, ps)) $ p :| ps ]
+      addP (p : ps) = [ParenP noRange $ rawAppP $ p :| ps ]
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =

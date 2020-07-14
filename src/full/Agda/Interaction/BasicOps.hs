@@ -218,7 +218,7 @@ give force ii mr e = liftTCM $ do
      giveExpr force (Just ii) mi e
     `catchError` \ case
       -- Turn PatternErr into proper error:
-      PatternErr -> typeError . GenericDocError =<< do
+      PatternErr{} -> typeError . GenericDocError =<< do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   removeInteractionPoint ii
@@ -252,7 +252,7 @@ refine force ii mr e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
-           Just (TypeError _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
              "Cannot refine functions with 10 or more arguments"
            _ ->
              "Cannot refine"
@@ -353,7 +353,7 @@ computeWrapInput _               s = s
 showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
-    A.Lit (LitString _ s) -> pure (text $ T.unpack s)
+    A.Lit _ (LitString s) -> pure (text $ T.unpack s)
     _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
@@ -384,7 +384,7 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = withClosure cl $ \ c ->
+  reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
     OutputForm (getRange c) (Set.toList pids) <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
@@ -394,7 +394,7 @@ reifyElimToExpr e = case e of
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
     appl :: Text -> Arg Expr -> Expr
-    appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
+    appl s v = A.App defaultAppInfo_ (A.Lit empty (LitString s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
@@ -416,7 +416,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (Guarded c pid) = do
         o  <- reify c
         return $ Guard o pid
-    reify (UnquoteTactic _ tac _ goal) = do
+    reify (UnquoteTactic tac _ goal) = do
         tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
         OfType tac <$> reify goal
     reify (UnBlock m) = do
@@ -569,7 +569,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
-            cl <- reify (PConstr Set.empty c)
+            cl <- reify (PConstr Set.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
@@ -621,16 +621,16 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
-      forM cs $ \(PConstr s c) -> do
+      forM cs $ \(PConstr s ub c) -> do
         c <- normalForm norm c
         case allApplyElims =<< hasHeadMeta (clValue c) of
           Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
             unifyElimsMeta m as_m c $ \ eqs c -> do
-              flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
+              flip enterClosure abstractToConcrete_ =<< reify . PConstr s ub =<< buildClosure c
           _ -> do
-            cl <- reify $ PConstr s c
+            cl <- reify $ PConstr s ub c
             enterClosure cl abstractToConcrete_
 
 -- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
@@ -639,7 +639,7 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
   where
     isBlocked = not . null . blocking . clValue . theConstraint
     interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
     blocking (Guarded c pid) = pid : blocking c
     blocking _               = []
 
@@ -671,12 +671,18 @@ getIPBoundary norm ii = do
 -- | Goals and Warnings
 
 getGoals :: TCM Goals
-getGoals = do
+getGoals = getGoals' AsIs Simplified
   -- visible metas (as-is)
-  visibleMetas <- typesOfVisibleMetas AsIs
   -- hidden metas (unsolved implicit arguments simplified)
+
+getGoals'
+  :: Rewrite    -- ^ Degree of normalization of goals.
+  -> Rewrite    -- ^ Degree of normalization of hidden goals.
+  -> TCM Goals
+getGoals' normVisible normHidden = do
+  visibleMetas <- typesOfVisibleMetas normVisible
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas normHidden
   return (visibleMetas, hiddenMetas)
 
 -- | Print open metas nicely.
@@ -835,7 +841,7 @@ metaHelperType norm ii rng s = case words s of
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a'
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
         let (vs, as)   = unzipWith (fmap extractOtherType . whThing) vtys in
@@ -1164,7 +1170,6 @@ parseName r s = do
 isQName :: C.Expr -> Maybe C.QName
 isQName = \case
   C.Ident x                    -> return x
-  C.RawApp _ (C.Ident x :| []) -> return x
   _ -> Nothing
 
 isName :: C.Expr -> Maybe C.Name

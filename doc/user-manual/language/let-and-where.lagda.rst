@@ -86,6 +86,8 @@ will be translated internally to as
 
 This is not allowed if ``R`` is declared ``coinductive``.
 
+.. _where-blocks:
+
 where-blocks
 ============
 

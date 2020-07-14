@@ -9,7 +9,9 @@ import Control.Monad.Except
 
 import qualified Data.List as List
 import qualified Data.Set as Set
+import Data.Either
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -29,6 +31,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -47,7 +50,7 @@ instance MonadConstraint TCM where
   modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
   modifySleepingConstraints = modifyTC . mapSleepingConstraints
 
-catchPatternErrTCM :: TCM a -> TCM a -> TCM a
+catchPatternErrTCM :: (Blocker -> TCM a) -> TCM a -> TCM a
 catchPatternErrTCM handle v =
      catchError_ v $ \err ->
      case err of
@@ -55,19 +58,18 @@ catchPatternErrTCM handle v =
           -- a lot slower (+20% total time on standard library). How is that possible??
           -- The problem is most likely that there are internal catchErrors which forgets the
           -- state. catchError should preserve the state on pattern violations.
-         PatternErr{} -> handle
+         PatternErr u -> handle u
          _            -> throwError err
 
-addConstraintTCM :: Constraint -> TCM ()
-addConstraintTCM c = do
+addConstraintTCM :: Blocker -> Constraint -> TCM ()
+addConstraintTCM unblock c = do
       pids <- asksTC envActiveProblems
       reportSDoc "tc.constr.add" 20 $ hsep
         [ "adding constraint"
-        , text (show $ Set.toList pids)
-        , prettyTCM c ]
+        , prettyTCM . PConstr pids unblock =<< buildClosure c ]
       -- Need to reduce to reveal possibly blocking metas
       c <- reduce =<< instantiateFull c
-      caseMaybeM (simpl c) {-no-} (addConstraint' c) $ {-yes-} \ cs -> do
+      caseMaybeM (simpl c) {-no-} (addConstraint' unblock c) $ {-yes-} \ cs -> do
           reportSDoc "tc.constr.add" 20 $ "  simplified:" <+> prettyList (map prettyTCM cs)
           mapM_ solveConstraint_ cs
       -- The added constraint can cause instance constraints to be solved,
@@ -75,10 +77,12 @@ addConstraintTCM c = do
       unless (isInstanceConstraint c) $
          wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
     where
-      isWakeableInstanceConstraint :: Constraint -> TCM Bool
-      isWakeableInstanceConstraint = \case
-        FindInstance _ b _ -> maybe (return True) isInstantiatedMeta b
-        _ -> return False
+      isWakeableInstanceConstraint :: Constraint -> TCM WakeUp
+      isWakeableInstanceConstraint = \ case
+        FindInstance _ b _ -> instantiate b <&> \ case
+          b | b == alwaysUnblock -> WakeUp
+            | otherwise          -> DontWakeUp (Just b)
+        _ -> return $ DontWakeUp Nothing
 
       isLvl LevelCmp{} = True
       isLvl _          = False
@@ -99,15 +103,20 @@ addConstraintTCM c = do
           return $ simplifyLevelConstraint c $ map clValue lvlcs
         | otherwise = return Nothing
 
-wakeConstraintsTCM :: (ProblemConstraint-> TCM Bool) -> TCM ()
+wakeConstraintsTCM :: (ProblemConstraint-> TCM WakeUp) -> TCM ()
 wakeConstraintsTCM wake = do
   c <- useR stSleepingConstraints
-  (wakeup, sleepin) <- partitionM wake c
+  (wakeup, sleepin) <- partitionEithers <$> mapM checkWakeUp c
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
+  where
+    checkWakeUp c = wake c <&> \ case
+      WakeUp              -> Left c
+      DontWakeUp Nothing  -> Right c
+      DontWakeUp (Just u) -> Right c{ constraintUnblocker = u }
 
 -- | Add all constraints belonging to the given problem to the current problem(s).
 stealConstraintsTCM :: ProblemId -> TCM ()
@@ -115,14 +124,19 @@ stealConstraintsTCM pid = do
   current <- asksTC envActiveProblems
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   -- Add current to any constraint in pid.
-  let rename pc@(PConstr pids c) | Set.member pid pids = PConstr (Set.union current pids) c
-                                 | otherwise           = pc
+  let rename pc@(PConstr pids u c) | Set.member pid pids = PConstr (Set.union current pids) u c
+                                   | otherwise           = pc
   -- We should never steal from an active problem.
   whenM (Set.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
+
 -- | Don't allow the argument to produce any blocking constraints.
+--
+-- WARNING: this does not mean that the given computation cannot
+-- constrain the solution space further.
+-- It can well do so, by solving metas.
 noConstraints
   :: (MonadConstraint m, MonadWarning m, MonadError TCErr m, MonadFresh ProblemId m)
   => m a -> m a
@@ -130,9 +144,23 @@ noConstraints problem = do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
-    w <- warning_ (UnsolvedConstraints cs)
-    typeError $ NonFatalErrors [ w ]
+    withFileAndLine $ \ file line -> do
+      w <- warning'_ (AgdaSourceErrorLocation file line) (UnsolvedConstraints cs)
+      typeError' (AgdaSourceErrorLocation file line) $ NonFatalErrors [ w ]
   return x
+
+-- | Run a computation that should succeeds without constraining
+--   the solution space, i.e., not add any information about meta-variables.
+nonConstraining ::
+  ( HasOptions m
+  , MonadConstraint m
+  , MonadDebug m
+  , MonadError TCErr m
+  , MonadFresh ProblemId m
+  , MonadTCEnv m
+  , MonadWarning m
+  ) => m a -> m a
+nonConstraining = dontAssignMetas . noConstraints
 
 -- | Create a fresh problem for the given action.
 newProblem
@@ -164,8 +192,8 @@ ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ ->
 --   adds a @Guarded c cs@ constraint
 --   to the @blocker@-generated constraints @cs@.
 guardConstraint :: Constraint -> TCM () -> TCM ()
-guardConstraint c blocker =
-  ifNoConstraints_ blocker (solveConstraint c) (addConstraint . Guarded c)
+guardConstraint c blocker =   -- Guarded constraints gets unblocked when the blocking problem is solved
+  ifNoConstraints_ blocker (solveConstraint c) (addConstraint neverUnblock . Guarded c)
 
 whenConstraints :: TCM () -> TCM () -> TCM ()
 whenConstraints action handler =
@@ -175,21 +203,35 @@ whenConstraints action handler =
 
 -- | Wake constraints matching the given predicate (and aren't instance
 --   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: (ProblemConstraint -> TCM Bool) -> TCM ()
+wakeConstraints' :: (ProblemConstraint -> TCM WakeUp) -> TCM ()
 wakeConstraints' p = do
   skipInstance <- shouldPostponeInstanceSearch
-  wakeConstraints (\ c -> (&&) (not $ skipInstance && isInstanceConstraint (clValue $ theConstraint c)) <$> p c)
+  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
+  wakeConstraints $ wakeUpWhen (not . skip) p
 
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints' (return . mentionsMeta x)
+  wakeConstraints' (pure . wakeIfBlockedOnMeta x . constraintUnblocker)
   solveAwakeConstraints
+
+wakeIfBlockedOnMeta :: MetaId -> Blocker -> WakeUp
+wakeIfBlockedOnMeta x u
+  | u' == alwaysUnblock = WakeUp
+  | otherwise           = DontWakeUp (Just u')
+  where
+    u' = unblockMeta x u
+
+    unblockMeta :: MetaId -> Blocker -> Blocker
+    unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
+                                      | otherwise = u
+    unblockMeta x (UnblockOnAll us) = unblockOnAll $ Set.map (unblockMeta x) us
+    unblockMeta x (UnblockOnAny us) = unblockOnAny $ Set.map (unblockMeta x) us
 
 -- | Wake up all constraints.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints' (return . const True)
+  wakeConstraints' (return . const WakeUp)
   solveAwakeConstraints
 
 solveAwakeConstraints :: (MonadConstraint m) => m ()
@@ -239,12 +281,15 @@ solveConstraint_ c0@(Guarded c pid)         = do
       solveConstraint_ c)
     {-else-} $ do
       reportSLn "tc.constr.solve" 50 $ "Guarding problem " ++ show pid ++ " is still unsolved."
-      addConstraint c0
+      addConstraint neverUnblock c0 -- Gets unblocked by solving the problem
 solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t
 solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
-solveConstraint_ (UnquoteTactic _ tac hole goal) = unquoteTactic tac hole goal
-solveConstraint_ (UnBlock m)                =
-  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (addConstraint $ UnBlock m) $ do
+solveConstraint_ (UnquoteTactic tac hole goal) = unquoteTactic tac hole goal
+solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these have their own unblocking logic (for now)
+  ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (do
+        reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
+                                                  ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
+        addConstraint alwaysUnblock $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
@@ -253,7 +298,7 @@ solveConstraint_ (UnBlock m)                =
           text ("blocked const " ++ prettyShow m ++ " :=") <+> prettyTCM t
         assignTerm m [] t
       PostponedTypeCheckingProblem cl unblock -> enterClosure cl $ \prob -> do
-        ifNotM unblock (addConstraint $ UnBlock m) $ do
+        ifNotM unblock (addConstraint alwaysUnblock $ UnBlock m) $ do
           tel <- getContextTelescope
           v   <- liftTCM $ checkTypeCheckingProblem prob
           assignTerm m (telToArgs tel) v

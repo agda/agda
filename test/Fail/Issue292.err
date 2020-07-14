@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: false2 ≅ true
+  Is empty: false2 ≅ true (stuck)
       [ at Issue292.agda:37,20-22 ]
-  Is empty: true2 ≅ true
+  Is empty: true2 ≅ true (stuck)
       [ at Issue292.agda:36,19-21 ]

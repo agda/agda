@@ -236,7 +236,8 @@ fullyApplyCon c vs t0 ret = do
   -- The type of the constructor application may still be a function
   -- type.  In this case, we introduce the domains @tel@ into the context
   -- and apply the constructor to these fresh variables.
-  addContext tel $ ifBlocked t (\m t -> patternViolation) $ \_ t -> do
+  addContext tel $ do
+    t <- abortIfBlocked t
     getFullyAppliedConType c t >>= \case
       Nothing ->
         typeError $ DoesNotConstructAnElementOf (conName c) t
@@ -372,27 +373,24 @@ inferSpine' action t self self' (e : es) = do
 --   the principal argument of projection-like functions.
 shouldBeProjectible :: (MonadCheckInternal m) => Type -> QName -> m Type
 -- shouldBeProjectible t f = maybe failure return =<< projectionType t f
-shouldBeProjectible t f = ifBlocked t
-  (\m t -> patternViolation)
-  (\_ t -> maybe failure return =<< getDefType f t)
+shouldBeProjectible t f = do
+    t <- abortIfBlocked t
+    maybe failure return =<< getDefType f t
   where failure = typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 shouldBePath :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
-shouldBePath t = ifBlocked t
-  (\m t -> patternViolation)
-  (\_ t -> do
-      m <- isPath t
-      case m of
-        Just p  -> return p
-        Nothing -> typeError $ ShouldBePath t)
+shouldBePath t = do
+  t <- abortIfBlocked t
+  m <- isPath t
+  case m of
+    Just p  -> return p
+    Nothing -> typeError $ ShouldBePath t
 
 shouldBePi :: (MonadCheckInternal m) => Type -> m (Dom Type, Abs Type)
-shouldBePi t = ifBlocked t
-  (\m t -> patternViolation)
-  (\_ t -> case unEl t of
-      Pi a b -> return (a , b)
-      _      -> typeError $ ShouldBePi t)
+shouldBePi t = abortIfBlocked t >>= \ case
+  El _ (Pi a b) -> return (a, b)
+  _             -> typeError $ ShouldBePi t
 
 -- | Check if sort is well-formed.
 checkSort :: (MonadCheckInternal m) => Action m -> Sort -> m Sort

@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  _8 (A = A) _ = x : A
+  _8 (A = A) _ = x : A (blocked on _8)
 Unsolved metas at the following locations:
   UnifyWithIrrelevantArgument.agda:9,16-17
   UnifyWithIrrelevantArgument.agda:11,12-16

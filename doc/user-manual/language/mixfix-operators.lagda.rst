@@ -66,6 +66,8 @@ operators:
     nil  : List A
     _∷_ : A → List A → List A
 
+.. _precedence:
+
 Precedence
 ==========
 
@@ -123,7 +125,7 @@ This code brings two instances of the operator ``_∙_`` in scope:
 Associativity
 =============
 
-Consider the expression ``true ⇒ false ⇒ false``. Depending on whether ``_⇒_`` is
+Consider the expression ``true ⇒ false ⇒ false``. Depending on whether ``_⇒_``
 associates to the left or to the right, it can be read as
 ``(false ⇒ true) ⇒ false = false``, or ``false ⇒ (true ⇒ false) = true``,
 respectively.

@@ -205,7 +205,7 @@ isDataOrRecord = \case
     Def d _ -> fmap (const d) <$> isDataOrRecordType d
     _       -> return Nothing
 
-getNumberOfParameters :: QName -> TCM (Maybe Nat)
+getNumberOfParameters :: HasConstInfo m => QName -> m (Maybe Nat)
 getNumberOfParameters d = do
   def <- getConstInfo d
   case theDef def of

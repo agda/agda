@@ -591,7 +591,7 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply t args                    =
-  trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
+  trace ("piApply t = " ++ prettyShow t ++ "\n  args = " ++ prettyShow args) __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Abstraction
@@ -969,7 +969,7 @@ instance Subst Term Constraint where
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
-    UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
+    UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
       rf x = applySubst rho x

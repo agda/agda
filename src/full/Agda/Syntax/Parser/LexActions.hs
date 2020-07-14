@@ -18,9 +18,11 @@ module Agda.Syntax.Parser.LexActions
     , followedBy, eof, inState
     ) where
 
+import Data.Bifunctor
 import Data.Char
 import Data.Maybe
 
+import Agda.Syntax.Common (pattern Ranged)
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
@@ -29,7 +31,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.Utils.List
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -120,7 +121,7 @@ withInterval f = token $ \s -> do
 
 -- | Like 'withInterval', but applies a function to the string.
 withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
-withInterval' f t = withInterval (t . (id -*- f))
+withInterval' f t = withInterval (t . second f)
 
 -- | Return a token without looking at the lexed string.
 withInterval_ :: (Interval -> r) -> LexAction r
@@ -200,11 +201,11 @@ integer = \case
   str       -> number str
 
 -- | Parse a literal.
-literal' :: (String -> a) -> (Range -> a -> Literal) -> LexAction Token
-literal' read lit =
-  withInterval' read (TokLiteral . uncurry lit . mapFst getRange)
+literal' :: (String -> a) -> (a -> Literal) -> LexAction Token
+literal' read lit = withInterval' read $ \ (r, a) ->
+  TokLiteral $ Ranged (getRange r) $ lit a
 
-literal :: Read a => (Range -> a -> Literal) -> LexAction Token
+literal :: Read a => (a -> Literal) -> LexAction Token
 literal = literal' read
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').

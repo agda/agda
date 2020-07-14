@@ -378,10 +378,10 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e) = icodeMemo nameD nameC a $
-    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d e
+  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+    icodeN' (\ a b c -> A.Name a b c . underlyingRange) a b c (SerialisedRange d) e f
 
-  value = valueN (\a b c -> A.Name a b (underlyingRange c))
+  value = valueN (\a b c d -> A.Name a b c (underlyingRange d))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b
@@ -591,22 +591,22 @@ instance EmbPrj ProjOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b)   = icodeN' LitNat a b
-  icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
-  icod_ (LitString a b)   = icodeN 2 LitString a b
-  icod_ (LitChar   a b)   = icodeN 3 LitChar a b
-  icod_ (LitQName  a b)   = icodeN 5 LitQName a b
-  icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
-  icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
+  icod_ (LitNat    a)   = icodeN' LitNat a
+  icod_ (LitFloat  a)   = icodeN 1 LitFloat a
+  icod_ (LitString a)   = icodeN 2 LitString a
+  icod_ (LitChar   a)   = icodeN 3 LitChar a
+  icod_ (LitQName  a)   = icodeN 5 LitQName a
+  icod_ (LitMeta   a b) = icodeN 6 LitMeta a b
+  icod_ (LitWord64 a)   = icodeN 7 LitWord64 a
 
   value = vcase valu where
-    valu [a, b]       = valuN LitNat    a b
-    valu [1, a, b]    = valuN LitFloat  a b
-    valu [2, a, b]    = valuN LitString a b
-    valu [3, a, b]    = valuN LitChar   a b
-    valu [5, a, b]    = valuN LitQName  a b
-    valu [6, a, b, c] = valuN LitMeta   a b c
-    valu [7, a, b]    = valuN LitWord64 a b
+    valu [a]       = valuN LitNat    a
+    valu [1, a]    = valuN LitFloat  a
+    valu [2, a]    = valuN LitString a
+    valu [3, a]    = valuN LitChar   a
+    valu [5, a]    = valuN LitQName  a
+    valu [6, a, b] = valuN LitMeta   a b
+    valu [7, a]    = valuN LitWord64 a
     valu _            = malformed
 
 instance EmbPrj IsAbstract where

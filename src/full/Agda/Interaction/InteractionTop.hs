@@ -247,8 +247,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- the status information is also updated.
     handleErr method e = do
         unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
-        meta    <- lift $ computeUnsolvedMetaWarnings
-        constr  <- lift $ computeUnsolvedConstraints
+        unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
         method  <- case method of
@@ -256,7 +255,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
           Just m  -> return m
         let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
-                     err : if unsolvedNotOK then [meta, constr] else []
+                     err : if unsolvedNotOK then [unsolved] else []
 
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e
@@ -492,7 +491,7 @@ updateInteractionPointsAfter Cmd_exit{}                          = False
 interpret :: Interaction -> CommandM ()
 
 interpret (Cmd_load m argv) =
-  cmd_load' m argv True mode $ \_ -> interpret Cmd_metas
+  cmd_load' m argv True mode $ \_ -> interpret $ Cmd_metas AsIs
   where
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
@@ -516,8 +515,8 @@ interpret (Cmd_compile backend file argv) =
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
 
-interpret Cmd_metas = do
-  ms <- lift B.getGoals
+interpret (Cmd_metas norm) = do
+  ms <- lift $ B.getGoals' norm (max Simplified norm)
   display_info . Info_AllGoalsWarnings ms =<< lift B.getWarningsAndNonFatalErrors
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
@@ -683,7 +682,7 @@ interpret (Cmd_autoOne ii rng hint) = do
     -- Andreas, 2014-07-07: Remove the interaction points in one go.
     modifyTheInteractionPoints (List.\\ (map fst sols))
     case autoMessage res of
-     Nothing  -> interpret Cmd_metas
+     Nothing  -> interpret $ Cmd_metas AsIs
      Just msg -> display_info $ Info_Auto msg
    FunClauses cs -> do
     case autoMessage res of
@@ -964,7 +963,7 @@ setInteractionMode mode = modify $ \ st -> st { interactionMode = mode }
 handleNotInScope :: CommandM a -> CommandM a -> CommandM a
 handleNotInScope cmd handler = do
   cmd `catchError` \case
-    TypeError _s (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
+    TypeError _ _ (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
       reportSLn "interaction.top" 60 $ "Handling `Not in scope` error"
       handler
     err -> do
@@ -1051,7 +1050,7 @@ give_gen force ii rng s0 giveRefine = do
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
     lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
     -- display new goal set (if not measuring time)
-    maybe (interpret Cmd_metas) (display_info . Info_Time) time
+    maybe (interpret $ Cmd_metas AsIs) (display_info . Info_Time) time
     lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.

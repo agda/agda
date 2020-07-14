@@ -6,8 +6,8 @@ language: c
 
 os: linux
 
-# Request Ubuntu Xenial (16.04 LTS).
-dist: xenial
+# Request Ubuntu Bionic (18.04 LTS).  20.04 is not yet available
+dist: bionic
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
@@ -22,8 +22,9 @@ branches:
     - maint-2.4
     - stable-2.5
     - /^release-.*/
-    # Test all issue* branches. Saves you opening a PR.
+    # Test all issue* and future-.* branches. Saves you opening a PR.
     - /^issue.*/
+    - /^future-.*/
 
 ##############################################################################
 # The submodules are only needed by the tests using the standard library
@@ -128,6 +129,7 @@ jobs:
         - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
+        - stack ${ARGS} exec -- ${MAKE_CMD} common
         - stack ${ARGS} exec -- ${MAKE_CMD} succeed
         - stack ${ARGS} exec -- ${MAKE_CMD} fail
       before_cache:
@@ -195,6 +197,7 @@ jobs:
         - .travis/cabal_install
       ##############################################################################
       script:
+        - make BUILD_DIR=$BUILD_DIR common
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
         - make BUILD_DIR=$BUILD_DIR interaction

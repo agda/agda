@@ -127,6 +127,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive.agda
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
+                    MAlonzo/src/MAlonzo/RTE/*.hs
                     postprocess-latex.pl
 
 source-repository head
@@ -568,6 +569,7 @@ library
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
                     Agda.Utils.List1
+                    Agda.Utils.List2
                     Agda.Utils.ListT
                     Agda.Utils.Map
                     Agda.Utils.Maybe
@@ -667,6 +669,7 @@ library
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
                     , DefaultSignatures
+                    , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
                     , DeriveTraversable
@@ -674,6 +677,7 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , FunctionalDependencies
+                    , InstanceSigs
                     , LambdaCase
                     , MultiParamTypeClasses
                     , MultiWayIf
@@ -737,7 +741,8 @@ test-suite agda-tests
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
   main-is:          Main.hs
-  other-modules:      Compiler.Tests
+  other-modules:      Bugs.Tests
+                    , Compiler.Tests
                     , Fail.Tests
                     , Interactive.Tests
                     , Internal.Compiler.MAlonzo.Encode
@@ -760,7 +765,6 @@ test-suite agda-tests
                     , Internal.Termination.Termination
                     , Internal.Tests
                     , Internal.TypeChecking
-                    , Internal.TypeChecking.Substitute
                     , Internal.TypeChecking.Free
                     , Internal.TypeChecking.Free.Lazy
                     , Internal.TypeChecking.Generators
@@ -772,6 +776,7 @@ test-suite agda-tests
                     , Internal.TypeChecking.SizedTypes
                     , Internal.TypeChecking.SizedTypes.Syntax
                     , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.TypeChecking.Substitute
                     , Internal.Utils.AssocList
                     , Internal.Utils.Bag
                     , Internal.Utils.BiMap
@@ -783,8 +788,8 @@ test-suite agda-tests
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
                     , Internal.Utils.ListT
-                    , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.Monoid
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
@@ -795,7 +800,6 @@ test-suite agda-tests
                     , LaTeXAndHTML.Tests
                     , LibSucceed.Tests
                     , Succeed.Tests
-                    , Bugs.Tests
                     , UserManual.Tests
                     , Utils
 
@@ -848,6 +852,7 @@ test-suite agda-tests
                      , ConstraintKinds
                      , DataKinds
                      , DefaultSignatures
+                     , DeriveDataTypeable
                      , DeriveFoldable
                      , DeriveFunctor
                      , DeriveTraversable
@@ -855,6 +860,7 @@ test-suite agda-tests
                      , FlexibleContexts
                      , FlexibleInstances
                      , FunctionalDependencies
+                     , InstanceSigs
                      , LambdaCase
                      , MultiParamTypeClasses
                      , MultiWayIf

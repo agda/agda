@@ -539,14 +539,14 @@ qname q = do
   return (foldl Lookup e ls)
 
 literal :: Literal -> Exp
-literal l = case l of
-  (LitNat    _ x) -> Integer x
-  (LitWord64 _ x) -> Integer (fromIntegral x)
-  (LitFloat  _ x) -> Double  x
-  (LitString _ x) -> String  x
-  (LitChar   _ x) -> Char    x
-  (LitQName  _ x) -> litqname x
-  LitMeta{}       -> __IMPOSSIBLE__
+literal = \case
+  (LitNat    x) -> Integer x
+  (LitWord64 x) -> Integer (fromIntegral x)
+  (LitFloat  x) -> Double  x
+  (LitString x) -> String  x
+  (LitChar   x) -> Char    x
+  (LitQName  x) -> litqname x
+  LitMeta{}     -> __IMPOSSIBLE__
 
 litqname :: QName -> Exp
 litqname q =

@@ -13,6 +13,7 @@ import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
+import Agda.Utils.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -183,7 +184,7 @@ match' ((c, es, patch) : stack) = do
               _ | fallThrough -> match' $ catchAllFrame $ stack
 
               Blocked x _            -> no (Blocked x) es'
-              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
+              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (blocked x) es'
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.
@@ -198,5 +199,5 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
       traceSLn "impossible" 10
-        ("Incomplete pattern matching when applying " ++ show f)
+        ("Incomplete pattern matching when applying " ++ prettyShow f)
         __IMPOSSIBLE__

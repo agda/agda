@@ -162,9 +162,9 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
-    whenM (optConfluenceCheck <$> pragmaOptions) $ do
+    whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
       reportSLn "import.iface.confluence" 20 $ "  Checking confluence of imported rewrite rules"
-      checkConfluenceOfRules $ concat $ HMap.elems $ sig ^. sigRewriteRules
+      checkConfluenceOfRules confChk $ concat $ HMap.elems $ sig ^. sigRewriteRules
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
@@ -1124,7 +1124,7 @@ getMaybeWarnings' isMain ww = do
 
 getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
 getAllWarningsOfTCErr err = case err of
-  TypeError tcst cls -> case clValue cls of
+  TypeError _ tcst cls -> case clValue cls of
     NonFatalErrors{} -> return []
     _ -> localTCState $ do
       putTC tcst

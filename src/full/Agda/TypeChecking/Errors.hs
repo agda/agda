@@ -4,7 +4,6 @@
 
 module Agda.TypeChecking.Errors
   ( prettyError
-  , prettyWarning
   , tcErrString
   , prettyTCWarnings'
   , prettyTCWarnings
@@ -16,13 +15,14 @@ module Agda.TypeChecking.Errors
   , stringTCErr
   ) where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, foldl )
 
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
+import Data.Foldable (foldl)
 import Data.Function
-import Data.List (sortBy, dropWhileEnd)
+import Data.List (sortBy, dropWhileEnd, intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import qualified Data.Set as Set
@@ -61,7 +61,7 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty ( prettyShow, render )
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -100,7 +100,7 @@ nameWithBinding q =
 
 tcErrString :: TCErr -> String
 tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
-  TypeError _ cl    -> errorString $ clValue cl
+  TypeError _ _ cl  -> errorString $ clValue cl
   Exception r s     -> prettyShow r ++ " " ++ show s
   IOException _ r e -> prettyShow r ++ " " ++ show e
   PatternErr{}      -> "PatternErr"
@@ -178,6 +178,7 @@ errorString err = case err of
   NoSuchModule{}                           -> "NoSuchModule"
   DuplicatePrimitiveBinding{}              -> "DuplicatePrimitiveBinding"
   NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
+  WrongModalityForPrimitive{}              -> "WrongModalityForPrimitive"
   NotAModuleExpr{}                         -> "NotAModuleExpr"
   NotAProperTerm                           -> "NotAProperTerm"
   InvalidType{}                            -> "InvalidType"
@@ -262,11 +263,14 @@ instance PrettyTCM TCErr where
     -- Gallais, 2016-05-14
     -- Given where `NonFatalErrors` are created, we know for a
     -- fact that ̀ws` is non-empty.
-    TypeError _ Closure{ clValue = NonFatalErrors ws } -> foldr1 ($$) $ fmap prettyTCM ws
+    TypeError fl _ Closure{ clValue = NonFatalErrors ws } -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+      foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
-    TypeError s e -> withTCState (const s) $
+    TypeError fl s e -> withTCState (const s) $ do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ show e
@@ -420,7 +424,7 @@ instance PrettyTCM TypeError where
     CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
       pwords "Can't resolve overloaded constructors targeting the same datatype"
       ++ [parens (prettyTCM (qnameToConcrete d)) <> colon]
-      ++ map pretty cs
+      ++ map pretty (List1.toList cs)
 
     DoesNotConstructAnElementOf c t -> fsep $
       pwords "The constructor" ++ [prettyTCM c] ++
@@ -669,6 +673,17 @@ instance PrettyTCM TypeError where
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
 
+    WrongModalityForPrimitive x got expect ->
+      vcat [ fsep $ pwords "Wrong modality for primitive" ++ [text x]
+           , nest 2 $ text $ "Got:      " ++ intercalate ", " gs
+           , nest 2 $ text $ "Expected: " ++ intercalate ", " es ]
+      where
+        (gs, es) = unzip [ p | p@(g, e) <- zip (things got) (things expect), g /= e ]
+        things i = [verbalize $ getHiding i,
+                    verbalize $ getRelevance i,
+                    verbalize $ getQuantity i,
+                    verbalize $ getCohesion i]
+
     BuiltinInParameterisedModule x -> fwords $
       "The BUILTIN pragma cannot appear inside a bound context " ++
       "(for instance, in a parameterised module or as a local declaration)"
@@ -758,21 +773,21 @@ instance PrettyTCM TypeError where
 
     NotInScope xs ->
       -- using the warning version to avoid code duplication
-      prettyTCM (NotInScopeW xs)
+      prettyWarning (NotInScopeW xs)
 
     NoSuchModule x -> fsep $ pwords "No module" ++ [pretty x] ++ pwords "in scope"
 
     AmbiguousName x ys -> vcat
       [ fsep $ pwords "Ambiguous name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map nameWithBinding (NonEmpty.toList ys)
+      , nest 2 $ vcat $ fmap nameWithBinding ys
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
 
     AmbiguousModule x ys -> vcat
       [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> "."] ++
                pwords "It could refer to any one of"
-      , nest 2 $ vcat $ map help (NonEmpty.toList ys)
+      , nest 2 $ vcat $ fmap help ys
       , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
       ]
       where
@@ -849,7 +864,7 @@ instance PrettyTCM TypeError where
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> "."] ++
       pwords "Could mean any one of:"
-      ) $$ nest 2 (vcat $ map pretty' $ List1.toList es')
+      ) $$ nest 2 (vcat $ fmap pretty' es')
       where
         pretty_es :: MonadPretty m => m Doc
         pretty_es = pretty $ C.RawApp noRange es
@@ -858,14 +873,14 @@ instance PrettyTCM TypeError where
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
-          if show p1 == show p2 then unambiguous e else pretty e
+          if render p1 == render p2 then unambiguous e else return p2
 
         unambiguous :: MonadPretty m => C.Expr -> m Doc
         unambiguous e@(C.OpApp r op _ xs)
           | all (isOrdinary . namedArg) xs =
             pretty $
               foldl (C.App r) (C.Ident op) $
-                (map . fmap . fmap) fromOrdinary xs
+                (fmap . fmap . fmap) fromOrdinary xs
           | any (isPlaceholder . namedArg) xs =
               pretty e <+> "(section)"
         unambiguous e = pretty e
@@ -891,7 +906,7 @@ instance PrettyTCM TypeError where
     CannotResolveAmbiguousPatternSynonym defs -> vcat
       [ fsep $ pwords "Cannot resolve overloaded pattern synonym" ++ [prettyTCM x <> comma] ++
                pwords "since candidates have different shapes:"
-      , nest 2 $ vcat $ map prDef (NonEmpty.toList defs)
+      , nest 2 $ vcat $ fmap prDef defs
       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
       ]
       where
@@ -932,7 +947,7 @@ instance PrettyTCM TypeError where
         pretty' :: MonadPretty m => Doc -> C.Pattern -> m Doc
         pretty' d1 p' = do
           d2 <- pretty p'
-          if show d1 == show d2 then pretty $ unambiguousP p' else return d2
+          if render d1 == render d2 then pretty $ unambiguousP p' else return d2
 
         -- the entire pattern is shown, not just the ambiguous part,
         -- so we need to dig in order to find the OpAppP's.
@@ -960,7 +975,7 @@ instance PrettyTCM TypeError where
                    map (Boxes.vcat Boxes.left) [col1, col2, col3]) $
                unzip3 $
                map prettySect $
-               sortBy (compare `on` show . notaName . sectNotation) $
+               sortBy (compare `on` prettyShow . notaName . sectNotation) $
                filter (not . closedWithoutHoles) sects))
       where
       trimLeft  = dropWhile isNormalHole

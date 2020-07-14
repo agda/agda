@@ -260,7 +260,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
-                                                else "  candidates: " ++ show ps0
+                                                else "  candidates: " ++ prettyShow ps0
       unless (null ps0) $ do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction

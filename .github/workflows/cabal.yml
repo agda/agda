@@ -1,4 +1,4 @@
-name: cabal build
+name: Cabal build
 
 on:
   push:
@@ -17,9 +17,9 @@ on:
     - 'Setup.hs'
 
 jobs:
-  linux:
+  Ubuntu:
 
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
@@ -27,9 +27,9 @@ jobs:
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/setup-haskell@v1.1.1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -39,14 +39,14 @@ jobs:
         cabal update
         cabal configure -O0
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2
       name: Cache dependencies
       with:
         path: "~/.cabal"
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2
       name: Cache dist-newstyle
       with:
         path: dist-newstyle/build
@@ -60,12 +60,12 @@ jobs:
       run: |
         cabal build
 
-  mac:
+  macOS:
 
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.1
 
 
     - name: Install ghc and cabal-install
@@ -86,3 +86,48 @@ jobs:
     - name: Build Agda
       run: |
         cabal build
+
+  # Windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       ghc-ver: ["8.10.1"]
+  #       cabal-ver: ["3.2"]
+  #       icu-ver: [58.2-3]
+
+  #   env:
+  #     FLAGS: "-f enable-cluster-counting"
+  #     ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+
+  #   steps:
+  #   - uses: actions/checkout@v2.3.1
+
+  #   - uses: actions/setup-haskell@v1.1.1
+  #     with:
+  #       ghc-version: ${{ matrix.ghc-ver }}
+  #       cabal-version: ${{ matrix.cabal-ver }}
+
+  #   - name: Update cabal
+  #     run: |
+  #       cabal update
+
+  #   - name: Download ICU ${{ matrix.icu-ver }}
+  #     run: |
+  #       C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
+
+  #   - name: Install ICU ${{ matrix.icu-ver }}
+  #     run: |
+  #       C:\msys64\usr\bin\pacman.exe -U --noconfirm ${env:ICU_FILE}
+
+  #   - name: Create cabal.config
+  #     run: |
+  #       echo "extra-lib-dirs: C:\msys64\mingw64\lib" >> cabal.config
+  #       echo "extra-include-dirs: C:\msys64\mingw64\include" >> cabal.config
+
+  #   - name: Build dependencies
+  #     run: |
+  #       cabal build ${FLAGS} --only-dependencies
+
+  #   - name: Build Agda
+  #     run: |
+  #       cabal build ${FLAGS}

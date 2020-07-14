@@ -620,7 +620,7 @@ defineProjections dataName con params names fsT t = do
 
 
 freshAbstractQName'_ :: String -> TCM QName
-freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
+freshAbstractQName'_ = freshAbstractQName noFixity' . C.simpleName
 
 
 -- * Special cases of Type
@@ -1056,7 +1056,7 @@ bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA $ List1.toList xs)
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
@@ -1200,24 +1200,6 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                     t <- typeOfBV i
                     equalTerm t (unArg arg) (var i)
 
-
-{- UNUSED, Andreas 2012-09-13
--- | Force a type to be a specific datatype.
-forceData :: QName -> Type -> TCM Type
-forceData d (El s0 t) = liftTCM $ do
-    t' <- reduce t
-    d  <- canonicalName d
-    case t' of
-        Def d' _
-            | d == d'   -> return $ El s0 t'
-            | otherwise -> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
-        MetaV m vs          -> do
-            Defn {defType = t, theDef = Datatype{dataSort = s}} <- getConstInfo d
-            ps <- newArgsMeta t
-            noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
-            reduce $ El s0 t'
-        _ -> typeError $ ShouldBeApplicationOf (El s0 t) d
--}
 
 -- | Is the type coinductive? Returns 'Nothing' if the answer cannot
 -- be determined.

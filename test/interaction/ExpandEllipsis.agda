@@ -30,3 +30,7 @@ test1 {.(suc n)} (suc {n} i) with Fin zero
 
 -- Expected result:
 -- test1 {.(suc n)} (suc {n} i) | q = ?
+
+-- Since commit e531104 this test case is broken.
+-- The ellipsis is not expanded literally (due to dot shuffling?).
+-- https://github.com/agda/agda/commit/e531104ecdfd9efc1e76bf0e9b5f9690f31bcaab#r40133390

@@ -26,7 +26,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Arrow (first)
+import Control.Arrow ((&&&), first)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -72,7 +72,8 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|), (<|) )
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -314,7 +315,7 @@ lookupQName ambCon x = do
       qy@C.QName{} -> C.QName <$> chooseName (qnameName x)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
-lookupModule (A.MName []) = return $ C.QName $ C.Name noRange InScope [Id "-1"]
+lookupModule (A.MName []) = return $ C.QName $ C.simpleName "-1"
   -- Andreas, 2016-10-10 it can happen that we have an empty module name
   -- for instance when we query the current module inside the
   -- frontmatter or module telescope of the top level module.
@@ -660,11 +661,12 @@ instance ToConcrete A.Expr C.Expr where
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
-    toConcrete e@(A.Lit (LitQName r x)) = tryToRecoverPatternSyn e $ do
+    toConcrete e@(A.Lit i (LitQName x)) = tryToRecoverPatternSyn e $ do
       x <- lookupQName AmbiguousNothing x
+      let r = getRange i
       bracket appBrackets $ return $
         C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
-    toConcrete e@(A.Lit l) = tryToRecoverPatternSyn e $ return $ C.Lit l
+    toConcrete e@(A.Lit i l) = tryToRecoverPatternSyn e $ return $ C.Lit (getRange i) l
 
     -- Andreas, 2014-05-17  We print question marks with their
     -- interaction id, in case @metaNumber /= Nothing@
@@ -693,9 +695,9 @@ instance ToConcrete A.Expr C.Expr where
         (Just (HdDef q), l@A.Lit{})
           | any (is q) [builtinFromNat, builtinFromString], visible e2,
             getOrigin i == Inserted -> toConcrete l
-        (Just (HdDef q), A.Lit (LitNat r n))
+        (Just (HdDef q), A.Lit r (LitNat n))
           | q `is` builtinFromNeg, visible e2,
-            getOrigin i == Inserted -> toConcrete (A.Lit (LitNat r (-n)))
+            getOrigin i == Inserted -> toConcrete (A.Lit r (LitNat (-n)))
         _ ->
           tryToRecoverPatternSyn e
           $ tryToRecoverOpApp e
@@ -715,14 +717,14 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.AbsurdLam i h) =
       bracket lamBrackets $ return $ C.AbsurdLam (getRange i) h
     toConcrete e@(A.Lam i _ _) =
-        tryToRecoverOpApp e   -- recover sections
-        $ List1.ifNull bs'
+      tryToRecoverOpApp e $   -- recover sections
+        bindToConcrete (fmap makeDomainFree bs) $ \ bs' -> do
+          List1.ifNull (catMaybes bs')
             {-then-} (toConcrete e')
             {-else-} $ \ bs -> bracket lamBrackets $
-                bindToConcrete (fmap makeDomainFree bs) $ \ bs -> do
-                  C.Lam (getRange i) bs <$> toConcreteTop e'
-        where
-          (bs', e') = lamView e
+              C.Lam (getRange i) bs <$> toConcreteTop e'
+      where
+          (bs, e') = lamView e
           -- #3238 GA: We drop the hidden lambda abstractions which have
           -- been inserted by the machine rather than the user. This means
           -- that the result of lamView may actually be an empty list of
@@ -754,7 +756,7 @@ instance ToConcrete A.Expr C.Expr where
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp :: C.Pattern -> AbsToCon [C.Pattern]
-              removeApp (C.RawAppP _r (_ :| ps)) = return ps
+              removeApp (C.RawAppP _ (List2 _ p ps)) = return $ p:ps
               removeApp (C.AppP (C.IdentP _) np) = return [namedPat np]
               removeApp (C.AppP p np)            = removeApp p <&> (++ [namedPat np])
               -- Andreas, 2018-06-18, issue #3136
@@ -776,13 +778,13 @@ instance ToConcrete A.Expr C.Expr where
           C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
-    toConcrete (A.Pi _ tel0 e0) = do
-      let (tel, e) = piTel1 tel0 e0
+    toConcrete (A.Pi _ tel1 e0) = do
+      let (tel, e) = piTel1 tel1 e0
       bracket piBrackets $
          bindToConcrete tel $ \ tel' ->
-           C.Pi tel' <$> toConcreteTop e
+           C.makePi (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e = first (List1.append tel) $ piTel e
+        piTel1 tel e         = first (List1.append tel) $ piTel e
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
@@ -811,7 +813,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
              e'  <- toConcreteTop e
-             return $ C.Let (getRange i) (concat ds') (Just e')
+             return $ C.mkLet (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
@@ -821,7 +823,7 @@ instance ToConcrete A.Expr C.Expr where
       bracket appBrackets $ do
         C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
-    toConcrete (A.ETel tel) = C.ETel <$> toConcrete tel
+    toConcrete (A.ETel tel) = C.ETel . catMaybes <$> toConcrete tel
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
@@ -881,24 +883,24 @@ instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
     bindToConcrete p $ \ p ->
     ret $ C.Binder p a
 
-instance ToConcrete A.LamBinding C.LamBinding where
+instance ToConcrete A.LamBinding (Maybe C.LamBinding) where
     bindToConcrete (A.DomainFree t x) ret = do
       t <- traverse toConcrete t
       let setTac x = x { bnameTactic = t }
       bindToConcrete (forceNameIfHidden x) $
-        ret . C.DomainFree . updateNamedArg (fmap setTac)
-    bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . C.DomainFull
+        ret . Just . C.DomainFree . updateNamedArg (fmap setTac)
+    bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . fmap C.DomainFull
 
-instance ToConcrete A.TypedBinding C.TypedBinding where
+instance ToConcrete A.TypedBinding (Maybe C.TypedBinding) where
     bindToConcrete (A.TBind r t xs e) ret = do
         t <- traverse toConcrete t
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
           let setTac x = x { bnameTactic = t }
-          ret $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
+          ret $ Just $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
-        ret $ C.TLet r $ concat ds
+        ret $ C.mkTLet r $ concat ds
 
 instance ToConcrete A.LetBinding [C.Declaration] where
     bindToConcrete (A.LetBind i info x t e) ret =
@@ -1019,7 +1021,7 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
     bindToConcrete tel $ \ tel -> do
       es <- toConcreteCtx argumentCtx_ es
       let r = fuseRange y es
-      return $ C.SectionApp r tel (foldl (C.App r) (C.Ident y) es)
+      return $ C.SectionApp r (catMaybes tel) (foldl (C.App r) (C.Ident y) es)
 
   toConcrete (A.RecordModuleInstance recm) = do
     recm <- toConcrete recm
@@ -1060,8 +1062,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteTop t
-      return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo Nothing x' t']]
+      t' <- traverse toConcreteTop t
+      return [C.Primitive (getRange i) [C.TypeSig (argInfo t') Nothing x' (unArg t')]]
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ _ cs) =
@@ -1072,26 +1074,26 @@ instance ToConcrete A.Declaration [C.Declaration] where
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.DataSig (getRange i) x' (map C.DomainFull tel') t' ]
+      return [ C.DataSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.DataDef i x uc bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.DataDef (getRange i) x' tel' cs' ]
+      return [ C.DataDef (getRange i) x' (catMaybes tel') cs' ]
 
   toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete (A.generalizeTel bs) $ \ tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteTop t
-      return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
+      return [ C.RecordSig (getRange i) x' (map C.DomainFull $ catMaybes tel') t' ]
 
   toConcrete (A.RecDef  i x uc ind eta pat c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree $ dataDefParams bs) $ \ tel' -> do
       (x',cs') <- first unsafeQNameToName <$> toConcrete (x, map Constr cs)
-      return [ C.RecordDef (getRange i) x' ind eta pat Nothing tel' cs' ]
+      return [ C.RecordDef (getRange i) x' ind eta pat Nothing (catMaybes tel') cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
@@ -1099,7 +1101,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     bindToConcrete tel $ \ tel -> do
       ds <- declsToConcrete ds
-      return [ C.Module (getRange i) x tel ds ]
+      return [ C.Module (getRange i) x (catMaybes tel) ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
@@ -1308,11 +1310,11 @@ instance ToConcrete A.Pattern C.Pattern where
       A.AbsurdP i ->
         return $ C.AbsurdP (getRange i)
 
-      A.LitP (LitQName r x) -> do
+      A.LitP i (LitQName x) -> do
         x <- lookupQName AmbiguousNothing x
-        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
-      A.LitP l ->
-        return $ C.LitP l
+        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP (getRange i)) (defaultNamedArg (C.IdentP x))
+      A.LitP i l ->
+        return $ C.LitP (getRange i) l
 
       -- Andreas, 2018-06-19, issue #3130
       -- Print .p as .(p) if p is a projection
@@ -1331,7 +1333,7 @@ instance ToConcrete A.Pattern C.Pattern where
         resolveName (someKindsOfNames [FldName]) Nothing (C.QName cn) >>= \ case
           -- If we do then we print .(v) rather than .v
           Right FieldName{} -> do
-            reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ show (nameConcrete v)
+            reportSLn "print.dotted" 50 $ "Wrapping ambiguous name " ++ prettyShow (nameConcrete v)
             C.DotP r . C.Paren r <$> toConcrete (A.Var v)
           Right _ -> printDotDefault i e
           Left _ -> __IMPOSSIBLE__
@@ -1383,7 +1385,7 @@ instance ToConcrete (Maybe A.Pattern) (Maybe C.Pattern) where
 tryToRecoverNatural :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverNatural e def = do
   is <- isBuiltinFun
-  caseMaybe (recoverNatural is e) def $ return . C.Lit . LitNat noRange
+  caseMaybe (recoverNatural is e) def $ return . C.Lit noRange . LitNat
 
 recoverNatural :: (A.QName -> String -> Bool) -> A.Expr -> Maybe Integer
 recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
@@ -1392,7 +1394,7 @@ recoverNatural is e = explore (`is` builtinZero) (`is` builtinSuc) 0 e
     explore isZero isSuc k (A.App _ (A.Con c) t) | Just f <- getUnambiguous c, isSuc f
                                                 = (explore isZero isSuc $! k + 1) (namedArg t)
     explore isZero isSuc k (A.Con c) | Just x <- getUnambiguous c, isZero x = Just k
-    explore isZero isSuc k (A.Lit (LitNat _ l)) = Just (k + l)
+    explore isZero isSuc k (A.Lit _ (LitNat l)) = Just (k + l)
     explore _ _ _ _                             = Nothing
 
 -- Helpers for recovering C.OpApp ------------------------------------------
@@ -1422,17 +1424,16 @@ getHead (Con c)          = Just (HdCon $ headAmbQ c)
 getHead (A.PatternSyn n) = Just (HdSyn $ headAmbQ n)
 getHead _                = Nothing
 
-cOpApp :: Range -> C.QName -> A.Name -> [MaybeSection C.Expr] -> C.Expr
+cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp r x n es =
-  C.OpApp r x (Set.singleton n)
-          (map (defaultNamedArg . placeholder) eps)
+  C.OpApp r x (Set.singleton n) $ fmap (defaultNamedArg . placeholder) eps
   where
     x0 = C.unqualify x
-    positions | isPrefix  x0 =             [ Middle | _ <- drop 1 es ] ++ [End]
-              | isPostfix x0 = Beginning : [ Middle | _ <- drop 1 es ]
-              | isInfix x0   = Beginning : [ Middle | _ <- drop 2 es ] ++ [End]
-              | otherwise    =             [ Middle | _ <- es ]
-    eps = zip es positions
+    positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
+              | isPostfix x0 = Beginning :| (const Middle <$> List1.drop 1 es)
+              | isInfix x0   = Beginning :| (const Middle <$> List1.drop 2 es) ++ [ End ]
+              | otherwise    =               const Middle <$> es
+    eps = List1.zip es positions
     placeholder (YesSection , pos ) = Placeholder pos
     placeholder (NoSection e, _pos) = noPlaceholder (Ordinary e)
 
@@ -1485,7 +1486,7 @@ tryToRecoverOpAppP p = do
   return res
   where
     opApp r x n ps = C.OpAppP r x (Set.singleton n) $
-      map (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
       -- `view` does not generate any `Nothing`s
 
     appInfo = defaultAppInfo_
@@ -1501,7 +1502,7 @@ tryToRecoverOpAppP p = do
 recoverOpApp :: forall a c . (ToConcrete a c, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for lambdas
-  -> (Range -> C.QName -> A.Name -> [MaybeSection c] -> c)
+  -> (Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
   -> (a -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, a))]))
   -> a
   -> AbsToCon (Maybe c)
@@ -1543,57 +1544,50 @@ recoverOpApp bracket isLam opApp view e = case view e of
             ConstructorName _ (q :| _) -> q ^. lensFixity
             PatternSynResName (q :| _) -> q ^. lensFixity
             UnknownName                -> noFixity
-    doQName fx x n' args (C.nameParts $ C.unqualify x)
+    List1.ifNull args {-then-} mDefault {-else-} $ \ as ->
+      doQName fx x n' as (C.nameParts $ C.unqualify x)
 
-  doQName :: Fixity -> C.QName -> A.Name -> [MaybeSection (AppInfo, a)] -> [NamePart] -> AbsToCon (Maybe c)
+  doQName :: Fixity -> C.QName -> A.Name -> List1 (MaybeSection (AppInfo, a)) -> NameParts -> AbsToCon (Maybe c)
 
   -- fall-back (wrong number of arguments or no holes)
-  doQName _ x _ es xs
-    | null es                 = mDefault
-    | length es /= numHoles x = mDefault
+  doQName _ x _ as xs
+    | length as /= numHoles x = mDefault
 
   -- binary case
-  doQName fixity x n as xs
-    | Hole <- head xs
-    , Hole <- last xs = do
-        let a1  = head as
-            an  = last as
-            as' = case as of
-                    as@(_ : _ : _) -> init $ tail as
-                    _              -> __IMPOSSIBLE__
+  doQName fixity x n (a1 :| as) xs
+    | Hole <- List1.head xs
+    , Hole <- List1.last xs = do
+        let (as', an) = List1.ifNull as {-then-} __IMPOSSIBLE__ {-else-} List1.initLast
         Just <$> do
           bracket (opBrackets' (skipParens an) fixity) $ do
             e1 <- traverse (toConcreteCtx (LeftOperandCtx fixity) . snd) a1
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (uncurry $ toConcreteCtx . RightOperandCtx fixity . appParens) an
-            return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
+            return $ opApp (getRange (e1, en)) x n (e1 :| es ++ [en])
 
   -- prefix
   doQName fixity x n as xs
-    | Hole <- last xs = do
-        let an  = last as
-            as' = case as of
-                    as@(_ : _) -> init as
-                    _          -> __IMPOSSIBLE__
+    | Hole <- List1.last xs = do
+        let (as', an) = List1.initLast as
         Just <$> do
           bracket (opBrackets' (skipParens an) fixity) $ do
             es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
             en <- traverse (\ (i, e) -> toConcreteCtx (RightOperandCtx fixity $ appParens i) e) an
-            return $ opApp (getRange (n, en)) x n (es ++ [en])
+            return $ opApp (getRange (n, en)) x n (List1.snoc es en)
 
   -- postfix
   doQName fixity x n as xs
-    | Hole <- head xs = do
-        let a1  = head as
-            as' = tail as
+    | Hole <- List1.head xs = do
+        let a1  = List1.head as
+            as' = List1.tail as
         e1 <- traverse (toConcreteCtx (LeftOperandCtx fixity) . snd) a1
         es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as'
         Just <$> do
           bracket (opBrackets fixity) $
-            return $ opApp (getRange (e1, n)) x n (e1 : es)
+            return $ opApp (getRange (e1, n)) x n (e1 :| es)
 
   -- roundfix
-  doQName _ x n as xs = do
+  doQName _ x n as _ = do
     es <- (mapM . traverse) (toConcreteCtx InsideOperandCtx . snd) as
     Just <$> do
       bracket roundFixBrackets $

@@ -9,6 +9,7 @@ import Prelude hiding ( null )
 
 import Data.IORef
 import Data.Maybe
+import qualified Data.Foldable  as Fold
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
 import qualified Data.Text as T
@@ -24,17 +25,17 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.String
 
 import Agda.Utils.Impossible
 
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
--- Andreas, 2017-10-02, TODO: restore Show to its original purpose
---
 deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
@@ -55,21 +56,6 @@ deriving instance Show LamClause
 deriving instance Show WhereClause
 deriving instance Show ModuleApplication
 deriving instance Show DoStmt
-
--- instance Show Expr            where show = show . pretty
--- instance Show Declaration     where show = show . pretty
--- instance Show Pattern         where show = show . pretty
--- instance Show TypedBinding    where show = show . pretty
--- instance Show LamBinding      where show = show . pretty
--- instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
---                               where show = show . pretty
--- instance Show Pragma          where show = show . pretty
--- instance Show RHS             where show = show . pretty
--- instance Show LHS where show = show . pretty
--- instance Show LHSCore where show = show . pretty
--- instance Show WhereClause where show = show . pretty
--- instance Show ModuleApplication where show = show . pretty
-
 
 -- | Picking the appropriate set of special characters depending on
 -- whether we are allowed to use unicode or have to limit ourselves
@@ -139,10 +125,10 @@ emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 -- @
 -- If the list is empty, then the notation @{}@ is used.
 
-bracesAndSemicolons :: [Doc] -> Doc
-bracesAndSemicolons []       = "{}"
-bracesAndSemicolons (d : ds) =
-  sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
+bracesAndSemicolons :: Foldable t => t Doc -> Doc
+bracesAndSemicolons ts = case Fold.toList ts of
+  []       -> "{}"
+  (d : ds) -> sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
 
 arrow, lambda :: Doc
 arrow  = _arrow specialCharacters
@@ -232,7 +218,7 @@ instance Pretty Expr where
     pretty e =
         case e of
             Ident x          -> pretty x
-            Lit l            -> pretty l
+            Lit _ l          -> pretty l
             QuestionMark _ n -> "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
             App _ _ _        ->
@@ -242,7 +228,7 @@ instance Pretty Expr where
 --                      sep [ pretty e1
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
-            RawApp _ es    -> fsep $ map pretty $ List1.toList es
+            RawApp _ es    -> fsep $ map pretty $ List2.toList es
             OpApp _ q _ es -> fsep $ prettyOpApp q es
 
             WithApp _ e es -> fsep $
@@ -250,13 +236,13 @@ instance Pretty Expr where
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e
-            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty $ List1.toList bs) <+> absurd h
+            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (fmap pretty bs) <+> absurd h
             Lam _ bs e ->
-                sep [ lambda <+> fsep (map pretty $ List1.toList bs) <+> arrow
+                sep [ lambda <+> fsep (fmap pretty bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty $ List1.toList pes)
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (fmap pretty pes)
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
@@ -266,7 +252,7 @@ instance Pretty Expr where
                     , pretty e
                     ]
             Let _ ds me  ->
-                sep [ "let" <+> vcat (map pretty ds)
+                sep [ "let" <+> vcat (fmap pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
@@ -275,7 +261,7 @@ instance Pretty Expr where
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> "do" <+> vcat (map pretty $ List1.toList ss)
+            DoBlock _ ss -> "do" <+> vcat (fmap pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
             DoubleDot _ e  -> ".." <> pretty e
@@ -361,9 +347,9 @@ instance Pretty LamBinding where
     pretty (DomainFull b) = pretty b
 
 instance Pretty TypedBinding where
-    pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
+    pretty (TLet _ ds) = parens $ "let" <+> vcat (fmap pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
-      fsep (map (pretty . NamedBinding True) $ List1.toList xs)
+      fsep (fmap (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
@@ -394,7 +380,7 @@ instance Pretty Tel where
 smashTel :: Telescope -> Telescope
 smashTel (TBind r xs e  :
           TBind _ ys e' : tel)
-  | show e == show e' = smashTel (TBind r (xs Semigroup.<> ys) e : tel)
+  | prettyShow e == prettyShow e' = smashTel (TBind r (xs Semigroup.<> ys) e : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 
@@ -442,7 +428,7 @@ instance Pretty DoStmt where
       prCs [] = empty
       prCs cs = "where" <?> vcat (map pretty cs)
   pretty (DoThen e) = pretty e
-  pretty (DoLet _ ds) = "let" <+> vcat (map pretty ds)
+  pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
     prettyList = vcat . map pretty
@@ -517,7 +503,7 @@ instance Pretty Declaration where
             RecordDef _ x ind eta pat con tel cs ->
               pRecord x ind eta pat con tel Nothing cs
             Infix f xs  ->
-                pretty f <+> fsep (punctuate comma $ map pretty $ List1.toList xs)
+                pretty f <+> fsep (punctuate comma $ fmap pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
@@ -701,8 +687,8 @@ instance Pretty Pattern where
     pretty = \case
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
-            RawAppP _ ps    -> fsep $ map pretty $ List1.toList ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps)
+            RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
@@ -710,7 +696,7 @@ instance Pretty Pattern where
             AsP _ x p       -> pretty x <> "@" <> pretty p
             DotP _ p        -> "." <> pretty p
             AbsurdP _       -> "()"
-            LitP l          -> pretty l
+            LitP _ l        -> pretty l
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
@@ -718,14 +704,14 @@ instance Pretty Pattern where
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
-prettyOpApp q es = merge [] $ prOp ms xs es
+  Pretty a => QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
+prettyOpApp q es = merge [] $ prOp ms xs $ List1.toList es
   where
     -- ms: the module part of the name.
     ms = List1.init (qnameParts q)
     -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
-           Name _ _ xs    -> xs
+           Name _ _ xs    -> List1.toList xs
            NoName{}       -> __IMPOSSIBLE__
 
     prOp :: [Name] -> [NamePart] -> [NamedArg (MaybePlaceholder a)] -> [(Doc, Maybe PositionInName)]
@@ -735,7 +721,7 @@ prettyOpApp q es = merge [] $ prOp ms xs es
         NoPlaceholder{} -> (pretty e, Nothing) : prOp ms xs es
           -- Module qualifier needs to go on section holes (#3072)
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ Name noRange InScope $ [Id x]
+    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ simpleName x
                                    , Nothing
                                    ) : prOp [] xs es
       -- Qualify the name part with the module.
