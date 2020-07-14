@@ -54,6 +54,7 @@ allMetas' singl = foldTerm metas
 
   sortMetas (Type l)      = levelMetas l
   sortMetas (Prop l)      = levelMetas l
+  sortMetas (SSet l)      = levelMetas l
   sortMetas Inf{}         = mempty
   sortMetas SizeUniv{}    = mempty
   sortMetas (PiSort _ b)  = sortMetas $ unAbs b  -- the domain is a type so is covered by the fold

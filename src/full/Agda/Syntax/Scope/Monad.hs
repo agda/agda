@@ -41,7 +41,7 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega )
+import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega, builtinSSetOmega )
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
@@ -393,7 +393,8 @@ canHaveSuffixTest = do
   builtinSet  <- getBuiltinName' builtinSet
   builtinProp <- getBuiltinName' builtinProp
   builtinSetOmega <- getBuiltinName' builtinSetOmega
-  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega]
+  builtinSSetOmega <- getBuiltinName' builtinSSetOmega
+  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule

@@ -620,9 +620,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
-                        (El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El (Inf 0) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+              equalType (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -878,7 +878,7 @@ compareElims pols0 fors0 a v els01 els02 =
         nest 2 $ "va =" <+> text (show (isPathType va))
       case va of
         PathType s path l bA x y -> do
-          b <- elInf primInterval
+          b <- primIntervalType
           compareWithPol pol (flip compareTerm b)
                               r1 r2
           -- TODO: compare (x1,x2) and (y1,y2) ?
@@ -1226,18 +1226,34 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- Likewise for @Prop@
       (Prop a  , Prop b  ) -> leqLevel a b
 
+      -- Likewise for @SSet@
+      (SSet a  , SSet b  ) -> leqLevel a b
+
       -- @Prop l@ is below @Set l@
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
 
       -- @Setωᵢ@ is above all small sorts (spelling out all cases
       -- for the exhaustiveness checker)
-      (Inf m   , Inf n   ) ->
-        if m <= n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
-      (Type{}  , Inf _   ) -> yes
-      (Prop{}  , Inf _   ) -> yes
-      (Inf _   , Type{}  ) -> if typeInTypeEnabled then yes else no
-      (Inf _   , Prop{}  ) -> no
+      (Inf f m , Inf f' n) ->
+        if leqFib f f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
+      (Type{}  , Inf f _) -> yes
+      (Prop{}  , Inf f _) -> yes
+      (Inf f _, Type{}  ) -> if f == IsFibrant && typeInTypeEnabled then yes else no
+      (Inf f _, SSet{}  ) -> if f == IsStrict  && typeInTypeEnabled then yes else no
+      (Inf _ _, Prop{}  ) -> no
+
+      -- @Set l@ is below @SSet l@
+      (Type a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Type b  ) -> no
+
+      -- @Prop l@ is below @SSet l@
+      (Prop a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Prop b  ) -> no
+
+      -- @SSet@ is below @SSetω@
+      (SSet{}  , Inf IsStrict _) -> yes
+      (SSet{}  , Inf IsFibrant _) -> no
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
@@ -1250,11 +1266,12 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
+      (SizeUniv, SSet{}  ) -> no
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
       -- the second sort must be at least @Setω@.
-      (_       , _       ) | isSmallSort s1 == Just True , badRigid -> leqSort (Inf 0) s2
+      (_       , _       ) | Just (True,f) <- isSmallSort s1 , badRigid -> leqSort (Inf f 0) s2
 
       -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
@@ -1272,6 +1289,9 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (_      , DefS{}) -> synEq
 
   where
+  leqFib IsFibrant _ = True
+  leqFib IsStrict IsStrict = True
+  leqFib _ _ = False
   impossibleSort s = do
     reportS "impossible" 10
       [ "leqSort: found dummy sort with description:"
@@ -1615,8 +1635,9 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
-            (Inf m      , Inf n      ) ->
-              if m == n || typeInTypeEnabled || omegaInOmegaEnabled then yes else no
+            (Inf f m    , Inf f' n   ) ->
+              if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
+            (SSet a     , SSet b     ) -> equalLevel a b
 
             -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
             (Type{}     , Inf{}      )
@@ -1679,7 +1700,7 @@ equalSort s1 s2 = do
           Type l1 -> do
             propEnabled <- isPropEnabled
                -- @s2@ is definitely not @Inf n@ or @SizeUniv@
-            if | Inf n    <- s2 -> no
+            if | Inf _ n  <- s2 -> no
                | SizeUniv <- s2 -> no
                -- If @Prop@ is not used, then @s2@ must be of the form
                -- @Set l2@
@@ -1695,10 +1716,10 @@ equalSort s1 s2 = do
                | otherwise -> synEq (Type l1) (UnivSort s2)
           -- @Setωᵢ@ is a successor sort if n > 0, or if
           -- --type-in-type or --omega-in-omega is enabled.
-          Inf n | n > 0 -> equalSort (Inf $ n - 1) s2
-          Inf 0 -> do
+          Inf f n | n > 0 -> equalSort (Inf f $ n - 1) s2
+          Inf f 0 -> do
             infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
-            if | infInInf  -> equalSort (Inf 0) s2
+            if | infInInf  -> equalSort (Inf f 0) s2
                | otherwise -> no
           -- @Prop l@ and @SizeUniv@ are not successor sorts
           Prop{}     -> no
@@ -1722,7 +1743,7 @@ equalSort s1 s2 = do
            -- If @b@ is dependent, then @piSort a b@ computes to
            -- @Setω@. Hence, if @s@ is small, then @b@
            -- cannot be dependent.
-        if | isSmallSort s == Just True -> do
+        if | Just (True,_) <- isSmallSort s -> do
                -- We force @b@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
                b' <- newSortMeta
@@ -1746,11 +1767,12 @@ equalSort s1 s2 = do
         case s0 of
           -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
           -- be @Setωᵢ@.
-          Inf n | isSmallSort s1 == Just True && isSmallSort s2 == Just True -> do
+          Inf f n | Just (True,_) <- isSmallSort s1, Just (True,_) <- isSmallSort s2 -> do
                     typeError $ UnequalSorts s0 (FunSort s1 s2)
-                | isSmallSort s1 == Just True -> equalSort (Inf n) s2
-                | isSmallSort s2 == Just True -> equalSort (Inf n) s1
-                | otherwise                   -> synEq s0 (FunSort s1 s2)
+                  | Just (True, IsFibrant) <- isSmallSort s1 -> equalSort (Inf f n) s2
+                  | Just (True, IsFibrant) <- isSmallSort s2 -> equalSort (Inf f n) s1
+                  -- TODO 2ltt: handle IsStrict cases.
+                  | otherwise                   -> synEq s0 (FunSort s1 s2)
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
           -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
           -- @SizeUniv@.
@@ -1932,7 +1954,7 @@ compareInterval cmp i t u = do
       -- but we could still prune/solve some metas by comparing the terms as atoms.
       -- also if blocked we won't find the terms conclusively unequal(?) so compareAtom
       -- won't report type errors when we should accept.
-      interval <- elInf $ primInterval
+      interval <- primIntervalType
       compareAtom CmpEq (AsTermsOf interval) t u
     _ | otherwise -> do
       x <- leqInterval it iu
@@ -1971,7 +1993,7 @@ leqConj (rs, rst) (qs, qst) = do
   if toSet qs `Set.isSubsetOf` toSet rs
     then do
       interval <-
-        elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        elSSet $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1. in some situations the same constraint would get generated twice.
       -- 2. unless things are completely accepted we are going to

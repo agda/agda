@@ -1612,7 +1612,7 @@ data NLPType = NLPType
 data NLPSort
   = PType NLPat
   | PProp NLPat
-  | PInf Integer
+  | PInf IsFibrant Integer
   | PSizeUniv
   deriving (Data, Show)
 
@@ -2655,6 +2655,11 @@ data TCEnv =
                 -- Then runtime-irrelevant things are usable.
                 -- Other value: @Quantity1@, runtime relevant.
                 -- @Quantityω@ is not allowed here, see Bob Atkey, LiCS 2018.
+          , envSplitOnStrict       :: Bool
+                -- ^ Are we currently case-splitting on a strict
+                --   datatype (i.e. in SSet)? If yes, the
+                --   pattern-matching unifier will solve reflexive
+                --   equations even --without-K.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
@@ -2771,6 +2776,7 @@ initEnv = TCEnv { envContext             = []
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
                 , envModality               = mempty
+                , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
@@ -2890,6 +2896,9 @@ eRelevance = eModality . lModRelevance
 
 eQuantity :: Lens' Quantity TCEnv
 eQuantity = eModality . lModQuantity
+
+eSplitOnStrict :: Lens' Bool TCEnv
+eSplitOnStrict f e = f (envSplitOnStrict e) <&> \ x -> e { envSplitOnStrict = x }
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
@@ -3445,6 +3454,8 @@ data TypeError
         | MetaErasedSolution MetaId Term
         | GenericError String
         | GenericDocError Doc
+        | SortOfSplitVarError (Maybe Blocker) Doc
+          -- ^ the meta is what we might be blocked on.
         | BuiltinMustBeConstructor String A.Expr
         | NoSuchBuiltinName String
         | DuplicateBuiltinBinding String Term Term
@@ -3547,6 +3558,7 @@ data TypeError
         | NeedOptionCopatterns
         | NeedOptionRewriting
         | NeedOptionProp
+        | NeedOptionTwoLevel
     -- Failure associated to warnings
         | NonFatalErrors [TCWarning]
     -- Instance search errors
@@ -4300,7 +4312,7 @@ instance KillRange NLPType where
 instance KillRange NLPSort where
   killRange (PType l) = killRange1 PType l
   killRange (PProp l) = killRange1 PProp l
-  killRange (PInf n)  = PInf n
+  killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
 
 instance KillRange RewriteRule where

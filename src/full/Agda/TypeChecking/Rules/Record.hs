@@ -433,7 +433,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
            io <- primIOne
            Just io_name <- getBuiltinName' builtinIOne
            one <- primItIsOne
-           tInterval <- elInf primInterval
+           tInterval <- primIntervalType
            let
               (ix,rhs) =
                 case cmd of

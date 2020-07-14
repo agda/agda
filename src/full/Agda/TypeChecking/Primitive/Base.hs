@@ -14,6 +14,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Names
 import {-# SOURCE #-} Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce ( reduce )
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute
@@ -64,7 +65,7 @@ nPi' s a b = nPi s a (bind' s b)
 
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
-pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl isOne <@> phi) b
+pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
  where
    toFinitePi :: Type -> Type
    toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
@@ -75,8 +76,14 @@ pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl isOne <@> phi) b
 el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
+el's :: Monad m => m Term -> m Term -> m Type
+el's l a = El <$> (SSet . unreducedLevel <$> l) <*> a
+
 elInf :: Functor m => m Term -> m Type
-elInf t = (El (Inf 0) <$> t)
+elInf t = (El (Inf IsFibrant 0) <$> t)
+
+elSSet :: Functor m => m Term -> m Type
+elSSet t = (El (SSet $ ClosedLevel 0) <$> t)
 
 nolam :: Term -> Term
 nolam = Lam defaultArgInfo . NoAbs "_"
@@ -161,7 +168,9 @@ domH = setHiding Hidden . defaultDom
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
-  fromMaybe (typeError $ NoSuchPrimitiveFunction x)
+  fromMaybe (do
+                reportSDoc "tc.prim" 20 $ "Lookup of primitive function" <+> text x <+> "failed"
+                typeError $ NoSuchPrimitiveFunction x)
             (Map.lookup x primitiveFunctions)
 
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)

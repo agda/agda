@@ -560,6 +560,7 @@ instance Occurs Sort where
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf{}    -> return s
+      SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
@@ -577,7 +578,8 @@ instance Occurs Sort where
       FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
-      Inf _      -> return ()
+      Inf _ _    -> return ()
+      SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
@@ -782,7 +784,8 @@ instance AnyRigid Sort where
     case s of
       Type l     -> anyRigid f l
       Prop l     -> anyRigid f l
-      Inf _      -> return False
+      Inf _ _    -> return False
+      SSet l     -> anyRigid f l
       SizeUniv   -> return False
       PiSort a s -> return False
       FunSort s1 s2 -> return False

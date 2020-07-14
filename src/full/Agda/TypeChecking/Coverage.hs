@@ -1122,7 +1122,11 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
 
-  r <- unifyIndices
+  withKIfStrict <- addContext delta1 $ reduce (getSort dtype) >>= \case
+    SSet{} -> return $ locallyTC eSplitOnStrict $ const True
+    _      -> return id
+
+  r <- withKIfStrict $ unifyIndices
          delta1Gamma
          flex
          (raise (size gamma) dtype)
@@ -1261,7 +1265,9 @@ splitClauseWithAbsurd c x =
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
-  where sc = SClause tel (toSplitPatterns ps) empty empty Nothing
+  where sc = SClause tel (toSplitPatterns ps) empty empty target
+        -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
+        target = (Just $ defaultDom $ El (Prop (Max 0 [])) $ Dummy "splitLastTarget" [])
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -1470,7 +1476,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ checkSortOfSplitVar dr (unDom t) target
+      liftTCM $ checkSortOfSplitVar dr (unDom t) delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

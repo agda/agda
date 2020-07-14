@@ -151,6 +151,7 @@ quotingKit = do
       quoteSort (Type t) = quoteSortLevelTerm t
       quoteSort Prop{}   = pure unsupportedSort
       quoteSort Inf{}    = pure unsupportedSort
+      quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort

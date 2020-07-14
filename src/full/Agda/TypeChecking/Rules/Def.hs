@@ -529,7 +529,7 @@ checkSystemCoverage f [n] t cs = do
         pcs = zip phis cs
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
-      interval <- elInf primInterval
+      interval <- primIntervalType
       reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 

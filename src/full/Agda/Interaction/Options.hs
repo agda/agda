@@ -135,6 +135,7 @@ data PragmaOptions = PragmaOptions
   , optUseUnicode                :: Bool
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
+  , optTwoLevel                  :: WithDefault 'False
   , optAllowUnsolved             :: Bool
   , optAllowIncompleteMatch      :: Bool
   , optDisablePositivity         :: Bool
@@ -270,6 +271,7 @@ defaultPragmaOptions = PragmaOptions
   , optUseUnicode                = True
   , optVerbose                   = defaultVerbosity
   , optProp                      = False
+  , optTwoLevel                  = Default
   , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = False -- off by default in > 2.5.4, see issue #2170
   , optAllowUnsolved             = False
@@ -446,6 +448,7 @@ restartOptions =
   , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
+  , (B . collapseDefault . optTwoLevel, "--two-level")
   , (B . not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
@@ -483,6 +486,7 @@ infectiveOptions :: [(PragmaOptions -> Bool, String)]
 infectiveOptions =
   [ (optCubical, "--cubical")
   , (optProp, "--prop")
+  , (collapseDefault . optTwoLevel, "--two-level")
   ]
 
 -- | A coinfective option is an option that if used in one module, must
@@ -551,6 +555,9 @@ propFlag o = return $ o { optProp = True }
 
 noPropFlag :: Flag PragmaOptions
 noPropFlag o = return $ o { optProp = False }
+
+twoLevelFlag :: Flag PragmaOptions
+twoLevelFlag o = return $ o { optTwoLevel = Value True }
 
 experimentalIrrelevanceFlag :: Flag PragmaOptions
 experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
@@ -758,6 +765,7 @@ cubicalFlag o = do
   let withoutK = optWithoutK o
   return $ o { optCubical  = True
              , optWithoutK = setDefault True withoutK
+             , optTwoLevel = setDefault True $ optTwoLevel o
              }
 
 postfixProjectionsFlag :: Flag PragmaOptions
@@ -1002,6 +1010,8 @@ pragmaOptions =
                     "enable the use of the Prop universe"
     , Option []     ["no-prop"] (NoArg noPropFlag)
                     "disable the use of the Prop universe (default)"
+    , Option []     ["two-level"] (NoArg twoLevelFlag)
+                    "enable the use of SSet* universes"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "enable sized types (default, inconsistent with --guardedness, implies --subtyping)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)

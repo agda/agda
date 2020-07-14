@@ -163,6 +163,7 @@ errorString err = case err of
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NeedOptionProp{}                         -> "NeedOptionProp"
+  NeedOptionTwoLevel{}                     -> "NeedOptionTwoLevel"
   GeneralizeNotSupportedHere{}             -> "GeneralizeNotSupportedHere"
   GeneralizeCyclicDependency{}             -> "GeneralizeCyclicDependency"
   GeneralizeUnsolvedMeta{}                 -> "GeneralizeUnsolvedMeta"
@@ -255,6 +256,7 @@ errorString err = case err of
   NonFatalErrors{}                         -> "NonFatalErrors"
   InstanceSearchDepthExhausted{}           -> "InstanceSearchDepthExhausted"
   TriedToCopyConstrainedPrim{}             -> "TriedToCopyConstrainedPrim"
+  SortOfSplitVarError{}                    -> "SortOfSplitVarError"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -1127,6 +1129,9 @@ instance PrettyTCM TypeError where
     NeedOptionProp       -> fsep $
       pwords "Universe Prop is disabled (use options --prop and --no-prop to enable/disable Prop)"
 
+    NeedOptionTwoLevel   -> fsep $
+      pwords "Universe SSet is disabled (use option --two-level to enable SSet)"
+
     GeneralizeNotSupportedHere x -> fsep $
       pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
 
@@ -1154,6 +1159,7 @@ instance PrettyTCM TypeError where
 
     TriedToCopyConstrainedPrim q -> fsep $
       pwords "Cannot create a module containing a copy of" ++ [prettyTCM q]
+    SortOfSplitVarError _ doc -> return doc
 
     where
     mpar n args

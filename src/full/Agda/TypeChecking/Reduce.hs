@@ -346,7 +346,8 @@ instance Reduce Sort where
           caseMaybe (univSort' s') (return $ UnivSort s') reduce'
         Prop s'    -> Prop <$> reduce' s'
         Type s'    -> Type <$> reduce' s'
-        Inf n      -> return $ Inf n
+        Inf f n    -> return $ Inf f n
+        SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
@@ -942,7 +943,8 @@ instance Simplify Sort where
         UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
-        Inf _      -> return s
+        Inf _ _    -> return s
+        SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -1094,7 +1096,8 @@ instance Normalise Sort where
         UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
-        Inf _      -> return s
+        Inf _ _    -> return s
+        SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1301,10 +1304,11 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
+            SSet n     -> SSet <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
-            Inf _      -> return s
+            Inf _ _    -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1449,7 +1453,7 @@ instance InstantiateFull NLPType where
 instance InstantiateFull NLPSort where
   instantiateFull' (PType x) = PType <$> instantiateFull' x
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' (PInf n)  = return $ PInf n
+  instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where

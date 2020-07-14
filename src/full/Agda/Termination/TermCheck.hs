@@ -678,10 +678,11 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Inf n      -> return empty
+      Inf f n    -> return empty
       SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
+      SSet t     -> terUnguarded $ extract t
       PiSort a s -> extract (a, s)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s

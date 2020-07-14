@@ -144,10 +144,24 @@ isType_ e = traceCall (IsType_ e) $ do
         NoSuffix -> return $ sort (mkProp 0)
         Suffix i -> return $ sort (mkProp i)
 
+    -- Setᵢ
+    A.Def' x suffix | x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (mkSSet 0)
+        Suffix i -> return $ sort (mkSSet i)
+
     -- Setωᵢ
-    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
-      NoSuffix -> return $ sort (Inf 0)
-      Suffix i -> return $ sort (Inf i)
+    A.Def' x suffix | x == nameOfSetOmega IsFibrant -> case suffix of
+      NoSuffix -> return $ sort (Inf IsFibrant 0)
+      Suffix i -> return $ sort (Inf IsFibrant i)
+
+    -- SSetωᵢ
+    A.Def' x suffix | x == nameOfSetOmega IsStrict -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (Inf IsStrict 0)
+        Suffix i -> return $ sort (Inf IsStrict i)
 
     -- Set ℓ
     A.App i s arg
@@ -171,6 +185,17 @@ isType_ e = traceCall (IsType_ e) $ do
         "Use --universe-polymorphism to enable level arguments to Prop"
       applyRelevanceToContext NonStrict $
         sort . Prop <$> checkLevel arg
+
+    -- SSet ℓ
+    A.App i s arg
+      | visible arg,
+        A.Def x <- unScope s,
+        x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      unlessM hasUniversePolymorphism $ genericError
+        "Use --universe-polymorphism to enable level arguments to SSet"
+      applyRelevanceToContext NonStrict $
+        sort . SSet <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -364,7 +389,7 @@ checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
     let x    = updateNamedArg (A.unBind . A.binderName) x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
-    interval <- elInf primInterval
+    interval <- primIntervalType
     v <- addContext ([x], interval) $
            checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
@@ -792,6 +817,8 @@ catchIlltypedPatternBlockedOnMeta m handle = do
           putTC s
           enterClosure cl $ \case
             IlltypedPattern p a -> isBlocked a
+
+            SortOfSplitVarError m _ -> return m
 
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403

@@ -1,5 +1,3 @@
-Issue3314.agda:13,1-4
-Cannot generate inferred clause for bad. Case to handle:
-  bad (primHComp {.Agda.Primitive.lzero} {.S1} {φ = φ} u a)
-Cannot compose with type family: I.
-when checking the definition of bad
+Issue3314.agda:14,5-9
+Cannot eliminate fibrant type S1 unless target type is also fibrant
+when checking that the pattern base has type S1

@@ -132,7 +132,8 @@ instance TermLike Sort where
   traverseTermM f s = case s of
     Type l     -> Type <$> traverseTermM f l
     Prop l     -> Prop <$> traverseTermM f l
-    Inf _      -> pure s
+    Inf _ _    -> pure s
+    SSet l     -> SSet <$> traverseTermM f l
     SizeUniv   -> pure s
     PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
@@ -144,7 +145,8 @@ instance TermLike Sort where
   foldTerm f s = case s of
     Type l     -> foldTerm f l
     Prop l     -> foldTerm f l
-    Inf _      -> mempty
+    Inf _ _    -> mempty
+    SSet l     -> foldTerm f l
     SizeUniv   -> mempty
     PiSort a b -> foldTerm f a <> foldTerm f b
     FunSort a b -> foldTerm f a <> foldTerm f b
