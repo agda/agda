@@ -1,4 +1,4 @@
-resolver: lts-15.7
+resolver: lts-16.5
 
 extra-deps:
 - STMonadTrans-0.4.4
