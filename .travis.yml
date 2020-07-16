@@ -123,10 +123,11 @@ jobs:
         - export PARALLEL_TESTS=2
         - export FLAGS="--flag Agda:enable-cluster-counting"
         - export ARGS="--silent --stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
+        - export AGDA_TESTS_OPTIONS="'-j${PARALLEL_TESTS} --hide-successes'"
         - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
         - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${AGDA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
         - echo "*** $MAKE_CMD"
+        - echo "*** stack ${ARGS} exec -- ${MAKE_CMD} cubical-test"
         - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
       script:
         - stack ${ARGS} exec -- ${MAKE_CMD} bugs
