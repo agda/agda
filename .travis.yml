@@ -227,7 +227,7 @@ jobs:
         - make install-agda-bisect
 
     - <<: *complete-job
-      env: GHC_VER=8.8.3 CABAL_VER=3.2
+      env: GHC_VER=8.8.4 CABAL_VER=3.2
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
     - <<: *complete-job
