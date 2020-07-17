@@ -9,7 +9,7 @@ data Unit : Set where
   unit : Unit
 
 record E : Set where
-  inductive
+  pattern; inductive
   constructor mkE
   field
     fromE : E

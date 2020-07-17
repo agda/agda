@@ -9,6 +9,7 @@ module Agda.TypeChecking.Serialise.Base where
 import Control.Exception (evaluate)
 
 import Control.Monad.Catch (catchAll)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 
@@ -22,7 +23,8 @@ import Data.Int (Int32)
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
-import Data.Text.Lazy (Text)
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
 import Data.Typeable ( cast, Typeable, TypeRep, typeRep )
 
 import Agda.Syntax.Common (NameId)
@@ -34,7 +36,6 @@ import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pointer
-import Agda.Utils.Except (ExceptT, throwError)
 import Agda.Utils.TypeLevel
 
 -- | Constructor tag (maybe omitted) and argument indices.
@@ -93,7 +94,8 @@ data Dict = Dict
   -- Dictionaries which are serialized:
   { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
   , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
-  , textD        :: !(HashTable Text    Int32)    -- ^ Written to interface file.
+  , lTextD       :: !(HashTable TL.Text Int32)    -- ^ Written to interface file.
+  , sTextD       :: !(HashTable T.Text  Int32)    -- ^ Written to interface file.
   , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
   , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
@@ -106,7 +108,8 @@ data Dict = Dict
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
-  , textC        :: !(IORef FreshAndReuse)
+  , lTextC       :: !(IORef FreshAndReuse)
+  , sTextC       :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
@@ -133,6 +136,8 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -155,7 +160,8 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
   , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
-  , textE     :: !(Array Int32 Text)     -- ^ Obtained from interface file.
+  , lTextE    :: !(Array Int32 TL.Text)  -- ^ Obtained from interface file.
+  , sTextE    :: !(Array Int32 T.Text)   -- ^ Obtained from interface file.
   , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
   , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo

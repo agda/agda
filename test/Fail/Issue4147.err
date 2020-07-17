@@ -1,8 +1,12 @@
-Issue4147.agda:21,17-18
-Confluence check failed: A reduces to both ⊤ and ⊥
-which are not equal because ⊤ != ⊥ of type Set
-when checking confluence of the rewrite rule q with
-Issue4147.Test.A-clause1
-Issue4147.agda:28,5-10
-The constructor tt does not construct an element of ⊥
-when checking that the clause g = f has type ⊥
+Issue4147.agda:21,5-22
+Global confluence check failed: A unfolds to ⊤ which should further
+unfold to ⊥ but it does not.
+Possible fix: add a rule to rewrite ⊤ to ⊥, or change the order of
+the rules so more specialized rules come later.
+when checking the pragma REWRITE q
+Issue4147.agda:21,5-22
+Global confluence check failed: A unfolds to ⊤ which should further
+unfold to ⊥ but it does not.
+Possible fix: add a rule to rewrite ⊤ to ⊥, or change the order of
+the rules so more specialized rules come later.
+when checking the pragma REWRITE q

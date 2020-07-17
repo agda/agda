@@ -1,9 +1,10 @@
 Failed to solve the following constraints:
-  Resolve instance argument
+  Resolve instance argument (blocked on _31)
     _p_32
       : (n₁ : Nat) {p : False (suc n₁)} (b₁ : Bla (suc n₁) p) →
         False (_n_31 (n = n₁) {p = p} (b = b₁))
   No candidates yet
+    (blocked on _n_31)
 Unsolved metas at the following locations:
   BrokenInferenceDueToNonvariantPolarity.agda:50,19-24
   BrokenInferenceDueToNonvariantPolarity.agda:50,26-34

@@ -78,13 +78,6 @@ asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = first (unBind x :) $ asView p
 asView p             = ([], p)
 
--- | Check whether we are dealing with a universe.
-isSet :: Expr -> Bool
-isSet (ScopedExpr _ e) = isSet e
-isSet (App _ e _)      = isSet e
-isSet (Set{})          = True
-isSet _                = False
-
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
 unScope (ScopedExpr scope e) = unScope e
@@ -106,8 +99,8 @@ deepUnscopeDecl :: A.Declaration -> [A.Declaration]
 deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
 deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
 deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc ind eta c bs e ds) = [A.RecDef i x uc ind eta c (deepUnscope bs) (deepUnscope e)
-                                                                           (deepUnscopeDecls ds)]
+deepUnscopeDecl (A.RecDef i x uc ind eta pat c bs e ds) =
+  [ A.RecDef i x uc ind eta pat c (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
 deepUnscopeDecl d                                = [deepUnscope d]
 
 -- * Traversal
@@ -136,7 +129,7 @@ instance ExprLike Expr where
     let recurse e = recurseExpr f e
     case e0 of
       Var{}                   -> pure e0
-      Def{}                   -> pure e0
+      Def'{}                  -> pure e0
       Proj{}                  -> pure e0
       Con{}                   -> pure e0
       Lit{}                   -> pure e0
@@ -151,8 +144,6 @@ instance ExprLike Expr where
       Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
       Generalized  s e        -> Generalized s <$> recurse e
       Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
-      Set{}                   -> pure e0
-      Prop{}                  -> pure e0
       Let ei bs e             -> Let ei <$> recurse bs <*> recurse e
       ETel tel                -> ETel <$> recurse tel
       Rec ei bs               -> Rec ei <$> recurse bs
@@ -169,7 +160,7 @@ instance ExprLike Expr where
   foldExpr f e =
     case e of
       Var{}                -> m
-      Def{}                -> m
+      Def'{}               -> m
       Proj{}               -> m
       Con{}                -> m
       PatternSyn{}         -> m
@@ -186,8 +177,6 @@ instance ExprLike Expr where
       Pi _ tel e           -> m `mappend` fold tel `mappend` fold e
       Generalized _ e      -> m `mappend` fold e
       Fun _ e e'           -> m `mappend` fold e `mappend` fold e'
-      Set{}                -> m
-      Prop{}               -> m
       Let _ bs e           -> m `mappend` fold bs `mappend` fold e
       ETel tel             -> m `mappend` fold tel
       Rec _ as             -> m `mappend` fold as
@@ -206,7 +195,7 @@ instance ExprLike Expr where
     let trav e = traverseExpr f e
     case e of
       Var{}                   -> f e
-      Def{}                   -> f e
+      Def'{}                  -> f e
       Proj{}                  -> f e
       Con{}                   -> f e
       Lit{}                   -> f e
@@ -221,8 +210,6 @@ instance ExprLike Expr where
       Pi ei tel e             -> f =<< Pi ei <$> trav tel <*> trav e
       Generalized s e         -> f =<< Generalized s <$> trav e
       Fun ei arg e            -> f =<< Fun ei <$> trav arg <*> trav e
-      Set{}                   -> f e
-      Prop{}                  -> f e
       Let ei bs e             -> f =<< Let ei <$> trav bs <*> trav e
       ETel tel                -> f =<< ETel <$> trav tel
       Rec ei bs               -> f =<< Rec ei <$> trav bs
@@ -398,7 +385,7 @@ instance ExprLike Declaration where
       DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
-      RecDef i r uc n co c bs e ds -> RecDef i r uc n co c <$> rec bs <*> rec e <*> rec ds
+      RecDef i r uc ind eta pat c bs e ds -> RecDef i r uc ind eta pat c <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
@@ -453,7 +440,7 @@ instance DeclaredNames Declaration where
       DataSig _ q _ _              -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ q _ _               -> singleton (WithKind RecName q)
-      RecDef _ q _ i _ c _ _ decls -> singleton (WithKind RecName q) <> kc <> declaredNames decls
+      RecDef _ q _ i _ _ c _ _ decls -> singleton (WithKind RecName q) <> kc <> declaredNames decls
         where
         kc = maybe mempty (singleton . WithKind k) c
         k  = maybe ConName (conKindOfName . rangedThing) i

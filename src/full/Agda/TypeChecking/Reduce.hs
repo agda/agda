@@ -4,13 +4,14 @@
 
 module Agda.TypeChecking.Reduce where
 
-import Prelude hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
+import Data.Foldable
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -41,6 +42,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.SmallSet as SmallSet
@@ -77,6 +79,24 @@ isFullyInstantiatedMeta m = do
   case mvInstantiation mv of
     InstV _tel v -> noMetas <$> instantiateFull v
     _ -> return False
+
+-- | Blocking on all blockers.
+blockAll :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
+blockAll bs = blockedOn block $ fmap ignoreBlocking bs
+  where block = unblockOnAll $ foldMap (Set.singleton . blocker) bs
+        blocker NotBlocked{}  = alwaysUnblock
+        blocker (Blocked b _) = b
+
+-- | Blocking on any blockers. Also metavariables. TODO: isMeta not needed once we could metas as
+--   Blocked.
+blockAny :: (IsMeta a, Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
+blockAny bs = blockedOn block $ fmap ignoreBlocking bs
+  where block = case foldMap blocker bs of
+                  [] -> alwaysUnblock -- no blockers
+                  bs -> unblockOnAny $ Set.fromList bs
+        blocker (NotBlocked _ t) | Just x <- isMeta t = [unblockOnMeta x]
+        blocker NotBlocked{}                          = []
+        blocker (Blocked b _)                         = [b]
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -159,14 +179,15 @@ instance Instantiate LevelAtom where
 
 instance Instantiate a => Instantiate (Blocked a) where
   instantiate' v@NotBlocked{} = return v
-  instantiate' v@(Blocked x u) = do
-    mi <- mvInstantiation <$> lookupMeta x
-    case mi of
-      InstV{}                        -> notBlocked <$> instantiate' u
-      Open                           -> return v
-      OpenInstance                   -> return v
-      BlockedConst{}                 -> return v
-      PostponedTypeCheckingProblem{} -> return v
+  instantiate' v@(Blocked b u) = instantiate' b >>= \ case
+    b | b == alwaysUnblock -> notBlocked <$> instantiate' u
+      | otherwise          -> return $ Blocked b u
+
+instance Instantiate Blocker where
+  instantiate' (UnblockOnAll bs) = unblockOnAll . Set.fromList <$> mapM instantiate' (Set.toList bs)
+  instantiate' (UnblockOnAny bs) = unblockOnAny . Set.fromList <$> mapM instantiate' (Set.toList bs)
+  instantiate' b@(UnblockOnMeta x) =
+    ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
 
 instance Instantiate Sort where
   instantiate' s = case s of
@@ -205,7 +226,7 @@ instance Instantiate Constraint where
   instantiate' c@CheckFunDef{}      = return c
   instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
   instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
-  instantiate' (UnquoteTactic m t h g) = UnquoteTactic m <$> instantiate' t <*> instantiate' h <*> instantiate' g
+  instantiate' (UnquoteTactic t h g) = UnquoteTactic <$> instantiate' t <*> instantiate' h <*> instantiate' g
   instantiate' c@CheckMetaInst{}    = return c
 
 instance Instantiate CompareAs where
@@ -248,6 +269,14 @@ instance IsMeta a => IsMeta (Sort' a) where
 instance IsMeta a => IsMeta (Type'' t a) where
   isMeta = isMeta . unEl
 
+instance IsMeta a => IsMeta (Elim' a) where
+  isMeta Proj{}    = Nothing
+  isMeta IApply{}  = Nothing
+  isMeta (Apply a) = isMeta a
+
+instance IsMeta a => IsMeta (Arg a) where
+  isMeta = isMeta . unArg
+
 instance IsMeta a => IsMeta (Level' a) where
   isMeta (Max 0 [l]) = isMeta l
   isMeta _           = Nothing
@@ -272,18 +301,22 @@ instance IsMeta CompareAs where
 --   That means it can change its shape when the meta is instantiated.
 ifBlocked
   :: (Reduce t, IsMeta t, MonadReduce m)
-  => t -> (MetaId -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
+  => t -> (Blocker -> t -> m a) -> (NotBlocked -> t -> m a) -> m a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
     Blocked m t -> blocked m t
     NotBlocked nb t -> case isMeta t of
-      Just m    -> blocked m t
+      Just m    -> blocked (unblockOnMeta m) t
       Nothing   -> unblocked nb t
+
+-- | Throw pattern violation if blocked or a meta.
+abortIfBlocked :: (MonadReduce m, MonadTCError m, IsMeta t, Reduce t) => t -> m t
+abortIfBlocked t = ifBlocked t (const . patternViolation) (const return)
 
 isBlocked
   :: (Reduce t, IsMeta t, MonadReduce m)
-  => t -> m (Maybe MetaId)
+  => t -> m (Maybe Blocker)
 isBlocked t = ifBlocked t (\m _ -> return $ Just m) (\_ _ -> return Nothing)
 
 class Reduce t where
@@ -310,11 +343,11 @@ instance Reduce Sort where
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
         UnivSort s' -> do
           s' <- reduce' s'
-          ui <- univInf
-          caseMaybe (univSort' ui s') (return $ UnivSort s') reduce'
+          caseMaybe (univSort' s') (return $ UnivSort s') reduce'
         Prop s'    -> Prop <$> reduce' s'
         Type s'    -> Type <$> reduce' s'
-        Inf        -> return Inf
+        Inf f n    -> return $ Inf f n
+        SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
@@ -327,7 +360,7 @@ instance Reduce Elim where
 
 instance Reduce Level where
   reduce'  (Max m as) = levelMax m <$> mapM reduce' as
-  reduceB' (Max m as) = fmap (levelMax m) . traverse id <$> traverse reduceB' as
+  reduceB' (Max m as) = fmap (levelMax m) . blockAny <$> traverse reduceB' as
 
 instance Reduce PlusLevel where
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
@@ -336,8 +369,9 @@ instance Reduce LevelAtom where
   reduceB' l = case l of
     MetaLevel m vs   -> fromTm (MetaV m vs)
     NeutralLevel r v -> return $ NotBlocked r $ NeutralLevel r v
-    BlockedLevel m v ->
-      ifM (isInstantiatedMeta m) (fromTm v) (return $ Blocked m $ BlockedLevel m v)
+    BlockedLevel b v -> instantiate' b >>= \ case
+      b | b == alwaysUnblock -> fromTm v
+        | otherwise          -> return $ Blocked b $ BlockedLevel b v
     UnreducedLevel v -> fromTm v
     where
       fromTm v = do
@@ -398,8 +432,8 @@ reduceIApply = reduceIApply' reduceB'
 blockedOrMeta :: Blocked Term -> Blocked ()
 blockedOrMeta r =
   case r of
-    Blocked m _              -> Blocked m ()
-    NotBlocked _ (MetaV m _) -> Blocked m ()
+    Blocked b _              -> Blocked b ()
+    NotBlocked _ (MetaV m _) -> blocked_ m
     NotBlocked i _           -> NotBlocked i ()
 
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
@@ -480,7 +514,7 @@ slowReduceTerm v = do
       reduceNat v@(Con c ci []) = do
         mz  <- getBuiltin' builtinZero
         case v of
-          _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
+          _ | Just v == mz  -> return $ Lit $ LitNat 0
           _                 -> return v
       reduceNat v@(Con c ci [Apply a]) | visible a && isRelevant a = do
         ms  <- getBuiltin' builtinSuc
@@ -488,9 +522,9 @@ slowReduceTerm v = do
           _ | Just (Con c ci []) == ms -> inc <$> reduce' (unArg a)
           _                         -> return v
           where
-            inc w = case w of
-              Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
-              _                -> Con c ci [Apply $ defaultArg w]
+            inc = \case
+              Lit (LitNat n) -> Lit $ LitNat $ n + 1
+              w              -> Con c ci [Apply $ defaultArg w]
       reduceNat v = return v
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
@@ -565,6 +599,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
+    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
     _  -> do
       if (RecursiveReductions `SmallSet.member` allowed) ||
          (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
@@ -591,16 +626,17 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
               let es1' = map (fmap Apply) args1'
               if null cls && null rewr then do
                 noReduction $ applyE (Def f []) <$> do
-                  traverse id $
-                    map mredToBlocked es1' ++ map notBlocked es2
+                  blockAll $ map mredToBlocked es1' ++ map notBlocked es2
                else
                 reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls mcc rewr
             YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
       where
           ar  = primFunArity pf
-          mredToBlocked :: MaybeReduced a -> Blocked a
-          mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
-          mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
+
+          mredToBlocked :: IsMeta t => MaybeReduced t -> Blocked t
+          mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
+          mredToBlocked (MaybeRed (Reduced NotBlocked{}) e) | Just x <- isMeta e = e <$ blocked_ x -- reduced metas should be blocked
+          mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
     reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
@@ -671,7 +707,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
       abstractMode <- envAbstractMode <$> askTC
       isAbstract <- treatAbstractly f
       traceSLn "tc.inj.reduce" 50 (
-        "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
+        "reduceHead: we are in " ++ show abstractMode++ "; " ++ prettyShow f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
         ) $ do
       let v0  = Def f []
@@ -684,7 +720,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ prettyShow f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
@@ -731,7 +767,7 @@ appDefE v cc rewr es = do
   r <- matchCompiledE cc es
   case r of
     YesReduction simpl t -> return $ YesReduction simpl t
-    NoReduction es'      -> rewrite (void es') v rewr (ignoreBlocking es')
+    NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
 appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
@@ -750,7 +786,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
         -- the remaining clauses (see Issue 907).
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> rewrite (NotBlocked MissingClauses ()) v rewr es
+        [] -> rewrite (NotBlocked MissingClauses ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
@@ -763,7 +799,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
             let es = es0 ++ es1
             case m of
               No         -> goCls cls es
-              DontKnow b -> rewrite b v rewr es
+              DontKnow b -> rewrite b (applyE v) rewr es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
@@ -771,7 +807,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
                     -- Andreas, 2013-05-19 isn't this done now?
                     let sigma = buildSubstitution __IMPOSSIBLE__ nvars vs
                     return $ YesReduction simpl $ applySubst sigma w `applyE` es1
-                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) v rewr es
+                | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
@@ -802,7 +838,7 @@ instance Reduce Constraint where
   reduce' c@CheckFunDef{}       = return c
   reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
   reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
-  reduce' (UnquoteTactic m t h g) = UnquoteTactic m <$> reduce' t <*> reduce' h <*> reduce' g
+  reduce' (UnquoteTactic t h g) = UnquoteTactic <$> reduce' t <*> reduce' h <*> reduce' g
   reduce' c@CheckMetaInst{}     = return c
 
 instance Reduce CompareAs where
@@ -904,12 +940,11 @@ instance Simplify Sort where
       case s of
         PiSort a s -> piSort <$> simplify' a <*> simplify' s
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> simplify' s
+        UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
         Prop s     -> Prop <$> simplify' s
-        Inf        -> return s
+        Inf _ _    -> return s
+        SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
@@ -947,7 +982,7 @@ instance (Subst t a, Simplify a) => Simplify (Tele a) where
   simplify' (ExtendTel a b) = uncurry ExtendTel <$> simplify' (a, b)
 
 instance Simplify ProblemConstraint where
-  simplify' (PConstr pid c) = PConstr pid <$> simplify' c
+  simplify' (PConstr pid unblock c) = PConstr pid unblock <$> simplify' c
 
 instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
@@ -969,7 +1004,7 @@ instance Simplify Constraint where
   simplify' c@CheckFunDef{}       = return c
   simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
   simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
-  simplify' (UnquoteTactic m t h g) = UnquoteTactic m <$> simplify' t <*> simplify' h <*> simplify' g
+  simplify' (UnquoteTactic t h g) = UnquoteTactic <$> simplify' t <*> simplify' h <*> simplify' g
   simplify' c@CheckMetaInst{}     = return c
 
 instance Simplify CompareAs where
@@ -1058,12 +1093,11 @@ instance Normalise Sort where
       case s of
         PiSort a s -> piSort <$> normalise' a <*> normalise' s
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
-        UnivSort s -> do
-          ui <- univInf
-          univSort ui <$> normalise' s
+        UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
         Type s     -> Type <$> normalise' s
-        Inf        -> return Inf
+        Inf _ _    -> return s
+        SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         MetaS x es -> return s
         DefS d es  -> return s
@@ -1132,7 +1166,7 @@ instance (Subst t a, Normalise a) => Normalise (Tele a) where
   normalise' (ExtendTel a b) = uncurry ExtendTel <$> normalise' (a, b)
 
 instance Normalise ProblemConstraint where
-  normalise' (PConstr pid c) = PConstr pid <$> normalise' c
+  normalise' (PConstr pid unblock c) = PConstr pid unblock <$> normalise' c
 
 instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
@@ -1154,7 +1188,7 @@ instance Normalise Constraint where
   normalise' c@CheckFunDef{}       = return c
   normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
   normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
-  normalise' (UnquoteTactic m t h g) = UnquoteTactic m <$> normalise' t <*> normalise' h <*> normalise' g
+  normalise' (UnquoteTactic t h g) = UnquoteTactic <$> normalise' t <*> normalise' h <*> normalise' g
   normalise' c@CheckMetaInst{}     = return c
 
 instance Normalise CompareAs where
@@ -1270,12 +1304,11 @@ instance InstantiateFull Sort where
         case s of
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
+            SSet n     -> SSet <$> instantiateFull' n
             PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
-            UnivSort s -> do
-              ui <- univInf
-              univSort ui <$> instantiateFull' s
-            Inf        -> return s
+            UnivSort s -> univSort <$> instantiateFull' s
+            Inf _ _    -> return s
             SizeUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
@@ -1316,10 +1349,9 @@ instance InstantiateFull LevelAtom where
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     NeutralLevel r v -> NeutralLevel r <$> instantiateFull' v
-    BlockedLevel m v ->
-      ifM (isInstantiatedMeta m)
-          (UnreducedLevel <$> instantiateFull' v)
-          (BlockedLevel m <$> instantiateFull' v)
+    BlockedLevel b v -> instantiate' b >>= \ case
+      b | b == alwaysUnblock -> UnreducedLevel <$> instantiateFull' v
+        | otherwise          -> BlockedLevel b <$> instantiateFull' v
     UnreducedLevel v -> UnreducedLevel <$> instantiateFull' v
 
 instance InstantiateFull Substitution where
@@ -1358,7 +1390,7 @@ instance InstantiateFull a => InstantiateFull (Closure a) where
         return $ cl { clValue = x }
 
 instance InstantiateFull ProblemConstraint where
-  instantiateFull' (PConstr p c) = PConstr p <$> instantiateFull' c
+  instantiateFull' (PConstr p u c) = PConstr p u <$> instantiateFull' c
 
 instance InstantiateFull Constraint where
   instantiateFull' c = case c of
@@ -1381,7 +1413,7 @@ instance InstantiateFull Constraint where
     c@CheckFunDef{}     -> return c
     HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
     HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
-    UnquoteTactic m t g h -> UnquoteTactic m <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
     c@CheckMetaInst{}   -> return c
 
 instance InstantiateFull CompareAs where
@@ -1421,7 +1453,7 @@ instance InstantiateFull NLPType where
 instance InstantiateFull NLPSort where
   instantiateFull' (PType x) = PType <$> instantiateFull' x
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
-  instantiateFull' PInf      = return PInf
+  instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
 
 instance InstantiateFull RewriteRule where
@@ -1465,6 +1497,7 @@ instance InstantiateFull Defn where
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull' cs
         return $ d { primClauses = cs }
+      PrimitiveSort{} -> return d
 
 instance InstantiateFull ExtLamInfo where
   instantiateFull' e@(ExtLamInfo { extLamSys = sys}) = do

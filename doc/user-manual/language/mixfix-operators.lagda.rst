@@ -11,6 +11,9 @@
 
   infix 4 _≡_
 
+  module M where
+    postulate _∙_ : Bool → Bool → Bool
+
 .. _mixfix-operators:
 
 ****************
@@ -63,6 +66,8 @@ operators:
     nil  : List A
     _∷_ : A → List A → List A
 
+.. _precedence:
+
 Precedence
 ==========
 
@@ -106,11 +111,21 @@ and give it less precedence than
   e-⇒ : false and’ true ⇒ false  ≡  false
   e-⇒ = refl
 
+Fixities can be changed when importing with a ``renaming`` directive::
+
+  open M using (_∙_)
+  open M renaming (_∙_ to infixl 10 _*_)
+
+This code brings two instances of the operator ``_∙_`` in scope:
+
+* the first named ``_∙_`` and with its original fixity
+* the second named ``_*_`` and with the fixity changed to act like a
+  left associative operator of precedence 10.
 
 Associativity
 =============
 
-Consider the expression ``true ⇒ false ⇒ false``. Depending on whether ``_⇒_`` is
+Consider the expression ``true ⇒ false ⇒ false``. Depending on whether ``_⇒_``
 associates to the left or to the right, it can be read as
 ``(false ⇒ true) ⇒ false = false``, or ``false ⇒ (true ⇒ false) = true``,
 respectively.

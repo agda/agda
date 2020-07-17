@@ -8,21 +8,16 @@ module Agda.Utils.Monad
     where
 
 import Control.Applicative  (liftA2)
-import Control.Monad hiding (mapM, forM)
-
-
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
+import Data.Monoid
 
+import Agda.Utils.Applicative
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , MonadError(catchError, throwError)
-  )
-
 import Agda.Utils.Null (ifNotNullM)
 
 import Agda.Utils.Impossible
@@ -178,12 +173,17 @@ partitionM f xs =
 
 -- | Translates 'Maybe' to 'MonadPlus'.
 fromMaybeMP :: MonadPlus m => Maybe a -> m a
-fromMaybeMP = maybe mzero return
+fromMaybeMP = foldA
 
 -- | Generalises the 'catMaybes' function from lists to an arbitrary
 -- 'MonadPlus'.
 catMaybesMP :: MonadPlus m => m (Maybe a) -> m a
-catMaybesMP = (>>= fromMaybeMP)
+catMaybesMP = scatterMP
+
+-- | Branch over elements of a monadic 'Foldable' data structure.
+scatterMP :: (MonadPlus m, Foldable t) => m (t a) -> m a
+scatterMP = (>>= foldA)
+
 
 -- Error monad ------------------------------------------------------------
 
@@ -230,11 +230,3 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
-
--- Read -------------------------------------------------------------------
-
-readM :: (Error e, MonadError e m, Read a) => String -> m a
-readM s = case reads s of
-            [(x,"")]    -> return x
-            _           ->
-              throwError $ strMsg $ "readM: parse error string " ++ s

@@ -8,7 +8,7 @@ open import Data.Nat.LCM
 open import Data.Nat.DivMod hiding (_/_)
 open import Data.Integer as ℤ using (ℤ ; +_)
 
-open import Data.Unit using (⊤ ; tt)
+open import Data.Unit.Polymorphic using (⊤)
 open import Function
 open import Relation.Nullary.Decidable
 
@@ -54,7 +54,7 @@ sec   = record { kilogram = + 0
         False (m ℕ.* n ℕ.≟ 0)
 ≠0-mult ℕ.zero    n         () hn
 ≠0-mult m         0         hm ()
-≠0-mult (ℕ.suc m) (ℕ.suc n) hm hn = tt
+≠0-mult (ℕ.suc m) (ℕ.suc n) hm hn = _
 
 
 ------------------------------------------------
@@ -149,16 +149,16 @@ centi (k , hk # d) {≠0} = _ , ≠0 # d
 deci : (u : unit) {≠0 : False (coeff u div 10 ℕ.≟ 0)} → unit
 deci  (k , hk # d) {≠0} = _ , ≠0 # d
 deca hecto kilo : unit → unit
-deca  (k , hk # d) = 10   ℕ.* k , ≠0-mult 10   k tt hk # d
-hecto (k , hk # d) = 100  ℕ.* k , ≠0-mult 100  k tt hk # d
-kilo  (k , hk # d) = 1000 ℕ.* k , ≠0-mult 1000 k tt hk # d
+deca  (k , hk # d) = 10   ℕ.* k , ≠0-mult 10   k _ hk # d
+hecto (k , hk # d) = 100  ℕ.* k , ≠0-mult 100  k _ hk # d
+kilo  (k , hk # d) = 1000 ℕ.* k , ≠0-mult 1000 k _ hk # d
 
 cst : unit
 cst =
   let dcst = record { kilogram = + 0
                     ; meter    = + 0
                     ; second   = + 0 }
-  in 1 , tt # dcst
+  in 1 , _ # dcst
 
 infix 3 κ_
 
@@ -261,6 +261,5 @@ printPoint : point → IO ⊤
 printPoint p = putStrLn ((Nat.show (val (x p))) +s+ ";" +s+ Nat.show (val (y p)))
 
 main : IO.Primitive.IO ⊤
-main = run (♯ (mapM printPoint (Codata.Musical.Colist.fromList trace)) >> (♯ (return tt)))
+main = run (♯ (mapM printPoint (Codata.Musical.Colist.fromList trace)) >> (♯ (return _)))
   where trace = V.toList $ throw 15 ⟨ 1 ∶ s ⟩ base
-

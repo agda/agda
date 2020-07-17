@@ -6,10 +6,6 @@
   open import Agda.Builtin.Equality public
   open import Agda.Primitive
 
-  data Maybe (A : Set) : Set where
-    just : A → Maybe A
-    nothing : Maybe A
-
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
@@ -461,6 +457,30 @@ know to compile the List type to Haskell lists.
   [_] : ∀ {a} {A : Set a} → A → List A
   [ x ] = x ∷ []
 
+.. _built-in-maybe:
+
+Maybe
+-----
+
+.. code-block:: agda
+
+  module Agda.Builtin.Maybe
+
+Built-in maybe type is bound using the ``MAYBE`` built-in::
+
+  data Maybe {a} (A : Set a) : Set a where
+    nothing : Maybe A
+    just    : A → Maybe A
+  {-# BUILTIN MAYBE Maybe #-}
+
+The constructors are bound automatically when binding the type. Maybe is not
+required to be level polymorphic; ``Maybe : Set → Set`` is also accepted.
+
+As with list, the effect of binding the ``MAYBE`` built-in is to let
+you use primitive functions working with maybes, such as ``primStringUncons``
+that returns the head and tail of a string (if it is non empty), and letting
+the :ref:`GHC backend <ghc-backend>` know to compile the Maybe type to Haskell
+maybes.
 
 .. _built-in-char:
 
@@ -536,6 +556,7 @@ functions are available on strings (given suitable bindings for
 :ref:`List <built-in-list>`)::
 
   primitive
+    primStringUncons   : String → Maybe (Σ Char (λ _ → String))
     primStringToList   : String → List Char
     primStringFromList : List Char → String
     primStringAppend   : String → String → String
@@ -544,10 +565,11 @@ functions are available on strings (given suitable bindings for
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
 
-Converting to a list is injective, and its proof::
+Converting to and from a list is injective, and their proofs::
 
   primitive
     primStringToListInjective : ∀ a b → primStringToList a ≡ primStringToList b → a ≡ b
+    primStringFromListInjective : ∀ a b → primStringFromList a ≡ primStringFromList b → a ≡ b
 
 can found in the ``Properties`` module.
 
@@ -628,6 +650,30 @@ object::
                  else nothing
 
 With this definition ``eqString "foo" "foo"`` computes to ``just refl``.
+
+
+Sorts
+-----
+
+The primitive sorts used in Agda's type system (`Set`, `Prop`, and
+`Setω`) are declared using ``BUILTIN`` pragmas in the
+``Agda.Primitive`` module. These pragmas should not be used directly
+in other modules, but it is possible to rename these builtin sorts
+when importing ``Agda.Primitive``.
+
+..
+  This code cannot be typechecked because the identifiers are already bound
+  in Agda.Primitive and are auto-imported.
+
+.. code-block:: agda
+
+  {-# BUILTIN TYPE Set #-}
+  {-# BUILTIN PROP Prop #-}
+  {-# BUILTIN SETOMEGA Setω #-}
+
+The primitive sorts `Set` and `Prop` are automatically imported at the
+top of every top-level Agda module, unless the
+``--no-import-sorts`` flag is enabled.
 
 Universe levels
 ---------------

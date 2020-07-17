@@ -1,11 +1,9 @@
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Prelude hiding (mapM)
-
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State.Strict (gets, modify)
 
 
@@ -26,8 +24,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text.Lazy (Text)
-import Data.Traversable ( mapM )
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
 import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -46,17 +44,12 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.Empty (Empty)
+import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
-
-
-import Agda.Utils.Except
-
-import Agda.Utils.Empty (Empty)
-import qualified Agda.Utils.Empty as Empty
-
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -65,9 +58,13 @@ instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
-instance EmbPrj Text where
-  icod_   = icodeX textD textC
-  value i = (! i) `fmap` gets textE
+instance EmbPrj TL.Text where
+  icod_   = icodeX lTextD lTextC
+  value i = (! i) `fmap` gets lTextE
+
+instance EmbPrj T.Text where
+  icod_   = icodeX sTextD sTextC
+  value i = (! i) `fmap` gets sTextE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
@@ -153,11 +150,11 @@ instance EmbPrj Bool where
     valu _   = malformed
 
 instance EmbPrj FileType where
-  icod_ AgdaFileType = icodeN' IsData
-  icod_ MdFileType   = icodeN 0 IsRecord
-  icod_ RstFileType  = icodeN 1 IsRecord
-  icod_ TexFileType  = icodeN 2 IsRecord
-  icod_ OrgFileType  = icodeN 3 IsRecord
+  icod_ AgdaFileType = icodeN'  AgdaFileType
+  icod_ MdFileType   = icodeN 0 MdFileType
+  icod_ RstFileType  = icodeN 1 RstFileType
+  icod_ TexFileType  = icodeN 2 TexFileType
+  icod_ OrgFileType  = icodeN 3 OrgFileType
 
   value = vcase $ \case
     []  -> valuN AgdaFileType
@@ -165,15 +162,6 @@ instance EmbPrj FileType where
     [1] -> valuN RstFileType
     [2] -> valuN TexFileType
     [3] -> valuN OrgFileType
-    _   -> malformed
-
-instance EmbPrj DataOrRecord where
-  icod_ IsData   = icodeN' IsData
-  icod_ IsRecord = icodeN 0 IsRecord
-
-  value = vcase $ \case
-    []  -> valuN IsData
-    [0] -> valuN IsRecord
     _   -> malformed
 
 instance EmbPrj AbsolutePath where
@@ -390,10 +378,10 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e) = icodeMemo nameD nameC a $
-    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d e
+  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+    icodeN' (\ a b c -> A.Name a b c . underlyingRange) a b c (SerialisedRange d) e f
 
-  value = valueN (\a b c -> A.Name a b (underlyingRange c))
+  value = valueN (\a b c d -> A.Name a b c (underlyingRange d))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b
@@ -434,14 +422,16 @@ instance EmbPrj a => EmbPrj (Arg a) where
 
   value = valueN Arg
 
-instance EmbPrj HasEta where
-  icod_ YesEta = icodeN' YesEta
-  icod_ NoEta  = icodeN 1 NoEta
+instance EmbPrj a => EmbPrj (HasEta' a) where
+  icod_ YesEta    = icodeN' YesEta
+  icod_ (NoEta a) = icodeN' NoEta a
 
   value = vcase valu where
     valu []  = valuN YesEta
-    valu [1] = valuN NoEta
+    valu [a] = valuN NoEta a
     valu _   = malformed
+
+instance EmbPrj PatternOrCopattern
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive
@@ -601,22 +591,22 @@ instance EmbPrj ProjOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b)   = icodeN' LitNat a b
-  icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
-  icod_ (LitString a b)   = icodeN 2 LitString a b
-  icod_ (LitChar   a b)   = icodeN 3 LitChar a b
-  icod_ (LitQName  a b)   = icodeN 5 LitQName a b
-  icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
-  icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
+  icod_ (LitNat    a)   = icodeN' LitNat a
+  icod_ (LitFloat  a)   = icodeN 1 LitFloat a
+  icod_ (LitString a)   = icodeN 2 LitString a
+  icod_ (LitChar   a)   = icodeN 3 LitChar a
+  icod_ (LitQName  a)   = icodeN 5 LitQName a
+  icod_ (LitMeta   a b) = icodeN 6 LitMeta a b
+  icod_ (LitWord64 a)   = icodeN 7 LitWord64 a
 
   value = vcase valu where
-    valu [a, b]       = valuN LitNat    a b
-    valu [1, a, b]    = valuN LitFloat  a b
-    valu [2, a, b]    = valuN LitString a b
-    valu [3, a, b]    = valuN LitChar   a b
-    valu [5, a, b]    = valuN LitQName  a b
-    valu [6, a, b, c] = valuN LitMeta   a b c
-    valu [7, a, b]    = valuN LitWord64 a b
+    valu [a]       = valuN LitNat    a
+    valu [1, a]    = valuN LitFloat  a
+    valu [2, a]    = valuN LitString a
+    valu [3, a]    = valuN LitChar   a
+    valu [5, a]    = valuN LitQName  a
+    valu [6, a, b] = valuN LitMeta   a b
+    valu [7, a]    = valuN LitWord64 a
     valu _            = malformed
 
 instance EmbPrj IsAbstract where

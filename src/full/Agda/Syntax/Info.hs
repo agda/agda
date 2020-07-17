@@ -12,6 +12,7 @@ module Agda.Syntax.Info where
 import Prelude hiding (null)
 
 import Data.Data (Data)
+import Data.Semigroup (Semigroup)
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
@@ -240,7 +241,7 @@ instance Null LHSInfo where
 -- | For a general pattern we remember the source code position.
 newtype PatInfo
   = PatRange Range
-  deriving (Data, Eq, Null, Show, SetRange, HasRange, KillRange)
+  deriving (Data, Eq, Null, Semigroup, Monoid, Show, SetRange, HasRange, KillRange)
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo

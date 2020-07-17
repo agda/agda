@@ -5,7 +5,7 @@
 open import Common.Size
 
 record R (i : Size) : Set where
-  inductive
+  inductive; pattern
   constructor c
   field
     j : Size< i

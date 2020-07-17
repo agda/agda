@@ -1,6 +1,7 @@
 Issue3538-2.agda:19,13-16
-Confluence check failed: unD (c ((_ : Nat) → Nat)) reduces to both
-(_ : Nat) → Nat and unD (c (Nat → Bool))
-which are not equal because Nat != Bool
+Global confluence check failed: unD (c ((_ : Nat) → Nat)) can be
+rewritten to either (_ : Nat) → Nat or unD (c (Nat → Bool)).
+Possible fix: add a rewrite rule with left-hand side
+unD (c ((_ : Nat) → Nat)) to resolve the ambiguity.
 when checking confluence of the rewrite rule
 Issue3538-2.unD-clause1 with rew

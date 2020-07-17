@@ -2,16 +2,15 @@
 
 module Agda.Interaction.MakeCase where
 
-import Prelude hiding (mapM, mapM_, null)
+import Prelude hiding (null)
 
-import Control.Monad hiding (mapM, mapM_, forM)
+import Control.Monad
 
 import Data.Either
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
-import Data.Traversable (mapM, forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -44,6 +43,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -137,7 +137,7 @@ parseVariables f tel ii rng ss = do
             -- case the instantiation could as well be the other way
             -- around, so the new clauses will still make sense.
             (Var i [] , PatternBound) -> do
-              reportSLn "interaction.case" 30 $ "resolved variable " ++ show x ++ " = " ++ show i
+              reportSLn "interaction.case" 30 $ "resolved variable " ++ prettyShow x ++ " = " ++ show i
               when (i < nlocals) failCaseLet
               return (i - nlocals , C.InScope)
             (Var i [] , LambdaBound)
@@ -151,7 +151,7 @@ parseVariables f tel ii rng ss = do
         UnknownName -> do
           let xs' = filter ((s ==) . fst) xs
           when (null xs') $ failUnbound
-          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ show xs'
+          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ prettyShow xs'
           -- Andreas, 2018-05-28, issue #3095
           -- We want to act on an ambiguous name if it corresponds to only one local index.
           let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
@@ -318,7 +318,12 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return cov
     checkClauseIsClean ipCl
-    (f, casectxt,) <$> mapM (makeAbstractClause f rhs ell) scs
+    (f, casectxt,) <$> do
+      -- Andreas, 2020-05-18, issue #4536
+      -- When result splitting yields no clauses, replace rhs by @record{}@.
+      if null scs then
+        return [ A.spineToLhs $ absCl{ A.clauseRHS = makeRHSEmptyRecord rhs } ]
+      else mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
     xs <- parseVariables f tel hole rng vars
@@ -428,6 +433,15 @@ makePatternVarsVisible is sc@SClause{ scPats = ps } =
       -- or passing the parsed name along and comparing it with @x@
       Arg (setOrigin CaseSplit ai) $ Named n $ VarP (PatternInfo PatOSplit []) $ SplitPatVar x i ls
   mkVis np = np
+
+-- | If a copattern split yields no clauses, we must be at an empty record type.
+--   In this case, replace the rhs by @record{}@
+makeRHSEmptyRecord :: A.RHS -> A.RHS
+makeRHSEmptyRecord = \case
+  A.RHS{}            -> A.RHS{ rhsExpr = A.Rec empty empty, rhsConcrete = Nothing }
+  rhs@A.RewriteRHS{} -> rhs{ A.rewriteRHS = makeRHSEmptyRecord $ A.rewriteRHS rhs }
+  A.AbsurdRHS        -> __IMPOSSIBLE__
+  A.WithRHS{}        -> __IMPOSSIBLE__
 
 -- | Make clause with no rhs (because of absurd match).
 

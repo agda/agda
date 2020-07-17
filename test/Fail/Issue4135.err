@@ -1,0 +1,4 @@
+Issue4135.agda:21,6-7
+Can't resolve overloaded constructors targeting the same datatype
+(Issue4135.Foo.D): Issue4135.True.c Issue4135.False.c
+when checking that the pattern c has type Foo.D ?0

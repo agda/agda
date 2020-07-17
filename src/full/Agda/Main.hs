@@ -3,6 +3,7 @@
 -}
 module Agda.Main where
 
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Maybe
@@ -10,6 +11,7 @@ import Data.Maybe
 import System.Environment
 import System.Console.GetOpt
 
+import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -33,13 +35,12 @@ import Agda.TypeChecking.Pretty
 import Agda.Compiler.Backend
 import Agda.Compiler.Builtin
 
-import Agda.Utils.Monad
-import Agda.Utils.String
-
 import Agda.VersionCommit
 
+import Agda.Utils.Monad
+import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
+
 import Agda.Utils.Impossible
 
 -- | The main function
@@ -111,9 +112,11 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             printStatistics 1 Nothing =<< useTC lensAccumStatistics
   where
     checkFile = Just <$> do
-      when (optInteractive opts) $ liftIO $ putStr splashScreen
-      interaction $ do
+      when (optInteractive opts) $ do
         setCommandLineOptions opts
+        liftIO $ putStr splashScreen
+      interaction $ do
+        unless (optInteractive opts) $ setCommandLineOptions opts
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).
@@ -123,7 +126,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
         if not hasFile then return Nothing else do
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
-                     else Imp.TypeCheck
+                     else Imp.TypeCheck RegularInteraction
 
           file    <- SourceFile <$> getInputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file

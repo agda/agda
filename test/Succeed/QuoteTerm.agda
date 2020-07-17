@@ -30,3 +30,13 @@ test₄ : quoteTerm (zero ∶ ℕ) ≡
              vArg (con (quote zero) []) ∷
              [])
 test₄ = refl
+
+-- Andreas, 2020-06-05, issue #4734
+-- Test that primShowQName prints something reasonable
+-- for quoted names.
+
+issue4734 : primShowQName (quote ℕ) ≡ "Agda.Builtin.Nat.Nat"
+issue4734 = refl
+
+-- Not sure this response is very reasonable, since
+-- it suggest a qualified name that does not exist.

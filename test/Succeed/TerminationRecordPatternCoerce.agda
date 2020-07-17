@@ -23,7 +23,7 @@ subst refl x = x
 -- Thorsten suggests on the Agda list  thread "Coinductive families"
 -- to encode lists as records
 record List (A : Set) : Set where
-  inductive
+  inductive; pattern
   constructor list
   field
     isCons : Bool
@@ -45,6 +45,7 @@ f .false (list false h t) refl = unit
 f .true (list true h t) refl = f (isCons tl) tl refl
   where tl : List _
         tl = t unit
+        {-# INLINE tl #-}
 {- dot patterns inside of record patterns not supported!
 f true (list .true h t) refl = f (isCons tl) tl refl
   where tl : List _
@@ -57,6 +58,7 @@ f' false l p = unit
 f' true (list b' h t) p = f' (isCons tl) tl refl
    where tl : List _
          tl = t (subst p {T} unit)
+         {-# INLINE tl #-}
 
 -- UPDATE: both of these are fine, since non-eta records patterns are not
 -- translated to projections.

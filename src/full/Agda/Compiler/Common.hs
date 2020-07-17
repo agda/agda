@@ -14,7 +14,7 @@ import Data.Semigroup
 #endif
 
 import Control.Monad
-import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
+import Control.Monad.State
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I

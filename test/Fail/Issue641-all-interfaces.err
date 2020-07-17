@@ -36,6 +36,9 @@ Checking Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubica
 Creating interface for Agda.Primitive.Cubical.
   visited: Agda.Primitive
 Starting scope checking.
+Scope checking Agda.Primitive
+  visited: Agda.Primitive
+  Already visited Agda.Primitive
 Finished scope checking.
 Starting highlighting from scope.
 Finished highlighting from scope.
@@ -45,6 +48,7 @@ Starting highlighting from type info.
 Finished highlighting from type info.
 Starting serialization.
 Building interface...
+  Already visited Agda.Primitive
   instantiating all meta variables
   interface complete
 Finished serialization.
@@ -55,7 +59,8 @@ Wrote interface file.
 Finished (or skipped) writing to interface file.
 Finished Agda.Primitive.Cubical.
   using stored version of agda-default-include-path/Agda/Primitive/Cubical.agdai
-  imports: []
+  imports: [(Agda.Primitive, 14631793092877554489)]
+  Already visited Agda.Primitive
   New module. Let's check it out.
 Merging interface
   Now we've looked at Agda.Primitive.Cubical
@@ -67,6 +72,9 @@ Checking Issue641-all-interfaces (Issue641-all-interfaces.agda).
 Creating interface for Issue641-all-interfaces.
   visited: Agda.Primitive, Agda.Primitive.Cubical
 Starting scope checking.
+Scope checking Agda.Primitive
+  visited: Agda.Primitive, Agda.Primitive.Cubical
+  Already visited Agda.Primitive
 Issue641-all-interfaces.agda:9,6-18
 No module NoSuchModule in scope
 when scope checking the declaration

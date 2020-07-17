@@ -121,10 +121,10 @@ conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (arg
 conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
 conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
   let failure err = flip trace err $
-        "conApp: constructor " ++ show c ++
-        " with fields\n" ++ unlines (map (("  " ++) . show) fs) ++
+        "conApp: constructor " ++ prettyShow c ++
+        " with fields\n" ++ unlines (map (("  " ++) . prettyShow) fs) ++
         " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
-        " projected by " ++ show f
+        " projected by " ++ prettyShow f
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
       stuck err = fk err (Con ch ci args) [Proj o f]
       -- Recurse using the instance for 't', see @applyTermE@
@@ -358,6 +358,7 @@ instance Apply Defn where
       d { conPars = np - size args }
     Primitive{ primClauses = cs } ->
       d { primClauses = apply cs args }
+    PrimitiveSort{} -> d
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -590,7 +591,7 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply t args                    =
-  trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
+  trace ("piApply t = " ++ prettyShow t ++ "\n  args = " ++ prettyShow args) __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Abstraction
@@ -691,6 +692,7 @@ instance Abstract Defn where
       d { conPars = np + size tel }
     Primitive{ primClauses = cs } ->
       d { primClauses = abstract tel cs }
+    PrimitiveSort{} -> d
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ drop n ts
@@ -815,11 +817,12 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
-    Inf        -> Inf
+    Inf f n    -> Inf f n
+    SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
-    UnivSort s -> coerce $ univSort Nothing $ coerce $ sub s
+    UnivSort s -> coerce $ univSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     DummyS{}   -> s
@@ -920,7 +923,7 @@ instance Subst NLPat NLPSort where
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
-    PInf      -> PInf
+    PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
 
 instance Subst NLPat RewriteRule where
@@ -966,7 +969,7 @@ instance Subst Term Constraint where
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
-    UnquoteTactic m t h g    -> UnquoteTactic m (rf t) (rf h) (rf g)
+    UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
       rf x = applySubst rho x
@@ -1427,37 +1430,58 @@ instance (Subst t a, Ord a) => Ord (Elim' a) where
 ---------------------------------------------------------------------------
 
 -- | @univSort' univInf s@ gets the next higher sort of @s@, if it is
---   known (i.e. it is not just @UnivSort s@). @univInf@ is returned
---   as the sort of @Inf@.
+--   known (i.e. it is not just @UnivSort s@).
 --
 --   Precondition: @s@ is reduced
-univSort' :: Maybe Sort -> Sort -> Maybe Sort
-univSort' univInf (Type l) = Just $ Type $ levelSuc l
-univSort' univInf (Prop l) = Just $ Type $ levelSuc l
-univSort' univInf Inf      = univInf
-univSort' univInf s        = Nothing
+univSort' :: Sort -> Maybe Sort
+univSort' (Type l) = Just $ Type $ levelSuc l
+univSort' (Prop l) = Just $ Type $ levelSuc l
+univSort' (Inf f n) = Just $ Inf f $ 1 + n
+univSort' (SSet l) = Just $ SSet $ levelSuc l
+univSort' SizeUniv = Just $ Inf IsFibrant 0
+univSort' s        = Nothing
 
-univSort :: Maybe Sort -> Sort -> Sort
-univSort univInf s = fromMaybe (UnivSort s) $ univSort' univInf s
+univSort :: Sort -> Sort
+univSort s = fromMaybe (UnivSort s) $ univSort' s
 
-univInf :: (HasOptions m) => m (Maybe Sort)
-univInf =
-  ifM ((optOmegaInOmega <$> pragmaOptions) `or2M` typeInType)
-  {-then-} (return $ Just Inf)
-  {-else-} (return Nothing)
+-- | Returns @Nothing@ for unknown (meta) sorts, and otherwise returns
+--   @Just (b,f)@ where @b@ indicates smallness and @f@ fibrancy.
+--   I.e., @b@ is @True@ for (relatively) small sorts like @Set l@ and
+--   @Prop l@, and instead @b@ is @False@ for large sorts such as @Setω@.
+isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
+isSmallSort Type{}     = Just (True,IsFibrant)
+isSmallSort Prop{}     = Just (True,IsFibrant)
+isSmallSort SizeUniv   = Just (True,IsFibrant)
+isSmallSort (Inf f _)  = Just (False,f)
+isSmallSort SSet{}     = Just (True,IsStrict)
+isSmallSort MetaS{}    = Nothing
+isSmallSort FunSort{}  = Nothing
+isSmallSort PiSort{}   = Nothing
+isSmallSort UnivSort{} = Nothing
+isSmallSort DefS{}     = Nothing
+isSmallSort DummyS{}   = Nothing
+
+fibrantLub :: IsFibrant -> IsFibrant -> IsFibrant
+fibrantLub IsStrict a = IsStrict
+fibrantLub a IsStrict = IsStrict
+fibrantLub a b = a
 
 -- | Compute the sort of a function type from the sorts of its
 --   domain and codomain.
 funSort' :: Sort -> Sort -> Maybe Sort
 funSort' a b = case (a, b) of
-  (Inf           , _            ) -> Just Inf
-  (_             , Inf          ) -> Just Inf
-  (Type a , Type b) -> Just $ Type $ levelLub a b
+  (Inf af m      , Inf bf n     ) -> Just $ Inf (fibrantLub af bf) $ max m n
+  (Inf af m      , b            ) | Just (True,bf) <- isSmallSort b -> Just $ Inf (fibrantLub af bf) m
+  (a             , Inf bf n     ) | Just (True,af) <- isSmallSort a -> Just $ Inf (fibrantLub af bf) n
+  (Type a        , Type b       ) -> Just $ Type $ levelLub a b
   (SizeUniv      , b            ) -> Just b
-  (_             , SizeUniv     ) -> Just SizeUniv
-  (Prop a , Type b) -> Just $ Type $ levelLub a b
-  (Type a , Prop b) -> Just $ Prop $ levelLub a b
-  (Prop a , Prop b) -> Just $ Prop $ levelLub a b
+  (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
+  (Prop a        , Type b       ) -> Just $ Type $ levelLub a b
+  (Type a        , Prop b       ) -> Just $ Prop $ levelLub a b
+  (Prop a        , Prop b       ) -> Just $ Prop $ levelLub a b
+  (SSet a        , SSet b       ) -> Just $ SSet $ levelLub a b
+  (Type a        , SSet b       ) -> Just $ SSet $ levelLub a b
+  (SSet a        , Type b       ) -> Just $ SSet $ levelLub a b
   (a             , b            ) -> Nothing
 
 funSort :: Sort -> Sort -> Sort
@@ -1469,11 +1493,14 @@ piSort' :: Dom Type -> Abs Sort -> Maybe Sort
 piSort' a      (NoAbs _ b) = funSort' (getSort a) b
 piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
   Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
-  Just o -> case o of
-    StronglyRigid -> Just Inf
-    Unguarded     -> Just Inf
-    WeaklyRigid   -> Just Inf
+  Just o | Just (True, fa) <- isSmallSort (getSort a), Just (True, fb) <- isSmallSort b -> case o of
+    StronglyRigid -> Just $ Inf (fibrantLub fa fb) 0
+    Unguarded     -> Just $ Inf (fibrantLub fa fb) 0
+    WeaklyRigid   -> Just $ Inf (fibrantLub fa fb) 0
     Flexible _    -> Nothing
+  Just o | Inf fa n <- getSort a , Just (True, fb) <- isSmallSort b -> Just $ Inf (fibrantLub fa fb) n
+  Just _ -> Nothing
+
 -- Andreas, 2019-06-20
 -- KEEP the following commented out code for the sake of the discussion on irrelevance.
 -- piSort' a bAbs@(Abs   _ b) = case occurrence 0 b of

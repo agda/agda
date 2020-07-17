@@ -29,6 +29,15 @@ instance EmbPrj Scope where
 
   value = valueN Scope
 
+instance EmbPrj DataOrRecordModule where
+  icod_ IsDataModule   = icodeN' IsDataModule
+  icod_ IsRecordModule = icodeN 0 IsRecordModule
+
+  value = vcase $ \case
+    []  -> valuN IsDataModule
+    [0] -> valuN IsRecordModule
+    _   -> malformed
+
 instance EmbPrj NameSpaceId where
   icod_ PublicNS        = icodeN' PublicNS
   icod_ PrivateNS       = icodeN 1 PrivateNS
@@ -96,6 +105,15 @@ instance EmbPrj NameMetadata where
     valu [a] = valuN GeneralizedVarsMetadata a
     valu _   = malformed
 
+instance EmbPrj A.Suffix where
+  icod_ A.NoSuffix   = icodeN' A.NoSuffix
+  icod_ (A.Suffix a) = icodeN' A.Suffix a
+
+  value = vcase valu where
+    valu []  = valuN A.NoSuffix
+    valu [a] = valuN A.Suffix a
+    valu _   = malformed
+
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icodeN' AbsModule a b
 
@@ -156,7 +174,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.AsP p a b)         = icodeN 4 (A.AsP p) a b
   icod_ (A.DotP p a)          = icodeN 5 (A.DotP p) a
   icod_ t@(A.AbsurdP _)       = icodeN 6 t
-  icod_ (A.LitP a)            = icodeN 7 A.LitP a
+  icod_ (A.LitP i a)          = icodeN 7 (A.LitP i) a
   icod_ (A.ProjP p a b)       = icodeN 8 (A.ProjP p) a b
   icod_ (A.PatternSynP p a b) = icodeN 9 (A.PatternSynP p) a b
   icod_ (A.RecP p a)          = icodeN 10 (A.RecP p) a
@@ -171,7 +189,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [4, a, b]    = valuN (A.AsP i) a b
     valu [5, a]       = valuN (A.DotP i) a
     valu [6]          = valuN (A.AbsurdP i)
-    valu [7, a]       = valuN (A.LitP) a
+    valu [7, a]       = valuN (A.LitP i) a
     valu [8, a, b]    = valuN (A.ProjP i) a b
     valu [9, a, b]    = valuN (A.PatternSynP i) a b
     valu [10, a]      = valuN (A.RecP i) a

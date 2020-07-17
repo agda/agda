@@ -32,7 +32,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange)
-import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
+import Agda.TypeChecking.Datatypes ( isDataOrRecordType, DataOrRecord(..) )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
@@ -161,11 +161,12 @@ checkStrictlyPositive mi qset = do
             _ -> return ()
 
         -- if we find an unguarded record, mark it as such
-        when (dr == IsRecord) $
-          case loop of
+        case dr of
+          IsData -> return ()
+          IsRecord pat -> case loop of
             Just o | o <= StrictPos -> do
               reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
-              unguardedRecord q
+              unguardedRecord q pat
               checkInduction q
             -- otherwise, if the record is recursive, mark it as well
             Just o | o <= GuardPos -> do
@@ -203,7 +204,7 @@ checkStrictlyPositive mi qset = do
       def <- theDef <$> getConstInfo q
       return $ case def of
         Datatype{dataClause = Nothing} -> Just IsData
-        Record  {recClause  = Nothing} -> Just IsRecord
+        Record  {recClause  = Nothing, recPatternMatching } -> Just $ IsRecord recPatternMatching
         _ -> Nothing
 
     -- Set the mutually recursive identifiers for a SCC.
@@ -255,6 +256,7 @@ checkStrictlyPositive mi qset = do
         GeneralizableVar{} -> False
         AbstractDefn{}     -> False
         Primitive{}        -> False
+        PrimitiveSort{}    -> False
         Constructor{}      -> False
         Function{}         -> True
         Datatype{}         -> True
@@ -586,6 +588,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Axiom{}            -> mempty
     DataOrRecSig{}     -> mempty
     Primitive{}        -> mempty
+    PrimitiveSort{}    -> mempty
     GeneralizableVar{} -> mempty
     AbstractDefn{}     -> __IMPOSSIBLE__
 

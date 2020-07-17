@@ -115,7 +115,7 @@ module _ {ℓ ℓ'} {A : I → Set ℓ} {B : ∀ i → A i → Set ℓ'}
 
 
   compPi' : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) → C i1
-  compPi' φ u a = primComp C u (ouc a)
+  compPi' φ u a = primComp (\ i → C i) (\ i → u i) (ouc a)
 
   test-compPi : (φ : I) → (u : ∀ i → Partial φ (C i)) → (a : C i0 [ φ ↦ u i0 ]) →
                   compPi φ u a ≡ compPi' φ u a
@@ -144,7 +144,7 @@ module TranspPathP {ℓ} {A : I → I → Set ℓ} (u : ∀ i → A i i0)(v : �
                              ; i (j = i1) → v i })
                           (p0 j)
 
- test-compPathP : transpPathP ≡ primTransp C i0 p0
+ test-compPathP : transpPathP ≡ primTransp (\ i → C i) i0 p0
  test-compPathP = refl
 
 module RecordComp where
@@ -196,7 +196,7 @@ module RecordComp where
     φ = i0
     transpR : Z i0 → Z i1
     fst (transpR w0) =
-      primTransp A φ (fst w0)
+      primTransp (\ i → A i) φ (fst w0)
     snd (transpR w0) = primTransp (\ i → B i (a i)) φ (snd w0)
        where
          a = transpFill {A' = A i0} φ (λ i → inc (A i)) (fst w0)
@@ -210,13 +210,13 @@ module RecordComp where
                   (let ℓ = _ ; Z : I → Set ℓ ; Z i = R(A i)(B i)(C i))
                   (a : Z i0) where
 
-    test-transpR-fst : fst (transpR {A = A} {B} {C} a) ≡ fst (primTransp Z i0 a)
+    test-transpR-fst : fst (transpR {A = A} {B} {C} a) ≡ fst (primTransp (\ i → Z i) i0 a)
     test-transpR-fst = refl
 
-    test-transpR-snd : snd (transpR {A = A} {B} {C} a) ≡ snd (primTransp Z i0 a)
+    test-transpR-snd : snd (transpR {A = A} {B} {C} a) ≡ snd (primTransp (\ i → Z i) i0 a)
     test-transpR-snd = refl
 
-    test-transpR-trd : trd (transpR {A = A} {B} {C} a) ≡ trd (primTransp Z i0 a)
+    test-transpR-trd : trd (transpR {A = A} {B} {C} a) ≡ trd (primTransp (\ i → Z i) i0 a)
     test-transpR-trd = refl
 
 

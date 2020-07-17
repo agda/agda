@@ -127,6 +127,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Writer (WriterT(..), MonadWriter(..))
+import Control.Monad.Except
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
@@ -164,7 +165,6 @@ import Agda.TypeChecking.Records
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -240,11 +240,11 @@ unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [], Right (idS, rai
 unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
-          , nest 2 $ prettyTCM tel
-          , nest 2 $ addContext tel $ text $ show $ map flexVar flex
-          , nest 2 $ addContext tel $ parens (prettyTCM a)
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM us
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
+          , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
+          , ("flex =" <+>) $ nest 2 $ addContext tel $ text $ show $ map flexVar flex
+          , ("a    =" <+>) $ nest 2 $ addContext tel $ parens (prettyTCM a)
+          , ("us   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM us
+          , ("vs   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
@@ -1042,8 +1042,9 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal Dom{unDom = a} u v <- liftTCM $ eqConstructorForm =<< eqUnLevel =<< reduce (getEqualityUnraised k s)
+  sa <- reduce $ getSort a
   case unEl a of
-    Def d es | Type{} <- getSort a -> do
+    Def d es | Type{} <- sa -> do
       npars <- catMaybesMP $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
@@ -1178,6 +1179,7 @@ injectiveTypeConStrategy k s = do
                 AbstractDefn{} -> False -- True triggers issue #2250
                 Function{}   -> False
                 Primitive{}  -> False
+                PrimitiveSort{} -> __IMPOSSIBLE__
                 GeneralizableVar{} -> __IMPOSSIBLE__
                 Constructor{} -> __IMPOSSIBLE__  -- Never a type!
       let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -1255,11 +1257,13 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyStepM (UnificationResult' UnifyStat
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
     -- Check definitional equality of u and v
     isReflexive <- liftTCM $ addContext (varTel s) $ tryCatch $ do
-      dontAssignMetas $ noConstraints $ equalTerm a u v
+      nonConstraining $ equalTerm a u v
     withoutK <- liftTCM withoutKOption
+    splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
       Just err     -> return $ DontKnow []
-      _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
+      _ | withoutK && not splitOnStrict
+                   -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
@@ -1541,7 +1545,7 @@ solutionStep retry s
   equalTypes <- liftTCM $ addContext (varTel s) $ tryCatch $ do
     reportSDoc "tc.lhs.unify" 45 $ "Equation type: " <+> prettyTCM a
     reportSDoc "tc.lhs.unify" 45 $ "Variable type: " <+> prettyTCM a'
-    dontAssignMetas $ noConstraints $ equalType a a'
+    nonConstraining $ equalType a a'
 
   -- The conditions on the relevances are as follows (see #2640):
   -- - If the type of the equation is relevant, then the solution must be
@@ -1663,8 +1667,7 @@ patternBindingForcedVars forced v = do
             if IntMap.null bound
               then return $ dotP v  -- bound nothing
               else do
-                let cpi = (toConPatternInfo ci) { conPRecord = True,
-                                                  conPLazy   = True } -- Not setting conPType. Is this a problem?
+                let cpi = (toConPatternInfo ci) { conPLazy   = True } -- Not setting conPType. Is this a problem?
                 return $ ConP c cpi $ map (setOrigin Inserted) ps
           | otherwise -> return $ dotP v   -- Higher constructor (es has IApply)
 

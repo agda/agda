@@ -12,7 +12,8 @@ Merging interface
   Check for cycle
   Agda.Primitive.Cubical is up-to-date.
   no stored version, reading agda-default-include-path/Agda/Primitive/Cubical.agdai
-  imports: []
+  imports: [(Agda.Primitive, 14631793092877554489)]
+  Already visited Agda.Primitive
 Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
   New module. Let's check it out.
 Merging interface
@@ -25,6 +26,9 @@ Checking Issue641 (Issue641.agda).
 Creating interface for Issue641.
   visited: Agda.Primitive, Agda.Primitive.Cubical
 Starting scope checking.
+Scope checking Agda.Primitive
+  visited: Agda.Primitive, Agda.Primitive.Cubical
+  Already visited Agda.Primitive
 Issue641.agda:9,6-18
 No module NoSuchModule in scope
 when scope checking the declaration

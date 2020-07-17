@@ -84,7 +84,8 @@ instance PatternFrom () Sort NLPSort where
     case s of
       Type l   -> PType <$> patternFrom r k () l
       Prop l   -> PProp <$> patternFrom r k () l
-      Inf      -> return PInf
+      Inf f n  -> return $ PInf f n
+      SSet l   -> __IMPOSSIBLE__
       SizeUniv -> return PSizeUniv
       PiSort _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
@@ -218,7 +219,7 @@ instance NLPatToTerm NLPType Type where
 instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PType l) = Type <$> nlPatToTerm l
   nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
-  nlPatToTerm PInf      = return Inf
+  nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
@@ -238,7 +239,7 @@ instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
     PType l   -> nlPatVarsUnder k l
     PProp l   -> nlPatVarsUnder k l
-    PInf      -> empty
+    PInf f n  -> empty
     PSizeUniv -> empty
 
 instance NLPatVars NLPat where
@@ -293,7 +294,7 @@ instance GetMatchables NLPSort where
   getMatchables = \case
     PType l   -> getMatchables l
     PProp l   -> getMatchables l
-    PInf      -> empty
+    PInf f n  -> empty
     PSizeUniv -> empty
 
 instance GetMatchables Term where
@@ -325,5 +326,5 @@ instance Free NLPSort where
   freeVars' = \case
     PType l   -> freeVars' l
     PProp l   -> freeVars' l
-    PInf      -> mempty
+    PInf f n  -> mempty
     PSizeUniv -> mempty

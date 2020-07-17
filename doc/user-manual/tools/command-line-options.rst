@@ -215,12 +215,12 @@ Copatterns and projections
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --confluence-check
+.. option:: --confluence-check, --local-confluence-check
 
      .. versionadded:: 2.6.1
 
-     Enable optional confluence checking of REWRITE rules (see
-     :ref:`confluence-check`).
+     Enable optional (global or local) confluence checking of REWRITE
+     rules (see :ref:`confluence-check`).
 
 .. option:: --cubical
 
@@ -370,9 +370,13 @@ Other features
 
      Default (since version 2.6.1): ``--no-irrelevant-projections``
 
+.. option:: --auto-inline
+
+     Turn on automatic compile-time inlining.
+
 .. option:: --no-auto-inline
 
-     Disable automatic compile-time inlining.  Only definitions marked
+     Disable automatic compile-time inlining (default). Only definitions marked
      ``INLINE`` will be inlined.
 
 .. option:: --no-fast-reduce
@@ -453,6 +457,13 @@ Other features
      for irrelevance, erasure (`@0`) and flat (`@♭`) modalities.
 
      Default: ``--no-subtyping``
+
+.. option:: --no-import-sorts
+
+     .. versionadded:: 2.6.2
+
+     Disable the implicit statement `open import Agda.Primitive using
+     (Set; Prop)` at the start of each top-level Agda module.
 
 .. _warnings:
 

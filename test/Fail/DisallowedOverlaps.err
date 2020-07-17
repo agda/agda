@@ -1,16 +1,22 @@
 Failed to solve the following constraints:
-  Resolve instance argument _18 : ⦃ a = a₁ : A ⦄ ⦃ b = b₁ : B ⦄ → A
+  Resolve instance argument (blocked on any())
+    _18 : ⦃ a = a₁ : A ⦄ ⦃ b = b₁ : B ⦄ → A
   Candidates
     a : A
     overlap B.a b : A
-  Resolve instance argument _24 : ⦃ c = c₁ : C ⦄ ⦃ d = d₁ : D ⦄ → A
+    (stuck)
+  Resolve instance argument (blocked on any())
+    _24 : ⦃ c = c₁ : C ⦄ ⦃ d = d₁ : D ⦄ → A
   Candidates
     overlap C.a c : A
     D.a d : A
-  Resolve instance argument _30 : ⦃ b = b₁ : B ⦄ → A
+    (stuck)
+  Resolve instance argument (blocked on any())
+    _30 : ⦃ b = b₁ : B ⦄ → A
   Candidates
     overlap B.a b : A
     a : A
+    (stuck)
 Unsolved metas at the following locations:
   DisallowedOverlaps.agda:27,9-11
   DisallowedOverlaps.agda:31,9-11

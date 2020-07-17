@@ -5,7 +5,7 @@ module Agda.Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
-import Agda.Syntax.Literal (Literal)
+import Agda.Syntax.Literal (RLiteral)
 import Agda.Syntax.Position
 
 data Keyword
@@ -14,7 +14,7 @@ data Keyword
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
-        | KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
+        | KwForall | KwRecord | KwConstructor | KwField
         | KwInductive | KwCoInductive
         | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
@@ -62,13 +62,11 @@ data Token
                         -- Non-empty namespace. The intervals for
                         -- "A.B.x" correspond to "A.", "B." and "x".
           -- Literals
-        | TokLiteral    Literal
+        | TokLiteral    RLiteral
           -- Special symbols
         | TokSymbol Symbol Interval
           -- Other tokens
         | TokString (Interval, String)  -- arbitrary string, used in pragmas
-        | TokSetN (Interval, Integer)
-        | TokPropN (Interval, Integer)
         | TokTeX (Interval, String)
         | TokMarkup (Interval, String)
         | TokComment (Interval, String)
@@ -84,8 +82,6 @@ instance HasRange Token where
   getRange (TokLiteral lit)    = getRange lit
   getRange (TokSymbol _ i)     = getRange i
   getRange (TokString (i, _))  = getRange i
-  getRange (TokSetN (i, _))    = getRange i
-  getRange (TokPropN (i, _))   = getRange i
   getRange (TokTeX (i, _))     = getRange i
   getRange (TokMarkup (i, _))  = getRange i
   getRange (TokComment (i, _)) = getRange i

@@ -16,6 +16,7 @@ module Agda.Syntax.Notation where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 
 import qualified Data.List as List
 import Data.Maybe
@@ -28,7 +29,6 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty()
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.List1 as List1
@@ -259,7 +259,7 @@ useDefaultFixity n
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
 notationNames (NewNotation q _ _ parts _) =
-  zipWith ($) (reQualify : repeat QName) [Name noRange InScope [Id $ rangedThing x] | IdPart x <- parts ]
+  zipWith ($) (reQualify : repeat QName) [simpleName $ rangedThing x | IdPart x <- parts ]
   where
     -- The qualification of @q@.
     modules     = List1.init (qnameParts q)
@@ -271,9 +271,9 @@ notationNames (NewNotation q _ _ parts _) =
 --   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
 --   If 'Name' has no 'Hole's, it returns 'noNotation'.
 syntaxOf :: Name -> Notation
-syntaxOf (NoName _ _)    = noNotation
-syntaxOf (Name _ _ [_])  = noNotation
-syntaxOf (Name _ _ xs)   = mkSyn 0 xs
+syntaxOf y
+  | isOperator y = mkSyn 0 $ List1.toList $ nameNameParts y
+  | otherwise    = noNotation
   where
     -- Turn a concrete name into a Notation,
     -- numbering the holes from left to right.

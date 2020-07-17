@@ -8,6 +8,7 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow (first)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
@@ -19,6 +20,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
@@ -72,7 +75,6 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Termination.TermCheck (termMutual)
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -84,6 +86,7 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.String
 
 import Agda.Utils.Impossible
 
@@ -135,7 +138,12 @@ giveExpr force mii mi e = do
             [ TP.text ("give(" ++ show a ++ "): instantiated meta type =")
             , prettyTCM t'
             ]
-        v <- checkExpr e t'
+        -- Andreas, 2020-05-27 AIM XXXII, issue #4679
+        -- Clear envMutualBlock since cubical only executes
+        -- certain checks (checkIApplyConfluence) for an extended lambda
+        -- when not in a mutual block.
+        v <- locallyTC eMutualBlock (const Nothing) $
+          checkExpr e t'
         case mvInstantiation mv of
 
           InstV xs v' -> unlessM ((Irrelevant ==) <$> asksTC getRelevance) $ do
@@ -210,7 +218,7 @@ give force ii mr e = liftTCM $ do
      giveExpr force (Just ii) mi e
     `catchError` \ case
       -- Turn PatternErr into proper error:
-      PatternErr -> typeError . GenericDocError =<< do
+      PatternErr{} -> typeError . GenericDocError =<< do
         withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
       err -> throwError err
   removeInteractionPoint ii
@@ -244,7 +252,7 @@ refine force ii mr e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
-           Just (TypeError _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
              "Cannot refine functions with 10 or more arguments"
            _ ->
              "Cannot refine"
@@ -301,19 +309,21 @@ refine force ii mr e = do
 -- rescopeExpr scope = withScope_ scope . (concreteToAbstract_ <=< runAbsToCon . preserveInteractionIds . toConcrete)
 
 {-| Evaluate the given expression in the current environment -}
-evalInCurrent :: Expr -> TCM Expr
-evalInCurrent e =
-    do  (v, t) <- inferExpr e
-        v' <- {- etaContract =<< -} normalise v
-        reify v'
+evalInCurrent :: ComputeMode -> Expr -> TCM Expr
+evalInCurrent cmode e = do
+  (v, t) <- inferExpr e
+  v' <- {- etaContract =<< -} compute v
+  reify v'
+  where compute | cmode == HeadCompute = reduce
+                | otherwise            = normalise
 
 
-evalInMeta :: InteractionId -> Expr -> TCM Expr
-evalInMeta ii e =
+evalInMeta :: InteractionId -> ComputeMode -> Expr -> TCM Expr
+evalInMeta ii cmode e =
    do   m <- lookupInteractionId ii
         mi <- getMetaInfo <$> lookupMeta m
         withMetaInfo mi $
-            evalInCurrent e
+            evalInCurrent cmode e
 
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
@@ -330,6 +340,7 @@ normalForm Normalised   t = {- etaContract =<< -} normalise t
 --
 computeIgnoreAbstract :: ComputeMode -> Bool
 computeIgnoreAbstract DefaultCompute  = False
+computeIgnoreAbstract HeadCompute     = False
 computeIgnoreAbstract IgnoreAbstract  = True
 computeIgnoreAbstract UseShowInstance = True
   -- UseShowInstance requires the result to be a string literal so respecting
@@ -342,7 +353,7 @@ computeWrapInput _               s = s
 showComputed :: ComputeMode -> Expr -> TCM Doc
 showComputed UseShowInstance e =
   case e of
-    A.Lit (LitString _ s) -> pure (text s)
+    A.Lit _ (LitString s) -> pure (text $ T.unpack s)
     _                     -> ("Not a string:" $$) <$> prettyATop e
 showComputed _ e = prettyATop e
 
@@ -373,7 +384,7 @@ outputFormId (OutputForm _ _ o) = out o
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pids cl) = withClosure cl $ \ c ->
+  reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
     OutputForm (getRange c) (Set.toList pids) <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
@@ -382,8 +393,8 @@ reifyElimToExpr e = case e of
     I.Apply v -> appl "apply" <$> reify v
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
-    appl :: String -> Arg Expr -> Expr
-    appl s v = A.App defaultAppInfo_ (A.Lit (LitString noRange s)) $ fmap unnamed v
+    appl :: Text -> Arg Expr -> Expr
+    appl s v = A.App defaultAppInfo_ (A.Lit empty (LitString s)) $ fmap unnamed v
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
@@ -405,7 +416,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (Guarded c pid) = do
         o  <- reify c
         return $ Guard o pid
-    reify (UnquoteTactic _ tac _ goal) = do
+    reify (UnquoteTactic tac _ goal) = do
         tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
         OfType tac <$> reify goal
     reify (UnBlock m) = do
@@ -558,7 +569,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
-            cl <- reify (PConstr Set.empty c)
+            cl <- reify (PConstr Set.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
@@ -610,16 +621,16 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     getConstrs g f = liftTCM $ do
       cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
       reportSDoc "constr.ment" 20 $ "getConstraintsMentioning"
-      forM cs $ \(PConstr s c) -> do
+      forM cs $ \(PConstr s ub c) -> do
         c <- normalForm norm c
         case allApplyElims =<< hasHeadMeta (clValue c) of
           Just as_m -> do
             -- unifyElimsMeta tries to move the constraint into
             -- (an extension of) the context where @m@ comes from.
             unifyElimsMeta m as_m c $ \ eqs c -> do
-              flip enterClosure abstractToConcrete_ =<< reify . PConstr s =<< buildClosure c
+              flip enterClosure abstractToConcrete_ =<< reify . PConstr s ub =<< buildClosure c
           _ -> do
-            cl <- reify $ PConstr s c
+            cl <- reify $ PConstr s ub c
             enterClosure cl abstractToConcrete_
 
 -- Copied from Agda.TypeChecking.Pretty.Warning.prettyConstraints
@@ -628,7 +639,7 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
   where
     isBlocked = not . null . blocking . clValue . theConstraint
     interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
+    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
     blocking (Guarded c pid) = pid : blocking c
     blocking _               = []
 
@@ -660,12 +671,18 @@ getIPBoundary norm ii = do
 -- | Goals and Warnings
 
 getGoals :: TCM Goals
-getGoals = do
+getGoals = getGoals' AsIs Simplified
   -- visible metas (as-is)
-  visibleMetas <- typesOfVisibleMetas AsIs
   -- hidden metas (unsolved implicit arguments simplified)
+
+getGoals'
+  :: Rewrite    -- ^ Degree of normalization of goals.
+  -> Rewrite    -- ^ Degree of normalization of hidden goals.
+  -> TCM Goals
+getGoals' normVisible normHidden = do
+  visibleMetas <- typesOfVisibleMetas normVisible
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas Simplified
+  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas normHidden
   return (visibleMetas, hiddenMetas)
 
 -- | Print open metas nicely.
@@ -682,7 +699,7 @@ showGoals (ims, hms) = do
       let i = nmid $ namedMetaOf m
       r <- getMetaRange i
       d <- withMetaId i (prettyATop m)
-      return $ show d ++ "  [ at " ++ show r ++ " ]"
+      return $ show d ++ "  [ at " ++ prettyShow r ++ " ]"
 
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
@@ -824,7 +841,7 @@ metaHelperType norm ii rng s = case words s of
       let arity = size atel
           (delta1, delta2, _, a', vtys') = splitTelForWith tel a vtys
       a <- localTC (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a'
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
         let (vs, as)   = unzipWith (fmap extractOtherType . whThing) vtys in
@@ -1153,7 +1170,6 @@ parseName r s = do
 isQName :: C.Expr -> Maybe C.QName
 isQName = \case
   C.Ident x                    -> return x
-  C.RawApp _ (C.Ident x :| []) -> return x
   _ -> Nothing
 
 isName :: C.Expr -> Maybe C.Name
@@ -1176,6 +1192,7 @@ moduleContents
      --   names paired up with corresponding types.
 
 moduleContents norm rng s = traceCall ModuleContents $ do
+  if null (trim s) then getModuleContents norm Nothing else do
   e <- parseExpr rng s
   case isQName e of
     -- If the expression is not a single identifier, it is not a module name
@@ -1185,7 +1202,7 @@ moduleContents norm rng s = traceCall ModuleContents $ do
     -- as a record name.
     Just x  -> do
       ms :: [AbstractModule] <- scopeLookup x <$> getScope
-      if null ms then getRecordContents norm e else getModuleContents norm x
+      if null ms then getRecordContents norm e else getModuleContents norm $ Just x
 
 -- | Returns the contents of the given record identifier.
 
@@ -1222,14 +1239,18 @@ getRecordContents norm ce = do
 -- | Returns the contents of the given module.
 
 getModuleContents
-  :: Rewrite  -- ^ Amount of normalization in types.
-  -> C.QName  -- ^ Module name.
+  :: Rewrite
+       -- ^ Amount of normalization in types.
+  -> Maybe C.QName
+       -- ^ Module name, @Nothing@ if top-level module.
   -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
-              -- ^ Module names,
-              --   context extension,
-              --   names paired up with corresponding types.
-getModuleContents norm m = do
-  modScope <- getNamedScope . amodName =<< resolveModule m
+       -- ^ Module names,
+       --   context extension,
+       --   names paired up with corresponding types.
+getModuleContents norm mm = do
+  modScope <- case mm of
+    Nothing -> getCurrentScope
+    Just m  -> getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
       modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
@@ -1246,6 +1267,8 @@ whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
+  ifNull ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )
+    {-then-} (notInScopeError x)  -- Andreas, 2020-05-15, issue #4647 throw error to trigger TopLevelInteraction
+    {-else-} return

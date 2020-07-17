@@ -17,6 +17,7 @@
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Foldable (traverse_)
@@ -32,6 +33,7 @@ import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Constraints () -- instances
 import Agda.TypeChecking.Monad
@@ -47,13 +49,6 @@ import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
-
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe
@@ -192,7 +187,7 @@ definitionCheck d = do
         , "has relevance"
         , prettyTCM (getRelevance dmod)
         ]
-      abort $ MetaIrrelevantSolution m $ Def d []
+      abort neverUnblock $ MetaIrrelevantSolution m $ Def d []
     unless (er || usableQuantity dmod) $ do
       reportSDoc "tc.meta.occurs" 35 $ hsep
         [ "occursCheck: definition"
@@ -200,7 +195,7 @@ definitionCheck d = do
         , "has quantity"
         , prettyTCM (getQuantity dmod)
         ]
-      abort $ MetaErasedSolution m $ Def d []
+      abort neverUnblock $ MetaErasedSolution m $ Def d []
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
@@ -254,13 +249,13 @@ flexibly = local $ set lensFlexRig $ Flexible ()
 
 -- ** Error throwing during occurs check.
 
-patternViolation' :: MonadTCM m => Int -> String -> m a
-patternViolation' n err = liftTCM $ do
+patternViolation' :: MonadTCM m => Blocker -> Int -> String -> m a
+patternViolation' unblock n err = liftTCM $ do
   reportSLn "tc.meta.occurs" n err
-  patternViolation
+  patternViolation unblock
 
-abort :: TypeError -> OccursM a
-abort err = do
+abort :: Blocker -> TypeError -> OccursM a
+abort unblock err = do
   ctx <- ask
   lift $ do
     if | isIrrelevant ctx                    -> soft
@@ -268,7 +263,7 @@ abort err = do
        | otherwise -> soft
   where
   hard = typeError err -- here, throw an uncatchable error (unsolvable constraint)
-  soft = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
+  soft = patternViolation' unblock 70 (show err) -- throws a PatternErr, which leads to delayed constraint
 
 ---------------------------------------------------------------------------
 -- * Implementation of the occurs check.
@@ -321,7 +316,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
     -- Produce nicer error messages
     nicerErrorMessage :: TCM a -> TCM a
     nicerErrorMessage f = f `catchError` \ err -> case err of
-      TypeError _ cl -> case clValue cl of
+      TypeError _ _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
             fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
@@ -365,7 +360,7 @@ instance Occurs Term where
     let flexIfBlocked = case vb of
           -- Don't fail on blocked terms or metas
           -- Blocked _ MetaV{} -> id  -- does not help with issue #856
-          Blocked{}    -> flexibly
+          Blocked b _ -> flexibly . addOrUnblocker b
           -- Re #3594, do not fail hard when Underapplied:
           -- the occurrence could be computed away after eta expansion.
           NotBlocked{blockingStatus = Underapplied} -> flexibly
@@ -391,14 +386,14 @@ instance Occurs Term where
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
                 -- cannot decide, blocked by meta-var
-                Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
+                Left b -> patternViolation' b 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
                 Right Nothing ->
                   -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
                   -- could potentially be salvaged by eta expansion.
-                  ifM (($ i) <$> allowedVars)
-                      (patternViolation' 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
-                      (strongly $ abort $ MetaCannotDependOn m i)
+                  ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
+                      (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
+                      (strongly $ abort neverUnblock $ MetaCannotDependOn m i)
                 -- is a singleton type with unique inhabitant sv
                 Right (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occurs f
@@ -412,7 +407,9 @@ instance Occurs Term where
           Con c ci vs -> Con c ci <$> occurs vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
-          MetaV m' es -> do
+          MetaV m' es -> addOrUnblocker (unblockOnMeta m') $ do
+                         -- If getting stuck here, we need to trigger wakeup if this meta is
+                         -- solved.
               -- Check for loop
               --   don't fail hard on this, since we might still be on the top-level
               --   after some killing (Issue 442)
@@ -427,7 +424,7 @@ instance Occurs Term where
               -- WAS:
               -- when (m == m') $ if ctx == Top then patternViolation else
               --   abort ctx $ MetaOccursInItself m'
-              when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
+              when (m == m') $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
               -- The arguments of a meta are in a flexible position
               (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
@@ -473,9 +470,9 @@ instance Occurs Term where
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
-      Sort s     -> metaOccurs m s
-      MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
-                  | otherwise -> metaOccurs m vs
+      Sort s     -> metaOccurs m s              -- vv m is already an unblocker
+      MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
+                  | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
 
 instance Occurs QName where
   occurs d = __IMPOSSIBLE__
@@ -504,6 +501,7 @@ instance Occurs Defn where
   metaOccurs m Record{ recConHead = c }     = metaOccursQName m $ conName c
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
+  metaOccurs m PrimitiveSort{}              = __IMPOSSIBLE__
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
   metaOccurs m GeneralizableVar{}           = __IMPOSSIBLE__
 
@@ -515,7 +513,11 @@ instance Occurs Clause where
 instance Occurs Level where
   occurs (Max n as) = Max n <$> occurs as
 
-  metaOccurs m (Max _ as) = metaOccurs m as
+  metaOccurs m (Max _ as) = addOrUnblocker (unblockOnAnyMetaIn as) $ metaOccurs m as
+                            -- TODO: Should only be blocking metas in as. But any meta that can
+                            --       let the Max make progress needs to be included. For instance,
+                            --       _1 ⊔ _2 = _1 should unblock on _2, even though _1 is the meta
+                            --       failing occurs check.
 
 instance Occurs PlusLevel where
   occurs (Plus n l) = Plus n <$> occurs l
@@ -557,7 +559,8 @@ instance Occurs Sort where
       FunSort s1 s2 -> FunSort <$> flexibly (occurs s1) <*> flexibly (occurs s2)
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
-      s@Inf      -> return s
+      s@Inf{}    -> return s
+      SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
@@ -575,7 +578,8 @@ instance Occurs Sort where
       FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
-      Inf        -> return ()
+      Inf _ _    -> return ()
+      SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
@@ -780,7 +784,8 @@ instance AnyRigid Sort where
     case s of
       Type l     -> anyRigid f l
       Prop l     -> anyRigid f l
-      Inf        -> return False
+      Inf _ _    -> return False
+      SSet l     -> anyRigid f l
       SizeUniv   -> return False
       PiSort a s -> return False
       FunSort s1 s2 -> return False

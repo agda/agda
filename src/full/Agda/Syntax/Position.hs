@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
@@ -73,7 +74,6 @@ import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
-import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -81,12 +81,15 @@ import qualified Data.Set as Set
 import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Semigroup (Semigroup(..))
 import Data.Void
 
 import GHC.Generics (Generic)
 
 import Agda.Utils.FileName
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
+import Agda.Utils.List2 (List2)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -117,7 +120,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-  deriving (Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -141,7 +144,7 @@ type PositionWithoutFile = Position' ()
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-  deriving (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
@@ -186,7 +189,7 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile)
   deriving
-    (Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
 
@@ -195,6 +198,19 @@ instance Null (Range' a) where
   null Range{} = False
 
   empty = NoRange
+
+instance Semigroup a => Semigroup (Range' a) where
+  NoRange <> r = r
+  r <> NoRange = r
+  Range f is <> Range f' is' = Range (f <> f') (is <> is')
+
+instance Semigroup a => Monoid (Range' a) where
+  mempty  = empty
+  mappend = (<>)
+
+-- | To get @'Semigroup' 'Range'@, we need a semigroup instance for 'AbsolutePath'.
+instance Semigroup AbsolutePath where
+  f <> f' = if f == f' then f else __IMPOSSIBLE__
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
@@ -248,8 +264,11 @@ newtype PrintRange a = PrintRange a
   deriving (Eq, Ord, HasRange, SetRange, KillRange)
 
 -- | Things that have a range are instances of this class.
-class HasRange t where
-    getRange :: t -> Range
+class HasRange a where
+  getRange :: a -> Range
+
+  default getRange :: (Foldable t, HasRange b, t b ~ a) => a -> Range
+  getRange = Fold.foldr fuseRange noRange
 
 instance HasRange Interval where
     getRange i =
@@ -267,13 +286,13 @@ instance HasRange Bool where
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
-instance HasRange a => HasRange [a] where
-    getRange = foldr fuseRange noRange
+instance HasRange a => HasRange [a]
 
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
-instance HasRange a => HasRange (NonEmpty a) where
-    getRange = Fold.foldr fuseRange noRange
+instance HasRange a => HasRange (List1 a)
+instance HasRange a => HasRange (List2 a)
+instance HasRange a => HasRange (Maybe a)
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
@@ -305,30 +324,30 @@ instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f, HasRange g) => HasRange (a,b,c,d,e,f,g) where
     getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
-instance HasRange a => HasRange (Maybe a) where
-    getRange = maybe noRange getRange
-
 instance (HasRange a, HasRange b) => HasRange (Either a b) where
     getRange = either getRange getRange
 
 -- | If it is also possible to set the range, this is the class.
 --
 --   Instances should satisfy @'getRange' ('setRange' r x) == r@.
-class HasRange t => SetRange t where
-  setRange :: Range -> t -> t
+class HasRange a => SetRange a where
+  setRange :: Range -> a -> a
+
+  default setRange :: (Functor f, SetRange b, f b ~ a) => Range -> a -> a
+  setRange = fmap . setRange
 
 instance SetRange Range where
   setRange = const
 
-instance SetRange a => SetRange [a] where
-  setRange r = fmap $ setRange r
-
-instance SetRange a => SetRange (Maybe a) where
-  setRange r = fmap $ setRange r
+instance SetRange a => SetRange [a]
+instance SetRange a => SetRange (Maybe a)
 
 -- | Killing the range of an object sets all range information to 'noRange'.
 class KillRange a where
   killRange :: KillRangeT a
+
+  default killRange :: (Functor f, KillRange b, f b ~ a) => KillRangeT a
+  killRange = fmap killRange
 
 type KillRangeT a = a -> a
 
@@ -477,18 +496,21 @@ instance KillRange Int where
 instance KillRange Integer where
   killRange = id
 
-instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
-  killRange = map killRange
-
-instance KillRange a => KillRange (NonEmpty a) where
-  killRange = fmap killRange
+instance KillRange Permutation where
+  killRange = id
 
 -- | Overlaps with @KillRange [a]@.
 instance {-# OVERLAPPING #-} KillRange String where
   killRange = id
 
-instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a) where
-  killRange = fmap killRange
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a]
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a)
+
+instance KillRange a => KillRange (Drop a)
+instance KillRange a => KillRange (List1 a)
+instance KillRange a => KillRange (List2 a)
+instance KillRange a => KillRange (Maybe a)
+instance KillRange a => KillRange (Strict.Maybe a)
 
 instance {-# OVERLAPPABLE #-} (Ord a, KillRange a) => KillRange (Set a) where
   killRange = Set.map killRange
@@ -504,67 +526,9 @@ instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
          KillRange (a, b, c, d) where
   killRange (x, y, z, u) = killRange4 (,,,) x y z u
 
-instance KillRange a => KillRange (Maybe a) where
-  killRange = fmap killRange
-
-instance KillRange a => KillRange (Strict.Maybe a) where
-  killRange = fmap killRange
-
 instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
-
-instance KillRange Permutation where
-  killRange = id
-
-instance KillRange a => KillRange (Drop a) where
-  killRange = fmap killRange
-------------------------------------------------------------------------
--- Showing
-------------------------------------------------------------------------
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instances are deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for these types.
-
--- ASR (02 December 2014). This instance is not used anymore (module
--- the test suite) when reporting errors. See Issue 1293.
-instance Show a => Show (Position' (Strict.Maybe a)) where
-  show (Pn (Strict.Just f) _ l c) = show f ++ ":" ++
-                                    show l ++ "," ++ show c
-  show (Pn Strict.Nothing  _ l c) = show l ++ "," ++ show c
-
-instance Show PositionWithoutFile where
-  show p = show (p { srcFile = Strict.Nothing } :: Position)
-
-instance Show IntervalWithoutFile where
-  show (Interval s e) = start ++ "-" ++ end
-    where
-      sl = posLine s
-      el = posLine e
-      sc = posCol s
-      ec = posCol e
-
-      start :: String
-      start = show sl ++ "," ++ show sc
-
-      end :: String
-      end | sl == el  = show ec
-          | otherwise = show el ++ "," ++ show ec
-
-instance Show a => Show (Interval' (Strict.Maybe a)) where
-  show i@(Interval s _) = file ++ show (setIntervalFile () i)
-    where
-      file :: String
-      file = case srcFile s of
-               Strict.Nothing -> ""
-               Strict.Just f  -> show f ++ ":"
-
-instance Show a => Show (Range' (Strict.Maybe a)) where
-  show r = maybe "" show (rangeToIntervalWithFile r)
-
-instance Show a => Show (Range' (Maybe a)) where
-  show = show . fmap Strict.toStrict
 
 ------------------------------------------------------------------------
 -- Printing

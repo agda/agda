@@ -1,4 +1,4 @@
-
+{-# OPTIONS --auto-inline #-}
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
@@ -25,7 +25,7 @@ f₂ n = id n
 macro
   rhs : Name → Term → TC ⊤
   rhs f hole = do
-    function (clause _ rhs ∷ _) ← getDefinition f
+    function (clause _ _ rhs ∷ _) ← getDefinition f
       where _ → typeError (strErr "fail" ∷ [])
     `rhs ← quoteTC rhs
     unify hole `rhs

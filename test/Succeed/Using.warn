@@ -1,0 +1,11 @@
+Using.agda:15,1-17,20
+Duplicates in 'using' directive: DummySet1 DummySet1
+when scope checking the declaration
+  open Dummy using (DummySet1; DummySet1; DummySet1)
+
+———— All done; warnings encountered ————————————————————————
+
+Using.agda:15,1-17,20
+Duplicates in 'using' directive: DummySet1 DummySet1
+when scope checking the declaration
+  open Dummy using (DummySet1; DummySet1; DummySet1)

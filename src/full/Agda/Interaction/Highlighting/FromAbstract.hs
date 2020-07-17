@@ -196,7 +196,7 @@ instance Hilite A.Declaration where
       A.Field _di x e                        -> hlField x <> hl e
       A.Primitive _di x e                    -> hl x <> hl e
       A.Mutual _mi ds                        -> hl ds
-      A.Section mi x tel ds                  -> hl mi <> hl x <> hl tel <> hl ds
+      A.Section _r x tel ds                  -> hl x <> hl tel <> hl ds
       A.Apply mi x a _ci dir                 -> hl mi <> hl x <> hl a <> hl dir
       A.Import mi x dir                      -> hl mi <> hl x <> hl dir
       A.Open mi x dir                        -> hl mi <> hl x <> hl dir
@@ -204,7 +204,7 @@ instance Hilite A.Declaration where
       A.DataSig _di x tel e                  -> hl x <> hl tel <> hl e
       A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
       A.RecSig _di x tel e                   -> hl x <> hl tel <> hl e
-      A.RecDef _di x _uc _ind _eta y bs e ds -> hl x <> hl y <> hl bs <> hl e <> hl ds
+      A.RecDef _di x _uc _ind _eta _pat y bs e ds -> hl x <> hl y <> hl bs <> hl e <> hl ds
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
@@ -230,12 +230,13 @@ instance Hilite A.Pragma where
 instance Hilite A.Expr where
   hilite = \case
       A.Var x                    -> hl $ A.BindName x        -- bound variable like binder
-      A.Def q                    -> hiliteQName Nothing q
-      A.Proj _o qs               -> hiliteProjection qs
+      A.Def' q _                 -> hiliteQName Nothing q
+      A.Proj _o qs               -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
+                                      -- Names from @open R r@ should not be highlighted as projections
       A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
       A.PatternSyn qs            -> hilitePatternSynonym qs
       A.Macro q                  -> hiliteQName (Just Macro) q
-      A.Lit  l                   -> hl l
+      A.Lit _r l                 -> hl l
       A.QuestionMark _mi _ii     -> mempty
       A.Underscore _mi           -> mempty
       A.Dot _r e                 -> hl e                   -- TODO? Projection?
@@ -247,8 +248,6 @@ instance Hilite A.Expr where
       A.Pi _r tel b              -> hl tel <> hl b
       A.Generalized _qs e        -> hl e
       A.Fun _r a b               -> hl a <> hl b
-      A.Set _r k                 -> mempty
-      A.Prop _r k                -> mempty
       A.Let _r bs e              -> hl bs <> hl e
       A.ETel _tel                -> mempty  -- Printing only construct
       A.Rec _r ass               -> hl ass
@@ -275,7 +274,7 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
                                   Nothing       -> singleOtherAspect DottedPattern r
                                   Just (_o, qs) -> hiliteProjection qs
       A.AbsurdP _r           -> mempty
-      A.LitP l               -> hl l
+      A.LitP _r l            -> hl l
       A.PatternSynP _r qs es -> hilitePatternSynonym qs <> hl es
       A.RecP _r ps           -> hl ps
       A.EqualP _r ps         -> hl ps
@@ -291,8 +290,8 @@ instance Hilite Literal where
     LitFloat{}               -> mempty
     LitString{}              -> mempty
     LitChar{}                -> mempty
-    LitQName _r x            -> hilite x
-    LitMeta _r _fileName _id -> mempty
+    LitQName x               -> hilite x
+    LitMeta _fileName _id    -> mempty
 
 -- * Minor syntactic categories
 ---------------------------------------------------------------------------
@@ -429,7 +428,7 @@ instance Hilite DisambiguatedName where
 instance Hilite ResolvedName where
   hilite = \case
     VarName           x _bindSrc -> hiliteBound x
-    DefinedName  _acc x          -> hilite $ anameName x
+    DefinedName  _acc x _suffix  -> hilite $ anameName x
     FieldName         xs         -> hiliteProjection $ A.AmbQ $ fmap anameName xs
     ConstructorName i xs         -> hiliteAmbiguousQName k $ A.AmbQ $ fmap anameName xs
       where k = kindOfNameToNameKind <$> exactConName i

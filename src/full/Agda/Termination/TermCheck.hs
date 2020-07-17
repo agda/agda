@@ -113,7 +113,7 @@ termDecl' d = case d of
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ _ _ ds -> termDecls ds
+    A.RecDef _ r _ _ _ _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}      -> __IMPOSSIBLE__
     A.DataSig{}     -> __IMPOSSIBLE__
@@ -127,7 +127,7 @@ termDecl' d = case d of
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
     getName (A.FunDef i x delayed cs)   = [x]
-    getName (A.RecDef _ _ _ _ _ _ _ _ ds) = getNames ds
+    getName (A.RecDef _ _ _ _ _ _ _ _ _ ds) = getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ ds)        = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds
@@ -673,10 +673,11 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Inf        -> return empty
+      Inf f n    -> return empty
       SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
+      SSet t     -> terUnguarded $ extract t
       PiSort a s -> extract (a, s)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
@@ -822,7 +823,7 @@ function g es0 = do
          -- otherwise its free variables with be prepended to the call
          -- in the error message.
          doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure $
-           Def g $ reverse $ dropWhile ((Inserted ==) . getOrigin) $ reverse es0
+           Def g $ List.dropWhileEnd ((Inserted ==) . getOrigin) es0
            -- Andreas, 2018-07-22, issue #3136
            -- Dropping only inserted arguments at the end, since
            -- dropping arguments in the middle might make the printer crash.

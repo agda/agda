@@ -13,6 +13,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
+import Control.Applicative ((<|>))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -75,21 +76,88 @@ instance Pretty FileType where
     OrgFileType  -> "org-mode"
 
 ---------------------------------------------------------------------------
+-- * Agda Source location of errors
+---------------------------------------------------------------------------
+
+data AgdaSourceErrorLocation = AgdaSourceErrorLocation
+  { slocFile :: String -- ^ File the error was raised in
+  , slocLine :: Int    -- ^ Line number in this file
+  } deriving (Show, Data)
+
+instance Pretty AgdaSourceErrorLocation where
+  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
+
+---------------------------------------------------------------------------
 -- * Eta-equality
 ---------------------------------------------------------------------------
 
-data HasEta = NoEta | YesEta
-  deriving (Data, Show, Eq, Ord)
+-- | Does a record come with eta-equality?
+data HasEta' a
+  = YesEta
+  | NoEta a
+  deriving (Data, Show, Eq, Ord, Functor, Foldable, Traversable)
 
-instance HasRange HasEta where
+instance HasRange a => HasRange (HasEta' a) where
+  getRange = foldMap getRange
+
+instance KillRange a => KillRange (HasEta' a) where
+  killRange = fmap killRange
+
+instance NFData a => NFData (HasEta' a) where
+  rnf YesEta    = ()
+  rnf (NoEta p) = rnf p
+
+-- | Pattern and copattern matching is allowed in the presence of eta.
+--
+--   In the absence of eta, we have to choose whether we want to allow
+--   matching on the constructor or copattern matching with the projections.
+--   Having both leads to breakage of subject reduction (issue #4560).
+
+type HasEta  = HasEta' PatternOrCopattern
+type HasEta0 = HasEta' ()
+
+-- | For a record without eta, which type of matching do we allow?
+data PatternOrCopattern
+  = PatternMatching
+      -- ^ Can match on the record constructor.
+  | CopatternMatching
+      -- ^ Can copattern match using the projections. (Default.)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded)
+
+instance NFData PatternOrCopattern where
+  rnf PatternMatching   = ()
+  rnf CopatternMatching = ()
+
+instance HasRange PatternOrCopattern where
   getRange _ = noRange
 
-instance KillRange HasEta where
+instance KillRange PatternOrCopattern where
   killRange = id
 
-instance NFData HasEta where
-  rnf NoEta  = ()
-  rnf YesEta = ()
+-- | Can we pattern match on the record constructor?
+class PatternMatchingAllowed a where
+  patternMatchingAllowed :: a -> Bool
+
+instance PatternMatchingAllowed PatternOrCopattern where
+  patternMatchingAllowed = (== PatternMatching)
+
+instance PatternMatchingAllowed HasEta where
+  patternMatchingAllowed = \case
+    YesEta -> True
+    NoEta p -> patternMatchingAllowed p
+
+
+-- | Can we construct a record by copattern matching?
+class CopatternMatchingAllowed a where
+  copatternMatchingAllowed :: a -> Bool
+
+instance CopatternMatchingAllowed PatternOrCopattern where
+  copatternMatchingAllowed = (== CopatternMatching)
+
+instance CopatternMatchingAllowed HasEta where
+  copatternMatchingAllowed = \case
+    YesEta -> True
+    NoEta p -> copatternMatchingAllowed p
 
 ---------------------------------------------------------------------------
 -- * Induction
@@ -112,6 +180,9 @@ instance KillRange Induction where
 instance NFData Induction where
   rnf Inductive   = ()
   rnf CoInductive = ()
+
+instance PatternMatchingAllowed Induction where
+  patternMatchingAllowed = (== Inductive)
 
 ---------------------------------------------------------------------------
 -- * Hiding
@@ -152,6 +223,9 @@ instance Monoid Overlappable where
 instance Monoid Hiding where
   mempty = NotHidden
   mappend = (<>)
+
+instance HasRange Hiding where
+  getRange _ = noRange
 
 instance KillRange Hiding where
   killRange = id
@@ -292,6 +366,9 @@ data Modality = Modality
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
+instance Null Modality where
+  empty = defaultModality
+
 -- | Pointwise composition.
 instance Semigroup Modality where
   Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
@@ -366,8 +443,11 @@ sameModality x y = case (getModality x , getModality y) of
 
 -- boilerplate instances
 
+instance HasRange Modality where
+  getRange (Modality r q c) = getRange (r, q, c)
+
 instance KillRange Modality where
-  killRange = id
+  killRange (Modality r q c) = killRange3 Modality r q c
 
 instance NFData Modality where
 
@@ -1146,6 +1226,9 @@ data Origin
   | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   deriving (Data, Show, Eq, Ord)
 
+instance HasRange Origin where
+  getRange _ = noRange
+
 instance KillRange Origin where
   killRange = id
 
@@ -1225,6 +1308,9 @@ instance Monoid FreeVariables where
   mempty  = KnownFVs IntSet.empty
   mappend = (<>)
 
+instance KillRange FreeVariables where
+  killRange = id
+
 instance NFData FreeVariables where
   rnf UnknownFVs    = ()
   rnf (KnownFVs fv) = rnf fv
@@ -1282,8 +1368,11 @@ data ArgInfo = ArgInfo
   , argInfoFreeVariables :: FreeVariables
   } deriving (Data, Eq, Ord, Show)
 
+instance HasRange ArgInfo where
+  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+
 instance KillRange ArgInfo where
-  killRange i = i -- There are no ranges in ArgInfo's
+  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1738,17 +1827,17 @@ data Ranged a = Ranged
 unranged :: a -> Ranged a
 unranged = Ranged noRange
 
+-- | Ignores range.
 instance Pretty a => Pretty (Ranged a) where
   pretty = pretty . rangedThing
 
--- instance Show a => Show (Ranged a) where
---   show = show . rangedThing
-
+-- | Ignores range.
 instance Eq a => Eq (Ranged a) where
-  Ranged _ x == Ranged _ y = x == y
+  (==) = (==) `on` rangedThing
 
+-- | Ignores range.
 instance Ord a => Ord (Ranged a) where
-  compare (Ranged _ x) (Ranged _ y) = compare x y
+  compare = compare `on` rangedThing
 
 instance HasRange (Ranged a) where
   getRange = rangeOf
@@ -1809,9 +1898,6 @@ data ProjOrigin
 
 instance KillRange ProjOrigin where
   killRange = id
-
-data DataOrRecord = IsData | IsRecord
-  deriving (Data, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
@@ -2157,11 +2243,14 @@ instance LensFixity' Fixity' where
 data ImportDirective' n m = ImportDirective
   { importDirRange :: Range
   , using          :: Using' n m
-  , hiding         :: [ImportedName' n m]
-  , impRenaming    :: [Renaming' n m]
+  , hiding         :: HidingDirective' n m
+  , impRenaming    :: RenamingDirective' n m
   , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
+
+type HidingDirective'   n m = [ImportedName' n m]
+type RenamingDirective' n m = [Renaming' n m]
 
 -- | @null@ for import directives holds when everything is imported unchanged
 --   (no names are hidden or renamed).
@@ -2170,6 +2259,19 @@ instance Null (ImportDirective' n m) where
     ImportDirective _ UseEverything [] [] _ -> True
     _ -> False
   empty = defaultImportDir
+
+instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+  i1 <> i2 = ImportDirective
+    { importDirRange = fuseRange i1 i2
+    , using          = using i1 <> using i2
+    , hiding         = hiding i1 ++ hiding i2
+    , impRenaming    = impRenaming i1 ++ impRenaming i2
+    , publicOpen     = publicOpen i1 <|> publicOpen i2
+    }
+
+instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+  mempty  = empty
+  mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m
@@ -2420,7 +2522,7 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
 -- * Information on expanded ellipsis (@...@)
 -----------------------------------------------------------------------------
 
--- ^ When the ellipsis in a clause are expanded, we remember that we
+-- ^ When the ellipsis in a clause is expanded, we remember that we
 --   did so. We also store the number of with-arguments that are
 --   included in the expanded ellipsis.
 data ExpandedEllipsis

@@ -78,23 +78,18 @@ import Agda.Utils.Impossible
 -- | Cached checkDecl
 checkDeclCached :: A.Declaration -> TCM ()
 checkDeclCached d@A.ScopedDecl{} = checkDecl d
-checkDeclCached d@(A.Section minfo mname (A.GeneralizeTel _ tbinds) _) = do
+checkDeclCached d@(A.Section _ mname (A.GeneralizeTel _ tbinds) _) = do
   e <- readFromCachedLog  -- Can ignore the set of generalizable vars (they occur in the telescope)
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
-    Just (EnterSection minfo' mname' tbinds', _)
-      | killRange minfo == killRange minfo' && mname == mname' && tbinds == tbinds' -> do
-        return ()
-    _ -> do
-      cleanCachedLog
-  writeToCurrentLog $ EnterSection minfo mname tbinds
+    Just (EnterSection mname' tbinds', _)
+      | mname == mname' && tbinds == tbinds' -> return ()
+    _ -> cleanCachedLog
+  writeToCurrentLog $ EnterSection mname tbinds
   checkDecl d
-  e' <- readFromCachedLog
-  case e' of
-    Just (LeaveSection mname', _) | mname == mname' -> do
-      return ()
-    _ -> do
-      cleanCachedLog
+  readFromCachedLog >>= \case
+    Just (LeaveSection mname', _) | mname == mname' -> return ()
+    _ -> cleanCachedLog
   writeToCurrentLog $ LeaveSection mname
 
 checkDeclCached d = do
@@ -105,7 +100,7 @@ checkDeclCached d = do
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
         restorePostScopeState s
-        reportSLn "cache.decl" 50 $ "range: " ++ show (getRange d)
+        reportSLn "cache.decl" 50 $ "range: " ++ prettyShow (getRange d)
         printSyntaxInfo (getRange d)
       _ -> do
         cleanCachedLog
@@ -153,15 +148,15 @@ checkDecl d = setCurrentRange d $ do
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
-      A.Section i x tel ds     -> meta $ checkSection i x tel ds
+      A.Section _r x tel ds    -> meta $ checkSection x tel ds
       A.Apply i x modapp ci _adir -> meta $ checkSectionApplication i x modapp ci
       A.Import i x _adir       -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc ind eta c ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x uc ind eta c ps tel cs
+      A.RecDef i x uc ind eta pat c ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x uc ind eta pat c ps tel cs
                                     blockId <- mutualBlockOf x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -408,8 +403,8 @@ highlight_ hlmod d = do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x uc ind eta c ps tel cs ->
-      highlight (A.RecDef i x uc ind eta c A.noDataDefParams dummy cs)
+    A.RecDef i x uc ind eta pat c ps tel cs ->
+      highlight (A.RecDef i x uc ind eta pat c A.noDataDefParams dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -421,7 +416,7 @@ highlight_ hlmod d = do
       -- * fields become bound variables,
       -- * declarations become let-bound variables.
       -- We do not need that crap.
-      dummy = A.Lit $ LitString noRange $
+      dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.
@@ -449,7 +444,7 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q _ (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q _ (Just (Ranged r CoInductive)) _ _ _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
@@ -675,8 +670,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
-checkPrimitive :: A.DefInfo -> QName -> A.Expr -> TCM ()
-checkPrimitive i x e =
+checkPrimitive :: A.DefInfo -> QName -> Arg A.Expr -> TCM ()
+checkPrimitive i x (Arg info e) =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     -- Certain "primitive" functions are BUILTIN rather than
@@ -693,14 +688,27 @@ checkPrimitive i x e =
           , "primLevelSuc"
           , "primLevelMax"
           , "primSetOmega"
+          , "primStrictSet"
+          , "primStrictSetOmega"
           ]
-    when (name `elem` builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
+    when (name `elem` builtinPrimitives) $ do
+      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
+    -- Checking the modality. Currently all primitives require default
+    -- modalities, and likely very few will have different modalities in the
+    -- future. Thus, rather than, the arguably nicer solution of adding a
+    -- modality to PrimImpl we simply check the few special primitives here.
+    let expectedInfo =
+          case name of
+            -- Currently no special primitives
+            _ -> defaultArgInfo
+    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
     bindPrimitive s pf
     addConstant x $
-      defaultDefn defaultArgInfo x t $
+      defaultDefn info x t $
         Primitive { primAbstr    = Info.defAbstract i
                   , primName     = s
                   , primClauses  = []
@@ -744,8 +752,9 @@ checkPragma r p =
           caseMaybeM (isRecord r) noRecord $ \case
             Record{ recInduction = ind, recEtaEquality' = eta } -> do
               unless (ind == Just CoInductive) $ noRecord
-              when (eta == Specified NoEta) $ typeError $ GenericError $
-                "ETA pragma conflicts with no-eta-equality declaration"
+              if | Specified NoEta{} <- eta -> typeError $ GenericError $
+                     "ETA pragma conflicts with no-eta-equality declaration"
+                 | otherwise -> return ()
             _ -> __IMPOSSIBLE__
           modifySignature $ updateDefinition r $ updateTheDef $ \case
             def@Record{} -> def { recEtaEquality' = Specified YesEta }
@@ -793,8 +802,8 @@ checkTypeSignature' _ _ =
 
 -- | Type check a module.
 
-checkSection :: Info.ModuleInfo -> ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
-checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
+checkSection :: ModuleName -> A.GeneralizeTelescope -> [A.Declaration] -> TCM ()
+checkSection x tel ds = newSection x tel $ mapM_ checkDeclCached ds
 
 
 -- | Helper for 'checkSectionApplication'.

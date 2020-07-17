@@ -140,14 +140,14 @@ mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
 
 tInt :: Integer -> TTerm
-tInt = TLit . LitNat noRange
+tInt = TLit . LitNat
 
 intView :: TTerm -> Maybe Integer
-intView (TLit (LitNat _ x)) = Just x
+intView (TLit (LitNat x)) = Just x
 intView _ = Nothing
 
 word64View :: TTerm -> Maybe Word64
-word64View (TLit (LitWord64 _ x)) = Just x
+word64View (TLit (LitWord64 x)) = Just x
 word64View _ = Nothing
 
 tPlusK :: Integer -> TTerm -> TTerm

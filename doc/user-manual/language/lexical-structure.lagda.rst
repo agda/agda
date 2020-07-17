@@ -49,10 +49,9 @@ keywords
   :ref:`variable <generalization-of-declared-variables>`
   ``where`` ``with``
 
-  The ``Set`` keyword can appear with a number suffix, optionally subscripted
-  (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
-  keywords.
-
+  The ``Set`` keyword can appear with a natural number suffix, optionally
+  subscripted (see :ref:`sort-system`). For instance ``Set42`` and
+  ``Set₄₂`` are both keywords.
 
 .. _names:
 

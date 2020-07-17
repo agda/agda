@@ -3,19 +3,33 @@ on: [push, pull_request]
 
 jobs:
   check:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.1]
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-haskell@v1
+      - uses: actions/checkout@v2.3.1
+
+      - uses: actions/setup-haskell@v1.1.1
         with:
-          ghc-version: '8.10.1'
-          cabal-version: '3.2'
-      - name: Install fix-agda-whitespace
+          ghc-version: ${{ matrix.ghc-ver }}
+
+      - uses: actions/cache@v2
+        name: Cache dependencies
+        with:
+          path: "~/.stack"
+          key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+
+      - name: Install fix-whitespace
         run: |
           cabal update
-          cd src/fix-agda-whitespace/
-          cabal install
+          git submodule update --init src/fix-whitespace
+          cd src/fix-whitespace/
+          stack --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc install
           cd ../..
       - name: Check the whitespace issue
         run: |
-          $HOME/.cabal/bin/fix-agda-whitespace --check
+          $HOME/.local/bin/fix-whitespace --check

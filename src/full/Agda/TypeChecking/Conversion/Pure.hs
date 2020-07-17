@@ -5,6 +5,7 @@ module Agda.TypeChecking.Conversion.Pure where
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.String
@@ -18,7 +19,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Either
-import Agda.Utils.Except
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -36,19 +36,19 @@ newtype PureConversionT m a = PureConversionT
 pureEqualTerm
   :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Type -> Term -> Term -> m Bool
-pureEqualTerm a u v = locallyTC eCompareBlocked (const True) $
+pureEqualTerm a u v =
   isRight <$> runPureConversion (equalTerm a u v)
 
 pureCompareAs
   :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
-pureCompareAs cmp a u v = locallyTC eCompareBlocked (const True) $
+pureCompareAs cmp a u v =
   isRight <$> runPureConversion (compareAs cmp a u v)
 
 runPureConversion
   :: (ReadTCState m, MonadDebug m, HasOptions m, MonadTCEnv m, Show a)
   => PureConversionT m a -> m (Either TCErr a)
-runPureConversion (PureConversionT m) = do
+runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
   i <- useR stFreshInt
   pid <- useR stFreshProblemId
   nid <- useR stFreshNameId
@@ -79,32 +79,32 @@ instance Monad m => Null (PureConversionT m Doc) where
 
 instance (MonadTCEnv m, ReadTCState m, HasOptions m, MonadDebug m)
   => MonadConstraint (PureConversionT m) where
-  addConstraint c = patternViolation
-  addAwakeConstraint c = patternViolation
+  addConstraint u _ = patternViolation u
+  addAwakeConstraint u _ = patternViolation u
   catchPatternErr handle m = m `catchError` \case
-    PatternErr{} -> handle
+    PatternErr u -> handle u
     err          -> throwError err
-  solveConstraint c = patternViolation
+  solveConstraint c = patternViolation alwaysUnblock
   solveSomeAwakeConstraints _ _ = return ()
   wakeConstraints _ = return ()
   stealConstraints _ = return ()
-  modifyAwakeConstraints _ = patternViolation
-  modifySleepingConstraints _ = patternViolation
+  modifyAwakeConstraints _ = patternViolation alwaysUnblock
+  modifySleepingConstraints _ = patternViolation alwaysUnblock
 
 instance (MonadTCEnv m, MonadReduce m, MonadAddContext m, ReadTCState m, HasBuiltins m, HasConstInfo m, MonadDebug m)
   => MonadMetaSolver (PureConversionT m) where
-  newMeta' _ _ _ _ _ _ = patternViolation
-  assignV _ _ _ _ _ = patternViolation
-  assignTerm' _ _ _ = patternViolation
+  newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock
+  assignV _ _ _ _ _ = patternViolation alwaysUnblock
+  assignTerm' _ _ _ = patternViolation alwaysUnblock
   etaExpandMeta _ _ = return ()
-  updateMetaVar _ _ = patternViolation
+  updateMetaVar _ _ = patternViolation alwaysUnblock
   speculateMetas fallback m = m >>= \case
     KeepMetas     -> return ()
     RollBackMetas -> fallback
 
 instance (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints (PureConversionT m) where
-  freshInteractionId = patternViolation
-  modifyInteractionPoints _ = patternViolation
+  freshInteractionId = patternViolation alwaysUnblock
+  modifyInteractionPoints _ = patternViolation alwaysUnblock
 
 -- This is a bogus instance that promptly forgets all concrete names,
 -- but we don't really care
@@ -116,7 +116,7 @@ instance ReadTCState m => MonadStConcreteNames (PureConversionT m) where
 instance (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
   => MonadWarning (PureConversionT m) where
   addWarning w = case classifyWarning (tcWarning w) of
-    ErrorWarnings -> patternViolation
+    ErrorWarnings -> patternViolation neverUnblock
     AllWarnings   -> return ()
 
 instance ReadTCState m => MonadStatistics (PureConversionT m) where

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Data where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Exception as E
@@ -45,7 +46,6 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Utils.Except
 import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -639,7 +639,7 @@ defineProjections dataName con params names fsT t = do
 
 
 freshAbstractQName'_ :: String -> TCM QName
-freshAbstractQName'_ s = freshAbstractQName noFixity' (C.Name noRange C.InScope [C.Id $ s])
+freshAbstractQName'_ = freshAbstractQName noFixity' . C.simpleName
 
 
 -- | Defines and returns the name of the `transpIx` function.
@@ -1269,7 +1269,7 @@ defineTranspForFields
      --   bodies: Ξ ⊢ us1 : Φ'
      --   sigma:  Ξ, i : I ⊢ σ : Δ.Φ -- line [δ 0,us0] ≡ [δ 0,us1]
 defineTranspForFields pathCons applyProj name params fsT fns rect = do
-  interval <- elInf primInterval
+  interval <- primIntervalType
   let deltaI = expTelescope interval params
   iz <- primIZero
   io <- primIOne
@@ -1277,8 +1277,8 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   imax <- getPrimitiveTerm "primIMax"
   ineg <- getPrimitiveTerm "primINeg"
   transp <- getPrimitiveTerm builtinTrans
-  por <- getPrimitiveTerm "primPOr"
-  one <- primItIsOne
+  -- por <- getPrimitiveTerm "primPOr"
+  -- one <- primItIsOne
   reportSDoc "trans.rec" 20 $ pretty params
   reportSDoc "trans.rec" 20 $ pretty deltaI
   reportSDoc "trans.rec" 10 $ pretty fsT
@@ -1291,7 +1291,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   theType <- (abstract deltaI <$>) $ runNamesT [] $ do
               rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
                                                              pure rect')
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+              nPi' "phi" primIntervalType $ \ phi ->
                (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
 
   reportSDoc "trans.rec" 20 $ prettyTCM theType
@@ -1422,7 +1422,7 @@ defineHCompForFields
   -> LType        -- ^ record type (δ : Δ) ⊢ R[δ]
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]),Substitution)
 defineHCompForFields applyProj name params fsT fns rect = do
-  interval <- elInf primInterval
+  interval <- primIntervalType
   let delta = params
   iz <- primIZero
   io <- primIOne
@@ -1445,8 +1445,8 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
   theType <- (abstract delta <$>) $ runNamesT [] $ do
               rect <- open $ fromLType rect
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               nPi' "i" (elInf $ cl primInterval) (\ i ->
+              nPi' "phi" primIntervalType $ \ phi ->
+               nPi' "i" primIntervalType (\ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 
@@ -1610,7 +1610,7 @@ bindParameters npars par@(A.DomainFull (A.TBind _ _ xs e) : bs) a ret =
   typeError . GenericDocError =<< do
     let s | length xs > 1 = "s"
           | otherwise     = ""
-    text ("Unexpected type signature for parameter" ++ s) <+> sep (map prettyA $ List1.toList xs)
+    text ("Unexpected type signature for parameter" ++ s) <+> sep (fmap prettyA xs)
 
 bindParameters _ (A.DomainFull A.TLet{} : _) _ _ = __IMPOSSIBLE__
 
@@ -1755,24 +1755,6 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
                     equalTerm t (unArg arg) (var i)
 
 
-{- UNUSED, Andreas 2012-09-13
--- | Force a type to be a specific datatype.
-forceData :: QName -> Type -> TCM Type
-forceData d (El s0 t) = liftTCM $ do
-    t' <- reduce t
-    d  <- canonicalName d
-    case t' of
-        Def d' _
-            | d == d'   -> return $ El s0 t'
-            | otherwise -> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
-        MetaV m vs          -> do
-            Defn {defType = t, theDef = Datatype{dataSort = s}} <- getConstInfo d
-            ps <- newArgsMeta t
-            noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
-            reduce $ El s0 t'
-        _ -> typeError $ ShouldBeApplicationOf (El s0 t) d
--}
-
 -- | Is the type coinductive? Returns 'Nothing' if the answer cannot
 -- be determined.
 
@@ -1792,6 +1774,7 @@ isCoinductive t = do
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
+        PrimitiveSort{} -> __IMPOSSIBLE__
         AbstractDefn{} -> __IMPOSSIBLE__
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__

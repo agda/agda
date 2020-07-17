@@ -1,14 +1,24 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Internal.Utils.FileName ( tests ) where
 
-import Agda.Utils.FileName
-
 import qualified Data.Text as Text
+import System.FilePath
 
 import Internal.Helpers
 
-import System.FilePath
+import Agda.Utils.FileName
+
+------------------------------------------------------------------------
+-- Helpers
+
+rootPath :: FilePath
+#ifdef mingw32_HOST_OS
+rootPath = joinDrive "C:" [pathSeparator]
+#else
+rootPath = [pathSeparator]
+#endif
 
 ------------------------------------------------------------------------
 -- Generators

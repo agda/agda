@@ -63,6 +63,14 @@ instance PrettyTCM Call where
       pwords "when checking that the pattern"
       ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 
+    CheckPatternLinearityType x -> fsep $
+      pwords "when checking that all occurrences of pattern variable"
+      ++ [pretty x] ++ pwords "have the same type"
+
+    CheckPatternLinearityValue x -> fsep $
+      pwords "when checking that all occurrences of pattern variable"
+      ++ [pretty x] ++ pwords "have the same value"
+
     CheckLetBinding b -> fsep $
       pwords "when checking the let binding" ++ [prettyA b]
 

@@ -1,0 +1,3 @@
+NoSplitInterval.agda:12,1-13,7
+Cannot split on argument of non-datatype I
+when checking the definition of bad

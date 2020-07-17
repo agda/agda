@@ -9,9 +9,11 @@ module Agda.TypeChecking.Empty
 import Control.Monad.Except
 
 import Data.Semigroup
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
@@ -25,15 +27,16 @@ import Agda.Utils.Either
 import Agda.Utils.Monad
 
 data ErrorNonEmpty
-  = Fail              -- ^ Generic failure
-  | FailBecause TCErr -- ^ Failure with informative error
-  | DontKnow          -- ^ Emptyness check blocked
+  = Fail               -- ^ Generic failure
+  | FailBecause TCErr  -- ^ Failure with informative error
+  | DontKnow Blocker   -- ^ Emptyness check blocked
 
 instance Semigroup ErrorNonEmpty where
-  DontKnow        <> _        = DontKnow
-  _               <> DontKnow = DontKnow
-  FailBecause err <> _        = FailBecause err
-  Fail            <> err      = err
+  DontKnow u1     <> DontKnow u2  = DontKnow $ u1 <> u2  -- Both must unblock for this to proceed
+  e@DontKnow{}    <> _            = e
+  _               <> e@DontKnow{} = e
+  FailBecause err <> _            = FailBecause err
+  Fail            <> err          = err
 
 instance Monoid ErrorNonEmpty where
   mempty  = Fail
@@ -47,7 +50,7 @@ ensureEmptyType
   -> TCM ()
 ensureEmptyType r t = caseEitherM (checkEmptyType r t) failure return
   where
-  failure DontKnow          = addConstraint $ IsEmpty r t
+  failure (DontKnow u)      = addConstraint u $ IsEmpty r t
   failure (FailBecause err) = throwError err
   failure Fail              = typeError $ ShouldBeEmpty t []
 
@@ -67,7 +70,7 @@ checkEmptyType range t = do
   case mr of
 
     -- If t is blocked or a meta, we cannot decide emptiness now.  Postpone.
-    Left (Blocked m t) -> return $ Left DontKnow
+    Left (Blocked b t) -> return $ Left (DontKnow b)
 
     -- If t is not a record type, try to split
     Left (NotBlocked nb t) -> do
@@ -81,7 +84,7 @@ checkEmptyType range t = do
       dontAssignMetas $ do
         r <- splitLast Inductive tel ps
         case r of
-          Left UnificationStuck{} -> return $ Left DontKnow
+          Left UnificationStuck{} -> return $ Left $ DontKnow $ unblockOnAnyMetaIn tel
           Left _                  -> return $ Left Fail
           Right cov -> do
             let ps = map (namedArg . last . fromSplitPatterns . scPats) $ splitClauses cov
@@ -90,8 +93,8 @@ checkEmptyType range t = do
 
     -- If t is a record type, see if any of the field types is empty
     Right (r, pars, def) -> do
-      if recEtaEquality def == NoEta then return $ Left Fail else do
-        void <$> do checkEmptyTel range $ recTel def `apply` pars
+      if | NoEta{} <- recEtaEquality def -> return $ Left Fail
+         | otherwise -> void <$> do checkEmptyTel range $ recTel def `apply` pars
 
 -- | Check whether one of the types in the given telescope is constructor-less
 --   and if yes, return its index in the telescope (0 = leftmost).

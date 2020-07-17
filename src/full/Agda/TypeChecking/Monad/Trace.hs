@@ -43,6 +43,8 @@ interestingCall = \case
     CheckClause{}             -> True
     CheckLHS{}                -> True
     CheckPattern{}            -> True
+    CheckPatternLinearityType{}  -> True
+    CheckPatternLinearityValue{} -> True
     CheckLetBinding{}         -> True
     InferExpr{}               -> True
     CheckExprCall{}           -> True
@@ -143,6 +145,8 @@ traceClosureCall cl m = do
     CheckClause{}             -> True
     CheckLHS{}                -> True
     CheckPattern{}            -> True
+    CheckPatternLinearityType{}  -> False
+    CheckPatternLinearityValue{} -> False
     CheckLetBinding{}         -> True
     InferExpr{}               -> True
     CheckExprCall{}           -> True

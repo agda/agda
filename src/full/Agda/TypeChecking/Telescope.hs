@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Null
@@ -328,9 +329,11 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
 
-    cpi         = noConPatternInfo
+    cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
+      , conPFallThrough
+                   = False
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
@@ -486,7 +489,7 @@ pathViewAsPi'whnf = do
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El Inf interval
+          i = El (SSet $ ClosedLevel 0) interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 
@@ -577,19 +580,22 @@ ifNotPiOrPathType t no yes = do
 -- | A safe variant of 'piApply'.
 
 class PiApplyM a where
+  piApplyM' :: MonadReduce m => m Empty -> Type -> a -> m Type
+
   piApplyM :: MonadReduce m => Type -> a -> m Type
+  piApplyM = piApplyM' __IMPOSSIBLE__
 
 instance PiApplyM Term where
-  piApplyM t v = ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b -> return $ absApp b v
+  piApplyM' err t v = ifNotPiType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
 
 instance PiApplyM a => PiApplyM (Arg a) where
-  piApplyM t = piApplyM t . unArg
+  piApplyM' err t = piApplyM' err t . unArg
 
 instance PiApplyM a => PiApplyM (Named n a) where
-  piApplyM t = piApplyM t . namedThing
+  piApplyM' err t = piApplyM' err t . namedThing
 
 instance PiApplyM a => PiApplyM [a] where
-  piApplyM t = foldl (\ mt v -> mt >>= (`piApplyM` v)) (return t)
+  piApplyM' err t = foldl (\ mt v -> mt >>= \t -> (piApplyM' err t v)) (return t)
 
 
 -- | Compute type arity
@@ -607,7 +613,7 @@ data OutputTypeName
   = OutputTypeName QName
   | OutputTypeVar
   | OutputTypeVisiblePi
-  | OutputTypeNameNotYetKnown
+  | OutputTypeNameNotYetKnown Blocker
   | NoOutputTypeName
 
 -- | Strips all hidden and instance Pi's and return the argument
@@ -615,7 +621,7 @@ data OutputTypeName
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
 getOutputTypeName t = do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
-  ifBlocked (unEl t') (\ _ _ -> return (tel , OutputTypeNameNotYetKnown)) $ \ _ v ->
+  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
       -- Possible base types:
       Def n _  -> return (tel , OutputTypeName n)
@@ -637,7 +643,7 @@ addTypedInstance x t = do
   (tel , n) <- getOutputTypeName t
   case n of
     OutputTypeName n -> addNamedInstance x n
-    OutputTypeNameNotYetKnown -> addUnknownInstance x
+    OutputTypeNameNotYetKnown{} -> addUnknownInstance x
     NoOutputTypeName -> warning $ WrongInstanceDeclaration
     OutputTypeVar -> warning $ WrongInstanceDeclaration
     OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x

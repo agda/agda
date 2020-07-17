@@ -16,6 +16,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 -- | Internal module identifiers for construction of dependency graph.
@@ -89,7 +90,7 @@ generateDot inter = do
     mkDot :: DotState -> String
     mkDot st = unlines $
         [ "digraph dependencies {"
-        ] ++ ["   " ++ repr ++ "[label=\"" ++ show (mnameToConcrete modulename) ++ "\"];"
+        ] ++ ["   " ++ repr ++ "[label=\"" ++ prettyShow (mnameToConcrete modulename) ++ "\"];"
              | (modulename, repr) <- M.toList (dsModules st)]
           ++ ["   " ++ r1 ++ " -> " ++ r2 ++ ";"
              | (r1 , r2) <- S.toList (dsConnection st) ]

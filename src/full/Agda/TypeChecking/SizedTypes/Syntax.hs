@@ -26,7 +26,7 @@ import Agda.Utils.Pretty
 newtype Offset = O Int
   deriving (Eq, Ord, Num, Enum)
 
--- This Show instance is ok because of the Enum constraint.
+-- This Show instance is ok because of the Num constraint.
 instance Show Offset where
   show (O n) = show n
 

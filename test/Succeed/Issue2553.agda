@@ -1,3 +1,5 @@
+-- Andreas, 2020-04-19, abusing this test case to trigger some
+-- warnings for #4560
 
 module _ where
 
@@ -17,6 +19,7 @@ record R₀ (B : Set) : Set₁ where
     proj₂ : B
 
 record R₁ (_ : Set) : Set₁ where
+  pattern -- no effect with eta-equality, should be ignored, #4560
   constructor mkR₁
   eta-equality
   field
@@ -26,7 +29,8 @@ record R₁ (_ : Set) : Set₁ where
   X = R₀.proj₁ p
 
 record R₂ (r : R₁ A) : Set₁ where
-  constructor mkR₂
+  pattern -- should be ignored, #4560
+  -- constructor mkR₂ -- constructor not needed
   eta-equality
   field
     g : R₀ (R₁.X r)

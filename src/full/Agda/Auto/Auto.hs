@@ -7,7 +7,9 @@ module Agda.Auto.Auto
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.State
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.IORef
@@ -47,7 +49,6 @@ import Agda.Auto.Typecheck
 
 import Agda.Auto.CaseSplit
 
-import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens

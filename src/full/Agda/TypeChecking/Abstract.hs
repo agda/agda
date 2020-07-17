@@ -4,6 +4,8 @@
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
+import Control.Monad.Except
+
 import Data.Function
 import qualified Data.HashMap.Strict as HMap
 
@@ -19,7 +21,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Except
 
 import Agda.Utils.Impossible
 
@@ -171,7 +172,8 @@ instance AbsTerm Sort where
   absTerm u s = case s of
     Type n     -> Type $ absS n
     Prop n     -> Prop $ absS n
-    Inf        -> Inf
+    Inf f n    -> s
+    SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     PiSort a s -> PiSort (absS a) (absS s)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
@@ -263,7 +265,8 @@ instance EqualSy Sort where
   equalSy = curry $ \case
     (Type l    , Type l'     ) -> equalSy l l'
     (Prop l    , Prop l'     ) -> equalSy l l'
-    (Inf       , Inf         ) -> True
+    (Inf f m   , Inf f' n    ) -> f == f' && m == n
+    (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
     (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'

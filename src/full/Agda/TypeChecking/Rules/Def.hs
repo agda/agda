@@ -2,17 +2,17 @@
 
 module Agda.TypeChecking.Rules.Def where
 
-import Prelude hiding ( mapM, null )
+import Prelude hiding ( null )
 
-import Control.Arrow (first,second)
-import Control.Monad.State hiding (forM, mapM)
+import Control.Monad.Except
+import Control.Monad.State
 
+import Data.Bifunctor
 import Data.Function
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
-import Data.Traversable (forM, mapM)
 import Data.Semigroup (Semigroup((<>)))
 
 import Agda.Interaction.Options
@@ -43,6 +43,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
@@ -55,7 +56,6 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -98,11 +98,11 @@ checkFunDef delayed i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
-    `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+    `catchIlltypedPatternBlockedOnMeta` \ (err, blocker) -> do
         reportSDoc "tc.def" 20 $ vcat $
-          [ "checking function definition got stuck on meta: " <+> text (show x) ]
-        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked x ()
-        addConstraint $ CheckFunDef delayed i name cs
+          [ "checking function definition got stuck on: " <+> pretty blocker ]
+        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
+        addConstraint blocker $ CheckFunDef delayed i name cs
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -127,7 +127,8 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) (A.WhereDecls _ []) _] = Just (e, mc)
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
+      | null wh     = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -387,9 +388,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Jesper, 2019-05-30: if the constructors used in the
         -- lhs of a clause have rewrite rules, we need to check
         -- confluence here
-        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+        whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> inTopContext $
           forM_ (zip cs [0..]) $ \(c , clauseNo) ->
-            checkConfluenceOfClause name clauseNo c
+            checkConfluenceOfClause confChk name clauseNo c
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
@@ -469,6 +470,7 @@ data WithFunctionProblem
     , wfPermParent :: Permutation                       -- ^ Permutation reordering the variables in the parent pattern.
     , wfPermFinal  :: Permutation                       -- ^ Final permutation (including permutation for the parent clause).
     , wfClauses    :: [A.Clause]                        -- ^ The given clauses for the with function
+    , wfCallSubst :: Substitution                       -- ^ Subtsitution to generate call for the parent.
     }
 
 checkSystemCoverage
@@ -527,7 +529,7 @@ checkSystemCoverage f [n] t cs = do
         pcs = zip phis cs
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
-      interval <- elInf primInterval
+      interval <- primIntervalType
       reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 
@@ -649,7 +651,9 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         -- the context with the parent (but withSub will take you from parent
         -- to child).
 
-        unsafeInTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+        wbody <- unsafeInTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
+
+        body <- return $ body `mplus` wbody
 
         whenM (optDoubleCheck <$> pragmaOptions) $ case body of
           Just v  -> do
@@ -657,7 +661,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
               [ "double checking rhs"
               , nest 2 (prettyTCM v <+> " : " <+> prettyTCM (unArg trhs))
               ]
-            noConstraints $ dontAssignMetas $ checkInternal v CmpLeq $ unArg trhs
+            nonConstraining $ checkInternal v CmpLeq $ unArg trhs
           Nothing -> return ()
 
         reportSDoc "tc.lhs.top" 10 $ vcat
@@ -980,7 +984,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Create the body of the original function
 
         -- All the context variables
-        us <- getContextArgs
+        us <- getContextTerms
         let n = size us
             m = size delta
             -- First the variables bound outside this definition
@@ -988,8 +992,9 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            mkWithArg = \ (WithHiding h e) -> setHiding h $ defaultArg e
-            v         = Def aux $ map Apply $ us0 ++ us1 ++ map mkWithArg withArgs ++ us2
+            mkWithArg = \ (WithHiding h e) -> e
+            argsS = parallelS $ reverse $ us0 ++ us1 ++ map mkWithArg withArgs ++ us2
+            v         = Nothing -- generated by checkWithFunction
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux __DUMMY_TYPE__ emptyFunction
@@ -999,20 +1004,18 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
           let (vs, as) = unzipWith whThing vtys in
           [ "    with arguments" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
           , "             types" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
-          , "with function call" <+> prettyTCM v
           , "           context" <+> (prettyTCM =<< getContextTelescope)
           , "             delta" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta
           , "            delta1" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta1
           , "            delta2" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyTCM delta2
-          , "              body" <+> prettyTCM v
           ]
 
-        return (Just v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs)
+        return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS)
 
 -- | Invoked in empty context.
-checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
-checkWithFunction _ NoWithFunction = return ()
-checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs) = do
+checkWithFunction :: [Name] -> WithFunctionProblem -> TCM (Maybe Term)
+checkWithFunction _ NoWithFunction = return Nothing
+checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs npars perm' perm finalPerm cs argsS) = do
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
@@ -1047,9 +1050,27 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   delta1 <- modifyAllowedReductions (const reds) $ normalise delta1
 
   -- Generate the type of the with function
-  (withFunType, n) <- withFunctionType delta1 vtys delta2 b
+  (withFunType, n) <- do
+    let ps = renaming __IMPOSSIBLE__ (reverseP perm') `applySubst` qs
+    reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
+                                  $ text "ps =" <+> pretty ps
+    let vs = iApplyVars ps
+    bndry <- if null vs then return [] else do
+      iz <- primIZero
+      io <- primIOne
+      let tm = Def f (patternsToElims ps)
+      return [(i,(inplaceS i iz `applySubst` tm, inplaceS i io `applySubst` tm)) | i <- vs]
+    reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
+                                  $ text "bndry =" <+> pretty bndry
+    withFunctionType delta1 vtys delta2 b bndry
   reportSDoc "tc.with.type" 10 $ sep [ "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ "with-function type:", nest 2 $ pretty withFunType ]
+
+  call_in_parent <- do
+    (TelV tel _,bs) <- telViewUpToPathBoundaryP (n + size delta) withFunType
+    return $ argsS `applySubst` Def aux (teleElims tel bs)
+
+  reportSDoc "tc.with.top" 20 $ addContext delta $ "with function call" <+> prettyTCM call_in_parent
 
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
@@ -1092,7 +1113,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Check the with function
   checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
-
+  return $ Just $ call_in_parent
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)
 
@@ -1105,10 +1126,10 @@ checkWhere wh@(A.WhereDecls whmod ds) ret = do
   ensureNoNamedWhereInRefinedContext whmod
   loop ds
   where
-    loop ds = case ds of
-      [] -> ret
-      [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> newSection m tel $ do
+    loop = \case
+      Nothing -> ret
+      -- [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds  -- IMPOSSIBLE
+      Just (A.Section _ m tel ds) -> newSection m tel $ do
           localTC (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret

@@ -25,9 +25,11 @@ module Matrices {Ix : Set} {Σ : (Ix -> Set) -> Set} where
 
   _<+>_ : Matrix -> Matrix -> Matrix
   m <+> n = λ i j -> m i j ⊎ n i j
+  {-# INLINE _<+>_ #-}
 
   _<*>_ : Matrix -> Matrix -> Matrix
   m <*> n = λ i j -> Σ λ k -> m i k × n k j
+  {-# INLINE _<*>_ #-}
 
 data Poly {Coeffs : Set1} : Set1 where
   0p 1p : Poly

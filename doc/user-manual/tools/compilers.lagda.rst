@@ -14,6 +14,8 @@ Compilers
 
 See also :ref:`foreign-function-interface`.
 
+.. _compiler-backends:
+
 Backends
 --------
 
@@ -90,7 +92,13 @@ The backend can be invoked from the command line using the flag
 
 .. code-block:: bash
 
-  agda --js [--compile-dir=<DIR>] <FILE>.agda
+  agda --js [--js-optimize] [--js-minify] [--compile-dir=<DIR>] <FILE>.agda
+
+The ``--js-optimize`` flag makes the generated JavaScript code
+typically faster and less readable.
+
+The ``--js-minify`` flag makes the generated JavaScript code
+smaller and less readable.
 
 
 Optimizations

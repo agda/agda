@@ -1,5 +1,7 @@
 Issue1445-3.agda:19,13-16
-Confluence check failed: Bar unit reduces to both Unit and Foo y
-which are not equal because Unit != Foo y of type Set
+Global confluence check failed: Bar unit y can be rewritten to
+either Unit or Foo y.
+Possible fix: add a rewrite rule with left-hand side Bar unit y to
+resolve the ambiguity.
 when checking confluence of the rewrite rule bar with
 Issue1445-3.Bar-clause1

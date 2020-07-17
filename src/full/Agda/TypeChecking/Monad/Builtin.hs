@@ -6,6 +6,7 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -23,7 +24,6 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -63,16 +63,16 @@ litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
   => Literal -> m Type
 litType l = case l of
-  LitNat _ n    -> do
+  LitNat n    -> do
     _ <- primZero
     when (n > 0) $ void $ primSuc
     el <$> primNat
-  LitWord64 _ _ -> el <$> primWord64
-  LitFloat _ _  -> el <$> primFloat
-  LitChar _ _   -> el <$> primChar
-  LitString _ _ -> el <$> primString
-  LitQName _ _  -> el <$> primQName
-  LitMeta _ _ _ -> el <$> primAgdaMeta
+  LitWord64 _ -> el <$> primWord64
+  LitFloat _  -> el <$> primFloat
+  LitChar _   -> el <$> primChar
+  LitString _ -> el <$> primString
+  LitQName _  -> el <$> primQName
+  LitMeta _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
 
@@ -152,9 +152,9 @@ constructorForm v = constructorForm' primZero primSuc v
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of
-    Lit (LitNat r n)
+    Lit (LitNat n)
       | n == 0    -> pZero
-      | n > 0     -> (`apply1` Lit (LitNat r $ n - 1)) <$> pSuc
+      | n > 0     -> (`apply1` Lit (LitNat $ n - 1)) <$> pSuc
       | otherwise -> pure v
     _ -> pure v
 
@@ -186,7 +186,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primSetOmega,
+    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -299,7 +299,11 @@ primLevel                             = getBuiltin builtinLevel
 primLevelZero                         = getBuiltin builtinLevelZero
 primLevelSuc                          = getBuiltin builtinLevelSuc
 primLevelMax                          = getBuiltin builtinLevelMax
+primSet                               = getBuiltin builtinSet
+primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
+primSSetOmega                         = getBuiltin builtinSSetOmega
+primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
@@ -424,6 +428,31 @@ coinductionKit' = do
 
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = tryMaybe coinductionKit'
+
+-- | Sort primitives.
+
+data SortKit = SortKit
+  { nameOfSet      :: QName
+  , nameOfProp     :: QName
+  , nameOfSSet     :: QName
+  , nameOfSetOmega :: IsFibrant -> QName
+  }
+
+sortKit :: HasBuiltins m => m SortKit
+sortKit = do
+  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
+    }
 
 
 ------------------------------------------------------------------------

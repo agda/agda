@@ -1,10 +1,13 @@
 
 module Agda.Interaction.CommandLine where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import qualified Data.List as List
 import Data.Maybe
+
+import Text.Read (readMaybe)
 
 import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
@@ -29,7 +32,6 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
@@ -144,13 +146,13 @@ showMetas [m] =
           s <- typeOfMeta AsIs i
           r <- getInteractionRange i
           d <- prettyA s
-          liftIO $ putStrLn $ show d ++ " " ++ show r
+          liftIO $ putStrLn $ render d ++ " " ++ prettyShow r
 showMetas [m,"normal"] =
     do  i <- InteractionId <$> readM m
         withInteractionId i $ do
           s <- prettyA =<< typeOfMeta Normalised i
           r <- getInteractionRange i
-          liftIO $ putStrLn $ show s ++ " " ++ show r
+          liftIO $ putStrLn $ render s ++ " " ++ prettyShow r
 showMetas [] =
     do  interactionMetas <- typesOfVisibleMetas AsIs
         hiddenMetas      <- typesOfHiddenMetas  AsIs
@@ -168,21 +170,21 @@ showMetas [] =
         print' x = do
             r <- getMetaRange $ nmid $ metaId x
             d <- showM x
-            liftIO $ putStrLn $ show d ++ "  [ at " ++ show r ++ " ]"
+            liftIO $ putStrLn $ render d ++ "  [ at " ++ prettyShow r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ print scope
+  liftIO $ putStrLn $ prettyShow scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do  m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ putStrLn $ show scope
+        -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
         concreteToAbstract scope e
@@ -218,7 +220,7 @@ retryConstraints = liftTCM wakeupConstraints_
 
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
-    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
+    do  d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent DefaultCompute e
         liftIO $ print d
 evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
@@ -295,3 +297,11 @@ help cs = putStr $ unlines $
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where
         explain (x,_) = ":" ++ x
+
+-- Read -------------------------------------------------------------------
+
+readM :: Read a => String -> TCM a
+readM s = maybe err return $ readMaybe s
+  where
+  err    = throwError $ strMsg $ "Cannot parse: " ++ s
+  strMsg = Exception noRange . text

@@ -33,7 +33,7 @@ prop_defaultPragmaOptionsSafe = ioProperty helper
         Left errs -> do
           putStrLn $ "Unexpected error: " ++ errs
           return False
-        Right opts -> let unsafe = unsafePragmaOptions opts in
+        Right opts -> let unsafe = unsafePragmaOptions defaultOptions opts in
           if null unsafe then return True else do
             putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe

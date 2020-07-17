@@ -32,10 +32,19 @@ Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
 Fixes to outdated instructions welcome!
 
-Working with git
+Working with Git
 ================
 
 Since: 2013-06-15.
+
+Cloning
+--------
+
+Since Agda's repository uses submodules, you should cloning the
+repository by running:
+```bash
+git clone --recurse-submodules git@github.com:agda/agda.git
+```
 
 Branches
 ---------
@@ -421,6 +430,13 @@ Emacs mode
 
 Faster compilation of Agda
 ==========================
+
+Since: April 2020.
+
+* `make type-check` just type-checks the Agda source, generating no code.
+  Can be 7 times faster as `make quicker-install-bin` (max 40s vs. max 5min).
+  Once all type errors are fixed, switch to `quicker-install-bin` or `install-bin`
+  for testing.
 
 Since: July 2019.
 

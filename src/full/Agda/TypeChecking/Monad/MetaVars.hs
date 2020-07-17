@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -35,7 +36,6 @@ import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -256,8 +256,7 @@ constraintMetas c = metas c
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
-      UnquoteTactic m t h g    -> return $ (maybe Set.empty Set.singleton m) `Set.union`
-                                           allMetas Set.singleton (t, h, g)
+      UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       Guarded c _              -> metas c
       TelCmp _ _ _ tel1 tel2   -> return $ allMetas Set.singleton (tel1, tel2)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)

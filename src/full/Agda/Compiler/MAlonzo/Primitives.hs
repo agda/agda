@@ -3,12 +3,13 @@ module Agda.Compiler.MAlonzo.Primitives where
 
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
+import qualified Data.Text as T
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
-import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (closedTerm)
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Common
@@ -40,6 +41,7 @@ isMainFunction q = \case
     Record{}                            -> no
     Constructor{}                       -> no
     Primitive{}                         -> no
+    PrimitiveSort{}                     -> no
   where
   perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
   no      = False
@@ -57,15 +59,15 @@ hasMainFunction IsMain i
     names = HMap.toList $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl] -> TCM [HS.Decl]
-checkTypeOfMain NotMain q def ret = ret
-checkTypeOfMain  IsMain q def ret
-  | not (isMainFunction q $ theDef def) = ret
+checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl]
+checkTypeOfMain NotMain q def = return []
+checkTypeOfMain  IsMain q def
+  | not (isMainFunction q $ theDef def) = return []
   | otherwise = do
     Def io _ <- primIO
     ty <- reduce $ defType def
     case unEl ty of
-      Def d _ | d == io -> (mainAlias :) <$> ret
+      Def d _ | d == io -> return [mainAlias]
       _                 -> do
         err <- fsep $
           pwords "The type of main should be" ++
@@ -96,7 +98,7 @@ treelessPrimName p =
     PEq64  -> "eq64"
     PITo64 -> "word64FromNat"
     P64ToI -> "word64ToNat"
-    PEqF  -> "eqFloat"
+    PEqF  -> "MAlonzo.RTE.Float.eqFloat"
     -- MAlonzo uses literal patterns, so we don't need equality for the other primitive types
     PEqC  -> __IMPOSSIBLE__
     PEqS  -> __IMPOSSIBLE__
@@ -122,6 +124,15 @@ importsForPrim =
   , "primIsSpace"       |-> ["Data.Char"]
   , "primToLower"       |-> ["Data.Char"]
   , "primToUpper"       |-> ["Data.Char"]
+  , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
+  , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
+  , "primFloatNumericalEquality" |-> ["MAlonzo.RTE.Float"]
+  , "primFloatNumericalLess"     |-> ["MAlonzo.RTE.Float"]
+  , "primFloatSqrt"              |-> ["MAlonzo.RTE.Float"]
+  , "primRound"                  |-> ["MAlonzo.RTE.Float"]
+  , "primFloor"                  |-> ["MAlonzo.RTE.Float"]
+  , "primCeiling"                |-> ["MAlonzo.RTE.Float"]
+  , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
   ]
   where (|->) = (,)
 
@@ -129,7 +140,7 @@ importsForPrim =
 
 xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
-  qs <- HMap.keys <$> curDefs
+  qs <- Set.fromList . HMap.keys <$> curDefs
   bs <- Map.toList <$> getsTC stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
@@ -137,7 +148,7 @@ xForPrim table = do
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
   concat <$> sequence [ fromMaybe (return []) $ List.lookup s table
-                        | (s, def) <- bs, getName def `elem` qs ]
+                        | (s, def) <- bs, getName def `Set.member` qs ]
 
 
 -- | Definition bodies for primitive functions
@@ -164,6 +175,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
 
   -- Sorts
   , "primSetOmega"    |-> return "()"
+  , "primStrictSet"   |-> return "\\ _ -> ()"
 
   -- Natural number functions
   , "primNatPlus"      |-> binNat "(+)"
@@ -190,14 +202,14 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   -- ASR (2016-09-14). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"          |-> return "MAlonzo.RTE.eqFloat"
-  , "primFloatLess"              |-> return "MAlonzo.RTE.ltFloat"
-  , "primFloatNumericalEquality" |-> return "MAlonzo.RTE.eqNumFloat"
-  , "primFloatNumericalLess"     |-> return "MAlonzo.RTE.ltNumFloat"
+  , "primFloatEquality"          |-> return "MAlonzo.RTE.Float.eqFloat"
+  , "primFloatLess"              |-> return "MAlonzo.RTE.Float.ltFloat"
+  , "primFloatNumericalEquality" |-> return "MAlonzo.RTE.Float.eqNumFloat"
+  , "primFloatNumericalLess"     |-> return "MAlonzo.RTE.Float.ltNumFloat"
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
-  , "primRound"             |-> return "(round . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
-  , "primFloor"             |-> return "(floor . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
-  , "primCeiling"           |-> return "(ceiling . MAlonzo.RTE.normaliseNaN :: Double -> Integer)"
+  , "primRound"             |-> return "(round . MAlonzo.RTE.Float.normaliseNaN :: Double -> Integer)"
+  , "primFloor"             |-> return "(floor . MAlonzo.RTE.Float.normaliseNaN :: Double -> Integer)"
+  , "primCeiling"           |-> return "(ceiling . MAlonzo.RTE.Float.normaliseNaN :: Double -> Integer)"
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
@@ -208,7 +220,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primATan"              |-> return "(atan :: Double -> Double)"
   , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
-  , "primFloatToWord64"     |-> return "MAlonzo.RTE.doubleToWord64"
+  , "primFloatToWord64"     |-> return "MAlonzo.RTE.Float.doubleToWord64"
   , "primFloatToWord64Injective" |-> return "erased"
 
   -- Character functions
@@ -236,6 +248,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
   , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
   , "primStringToListInjective" |-> return "erased"
+  , "primStringFromListInjective" |-> return "erased"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
@@ -255,11 +268,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primForceLemma" |-> return "erased"
 
   -- Erase
-  , ("primEraseEquality", Right <$> do
-       refl <- primRefl
-       let erase = hLam "a" $ hLam "A" $ hLam "x" $ hLam "y" $ nLam "eq" refl
-       closedTerm =<< closedTermToTreeless LazyEvaluation erase
-    )
+  , "primEraseEquality" |-> return "erased"
   ]
   where
   x |-> s = (x, Left <$> s)
@@ -275,8 +284,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
   axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
-  unimplemented | s `List.elem` axiom_prims = return $ rtmError $ "primitive with no body evaluated: " ++ s
-                | otherwise = typeError $ NotImplemented s
+  unimplemented
+    | s `List.elem` axiom_prims =
+                   return $ rtmError $ T.pack $ "primitive with no body evaluated: " ++ s
+    | otherwise = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)

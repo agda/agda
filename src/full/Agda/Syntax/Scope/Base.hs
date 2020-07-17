@@ -38,7 +38,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
@@ -58,9 +58,14 @@ data Scope = Scope
       , scopeParents        :: [A.ModuleName]
       , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
-      , scopeDatatypeModule :: Maybe DataOrRecord
+      , scopeDatatypeModule :: Maybe DataOrRecordModule
       }
   deriving (Data, Eq, Show)
+
+data DataOrRecordModule
+  = IsDataModule
+  | IsRecordModule
+  deriving (Data, Show, Eq, Enum, Bounded)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
@@ -143,6 +148,12 @@ data BindingSource
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
   deriving (Data, Show, Eq)
+
+instance Pretty BindingSource where
+  pretty = \case
+    LambdaBound  -> "local"
+    PatternBound -> "pattern"
+    LetBound     -> "let-bound"
 
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
@@ -470,7 +481,7 @@ instance LensFixity AbstractName where
   lensFixity = lensAnameName . lensFixity
 
 -- | Van Laarhoven lens on 'anameName'.
-lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
+lensAnameName :: Lens' A.QName AbstractName
 lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
 
 instance Eq AbstractModule where
@@ -480,7 +491,7 @@ instance Ord AbstractModule where
   compare = compare `on` amodName
 
 -- | Van Laarhoven lens on 'amodName'.
-lensAmodName :: Functor m => (A.ModuleName -> m A.ModuleName) -> AbstractModule -> m AbstractModule
+lensAmodName :: Lens' A.ModuleName AbstractModule
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 
@@ -492,7 +503,7 @@ data ResolvedName
     }
 
   | -- | Function, data/record type, postulate.
-    DefinedName Access AbstractName -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
+    DefinedName Access AbstractName A.Suffix -- ^ 'anameKind' can be 'DefName', 'MacroName', 'QuotableName'.
 
   | -- | Record field name.  Needs to be distinguished to parse copatterns.
     FieldName (List1 AbstractName)       -- ^ @('FldName' ==) . 'anameKind'@ for all names.
@@ -509,12 +520,16 @@ data ResolvedName
 
 instance Pretty ResolvedName where
   pretty = \case
-    VarName x _          -> "variable"    <+> pretty x
-    DefinedName a x      -> pretty a      <+> pretty x
+    VarName x b          -> pretty b <+> "variable" <+> pretty x
+    DefinedName a x s    -> pretty a      <+> (pretty x <> pretty s)
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs
     PatternSynResName x  -> "pattern"     <+> pretty x
     UnknownName          -> "<unknown name>"
+
+instance Pretty A.Suffix where
+  pretty NoSuffix   = mempty
+  pretty (Suffix i) = text (show i)
 
 -- * Operations on name and module maps.
 
@@ -1240,7 +1255,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     internalName (C.Qual m n) = intern m || internalName n
       where
       -- Recognize fresh names created Parser.y
-      intern (C.Name _ _ [ C.Id ('.' : '#' : _) ]) = True
+      intern (C.Name _ _ (C.Id ('.' : '#' : _) :| [])) = True
       intern _ = False
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]

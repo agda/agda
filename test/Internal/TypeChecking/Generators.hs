@@ -6,6 +6,8 @@ module Internal.TypeChecking.Generators where
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import Agda.Syntax.Position
@@ -150,7 +152,8 @@ makeConfiguration ds cs ps vs = TermConf
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
                         { nameId          = NameId n 1
-                        , nameConcrete    = C.Name noRange C.InScope [C.Id s]
+                        , nameConcrete    = C.simpleName s
+                        , nameCanonical   = C.simpleName s
                         , nameBindingSite = noRange
                         , nameFixity      = noFixity'
                         , nameIsRecordName = False
@@ -246,14 +249,13 @@ instance GenC Word64 where
   genC _ = arbitrary
 
 instance GenC Literal where
-  genC conf = oneof (concat $ zipWith gen useLits
-              [ uncurry LitNat    <$> genC conf
-              , uncurry LitWord64 <$> genC conf
-              , uncurry LitFloat  <$> genC conf
-              , uncurry LitString <$> genC conf
-              , uncurry LitChar   <$> genC conf
+  genC conf = oneof $ concat $ zipWith gen useLits
+              [ LitNat    <$> genC conf
+              , LitWord64 <$> genC conf
+              , LitFloat  <$> genC conf
+              , LitString . T.pack <$> genC conf
+              , LitChar   <$> genC conf
               ]
-           )
     where
       useLits = map ($ tcLiterals conf) [ useLitInt, useLitFloat, useLitString, useLitChar ]
 
@@ -402,14 +404,14 @@ instance ShrinkC ConName ConHead where
   noShrink = unConName
 
 instance ShrinkC Literal Literal where
-  shrinkC _ (LitNat _ 0) = []
-  shrinkC conf l         = LitNat noRange 0 : case l of
-      LitNat    r n -> LitNat    r <$> shrink n
-      LitWord64 r n -> LitWord64 r <$> shrink n
-      LitString r s -> LitString r <$> shrinkC conf s
-      LitChar   r c -> LitChar   r <$> shrinkC conf c
-      LitFloat  r x -> LitFloat  r <$> shrink x
-      LitQName  r x -> []
+  shrinkC _ (LitNat 0) = []
+  shrinkC conf l         = LitNat 0 : case l of
+      LitNat    n -> LitNat    <$> shrink n
+      LitWord64 n -> LitWord64 <$> shrink n
+      LitString s -> LitString . T.pack <$> shrinkC conf (T.unpack s)
+      LitChar   c -> LitChar   <$> shrinkC conf c
+      LitFloat  x -> LitFloat  <$> shrink x
+      LitQName  x -> []
       LitMeta{}     -> []
   noShrink = id
 
@@ -451,8 +453,9 @@ instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
 instance ShrinkC Sort Sort where
   shrinkC conf s = mkProp 0 : case s of
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
+    SSet l     -> []
     Prop{}     -> []
-    Inf        -> []
+    Inf f _    -> []
     SizeUniv   -> []
     PiSort s1 s2 -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__

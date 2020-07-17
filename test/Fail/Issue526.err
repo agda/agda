@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: _9
+  Is empty: _9 (blocked on _9)
       [ at Issue526.agda:23,7-9 ]
 Unsolved metas at the following locations:
   Issue526.agda:11,8-9

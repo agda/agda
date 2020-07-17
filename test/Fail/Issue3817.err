@@ -1,4 +1,6 @@
-Issue3817.agda:16,21-24
-Confluence check failed: f (lsuc g) reduces to both a and
-f (lsuc h) which are not equal because a != b of type A
-when checking confluence of the rewrite rule f-g with g-h
+Issue3817.agda:16,1-28
+Global confluence check failed: f (lsuc g) unfolds to f (lsuc h)
+which should further unfold to a but it does not.
+Possible fix: add a rule to rewrite f (lsuc h) to a, or change the
+order of the rules so more specialized rules come later.
+when checking the pragma REWRITE f-g f-h g-h

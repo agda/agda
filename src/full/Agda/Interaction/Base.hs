@@ -5,6 +5,7 @@ module Agda.Interaction.Base where
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
+import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.State
 
@@ -24,8 +25,6 @@ import           Agda.Syntax.Scope.Base       (ScopeInfo)
 import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
-import           Agda.Utils.Except            (ExceptT, MonadError (throwError),
-                                               runExceptT)
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
 import           Agda.Utils.Time              (ClockTime)
 
@@ -41,11 +40,10 @@ data CommandState = CommandState
     --   recorded in 'theTCState', but when new interaction points are
     --   added by give or refine Agda does not ensure that the ranges
     --   of later interaction points are updated.
-  , theCurrentFile       :: Maybe (AbsolutePath, ClockTime)
+  , theCurrentFile       :: Maybe CurrentFile
     -- ^ The file which the state applies to. Only stored if the
     -- module was successfully type checked (potentially with
-    -- warnings). The 'ClockTime' is the modification time stamp of
-    -- the file when it was last loaded.
+    -- warnings).
   , optionsOnReload      :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
   , oldInteractionScopes :: !OldInteractionScopes
@@ -57,6 +55,10 @@ data CommandState = CommandState
     --
     -- This queue should only be manipulated by
     -- 'initialiseCommandQueue' and 'maybeAbort'.
+  , interactionMode      :: !InteractionMode
+    -- ^ For top-level commands, we switch into a mode
+    --   where the interface contains also the private definitions.
+    --   See issues #4647 and #1804.
   }
 
 type OldInteractionScopes = Map InteractionId ScopeInfo
@@ -71,6 +73,7 @@ initCommandState commandQueue =
     , optionsOnReload      = defaultOptions
     , oldInteractionScopes = Map.empty
     , commandQueue         = commandQueue
+    , interactionMode      = RegularInteraction
     }
 
 -- | Monad for computing answers to interactive commands.
@@ -79,6 +82,36 @@ initCommandState commandQueue =
 
 type CommandM = StateT CommandState TCM
 
+-- | Information about the current main module.
+data CurrentFile = CurrentFile
+  { currentFilePath  :: AbsolutePath
+      -- ^ The file currently loaded into interaction.
+  , currentFileArgs  :: [String]
+      -- ^ The arguments to Agda used for loading the file.
+  , currentFileStamp :: ClockTime
+      -- ^ The modification time stamp of the file when it was loaded.
+  } deriving (Show)
+
+------------------------------------------------------------------------
+-- Interaction modes (issue #4647)
+
+-- | When a command is invoked at top-level, we wish to be the scope
+--   of the top-level module but also have access to the private
+--   declaration that are removed during serialization.
+--
+--   Thus, top-level commands switch to mode 'TopLevelInteraction'
+--   which initially reloads the current module to restore the
+--   private declarations into the scope.
+--
+--   Switching to a new file will fall back to 'RegularInteraction'.
+
+data InteractionMode
+  = RegularInteraction
+      -- ^ Initial mode. Use deserialized interface.
+  | TopLevelInteraction
+      -- ^ Mode for top-level commands.  Use original interface
+      --   that also contains the private declarations.
+  deriving (Show, Eq)
 
 ------------------------------------------------------------------------
 -- Command queues
@@ -130,7 +163,7 @@ data Interaction' range
 
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
-  | Cmd_metas
+  | Cmd_metas Rewrite
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
@@ -388,10 +421,11 @@ instance Read CompilerBackend where
               _            -> OtherBackend t
     return (b, s)
 
+-- | Ordered ascendingly by degree of normalization.
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
-    deriving (Show, Read)
+    deriving (Show, Read, Eq, Ord)
 
-data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
+data ComputeMode = DefaultCompute | HeadCompute | IgnoreAbstract | UseShowInstance
   deriving (Show, Read, Eq)
 
 data UseForce

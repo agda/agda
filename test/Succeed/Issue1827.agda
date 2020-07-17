@@ -19,10 +19,10 @@ freshFun t cs hole =
 
 macro
   ack : Tactic
-  ack = freshFun set! (clause [] set₀ ∷ [])
+  ack = freshFun set! (clause [] [] set₀ ∷ [])
 
   theA : Tactic
-  theA = freshFun set₀ (clause [] (var 0 []) ∷ [])
+  theA = freshFun set₀ (clause [] [] (var 0 []) ∷ [])
 
 module Foo (A : Set) where
   foo : Set

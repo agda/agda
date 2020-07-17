@@ -5,6 +5,7 @@ module Agda.TypeChecking.Primitive.Cubical where
 import Prelude hiding (null, (!!))
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
 import Data.Typeable
@@ -34,7 +35,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Except
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
@@ -48,16 +48,19 @@ import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as P
 
 
-requireCubical :: TCM ()
-requireCubical = do
+requireCubical :: String -> TCM ()
+requireCubical s = do
   cubical <- optCubical <$> pragmaOptions
   unless cubical $
-    typeError $ GenericError "Missing option --cubical"
+    typeError $ GenericError $ "Missing option --cubical" ++ s
+
+primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
+primIntervalType = El (SSet $ ClosedLevel 0) <$> primInterval
 
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
-  requireCubical
-  t <- elInf primInterval --> elInf primInterval
+  requireCubical ""
+  t <- primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ts -> do
     case ts of
      [x] -> do
@@ -82,10 +85,10 @@ primINeg' = do
 
 primDepIMin' :: TCM PrimitiveImpl
 primDepIMin' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
-       nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       pPi' "o" φ (\ o -> elInf $ cl primInterval) --> elInf (cl primInterval)
+       nPi' "φ" primIntervalType $ \ φ ->
+       pPi' "o" φ (\ o -> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
       [x,y] -> do
@@ -106,8 +109,8 @@ primDepIMin' = do
 
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
-  requireCubical
-  t <- elInf primInterval --> elInf primInterval --> elInf primInterval
+  requireCubical ""
+  t <- primIntervalType --> primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
      [x,y] -> do
@@ -132,12 +135,12 @@ primIBin unit absorber = do
 
 primIMin' :: TCM PrimitiveImpl
 primIMin' = do
-  requireCubical
+  requireCubical ""
   primIBin IOne IZero
 
 primIMax' :: TCM PrimitiveImpl
 primIMax' = do
-  requireCubical
+  requireCubical ""
   primIBin IZero IOne
 
 imax :: HasBuiltins m => m Term -> m Term -> m Term
@@ -155,7 +158,7 @@ imin x y = do
 -- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
 primIdJ :: TCM PrimitiveImpl
 primIdJ = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -204,7 +207,7 @@ primIdJ = do
 
 primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -212,13 +215,13 @@ primIdElim' = do
        hPi' "x" (el' a bA) $ \ x ->
        nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
                  el' a (cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
-       nPi' "φ" (elInf $ cl primInterval) (\ phi ->
-        nPi' "y" (elInf $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (const x)) $ \ y ->
+       nPi' "φ" primIntervalType (\ phi ->
+        nPi' "y" (el's a $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (const x)) $ \ y ->
         let pathxy = (cl primPath <#> a <@> bA <@> x <@> oucy)
             oucy = (cl primSubOut <#> a <#> bA <#> phi <#> lam "o" (const x) <@> y)
             reflx = (lam "o" $ \ _ -> lam "i" $ \ _ -> x) -- TODO Andrea, should block on o
         in
-        nPi' "w" (elInf $ cl primSub <#> a <@> pathxy <@> phi <@> reflx) $ \ w ->
+        nPi' "w" (el's a $ cl primSub <#> a <@> pathxy <@> phi <@> reflx) $ \ w ->
         let oucw = (cl primSubOut <#> a <#> pathxy <#> phi <#> reflx <@> w) in
         el' c $ bC <@> oucy <@> (cl primConId <#> a <#> bA <#> x <#> oucy <@> phi <@> oucw))
        -->
@@ -244,11 +247,11 @@ primIdElim' = do
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  requireCubical
+  requireCubical ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel)    $ \ a  ->
-          nPi' "i" (elInf $ cl primInterval) $ \ i  ->
-          nPi' "j" (elInf $ cl primInterval) $ \ j  ->
+          nPi' "i" primIntervalType $ \ i  ->
+          nPi' "j" primIntervalType $ \ j  ->
           hPi' "A" (pPi' "o" (imax i j) $ \o -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           ((pPi' "i1" i $ \ i1 -> el' a $ bA <..> (cl primIsOne1 <@> i <@> j <@> i1))) -->
           ((pPi' "j1" j $ \ j1 -> el' a $ bA <..> (cl primIsOne2 <@> i <@> j <@> j1))) -->
@@ -274,30 +277,30 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) (\ a ->
-        nPi' "φ" (elInf (cl primInterval)) $ \ _ ->
+        nPi' "φ" primIntervalType $ \ _ ->
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
-        return (sort $ Inf))
+        (sort . tmSSort <$> a))
   isOne <- primIsOne
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
       [l,phi,a] -> do
           (El s (Pi d b)) <- runNamesT [] $ do
                              [l,a,phi] <- mapM (open . unArg) [l,a,phi]
-                             elInf (pure isOne <@> phi) --> el' l a
+                             elSSet (pure isOne <@> phi) --> el' l a
           redReturn $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
       _ -> __IMPOSSIBLE__
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) (\ a ->
-        nPi' "φ" (elInf (cl primInterval)) $ \ phi ->
+        nPi' "φ" primIntervalType $ \ phi ->
         nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-        return (sort $ Inf))
+        (sort . tmSSort <$> a))
   let toFinitePi :: Type -> Term
       toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
       toFinitePi _               = __IMPOSSIBLE__
@@ -305,18 +308,18 @@ primPartialP' = do
         lam "a" $ \ l ->
         lam "φ" $ \ phi ->
         lam "A" $ \ a ->
-        toFinitePi <$> nPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
+        toFinitePi <$> nPi' "p" (elSSet $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
-  requireCubical
+  requireCubical ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          hPi' "u" (elInf $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
-          elInf (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+          hPi' "φ" primIntervalType $ \ phi ->
+          hPi' "u" (el's a $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
+          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
@@ -334,13 +337,13 @@ primSubOut' = do
 
 primConId' :: TCM PrimitiveImpl
 primConId' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
        hPi' "x" (el' a bA) $ \ x ->
        hPi' "y" (el' a bA) $ \ y ->
-       elInf (cl primInterval) -->
+       primIntervalType -->
        (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
        --> (el' a $ cl primId <#> a <#> bA <@> x <@> y)
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts -> do
@@ -357,14 +360,14 @@ primConId' = do
 
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
        hPi' "x" (el' a bA) $ \ x ->
        hPi' "y" (el' a bA) $ \ y ->
        el' a (cl primId <#> a <#> bA <@> x <@> y)
-       --> elInf (cl primInterval)
+       --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,bA,x,y,t] -> do
@@ -378,7 +381,7 @@ primIdFace' = do
 
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -400,23 +403,23 @@ primIdPath' = do
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
-  requireCubical
+  requireCubical ""
   t    <- runNamesT [] $
-          hPi' "a" (elInf (cl primInterval) --> el (cl primLevel)) $ \ a ->
-          nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
-          nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
+          hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
+          nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
+          nPi' "φ" primIntervalType $ \ phi ->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ ts nelims -> do
     primTransHComp DoTransp ts nelims
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
-  requireCubical
+  requireCubical ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
-          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          nPi' "i" (elInf $ cl primInterval) (\ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
+          hPi' "φ" primIntervalType $ \ phi ->
+          nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' a bA) -->
           (el' a bA --> el' a bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts nelims -> do
     primTransHComp DoHComp ts nelims
@@ -1026,7 +1029,7 @@ primTransHComp cmd ts nelims = do
                mId   <- getBuiltinName' builtinId
                pathV <- pathView'
                case famThing t of
-                 MetaV m _ -> fallback' (fmap famThing $ Blocked m () *> sbA)
+                 MetaV m _ -> fallback' (fmap famThing $ blocked_ m *> sbA)
                  -- absName t instead of "i"
                  Pi a b | nelims > 0  -> maybe fallback redReturn =<< compPi cmd "i" ((a,b) <$ t) (ignoreBlocking sphi) u u0
                         | otherwise -> fallback
@@ -1433,12 +1436,12 @@ primTransHComp cmd ts nelims = do
 
 primComp :: TCM PrimitiveImpl
 primComp = do
-  requireCubical
+  requireCubical ""
   t    <- runNamesT [] $
-          hPi' "a" (elInf (cl primInterval) --> el (cl primLevel)) $ \ a ->
-          nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
-          hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          nPi' "i" (elInf $ cl primInterval) (\ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
+          hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
+          nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
+          hPi' "φ" primIntervalType $ \ phi ->
+          nPi' "i" primIntervalType (\ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   one <- primItIsOne
   io  <- primIOne
@@ -1477,12 +1480,12 @@ primComp = do
 
 prim_glueU' :: TCM PrimitiveImpl
 prim_glueU' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
-       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (nPi' "i" (elInf $ cl primInterval) $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (elInf $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       hPi' "φ" primIntervalType $ \ φ ->
+       hPi' "T" (nPi' "i" primIntervalType $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
+       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
        let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
        pPi' "o" φ (\ o -> el' la (t <@> cl primIOne <..> o))
          --> (el' la bA)
@@ -1500,12 +1503,12 @@ prim_glueU' = do
 
 prim_unglueU' :: TCM PrimitiveImpl
 prim_unglueU' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
-       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (nPi' "i" (elInf $ cl primInterval) $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
-       hPi' "A" (elInf $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
+       hPi' "φ" primIntervalType $ \ φ ->
+       hPi' "T" (nPi' "i" primIntervalType $ \ _ -> pPi' "o" φ $ \ o -> sort . tmSort <$> la) $ \ t ->
+       hPi' "A" (el's (cl primLevelSuc <@> la) $ cl primSub <#> (cl primLevelSuc <@> la) <@> (Sort . tmSort <$> la) <@> φ <@> (t <@> primIZero)) $ \ a -> do
        let bA = (cl primSubOut <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <#> (t <@> primIZero) <@> a)
        el' la (cl primHComp <#> (cl primLevelSuc <@> la) <#> (Sort . tmSort <$> la) <#> φ <@> t <@> bA)
          --> el' la bA)
@@ -1560,14 +1563,14 @@ prim_unglueU' = do
 
 primGlue' :: TCM PrimitiveImpl
 primGlue' = do
-  requireCubical
+  requireCubical ""
   -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
   --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        nPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "φ" primIntervalType $ \ φ ->
        nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        pPi' "o" φ (\ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a)
        --> (sort . tmSort <$> lb))
@@ -1584,12 +1587,12 @@ primGlue' = do
 
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
        pPi' "o" φ (\ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)))
@@ -1606,12 +1609,12 @@ prim_glue' = do
 
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
-  requireCubical
+  requireCubical ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
        hPi' "A" (sort . tmSort <$> la) $ \ a ->
-       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "φ" primIntervalType $ \ φ ->
        hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
        hPi' "e" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primEquiv <#> lb <#> la <@> (t <@> o) <@> a) $ \ e ->
        (el' lb (cl primGlue <#> la <#> lb <@> a <#> φ <@> t <@> e)) --> el' la a)
@@ -1661,8 +1664,8 @@ prim_unglue' = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
-  requireCubical
-  t <- (elInf primInterval --> elInf primInterval) --> elInf primInterval
+  requireCubical ""
+  t <- (primIntervalType --> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts -> case ts of
     [phi] -> do
       sphi <- reduceB' phi
@@ -1831,17 +1834,20 @@ transpSysTel' flag delta us phi args = do
           lift $ apply a <$> transpTel' flag xif phi xi_args
         s <- reduce $ getSort (absBody b')
         reportSDoc "cubical.transp" 20 $ pretty (raise 1 b' `lazyAbsApp` var 0)
-        case s of
-          Type l -> do
-                l <- open $ lam_i (Level l)
-                b' <- open b'
-                axi <- open axi
-                usxi <- mapM open usxi
-                gTransp (Just l) b' (zip psis usxi) phi axi
-          Inf    ->
-            if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) || 0 `freeIn` (map (`lazyAbsApp` var 0) (raise 1 usxi))
+        let noTranspSort = if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) || 0 `freeIn` (map (`lazyAbsApp` var 0) (raise 1 usxi))
               then noTranspError b'
               else return axi
+
+        case s of
+          Type l -> do
+            l <- open $ lam_i (Level l)
+            b' <- open b'
+            axi <- open axi
+            usxi <- mapM open usxi
+            gTransp (Just l) b' (zip psis usxi) phi axi
+          Inf _ n  -> noTranspSort
+          SSet _  -> noTranspSort
+          Prop{}  -> noTranspSort
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
     go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) TCM Args
@@ -1854,7 +1860,8 @@ transpSysTel' flag delta us phi args = do
       -- Γ ⊢ b : t[1]    Γ, i ⊢ bf : t[i]
       (b,bf) <- runNamesT [] $ do
         l <- case s of
-               Inf -> return Nothing
+               SSet _ -> return Nothing
+               Inf _ n -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)
@@ -2121,16 +2128,16 @@ toLType ty = do
 instance Subst Term LType where
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
--- | A @Type@ that either has sort @Type l@ or is a closed definition in Set\omega.
+-- | A @Type@ that either has sort @Type l@ or is a closed definition.
 --   Such a type supports some version of transp.
 --   In particular we want to allow the Interval as a @ClosedType@.
-data CType = ClosedType QName | LType LType deriving (Eq,Show)
+data CType = ClosedType Sort QName | LType LType deriving (Eq,Show)
 
 instance P.Pretty CType where
   pretty = P.pretty . fromCType
 
 fromCType :: CType -> Type
-fromCType (ClosedType q) = El Inf (Def q [])
+fromCType (ClosedType s q) = El s (Def q [])
 fromCType (LType t) = fromLType t
 
 toCType :: MonadReduce m => Type -> m (Maybe CType)
@@ -2138,15 +2145,15 @@ toCType ty = do
   sort <- reduce $ getSort ty
   case sort of
     Type l -> return $ Just $ LType (LEl l (unEl ty))
-    Inf    -> do
+    SSet{} -> do
       t <- reduce (unEl ty)
       case t of
-        Def q [] -> return $ Just $ ClosedType q
+        Def q [] -> return $ Just $ ClosedType sort q
         _        -> return $ Nothing
     _      -> return $ Nothing
 
 instance Subst Term CType where
-  applySubst rho t@ClosedType{} = t
+  applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
 
 hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>

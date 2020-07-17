@@ -9,7 +9,7 @@ data D {A : Set} : Irr A → Set where
   -- x is mistakenly marked as forced here!
   d : (x : A) → D (irr x)
 
-unD : ∀ {A i} → D i → A
+unD : ∀ {A : Set}{i} → D i → A
 unD (d x) = x
 
 dtrue=dfalse : d true ≡ d false

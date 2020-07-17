@@ -1,3 +1,4 @@
 Failed to solve the following constraints:
-  Has bigger sort: Agda.Primitive.Setω
-  Has bigger sort: univSort Agda.Primitive.Setω
+  Agda.Primitive.Setω =< _4 (blocked on _4)
+Unsolved metas at the following locations:
+  Issue2285.agda:13,8-11

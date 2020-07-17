@@ -9,6 +9,7 @@ module Agda.Compiler.MAlonzo.HaskellTypes
   ) where
 
 import Control.Monad (zipWithM)
+import Control.Monad.Except
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 import Data.Maybe (fromMaybe)
@@ -30,7 +31,6 @@ import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Agda.Utils.Except
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Null
 
@@ -98,11 +98,8 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
 runToHs :: Term -> ToHs a -> TCM a
 runToHs top m = either (notAHaskellType top) return =<< runExceptT m
 
-liftE1 :: (forall a. m a -> m a) -> ExceptT e m a -> ExceptT e m a
-liftE1 f = mkExceptT . f . runExceptT
-
 liftE1' :: (forall b. (a -> m b) -> m b) -> (a -> ExceptT e m b) -> ExceptT e m b
-liftE1' f k = mkExceptT (f (runExceptT . k))
+liftE1' f k = ExceptT (f (runExceptT . k))
 
 -- Only used in hsTypeApproximation below, and in that case we catch the error.
 getHsType' :: QName -> TCM HS.Type
@@ -112,6 +109,7 @@ getHsType :: QName -> ToHs HS.Type
 getHsType x = do
   d <- liftTCM $ getHaskellPragma x
   list <- liftTCM $ getBuiltinName builtinList
+  mayb <- liftTCM $ getBuiltinName builtinMaybe
   inf  <- liftTCM $ getBuiltinName builtinInf
   let namedType = liftTCM $ do
         -- For these builtin types, the type name (xhqn ...) refers to the
@@ -122,8 +120,9 @@ getHsType x = do
         if  | Just x `elem` [nat, int] -> return $ hsCon "Integer"
             | Just x == bool           -> return $ hsCon "Bool"
             | otherwise                -> hsCon . prettyShow <$> xhqn "T" x
-  liftE1 (setCurrentRange d) $ case d of
+  mapExceptT (setCurrentRange d) $ case d of
     _ | Just x == list -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == mayb -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for Maybe
     _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
     Just HsDefn{}      -> throwError $ WrongPragmaFor (getRange d) x
     Just HsType{}      -> namedType
@@ -223,6 +222,7 @@ data PolyApprox = PolyApprox | NoPolyApprox
 hsTypeApproximation :: PolyApprox -> Int -> Type -> TCM HS.Type
 hsTypeApproximation poly fv t = do
   list <- getBuiltinName builtinList
+  mayb <- getBuiltinName builtinMaybe
   bool <- getBuiltinName builtinBool
   int  <- getBuiltinName builtinInteger
   nat  <- getBuiltinName builtinNat
@@ -240,6 +240,8 @@ hsTypeApproximation poly fv t = do
           Def q els
             | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
                         -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
+            | q `is` mayb, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
+                        -> HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
             | q `is` bool -> return $ tyCon "Bool"
             | q `is` int  -> return $ tyCon "Integer"
             | q `is` nat  -> return $ tyCon "Integer"

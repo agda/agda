@@ -4,6 +4,24 @@ ScopeInfo
   context = []
   modules
     scope
+      private
+        names
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+      imports
+        [Agda.Primitive]
+    scope Agda.Primitive
+      public
+        names
+          _⊔_ --> [Agda.Primitive._⊔_]
+          Level --> [Agda.Primitive.Level]
+          Prop --> [Agda.Primitive.Prop]
+          SSet --> [Agda.Primitive.SSet]
+          SSetω --> [Agda.Primitive.SSetω]
+          Set --> [Agda.Primitive.Set]
+          Setω --> [Agda.Primitive.Setω]
+          lsuc --> [Agda.Primitive.lsuc]
+          lzero --> [Agda.Primitive.lzero]
     scope Optimised-open
       private
         names
@@ -28,6 +46,24 @@ ScopeInfo
   context = []
   modules
     scope
+      private
+        names
+          Prop --> [Agda.Primitive.Prop]
+          Set --> [Agda.Primitive.Set]
+      imports
+        [Agda.Primitive]
+    scope Agda.Primitive
+      public
+        names
+          _⊔_ --> [Agda.Primitive._⊔_]
+          Level --> [Agda.Primitive.Level]
+          Prop --> [Agda.Primitive.Prop]
+          SSet --> [Agda.Primitive.SSet]
+          SSetω --> [Agda.Primitive.SSetω]
+          Set --> [Agda.Primitive.Set]
+          Setω --> [Agda.Primitive.Setω]
+          lsuc --> [Agda.Primitive.lsuc]
+          lzero --> [Agda.Primitive.lzero]
     scope Optimised-open
       private
         names

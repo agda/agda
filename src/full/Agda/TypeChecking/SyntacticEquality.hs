@@ -11,10 +11,8 @@
 
 module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
-import Prelude hiding (mapM)
-
 import Control.Arrow ((***))
-import Control.Monad.State hiding (mapM)
+import Control.Monad.State
 
 import Agda.Interaction.Options (optSyntacticEquality)
 
@@ -127,8 +125,8 @@ instance SynEq LevelAtom where
     where
       unBlock l =
         case l of
-          BlockedLevel m v ->
-            ifM (isInstantiatedMeta m)
+          BlockedLevel b v ->
+            ifM ((alwaysUnblock ==) <$> instantiate b)
                 (pure $ UnreducedLevel v)
                 (pure l)
           _ -> pure l
@@ -143,7 +141,8 @@ instance SynEq Sort where
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
-      (Inf     , Inf       ) -> pure2 s
+      (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
+      (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
       (MetaS x es , MetaS x' es') | x == x' -> MetaS x <$$> synEq es es'
       (DefS  d es , DefS  d' es') | d == d' -> DefS d  <$$> synEq es es'
       (DummyS{}, DummyS{}) -> pure (s, s')

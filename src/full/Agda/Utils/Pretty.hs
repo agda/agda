@@ -11,6 +11,7 @@ module Agda.Utils.Pretty
 import Prelude hiding (null)
 
 import Data.Data (Data(..))
+import qualified Data.Foldable as Fold
 import Data.Int (Int32)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -20,9 +21,10 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Word (Word64)
 
 import qualified Text.PrettyPrint as P
-import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>))
+import Text.PrettyPrint hiding (TextDetails(Str), empty, (<>), sep, fsep, hsep, hcat, vcat, punctuate)
 import Data.Semigroup ((<>))
 
 import Agda.Utils.Float
@@ -62,6 +64,7 @@ instance Pretty Bool    where pretty = text . show
 instance Pretty Int     where pretty = text . show
 instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
+instance Pretty Word64  where pretty = text . show
 instance Pretty Double  where pretty = text . toStringWithoutDotZero
 
 instance Pretty Char where
@@ -95,6 +98,18 @@ instance Pretty a => Pretty (IntMap a) where
 
 instance (Pretty k, Pretty v) => Pretty (Map k v) where
   pretty = prettyMap . Map.toList
+
+-- * Generalizing the original type from list to Foldable
+
+sep, fsep, hsep, hcat, vcat :: Foldable t => t Doc -> Doc
+sep  = P.sep  . Fold.toList
+fsep = P.fsep . Fold.toList
+hsep = P.hsep . Fold.toList
+hcat = P.hcat . Fold.toList
+vcat = P.vcat . Fold.toList
+
+punctuate :: Foldable t => Doc -> t Doc -> [Doc]
+punctuate d = P.punctuate d . Fold.toList
 
 -- * 'Doc' utilities
 

@@ -8,6 +8,8 @@ import Prelude hiding (null)
 
 import Control.Arrow (first)
 import Control.Monad
+import Control.Monad.Except
+
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
@@ -41,7 +43,6 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Benchmarking (Phase(Typing, Generalize))
 import Agda.Utils.Benchmark
-import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List   (hasElem)
@@ -50,6 +51,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 
 
 -- | Generalize a telescope over a set of generalizable variables.
@@ -612,8 +614,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     addNamedVariablesToScope cxt =
       forM_ cxt $ \ Dom{ unDom = (x, _) } -> do
         -- Recognize named variables by lack of '.' (TODO: hacky!)
-        reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ show (nameConcrete x) ++ " to the scope"
-        when ('.' `notElem` show (nameConcrete x)) $ do
+        reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ prettyShow (nameConcrete x) ++ " to the scope"
+        when ('.' `notElem` prettyShow (nameConcrete x)) $ do
           reportSLn "tc.generalize.eta.scope" 40 "  (added)"
           bindVariable LambdaBound (nameConcrete x) x
 
@@ -685,7 +687,7 @@ createGenValue x = setCurrentRange x $ do
   args <- newTelMeta argTel
   metaType <- piApplyM ty args
 
-  let name     = show (nameConcrete $ qnameName x)
+  let name     = prettyShow (nameConcrete $ qnameName x)
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
@@ -778,14 +780,15 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recTel          = dummyTel (length genRecFields) -- Filled in later
            , recMutual       = Just []
            , recEtaEquality' = Inferred YesEta
+           , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit
            }
   reportSDoc "tc.generalize" 20 $ vcat
-    [ text "created genRec" <+> prettyList_ (map (text . show . unDom) genRecFields) ]
+    [ text "created genRec" <+> prettyList_ (map (text . prettyShow . unDom) genRecFields) ]
   reportSDoc "tc.generalize" 80 $ vcat
-    [ text "created genRec" <+> text (show genRecFields) ]
+    [ text "created genRec" <+> text (prettyShow genRecFields) ]
   -- Solve the genRecMeta
   args <- getContextArgs
   let genRecTy = El genRecSort $ Def genRecName $ map Apply args

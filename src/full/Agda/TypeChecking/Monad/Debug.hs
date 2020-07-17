@@ -8,6 +8,7 @@ import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -22,7 +23,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Response (Response(..))
 
-import Agda.Utils.Except
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT

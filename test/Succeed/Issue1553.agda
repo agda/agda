@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --confluence-check #-}
+{-# OPTIONS --rewriting --local-confluence-check #-}
 
 --{-# OPTIONS -v rewriting:100 #-}
 

@@ -1,5 +1,7 @@
 Issue2573-confluence.agda:21,15-18
-Confluence check failed: op true A reduces to both Bool and A
-which are not equal because Bool != A of type Set
+Global confluence check failed: op true A can be rewritten to
+either Bool or A.
+Possible fix: add a rewrite rule with left-hand side op true A to
+resolve the ambiguity.
 when checking confluence of the rewrite rule law with
 Issue2573-confluence.op-clause2

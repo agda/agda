@@ -2,12 +2,15 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow (first, second)
-import Control.Monad.State
+import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import Agda.Syntax.Common
@@ -33,12 +36,6 @@ import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 
-import Agda.Utils.Except
-  ( mkExceptT
-  , MonadError(catchError, throwError)
-  , ExceptT
-  , runExceptT
-  )
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -74,7 +71,7 @@ unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
 unpackUnquoteM m cxt s = runExceptT $ runWriterT $ runStateT (runReaderT m cxt) s
 
 packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
-packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ mkExceptT $ f cxt s
+packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptT $ f cxt s
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
@@ -160,7 +157,7 @@ pickName a =
   case a of
     R.Pi{}   -> "f"
     R.Sort{} -> "A"
-    R.Def d _ | c:_ <- show (qnameName d),
+    R.Def d _ | c:_ <- prettyShow (qnameName d),
               isAlpha c -> [toLower c]
     _        -> "_"
 
@@ -210,42 +207,42 @@ instance Unquote Integer where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitNat _ n) -> return n
+      Lit (LitNat n) -> return n
       _ -> throwError $ NonCanonical "integer" t
 
 instance Unquote Word64 where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitWord64 _ n) -> return n
+      Lit (LitWord64 n) -> return n
       _ -> throwError $ NonCanonical "word64" t
 
 instance Unquote Double where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitFloat _ x) -> return x
+      Lit (LitFloat x) -> return x
       _ -> throwError $ NonCanonical "float" t
 
 instance Unquote Char where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitChar _ x) -> return x
+      Lit (LitChar x) -> return x
       _ -> throwError $ NonCanonical "char" t
 
-instance Unquote Str where
+instance Unquote Text where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitString _ x) -> return (Str x)
+      Lit (LitString x) -> return x
       _ -> throwError $ NonCanonical "string" t
 
 unquoteString :: Term -> UnquoteM String
-unquoteString x = unStr <$> unquote x
+unquoteString x = T.unpack <$> unquote x
 
-unquoteNString :: Arg Term -> UnquoteM String
-unquoteNString x = unStr <$> unquoteN x
+unquoteNString :: Arg Term -> UnquoteM Text
+unquoteNString = unquoteN
 
 data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
 
@@ -254,12 +251,31 @@ instance PrettyTCM ErrorPart where
   prettyTCM (TermPart t) = prettyTCM t
   prettyTCM (NamePart x) = prettyTCM x
 
+-- | We do a little bit of work here to make it possible to generate nice
+--   layout for multi-line error messages. Specifically we split the parts
+--   into lines (indicated by \n in a string part) and vcat all the lines.
+prettyErrorParts :: [ErrorPart] -> TCM Doc
+prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
+  where
+    splitLines [] = []
+    splitLines (StrPart s : ss) =
+      case break (=='\n') s of
+        (s0, '\n' : s1) -> [StrPart s0] : splitLines (StrPart s1 : ss)
+        (s0, "")        -> consLine (StrPart s0) (splitLines ss)
+        _               -> __IMPOSSIBLE__
+    splitLines (p@TermPart{} : ss) = consLine p (splitLines ss)
+    splitLines (p@NamePart{} : ss) = consLine p (splitLines ss)
+
+    consLine l []        = [[l]]
+    consLine l (l' : ls) = (l : l') : ls
+
+
 instance Unquote ErrorPart where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
-        choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
+        choice [ (c `isCon` primAgdaErrorPartString, StrPart . T.unpack <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
@@ -279,6 +295,17 @@ instance Unquote a => Unquote [a] where
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "list" t
+
+instance (Unquote a, Unquote b) => Unquote (a, b) where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+    case t of
+      Con c _ es | Just [x,y] <- allApplyElims es ->
+        choice
+          [(pure (c == sigmaCon), (,) <$> unquoteN x <*> unquoteN y)]
+          __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "pair" t
 
 instance Unquote Hiding where
   unquote t = do
@@ -309,8 +336,8 @@ instance Unquote QName where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitQName _ x) -> return x
-      _                  -> throwError $ NonCanonical "name" t
+      Lit (LitQName x) -> return x
+      _ -> throwError $ NonCanonical "name" t
 
 instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
@@ -318,7 +345,7 @@ instance Unquote a => Unquote (R.Abs a) where
     case t of
       Con c _ es | Just [x,y] <- allApplyElims es ->
         choice
-          [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
+          [(c `isCon` primAbsAbs, R.Abs <$> (hint . T.unpack <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "abstraction" t
@@ -330,7 +357,7 @@ instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Lit (LitMeta r f x) -> liftTCM $ do
+      Lit (LitMeta f x) -> liftTCM $ do
         live <- (f ==) <$> getCurrentPath
         unless live $ do
             m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
@@ -362,18 +389,15 @@ instance Unquote R.Sort where
 instance Unquote Literal where
   unquote t = do
     t <- reduceQuotedTerm t
-    let litMeta r x = do
-          file <- getCurrentPath
-          return $ LitMeta r file x
     case t of
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaLitNat,    LitNat    noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitString, LitString noRange <$> unquoteNString x)
-          , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitMeta,   litMeta   noRange =<< unquoteN x) ]
+          [ (c `isCon` primAgdaLitNat,    LitNat    <$> unquoteN x)
+          , (c `isCon` primAgdaLitFloat,  LitFloat  <$> unquoteN x)
+          , (c `isCon` primAgdaLitChar,   LitChar   <$> unquoteN x)
+          , (c `isCon` primAgdaLitString, LitString <$> unquoteNString x)
+          , (c `isCon` primAgdaLitQName,  LitQName  <$> unquoteN x)
+          , (c `isCon` primAgdaLitMeta,   LitMeta   <$> getCurrentPath <*> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "literal" t
@@ -425,11 +449,11 @@ instance Unquote R.Pattern where
       Con c _ [] ->
         choice
           [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
-          , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
+          [ (c `isCon` primAgdaPatVar,  R.VarP . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatDot,  R.DotP  <$> unquoteN x)
           , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
           , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
@@ -444,13 +468,13 @@ instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [x] <- allApplyElims es ->
-        choice
-          [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
-          __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
+          [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x <*> unquoteN y) ]
+          __IMPOSSIBLE__
+      Con c _ es | Just [x, y, z] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y <*> unquoteN z) ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "clause" t
@@ -568,10 +592,10 @@ evalTCM v = do
     tcFun3 :: (Unquote a, Unquote b, Unquote c) => (a -> b -> c -> TCM d) -> Elim -> Elim -> Elim -> UnquoteM d
     tcFun3 fun = uqFun3 (\ x y z -> liftTCM (fun x y z))
 
-    tcFreshName :: Str -> TCM Term
+    tcFreshName :: Text -> TCM Term
     tcFreshName s = do
       m <- currentModule
-      quoteName . qualify m <$> freshName_ (unStr s)
+      quoteName . qualify m <$> freshName_ (T.unpack s)
 
     tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
@@ -583,7 +607,7 @@ evalTCM v = do
     tcBlockOnMeta :: MetaId -> UnquoteM Term
     tcBlockOnMeta x = do
       s <- gets snd
-      throwError (BlockedOnMeta s x)
+      throwError (BlockedOnMeta s $ unblockOnMeta x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do
@@ -595,11 +619,11 @@ evalTCM v = do
       liftTCM primUnitUnit
 
     tcTypeError :: [ErrorPart] -> TCM a
-    tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
+    tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err
 
-    tcDebugPrint :: Str -> Integer -> [ErrorPart] -> TCM Term
-    tcDebugPrint (Str s) n msg = do
-      reportSDoc s (fromIntegral n) $ fsep (map prettyTCM msg)
+    tcDebugPrint :: Text -> Integer -> [ErrorPart] -> TCM Term
+    tcDebugPrint s n msg = do
+      reportSDoc (T.unpack s) (fromIntegral n) $ prettyErrorParts msg
       primUnitUnit
 
     tcNoConstraints :: Term -> UnquoteM Term

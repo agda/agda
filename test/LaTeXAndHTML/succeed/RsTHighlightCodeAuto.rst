@@ -24,7 +24,7 @@ Marisa:
    <a id="298" class="Comment">-- Alice:</a>
    <a id="311" class="Comment">--    A trial of guts.</a>
 
-     <a id="340" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#423" class="Postulate">Level</a>
+     <a id="340" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a> <a id="342" class="Symbol">:</a> <a id="344" href="Agda.Primitive.html#597" class="Postulate">Level</a>
 
    <a id="354" class="Comment">-- Mokou:</a>
    <a id="367" class="Comment">--    Uh, which one is it?</a>
@@ -32,12 +32,12 @@ Marisa:
 Comment tests ↑
 
 .. raw:: html
-     <a id="420" href="RsTHighlightCodeAuto.html#420" class="Generalizable">A</a> <a id="422" class="Symbol">:</a> <a id="424" class="PrimitiveType">Set</a> <a id="428" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a>
+     <a id="420" href="RsTHighlightCodeAuto.html#420" class="Generalizable">A</a> <a id="422" class="Symbol">:</a> <a id="424" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="428" href="RsTHighlightCodeAuto.html#340" class="Generalizable">ℓ</a>
    -- Marisa:
    --   That should've been obvious...
 
 .. raw:: html
-   <a id="490" class="Keyword">record</a> <a id="Thunk"></a><a id="497" href="RsTHighlightCodeAuto.html#497" class="Record">Thunk</a> <a id="503" class="Symbol">{</a><a id="504" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a><a id="505" class="Symbol">}</a> <a id="507" class="Symbol">(</a><a id="508" href="RsTHighlightCodeAuto.html#508" class="Bound">F</a> <a id="510" class="Symbol">:</a> <a id="512" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a> <a id="517" class="Symbol">→</a> <a id="519" class="PrimitiveType">Set</a> <a id="523" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a><a id="524" class="Symbol">)</a> <a id="526" class="Symbol">(</a><a id="527" href="RsTHighlightCodeAuto.html#527" class="Bound">i</a> <a id="529" class="Symbol">:</a> <a id="531" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a><a id="535" class="Symbol">)</a> <a id="537" class="Symbol">:</a> <a id="539" class="PrimitiveType">Set</a> <a id="543" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a> <a id="545" class="Keyword">where</a>
+   <a id="490" class="Keyword">record</a> <a id="Thunk"></a><a id="497" href="RsTHighlightCodeAuto.html#497" class="Record">Thunk</a> <a id="503" class="Symbol">{</a><a id="504" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a><a id="505" class="Symbol">}</a> <a id="507" class="Symbol">(</a><a id="508" href="RsTHighlightCodeAuto.html#508" class="Bound">F</a> <a id="510" class="Symbol">:</a> <a id="512" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a> <a id="517" class="Symbol">→</a> <a id="519" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="523" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a><a id="524" class="Symbol">)</a> <a id="526" class="Symbol">(</a><a id="527" href="RsTHighlightCodeAuto.html#527" class="Bound">i</a> <a id="529" class="Symbol">:</a> <a id="531" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a><a id="535" class="Symbol">)</a> <a id="537" class="Symbol">:</a> <a id="539" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="543" href="RsTHighlightCodeAuto.html#504" class="Bound">ℓ</a> <a id="545" class="Keyword">where</a>
      <a id="556" class="Keyword">coinductive</a>
 
 Mokou:
@@ -59,7 +59,7 @@ Marisa:
     She must have thought that I, who defeated her, might be able to crush you.
 
 .. raw:: html
-   <a id="1186" class="Keyword">data</a> <a id="Conat"></a><a id="1191" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1197" class="Symbol">(</a><a id="1198" href="RsTHighlightCodeAuto.html#1198" class="Bound">i</a> <a id="1200" class="Symbol">:</a> <a id="1202" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a><a id="1206" class="Symbol">)</a> <a id="1208" class="Symbol">:</a> <a id="1210" class="PrimitiveType">Set</a> <a id="1214" class="Keyword">where</a>
+   <a id="1186" class="Keyword">data</a> <a id="Conat"></a><a id="1191" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1197" class="Symbol">(</a><a id="1198" href="RsTHighlightCodeAuto.html#1198" class="Bound">i</a> <a id="1200" class="Symbol">:</a> <a id="1202" href="Agda.Builtin.Size.html#206" class="Postulate">Size</a><a id="1206" class="Symbol">)</a> <a id="1208" class="Symbol">:</a> <a id="1210" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="1214" class="Keyword">where</a>
      <a id="Conat.zero"></a><a id="1225" href="RsTHighlightCodeAuto.html#1225" class="InductiveConstructor">zero</a> <a id="1230" class="Symbol">:</a> <a id="1232" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1238" href="RsTHighlightCodeAuto.html#1198" class="Bound">i</a>
      <a id="Conat.suc"></a><a id="1245" href="RsTHighlightCodeAuto.html#1245" class="InductiveConstructor">suc</a> <a id="1249" class="Symbol">:</a> <a id="1251" href="RsTHighlightCodeAuto.html#497" class="Record">Thunk</a> <a id="1257" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1263" href="RsTHighlightCodeAuto.html#1198" class="Bound">i</a> <a id="1265" class="Symbol">→</a> <a id="1267" href="RsTHighlightCodeAuto.html#1191" class="Datatype">Conat</a> <a id="1273" href="RsTHighlightCodeAuto.html#1198" class="Bound">i</a>
 

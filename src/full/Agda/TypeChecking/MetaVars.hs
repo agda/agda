@@ -5,6 +5,7 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function
@@ -44,11 +45,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError, catchError)
-  , runExceptT
-  )
 import Agda.Utils.Function
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -225,11 +221,11 @@ newInstanceMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
-  let c = FindInstance x Nothing Nothing
+  let c = FindInstance x neverUnblock Nothing
   -- If we're not already solving instance constraints we should add this
   -- to the awake constraints to make sure we don't forget about it. If we
   -- are solving constraints it will get woken up later (see #2690)
-  ifM isSolvingConstraints (addConstraint c) (addAwakeConstraint c)
+  ifM isSolvingConstraints (addConstraint alwaysUnblock c) (addAwakeConstraint alwaysUnblock c)
   etaExpandMetaSafe x
   return (x, MetaV x $ map Apply vs)
 
@@ -392,7 +388,7 @@ blockTermOnProblem t v pid =
                     (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    inTopContext $ addConstraint (Guarded (UnBlock x) pid)
+    inTopContext $ addConstraint neverUnblock (Guarded (UnBlock x) pid) -- Will be woken up when the problem is solved
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
@@ -416,7 +412,7 @@ blockTermOnProblem t v pid =
         updateMetaVar m' (\mv -> mv { mvTwin = Just x })
         i   <- fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
+        cmp <- buildProblemConstraint_ (unblockOnMeta x) (ValueCmp CmpEq (AsTermsOf t) v (MetaV x es))
         reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
         listenToMeta (CheckConstraint i cmp) x
         return v
@@ -424,7 +420,7 @@ blockTermOnProblem t v pid =
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) a pid
+blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
@@ -471,11 +467,11 @@ postponeTypeCheckingProblem p unblock = do
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
   (_, v) <- newValueMeta DontRunMetaOccursCheck CmpLeq t
-  cmp <- buildProblemConstraint_ (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
+  cmp <- buildProblemConstraint_ (unblockOnMeta m) (ValueCmp CmpEq (AsTermsOf t) v (MetaV m es))
   reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
-  addConstraint (UnBlock m)
+  addConstraint alwaysUnblock (UnBlock m) -- TypeCheckingProblems have their own unblocking logic
   return v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
@@ -511,12 +507,12 @@ etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
-    let waitFor x = do
+    let waitFor b = do
           reportSDoc "tc.meta.eta" 20 $ do
             "postponing eta-expansion of meta variable" <+>
               prettyTCM m <+>
-              "which is blocked by" <+> prettyTCM x
-          listenToMeta (EtaExpand m) x
+              "which is blocked by" <+> prettyTCM b
+          mapM_ (listenToMeta (EtaExpand m)) $ Set.toList $ allBlockingMetas b
         dontExpand = do
           reportSDoc "tc.meta.eta" 20 $ do
             "we do not expand meta variable" <+> prettyTCM m <+>
@@ -600,11 +596,12 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
 etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, Reduce t)
                  => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
-etaExpandBlocked (Blocked m t)  = do
-  etaExpandMeta [Records] m
+etaExpandBlocked (Blocked b t)  = do
+  reportSDoc "tc.meta.eta" 30 $ "Eta expanding blockers" <+> pretty b
+  mapM_ (etaExpandMeta [Records]) $ Set.toList $ allBlockingMetas b
   t <- reduceB t
   case t of
-    Blocked m' _ | m /= m' -> etaExpandBlocked t
+    Blocked b' _ | b /= b' -> etaExpandBlocked t
     _                      -> return t
 
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
@@ -617,7 +614,7 @@ assignWrapper dir x es v doAssign = do
 
   where dontAssign = do
           reportSLn "tc.meta.assign" 10 "don't assign metas"
-          patternViolation
+          patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
 
 -- | Miller pattern unification:
 --
@@ -636,7 +633,7 @@ assignWrapper dir x es v doAssign = do
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
-assign dir x args v target = do
+assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   mvar <- lookupMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
@@ -654,7 +651,11 @@ assign dir x args v target = do
   -- with full unfolding.
   v <- instantiate v
   reportSDoc "tc.meta.assign" 45 $
-    "MetaVars.assign: assigning to " <+> prettyTCM v
+    "MetaVars.assign: assigning meta " <+> prettyTCM (MetaV x []) <+>
+    " with args " <+> prettyList_ (map (prettyTCM . unArg) args) <+>
+    " to " <+> prettyTCM v
+  reportSDoc "tc.meta.assign" 45 $
+    "MetaVars.assign: type of meta: " <+> prettyTCM t
 
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
@@ -663,15 +664,37 @@ assign dir x args v target = do
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
 
+  -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
+  -- we equate the sort of the solution with the sort of the
+  -- metavariable, in order to solve metavariables in sorts.
+  -- Jesper, 2020-04-22: We do this before any of the other steps
+  -- because comparing the sorts might lead to some metavariables
+  -- being solved, which can help with pruning (see #4615).
+  let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+  whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
+         (optCumulativity <$> pragmaOptions)) $ piApplyM' abort t args >>= \case
+    El _ (Sort s) -> do
+      cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
+        case mvJudgement mvar of
+          HasType{ jComparison = cmp } -> return cmp
+          IsSort{} -> __IMPOSSIBLE__
+      s' <- sortOf v
+      reportSDoc "tc.meta.assign" 40 $
+        "Instantiating sort" <+> prettyTCM s <+>
+        "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+      traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+        compareSort cmp s' s
+    _ -> return ()
+
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
-    patternViolation
+    patternViolation neverUnblock
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
   whenM (isBlockedTerm x) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is a blocked term!"
-    patternViolation
+    patternViolation (unblockOnMeta x)
 
   -- Andreas, 2010-10-15 I want to see whether rhs is blocked
   reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -823,8 +846,8 @@ assign dir x args v target = do
           -- same as neutral
           Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
 
-      case mids of
-        Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
+      case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
+        Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
         Just ids -> do
           -- Check linearity
           ids <- do
@@ -833,7 +856,10 @@ assign dir x args v target = do
               -- case: linear
               Right ids -> return ids
               -- case: non-linear variables that could possibly be pruned
-              Left ()   -> attemptPruning x args fvs
+              -- If pruning fails we need to unblock on any meta in the rhs, since they might get
+              -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
+              -- using non-linear variables need to be solved).
+              Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
 
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
@@ -857,8 +883,8 @@ assign dir x args v target = do
             a' <- typeOfBV i
             checkSubtypeIsEqual a' a
               `catchError` \case
-                TypeError{} -> patternViolation
-                err         -> throwError err
+                TypeError{} -> patternViolation (unblockOnMeta x) -- If the subtype check hard-fails we need to
+                err         -> throwError err                     -- solve this meta in some other way.
 
           -- Solve.
           m <- getContextSize
@@ -873,12 +899,13 @@ assign dir x args v target = do
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
       killResult <- prune x args $ (`VarSet.member` fvs)
+      let success = killResult `elem` [PrunedSomething,PrunedEverything]
       reportSDoc "tc.meta.assign" 10 $
-        "pruning" <+> prettyTCM x <+> do
-        text $
-          if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
-           else "failed"
-      patternViolation
+        "pruning" <+> prettyTCM x <+> do text $ if success then "succeeded" else "failed"
+      patternViolation (if success then alwaysUnblock  -- If pruning succeeded we want to retry right away
+                                   else unblockOnAnyMetaIn $ MetaV x $ map Apply args)
+                                        -- TODO: could be more precise: only unblock on metas
+                                        --       applied to offending variables
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
@@ -1029,33 +1056,19 @@ assignMeta' m x t n ids v = do
     -- any more)
     reportSDoc "tc.meta.assign" 15 $ "type of meta =" <+> prettyTCM t
 
-    (telv@(TelV tel' a),bs) <- telViewUpToPathBoundary n t
+    (telv@(TelV tel' a), bs) <- telViewUpToPathBoundary n t
     reportSDoc "tc.meta.assign" 30 $ "tel'  =" <+> prettyTCM tel'
     reportSDoc "tc.meta.assign" 30 $ "#args =" <+> text (show n)
     -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
     -- types for the arguments, it might be blocked by a meta;
     -- then we give up. (Issue 903)
-    when (size tel' < n)
-       patternViolation -- WAS: __IMPOSSIBLE__
-
-    -- Jesper, 2019-09-13: When --no-sort-comparison is enabled,
-    -- we equate the sort of the solution with the sort of the
-    -- metavariable, in order to solve metavariables in sorts.
-    whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
-           (optCumulativity <$> pragmaOptions)) $ case unEl a of
-      Sort s -> addContext tel' $ do
-        m <- lookupMeta x
-        cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-          case mvJudgement m of
-            HasType{ jComparison = cmp } -> return cmp
-            IsSort{} -> __IMPOSSIBLE__
-        s' <- sortOf v'
-        reportSDoc "tc.meta.assign" 40 $
-          "Instantiating sort" <+> prettyTCM s <+>
-          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v'
-        traceCall (CheckMetaSolution (getRange m) x a v') $
-          compareSort cmp s' s
-      _ -> return ()
+    when (size tel' < n) $ do
+      a <- abortIfBlocked a
+      case unEl a of
+        MetaV x _ -> patternViolation (unblockOnMeta x)
+        _         -> do
+          reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
+          __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
 
     -- Perform the assignment (and wake constraints).
 
@@ -1091,7 +1104,7 @@ assignMeta' m x t n ids v = do
 checkMetaInst :: MetaId -> TCM ()
 checkMetaInst x = do
   m <- lookupMeta x
-  let postpone = addConstraint $ CheckMetaInst x
+  let postpone = addConstraint (unblockOnMeta x) $ CheckMetaInst x
   case mvInstantiation m of
     BlockedConst{} -> postpone
     PostponedTypeCheckingProblem{} -> postpone
@@ -1121,7 +1134,7 @@ checkSolutionForMeta x m v a = do
       reportSDoc "tc.meta.check" 30 $ nest 2 $
         prettyTCM x <+> ":=" <+> prettyTCM v <+> " is a sort"
       s <- shouldBeSort (El __DUMMY_SORT__ v)
-      traceCall (CheckMetaSolution (getRange m) x (sort (univSort Nothing s)) (Sort s)) $
+      traceCall (CheckMetaSolution (getRange m) x (sort (univSort s)) (Sort s)) $
         checkSort defaultAction s
 
 -- | Given two types @a@ and @b@ with @a <: b@, check that @a == b@.
@@ -1133,29 +1146,26 @@ checkSubtypeIsEqual a b = do
   ((a, b), equal) <- SynEq.checkSyntacticEquality a b
   unless equal $ do
     cumulativity <- optCumulativity <$> pragmaOptions
-    reduce (unEl b) >>= \case
-      Sort sb -> reduce (unEl a) >>= \case
+    abortIfBlocked (unEl b) >>= \case
+      Sort sb -> abortIfBlocked (unEl a) >>= \case
         Sort sa | cumulativity -> equalSort sa sb
-                | otherwise    -> return ()
-        MetaV{} -> patternViolation
+                             | otherwise    -> return ()
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        _ -> patternViolation
-      Pi b1 b2 -> reduce (unEl a) >>= \case
+        a -> patternViolation (unblockOnAnyMetaIn a) -- TODO: can this happen?
+      Pi b1 b2 -> abortIfBlocked (unEl a) >>= \case
         Pi a1 a2
-          | getRelevance a1 /= getRelevance b1 -> patternViolation
-          | getQuantity  a1 /= getQuantity  b1 -> patternViolation
-          | getCohesion  a1 /= getCohesion  b1 -> patternViolation
+          | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
+          | getQuantity  a1 /= getQuantity  b1 -> patternViolation neverUnblock
+          | getCohesion  a1 /= getCohesion  b1 -> patternViolation neverUnblock
           | otherwise -> do
               checkSubtypeIsEqual (unDom b1) (unDom a1)
               underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
-        MetaV{} -> patternViolation
         Dummy{} -> return () -- TODO: this shouldn't happen but
                              -- currently does because of generalized
                              -- metas being created in a dummy context
-        _ -> patternViolation
-      MetaV{} -> patternViolation
+        a -> patternViolation (unblockOnAnyMetaIn a)
       -- TODO: check subtyping for Size< types
       _ -> return ()
 
@@ -1193,7 +1203,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           -- Note: no eta-expansion of new meta possible/necessary.
           -- Add the size constraint @y args `dir` u@.
           let yArgs = MetaV y $ map Apply args
-          addConstraint $ dirToCmp (`ValueCmp` AsSizes) dir yArgs u
+          addConstraint (unblockOnMeta y) $ dirToCmp (`ValueCmp` AsSizes) dir yArgs u
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.
@@ -1485,7 +1495,7 @@ openMetasToPostulates = do
       -- Create a name for the new postulate.
       let r = clValue $ miClosRange $ mvInfo mv
       -- s <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
-      let s = "unsolved#meta." ++ show x
+      let s = "unsolved#meta." ++ prettyShow x
       n <- freshName r s
       let q = A.QName m n
 
@@ -1512,7 +1522,7 @@ openMetasToPostulates = do
     -- codomains by Setω.
     dummyTypeToOmega t =
       case telView' t of
-        TelV tel (El _ Dummy{}) -> abstract tel topSort
+        TelV tel (El _ Dummy{}) -> abstract tel (sort $ Inf IsFibrant 0)
         _ -> t
 
 -- | Sort metas in dependency order.
