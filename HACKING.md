@@ -332,6 +332,25 @@ you some time. One caveat:
 You should see the status in your GitHub Actions page and
 the Travis dashboard page, if successful.
 
+### Skipping workflows / Work-In-Progress (WIP) commits
+
+It is also possible to skip Travis and/or Github workflows using a special
+phrase in the (head) commit message. The phrase may appear anywhere in the
+commit message. The acceptable phrases are listed below.
+
+The Travis and Github workflows will check for the phrase in the head commit
+(only) of a push (i.e. if you push 3 commits at once, only the most recent
+commit's message is checked for the phrase).
+
+| Phrase | Effect |
+|---|---|
+| `[ci skip]` | Skips both Travis and Github workflows |
+| `[skip ci]` | As-per `[ci skip]` |
+| `[travis skip]` | Skip only Travis workflows (i.e. Github workflows will still run) |
+| `[skip travis]` | As-per `[travis skip]` |
+| `[github skip]` | Skip only Github workflows (i.e. Travis workflows will still run) |
+| `[skip github]` | As-per `[github skip]` |
+
 Some Agda Hacking Lore
 ======================
 
