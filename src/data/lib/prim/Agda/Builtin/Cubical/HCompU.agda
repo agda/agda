@@ -70,7 +70,7 @@ transpProof e φ a b = f , \ j → comp (\ i → e i) (\ i →
                                                  ; (j = i1) → g (~ i) })
                                         f
     where
-      g = fill (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) (outS b) }) (inS (outS b))
+      g = \ (k : I) -> fill (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) (outS b) }) (inS (outS b)) k
       f = comp (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) (outS b) }) (outS b)
 
 {-# BUILTIN TRANSPPROOF transpProof #-}
