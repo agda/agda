@@ -1133,7 +1133,7 @@ instance PrettyTCM TypeError where
       pwords "Universe SSet is disabled (use option --two-level to enable SSet)"
 
     GeneralizeNotSupportedHere x -> fsep $
-      pwords $ "Generalizable variable " ++ show x ++ " is not supported here"
+      pwords $ "Generalizable variable " ++ prettyShow x ++ " is not supported here"
 
     GeneralizeCyclicDependency -> fsep $
       pwords "Cyclic dependency between generalized variables"
