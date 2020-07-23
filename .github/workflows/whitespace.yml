@@ -3,6 +3,12 @@ on: [push, pull_request]
 
 jobs:
   check:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
     runs-on: ubuntu-18.04
 
     strategy:
