@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Heterogeneous.Instances where
 
+import Data.Semigroup ((<>))
+
 import Agda.TypeChecking.Heterogeneous
 
 import Agda.TypeChecking.Free.Lazy (Free(..), underBinder)
