@@ -440,6 +440,8 @@ library
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Functions
                     Agda.TypeChecking.Generalize
+                    Agda.TypeChecking.Heterogeneous
+                    Agda.TypeChecking.Heterogeneous.Instances
                     Agda.TypeChecking.IApplyConfluence
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
