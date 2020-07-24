@@ -543,6 +543,7 @@ library
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
                     Agda.Utils.Cluster
+                    Agda.Utils.Dependent
                     Agda.Utils.Empty
                     Agda.Utils.Environment
                     Agda.Utils.Either
@@ -666,10 +667,7 @@ library
 
   default-extensions: BangPatterns
                     , ConstraintKinds
-                    --L-T Chen (2019-07-15):
-                    -- Enabling DataKinds only locally makes the compile time
-                    -- slightly shorter, see PR #3920.
-                    --, DataKinds
+                    , DataKinds
                     , DefaultSignatures
                     , DeriveDataTypeable
                     , DeriveFoldable
