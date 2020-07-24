@@ -690,6 +690,7 @@ library
                     , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
+                    , TypeApplications
                     , TypeSynonymInstances
 
 executable agda

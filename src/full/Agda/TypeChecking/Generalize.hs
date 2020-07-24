@@ -541,7 +541,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     newMetaFromOld mv ρ mA = setCurrentRange mv $
       case mA of
         Nothing -> do
-          s @ (MetaS y _) <- newSortMeta
+          s@(MetaS y _) <- newSortMeta
           return (y, Sort s)
         Just _A -> do
           let _Aρ = applySubst ρ _A
