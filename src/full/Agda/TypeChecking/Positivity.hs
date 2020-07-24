@@ -371,9 +371,6 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = Reader OccEnv
 
-instance Semigroup a => Semigroup (OccM a) where
-  ma <> mb = liftA2 (<>) ma mb
-
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
   mappend = (<>)
