@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | Parser for @.agda-lib@ files.
 --
 --   Example file:
