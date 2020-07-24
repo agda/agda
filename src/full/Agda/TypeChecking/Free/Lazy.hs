@@ -81,6 +81,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Semigroup
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -430,9 +431,6 @@ type FreeM a c = Reader (FreeEnv' a IgnoreSorts c) c
 -- | Run function for FreeM.
 runFreeM :: IsVarSet a c => SingleVar c -> IgnoreSorts -> FreeM a c -> c
 runFreeM single i m = runReader m $ initFreeEnv i single
-
-instance (Applicative m, Semigroup c) => Semigroup (FreeT a b m c) where
-  (<>) = liftA2 (<>)
 
 instance (Functor m, Applicative m, Monad m, Semigroup c, Monoid c) => Monoid (FreeT a b m c) where
   mempty  = pure mempty

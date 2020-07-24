@@ -585,6 +585,7 @@ library
                     Agda.Utils.POMonoid
                     Agda.Utils.Pretty
                     Agda.Utils.SemiRing
+                    Agda.Utils.Semigroup
                     Agda.Utils.Singleton
                     Agda.Utils.Size
                     Agda.Utils.SmallSet
