@@ -1298,7 +1298,6 @@ deriving instance (Subst t a, Ord a) => Ord (Tele a)
 -- Therefore, I hope this comment is sufficient to prevent a resurrection
 -- of the Eq instance for Constraint.
 
-deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where
