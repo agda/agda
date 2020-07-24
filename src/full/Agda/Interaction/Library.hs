@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | Library management.
 --
 --   Sample use:
