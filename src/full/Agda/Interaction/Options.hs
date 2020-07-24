@@ -41,6 +41,8 @@ import Control.Monad.Trans
 import Data.IORef
 import Data.Function
 import Data.Maybe
+import Data.Map                 ( Map )
+import qualified Data.Map as Map
 import Data.List                ( intercalate )
 import qualified Data.Set as Set
 
@@ -97,6 +99,8 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
+  , optTrustedExecutables             :: Map ExeName FilePath
+  -- ^ Map names of trusted executables to absolute paths
   , optShowVersion           :: Bool
   , optShowHelp              :: Maybe Help
   , optInteractive           :: Bool
@@ -202,6 +206,7 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optAllowExec                 :: Bool
   }
   deriving (Show, Eq)
 
@@ -238,6 +243,7 @@ defaultOptions = Options
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True
   , optUseLibs               = True
+  , optTrustedExecutables    = Map.empty
   , optShowVersion           = False
   , optShowHelp              = Nothing
   , optInteractive           = False
@@ -320,6 +326,7 @@ defaultPragmaOptions = PragmaOptions
   , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
+  , optAllowExec                 = False
   }
 
 -- | The default termination depth.
@@ -426,6 +433,7 @@ unsafePragmaOptions clo opts =
   [ "--cubical and --with-K"                     | optCubical opts
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
+  [ "--allow-exec"                               | optAllowExec opts                 ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -473,6 +481,7 @@ restartOptions =
   , (B . (== Just LocalConfluenceCheck) . optConfluenceCheck, "--local-confluence-check")
   , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
   , (B . not . optImportSorts, "--no-import-sorts")
+  , (B . optAllowExec, "--allow-exec")
   ]
 
 -- to make all restart options have the same type
@@ -892,6 +901,9 @@ withCompilerFlag fp o = case optWithCompiler o of
 noImportSorts :: Flag PragmaOptions
 noImportSorts o = return $ o { optImportSorts = False }
 
+allowExec :: Flag PragmaOptions
+allowExec o = return $ o { optAllowExec = True }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1124,6 +1136,8 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+    , Option []     ["allow-exec"] (NoArg allowExec)
+                    "allow system calls to trusted executables with primExec"
     ]
 
 -- | Pragma options of previous versions of Agda.

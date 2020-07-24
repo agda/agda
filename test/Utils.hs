@@ -4,6 +4,7 @@ module Utils (module Utils,
 
 import Control.Applicative
 import Control.Arrow ((&&&))
+import Control.Monad
 
 import Data.Array
 import Data.Bifunctor (first)
@@ -38,6 +39,7 @@ import qualified Text.Regex.TDFA.Text as RT ( compile )
 
 import Agda.Interaction.ExitCode (AgdaError(..), agdaErrorFromInt)
 import Agda.Utils.Maybe
+import Agda.Utils.Environment
 
 data ProgramResult = ProgramResult
   { exitCode :: ExitCode
@@ -73,11 +75,26 @@ runAgdaWithOptions
   :: String         -- ^ test name
   -> AgdaArgs       -- ^ options (including the name of the input file)
   -> Maybe FilePath -- ^ file containing additional options and flags
+  -> Maybe FilePath -- ^ file containing additional environment variables
   -> IO (ProgramResult, AgdaResult)
-runAgdaWithOptions testName opts mflag = do
+runAgdaWithOptions testName opts mflag mvars = do
   flags <- case mflag of
     Nothing       -> pure []
     Just flagFile -> maybe [] T.unpack <$> readTextFileMaybe flagFile
+
+  -- setting the additional environment variables, saving a backup
+  backup <- case mvars of
+    Nothing      -> pure []
+    Just varFile -> do
+      addEnv <- maybe [] T.lines <$> readTextFileMaybe varFile
+      backup <- if addEnv /= [] then getEnvironment else pure []
+      forM_ addEnv $ \ assgnmt -> do
+        let (var, eqval) = T.break (== '=') assgnmt
+        let val = T.unpack $ T.drop 1 eqval
+        val <- expandEnvironmentVariables val
+        setEnv (T.unpack var) val
+      pure backup
+
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
                                 readAgdaProcessWithExitCode args T.empty
@@ -90,6 +107,9 @@ runAgdaWithOptions testName opts mflag = do
     then withSystemTempDirectory ("MAZ_compile_" ++ testName)
            (\ compDir -> runAgda ["--compile-dir=" ++ compDir])
     else runAgda []
+
+  -- reinstating the old environment
+  mapM_ (uncurry setEnv) backup
 
   cleanedStdOut <- cleanOutput stdOut
   cleanedStdErr <- cleanOutput stdErr

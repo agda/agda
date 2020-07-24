@@ -112,6 +112,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             printStatistics 1 Nothing =<< useTC lensAccumStatistics
   where
     checkFile = Just <$> do
+      opts <- addTrustedExecutables opts
       when (optInteractive opts) $ do
         setCommandLineOptions opts
         liftIO $ putStr splashScreen

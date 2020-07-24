@@ -54,7 +54,7 @@ mkFailTest agdaFile =
     let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , agdaFile
                    , "--ignore-interfaces", "--no-libraries"]
                    ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
-    runAgdaWithOptions testName agdaArgs (Just flagFile)
+    runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
       <&> expectFail
 
   -- | Treats newlines or consecutive whitespaces as one single whitespace.
@@ -84,9 +84,9 @@ issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
     goldenFile = dir </> "Issue2649.err"
     doRun = do
       let agdaArgs file = ["--no-libraries", "-i" ++ dir, dir </> file ]
-      _  <- runAgdaWithOptions "Issue2649-1" (agdaArgs "Issue2649-1.agda") Nothing
-      _  <- runAgdaWithOptions "Issue2649-2" (agdaArgs "Issue2649-2.agda") Nothing
-      runAgdaWithOptions "Issue2649"   (agdaArgs "Issue2649.agda")   Nothing
+      _  <- runAgdaWithOptions "Issue2649-1" (agdaArgs "Issue2649-1.agda") Nothing Nothing
+      _  <- runAgdaWithOptions "Issue2649-2" (agdaArgs "Issue2649-2.agda") Nothing Nothing
+      runAgdaWithOptions "Issue2649"   (agdaArgs "Issue2649.agda")   Nothing Nothing
         <&> printTestResult . expectFail
 
 nestedProjectRoots :: TestTree
@@ -99,13 +99,13 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
       let agdaArgs file = ["--no-libraries", "-i" ++ dir </> "Imports", dir </> file]
       r1 <- runAgdaWithOptions "NestedProjectRoots"
               ("--ignore-interfaces" : ("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
-              Nothing
+              Nothing Nothing
               <&> printTestResult . expectFail
-      r2 <- runAgdaWithOptions "Imports.A" (agdaArgs ("Imports" </> "A.agda")) Nothing
+      r2 <- runAgdaWithOptions "Imports.A" (agdaArgs ("Imports" </> "A.agda")) Nothing Nothing
               <&> expectOk
       r3 <- runAgdaWithOptions "NestedProjectRoots"
               (("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
-              Nothing
+              Nothing Nothing
               <&> printTestResult . expectFail
       return $ r1 `T.append` r2 `T.append` r3
 

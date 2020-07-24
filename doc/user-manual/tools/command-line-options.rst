@@ -242,6 +242,10 @@ Experimental features
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
 
+.. option:: --allow-exec
+
+     Enable system calls during type checking (see :ref:`reflection`).
+
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
 
@@ -813,6 +817,7 @@ again, the source file is re-typechecked instead:
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--warning`
+* :option:`--allow-exec`
 
 
 .. _Vim: https://www.vim.org/

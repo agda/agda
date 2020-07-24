@@ -55,6 +55,8 @@ Here is a list of the features ``--safe`` is incompatible with:
   :option:`--without-K`; using ``primEraseEquality``, one can derive
   the K axiom.
 
+* :option:`--allow-exec`; allows system calls during type checking.
+
 The option ``--safe`` is coinfective (see
 :ref:`consistency-checking-options`); if a module is declared safe,
 then all its imported modules must also be declared safe.

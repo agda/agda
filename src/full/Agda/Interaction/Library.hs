@@ -21,8 +21,10 @@ module Agda.Interaction.Library
   ( findProjectRoot
   , getDefaultLibraries
   , getInstalledLibraries
+  , getTrustedExecutables
   , libraryIncludePaths
   , LibName
+  , ExeName
   , LibM
   , LibWarning(..)
   , LibPositionInfo(..)
@@ -40,7 +42,11 @@ import Data.Data ( Data )
 import Data.Either
 import Data.Bifunctor ( first )
 import Data.Function
+import Data.Map ( Map )
+import qualified Data.Map as Map
+import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.List as List
+import qualified Data.Text as T
 
 import System.Directory
 import System.FilePath
@@ -53,6 +59,8 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Environment
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
+import Agda.Utils.List1 ( List1 )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -63,15 +71,6 @@ import Agda.Version
 ------------------------------------------------------------------------
 -- * Types and Monads
 ------------------------------------------------------------------------
-
-
-data LibrariesFile = LibrariesFile
-  { lfPath   :: FilePath
-      -- ^ E.g. @~/.agda/libraries@.
-  , lfExists :: Bool
-       -- ^ The libraries file might not exist,
-       --   but we may print its assumed location in error messages.
-  } deriving (Show)
 
 -- | Library names are structured into the base name and a suffix of version
 --   numbers, e.g. @mylib-1.2.3@.  The version suffix is optional.
@@ -96,59 +95,6 @@ mkLibM libs m = do
   return x
 
 ------------------------------------------------------------------------
--- * Library warnings and errors
-------------------------------------------------------------------------
-
-
-data LibPositionInfo = LibPositionInfo
-  { libFilePos :: Maybe FilePath -- ^ Name of @libraries@ file
-  , lineNumPos :: LineNumber     -- ^ Line number in @libraries@ file.
-  , filePos    :: FilePath       -- ^ Library file
-  }
-  deriving (Show, Data)
-
-data LibWarning = LibWarning LibPositionInfo LibWarning'
-  deriving (Show, Data)
-
-data LibError = LibError (Maybe LibPositionInfo) LibError'
-
-libraryWarningName :: LibWarning -> WarningName
-libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
-
--- | Collected errors while processing library files.
---
-data LibError'
-  = LibNotFound LibrariesFile LibName
-      -- ^ Raised when a library name could no successfully be resolved
-      --   to an @.agda-lib@ file.
-      --
-  | AmbiguousLib LibName [AgdaLibFile]
-      -- ^ Raised when a library name is defined in several @.agda-lib files@.
-  | OtherError String
-      -- ^ Generic error.
-  deriving (Show)
-
--- | Collects 'LibError's and 'LibWarning's.
---
-type LibErrorIO = WriterT [Either LibError LibWarning] IO
-
--- | Throws 'Doc' exceptions, still collects 'LibWarning's.
-type LibM = ExceptT Doc (WriterT [LibWarning] IO)
-
-warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
-warnings = tell . map Right
-
--- UNUSED Liang-Ting Chen 2019-07-16
---warning :: MonadWriter [Either LibError LibWarning] m => LibWarning -> m ()
---warning = warnings . pure
-
-raiseErrors' :: MonadWriter [Either LibError LibWarning] m => [LibError'] -> m ()
-raiseErrors' = tell . map (Left . (LibError Nothing))
-
-raiseErrors :: MonadWriter [Either LibError LibWarning] m => [LibError] -> m ()
-raiseErrors = tell . map Left
-
-------------------------------------------------------------------------
 -- * Resources
 ------------------------------------------------------------------------
 
@@ -170,20 +116,31 @@ getAgdaAppDir = do
         return d
 
 -- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
---   The content of @libraries@ is is a list of pathes to @.agda-lib@ files.
+--   The content of @libraries@ is a list of paths to @.agda-lib@ files.
 --
 --   Agda honors also version specific @libraries@ files, e.g. @libraries-2.6.0@.
 --
 --   @defaultLibraryFiles@ gives a list of all @libraries@ files Agda should process
 --   by default.
 --
-defaultLibraryFiles :: [FilePath]
-defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
+defaultLibraryFiles :: List1 FilePath
+defaultLibraryFiles = List1.fromList ["libraries-" ++ version, "libraries"]
 
 -- | The @defaultsFile@ contains a list of library names relevant for each Agda project.
 --
 defaultsFile :: FilePath
 defaultsFile = "defaults"
+
+-- | The @~/.agda/executables@ file lists the executables Agda should know about.
+--   The content of @executables@ is a list of paths to executables.
+--
+--   Agda honors also version specific @executables@ files, e.g. @executables-2.6.0@.
+--
+--   @defaultExecutablesFiles@ gives a list of all @executables@ Agda should process
+--   by default.
+--
+defaultExecutableFiles :: List1 FilePath
+defaultExecutableFiles = List1.fromList ["executables-" ++ version, "executables"]
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project
@@ -266,11 +223,11 @@ getLibrariesFile (Just overrideLibFile) =
   return $ LibrariesFile overrideLibFile True  -- Existence checked in cmdline option parser.
 getLibrariesFile Nothing = do
   agdaDir <- getAgdaAppDir
-  let defaults = map (agdaDir </>) defaultLibraryFiles  -- NB: non-empty list
-  files <- filterM doesFileExist defaults
+  let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
+  files <- filterM doesFileExist (List1.toList defaults)
   case files of
     file : _ -> return $ LibrariesFile file True
-    []       -> return $ LibrariesFile (last defaults) False -- doesn't exist, but that's ok
+    []       -> return $ LibrariesFile (List1.last defaults) False -- doesn't exist, but that's ok
 
 -- | Parse the descriptions of the libraries Agda knows about.
 --
@@ -297,7 +254,7 @@ parseLibFiles
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles mlibFile files = do
   rs' <- lift $ mapM (parseLibFile . snd) files
-  let ann (ln, fp) (e, ws) = (first (Just pos,) e, map (LibWarning pos) ws)
+  let ann (ln, fp) (e, ws) = (first (Just pos,) e, map (LibWarning (Just pos)) ws)
         where pos = LibPositionInfo (lfPath <$> mlibFile) ln fp
   let (xs, warns) = unzip $ zipWith ann files (map runP rs')
       (errs, als) = partitionEithers xs
@@ -315,6 +272,67 @@ stripCommentLines = concatMap strip . zip [1..] . lines
   where
     strip (i, s) = [ (i, s') | not $ null s' ]
       where s' = trimLineComment s
+
+-- | Returns the path of the @executables@ file which lists the trusted executables Agda knows about.
+--
+--   Note: file may not exist.
+--
+getExecutablesFile
+  :: IO ExecutablesFile
+getExecutablesFile = do
+  agdaDir <- getAgdaAppDir
+  let defaults = List1.map (agdaDir </>) defaultExecutableFiles  -- NB: very short list
+  files <- filterM doesFileExist (List1.toList defaults)
+  case files of
+    file : _ -> return $ ExecutablesFile file True
+    []       -> return $ ExecutablesFile (List1.last defaults) False -- doesn't exist, but that's ok
+
+-- | Return the trusted executables Agda knows about.
+--
+--   Returns none if there is no @executables@ file.
+--
+getTrustedExecutables
+  :: LibM (Map ExeName FilePath)  -- ^ Content of @executables@ files.
+getTrustedExecutables = mkLibM [] $ do
+    file <- lift $ getExecutablesFile
+    if not (efExists file) then return Map.empty else do
+      es    <- lift $ stripCommentLines <$> readFile (efPath file)
+      files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
+      tmp   <- parseExecutablesFile file $ nubOn snd files
+      return tmp
+  `catchIO` \ e -> do
+    raiseErrors' [ OtherError $ unlines ["Failed to read trusted executables.", show e] ]
+    return Map.empty
+
+-- | Parse the @executables@ file.
+--
+parseExecutablesFile
+  :: ExecutablesFile
+  -> [(LineNumber, FilePath)]
+  -> LibErrorIO (Map ExeName FilePath)
+parseExecutablesFile ef files =
+  fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
+
+    -- Check if the executable exists.
+    fpExists <- lift $ doesFileExist fp
+    if not fpExists
+      then do warnings' [ExeNotFound ef fp]
+              return Nothing
+      else do
+
+      -- Check if the executable is executable.
+      fpPerms <- lift $ getPermissions fp
+      if not (executable fpPerms)
+        then do warnings' [ExeNotExecutable ef fp]
+                return Nothing
+        else do
+
+        -- Compute canonical executable name and absolute filepath.
+        let strExeName  = takeFileName fp
+        let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
+        let txtExeName  = T.pack strExeName'
+        exePath <- lift $ makeAbsolute fp
+        return $ Just (txtExeName, exePath)
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -422,51 +440,3 @@ unVersionView :: VersionView -> LibName
 unVersionView = \case
   VersionView base [] -> base
   VersionView base vs -> base ++ "-" ++ List.intercalate "." (map show vs)
-
-------------------------------------------------------------------------
--- * Prettyprinting errors and warnings
-------------------------------------------------------------------------
-
-formatLibPositionInfo :: LibPositionInfo -> String -> Doc
-formatLibPositionInfo (LibPositionInfo libFile lineNum file) err = text $
-  let loc | Just lf <- libFile = lf ++ ":" ++ show lineNum ++ ": "
-          | otherwise = ""
-  in if "Failed to read" `List.isPrefixOf` err
-     then loc
-     else file ++ ":" ++ (if all isDigit (take 1 err) then "" else " ")
-
--- | Pretty-print 'LibError'.
-formatLibError :: [AgdaLibFile] -> LibError -> Doc
-formatLibError installed (LibError mc e) = prefix <+> body where
-  prefix = case mc of
-    Nothing                      -> ""
-    Just c | OtherError err <- e -> formatLibPositionInfo c err
-    _                            -> ""
-
-  body = case e of
-    LibNotFound file lib -> vcat $
-      [ text $ "Library '" ++ lib ++ "' not found."
-      , sep [ "Add the path to its .agda-lib file to"
-            , nest 2 $ text $ "'" ++ lfPath file ++ "'"
-            , "to install."
-            ]
-      , "Installed libraries:"
-      ] ++
-      map (nest 2)
-         (if null installed then ["(none)"]
-          else [ sep [ text $ _libName l, nest 2 $ parens $ text $ _libFile l ]
-               | l <- installed ])
-
-    AmbiguousLib lib tgts -> vcat $
-      sep [ text $ "Ambiguous library '" ++ lib ++ "'."
-            , "Could refer to any one of"
-          ]
-        : [ nest 2 $ text (_libName l) <+> parens (text $ _libFile l) | l <- tgts ]
-
-    OtherError err -> text err
-
-instance Pretty LibWarning where
-  pretty (LibWarning c w) = formatLibPositionInfo c "" <+> pretty w
-
-instance Pretty LibWarning' where
-  pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"

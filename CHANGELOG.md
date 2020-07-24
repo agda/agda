@@ -50,6 +50,9 @@ Pragmas and options
   `primStringFromList` is an injective function. It is bound in
   `Agda.Builtin.String.Properties`.
 
+* New option `--allow-exec` enables the use of system calls during type checking
+  using the `AGDATCMEXECTC` builtin.
+
 Language
 --------
 
@@ -156,7 +159,6 @@ Reflection
   ```agda
   quoteωTC : ∀ {A : Setω} → A → TC Term
   ```
-
 - `typeError` and `debugPrint` no longer inserts spaces around `termErr` and
   `nameErr` parts. They also do a better job of respecting line breaks in
   `strErr` parts.
@@ -210,6 +212,15 @@ Reflection
     numbered in order to update them to the new representation. As for
     the telescope types, the contents of a `dot` pattern can safely be
     set to `unknown`.
+
+- New operation in `TC` monad, `execTC`, which calls an external executable
+  ```agda
+  execTC : (exe : String) (args : List String) (stdIn : String)
+         → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
+  ```
+  The `execTC` builtin takes three arguments: the basename of the executable (e.g., `"echo"`), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
+
+  The builtin is only available when `--allow-exec` is passed. (Note that `--allow-exec` is incompatible with ``--safe``.) To make an executable available to Agda, add the absolute path on a new line in `~/.agda/executables`.
 
 
 Emacs mode

@@ -21,6 +21,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word (Word64)
 
 import qualified Text.PrettyPrint as P
@@ -66,6 +68,7 @@ instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
 instance Pretty Word64  where pretty = text . show
 instance Pretty Double  where pretty = text . toStringWithoutDotZero
+instance Pretty Text    where pretty = text . T.unpack
 
 instance Pretty Char where
   pretty c = text [c]

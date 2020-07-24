@@ -49,8 +49,10 @@ mkSucceedTest extraOpts dir agdaFile =
   goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
   where
   testName = asTestName dir agdaFile
-  flagFile = dropAgdaExtension agdaFile <.> ".flags"
-  warnFile = dropAgdaExtension agdaFile <.> ".warn"
+  baseName = dropAgdaExtension agdaFile
+  varFile  = baseName <.> ".vars"
+  flagFile = baseName <.> ".flags"
+  warnFile = baseName <.> ".warn"
 
   -- Unless we have a .warn file, we don't really have a golden
   -- file. Just use a dummy update function.
@@ -63,6 +65,7 @@ mkSucceedTest extraOpts dir agdaFile =
   updGolden = Just $ writeTextFile warnFile
 
   doRun = do
+
     let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , agdaFile
                    , "--no-libraries"
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
@@ -70,7 +73,8 @@ mkSucceedTest extraOpts dir agdaFile =
                    ] ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
                      ++ extraOpts
 
-    (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
+    (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
+
     case ret of
       AgdaSuccess{} | testName == "Issue481" -> do
         dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
