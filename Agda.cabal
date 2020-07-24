@@ -624,7 +624,6 @@ library
                -Wduplicate-exports
                -Wempty-enumerations
                -Widentities
-               -Wincomplete-patterns
                -Winline-rule-shadowing
                -Wmissing-fields
                -Wmissing-methods
@@ -652,6 +651,7 @@ library
                  -- -Wmissing-home-modules
                  -Wsimplifiable-class-constraints
                  -Wunbanged-strict-patterns
+                 -Wincomplete-patterns
 
   -- NOTE: If adding flags, also add to `.ghci-8.6`
   if impl(ghc >= 8.6)
