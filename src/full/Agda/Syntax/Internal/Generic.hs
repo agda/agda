@@ -56,6 +56,10 @@ instance TermLike QName where
   traverseTermM _ = pure
   foldTerm _      = mempty
 
+instance TermLike Name where
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
 -- Functors
 
 instance TermLike a => TermLike (Elim' a)      where

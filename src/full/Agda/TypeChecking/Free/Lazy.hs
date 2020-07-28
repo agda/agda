@@ -503,6 +503,8 @@ class Free t where
   default freeVars' :: (t ~ f b, Foldable f, Free b) => IsVarSet a c => t -> FreeM a c
   freeVars' = foldMap freeVars'
 
+instance Free Name where
+  freeVars' = const mempty
 
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see

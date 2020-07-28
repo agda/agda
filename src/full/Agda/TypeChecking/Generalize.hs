@@ -32,6 +32,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Free
+import qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.InstanceArguments (postponeInstanceConstraints)
 import Agda.TypeChecking.MetaVars
@@ -80,7 +81,7 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
           name <- maybe (setNotInScope <$> freshName_ s) return mname
           return $ setName name d
         where s  = fst $ unDom d
-      dropCxt err = updateContext (strengthenS err 1) (drop 1)
+      dropCxt err = updateContext (strengthenS err 1) (H.drop 1)
   genTelCxt <- dropCxt __IMPOSSIBLE__ $ mapM cxtEntry $ reverse $ zip genTelVars $ telToList genTel
 
   -- For the explicit module telescope we get the names from the typecheck
@@ -99,8 +100,8 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, (v, dom)) = addLetBinding' x v dom
 
-  updateContext sub ((genTelCxt ++) . drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt ++) $
+  updateContext sub ((genTelCxt H.⊣::) . H.drop 1) $
+    updateContext (raiseS (size tel')) (newTelCxt H.⊣::) $
       foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
 
 
@@ -254,7 +255,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     dependencySortMetas (generalizeOver ++ reallyDontGeneralize)
   let sortedMetas = filter shouldGeneralize allSortedMetas
 
-  let dropCxt err = updateContext (strengthenS err 1) (drop 1)
+  let dropCxt err = updateContext (strengthenS err 1) (H.drop 1)
 
   -- Create the pre-record type (we don't yet know the types of the fields)
   (genRecName, genRecCon, genRecFields) <- dropCxt __IMPOSSIBLE__ $
@@ -478,13 +479,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- When updating the context we also need to pick names for the variables. Get them from the
         -- current context and generate fresh ones for the generalized variables in Θ.
         (newCxt, rΘ) <- do
-          (rΔ, _ : rΓ) <- splitAt i <$> getContext
+          (rΔ, _ : rΓ) <- splitAt i <$> (contextHetToList <$> getContextHet)
           let setName = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
           rΘ <- mapM setName $ reverse $ telToList _Θγ
           let rΔσ = zipWith (\ name dom -> first (const name) <$> dom)
                             (map (fst . unDom) rΔ)
                             (reverse $ telToList _Δσ)
-          return (rΔσ ++ rΘ ++ rΓ, rΘ)
+          return (rΔσ H.⊣:: (rΘ H.⊣:: contextHetFromList rΓ), rΘ)
 
         -- Now we can enter the new context and create our meta variable.
         (y, u) <- updateContext ρ (const newCxt) $ localScope $ do

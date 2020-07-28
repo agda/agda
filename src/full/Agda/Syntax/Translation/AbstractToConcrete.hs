@@ -62,6 +62,7 @@ import Agda.Syntax.Scope.Monad ( tryResolveName )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
@@ -111,7 +112,7 @@ makeEnv scope = do
         Just v | Just q <- name v,
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
-  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
+  ctxVars <- map (fst . I.unDom) <$> getContext
   letVars <- Map.keys <$> asksTC envLetBindings
   let vars = ctxVars ++ letVars
 
@@ -1668,3 +1669,8 @@ instance ToConcrete InteractionId C.Expr where
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ prettyShow i)
+
+-- Some instances related to heterogeneous types
+
+instance ToConcrete a c => ToConcrete (TwinT' a) (TwinT' c) where
+    toConcrete = traverse toConcrete

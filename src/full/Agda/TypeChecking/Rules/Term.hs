@@ -40,6 +40,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Generalize
+import qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.IApplyConfluence
@@ -1637,7 +1638,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           -- the size of delta, so we append the identity substitution.
           sub    = parallelS (reverse sigma)
 
-      updateContext sub (drop toDrop) $ do
+      updateContext sub (H.drop toDrop) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ "delta =" <+> prettyTCM delta
           , "binds =" <+> prettyTCM binds

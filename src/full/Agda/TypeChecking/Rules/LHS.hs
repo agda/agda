@@ -54,6 +54,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.Datatypes hiding (DataOrRecord(..), isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
+import qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Irrelevance
 -- Prevent "Ambiguous occurrence ‘DontKnow’" when loading with ghci.
 -- (DontKnow is one of the constructors of ErrorNonEmpty *and* UnifactionResult').
@@ -764,7 +765,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         newCxt <- computeLHSContext vars delta
 
-        updateContext paramSub (const newCxt) $ do
+        updateContext paramSub (const$ newCxt H.⊣:: Empty) $ do
 
           reportSDoc "tc.lhs.top" 10 $ "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ "context = " <+> (pretty =<< getContextTelescope)
@@ -1041,7 +1042,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       let cpSub = raiseS $ size newContext - lhsCxtSize
 
-      (gamma,sigma) <- liftTCM $ updateContext cpSub (const newContext) $ do
+      (gamma,sigma) <- liftTCM $ updateContext cpSub (const$ newContext H.⊣:: Empty) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 10 $ "currentCxt =" <+> (prettyTCM =<< getContext)
                  reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (t,u)

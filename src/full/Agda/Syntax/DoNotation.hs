@@ -33,7 +33,7 @@ import Agda.Syntax.Concrete
 
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (RHS)
 
 import Agda.Utils.List   ( initMaybe )
 import Agda.Utils.List1  ( List1, pattern (:|) )

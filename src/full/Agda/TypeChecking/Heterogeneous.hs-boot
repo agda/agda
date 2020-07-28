@@ -28,3 +28,6 @@ instance (Typeable side, Data t) => Data (Het side t)
 instance Show t => Show (Het side t)
 instance TermLike t => TermLike (Het side t)
 instance Functor (Het side)
+
+newtype ContextHet = ContextHet { unContextHet :: Seq (Name, Dom TwinT) }
+instance Data ContextHet

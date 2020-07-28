@@ -20,6 +20,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
 import Data.Semigroup (Semigroup((<>)))
+import Data.Sequence (Seq)
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Position
@@ -283,6 +284,28 @@ instance PrettyTCM Modality where
     [ prettyTCM (getQuantity mod)
     , prettyTCM (getRelevance mod)
     ]
+
+instance PrettyTCM a => PrettyTCM (Het side a) where
+  prettyTCM = prettyTCM . unHet
+
+instance PrettyTCM a => PrettyTCM (TwinT' a) where
+  prettyTCM (SingleT a) = prettyTCM a
+  prettyTCM TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c} =
+    prettyTCM a <+> return "‡"
+                <+> return "["
+                <+> pretty twinPid
+                <+> return (if necessary then "" else "*")
+                <+> return ","
+                <+> prettyTCM c
+                <+> return "]"
+                <+> prettyTCM b
+
+instance PrettyTCM ContextHet where
+  prettyTCM = fmap P.fsep . go
+    where
+      go :: MonadPretty m => ContextHet -> m [P.Doc]
+      go Empty = pure []
+      go (a :⊢: γΓ) = (:) <$> prettyTCM a <*> addContext (twinAt @'Compat a) (go γΓ)
 
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parens (sep [blockedOn unblock, prPids (Set.toList pids)])

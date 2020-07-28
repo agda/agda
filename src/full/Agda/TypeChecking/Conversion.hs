@@ -1878,7 +1878,7 @@ forallFaceMaps t kb k = do
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (second boolToI) $ Map.toAscList ms
-    cxt <- getContext
+    cxt <- getContextHet
     reportSDoc "conv.forall" 20 $
       fsep ["substContextN"
            , prettyTCM cxt
@@ -1912,7 +1912,7 @@ forallFaceMaps t kb k = do
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 
-    substContextN :: MonadConversion m => Context -> [(Int,Term)] -> m (Context , Substitution)
+    substContextN :: MonadConversion m => ContextHet -> [(Int,Term)] -> m (ContextHet , Substitution)
     substContextN c [] = return (c, idS)
     substContextN c ((i,t):xs) = do
       (c', sigma) <- substContext i t c
@@ -1922,10 +1922,10 @@ forallFaceMaps t kb k = do
 
     -- assumes the term can be typed in the shorter telescope
     -- the terms we get from toFaceMaps are closed.
-    substContext :: MonadConversion m => Int -> Term -> Context -> m (Context , Substitution)
-    substContext i t [] = __IMPOSSIBLE__
-    substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
-    substContext i t (x:xs) | i > 0 = do
+    substContext :: MonadConversion m => Int -> Term -> ContextHet -> m (ContextHet , Substitution)
+    substContext i t Empty = __IMPOSSIBLE__
+    substContext i t (xs :⊢ x) | i == 0 = return $ (xs , singletonS 0 t)
+    substContext i t (xs :⊢ x) | i > 0 = do
                                   reportSDoc "conv.forall" 20 $
                                     fsep ["substContext"
                                         , text (show (i-1))
@@ -1934,8 +1934,8 @@ forallFaceMaps t kb k = do
                                         ]
                                   (c,sigma) <- substContext (i-1) t xs
                                   let e = applySubst sigma x
-                                  return (e:c, liftS 1 sigma)
-    substContext i t (x:xs) = __IMPOSSIBLE__
+                                  return (c :⊢ e, liftS 1 sigma)
+    substContext i t (xs :⊢ x) = __IMPOSSIBLE__
 
 compareInterval :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareInterval cmp i t u = do

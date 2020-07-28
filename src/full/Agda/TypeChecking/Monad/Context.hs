@@ -22,6 +22,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Free
+import qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -46,19 +47,19 @@ import Agda.Utils.Impossible
 
 -- | Modify a 'Context' in a computation.  Warning: does not update
 --   the checkpoints. Use @updateContext@ instead.
-{-# SPECIALIZE unsafeModifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
-unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
+{-# SPECIALIZE unsafeModifyContext :: (ContextHet -> ContextHet) -> TCM a -> TCM a #-}
+unsafeModifyContext :: MonadTCEnv tcm => (ContextHet -> ContextHet) -> tcm a -> tcm a
 unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
-modifyContextInfo f = unsafeModifyContext $ map f
+modifyContextInfo f = unsafeModifyContext $ ContextHet . fmap f . unContextHet
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
 inTopContext cont =
-  unsafeModifyContext (const [])
+  unsafeModifyContext (const Empty)
         $ locallyTC eCurrentCheckpoint (const 0)
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyTCState stModuleCheckpoints (const Map.empty)
@@ -72,7 +73,7 @@ inTopContext cont =
 unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
 unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
-    unsafeModifyContext (const []) cont
+    unsafeModifyContext (const Empty) cont
 
 -- | Delete the last @n@ bindings from the context.
 --
@@ -80,12 +81,12 @@ unsafeInTopContext cont =
 --   rho (drop n)` instead, for an appropriate substitution `rho`.
 {-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-unsafeEscapeContext n = unsafeModifyContext $ drop n
+unsafeEscapeContext n = unsafeModifyContext $ H.drop n
 
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
 escapeContext :: MonadAddContext m => Empty -> Int -> m a -> m a
-escapeContext err n = updateContext (strengthenS err n) $ drop n
+escapeContext err n = updateContext (strengthenS err n) $ H.drop n
 
 -- * Manipulating checkpoints --
 
@@ -161,7 +162,7 @@ class MonadTCEnv m => MonadAddContext m where
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
   --   to the new.
-  updateContext :: Substitution -> (Context -> Context) -> m a -> m a
+  updateContext :: Substitution -> (ContextHet -> ContextHet) -> m a -> m a
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
@@ -177,7 +178,7 @@ class MonadTCEnv m => MonadAddContext m where
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Substitution -> (Context -> Context) -> m a -> m a
+    => Substitution -> (ContextHet -> ContextHet) -> m a -> m a
   updateContext sub f = liftThrough $ updateContext sub f
 
   default withFreshName
@@ -192,8 +193,8 @@ class MonadTCEnv m => MonadAddContext m where
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret = do
   q <- viewTC eQuantity
-  let ce = (x,) <$> inverseApplyQuantity q a
-  updateContext (raiseS 1) (ce :) ret
+  let ce = (x,) . pure <$> (inverseApplyQuantity q a)
+  updateContext (raiseS 1) (:⊢ ce) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -416,12 +417,17 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
 getContext :: MonadTCEnv m => m [Dom (Name, Type)]
-getContext = asksTC envContext
+getContext = asksTC (twinAt @'Compat . envContext)
+
+-- | Get the current context.
+{-# SPECIALIZE getContextHet :: TCM ContextHet #-}
+getContextHet :: MonadTCEnv m => m ContextHet
+getContextHet = asksTC envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
 getContextSize :: (Applicative m, MonadTCEnv m) => m Nat
-getContextSize = length <$> asksTC envContext
+getContextSize = H.length <$> asksTC envContext
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}

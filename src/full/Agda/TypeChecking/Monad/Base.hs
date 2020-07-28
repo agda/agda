@@ -1,7 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+{-# LANGUAGE ViewPatterns               #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -24,7 +27,9 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 
 import Data.Array (Ix)
+import Data.Coerce (coerce)
 import Data.Function
+import Data.Foldable (toList)
 import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -38,7 +43,8 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data)
+import qualified Data.Sequence as S
+import Data.Data (Data, Typeable)
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -88,6 +94,7 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
+import Agda.Utils.Dependent
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
@@ -103,6 +110,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Size
 import Agda.Utils.SmallSet (SmallSet)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
@@ -2612,11 +2620,165 @@ ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
 ---------------------------------------------------------------------------
+-- * Heterogeneous contexts
+---------------------------------------------------------------------------
+
+-- | The context is in right-to-left order; i.e. each variable is bound
+--   by all the preceding variables
+newtype ContextHet' a = ContextHet { unContextHet :: Seq a }
+  deriving (Data, Show, Functor, Foldable)
+type ContextHet = ContextHet' (Dom (Name, TwinT))
+
+pattern Empty :: ContextHet
+pattern Empty                    = ContextHet S.Empty
+
+pattern (:⊣) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
+pattern a :⊣ γΓ = γΓ :⊢ a
+
+pattern (:⊢) :: ContextHet -> Dom (Name, TwinT) -> ContextHet
+pattern γΓ :⊢ a <- ContextHet (a S.:<| (ContextHet -> γΓ))
+  where γΓ :⊢ a =  ContextHet (a S.:<|  unContextHet  γΓ)
+
+pattern (:⊢:) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
+pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
+  where a :⊢: ctx =  ContextHet ( unContextHet  ctx  S.:|> a)
+{-# COMPLETE Empty, (:⊢) #-}
+{-# COMPLETE Empty, (:⊣) #-}
+{-# COMPLETE Empty, (:⊢:) #-}
+
+-- * Manipulating context as a list.
+
+-- | > contextHetAsList (a :⊣ b :⊣ … :⊣ Empty)
+--     (a:b:…:[])
+contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
+contextHetToList = toList
+
+contextHetFromList :: [Dom (Name, TwinT)] -> ContextHet
+contextHetFromList = coerce . S.fromList
+
+-- * Describing parts of twin contexts
+
+data HetSide = LHS | RHS | Compat | Whole | Both
+-- Dependent type boilerplate
+data instance SingT (a :: HetSide) where
+  SLHS    :: SingT 'LHS
+  SRHS    :: SingT 'RHS
+  SCompat :: SingT 'Compat
+  SWhole  :: SingT 'Whole
+  SBoth   :: SingT 'Both
+instance Sing 'LHS    where sing = SLHS
+instance Sing 'RHS    where sing = SRHS
+instance Sing 'Both   where sing = SBoth
+instance Sing 'Compat where sing = SCompat
+instance Sing 'Whole  where sing = SWhole
+
+newtype Het (side :: HetSide) t = Het { unHet :: t }
+  deriving (Foldable, Traversable, Pretty)
+
+deriving instance (Typeable side, Data t) => Data (Het side t)
+deriving instance Show t => Show (Het side t)
+deriving instance Functor (Het side)
+
+instance Applicative (Het s) where
+  pure = Het
+  Het f <*> Het a = Het (f a)
+instance Monad (Het s) where
+  Het a >>= f = f a
+
+-- Distinguishes which sides of a twin type result in a single type
+type family HetSideIsType (s :: HetSide) :: Bool where
+  HetSideIsType 'LHS    = 'True
+  HetSideIsType 'RHS    = 'True
+  HetSideIsType 'Compat = 'True
+  HetSideIsType 'Both   = 'True
+  HetSideIsType 'Whole  = 'False
+
+class AsTwin a b | b -> a where asTwin :: a -> b
+instance AsTwin Type TwinT where asTwin = pure
+instance AsTwin Context ContextHet where asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
+
+class TwinAt (s :: HetSide) a where
+  type TwinAt_ s a
+  type TwinAt_ s a = a
+  twinAt :: a -> TwinAt_ s a
+
+instance (Sing s, HetSideIsType s ~ 'True) => TwinAt s TwinT where
+  type TwinAt_ s TwinT = Type
+  {-# INLINE twinAt #-}
+  twinAt (SingleT a) = unHet @'Both a
+  twinAt TwinT{twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
+    SLHS    -> unHet @s $ twinLHS
+    SBoth   -> unHet @'LHS $ twinLHS
+    SRHS    -> unHet @s $ twinRHS
+    SCompat -> unHet @s $ twinCompat
+
+instance TwinAt s a => TwinAt s (Name, a) where
+  type TwinAt_ s (Name, a) = (Name, TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Dom a) where
+  type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
+
+instance (Sing s, HetSideIsType s ~ 'True) => TwinAt s ContextHet where
+  type TwinAt_ s ContextHet = Context
+  twinAt = fmap (twinAt @s) . toList . unContextHet
+
+instance TwinAt s (Het s a) where
+  type TwinAt_ s (Het s a) = a
+  twinAt = coerce
+
+instance TwinAt 'Compat (Het 'LHS a) where
+  type TwinAt_ 'Compat (Het 'LHS a) = a
+  twinAt = coerce
+
+instance TwinAt 'Compat (Het 'RHS a) where
+  type TwinAt_ 'Compat (Het 'RHS a) = a
+  twinAt = coerce
+
+instance Sized ContextHet where
+  size = length . unContextHet
+
+type TwinT = TwinT' Type
+type TwinT' = TwinT'' Bool
+data TwinT'' b a  =
+    SingleT { unSingleT :: Het 'Both a }
+  | TwinT { twinPid    :: [ProblemId]      -- ^ Unification problem which is sufficient
+                                           --   for LHS and RHS to be equal
+          , necessary  :: b                -- ^ Whether solving twinPid is necessary,
+                                           --   not only sufficient.
+          , twinLHS    :: Het 'LHS a       -- ^ Left hand side of the twin
+          , twinRHS    :: Het 'RHS a       -- ^ Right hand side of the twin
+          , twinCompat :: Het 'Compat a    -- ^ A term which can be used instead of the
+                                      --   twin for backwards compatibility
+                                      --   purposes.
+          }
+   deriving (Foldable, Traversable)
+
+deriving instance (Data a, Data b) => Data (TwinT'' a b)
+deriving instance (Show a, Show b) => Show (TwinT'' a b)
+deriving instance Functor (TwinT'' b)
+instance Applicative TwinT' where
+  pure a = SingleT (Het @'Both a)
+  (SingleT f) <*> (SingleT a) = SingleT (f <*> a)
+  (TwinT pid nec a b c) <*> (TwinT pid' nec' a' b' c') = TwinT (pid ++ pid') (nec && nec') (a <*> a') (b <*> b') (c <*> c')
+  (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
+  (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
+
+-- Mark necessary bit after the twin has gone under a none-injective computation
+twinDirty :: TwinT' a -> TwinT' a
+twinDirty a@SingleT{} = a
+twinDirty a@TwinT{}   = a{necessary = False}
+
+---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
+envContextCompat :: TCEnv -> Context
+envContextCompat = twinAt @'Compat . envContext
+
 data TCEnv =
-    TCEnv { envContext             :: Context
+    TCEnv { envContext             :: ContextHet
           , envLetBindings         :: LetBindings
           , envCurrentModule       :: ModuleName
           , envCurrentPath         :: Maybe AbsolutePath
@@ -2751,7 +2913,7 @@ data TCEnv =
     deriving Data
 
 initEnv :: TCEnv
-initEnv = TCEnv { envContext             = []
+initEnv = TCEnv { envContext             = Empty
                 , envLetBindings         = Map.empty
                 , envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing
@@ -2838,7 +3000,7 @@ eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 -- * e-prefixed lenses
 ------------------------------------------------------------------------
 
-eContext :: Lens' Context TCEnv
+eContext :: Lens' ContextHet TCEnv
 eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
 
 eLetBindings :: Lens' LetBindings TCEnv

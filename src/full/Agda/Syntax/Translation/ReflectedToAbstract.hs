@@ -21,7 +21,7 @@ import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
 
-import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+import Agda.TypeChecking.Monad as M hiding (MetaInfo, LHS, RHS)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
 import Agda.Utils.Impossible

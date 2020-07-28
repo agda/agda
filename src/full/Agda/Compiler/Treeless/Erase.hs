@@ -19,7 +19,7 @@ import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad as I
+import Agda.TypeChecking.Monad as I hiding (Empty)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty

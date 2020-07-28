@@ -1006,6 +1006,9 @@ instance Subst t a          => Subst t [a]            where
 instance (Ord k, Subst t a) => Subst t (Map k a)      where
 instance Subst t a          => Subst t (WithHiding a) where
 
+instance Subst t a          => Subst t (TwinT' a)     where
+  applySubst rho = twinDirty . fmap (applySubst rho)
+
 instance Subst Term () where
   applySubst _ _ = ()
 

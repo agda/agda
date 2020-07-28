@@ -321,12 +321,12 @@ castConstraintToCurrentContext cl = do
           (do
             -- We are not in a descendant of the constraint checkpoint.
             -- Here be dragons!!
-            gamma <- asksTC envContext -- The target context
+            gamma <- getContext -- The target context
             let findInGamma (Dom {unDom = (x, t)}) =
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
                   List.findIndex ((x ==) . fst . unDom) gamma
-            let delta = envContext $ clEnv cl
+            let delta = TCM.twinAt @'Compat $ envContext $ clEnv cl
                 cand  = map findInGamma delta
             -- The domain of our substitution
             let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
@@ -501,7 +501,7 @@ solveCluster flag ccs = do
     -- unless ok $ err "ill-scoped solution for size meta variable"
     u <- if ok then return u else primSizeInf
     t <- getMetaType x
-    reportSDoc "tc.size.solve" 20 $ unsafeModifyContext (const gamma) $ do
+    reportSDoc "tc.size.solve" 20 $ unsafeModifyContext (const$ asTwin gamma) $ do
       let args = map (Apply . defaultArg . var) xs
       "solution " <+> prettyTCM (MetaV x args) <+> " := " <+> prettyTCM u
     reportSDoc "tc.size.solve" 60 $ vcat
@@ -567,7 +567,7 @@ solveCluster flag ccs = do
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
-getSizeHypotheses gamma = unsafeModifyContext (const gamma) $ do
+getSizeHypotheses gamma = unsafeModifyContext (const $ asTwin gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
@@ -729,7 +729,7 @@ instance Flexs SizeMeta HypSizeConstraint where
 
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
-    unsafeModifyContext (const cxt) $ do
+    unsafeModifyContext (const $ asTwin cxt) $ do
       let cxtNames = reverse $ map (fst . unDom) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
@@ -740,8 +740,8 @@ instance PrettyTCM HypSizeConstraint where
 -- | Turn a constraint over de Bruijn indices into a size constraint.
 computeSizeConstraint :: Closure TCM.Constraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
-  let cxt = envContext $ clEnv c
-  unsafeModifyContext (const cxt) $ do
+  let cxt = twinAt @'Compat $ envContext $ clEnv c
+  unsafeModifyContext (const $ asTwin cxt) $ do
     case clValue c of
       ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep $

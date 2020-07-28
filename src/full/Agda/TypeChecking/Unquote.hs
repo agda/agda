@@ -63,14 +63,14 @@ data Dirty = Dirty | Clean
 -- definitions. Also state snapshot from last commit and whether the state is
 -- dirty (definitions have been added).
 type UnquoteState = (Dirty, TCState)
-type UnquoteM = ReaderT Context (StateT UnquoteState (WriterT [QName] (ExceptT UnquoteError TCM)))
+type UnquoteM = ReaderT ContextHet (StateT UnquoteState (WriterT [QName] (ExceptT UnquoteError TCM)))
 
 type UnquoteRes a = Either UnquoteError ((a, UnquoteState), [QName])
 
-unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
+unpackUnquoteM :: UnquoteM a -> ContextHet -> UnquoteState -> TCM (UnquoteRes a)
 unpackUnquoteM m cxt s = runExceptT $ runWriterT $ runStateT (runReaderT m cxt) s
 
-packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
+packUnquoteM :: (ContextHet -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
 packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptT $ f cxt s
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
