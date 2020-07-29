@@ -9,7 +9,7 @@
 --   by a more efficient routine which only traverses and instantiates the terms
 --   as long as they are equal.
 
-module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
+module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality, checkSyntacticEquality_) where
 
 import Control.Arrow ((***))
 import Control.Monad.State
@@ -19,7 +19,9 @@ import Agda.Interaction.Options (optSyntacticEquality)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad (ReduceM, MonadReduce(..), pragmaOptions, isInstantiatedMeta)
+import Agda.TypeChecking.Monad (ReduceM, MonadReduce(..), pragmaOptions, isInstantiatedMeta,
+                                Het(..),HetSide(..), switchSide, MonadAddContext(..),
+                                TwinAt(twinAt))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
@@ -37,13 +39,21 @@ import Agda.Utils.Monad (ifM)
 --
 --   This means in particular that the returned @v,v'@ cannot be @MetaV@s
 --   that are instantiated.
-
 {-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
 {-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> ReduceM ((Type, Type), Bool) #-}
-checkSyntacticEquality :: (Instantiate a, SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
-checkSyntacticEquality v v' = liftReduce $ do
+checkSyntacticEquality :: (Instantiate a, SynEq a, MonadAddContext m, MonadReduce m) => a -> a -> m ((a, a), Bool)
+checkSyntacticEquality u v = do
+  ((u',v'),r) <- checkSyntacticEquality_ (Het @'LHS u) (Het @'RHS v)
+  return ((twinAt @'LHS u', twinAt @'RHS v'), r)
+
+{-# SPECIALIZE checkSyntacticEquality_ :: Het 'LHS Term -> Het 'RHS Term -> ReduceM ((Het 'LHS Term, Het 'RHS Term), Bool) #-}
+{-# SPECIALIZE checkSyntacticEquality_ :: Het 'LHS Type -> Het 'RHS Type -> ReduceM ((Het 'LHS Type, Het 'RHS Type), Bool) #-}
+checkSyntacticEquality_ :: (Instantiate a, SynEq a, MonadAddContext m, MonadReduce m) =>
+                           Het 'LHS a -> Het 'RHS a -> m ((Het 'LHS a, Het 'RHS a), Bool)
+checkSyntacticEquality_ v v' = liftReduce $ do
   ifM (optSyntacticEquality <$> pragmaOptions)
-  {-then-} (synEq v v' `runStateT` True)
+  {-then-} ((switchSide @'Compat$ synEq (twinAt @'LHS v) (twinAt @'RHS v') `runStateT` True) >>=
+             (\((v,v'),r) -> return ((Het @'LHS v, Het @'RHS v'),r)))
   {-else-} ((,False) <$> instantiate (v,v'))
 
 -- | Monad for checking syntactic equality

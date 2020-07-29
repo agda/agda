@@ -606,10 +606,14 @@ etaExpandBlocked (Blocked b t)  = do
 
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
-assignWrapper dir x es v doAssign = do
+assignWrapper dir x es v = assignWrapper_ dir x es (Het @'RHS v)
+
+assignWrapper_ :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
+               => CompareDirection -> MetaId -> Elims -> Het 'RHS Term -> m () -> m ()
+assignWrapper_ dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
+      "term" <+> prettyTCM (Het @'LHS$ MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
   where dontAssign = do

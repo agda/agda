@@ -1,4 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -33,6 +35,7 @@ import Agda.TypeChecking.Conversion.Pure (pureCompareAs)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Heterogeneous hiding (length)
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -46,6 +49,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
+import Agda.Utils.Dependent
 import Agda.Utils.Functor
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -137,18 +141,22 @@ convError err = ifM ((==) Irrelevant <$> asksTC getRelevance) (return ()) $ type
 compareTerm :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
 
--- | Type directed equality on terms or types.
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
+compareAs cmp a t u = compareAs_ cmp (asTwin a) (asTwin t) (asTwin u)
+
+-- | Type directed equality on terms or types.
+compareAs_ :: forall m. MonadConversion m => Comparison -> CompareAsHet
+          -> Het 'LHS Term -> Het 'RHS Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareAs cmp a u v = do
+compareAs_ cmp a u v = do
   reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
   -- Check syntactic equality. This actually saves us quite a bit of work.
-  ((u, v), equal) <- SynEq.checkSyntacticEquality u v
+  ((u, v), equal) <- SynEq.checkSyntacticEquality_ u v
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
@@ -165,7 +173,7 @@ compareAs cmp a u v = do
       -- Andreas, 2014-04-12: this looks incomplete.
       -- It seems to assume we are never comparing
       -- at function types into Size.
-      let fallback = compareAs' cmp a u v
+      let fallback = compareAs'_ cmp a u v
           unlessSubtyping :: m () -> m ()
           unlessSubtyping cont =
               if cmp == CmpEq then cont else do
@@ -176,7 +184,7 @@ compareAs cmp a u v = do
 
           dir = fromCmp cmp
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
-      case (u, v) of
+      case (twinAt @'LHS u, twinAt @'RHS v) of
         (MetaV x us, MetaV y vs)
           | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` fallback
           | otherwise -> fallback
@@ -194,17 +202,24 @@ compareAs cmp a u v = do
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
   where
-    assign :: CompareDirection -> MetaId -> Elims -> Term -> m ()
-    assign dir x es v = do
+    {-# INLINE assign #-}
+    assign :: forall side. (LeftOrRightSide side) =>
+              CompareDirection -> MetaId -> Elims -> Het side Term -> m ()
+    assign = case sing :: SingT side of
+               SLHS -> (\dir x es v -> flipContext$ assign_ (flipHet a) dir x es (flipHet v))
+               SRHS -> assign_ a
+
+    assign_ :: CompareAsHet -> CompareDirection -> MetaId -> Elims -> Het 'RHS Term  -> m ()
+    assign_ a dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
         [ "attempting shortcut"
-        , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
+        , nest 2 $ prettyTCM (Het @'LHS$ MetaV x es) <+> ":=" <+> prettyTCM v
         ]
       whenM (isInstantiatedMeta x) (patternViolation alwaysUnblock) -- Already instantiated, retry right away
-      assignE dir x es v a $ compareAsDir dir a
+      assignE_ dir x es v a $ compareAsDir_ dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
-        "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
+        "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (Het @'LHS$ MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse :: m () -> m () -> m ()
@@ -213,10 +228,14 @@ compareAs cmp a u v = do
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
 assignE :: (MonadConversion m)
-        => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v a comp = assignWrapper dir x es v $ do
+         => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
+assignE dir x es v a κ = assignE_ dir x es (asTwin v) (asTwin a) (\u' v' -> κ (twinAt @'LHS u') (twinAt @'RHS v'))
+
+assignE_ :: (MonadConversion m)
+         => CompareDirection -> MetaId -> Elims -> Het 'RHS Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
+assignE_ dir x es v a comp = assignWrapper_ dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs v a
+    Just vs -> assignV dir x vs (twinAt @'RHS v) (twinAt @'Compat a)
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
@@ -231,17 +250,23 @@ assignE dir x es v a comp = assignWrapper dir x es v $ do
             , prettyTCM x <+> text  (":" ++ show dir) <+> prettyTCM u
             ]
           let w = u `applyE` es
-          comp w v
+          comp (Het @'LHS w) v
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
           patternViolation (unblockOnAnyMetaIn (MetaV x es)) -- nothing happened, give up
+
+compareAsDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAsDir_ dir a b c = dirToCmp_ (\dir (a,HetP b c) -> compareAs'_ dir a b c) dir (a, HetP b c)
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
 
 compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
-compareAs' cmp tt m n = case tt of
-  AsTermsOf a -> compareTerm' cmp a m n
+compareAs' cmp tt u v = compareAs'_ cmp (asTwin tt) (asTwin u) (asTwin v)
+
+compareAs'_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAs'_ cmp tt (Het m) (Het n) = case tt of
+  AsTermsOf a -> compareTerm' cmp (twinAt @'Compat a) m n
   AsSizes     -> compareSizes cmp m n
   AsTypes     -> compareAtom cmp AsTypes m n
 

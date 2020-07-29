@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Reduce where
 
 import Control.Monad.Reader
+import Control.Applicative ((<|>))
 
 import Data.Maybe
 import Data.Map (Map)
@@ -298,10 +299,16 @@ instance IsMeta a => IsMeta (LevelAtom' a) where
     NeutralLevel _ t -> isMeta t
     UnreducedLevel t -> isMeta t
 
-instance IsMeta CompareAs where
+instance IsMeta a => IsMeta (CompareAs' a) where
   isMeta (AsTermsOf a) = isMeta a
   isMeta AsSizes       = Nothing
   isMeta AsTypes       = Nothing
+
+instance IsMeta a => IsMeta (Het side a) where
+  isMeta = isMeta . twinAt @side
+
+instance IsMeta a => IsMeta (TwinT' a) where
+  isMeta = isMeta . twinAt @'Compat
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.

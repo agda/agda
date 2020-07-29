@@ -56,7 +56,7 @@ instance IsSizeType a => IsSizeType (Type' a) where
 instance IsSizeType Term where
   isSizeType v = isSizeTypeTest <*> pure v
 
-instance IsSizeType CompareAs where
+instance IsSizeType a => IsSizeType (CompareAs' a) where
   isSizeType (AsTermsOf a) = isSizeType a
   isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing

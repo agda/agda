@@ -2694,6 +2694,15 @@ type family HetSideIsType_ (s :: HetSide) :: Bool where
   HetSideIsType_ 'Whole  = 'False
 type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
 
+-- | Distinguishes which sides of a twin type corresponds to a single type
+type family LeftOrRightSide_ (s :: HetSide) :: Bool where
+  LeftOrRightSide_ 'LHS    = 'True
+  LeftOrRightSide_ 'RHS    = 'True
+  LeftOrRightSide_ 'Compat = 'False
+  LeftOrRightSide_ 'Both   = 'False
+  LeftOrRightSide_ 'Whole  = 'False
+type LeftOrRightSide s = (Sing s, LeftOrRightSide_ s ~ 'True)
+
 newtype Het (side :: HetSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
 
@@ -2718,17 +2727,27 @@ instance (HetSideIsType side, Free a) => Free (Het side a) where
 instance TermLike a => TermLike (Het side a) where
   foldTerm f = foldTerm f . unHet
 
-class AsTwin a b | b -> a where asTwin :: a -> b
-instance AsTwin Type TwinT where asTwin = pure
-instance AsTwin Context ContextHet where asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
+class AsTwin b where
+  type AsTwin_ b
+  asTwin :: AsTwin_ b -> b
+instance AsTwin b => AsTwin (CompareAs' b) where
+  type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
+  asTwin = fmap asTwin
+instance AsTwin TwinT where type AsTwin_ TwinT = Type; asTwin = pure
+instance AsTwin ContextHet where
+  type AsTwin_ ContextHet = Context
+  asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
+instance AsTwin (Het side a) where
+  type AsTwin_ (Het side a) = a
+  asTwin = coerce
 
 class TwinAt (s :: HetSide) a where
   type TwinAt_ s a
   type TwinAt_ s a = a
   twinAt :: a -> TwinAt_ s a
 
-instance HetSideIsType s => TwinAt s TwinT where
-  type TwinAt_ s TwinT = Type
+instance HetSideIsType s => TwinAt s (TwinT' a) where
+  type TwinAt_ s (TwinT' a) = a
   {-# INLINE twinAt #-}
   twinAt (SingleT a) = unHet @'Both a
   twinAt TwinT{twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of

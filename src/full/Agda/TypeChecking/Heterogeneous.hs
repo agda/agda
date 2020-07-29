@@ -23,6 +23,7 @@ import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 
 import Agda.Utils.Dependent
 import Agda.Utils.Monad
@@ -176,9 +177,9 @@ instance FlipHet Term where flipHet = id
 instance FlipHet Type where flipHet = id
 instance FlipHet ()   where flipHet = id
 
--- instance FlipHet a => FlipHet (CompareAs' a) where
---   type FlippedHet (CompareAs' a) = CompareAs' (FlippedHet a)
---   flipHet = fmap flipHet
+instance FlipHet a => FlipHet (CompareAs' a) where
+   type FlippedHet (CompareAs' a) = CompareAs' (FlippedHet a)
+   flipHet = fmap flipHet
 
 instance (Sing het, FlipHet a, FlipHet b) => FlipHet (If_ het a b) where
   type FlippedHet (If_ het a b) = If_ het (FlippedHet a) (FlippedHet b)
@@ -203,10 +204,11 @@ instance FlipHet (HetP a) where
 --  STrue  -> ErrorInContextHet (unIf ctx)
 --  SFalse -> case ctx of If () -> id
 
-dirToCmp_ :: (FlipHet a, FlippedHet a ~ a) => CompareDirection -> a -> (Comparison -> a -> c) -> c
-dirToCmp_ DirGeq a κ = κ CmpLeq (flipHet a)
-dirToCmp_ DirEq  a κ = κ CmpEq  a
-dirToCmp_ DirLeq a κ = κ CmpLeq a
+{-# INLINE dirToCmp_ #-}
+dirToCmp_ :: (FlipHet a, FlippedHet a ~ a) => (Comparison -> a -> c) -> CompareDirection -> a -> c
+dirToCmp_ κ DirGeq a = κ CmpLeq (flipHet a)
+dirToCmp_ κ DirEq  a = κ CmpEq  a
+dirToCmp_ κ DirLeq a = κ CmpLeq a
 
 drop :: Int -> ContextHet -> ContextHet
 drop n = ContextHet . S.drop n . unContextHet
@@ -216,4 +218,8 @@ length = S.length . unContextHet
 
 (⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
 as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) (S.fromList as) <> unContextHet  ctx)
+
+-- | Switch heterogeneous context to a specific side
+flipContext :: (MonadAddContext m) => m a -> m a
+flipContext = updateContext IdS flipHet
 
