@@ -2653,9 +2653,11 @@ pattern γΓ :⊢ a <- ContextHet (a S.:<| (ContextHet -> γΓ))
 pattern (:⊢:) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
 pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
   where a :⊢: ctx =  ContextHet ( unContextHet  ctx  S.:|> a)
+#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Empty, (:⊢) #-}
 {-# COMPLETE Empty, (:⊣) #-}
 {-# COMPLETE Empty, (:⊢:) #-}
+#endif
 
 -- * Manipulating context as a list.
 

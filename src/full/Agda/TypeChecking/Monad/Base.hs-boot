@@ -64,3 +64,7 @@ type TwinT' = TwinT'' Bool
 type TwinT = TwinT' Type
 data ContextHet' a
 type ContextHet = ContextHet' (Dom (Name, TwinT))
+
+data HetSide = LHS | RHS | Compat | Whole | Both
+newtype Het (side :: HetSide) t = Het { unHet :: t }
+instance Functor (Het side)
