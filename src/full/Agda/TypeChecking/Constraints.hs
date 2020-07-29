@@ -269,6 +269,7 @@ solveConstraintTCM c = do
 
 solveConstraint_ :: Constraint -> TCM ()
 solveConstraint_ (ValueCmp cmp a u v)       = compareAs cmp a u v
+solveConstraint_ (ValueCmpHet cmp a u v)    = compareAs cmp (twinAt @'Compat a) (twinAt @'Compat u) (twinAt @'Compat v)
 solveConstraint_ (ValueCmpOnFace cmp p a u v) = compareTermOnFace cmp p a u v
 solveConstraint_ (ElimCmp cmp fs a e u v)   = compareElims cmp fs a e u v
 solveConstraint_ (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb

@@ -15,6 +15,7 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Heterogeneous
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
@@ -59,6 +60,9 @@ instance IsSizeType CompareAs where
   isSizeType (AsTermsOf a) = isSizeType a
   isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing
+
+instance IsSizeType TwinT where
+  isSizeType = isSizeType . twinAt @'Compat
 
 isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =

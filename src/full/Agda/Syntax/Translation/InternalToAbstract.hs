@@ -1409,5 +1409,11 @@ instance (Reify i1 a1, Reify i2 a2, Reify i3 a3) => Reify (i1,i2,i3) (a1,a2,a3) 
 instance (Reify i1 a1, Reify i2 a2, Reify i3 a3, Reify i4 a4) => Reify (i1,i2,i3,i4) (a1,a2,a3,a4) where
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w
 
+instance (HetSideIsType side, Reify i a) => Reify (Het side i) (Het side a) where
+    reify (Het a) = fmap Het $ switchSide @side $ reify a
+
 instance Reify i a => Reify (TwinT' i) (TwinT' a) where
-    reify = traverse reify
+    reify (SingleT a) = SingleT <$> reify a
+    reify (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c}) = do
+      (a',b',c') <- reify (a,b,c)
+      return$ TwinT{twinPid,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}

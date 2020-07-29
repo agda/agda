@@ -23,6 +23,7 @@ import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
 import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
+import Agda.TypeChecking.Monad.Base (TwinT''(..),TwinT', HetSide(..), Het(..))
 
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, ProblemId(..), TCM)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange)
@@ -154,6 +155,11 @@ encodeOC f encodePrettyTCM = \case
   , "type"           #= encodePrettyTCM a
   , "constraintObjs" @= map f [i, j]
   ]
+ CmpInTypeHet c a i j -> kind "CmpInType"
+  [ "comparison"     @= encodeShow c
+  , "type"           #= encodeTwinT encodePrettyTCM a
+  , "constraintObjs" @= map f [unHet @'LHS i, unHet @'RHS j]
+  ]
  CmpElim ps a is js -> kind "CmpElim"
   [ "polarities"     @= map encodeShow ps
   , "type"           #= encodePrettyTCM a
@@ -209,6 +215,18 @@ encodeOC f encodePrettyTCM = \case
  PostponedCheckFunDef name a -> kind "PostponedCheckFunDef"
   [ "name"           @= encodePretty name
   , "type"           #= encodePrettyTCM a
+  ]
+
+encodeTwinT :: (b -> TCM Value)
+  -> TwinT' b
+  -> TCM Value
+encodeTwinT f (SingleT a) = kind "Single" [ "type" #= f (unHet @'Both a) ]
+encodeTwinT f (TwinT{necessary,twinPid,twinLHS,twinRHS,twinCompat}) = kind "TwinT" [
+   "necessary"  @= encodePretty necessary
+  ,"pid"        @= twinPid
+  ,"lhs"        #= f (unHet @'LHS    twinLHS)
+  ,"rhs"        #= f (unHet @'RHS    twinRHS)
+  ,"compat"     #= f (unHet @'Compat twinCompat)
   ]
 
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value

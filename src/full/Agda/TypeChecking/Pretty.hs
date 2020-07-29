@@ -329,6 +329,7 @@ instance PrettyTCM Blocker where
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
         ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
+        ValueCmpHet cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
@@ -403,7 +404,7 @@ instance PrettyTCM Constraint where
           => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
-instance PrettyTCM CompareAs where
+instance PrettyTCM a => PrettyTCM (CompareAs' a) where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
   prettyTCM AsSizes       = ":" <+> do prettyTCM =<< sizeType
   prettyTCM AsTypes       = empty

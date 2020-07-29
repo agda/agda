@@ -33,37 +33,12 @@ instance Free ContextHet where
       go Empty      = mempty
       go (v :⊢: vs) = freeVars' v <> underBinder (freeVars' vs)
 
-instance Free TwinT where
-
 ---------------------------------------------------------------------
 -- Instances for Agda.TypeChecking.MetaVars.Mention
 ---------------------------------------------------------------------
-
-instance MentionsMeta a => MentionsMeta (Het s a) where
-  mentionsMetas xs = mentionsMetas xs . unHet
-
-instance MentionsMeta TwinT where
-  mentionsMetas xs (SingleT a) = mentionsMetas xs a
-  mentionsMetas xs (TwinT{twinLHS,twinRHS,twinCompat}) =
-    mentionsMetas xs (twinLHS, twinRHS, twinCompat)
-
 ------------------------------------------------------------------
 -- Instances for Agda.TypeChecking.Reduce
 ------------------------------------------------------------------
-instance Instantiate TwinT where
-  instantiate' = traverse instantiate'
-
-instance Reduce TwinT where
-  reduce' = traverse reduce'
-
-instance Simplify TwinT where
-  simplify' = traverse simplify'
-
-instance Normalise TwinT where
-  normalise' = traverse normalise'
-
-instance InstantiateFull TwinT where
-
 ---------------------------------------------------------------------
 -- Agda.Syntax.Internal.Generic
 ---------------------------------------------------------------------
@@ -71,13 +46,6 @@ instance InstantiateFull TwinT where
 instance TermLike ContextHet where
   foldTerm f = foldTerm f . contextHetToList
   traverseTermM = __IMPOSSIBLE__
-
-instance TermLike TwinT where
-  traverseTermM f = \case
-    SingleT a -> SingleT <$> traverseTermM f a
-    TwinT{twinPid,twinLHS=a,twinRHS=b,twinCompat=c} ->
-      (\a' b' c' -> TwinT{twinPid,necessary=False,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
-        traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
 
 ---------------------------------------------------------------------
 -- Agda.Utils.Size

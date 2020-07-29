@@ -429,7 +429,7 @@ isSizeConstraint_
   -> Closure Constraint
   -> Bool
 isSizeConstraint_ _isSizeType p Closure{ clValue = ValueCmp cmp AsSizes       _ _ } = p cmp
-isSizeConstraint_  isSizeType p Closure{ clValue = ValueCmp cmp (AsTermsOf s) _ _ } = p cmp && isSizeType s
+isSizeConstraint_  isSizeType p Closure{ clValue = ValueCmp cmp (AsTermsOf s) _ _ } = p cmp && isSizeType (twinAt @'Compat s)
 isSizeConstraint_ _isSizeType _ _ = False
 
 -- | Take out all size constraints of the given direction (DANGER!).

@@ -210,6 +210,9 @@ instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
     return $ ValueCmp cmp t u v
+  instantiate' (ValueCmpHet cmp t u v) = do
+    (t,u,v) <- instantiate' (t,u,v)
+    return $ ValueCmpHet cmp t u v
   instantiate' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- instantiate' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -229,7 +232,10 @@ instance Instantiate Constraint where
   instantiate' (UnquoteTactic t h g) = UnquoteTactic <$> instantiate' t <*> instantiate' h <*> instantiate' g
   instantiate' c@CheckMetaInst{}    = return c
 
-instance Instantiate CompareAs where
+instance (HetSideIsType side, Instantiate a) => Instantiate (Het side a) where
+  instantiate' = traverse (switchSide @side . instantiate')
+
+instance Instantiate a => Instantiate (CompareAs' a) where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
   instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
@@ -822,6 +828,9 @@ instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
     return $ ValueCmp cmp t u v
+  reduce' (ValueCmpHet cmp t u v) = do
+    (t,u,v) <- reduce' (t,u,v)
+    return $ ValueCmpHet cmp t u v
   reduce' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- reduce' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -841,7 +850,10 @@ instance Reduce Constraint where
   reduce' (UnquoteTactic t h g) = UnquoteTactic <$> reduce' t <*> reduce' h <*> reduce' g
   reduce' c@CheckMetaInst{}     = return c
 
-instance Reduce CompareAs where
+instance (HetSideIsType side, Reduce a) => Reduce (Het side a) where
+  reduce' = traverse (switchSide @side . reduce')
+
+instance Reduce a => Reduce (CompareAs' a) where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
   reduce' AsSizes       = return AsSizes
   reduce' AsTypes       = return AsTypes
@@ -988,9 +1000,12 @@ instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
     return $ ValueCmp cmp t u v
+  simplify' (ValueCmpHet cmp t u v) = do
+    (t,u,v) <- simplify' (t,u,v)
+    return $ ValueCmpHet cmp t u v
   simplify' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- simplify' ((p,t),u,v)
-    return $ ValueCmp cmp (AsTermsOf t) u v
+    return $ ValueCmpOnFace cmp p t u v
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
@@ -1007,7 +1022,10 @@ instance Simplify Constraint where
   simplify' (UnquoteTactic t h g) = UnquoteTactic <$> simplify' t <*> simplify' h <*> simplify' g
   simplify' c@CheckMetaInst{}     = return c
 
-instance Simplify CompareAs where
+instance (HetSideIsType side, Simplify a) => Simplify (Het side a) where
+  simplify' = traverse (switchSide @side . simplify')
+
+instance Simplify a => Simplify (CompareAs' a) where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
   simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
@@ -1172,6 +1190,9 @@ instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
     return $ ValueCmp cmp t u v
+  normalise' (ValueCmpHet cmp t u v) = do
+    (t,u,v) <- normalise' (t,u,v)
+    return $ ValueCmpHet cmp t u v
   normalise' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- normalise' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -1191,10 +1212,13 @@ instance Normalise Constraint where
   normalise' (UnquoteTactic t h g) = UnquoteTactic <$> normalise' t <*> normalise' h <*> normalise' g
   normalise' c@CheckMetaInst{}     = return c
 
-instance Normalise CompareAs where
+instance Normalise a => Normalise (CompareAs' a) where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
   normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
+
+instance (HetSideIsType side, Normalise a) => Normalise (Het side a) where
+  normalise' = traverse (switchSide @side . normalise')
 
 instance Normalise ConPatternInfo where
   normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
@@ -1397,6 +1421,9 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
       return $ ValueCmp cmp t u v
+    ValueCmpHet cmp t u v -> do
+      (t,u,v) <- instantiateFull' (t,u,v)
+      return $ ValueCmpHet cmp t u v
     ValueCmpOnFace cmp p t u v -> do
       ((p,t),u,v) <- instantiateFull' ((p,t),u,v)
       return $ ValueCmpOnFace cmp p t u v
@@ -1416,10 +1443,13 @@ instance InstantiateFull Constraint where
     UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
     c@CheckMetaInst{}   -> return c
 
-instance InstantiateFull CompareAs where
+instance InstantiateFull a => InstantiateFull (CompareAs' a) where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
+
+instance (HetSideIsType side, InstantiateFull a) => InstantiateFull (Het side a) where
+  instantiateFull' = traverse (switchSide @side . instantiateFull')
 
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
@@ -1573,3 +1603,19 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b
+
+instance Instantiate TwinT where
+  instantiate' = traverse instantiate'
+
+instance Reduce TwinT where
+  reduce' = traverse reduce'
+
+instance Simplify TwinT where
+  simplify' = traverse simplify'
+
+instance Normalise TwinT where
+  normalise' = traverse normalise'
+
+instance InstantiateFull TwinT where
+  instantiateFull' = traverse instantiateFull'
+

@@ -1,5 +1,6 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -365,6 +366,7 @@ outputFormId (OutputForm _ _ o) = out o
     out o = case o of
       OfType i _                 -> i
       CmpInType _ _ i _          -> i
+      CmpInTypeHet _ _ i _       -> unHet @'M.LHS i
       CmpElim _ _ (i:_) _        -> i
       CmpElim _ _ [] _           -> __IMPOSSIBLE__
       JustType i                 -> i
@@ -400,6 +402,11 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
     reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
+    reify (ValueCmpHet cmp (AsTermsOf t) u v) = CmpInTypeHet cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmpHet cmp AsSizes u v) = CmpInTypeHet cmp <$> (pure <$> (reify =<< sizeType))
+                                                           <*> reify u <*> reify v
+    reify (ValueCmpHet cmp AsTypes u v) = CmpTypes cmp <$> (unHet @'M.LHS <$> reify u)
+                                                       <*> (unHet @'M.RHS <$> reify v)
     reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
       where
         lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
@@ -484,6 +491,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       JustType e           -> "Type" <+> pretty e
       JustSort e           -> "Sort" <+> pretty e
       CmpInType cmp t e e' -> pcmp cmp e e' .: t
+      CmpInTypeHet cmp t e e' -> pcmp cmp e e' .: t
       CmpElim cmp t e e'   -> pcmp cmp e e' .: t
       CmpTypes  cmp t t'   -> pcmp cmp t t'
       CmpLevels cmp t t'   -> pcmp cmp t t'
@@ -513,6 +521,9 @@ instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
     toConcrete (OutputForm r pid c) = OutputForm r pid <$> toConcrete c
 
+instance ToConcrete a b => ToConcrete (Het side a) (Het side b) where
+    toConcrete = traverse toConcrete
+
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputConstraint a b) (OutputConstraint c d) where
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcreteCtx TopCtx t
@@ -520,6 +531,9 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
       CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
+                                               <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpInTypeHet cmp t e e') =
+      CmpInTypeHet cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
                                                <*> toConcreteCtx TopCtx e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
@@ -597,6 +611,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     hasHeadMeta c =
       case c of
         ValueCmp _ _ u v           -> isMeta u `mplus` isMeta v
+        ValueCmpHet _ _ u v        -> isMeta (unHet @'M.LHS u) `mplus` isMeta (unHet @'M.RHS v)
         ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
         -- TODO: extend to other comparisons?
         ElimCmp cmp fs t v as bs   -> Nothing

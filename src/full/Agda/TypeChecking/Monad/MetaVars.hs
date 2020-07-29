@@ -253,6 +253,7 @@ constraintMetas c = metas c
     -- UnBlock constraints.
     metas c = case c of
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
+      ValueCmpHet _ t u v      -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')

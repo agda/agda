@@ -953,9 +953,13 @@ instance Subst t a => Subst t (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel
   applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
 
+instance Subst t a => Subst t (Het side a) where
+  applySubst rho = Het . applySubst rho . unHet
+
 instance Subst Term Constraint where
   applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ValueCmpHet cmp a u v    -> ValueCmpHet cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
     TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
@@ -974,7 +978,7 @@ instance Subst Term Constraint where
     where
       rf x = applySubst rho x
 
-instance Subst Term CompareAs where
+instance Subst Term a => Subst Term (CompareAs' a) where
   applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
   applySubst rho AsSizes       = AsSizes
   applySubst rho AsTypes       = AsTypes

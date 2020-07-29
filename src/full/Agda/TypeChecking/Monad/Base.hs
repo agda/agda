@@ -73,6 +73,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext(..))
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
@@ -1028,6 +1029,7 @@ instance HasRange ProblemConstraint where
 
 data Constraint
   = ValueCmp Comparison CompareAs Term Term
+  | ValueCmpHet Comparison CompareAsHet (Het 'LHS Term) (Het 'RHS Term)
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
@@ -1071,6 +1073,7 @@ instance Free Constraint where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
+      ValueCmpHet _ t u v   -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
@@ -1090,6 +1093,7 @@ instance Free Constraint where
 instance TermLike Constraint where
   foldTerm f = \case
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
+      ValueCmpHet _ t u v    -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
@@ -1147,19 +1151,23 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 
 -- | We can either compare two terms at a given type, or compare two
 --   types without knowing (or caring about) their sorts.
-data CompareAs
-  = AsTermsOf Type -- ^ @Type@ should not be @Size@.
+data CompareAs' a
+  = AsTermsOf a    -- ^ @Type@ should not be @Size@.
                    --   But currently, we do not rely on this invariant.
   | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
-  deriving (Data, Show)
+  deriving (Data, Show, Functor, Foldable, Traversable)
 
-instance Free CompareAs where
+type CompareAs = CompareAs' Type
+
+type CompareAsHet = CompareAs' TwinT
+
+instance Free a => Free (CompareAs' a) where
   freeVars' (AsTermsOf a) = freeVars' a
   freeVars' AsSizes       = mempty
   freeVars' AsTypes       = mempty
 
-instance TermLike CompareAs where
+instance TermLike a => TermLike (CompareAs' a) where
   foldTerm f (AsTermsOf a) = foldTerm f a
   foldTerm f AsSizes       = mempty
   foldTerm f AsTypes       = mempty
@@ -1170,6 +1178,9 @@ instance TermLike CompareAs where
     AsTypes     -> return AsTypes
 
 instance AllMetas CompareAs
+instance AllMetas CompareAsHet
+
+
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -2672,12 +2683,26 @@ instance Sing 'Both   where sing = SBoth
 instance Sing 'Compat where sing = SCompat
 instance Sing 'Whole  where sing = SWhole
 
+-- | Distinguishes which sides of a twin type corresponds to a single type
+type family HetSideIsType_ (s :: HetSide) :: Bool where
+  HetSideIsType_ 'LHS    = 'True
+  HetSideIsType_ 'RHS    = 'True
+  HetSideIsType_ 'Compat = 'True
+  HetSideIsType_ 'Both   = 'True
+  HetSideIsType_ 'Whole  = 'False
+type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
+
 newtype Het (side :: HetSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
+
+-- | Switch heterogeneous context to a specific side
+switchSide :: forall s m a. (HetSideIsType s, MonadAddContext m) => m a -> m a
+switchSide = updateContext IdS (asTwin . twinAt @s)
 
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
 deriving instance Functor (Het side)
+instance AllMetas a => AllMetas (Het side a) where allMetas f xs = foldMap (allMetas f) xs
 
 instance Applicative (Het s) where
   pure = Het
@@ -2685,13 +2710,11 @@ instance Applicative (Het s) where
 instance Monad (Het s) where
   Het a >>= f = f a
 
--- Distinguishes which sides of a twin type result in a single type
-type family HetSideIsType (s :: HetSide) :: Bool where
-  HetSideIsType 'LHS    = 'True
-  HetSideIsType 'RHS    = 'True
-  HetSideIsType 'Compat = 'True
-  HetSideIsType 'Both   = 'True
-  HetSideIsType 'Whole  = 'False
+instance (HetSideIsType side, Free a) => Free (Het side a) where
+  freeVars' (Het a) = freeVars' a
+
+instance TermLike a => TermLike (Het side a) where
+  foldTerm f = foldTerm f . unHet
 
 class AsTwin a b | b -> a where asTwin :: a -> b
 instance AsTwin Type TwinT where asTwin = pure
@@ -2702,13 +2725,13 @@ class TwinAt (s :: HetSide) a where
   type TwinAt_ s a = a
   twinAt :: a -> TwinAt_ s a
 
-instance (Sing s, HetSideIsType s ~ 'True) => TwinAt s TwinT where
+instance HetSideIsType s => TwinAt s TwinT where
   type TwinAt_ s TwinT = Type
   {-# INLINE twinAt #-}
   twinAt (SingleT a) = unHet @'Both a
   twinAt TwinT{twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
     SLHS    -> unHet @s $ twinLHS
-    SBoth   -> unHet @'LHS $ twinLHS
+    SBoth   -> unHet @'Compat $ twinCompat
     SRHS    -> unHet @s $ twinRHS
     SCompat -> unHet @s $ twinCompat
 
@@ -2720,7 +2743,7 @@ instance TwinAt s a => TwinAt s (Dom a) where
   type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
-instance (Sing s, HetSideIsType s ~ 'True) => TwinAt s ContextHet where
+instance (Sing s, HetSideIsType s) => TwinAt s ContextHet where
   type TwinAt_ s ContextHet = Context
   twinAt = fmap (twinAt @s) . toList . unContextHet
 
@@ -2735,6 +2758,10 @@ instance TwinAt 'Compat (Het 'LHS a) where
 instance TwinAt 'Compat (Het 'RHS a) where
   type TwinAt_ 'Compat (Het 'RHS a) = a
   twinAt = coerce
+
+instance TwinAt s a => TwinAt s (CompareAs' a) where
+  type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
 
 instance Sized ContextHet where
   size = length . unContextHet
@@ -2765,7 +2792,18 @@ instance Applicative TwinT' where
   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
--- Mark necessary bit after the twin has gone under a none-injective computation
+instance Free TwinT where
+  freeVars' (SingleT a) = freeVars' a
+  freeVars' (TwinT{twinLHS,twinRHS,twinCompat}) = freeVars' twinLHS <> freeVars' twinRHS <> freeVars' twinCompat
+
+instance TermLike TwinT where
+  traverseTermM f = \case
+    SingleT a -> SingleT <$> traverseTermM f a
+    TwinT{twinPid,twinLHS=a,twinRHS=b,twinCompat=c} ->
+      (\a' b' c' -> TwinT{twinPid,necessary=False,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
+        traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
+
+-- | Mark necessary bit after the twin has gone under a none-injective computation
 twinDirty :: TwinT' a -> TwinT' a
 twinDirty a@SingleT{} = a
 twinDirty a@TwinT{}   = a{necessary = False}

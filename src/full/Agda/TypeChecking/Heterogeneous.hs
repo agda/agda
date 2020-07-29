@@ -47,15 +47,10 @@ instance Pretty a => Pretty (TwinT' a) where
              <> "]"
              <> pretty b
 
-instance (Sing het, Pretty a, Pretty b) => Pretty (If_ het a b) where
-  pretty (If a) = case sing :: SingT het of
-    STrue  -> pretty a
-    SFalse -> pretty a
-
-
-instance TermLike t => TermLike (Het a t) where
-
-
+-- instance (Sing het, Pretty a, Pretty b) => Pretty (If_ het a b) where
+--  pretty (If a) = case sing :: SingT het of
+--    STrue  -> pretty a
+--    SFalse -> pretty a
 
 -- instance AddContextHet (Name, Dom TwinT) where
 --   {-# INLINABLE addContextHet #-}
@@ -221,3 +216,4 @@ length = S.length . unContextHet
 
 (⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
 as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) (S.fromList as) <> unContextHet  ctx)
+

@@ -1,10 +1,15 @@
+{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+
 module Agda.TypeChecking.Monad.Base where
 
 import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Trans          ( MonadTrans )
+import Control.Monad.Trans.Control  ( MonadTransControl )
 import Data.IORef (IORef)
 import Data.Map (Map)
 
 import Agda.Syntax.Common (Nat)
+import Agda.Syntax.Internal (Dom, Name, Term, Type)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
@@ -40,3 +45,22 @@ type BackendName = String
 data Comparison
 newtype ProblemId = ProblemId Nat
 data Polarity
+newtype CheckpointId = CheckpointId Int
+
+class Monad m => MonadTCEnv m where
+  askTC   :: m TCEnv
+  localTC :: (TCEnv -> TCEnv) -> m a -> m a
+
+  default askTC :: (MonadTrans t, MonadTCEnv n, t n ~ m) => m TCEnv
+  askTC = lift askTC
+
+  default localTC
+    :: (MonadTransControl t, MonadTCEnv n, t n ~ m)
+    =>  (TCEnv -> TCEnv) -> m a -> m a
+  localTC = liftThrough . localTC
+
+data TwinT'' b a
+type TwinT' = TwinT'' Bool
+type TwinT = TwinT' Type
+data ContextHet' a
+type ContextHet = ContextHet' (Dom (Name, TwinT))
