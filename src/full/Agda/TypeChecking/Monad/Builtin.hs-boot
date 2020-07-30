@@ -13,6 +13,8 @@ class ( Functor m
       , Fail.MonadFail m
       ) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing = lift . getBuiltinThing
 
 instance HasBuiltins m => HasBuiltins (ReaderT e m)
 instance HasBuiltins m => HasBuiltins (StateT s m)

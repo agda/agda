@@ -37,23 +37,15 @@ class ( Functor m
       ) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
-instance HasBuiltins m => HasBuiltins (MaybeT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing = lift . getBuiltinThing
 
-instance HasBuiltins m => HasBuiltins (ExceptT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (ListT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (ReaderT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (StateT s m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+instance HasBuiltins m => HasBuiltins (MaybeT m)
+instance HasBuiltins m => HasBuiltins (ExceptT e m)
+instance HasBuiltins m => HasBuiltins (ListT m)
+instance HasBuiltins m => HasBuiltins (ReaderT e m)
+instance HasBuiltins m => HasBuiltins (StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
