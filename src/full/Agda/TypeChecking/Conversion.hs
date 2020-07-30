@@ -1,6 +1,7 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -265,10 +266,13 @@ compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> 
 compareAs' cmp tt u v = compareAs'_ cmp (asTwin tt) (asTwin u) (asTwin v)
 
 compareAs'_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
-compareAs'_ cmp tt (Het m) (Het n) = case tt of
-  AsTermsOf a -> compareTerm' cmp (twinAt @'Compat a) m n
-  AsSizes     -> compareSizes cmp m n
-  AsTypes     -> compareAtom cmp AsTypes m n
+compareAs'_ cmp tt m n = case tt of
+  AsTermsOf a -> compareTerm'_ cmp a m n
+  AsSizes     -> compareSizes cmp (twinAt @'LHS m) (twinAt @'RHS n)
+  AsTypes     -> compareAtom cmp AsTypes (twinAt @'LHS m) (twinAt @'RHS n)
+
+compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareTerm'_ cmp t u v = compareTerm' cmp (twinAt @'Compat t) (twinAt @'Compat u) (twinAt @'Compat v)
 
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm' cmp a m n =
@@ -454,6 +458,9 @@ computeElimHeadType f es es' = do
 
 -- | Syntax directed equality on atomic values
 --
+compareAtom_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAtom_ cmp t u v = compareAtom cmp (twinAt @'Compat t) (twinAt @'Compat u) (twinAt @'Compat v)
+
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAtom cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
@@ -1028,13 +1035,15 @@ compareElims pols0 fors0 a v els01 els02 =
 --   terms we compare.
 --   (Certainly not the systematic solution, that'd be proof search...)
 compareIrrelevant :: MonadConversion m => Type -> Term -> Term -> m ()
+compareIrrelevant t v0 w0 = compareIrrelevant_ (asTwin t) (asTwin v0) (asTwin w0)
 {- 2012-04-02 DontCare no longer present
 compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
 compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
-compareIrrelevant t v0 w0 = do
-  let v = stripDontCare v0
-      w = stripDontCare w0
+compareIrrelevant_ :: forall m. MonadConversion m => TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareIrrelevant_ t v0 w0 = do
+  let v = fmap stripDontCare v0
+      w = fmap stripDontCare w0
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ "compareIrrelevant"
     , nest 2 $ "v =" <+> prettyTCM v
@@ -1044,9 +1053,10 @@ compareIrrelevant t v0 w0 = do
     [ nest 2 $ "v =" <+> pretty v
     , nest 2 $ "w =" <+> pretty w
     ]
-  try v w $ try w v $ return ()
+  try t v w $ flipContext $ try (flipHet t) (flipHet w) (flipHet v) $ return ()
   where
-    try (MetaV x es) w fallback = do
+    try :: TwinT -> Het 'LHS Term -> Het 'RHS Term -> m () -> m ()
+    try t (twinAt @'LHS -> MetaV x es) w fallback = do
       mv <- lookupMeta x
       let rel  = getMetaRelevance mv
           inst = case mvInstantiation mv of
@@ -1061,9 +1071,9 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else assignE DirEq x es w (AsTermsOf t) (compareIrrelevant t) `catchError` \ _ -> fallback
+        else assignE_ DirEq x es w (AsTermsOf t) (compareIrrelevant_ t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
-    try v w fallback = fallback
+    try t v w fallback = fallback
 
 compareWithPol :: MonadConversion m => Polarity -> (Comparison -> a -> a -> m ()) -> a -> a -> m ()
 compareWithPol Invariant     cmp x y = cmp CmpEq x y
