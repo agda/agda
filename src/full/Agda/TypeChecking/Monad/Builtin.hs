@@ -57,6 +57,10 @@ instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
+instance MonadIO m => HasBuiltins (TCMT m) where
+  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
+                      (Map.lookup b <$> useTC stImportedBuiltins)
+
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
 -- of split' in Agda.TypeChecking.Coverage should be changed.
@@ -77,10 +81,6 @@ litType = \case
   LitMeta _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
-
-instance MonadIO m => HasBuiltins (TCMT m) where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
-                      (Map.lookup b <$> useTC stImportedBuiltins)
 
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = stLocalBuiltins `setTCLens` b
