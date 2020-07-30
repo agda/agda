@@ -3,7 +3,7 @@
 {-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE KindSignatures       #-}
+
 -- We need undecidable instances for the definition of @Foldr@,
 -- and @Domains@ and @CoDomain@ using @If@ for instance.
 {-# LANGUAGE UndecidableInstances #-}

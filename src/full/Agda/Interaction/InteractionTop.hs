@@ -895,6 +895,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     case z of
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
+        opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
             root     = projectRoot fp $ Imp.siModuleName si
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts

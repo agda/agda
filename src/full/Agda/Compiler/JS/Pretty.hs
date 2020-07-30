@@ -8,7 +8,6 @@ import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
 import Data.Map ( Map, toAscList, empty, null )
 import qualified Data.Text as T
-import Data.Map ( Map, toAscList )
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Hash

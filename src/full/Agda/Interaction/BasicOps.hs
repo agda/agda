@@ -418,7 +418,6 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
                               <*> mapM reifyElimToExpr es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
-    reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c pid) = do
         o  <- reify c
@@ -616,7 +615,6 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         -- TODO: extend to other comparisons?
         ElimCmp cmp fs t v as bs   -> Nothing
         LevelCmp cmp u v           -> Nothing
-        TelCmp a b cmp tela telb   -> Nothing
         SortCmp cmp a b            -> Nothing
         Guarded c pid              -> hasHeadMeta c
         UnBlock{}                  -> Nothing

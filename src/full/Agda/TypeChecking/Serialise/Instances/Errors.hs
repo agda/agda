@@ -13,8 +13,7 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarn
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import Agda.Interaction.Library
-import Agda.Interaction.Library.Parse
+import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
 import Agda.Utils.Pretty
 
@@ -218,10 +217,22 @@ instance EmbPrj LibWarning where
 
 instance EmbPrj LibWarning' where
   icod_ = \case
-    UnknownField a -> icodeN 0 UnknownField a
+    UnknownField     a   -> icodeN 0 UnknownField a
+    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
+    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
-    [0, a]   -> valuN UnknownField a
+    [0, a]    -> valuN UnknownField a
+    [1, a, b] -> valuN ExeNotFound a b
+    [2, a, b] -> valuN ExeNotExecutable a b
+    _ -> malformed
+
+instance EmbPrj ExecutablesFile where
+  icod_ = \case
+    ExecutablesFile a b -> icodeN 0 ExecutablesFile a b
+
+  value = vcase $ \case
+    [0, a, b] -> valuN ExecutablesFile a b
     _ -> malformed
 
 instance EmbPrj LibPositionInfo where
@@ -229,7 +240,7 @@ instance EmbPrj LibPositionInfo where
     LibPositionInfo a b c -> icodeN 0 LibPositionInfo a b c
 
   value = vcase $ \case
-    [0, a, b, c]   -> valuN LibPositionInfo a b c
+    [0, a, b, c] -> valuN LibPositionInfo a b c
     _ -> malformed
 
 instance EmbPrj Doc where
@@ -239,12 +250,12 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
     _ -> malformed
 
 instance EmbPrj ConfluenceCheck where

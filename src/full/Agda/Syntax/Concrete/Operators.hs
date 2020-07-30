@@ -111,7 +111,7 @@ localNames flat = do
     ]
   let localNots  = map localOp locals
       notLocal   = not . hasElem (map notaName localNots) . notaName
-      otherNots  = concat $ map (filter notLocal) defs
+      otherNots  = concatMap (filter notLocal) defs
   return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y

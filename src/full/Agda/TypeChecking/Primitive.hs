@@ -691,6 +691,31 @@ mkPrimFun2 f = do
           redReturn $ fromC $ f x y
         _ -> __IMPOSSIBLE__
 
+mkPrimFun3 :: ( PrimType a, FromTerm a, ToTerm a
+              , PrimType b, FromTerm b, ToTerm b
+              , PrimType c, FromTerm c
+              , PrimType d, ToTerm d ) =>
+              (a -> b -> c -> d) -> TCM PrimitiveImpl
+mkPrimFun3 f = do
+    (toA, fromA) <- (,) <$> fromTerm <*> toTerm
+    (toB, fromB) <- (,) <$> fromTerm <*> toTerm
+    toC          <- fromTerm
+    fromD        <- toTerm
+    t <- primType f
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ts ->
+      let argFrom fromX a x =
+            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
+      in case ts of
+        [a,b,c] ->
+          redBind (toA a)
+              (\a' -> [a', notReduced b, notReduced c]) $ \x ->
+          redBind (toB b)
+              (\b' -> [argFrom fromA a x, b', notReduced c]) $ \y ->
+          redBind (toC c)
+              (\c' -> [ argFrom fromA a x, argFrom fromB b y, c']) $ \z ->
+          redReturn $ fromD $ f x y z
+        _ -> __IMPOSSIBLE__
+
 mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
               , PrimType b, FromTerm b, ToTerm b
               , PrimType c, FromTerm c, ToTerm c

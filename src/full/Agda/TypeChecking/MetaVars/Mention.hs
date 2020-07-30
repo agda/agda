@@ -111,7 +111,6 @@ instance MentionsMeta Constraint where
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
-    TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
     Guarded{}           -> False  -- This gets woken up when the problem it's guarded by is solved
     UnBlock _           -> True   -- this might be a postponed typechecking

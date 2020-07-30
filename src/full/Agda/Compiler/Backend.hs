@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeOperators #-}
+
 
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend

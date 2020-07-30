@@ -222,7 +222,6 @@ addConstraintTo bucket unblock c = do
       ValueCmpHet{}    -> True
       ValueCmpOnFace{} -> True
       ElimCmp{}        -> True
-      TelCmp{}         -> True
       Guarded c _      -> isBlocking c
       UnBlock{}        -> True
       FindInstance{}   -> False
