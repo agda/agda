@@ -1,9 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures             #-}
-{-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TypeFamilies               #-}
 
 module Agda.TypeChecking.Heterogeneous where

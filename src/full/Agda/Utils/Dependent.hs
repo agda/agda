@@ -6,7 +6,6 @@
 --   https://cs.brynmawr.edu/~rae/papers/2012/singletons/paper.pdf
 --   https://hackage.haskell.org/package/singletons-2.7/docs/Data-Singletons.html
 
-{-# LANGUAGE KindSignatures  #-}
 {-# LANGUAGE GADTs           #-}
 {-# LANGUAGE PolyKinds       #-}
 {-# LANGUAGE TypeFamilies    #-}

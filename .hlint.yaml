@@ -22,6 +22,7 @@
 - ignore: {name: "Redundant case"}
 - ignore: {name: "Redundant guard"}
 - ignore: {name: "Redundant if"}
+- ignore: {name: "Redundant id"}
 - ignore: {name: "Redundant lambda"}
 - ignore: {name: "Redundant multi-way if"}
 - ignore: {name: "Redundant return"}
@@ -90,10 +91,6 @@
   -XStandaloneDeriving,
   -XTupleSections,
   -XTypeSynonymInstances,
-  # hlint (3.1.6, anyway), seems to assume -XTypeApplications,
-  # which causes a parsing error in some cases.
-  # (At the time of this note, a parse error in Agda.TypeChecking.Generalize)
-  -XNoTypeApplications,
 ]
 
 # Control which extensions/flags/modules/functions can be used
