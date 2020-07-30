@@ -43,12 +43,6 @@ import qualified Data.Text.Lazy as TL
 
 import Data.IORef
 
-import qualified System.Console.Haskeline as Haskeline
--- MonadException is replaced by MonadCatch in haskeline 0.8
-#if MIN_VERSION_haskeline(0,8,0)
-import qualified Control.Monad.Catch as Haskeline (catch)
-#endif
-
 import Agda.Benchmarking (Benchmark, Phase)
 
 import Agda.Syntax.Concrete (TopLevelModuleName)
@@ -4207,18 +4201,6 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT
 instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
   empty = return empty
   null  = __IMPOSSIBLE__
-
--- | Interaction monad.
-
-type IM = TCMT (Haskeline.InputT IO)
-
-runIM :: IM a -> TCM a
-runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
-
-instance MonadError TCErr IM where
-  throwError     = liftIO . E.throwIO
-  catchError (TCM m) h = TCM $ \s env ->
-    m s env `Haskeline.catch` \e -> unTCM (h e) s env
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
