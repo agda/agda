@@ -1,4 +1,6 @@
 resolver: lts-14.27
+compiler: ghc-8.6.5
+compiler-check: match-exact
 
 extra-deps:
 - STMonadTrans-0.4.3
