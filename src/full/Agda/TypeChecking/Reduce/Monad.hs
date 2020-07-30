@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -26,6 +27,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty () --instance only
 
+import Agda.Utils.Impossible
 
 instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
@@ -58,6 +60,9 @@ instance MonadAddContext ReduceM where
   withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 
   addCtx = defaultAddCtx
+
+  -- One should not add twins in a reduce context
+  addCtx_ = __IMPOSSIBLE__
 
   addLetBinding' = defaultAddLetBinding'
 

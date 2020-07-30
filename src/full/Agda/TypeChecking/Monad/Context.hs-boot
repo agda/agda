@@ -15,6 +15,7 @@ checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 
 class MonadTCEnv m => MonadAddContext m where
   addCtx :: Name -> Dom Type -> m a -> m a
+  addCtx_ :: Name -> Dom TwinT -> m a -> m a
   addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
   updateContext :: Substitution -> (ContextHet -> ContextHet) -> m a -> m a
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
@@ -23,6 +24,11 @@ class MonadTCEnv m => MonadAddContext m where
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Name -> Dom Type -> m a -> m a
   addCtx x a = liftThrough $ addCtx x a
+
+  default addCtx_
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Name -> Dom TwinT -> m a -> m a
+  addCtx_ x a = liftThrough $ addCtx_ x a
 
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)

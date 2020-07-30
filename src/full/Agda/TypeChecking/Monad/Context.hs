@@ -156,6 +156,13 @@ class MonadTCEnv m => MonadAddContext m where
   --   Warning: Does not update module parameter substitution!
   addCtx :: Name -> Dom Type -> m a -> m a
 
+  -- | @addCtx_ x arg cont@ add a variable of twin type to the context.
+  --
+  --   Chooses an unused 'Name'.
+  --
+  --   Warning: Does not update module parameter substitution!
+  addCtx_ :: Name -> Dom TwinT -> m a -> m a
+
   -- | Add a let bound variable to the context
   addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
 
@@ -170,6 +177,11 @@ class MonadTCEnv m => MonadAddContext m where
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Name -> Dom Type -> m a -> m a
   addCtx x a = liftThrough $ addCtx x a
+
+  default addCtx_
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Name -> Dom TwinT -> m a -> m a
+  addCtx_ x a = liftThrough $ addCtx_ x a
 
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
@@ -196,6 +208,13 @@ defaultAddCtx x a ret = do
   let ce = (x,) . pure <$> (inverseApplyQuantity q a)
   updateContext (raiseS 1) (:⊢ ce) ret
 
+-- | Default implementation of addCtx in terms of updateContext
+defaultAddCtx_ :: MonadAddContext m => Name -> Dom TwinT -> m a -> m a
+defaultAddCtx_ x a ret = do
+  q <- viewTC eQuantity
+  let ce = (x,) <$> (inverseApplyQuantity q a)
+  updateContext (raiseS 1) (:⊢ ce) ret
+
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
@@ -207,6 +226,7 @@ instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
+  addCtx_ x a            = liftListT $ addCtx_ x a
   addLetBinding' x u a   = liftListT $ addLetBinding' x u a
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
@@ -248,6 +268,9 @@ instance MonadAddContext TCM where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
+  addCtx_ x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddCtx_ x a ret
+
   addLetBinding' x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' x u a ret
 
@@ -279,6 +302,10 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 
 instance AddContext (Name, Dom Type) where
   addContext = uncurry addCtx
+  contextSize _ = 1
+
+instance AddContext (Name, Dom TwinT) where
+  addContext = uncurry addCtx_
   contextSize _ = 1
 
 instance AddContext (Dom (Name, Type)) where
@@ -330,6 +357,11 @@ instance AddContext (List1 (NamedArg Name), Type) where
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
+  contextSize _ = 1
+
+instance AddContext (String, Dom TwinT) where
+  addContext (s, dom) ret =
+    withFreshName noRange s $ \x -> addCtx_ (setNotInScope x) dom ret
   contextSize _ = 1
 
 instance AddContext (KeepNames String, Dom Type) where

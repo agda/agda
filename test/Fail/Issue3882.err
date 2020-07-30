@@ -11,8 +11,9 @@ Failed to solve the following constraints:
       (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w' s₁))) x
     : Set
     (blocked on any(_B_103, _y_129))
-  _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁)))
-  x = _B_103 (ψ = ψ) (n = _y_129)
+  _B_103 (ψ = ψ) (n = _y_129)
+  (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁))) x
+    = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁))) x
     : Set
     (blocked on any(_B_103, _y_129))
@@ -38,8 +39,9 @@ Failed to solve the following constraints:
       (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w' s₁))) x
     : Set
     (blocked on any(_B_103, _x_128))
-  _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁)))
-  x = _B_103 (ψ = ψ) (n = _x_128)
+  _B_103 (ψ = ψ) (n = _x_128)
+  (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁))) x
+    = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₁ → p x₁ .fst) (s₁ , w s₁))) x
     : Set
     (blocked on any(_B_103, _x_128))

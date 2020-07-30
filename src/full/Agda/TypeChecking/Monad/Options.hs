@@ -282,3 +282,6 @@ maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
 maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
+
+heterogeneousUnificationEnabled :: HasOptions m => m Bool
+heterogeneousUnificationEnabled = optHeterogeneousUnification <$> pragmaOptions

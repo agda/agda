@@ -37,6 +37,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Heterogeneous hiding (length)
+import qualified Agda.TypeChecking.Heterogeneous.Patterns as H
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -699,7 +700,7 @@ compareAtom cmp t m n =
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC $
+              compareDom_ (flipCmp $ fromCmp cmp) dom1 dom2 b1 b2 errH errR errQ errC $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2
@@ -709,11 +710,11 @@ compareAtom cmp t m n =
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
-compareDom :: (MonadConversion m , Free c)
-  => Comparison -- ^ @cmp@ The comparison direction
+compareDom_ :: (MonadConversion m , Free c)
+  => CompareDirection -- ^ @cmp@ The comparison direction
   -> Dom Type   -- ^ @a1@  The smaller domain.
   -> Dom Type   -- ^ @a2@  The other domain.
-  -> Abs b      -- ^ @b1@  The smaller codomain.
+  -> Abs c      -- ^ @b1@  The smaller codomain.
   -> Abs c      -- ^ @b2@  The bigger codomain.
   -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
@@ -721,28 +722,40 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp0
+compareDom_ cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
   b1 b2 errH errR errQ errC cont = do
   hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
-  let cmp = if hasSubtyping then cmp0 else CmpEq
+  let cmp = if hasSubtyping then cmp0 else DirEq
   if | not $ sameHiding dom1 dom2 -> errH
-     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
-     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
-     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ dirToCmp compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ dirToCmp compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ dirToCmp compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
-          dependent = (r /= Irrelevant) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp0 a1 a2
-      dom <- if dependent
-             then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
-             else return dom1
+          dependent = (r /= Irrelevant) && dirToCmp (\_ _ b2 -> isBinderUsed b2) cmp b1 b2
+      pid <- newProblem_ $ dirToCmp_ (\x₁ (HetP x₂ x₃) -> compareType_ x₁ x₂ x₃)
+                             cmp0 (HetP (asTwin a1) (asTwin a2))
+      -- Chose the smaller type and domain
+      let (a0,dom0) = dirToCmp (\_ a1 _ -> a1) cmp (a1,dom1) (a2,dom2)
+      (a0', dom0') <- if dependent
+             then (\ a -> (a, dom0 {unDom = a})) <$> blockTypeOnProblem a0 pid
+             else return (a0, dom0)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addContext (name, dom) $ cont
+      heterogeneousUnificationEnabled >>= \case
+        True ->
+          addContext (name, dom0'{unDom =
+                              TwinT{necessary  = True,
+                                    twinPid    = [pid],
+                                    twinLHS    = Het @'LHS a1,
+                                    twinCompat = Het @'Compat a0',
+                                    twinRHS    = Het @'RHS a2
+                                   }}) cont
+        False -> addContext (name, dom0') cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
@@ -1076,9 +1089,12 @@ compareArgs pol for a v args1 args2 =
 -- * Types
 ---------------------------------------------------------------------------
 
--- | Equality on Types
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
-compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
+compareType cmp t u = compareType_ cmp (asTwin t) (asTwin u)
+
+-- | Equality on Types
+compareType_ :: MonadConversion m => Comparison -> Het 'LHS Type -> Het 'RHS Type -> m ()
+compareType_ cmp ty1@(H.El s1 a1) ty2@(H.El s2 a2) =
     workOnTypes $
     verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
@@ -1086,10 +1102,10 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                                        , prettyTCM ty2 ]
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
-        compareAs cmp AsTypes a1 a2
+        compareAs_ cmp AsTypes a1 a2
         unlessM ((optCumulativity <$> pragmaOptions) `or2M`
                  (not . optCompareSorts <$> pragmaOptions)) $
-          compareSort CmpEq s1 s2
+          compareSort CmpEq (twinAt @'Compat s1) (twinAt @'Compat s2)
         return ()
 
 leqType :: MonadConversion m => Type -> Type -> m ()

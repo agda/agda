@@ -327,7 +327,7 @@ defaultPragmaOptions = PragmaOptions
   , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
-  , optHeterogeneousUnification  = False
+  , optHeterogeneousUnification  = True
   , optAllowExec                 = False
   }
 
