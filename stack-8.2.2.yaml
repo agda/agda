@@ -1,4 +1,6 @@
 resolver: lts-11.22
+compiler: ghc-8.2.2
+compiler-check: match-exact
 
 extra-deps:
 - QuickCheck-2.13.2
