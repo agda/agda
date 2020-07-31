@@ -993,4 +993,3 @@ test-suite agda-tests
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
                  -Werror=star-is-type
-
