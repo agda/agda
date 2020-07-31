@@ -1,4 +1,10 @@
 {
+#if  __GLASGOW_HASKELL__ > 800
+{-# OPTIONS_GHC -Wno-error=deprecated-flags   #-}
+{-# OPTIONS_GHC -Wno-error=missing-signatures #-}
+{-# OPTIONS_GHC -Wno-error=tabs               #-}
+{-# OPTIONS_GHC -Wno-error=unused-imports     #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-deprecated-flags   #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-tabs               #-}
