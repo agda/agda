@@ -4,6 +4,7 @@ extra-deps:
 - QuickCheck-2.13.2
 - async-2.2.1
 - cpphs-1.20.9
+- haskeline-0.8.0.0
 - regex-base-0.94.0.0
 - regex-tdfa-1.3.1.0
 - splitmix-0.0.3

@@ -6,6 +6,7 @@ extra-deps:
 - ansi-wl-pprint-0.6.9
 - async-2.2.1
 - cpphs-1.20.9
+- haskeline-0.8.0.0
 - optparse-applicative-0.15.1.0
 - regex-base-0.94.0.0
 - regex-tdfa-1.3.1.0
