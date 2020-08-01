@@ -223,7 +223,7 @@ library
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
-                , haskeline >= 0.7.2.3 && < 0.9
+                , haskeline >= 0.8 && < 0.9
                 , ieee754 >= 0.7.8 && < 0.9
                 -- monad-control-1.0.1.0 is the first to contain liftThrough
                 , monad-control >= 1.0.1.0 && < 1.1
@@ -993,4 +993,3 @@ test-suite agda-tests
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
                  -Werror=star-is-type
-

@@ -12,6 +12,7 @@ import Control.Applicative hiding (empty)
 import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 
+import qualified Control.Monad.Catch as MC
 import qualified Control.Monad.Fail as Fail
 
 import Control.Monad.Except
@@ -4093,7 +4094,8 @@ runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
 
 instance MonadError TCErr IM where
   throwError     = liftIO . E.throwIO
-  catchError m h = liftTCM $ runIM m `catchError` (runIM . h)
+  catchError (TCM m) h = TCM $ \s env ->
+    m s env `MC.catch` \e -> unTCM (h e) s env
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
