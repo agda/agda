@@ -521,8 +521,8 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
         gcomp <- mkGComp localUse
 
         let transpFill la bA phi u0 i =
-              pure tTrans <#> ilam "j" (\ j -> la <@> imin i j)
-                          <@> ilam "j" (\ j -> bA <@> imin i j)
+              pure tTrans <#> lam "j" (\ j -> la <@> imin i j)
+                          <@> lam "j" (\ j -> bA <@> imin i j)
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
@@ -703,8 +703,8 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
         gcomp <- mkGComp localUse
 
         let transpFill la bA phi u0 i =
-              pure tTrans <#> ilam "j" (\ j -> la <@> imin i j)
-                          <@> ilam "j" (\ j -> bA <@> imin i j)
+              pure tTrans <#> lam "j" (\ j -> la <@> imin i j)
+                          <@> lam "j" (\ j -> bA <@> imin i j)
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
@@ -732,7 +732,7 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
                                              <@> ilam "o" (\ _ -> a0)
                                              <@> ilam "o" (\ o -> pure tEFun <#> (lb <@> i)
                                                                                <#> (la <@> i)
@@ -834,7 +834,7 @@ compHCompU DoHComp psi (Just u) u0 (IsNot (la, phi, bT, bA)) tpos = do
           hfill la bA phi u u0 i = pure tHComp <#> la
                                                <#> bA
                                                <#> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               <@> lam "j" (\ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> ilam "o" (\ a -> bA)
+                                               <@> lam "j" (\ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> ilam "o" (\ _ -> bA)
                                                      <@> ilam "o" (\ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> ilam "o" (\ _ -> u0))
                                                <@> u0
@@ -920,7 +920,7 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
                                              <@> ilam "o" (\ _ -> a0)
                                              <@> ilam "o" (\ o -> transp (la <@> i)
                                                                            (\ j -> bT <@> i <@> ineg j <..> o)
@@ -1275,14 +1275,14 @@ primTransHComp cmd ts nelims = do
                  return $! p $ ignoreBlocking t
     reduce2Lam t = do
           t <- reduce' t
-          case lam2Abs t of
+          case lam2Abs Relevant t of
             t -> underAbstraction_ t $ \ t -> do
                t <- reduce' t
-               case lam2Abs t of
+               case lam2Abs Irrelevant t of
                  t -> underAbstraction_ t reduceB'
          where
-           lam2Abs (Lam _ t) = absBody t <$ t
-           lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
+           lam2Abs rel (Lam _ t) = absBody t <$ t
+           lam2Abs rel t         = Abs "y" (raise 1 t `apply` [setRelevance rel $ argN $ var 0])
     allComponentsBack unview phi u p = do
             let
               boolToI b = if b then unview IOne else unview IZero

@@ -609,7 +609,9 @@ createMissingIndexedClauses f n x old_sc scs = do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
          reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
 
-         unless (size xs == size infos + 1) $ __IMPOSSIBLE__
+         unless (size xs == size infos + 1) $
+            reportSDoc "tc.cover.indexed" 20 $ text "missing some infos"
+            -- Andrea: what to do when we only managed to build a unification proof for some of the constructors?
          Constructor{conData} <- theDef <$> getConstInfo (fst (head infos))
          Datatype{dataPars = pars, dataIxs = nixs, dataTranspIx} <- theDef <$> getConstInfo conData
          hcomp <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp

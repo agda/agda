@@ -672,7 +672,7 @@ defineTranspIx d = do
         , "dT     :" <+> (addContext params $ addContext ixs $ prettyTCM dT)
         ]
       -- theType <- abstract params <$> undefined
-      interval <- elInf primInterval
+      interval <- primIntervalType
       let deltaI = expTelescope interval ixs
       iz <- primIZero
       io@(Con c _ _) <- primIOne
@@ -702,7 +702,7 @@ defineTranspIx d = do
       theType <- (abstract (setHiding Hidden <$> params) <$>) . (abstract deltaI <$>) $ runNamesT [] $ do
                   rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
                                                                  pure rect')
-                  nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+                  nPi' "phi" (primIntervalType) $ \ phi ->
                    (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
 
       TelV ctel ctype <- telView theType
@@ -790,14 +790,14 @@ defineTranspFun d mtrX cons pathCons = do
       io@(Con io_c _ []) <- primIOne
       iz <- primIZero
 
-      interval <- elInf primInterval
+      interval <- primIntervalType
       let telI = expTelescope interval tel
           sigma = sub tel
           dTs = (sigma `applySubst` El s (Def d $ map Apply $ teleArgs tel))
 
       theType <- (abstract telI <$>) $ runNamesT [] $ do
                   dT <- open $ Abs "i" $ dTs
-                  nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+                  nPi' "phi" primIntervalType $ \ phi ->
                    (absApp <$> dT <*> pure iz) --> (absApp <$> dT <*> pure io)
 
 
@@ -887,7 +887,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           face <- (foldr max (pure iz) $ map fst $ sys)
           sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
           pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
-  interval <- elInf primInterval
+  interval <- primIntervalType
   let intervalTel nm = ExtendTel (defaultDom interval) (Abs nm EmptyTel)
 
   let (parI,ixsI) = splitTelescopeAt npars telI
@@ -1541,7 +1541,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
              comp lvl
                   filled_ty
                   phi
-                  (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
+                  (lam "i" $ \ i -> ilam "o" $ \ o -> proj $ w <@> i <..> o) -- TODO wait for phi = 1
                   (proj w0)
 
   reportSDoc "hcomp.rec" 60 $ text $ "filled_types sorts:" ++ show (map (getSort . fromLType . unDom) filled_types)
