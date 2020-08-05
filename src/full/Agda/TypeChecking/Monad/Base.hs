@@ -1039,11 +1039,9 @@ data Constraint
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
-  | FindInstance MetaId Blocker (Maybe [Candidate])
-    -- ^ the first argument is the instance argument, the second one is the metas
-    --   on which the constraint may be blocked on and the third one is the list
-    --   of candidates (or Nothing if we haven’t determined the list of
-    --   candidates yet)
+  | FindInstance MetaId (Maybe [Candidate])
+    -- ^ the first argument is the instance argument and the second one is the list of candidates
+    --   (or Nothing if we haven’t determined the list of candidates yet)
   | CheckFunDef Delayed A.DefInfo QName [A.Clause]
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   deriving (Data, Show)
@@ -1074,7 +1072,7 @@ instance Free Constraint where
       Guarded c _           -> freeVars' c
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
-      FindInstance _ _ cs   -> freeVars' cs
+      FindInstance _ cs     -> freeVars' cs
       CheckFunDef _ _ _ _   -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
@@ -1093,7 +1091,7 @@ instance TermLike Constraint where
       Guarded c _            -> foldTerm f c
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
-      FindInstance _ _ _     -> mempty
+      FindInstance _ _       -> mempty
       CheckFunDef _ _ _ _    -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)

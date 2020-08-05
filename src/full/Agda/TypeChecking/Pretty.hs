@@ -335,15 +335,12 @@ instance PrettyTCM Constraint where
               --     , show m ++ show args ++ " := " ++ show t
               --     ]
               --   __IMPOSSIBLE__
-        FindInstance m mb mcands -> do
+        FindInstance m mcands -> do
             t <- getMetaType m
-            sep [ "Resolve instance argument" <+> blk
-                    <?> prettyCmp ":" m t
+            sep [ "Resolve instance argument" <?> prettyCmp ":" m t
                 , cands
                 ]
           where
-            blk | mb == alwaysUnblock = empty
-                | otherwise           = parens $ "blocked on" <+> pretty mb
             cands =
               case mcands of
                 Nothing -> "No candidates yet"

@@ -75,14 +75,15 @@ addConstraintTCM unblock c = do
       -- The added constraint can cause instance constraints to be solved,
       -- but only the constraints which aren’t blocked on an uninstantiated meta.
       unless (isInstanceConstraint c) $
-         wakeConstraints' (isWakeableInstanceConstraint . clValue . theConstraint)
+         wakeConstraints' isWakeableInstanceConstraint
     where
-      isWakeableInstanceConstraint :: Constraint -> TCM WakeUp
-      isWakeableInstanceConstraint = \ case
-        FindInstance _ b _ -> instantiate b <&> \ case
-          b | b == alwaysUnblock -> WakeUp
-            | otherwise          -> DontWakeUp (Just b)
-        _ -> return $ DontWakeUp Nothing
+      isWakeableInstanceConstraint :: ProblemConstraint -> TCM WakeUp
+      isWakeableInstanceConstraint c =
+        case clValue $ theConstraint c of
+          FindInstance{} -> instantiate (constraintUnblocker c) <&> \ case
+            b | b == alwaysUnblock -> WakeUp
+              | otherwise          -> DontWakeUp (Just b)
+          _ -> return $ DontWakeUp Nothing
 
       isLvl LevelCmp{} = True
       isLvl _          = False
@@ -316,14 +317,14 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenInstance -> __IMPOSSIBLE__
-solveConstraint_ (FindInstance m b cands)     = findInstance m cands
-solveConstraint_ (CheckFunDef d i q cs)       = withoutCache $
+solveConstraint_ (FindInstance m cands) = findInstance m cands
+solveConstraint_ (CheckFunDef d i q cs) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.
   checkFunDef d i q cs
-solveConstraint_ (HasBiggerSort a)            = hasBiggerSort a
-solveConstraint_ (HasPTSRule a b)             = hasPTSRule a b
-solveConstraint_ (CheckMetaInst m)            = checkMetaInst m
+solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
+solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
+solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

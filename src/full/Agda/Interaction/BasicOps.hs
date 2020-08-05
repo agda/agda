@@ -447,7 +447,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           Open{}  -> __IMPOSSIBLE__
           OpenInstance{}  -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInstance m _b mcands) = FindInstanceOF
+    reify (FindInstance m mcands) = FindInstanceOF
       <$> reify (MetaV m [])
       <*> (reify =<< getMetaType m)
       <*> forM (fromMaybe [] mcands) (\ (Candidate q tm ty _) -> do

@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument (blocked on any())
+  Resolve instance argument
     _AF_161
       : {n = n₂ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
         ⦃ AF = AF₁ : Applicative F₁ ⦄ (f₁ : A → F₁ B₁) {n = n₃ : Nat}
@@ -12,7 +12,7 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  Resolve instance argument (blocked on any())
+  Resolve instance argument
     _AF_172
       : {n = n₁ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
         ⦃ AF = AF₁ : Applicative F₁ ⦄ →
