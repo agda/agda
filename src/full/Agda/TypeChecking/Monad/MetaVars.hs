@@ -177,7 +177,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
   return $ permute (takeP (length args) p) args
 
 -- | Given a meta, return the type applied to the current context.
-getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m)
+getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m, HasBuiltins m)
                      => MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupMeta m

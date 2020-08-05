@@ -572,21 +572,21 @@ ifNotPi = flip . ifPi
 ifNotPiType :: MonadReduce m => Type -> (Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
 ifNotPiType = flip . ifPiType
 
-ifNotPiOrPathType :: (MonadReduce tcm, MonadTCM tcm) => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPiOrPathType :: (MonadReduce tcm, HasBuiltins tcm) => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
 ifNotPiOrPathType t no yes = do
-  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (liftTCM pathViewAsPi'whnf <*> pure t))
+  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (pathViewAsPi'whnf <*> pure t))
 
 
 -- | A safe variant of 'piApply'.
 
 class PiApplyM a where
-  piApplyM' :: MonadReduce m => m Empty -> Type -> a -> m Type
+  piApplyM' :: (MonadReduce m, HasBuiltins m) => m Empty -> Type -> a -> m Type
 
-  piApplyM :: MonadReduce m => Type -> a -> m Type
+  piApplyM :: (MonadReduce m, HasBuiltins m) => Type -> a -> m Type
   piApplyM = piApplyM' __IMPOSSIBLE__
 
 instance PiApplyM Term where
-  piApplyM' err t v = ifNotPiType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
+  piApplyM' err t v = ifNotPiOrPathType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
 
 instance PiApplyM a => PiApplyM (Arg a) where
   piApplyM' err t = piApplyM' err t . unArg
