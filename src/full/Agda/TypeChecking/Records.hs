@@ -290,7 +290,7 @@ origProjection f = do
 --   Precondition: @t@ is reduced.
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
-getDefType :: (HasConstInfo m, MonadReduce m, MonadDebug m)
+getDefType :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
            => QName -> Type -> m (Maybe Type)
 getDefType f t = do
   -- Andreas, Issue #1973: we need to take the original projection
@@ -355,7 +355,7 @@ getDefType f t = do
 --   Precondition: @t@ is reduced.
 --
 projectTyped
-  :: (HasConstInfo m, MonadReduce m, MonadDebug m)
+  :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
   =>  Term        -- ^ Head (record value).
   -> Type        -- ^ Its type.
   -> ProjOrigin
