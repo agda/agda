@@ -139,8 +139,8 @@ headSymbol' v = do
       Lit _      -> return Nothing
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
-      MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
+      MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so

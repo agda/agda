@@ -458,7 +458,8 @@ instance Pretty Blocker where
   pretty (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
   pretty (UnblockOnMeta m) = pretty m
 
--- | Something where a meta variable may block reduction.
+-- | Something where a meta variable may block reduction. Notably a top-level meta is considered
+--   blocking. This did not use to be the case (pre Aug 2020).
 data Blocked t
   = Blocked    { theBlocker      :: Blocker,  ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }

@@ -593,9 +593,10 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, Reduce t)
+etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, IsMeta t, Reduce t)
                  => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
+etaExpandBlocked t@(Blocked _ v) | Just{} <- isMeta v = return t
 etaExpandBlocked (Blocked b t)  = do
   reportSDoc "tc.meta.eta" 30 $ "Eta expanding blockers" <+> pretty b
   mapM_ (etaExpandMeta [Records]) $ Set.toList $ allBlockingMetas b
@@ -1000,9 +1001,9 @@ attemptInertRHSImprovement m args v = do
             Level{}    -> return ()
             Lit{}      -> notNeutral v
             DontCare{} -> notNeutral v
-            MetaV{}    -> notNeutral v
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
+            MetaV{}    -> __IMPOSSIBLE__
 -- END UNUSED -}
 
 -- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
@@ -1061,11 +1062,8 @@ assignMeta' m x t n ids v = do
     -- then we give up. (Issue 903)
     when (size tel' < n) $ do
       a <- abortIfBlocked a
-      case unEl a of
-        MetaV x _ -> patternViolation (unblockOnMeta x)
-        _         -> do
-          reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
-          __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
+      reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
+      __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
 
     -- Perform the assignment (and wake constraints).
 

@@ -87,16 +87,14 @@ blockAll bs = blockedOn block $ fmap ignoreBlocking bs
         blocker NotBlocked{}  = alwaysUnblock
         blocker (Blocked b _) = b
 
--- | Blocking on any blockers. Also metavariables. TODO: isMeta not needed once we could metas as
---   Blocked.
-blockAny :: (IsMeta a, Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
+-- | Blocking on any blockers.
+blockAny :: (Functor f, Foldable f) => f (Blocked a) -> Blocked (f a)
 blockAny bs = blockedOn block $ fmap ignoreBlocking bs
   where block = case foldMap blocker bs of
                   [] -> alwaysUnblock -- no blockers
                   bs -> unblockOnAny $ Set.fromList bs
-        blocker (NotBlocked _ t) | Just x <- isMeta t = [unblockOnMeta x]
-        blocker NotBlocked{}                          = []
-        blocker (Blocked b _)                         = [b]
+        blocker NotBlocked{}  = []
+        blocker (Blocked b _) = [b]
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -304,10 +302,8 @@ ifBlocked
 ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
-    Blocked m t -> blocked m t
-    NotBlocked nb t -> case isMeta t of
-      Just m    -> blocked (unblockOnMeta m) t
-      Nothing   -> unblocked nb t
+    Blocked m t     -> blocked m t
+    NotBlocked nb t -> unblocked nb t
 
 -- | Throw pattern violation if blocked or a meta.
 abortIfBlocked :: (MonadReduce m, MonadTCError m, IsMeta t, Reduce t) => t -> m t
@@ -379,11 +375,11 @@ instance Reduce LevelAtom where
                               asksTC envAllowedReductions
         let v = ignoreBlocking bv
         case bv of
-          NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
-          Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
-          NotBlocked r _
-            | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
-            | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
+          Blocked b (MetaV m es)            -> return $ Blocked b    $ MetaLevel m es
+          NotBlocked _ MetaV{}              -> __IMPOSSIBLE__
+          Blocked m _                       -> return $ Blocked m    $ BlockedLevel m v
+          NotBlocked r _ | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
+                         | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
 
 
 instance (Subst t a, Reduce a) => Reduce (Abs a) where
@@ -428,25 +424,16 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
 reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply = reduceIApply' reduceB'
 
-blockedOrMeta :: Blocked Term -> Blocked ()
-blockedOrMeta r =
-  case r of
-    Blocked b _              -> Blocked b ()
-    NotBlocked _ (MetaV m _) -> blocked_ m
-    NotBlocked i _           -> NotBlocked i ()
-
 reduceIApply' :: (Term -> ReduceM (Blocked Term)) -> ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
 reduceIApply' red d (IApply x y r : es) = do
   view <- intervalView'
   r <- reduceB' r
   -- We need to propagate the blocking information so that e.g.
   -- we postpone "someNeutralPath ?0 = a" rather than fail.
-  let blockedInfo = blockedOrMeta r
-
   case view (ignoreBlocking r) of
    IZero -> red (applyE x es)
    IOne  -> red (applyE y es)
-   _     -> fmap (<* blockedInfo) (reduceIApply' red d es)
+   _     -> fmap (<* r) (reduceIApply' red d es)
 reduceIApply' red d (_ : es) = reduceIApply' red d es
 reduceIApply' _   d [] = d
 
@@ -474,7 +461,7 @@ maybeFastReduceTerm v = do
   if not tryFast then slowReduceTerm v
                  else
     case v of
-      MetaV x _ -> ifM (isOpen x) (return $ notBlocked v) (maybeFast v)
+      MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
       _         -> maybeFast v
   where
     isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
@@ -483,7 +470,8 @@ maybeFastReduceTerm v = do
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm v = do
     v <- instantiate' v
-    let done = return $ notBlocked v
+    let done | MetaV x _ <- v = return $ blocked x v
+             | otherwise      = return $ notBlocked v
         iapp = reduceIApply done
     case v of
 --    Andreas, 2012-11-05 not reducing meta args does not destroy anything
@@ -634,7 +622,6 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
 
           mredToBlocked :: IsMeta t => MaybeReduced t -> Blocked t
           mredToBlocked (MaybeRed NotReduced  e) = notBlocked e
-          mredToBlocked (MaybeRed (Reduced NotBlocked{}) e) | Just x <- isMeta e = e <$ blocked_ x -- reduced metas should be blocked
           mredToBlocked (MaybeRed (Reduced b) e) = e <$ b
 
     reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)

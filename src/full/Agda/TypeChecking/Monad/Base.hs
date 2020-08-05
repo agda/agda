@@ -2253,11 +2253,7 @@ notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
-reduced b = case b of
-  NotBlocked _ (Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked (unblockOnMeta x) ()) v
-  _                                -> MaybeRed (Reduced $ () <$ b)      v
-  where
-    v = ignoreBlocking b
+reduced b = MaybeRed (Reduced $ () <$ b) $ ignoreBlocking b
 
 -- | Controlling 'reduce'.
 data AllowedReduction
