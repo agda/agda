@@ -257,7 +257,6 @@ constraintMetas c = metas c
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
-      Guarded c _              -> metas c
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
       FindInstance{}           -> return mempty  -- v Ignore these constraints

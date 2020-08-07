@@ -55,19 +55,16 @@ prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ pret
 interestingConstraint :: ProblemConstraint -> Bool
 interestingConstraint pc = go $ clValue (theConstraint pc)
   where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
+    go UnBlock{} = False
+    go _         = True
 
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
 prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
   where
-    isBlocked = not . null . blocking . clValue . theConstraint
+    isBlocked = not . null . allBlockingProblems . constraintUnblocker
     cs' = filter interestingConstraint cs
-    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
+    interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-    blocking (Guarded c pid) = pid : blocking c
-    blocking _               = []
 
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case

@@ -15,10 +15,11 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, ProblemId, Comparison, Polarity)
+  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity)
 
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (InteractionId (..))
+import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
 
@@ -433,7 +434,7 @@ data UseForce
   | WithoutForce  -- ^ Don't ignore any checks.
   deriving (Eq, Read, Show)
 
-data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
+data OutputForm a b = OutputForm Range [ProblemId] Blocker (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -443,7 +444,6 @@ data OutputConstraint a b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a
       | SizeLtSat a

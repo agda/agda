@@ -388,7 +388,7 @@ blockTermOnProblem t v pid =
                     (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    inTopContext $ addConstraint neverUnblock (Guarded (UnBlock x) pid) -- Will be woken up when the problem is solved
+    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)

@@ -7,6 +7,7 @@ import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
+import qualified Data.Set as Set
 
 import Agda.Interaction.AgdaTop
 import Agda.Interaction.Base
@@ -20,12 +21,11 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
-import Agda.Syntax.Internal (telToList, Dom'(..), Dom)
+import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..))
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
-import Agda.TypeChecking.Monad (Comparison(..), inTopContext, ProblemId(..), TCM)
-import Agda.TypeChecking.Monad.Base (NamedMeta(..))
+import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
@@ -90,8 +90,10 @@ instance ToJSON Range where
     where prettyInterval i = object [ "start" .= iStart i, "end" .= iEnd i ]
 
 instance EncodeTCM ProblemId where
-instance ToJSON ProblemId where
-  toJSON (ProblemId i) = toJSON i
+instance EncodeTCM MetaId    where
+
+instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
+instance ToJSON MetaId    where toJSON (MetaId    i) = toJSON i
 
 instance EncodeTCM InteractionId where
   encodeTCM ii@(InteractionId i) = obj
@@ -179,10 +181,6 @@ encodeOC f encodePrettyTCM = \case
  CmpLevels c i j -> encodeOCCmp f c i j "CmpLevels"
  CmpTeles  c i j -> encodeOCCmp f c i j "CmpTeles"
  CmpSorts  c i j -> encodeOCCmp f c i j "CmpSorts"
- Guard oc a -> kind "Guard"
-  [ "constraint"     #= encodeOC f encodePrettyTCM oc
-  , "problem"        @= a
-  ]
  Assign i a -> kind "Assign"
   [ "constraintObj"  #= f i
   , "value"          #= encodePrettyTCM a
@@ -228,11 +226,18 @@ encodeNamedPretty (name, a) = obj
   ]
 
 instance EncodeTCM (OutputForm C.Expr C.Expr) where
-  encodeTCM (OutputForm range problems oc) = obj
+  encodeTCM (OutputForm range problems unblock oc) = obj
     [ "range"      @= range
     , "problems"   @= problems
+    , "unblocker"  @= unblock
     , "constraint" #= encodeOC (pure . encodeShow) (pure . encodeShow) oc
     ]
+
+instance EncodeTCM Blocker where
+  encodeTCM (UnblockOnMeta x)    = kind "UnblockOnMeta" [ "meta" @= x ]
+  encodeTCM (UnblockOnProblem p) = kind "UnblockOnProblem" [ "id" @= p ]
+  encodeTCM (UnblockOnAll us)    = kind "UnblockOnAll" [ "blockers" @= Set.toList us ]
+  encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"

@@ -288,8 +288,8 @@ instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parens (sep [blockedOn unblock, prPids (Set.toList pids)])
     where
       prPids []    = empty
-      prPids [pid] = "problem" <+> prettyTCM pid
-      prPids pids  = "problems" <+> fsep (punctuate "," $ map prettyTCM pids)
+      prPids [pid] = "belongs to problem" <+> prettyTCM pid
+      prPids pids  = "belongs to problems" <+> fsep (punctuate "," $ map prettyTCM pids)
 
       comma | null pids = empty
             | otherwise = ","
@@ -302,6 +302,7 @@ instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnMeta m) = prettyTCM m
+  prettyTCM (UnblockOnProblem p) = "problem" <+> pretty p
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
@@ -313,7 +314,6 @@ instance PrettyTCM Constraint where
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        Guarded c pid            -> prettyTCM c <?> parens ("blocked by problem" <+> prettyTCM pid)
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
             mi <- mvInstantiation <$> lookupMeta m

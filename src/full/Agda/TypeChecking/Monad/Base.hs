@@ -738,23 +738,6 @@ instance HasFresh NameId where
 instance HasFresh Int where
   freshLens = stFreshInt
 
-newtype ProblemId = ProblemId Nat
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instance is deprecated, and Pretty[TCM] should be used
--- instead. Later, simply derive Show for this type.
-
--- ASR (28 December 2014). This instance is not used anymore (module
--- the test suite) when reporting errors. See Issue 1293.
-
--- This particular Show instance is ok because of the Num instance.
-instance Show ProblemId where
-  show (ProblemId n) = show n
-
-instance Pretty ProblemId where
-  pretty (ProblemId n) = pretty n
-
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
@@ -1034,7 +1017,9 @@ data Constraint
   | HasPTSRule (Dom Type) (Abs Sort)
   | CheckMetaInst MetaId
   | UnBlock MetaId
-  | Guarded Constraint ProblemId
+    -- ^ Meta created for a term blocked by a postponed type checking problem or unsolved
+    --   constraints. The 'MetaInstantiation' for the meta (when unsolved) is either 'BlockedConst'
+    --   or 'PostponedTypeCheckingProblem'.
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
@@ -1056,7 +1041,6 @@ instance HasRange Constraint where
   getRange (SortCmp cmp s s') = getRange (s,s')
   getRange (LevelCmp cmp l l') = getRange (l,l')
   getRange (UnBlock x) = getRange x
-  getRange (Guarded c pid) = getRange c
   getRange (FindInstance x cands) = getRange x
 -}
 
@@ -1069,7 +1053,6 @@ instance Free Constraint where
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
       UnBlock _             -> mempty
-      Guarded c _           -> freeVars' c
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
@@ -1088,7 +1071,6 @@ instance TermLike Constraint where
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
-      Guarded c _            -> foldTerm f c
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
       FindInstance _ _       -> mempty

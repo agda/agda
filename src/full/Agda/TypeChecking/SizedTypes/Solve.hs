@@ -101,7 +101,7 @@ import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
-type CC = Closure TCM.Constraint
+type CC = ProblemConstraint
 
 -- | Flag to control the behavior of size solver.
 data DefaultToInfty
@@ -116,7 +116,8 @@ solveSizeConstraints flag =  do
 
   -- 1. Take out the size constraints normalised.
 
-  cs0 <- mapM (mapClosure normalise) =<< S.takeSizeConstraints (== CmpLeq)
+  let norm c = mapClosure normalise (theConstraint c) <&> \ cl -> c { theConstraint = cl }
+  cs0 <- mapM norm =<< S.takeSizeConstraints (== CmpLeq)
     -- NOTE: this deletes the size constraints from the constraint set!
   unless (null cs0) $
     reportSDoc "tc.size.solve" 40 $ vcat $
@@ -132,7 +133,7 @@ solveSizeConstraints flag =  do
   sizeMetaSet <- Set.fromList . map (\ (x, _t, _tel) -> x) <$> S.getSizeMetas True
 
   -- Pair each constraint with its list of size metas occurring in it.
-  cms <- forM cs0 $ \ cl -> enterClosure cl $ \ c -> do
+  cms <- forM cs0 $ \ cl -> enterClosure (theConstraint cl) $ \ c -> do
 
     -- @allMetas@ does not reduce or instantiate;
     -- this is why we require the size constraints to be normalised.
@@ -165,9 +166,9 @@ solveSizeConstraints flag =  do
       -- Convert each constraint in the cluster to the largest context.
       -- (Keep fingers crossed).
 
-      enterClosure (Fold.maximumBy (compare `on` (length . envContext . clEnv)) cs) $ \ _ -> do
+      enterClosure (Fold.maximumBy (compare `on` (length . envContext . clEnv)) $ fmap theConstraint cs) $ \ _ -> do
         -- Get all constraints that can be cast to the longest context.
-        cs' :: [TCM.Constraint] <- List1.catMaybes <$> do
+        cs' :: [ProblemConstraint] <- List1.catMaybes <$> do
           mapM (runMaybeT . castConstraintToCurrentContext) cs
 
         reportSDoc "tc.size.solve" 20 $ vcat $
@@ -177,7 +178,7 @@ solveSizeConstraints flag =  do
           ) : map (nest 2 . prettyTCM) cs'
 
         -- Solve the converted constraints.
-        solveSizeConstraints_ flag =<<  mapM buildClosure cs'
+        solveSizeConstraints_ flag cs'
 
   -- 4. Possibly set remaining metas to infinity.
 
@@ -209,7 +210,7 @@ solveSizeConstraints flag =  do
   -- 5. Make sure we did not lose any constraints.
 
   -- This is necessary since we have removed the size constraints.
-  forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+  forM_ cs0 $ withConstraint solveConstraint
 
 
 -- | TODO: this does not actually work!
@@ -313,10 +314,11 @@ castConstraintToCurrentContext' cl = do
 --
 --   This hack lets issue 2046 go through.
 
-castConstraintToCurrentContext :: Closure TCM.Constraint -> MaybeT TCM TCM.Constraint
-castConstraintToCurrentContext cl = do
+castConstraintToCurrentContext :: ProblemConstraint -> MaybeT TCM ProblemConstraint
+castConstraintToCurrentContext c = do
   -- The checkpoint of the contraint
-  let cp = envCurrentCheckpoint $ clEnv cl
+  let cl = theConstraint c
+      cp = envCurrentCheckpoint $ clEnv cl
   sigma <- caseMaybeM (viewTC $ eCheckpoints . key cp)
           (do
             -- We are not in a descendant of the constraint checkpoint.
@@ -340,7 +342,8 @@ castConstraintToCurrentContext cl = do
             return $ parallelS $ map (maybe __DUMMY_TERM__ var) cand
           ) return -- Phew, we've got the checkpoint! All is well.
   -- Apply substitution to constraint and pray that the Gods are merciful on us.
-  return $ applySubst sigma (clValue cl)
+  cl' <- buildClosure $ applySubst sigma (clValue cl)
+  return $ c { theConstraint = cl' }
   -- Note: the resulting constraint may not well-typed.
   -- Even if it is, it may map variables to their wrong counterpart.
 
@@ -380,7 +383,7 @@ solveSizeConstraints_ flag cs0 = do
 
 -- | Solve a cluster of constraints sharing some metas.
 --
-solveCluster :: DefaultToInfty -> List1 (CC,HypSizeConstraint) -> TCM ()
+solveCluster :: DefaultToInfty -> List1 (CC, HypSizeConstraint) -> TCM ()
 solveCluster flag ccs = do
   let cs = fmap snd ccs
   let prettyCs   = map prettyTCM $ List1.toList cs
@@ -563,7 +566,7 @@ solveCluster flag ccs = do
           vcat ("Cannot solve size constraints" <| fmap prettyTCM cs0)
     flip catchError (const cannotSolve) $
       noConstraints $
-        forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+        forM_ cs0 $ withConstraint solveConstraint
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
 getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
@@ -738,11 +741,11 @@ instance PrettyTCM HypSizeConstraint where
        (prettyTCM c)
 
 -- | Turn a constraint over de Bruijn indices into a size constraint.
-computeSizeConstraint :: Closure TCM.Constraint -> TCM (Maybe HypSizeConstraint)
+computeSizeConstraint :: ProblemConstraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
-  let cxt = envContext $ clEnv c
+  let cxt = envContext $ clEnv $ theConstraint c
   unsafeModifyContext (const cxt) $ do
-    case clValue c of
+    case clValue $ theConstraint c of
       ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep $
           [ "converting size constraint"
