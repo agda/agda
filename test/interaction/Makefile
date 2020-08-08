@@ -144,7 +144,7 @@ $(Tests) : %.cmp : %.out
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
-			wdiff $*.out $*.tmp | colordiff; \
+			(  git diff --no-index --no-ext-diff -w $*.out $*.tmp || true  ) ; \
 			echo -n "Accept new error [y/n/Q] (default: no)? "; \
 			read -n 1; \
 			echo ""; \
