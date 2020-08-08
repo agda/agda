@@ -87,7 +87,7 @@ $(Tests) : %.cmp : %.out
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
-			diff -b $*.out $*.tmp; \
+			( git diff --no-index --no-ext-diff -w $*.out $*.tmp || true ) ; \
 			/bin/echo -n "Accept new error [y/N/q]? "; \
 			read -n 1; \
 			echo ""; \
