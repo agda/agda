@@ -113,7 +113,7 @@ RTS_Issue1785      = --library-file=issue1785.libs
 
 .SECONDEXPANSION:
 $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
-	@-mkdir $(TMPDIR)
+	@-mkdir -p $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
 	@echo "=== Output for $* ==="
@@ -130,7 +130,7 @@ $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 # thus, we sort it up for the next run by touching the .agda file.
 
 $(Tests) : %.cmp : %.out
-	@-mkdir $(TMPDIR)
+	@-mkdir -p $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*

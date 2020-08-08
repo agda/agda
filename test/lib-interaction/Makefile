@@ -63,7 +63,7 @@ run_test=if test -f $*.in; \
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
-	@-mkdir $(TMPDIR)
+	@-mkdir -p $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
 	@echo "=== Output for $* ==="
@@ -74,7 +74,7 @@ $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
 
 # Comparing output
 $(Tests) : %.cmp : %.out
-	@-mkdir $(TMPDIR)
+	@-mkdir -p $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
