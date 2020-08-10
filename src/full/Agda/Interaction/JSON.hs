@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Encoding stuff into JSON values in TCM
@@ -120,6 +121,8 @@ instance EncodeTCM a => EncodeTCM (Maybe a) where
 instance ToJSON File.AbsolutePath where
   toJSON (File.AbsolutePath path) = toJSON path
 
+#if !(MIN_VERSION_aeson(1,5,3))
 instance ToJSON a => ToJSON (Strict.Maybe a) where
   toJSON (Strict.Just a) = toJSON a
   toJSON Strict.Nothing  = Null
+#endif
