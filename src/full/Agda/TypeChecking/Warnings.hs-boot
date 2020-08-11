@@ -2,8 +2,8 @@
 module Agda.TypeChecking.Warnings where
 
 import Agda.TypeChecking.Monad.Base
-
-import Agda.Utils.Except
+import Agda.TypeChecking.Pretty (MonadPretty)
+import Control.Monad.Except (MonadError)
 
 class (MonadPretty m, MonadError TCErr m) => MonadWarning m where
   addWarning :: TCWarning -> m ()
