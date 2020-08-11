@@ -36,12 +36,12 @@ import Agda.Utils.Impossible
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
 
-newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
+newtype AbsolutePath = AbsolutePath { textPath :: Text }
   deriving (Show, Eq, Ord, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
-filePath = Text.unpack . byteStringPath
+filePath = Text.unpack . textPath
 
 instance Pretty AbsolutePath where
   pretty = text . filePath
@@ -56,7 +56,7 @@ mkAbsolute f
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
--- UNUSED Linag-Ting Chen 2019-07-16
+-- UNUSED Liang-Ting Chen 2019-07-16
 ---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
 --rootName :: AbsolutePath -> String
 --rootName = dropExtension . snd . splitFileName . filePath
