@@ -156,6 +156,19 @@ findProjectConfig root = do
   libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
   case libs of
     []    -> do
+      -- Note that "going up" one directory is OS dependent
+      -- if the directory is a symlink.
+      --
+      -- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
+      --
+      --   Note that on Windows parent directories .. are always fully
+      --   expanded before the symbolic links, as consistent with the
+      --   rest of the Windows API (such as GetFullPathName). In
+      --   contrast, on POSIX systems parent directories .. are
+      --   expanded alongside symbolic links from left to right. To
+      --   put this more concretely: if L is a symbolic link for R/P,
+      --   then on Windows L\.. refers to ., whereas on other
+      --   operating systems L/.. refers to R.
       up <- canonicalizePath $ root </> ".."
       if up == root then return Nothing else findProjectConfig up
     files -> return (Just (root, files))
