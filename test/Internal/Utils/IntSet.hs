@@ -1,6 +1,10 @@
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE CPP                   #-}
 
+#if  __GLASGOW_HASKELL__ > 800
+{-# OPTIONS_GHC -Wno-error=orphans -Wno-error=partial-type-signatures #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-orphans -fno-warn-partial-type-signatures #-}
 
 module Internal.Utils.IntSet ( tests ) where
