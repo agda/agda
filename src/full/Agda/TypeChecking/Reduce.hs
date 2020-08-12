@@ -1315,21 +1315,22 @@ instance InstantiateFull t => InstantiateFull (Type' t) where
       El <$> instantiateFull' s <*> instantiateFull' t
 
 instance InstantiateFull Term where
-    instantiateFull' v = etaOnce =<< do -- Andreas, 2010-11-12 DONT ETA!? eta-reduction breaks subject reduction
--- but removing etaOnce now breaks everything
-      v <- instantiate' v
-      case v of
+    instantiateFull' = instantiate' >=> recurse >=> etaOnce
+      -- Andreas, 2010-11-12 DONT ETA!? eta-reduction breaks subject reduction
+      -- but removing etaOnce now breaks everything
+      where
+        recurse = \case
           Var n vs    -> Var n <$> instantiateFull' vs
           Con c ci vs -> Con c ci <$> instantiateFull' vs
           Def f vs    -> Def f <$> instantiateFull' vs
           MetaV x vs  -> MetaV x <$> instantiateFull' vs
-          Lit _       -> return v
+          v@Lit{}     -> return v
           Level l     -> levelTm <$> instantiateFull' l
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> Sort <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           DontCare v  -> dontCare <$> instantiateFull' v
-          Dummy{}     -> return v
+          v@Dummy{}   -> return v
 
 instance InstantiateFull Level where
   instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as

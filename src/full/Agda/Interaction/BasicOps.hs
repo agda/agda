@@ -311,9 +311,8 @@ refine force ii mr e = do
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: ComputeMode -> Expr -> TCM Expr
 evalInCurrent cmode e = do
-  (v, t) <- inferExpr e
-  v' <- {- etaContract =<< -} compute v
-  reify v'
+  (v, _t) <- inferExpr e
+  reify =<< compute v
   where compute | cmode == HeadCompute = reduce
                 | otherwise            = normalise
 
@@ -329,11 +328,12 @@ evalInMeta ii cmode e =
 --   specifying the amount of normalization in the output.
 --
 normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
-normalForm AsIs         t = return t
-normalForm Instantiated t = return t   -- reify does instantiation
-normalForm HeadNormal   t = {- etaContract =<< -} reduce t
-normalForm Simplified   t = {- etaContract =<< -} simplify t
-normalForm Normalised   t = {- etaContract =<< -} normalise t
+normalForm = \case
+  AsIs         -> return
+  Instantiated -> return   -- reify does instantiation
+  HeadNormal   -> reduce
+  Simplified   -> simplify
+  Normalised   -> normalise
 
 -- | Modifier for the interactive computation command,
 --   specifying the mode of computation and result display.

@@ -709,19 +709,16 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- @_Y args >= u@.
   subtypingForSizeLt dir x mvar t args v $ \ v -> do
 
-    -- Normalise and eta contract the arguments to the meta. These are
-    -- usually small, and simplifying might let us instantiate more metas.
-
-    -- MOVED TO expandProjectedVars:
-    -- args <- etaContract =<< normalise args
-
-    -- Also, try to expand away projected vars in meta args.
     reportSDoc "tc.meta.assign.proj" 45 $ do
       cxt <- getContextTelescope
       vcat
         [ "context before projection expansion"
         , nest 2 $ inTopContext $ prettyTCM cxt
         ]
+
+    -- Normalise and eta contract the arguments to the meta. These are
+    -- usually small, and simplifying might let us instantiate more metas.
+    -- Also, try to expand away projected vars in meta args.
 
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
@@ -1228,7 +1225,6 @@ expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
     reportSDoc "tc.meta.assign.proj" 45 $ "meta args: " <+> prettyTCM args
     args <- callByName $ reduceAndEtaContract args
-    -- args <- etaContract =<< normalise args
     reportSDoc "tc.meta.assign.proj" 45 $ "norm args: " <+> prettyTCM args
     reportSDoc "tc.meta.assign.proj" 85 $ "norm args: " <+> text (show args)
     let done = ret args v

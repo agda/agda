@@ -732,17 +732,6 @@ function g es0 = do
 
     -- First, look for calls in the arguments of the call gArgs.
 
-    -- We have to reduce constructors in case they're reexported.
-    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
-    -- thus, we need to use traverseTermM.
-    let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
-           Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
-           _ -> return t
-
-    -- Reduce constructors only when this call is actually a recursive one.
-    -- es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ forM es $
-    --         etaContract <=< traverse reduceCon <=< instantiateFull
-
     -- If the function is a projection but not for a coinductive record,
     -- then preserve guardedness for its principal argument.
     isProj <- isProjectionButNotCoinductive g
@@ -777,12 +766,11 @@ function g es0 = do
          es <- -- ifM terGetHaveInlinedWith (return es0) {-else-} $
            liftTCM $ forM es0 $
              -- 2017-09-09, re issue #2732
-             -- The eta-contraction here does not seem necessary to make structural order
+             -- The eta-contraction that was here does not seem necessary to make structural order
              -- comparison not having to worry about eta.
              -- Maybe we thought an eta redex could come from a meta instantiation.
              -- However, eta-contraction is already performed by instantiateFull.
              -- See test/Succeed/Issue2732-termination.agda.
-             -- etaContract <=<
              traverse reduceCon <=< instantiateFull
 
            -- 2017-05-16, issue #2403: Argument normalization is too expensive,
@@ -854,6 +842,16 @@ function g es0 = do
              , nest 2 $ pretty cm
              ]
          return $ CallGraph.insert src tgt cm info calls
+
+  where
+    -- We have to reduce constructors in case they're reexported.
+    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
+    -- thus, we need to use traverseTermM.
+    reduceCon :: Term -> TCM Term
+    reduceCon = traverseTermM $ \case
+      Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
+      t -> return t
+
 
 -- | Try to get rid of a function call targeting the current SCC
 --   using a non-recursive clause.

@@ -55,7 +55,7 @@ etaContract = traverseTermM etaOnce
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
 {-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
 etaOnce :: (MonadTCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
-etaOnce v = case v of
+etaOnce = \case
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ "eta-contracting" <+> prettyTCM v
@@ -64,8 +64,8 @@ etaOnce v = case v of
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
   -- To be able to eta-contract them, we ignore abstract.
-  Con c ci es -> do
-    etaCon c ci es etaContractRecord
+  Con c ci es -> etaCon c ci es etaContractRecord
+
   v -> return v
 
 -- | If record constructor, call eta-contraction function.

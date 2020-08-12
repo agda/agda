@@ -1306,7 +1306,7 @@ doQuoteTerm cmp et t = do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ allM metas isInstantiatedMeta
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
