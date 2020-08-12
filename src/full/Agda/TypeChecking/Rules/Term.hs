@@ -489,7 +489,7 @@ checkLambda' cmp b xps typ body target = do
             t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
             let e    = A.Lam A.exprNoRange (A.DomainFull b) body
                 tgt' = telePi tel t1
-            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') $ ((alwaysUnblock ==) <$> instantiate x)
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') x
             return (tgt' , w)
 
       -- Now check body : ?t₁
@@ -687,8 +687,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
         | not (noMetas a) ->
-            postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              noMetas <$> instantiateFull a
+            postponeTypeCheckingProblem (CheckExpr cmp e t') =<< unblockedTester a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -1223,7 +1222,7 @@ checkExpr' cmp e t =
         -- (which might be the blocking meta in which case we actually make progress).
         reportSDoc "tc.term" 50 $ vcat $
           [ "checking pattern got stuck on meta: " <+> pretty x ]
-        postponeTypeCheckingProblem (CheckExpr cmp e t) $ ((alwaysUnblock ==) <$> instantiate x)
+        postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
@@ -1306,7 +1305,7 @@ doQuoteTerm cmp et t = do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ allM metas isInstantiatedMeta
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()

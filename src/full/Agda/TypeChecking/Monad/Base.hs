@@ -1238,7 +1238,7 @@ data MetaInstantiation
         | Open               -- ^ unsolved
         | OpenInstance       -- ^ open, to be instantiated by instance search
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
+        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
 
 -- | Solving a 'CheckArgs' constraint may or may not check the target type. If
 --   it did, it returns a handle to any unsolved constraints.

@@ -422,17 +422,17 @@ blockTypeOnProblem
   => Type -> ProblemId -> m Type
 blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
 
--- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
+-- | @unblockedTester t@ returns a 'Blocker' for @t@.
 --
---   Auxiliary function to create a postponed type checking problem.
-unblockedTester :: Type -> TCM Bool
-unblockedTester t = ifBlocked t (\ m t -> return False) (\ _ t -> return True)
+--   Auxiliary function used when creating a postponed type checking problem.
+unblockedTester :: Type -> TCM Blocker
+unblockedTester t = ifBlocked t (\ b _ -> return b) (\ _ _ -> return alwaysUnblock)
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
 postponeTypeCheckingProblem_ :: TypeCheckingProblem -> TCM Term
 postponeTypeCheckingProblem_ p = do
-  postponeTypeCheckingProblem p (unblock p)
+  postponeTypeCheckingProblem p =<< unblock p
   where
     unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
@@ -444,13 +444,13 @@ postponeTypeCheckingProblem_ p = do
 --   @unblock@.  A new meta is created in the current context that has as
 --   instantiation the postponed type checking problem.  An 'UnBlock' constraint
 --   is added for this meta, which links to this meta.
-postponeTypeCheckingProblem :: TypeCheckingProblem -> TCM Bool -> TCM Term
+postponeTypeCheckingProblem :: TypeCheckingProblem -> Blocker -> TCM Term
 postponeTypeCheckingProblem p unblock = do
   i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope
   cl  <- buildClosure p
   let t = problemType p
-  m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
+  m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () CmpLeq $ telePi_ tel t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
@@ -471,7 +471,7 @@ postponeTypeCheckingProblem p unblock = do
   reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
-  addConstraint alwaysUnblock (UnBlock m) -- TypeCheckingProblems have their own unblocking logic
+  addConstraint unblock (UnBlock m)
   return v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.

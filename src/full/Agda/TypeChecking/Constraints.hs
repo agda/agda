@@ -278,8 +278,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
         reportSDoc "tc.constr.blocked" 15 $
           text ("blocked const " ++ prettyShow m ++ " :=") <+> prettyTCM t
         assignTerm m [] t
-      PostponedTypeCheckingProblem cl unblock -> enterClosure cl $ \prob -> do
-        ifNotM unblock (addConstraint alwaysUnblock $ UnBlock m) $ do
+      PostponedTypeCheckingProblem cl -> enterClosure cl $ \prob -> do
           tel <- getContextTelescope
           v   <- liftTCM $ checkTypeCheckingProblem prob
           assignTerm m (telToArgs tel) v

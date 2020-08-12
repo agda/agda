@@ -149,7 +149,7 @@ instance Instantiate Term where
       OpenInstance                     -> return t
       BlockedConst u | blocking  -> instantiate' . unBrave $ BraveTerm u `applyE` es
                      | otherwise -> return t
-      PostponedTypeCheckingProblem _ _ -> return t
+      PostponedTypeCheckingProblem _ -> return t
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t

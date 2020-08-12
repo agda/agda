@@ -319,7 +319,7 @@ instance PrettyTCM Constraint where
             mi <- mvInstantiation <$> lookupMeta m
             case mi of
               BlockedConst t -> prettyCmp ":=" m t
-              PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
+              PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
                 prettyCmp ":=" m p
               Open{}  -> __IMPOSSIBLE__
               OpenInstance{} -> __IMPOSSIBLE__

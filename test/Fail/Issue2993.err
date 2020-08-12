@@ -1,10 +1,10 @@
 Failed to solve the following constraints:
   Resolve instance argument
-    _AF_161
+    _AF_165
       : {n = n₂ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
         ⦃ AF = AF₁ : Applicative F₁ ⦄ (f₁ : A → F₁ B₁) {n = n₃ : Nat}
         (x₁ : A) (v₁ : Vec A n₃) →
-        Applicative (λ v₂ → _F_176 v₂)
+        Applicative (λ v₂ → _F_180 v₂)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -13,10 +13,10 @@ Failed to solve the following constraints:
       Applicative (F₁ o G)
     (stuck)
   Resolve instance argument
-    _AF_172
+    _AF_176
       : {n = n₁ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
         ⦃ AF = AF₁ : Applicative F₁ ⦄ →
-        Applicative (λ v → _F_173 v)
+        Applicative (λ v → _F_177 v)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -24,11 +24,11 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  F B =< _F_173 _B_171 (blocked on _F_173)
-  _F_173 (Vec _B_171 n) =< F (Vec B n) (blocked on _F_173)
-  _F_176 (Vec _B_160 n₁) =< F (Vec B n₁)
-    (blocked on any(_B_160, _F_176))
-  F B =< _F_176 _B_160 (blocked on _F_176)
+  F B =< _F_177 _B_175 (blocked on _F_177)
+  _F_177 (Vec _B_175 n) =< F (Vec B n) (blocked on _F_177)
+  _F_180 (Vec _B_164 n₁) =< F (Vec B n₁)
+    (blocked on any(_B_164, _F_180))
+  F B =< _F_180 _B_164 (blocked on _F_180)
 Unsolved metas at the following locations:
   Issue2993.agda:66,80-83
   Issue2993.agda:66,84-85
