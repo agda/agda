@@ -42,6 +42,10 @@ import Outputable
 import DynFlags (opt_P, sOpt_P, parseDynamicFilePragma)
 import GhcMonad (GhcT(..), Ghc(..))
 
+#if MIN_VERSION_ghc(8,10,1)
+import ToolSettings
+#endif
+
 import Language.Haskell.Extension as LHE
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 import Distribution.PackageDescription hiding (options)
@@ -162,10 +166,18 @@ main = do
               dynFlags <- getSessionDynFlags
               let dynFlags' =
                     dynFlags {
+#if MIN_VERSION_ghc(8,10,1)
+                    toolSettings = (toolSettings dynFlags) {
+                        toolSettings_opt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
+                                             opt_P dynFlags
+                        }
+#else
                     settings = (settings dynFlags) {
                         sOpt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
                                  opt_P dynFlags
                         }
+#endif
+
 #if MIN_VERSION_ghc(8,6,1)
                     , includePaths = case includePaths dynFlags of
                                        IncludeSpecs qs gs -> IncludeSpecs qs (optIncludePath opts ++ gs)
