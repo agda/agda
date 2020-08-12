@@ -182,7 +182,7 @@ main = do
                     , includePaths = case includePaths dynFlags of
                                        IncludeSpecs qs gs -> IncludeSpecs qs (optIncludePath opts ++ gs)
 #else
-                      includePaths = optIncludePath opts ++ includePaths dynFlags
+                    , includePaths = optIncludePath opts ++ includePaths dynFlags
 #endif
                     }
               (dynFlags'', _, _) <- parseDynamicFilePragma dynFlags' $ map noLoc $ concatMap cabalConfToOpts (maybeToList pkgDesc)
