@@ -153,8 +153,10 @@ getFullyAppliedConType c t = do
     _ -> return Nothing
 
 data ConstructorInfo
-  = DataCon Nat                  -- ^ Arity.
-  | RecordCon HasEta [Dom QName] -- ^ List of field names.
+  = DataCon Nat
+      -- ^ Arity.
+  | RecordCon PatternOrCopattern HasEta [Dom QName]
+      -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
@@ -167,7 +169,7 @@ getConstructorInfo c = do
     Constructor{ conData = d, conArity = n } -> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
-           return $ RecordCon (recEtaEquality r) fs
+           return $ RecordCon (recPatternMatching r) (recEtaEquality r) fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
@@ -185,11 +187,6 @@ isDatatype d = do
     Datatype{}                   -> return True
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
-
-data DataOrRecord
-  = IsData
-  | IsRecord PatternOrCopattern
-  deriving (Show, Eq)
 
 -- | Check if a name refers to a datatype or a record.
 isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
@@ -229,68 +226,3 @@ getConstructors_ = \case
     Datatype{dataCons = cs} -> Just cs
     Record{recConHead = h}  -> Just [conName h]
     _                       -> Nothing
-
--- | Precondition: Name is a data or record type.
-getConHeads :: QName -> TCM [ConHead]
-getConHeads d = fromMaybe __IMPOSSIBLE__ <$>
-  getConHeads' d
-
--- | 'Nothing' if not data or record type name.
-getConHeads' :: QName -> TCM (Maybe [ConHead])
-getConHeads' d = theDef <$> getConstInfo d >>= \case
-  Record{recConHead = h}  -> return $ Just [h]
-  Datatype{dataCons = cs} -> Just <$> mapM makeConHead cs
-  _                       -> return $ Nothing
-
--- | Fills in the fields.
-makeConHead :: QName -> TCM ConHead
-makeConHead c = do
-  def <- getConstInfo c
-  case theDef def of
-    Constructor{conPars = n, conProj = Just fs} -> do
-      TelV tel _ <- telView (defType def)
-      let ai = map getArgInfo $ drop n $ telToList tel
-      return $ ConHead c Inductive $ zipWith Arg ai fs
-    Constructor{conProj = Nothing} -> return $ ConHead c Inductive []
-    _ -> __IMPOSSIBLE__
-
-{- UNUSED
-data DatatypeInfo = DataInfo
-  { datatypeName   :: QName
-  , datatypeParTel :: Telescope
-  , datatypePars   :: Args
-  , datatypeIxTel  :: Telescope
-  , datatypeIxs    :: Args
-  }
-
--- | Get the name and parameters from a type if it's a datatype or record type
---   with a named constructor.
-getDatatypeInfo :: Type -> TCM (Maybe DatatypeInfo)
-getDatatypeInfo t = do
-  t <- reduce t
-  case unEl t of
-    Def d args -> do
-      n          <- getDefFreeVars d
-      args       <- return $ genericDrop n args
-      def        <- instantiateDef =<< getConstInfo d
-      TelV tel _ <- telView (defType def)
-      let npars  = case theDef def of
-            Datatype{dataPars = np} -> Just np
-            Record{recPars = np, recNamedCon = True}
-              | genericLength args == np -> Just np
-              | otherwise                -> __IMPOSSIBLE__
-            _                            -> Nothing
-      return $ do
-        np <- npars
-        let (pt, it) = genericSplitAt np $ telToList tel
-            parTel   = telFromList pt
-            ixTel    = telFromList it
-            (ps, is) = genericSplitAt np args
-        return $ DataInfo { datatypeName = d
-                          , datatypeParTel = parTel
-                          , datatypePars   = ps
-                          , datatypeIxTel  = ixTel
-                          , datatypeIxs    = is
-                          }
-    _ -> return Nothing
--}

@@ -239,8 +239,8 @@ checkOverapplication es = updateHeads overapplied
         Function{}     -> False
         Datatype{}     -> True
         Record{}       -> True
-        Constructor{conSrcCon = ConHead{ conFields = fs }}
-                       -> null fs   -- Record constructors can be eliminated by projections
+        Constructor{conSrcCon = ConHead{ conDataRecord = d, conFields = fs }}
+                       -> d == IsData || null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
         PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__

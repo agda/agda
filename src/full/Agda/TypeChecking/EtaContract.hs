@@ -29,8 +29,10 @@ binAppView t = case t of
   -- At least record constructors should be fully applied where possible!
   -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?
   Con c ci xs
-    | null (conFields c) -> appE (Con c ci) xs
-    | otherwise          -> noApp
+    | IsData <- conDataRecord c
+             -> appE (Con c ci) xs
+    | otherwise
+             -> noApp
   Lit _      -> noApp
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
   Lam _ _    -> noApp
@@ -77,7 +79,7 @@ etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
               -- ^ Eta-contraction workhorse, gets also name of record type.
   -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
 etaCon c ci es cont = ignoreAbstractMode $ do
-  let fallback = return $ Con c ci $ es
+  let fallback = return $ Con c ci es
   -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
   ifNotM (isEtaRecord r) fallback $ {-else-} do

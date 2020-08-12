@@ -105,7 +105,7 @@ instance Apply BraveTerm where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
-    (Con (ConHead _ _ fs) _ vs) -> do
+    (Con (ConHead _ IsRecord{} _ fs) _ vs) -> do
       (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Jesper, 2019-10-17: dont unfold irrelevant projections
       guard $ not $ isIrrelevant fld
@@ -119,12 +119,13 @@ conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Te
 conApp fk ch                  ci args []             = Con ch ci args
 conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
 conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
-conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
-  let failure err = flip trace err $
-        "conApp: constructor " ++ prettyShow c ++
-        " with fields\n" ++ unlines (map (("  " ++) . prettyShow) fs) ++
-        " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
-        " projected by " ++ prettyShow f
+conApp fk ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
+  let failure err = flip trace err $ concat
+        [ "conApp: constructor ", prettyShow c
+        , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
+        , unlines $ " and args"    : map (("  " ++) . prettyShow) args
+        , " projected by ", prettyShow f
+        ]
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
       stuck err = fk err (Con ch ci args) [Proj o f]
       -- Recurse using the instance for 't', see @applyTermE@

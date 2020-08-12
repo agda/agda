@@ -135,14 +135,19 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
+data DataOrRecord
+  = IsData
+  | IsRecord PatternOrCopattern
+  deriving (Data, Show, Eq)
+
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
 data ConHead = ConHead
-  { conName      :: QName     -- ^ The name of the constructor.
-  , conInductive :: Induction -- ^ Record constructors can be coinductive.
-  , conFields    :: [Arg QName]   -- ^ The name of the record fields.
-      --   Empty list for data constructors.
+  { conName       :: QName         -- ^ The name of the constructor.
+  , conDataRecord :: DataOrRecord  -- ^ Data or record constructor?
+  , conInductive  :: Induction     -- ^ Record constructors can be coinductive.
+  , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
   } deriving (Data, Show)
@@ -1377,8 +1382,11 @@ instance TermSize a => TermSize (Substitution' a) where
 -- * KillRange instances.
 ---------------------------------------------------------------------------
 
+instance KillRange DataOrRecord where
+  killRange = id
+
 instance KillRange ConHead where
-  killRange (ConHead c i fs) = killRange3 ConHead c i fs
+  killRange (ConHead c d i fs) = killRange4 ConHead c d i fs
 
 instance KillRange Term where
   killRange v = case v of

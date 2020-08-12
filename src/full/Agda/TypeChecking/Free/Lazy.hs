@@ -475,12 +475,12 @@ underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
 underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
-underConstructor (ConHead c i fs) =
-  case (i,fs) of
+underConstructor (ConHead _c _d i _fs) =
+  case i of
     -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> underFlexRig WeaklyRigid
+    CoInductive -> underFlexRig WeaklyRigid
     -- Inductive constructors do not admit infinite cycles:
-    (Inductive, _)    -> underFlexRig StronglyRigid
+    Inductive   -> underFlexRig StronglyRigid
     -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
     -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
     -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
@@ -488,7 +488,6 @@ underConstructor (ConHead c i fs) =
     -- -- Inductive record constructors do not admit infinite cycles,
     -- -- but this cannot be proven inside Agda.
     -- -- Thus, unification should not prove it either.
-    -- (Inductive, (_:_)) -> id
 
 ---------------------------------------------------------------------------
 -- * Recursively collecting free variables.

@@ -730,8 +730,10 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
                   { conName      = con
+                  , conDataRecord= IsRecord CopatternMatching
                   , conInductive = Inductive
-                  , conFields    = map argFromDom genRecFields }
+                  , conFields    = map argFromDom genRecFields
+                  }
   projIx <- succ . size <$> getContext
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
