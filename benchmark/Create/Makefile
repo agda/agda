@@ -14,19 +14,19 @@ imp-% : import-%
 	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import-% :
-	runhaskell QuadraticImportOneData.hs $@ $*
+	runghc QuadraticImportOneData.hs $@ $*
 
 imp0-% : import0-%
 	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import0-% :
-	runhaskell QuadraticImportOneDataNoUsing.hs $@ $*
+	runghc QuadraticImportOneDataNoUsing.hs $@ $*
 
 hs-imp-% : hs-import-%
 	-rm $</*.hi $</*.o $</Main
 	time ghc +RTS -s -RTS -i$< $</Main.hs
 
 hs-import-% :
-	runhaskell QuadraticImportOneDataHaskell.hs $@ $*
+	runghc QuadraticImportOneDataHaskell.hs $@ $*
 
 # EOF
