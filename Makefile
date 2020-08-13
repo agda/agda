@@ -99,7 +99,7 @@ ensure-hash-is-correct:
 
 .PHONY: install-bin ## Install Agda and test suites via cabal (or stack if stack.yaml exists).
 install-bin: ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
@@ -113,7 +113,7 @@ endif
 
 .PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
 fast-install-bin:
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
@@ -128,7 +128,7 @@ endif
 # Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
 # .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
 # quick-install-bin: ensure-hash-is-correct
-# ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+# ifdef HAS_STACK
 # 	@echo "===================== Installing using Stack ============================="
 # 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 # else
@@ -141,7 +141,7 @@ endif
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
 quicker-install-bin:
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
 else
@@ -478,7 +478,7 @@ install-fix-whitespace : $(FIXW_BIN)
 
 $(FIXW_BIN) :
 	git submodule update --init src/fix-whitespace
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	$(STACK) build fix-whitespace
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
 	cp $(shell $(STACK) path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
