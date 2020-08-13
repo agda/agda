@@ -31,7 +31,17 @@ endif
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_INSTALL_HELPER = $(STACK) install Agda --no-haddock --system-ghc
+STACK_INSTALL_HELPER = $(STACK) install Agda --no-haddock
+
+# If running on Travis, use --system-ghc.
+# Developers running `make` will usually want to use the GHC version they've
+# specified in their stack.yaml. Otherwise they can put that option in
+# themselves.
+# Note that GitHub workflows currently do not use the Makefile, but instead
+# invoke `stack` directly. (See: .github/workflows/stack.yml)
+ifneq ($(TRAVIS),)
+STACK_INSTALL_HELPER += --system-ghc
+endif
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
