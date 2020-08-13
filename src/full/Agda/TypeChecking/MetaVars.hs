@@ -445,6 +445,9 @@ postponeTypeCheckingProblem_ p = do
 --   instantiation the postponed type checking problem.  An 'UnBlock' constraint
 --   is added for this meta, which links to this meta.
 postponeTypeCheckingProblem :: TypeCheckingProblem -> Blocker -> TCM Term
+postponeTypeCheckingProblem p unblock | unblock == alwaysUnblock = do
+  reportSDoc "impossible" 2 $ "Postponed without blocker:" <?> prettyTCM p
+  __IMPOSSIBLE__
 postponeTypeCheckingProblem p unblock = do
   i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope

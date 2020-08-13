@@ -462,7 +462,7 @@ checkLambda' cmp b xps typ body target = do
           then checkPath b body t
           else genericError "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone m tgt = postponeTypeCheckingProblem_ $
+    postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
 
     dontUseTargetType = do
@@ -682,12 +682,10 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
   t <- instantiateFull t
-  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (noMetas a) ->
-            postponeTypeCheckingProblem (CheckExpr cmp e t') =<< unblockedTester a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
