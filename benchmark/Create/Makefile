@@ -3,6 +3,7 @@
 TOP=../../
 
 include $(TOP)/mk/paths.mk
+include $(TOP)/mk/ghc.mk
 
 .PHONY : default imp-%
 
@@ -14,19 +15,19 @@ imp-% : import-%
 	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import-% :
-	runghc QuadraticImportOneData.hs $@ $*
+	$(RUNGHC) QuadraticImportOneData.hs $@ $*
 
 imp0-% : import0-%
 	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import0-% :
-	runghc QuadraticImportOneDataNoUsing.hs $@ $*
+	$(RUNGHC) QuadraticImportOneDataNoUsing.hs $@ $*
 
 hs-imp-% : hs-import-%
 	-rm $</*.hi $</*.o $</Main
-	time ghc +RTS -s -RTS -i$< $</Main.hs
+	time $(GHC) +RTS -s -RTS -i$< $</Main.hs
 
 hs-import-% :
-	runghc QuadraticImportOneDataHaskell.hs $@ $*
+	$(RUNGHC) QuadraticImportOneDataHaskell.hs $@ $*
 
 # EOF
