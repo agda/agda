@@ -13,7 +13,7 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 include ./mk/cabal.mk
-STACK=stack
+include ./mk/stack.mk
 
 # mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
 include ./mk/pretty.mk
