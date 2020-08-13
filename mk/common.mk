@@ -9,3 +9,10 @@ USER_CONFIG_MK := $(TOP)/mk/config.mk
 ifneq ($(wildcard $(USER_CONFIG_MK)),)
 include $(USER_CONFIG_MK)
 endif
+
+# use gsed on Mac OS instead of sed
+ifeq ($(shell uname), Darwin)
+sed=gsed
+else
+sed=sed
+endif
