@@ -16,13 +16,6 @@ pwd=$(shell pwd)
 pwdPlusDelimiter=$(pwd)/
 endif
 
-# use gsed on Mac OS instead of sed
-ifeq (Darwin,$(findstring Darwin,$(uname)))
-sed=gsed
-else
-sed=sed
-endif
-
 clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
 
 # Andreas, 2017-04-24 ls -t: sort by newest first
