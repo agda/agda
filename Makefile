@@ -257,12 +257,12 @@ std-lib :
 
 .PHONY : up-to-date-std-lib ##
 up-to-date-std-lib : std-lib
-	@(cd std-lib && make setup)
+	@($(MAKE) -C std-lib setup)
 
 .PHONY : fast-forward-std-lib ##
 fast-forward-std-lib :
 	git submodule update --init --remote std-lib
-	@(cd std-lib && make setup)
+	@($(MAKE) -C std-lib setup)
 
 ##############################################################################
 ## Cubical library
@@ -521,7 +521,7 @@ agda-loc : ## Agda files (tests) in this project
 	@wc $(agdalocfiles)
 
 loc : ## Source code of Agda
-	make -C src/full loc
+	$(MAKE) -C src/full loc
 
 ## Module dependency graph ###################################################
 
