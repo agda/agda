@@ -371,7 +371,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && runhaskell GenerateEverything.hs && \
+		(cd std-lib && runghc GenerateEverything.hs && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
