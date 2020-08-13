@@ -65,7 +65,7 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
-ifeq ("$(shell ghc --info | grep 'target word size' | cut -d\" -f4)","4")
+ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_OPTS           = "+RTS -M1.7G -RTS"
 else
 GHC_OPTS           = "+RTS -M4G -RTS"
@@ -371,7 +371,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && runghc GenerateEverything.hs && \
+		(cd std-lib && $(RUNGHC) GenerateEverything.hs && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
