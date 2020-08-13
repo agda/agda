@@ -83,7 +83,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty as P
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
@@ -475,8 +475,8 @@ instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
             | otherwise = ","
 
       blockedOn (UnblockOnAll bs) | Set.null bs = empty
-      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" <> comma
-      blockedOn u = "blocked on" <+> (pretty u <> comma)
+      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" P.<> comma
+      blockedOn u = "blocked on" <+> (pretty u P.<> comma)
 
       prange r | null s = empty
                | otherwise = text $ " [ at " ++ s ++ " ]"
