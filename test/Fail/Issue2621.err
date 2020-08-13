@@ -1,8 +1,16 @@
-Issue2621.agda:17,13-15
-I'm not sure if there should be a case for the constructor [],
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  {zero} ≟ {_k_61 (R = R) (h = h)}
-  [] ≟ a
-  [] ≟ b
-when checking that the pattern [] has type All₂ R a b
+Failed to solve the following constraints:
+  Check definition of detAll₂ : {A B : Set} (R : A → B → Set)
+                                (h : Det R) →
+                                Det (All₂ R)
+    stuck because
+      Issue2621.agda:17,13-15
+      I'm not sure if there should be a case for the constructor [],
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        {zero} ≟ {_k_61 (R = R) (h = h)}
+        [] ≟ a
+        [] ≟ b
+      when checking that the pattern [] has type All₂ R a b
+    (blocked on _k_61)
+Unsolved metas at the following locations:
+  Issue2621.agda:16,70-76

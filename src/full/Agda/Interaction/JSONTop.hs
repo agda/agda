@@ -156,19 +156,19 @@ encodeOC :: (a -> TCM Value)
   -> (b -> TCM Value)
   -> OutputConstraint b a
   -> TCM Value
-encodeOC f encodePrettyTCM = \case
+encodeOC f encPrettyTCM = \case
  OfType i a -> kind "OfType"
   [ "constraintObj" #= f i
-  , "type"          #= encodePrettyTCM a
+  , "type"          #= encPrettyTCM a
   ]
  CmpInType c a i j -> kind "CmpInType"
   [ "comparison"     @= encodeShow c
-  , "type"           #= encodePrettyTCM a
+  , "type"           #= encPrettyTCM a
   , "constraintObjs" #= traverse f [i, j]
   ]
  CmpElim ps a is js -> kind "CmpElim"
   [ "polarities"     @= map encodeShow ps
-  , "type"           #= encodePrettyTCM a
+  , "type"           #= encPrettyTCM a
   , "constraintObjs" #= traverse (traverse f) [is, js]
   ]
  JustType a -> kind "JustType"
@@ -183,40 +183,41 @@ encodeOC f encodePrettyTCM = \case
  CmpSorts  c i j -> encodeOCCmp f c i j "CmpSorts"
  Assign i a -> kind "Assign"
   [ "constraintObj"  #= f i
-  , "value"          #= encodePrettyTCM a
+  , "value"          #= encPrettyTCM a
   ]
  TypedAssign i v t -> kind "TypedAssign"
   [ "constraintObj"  #= f i
-  , "value"          #= encodePrettyTCM v
-  , "type"           #= encodePrettyTCM t
+  , "value"          #= encPrettyTCM v
+  , "type"           #= encPrettyTCM t
   ]
  PostponedCheckArgs i es t0 t1 -> kind "PostponedCheckArgs"
   [ "constraintObj"  #= f i
-  , "ofType"         #= encodePrettyTCM t0
-  , "arguments"      #= forM es encodePrettyTCM
-  , "type"           #= encodePrettyTCM t1
+  , "ofType"         #= encPrettyTCM t0
+  , "arguments"      #= forM es encPrettyTCM
+  , "type"           #= encPrettyTCM t1
   ]
  IsEmptyType a -> kind "IsEmptyType"
-  [ "type"           #= encodePrettyTCM a
+  [ "type"           #= encPrettyTCM a
   ]
  SizeLtSat a -> kind "SizeLtSat"
-  [ "type"           #= encodePrettyTCM a
+  [ "type"           #= encPrettyTCM a
   ]
  FindInstanceOF i t cs -> kind "FindInstanceOF"
   [ "constraintObj"  #= f i
   , "candidates"     #= forM cs encodeKVPairs
-  , "type"           #= encodePrettyTCM t
+  , "type"           #= encPrettyTCM t
   ]
   where encodeKVPairs (_, v, t) = obj -- TODO: encode kind
-          [ "value"  #= encodePrettyTCM v
-          , "type"   #= encodePrettyTCM t
+          [ "value"  #= encPrettyTCM v
+          , "type"   #= encPrettyTCM t
           ]
  PTSInstance a b -> kind "PTSInstance"
   [ "constraintObjs" #= traverse f [a, b]
   ]
- PostponedCheckFunDef name a -> kind "PostponedCheckFunDef"
+ PostponedCheckFunDef name a err -> kind "PostponedCheckFunDef"
   [ "name"           @= encodePretty name
-  , "type"           #= encodePrettyTCM a
+  , "type"           #= encPrettyTCM a
+  , "error"          #= encodePrettyTCM err
   ]
 
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value

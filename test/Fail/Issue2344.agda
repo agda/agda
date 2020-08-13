@@ -1,5 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
-
 -- Andreas, 2016-12-19, issue #2344, reported by oinkium, shrunk by Ulf
 -- The function Agda.TypeChecking.Telescope.permuteTel
 -- used in the unifier was buggy.

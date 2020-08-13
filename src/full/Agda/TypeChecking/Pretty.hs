@@ -284,97 +284,11 @@ instance PrettyTCM Modality where
     , prettyTCM (getRelevance mod)
     ]
 
-instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parens (sep [blockedOn unblock, prPids (Set.toList pids)])
-    where
-      prPids []    = empty
-      prPids [pid] = "belongs to problem" <+> prettyTCM pid
-      prPids pids  = "belongs to problems" <+> fsep (punctuate "," $ map prettyTCM pids)
-
-      comma | null pids = empty
-            | otherwise = ","
-
-      blockedOn (UnblockOnAll bs) | Set.null bs = empty
-      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" <> comma
-      blockedOn u = "blocked on" <+> (prettyTCM u <> comma)
-
 instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnMeta m) = prettyTCM m
   prettyTCM (UnblockOnProblem p) = "problem" <+> pretty p
-
-instance PrettyTCM Constraint where
-    prettyTCM c = case c of
-        ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
-        ValueCmpOnFace cmp p ty s t ->
-            sep [ prettyTCM p <+> "|"
-                , prettyCmp (prettyTCM cmp) s t ]
-            <?> (":" <+> prettyTCMCtx TopCtx ty)
-        ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
-        LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
-        SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
-        UnBlock m   -> do
-            -- BlockedConst t <- mvInstantiation <$> lookupMeta m
-            mi <- mvInstantiation <$> lookupMeta m
-            case mi of
-              BlockedConst t -> prettyCmp ":=" m t
-              PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
-                prettyCmp ":=" m p
-              Open{}  -> __IMPOSSIBLE__
-              OpenInstance{} -> __IMPOSSIBLE__
-              InstV{} -> empty
-              -- Andreas, 2017-01-11, issue #2637:
-              -- The size solver instantiates some metas with infinity
-              -- without cleaning up the UnBlock constraints.
-              -- Thus, this case is not IMPOSSIBLE.
-              --
-              -- InstV args t -> do
-              --   reportS "impossible" 10
-              --     [ "UnBlock meta " ++ show m ++ " surprisingly has InstV instantiation:"
-              --     , show m ++ show args ++ " := " ++ show t
-              --     ]
-              --   __IMPOSSIBLE__
-        FindInstance m mcands -> do
-            t <- getMetaType m
-            sep [ "Resolve instance argument" <?> prettyCmp ":" m t
-                , cands
-                ]
-          where
-            cands =
-              case mcands of
-                Nothing -> "No candidates yet"
-                Just cnds ->
-                  hang "Candidates" 2 $ vcat
-                    [ hang (overlap c <+> prettyTCM c <+> ":") 2 $
-                            prettyTCM (candidateType c) | c <- cnds ]
-              where overlap c | candidateOverlappable c = "overlap"
-                              | otherwise               = empty
-        IsEmpty r t ->
-            "Is empty:" <?> prettyTCMCtx TopCtx t
-        CheckSizeLtSat t ->
-            "Is not empty type of sizes:" <?> prettyTCMCtx TopCtx t
-        CheckFunDef d i q cs -> do
-            t <- defType <$> getConstInfo q
-            "Check definition of" <+> prettyTCM q <+> ":" <+> prettyTCM t
-        HasBiggerSort a -> "Has bigger sort:" <+> prettyTCM a
-        HasPTSRule a b -> "Has PTS rule:" <+> case b of
-          NoAbs _ b -> prettyTCM (a,b)
-          Abs x b   -> "(" <> (prettyTCM a <+> "," <+> addContext x (prettyTCM b)) <> ")"
-        UnquoteTactic v _ _ -> do
-          e <- reify v
-          prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
-        CheckMetaInst x -> do
-          m <- lookupMeta x
-          case mvJudgement m of
-            HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
-            IsSort{} -> prettyTCM x <+> "is a sort"
-
-      where
-        prettyCmp
-          :: (PrettyTCM a, PrettyTCM b, MonadPretty m)
-          => m Doc -> a -> b -> m Doc
-        prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
 
 instance PrettyTCM CompareAs where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a

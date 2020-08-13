@@ -858,22 +858,21 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       -- Case: we do not know the meta, so cannot unblock.
       Nothing -> return neverUnblock
       -- Case: we know the meta here.
+      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
       -- Andreas, 2018-11-23: I do not understand why @InstV@ is necessarily impossible.
       -- The reasoning is probably that the state @st@ is more advanced that @s@
       -- in which @x@ was blocking, thus metas in @st@ should be more instantiated than
-      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise
-      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-      Just m | InstV{} <- mvInstantiation m -> return neverUnblock
-      -- Case: the meta is frozen (and not an interaction meta).
-      -- Postponing doesn't make sense.
-      Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
-        Nothing -> return neverUnblock
-      -- Remaining cases: the meta is known and can still be instantiated.
-        Just{}  -> return $ unblockOnMeta x
-      Just{} -> return $ unblockOnMeta x
+      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise.
+      -- Ulf, 2020-08-13: But treat this case as not blocked and reraise on both always and never.
+      -- Ulf, 2020-08-13: Previously we returned neverUnblock for frozen metas here, but this is in
+      -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
+      -- error means we rob the user of the tools needed to figure out why the meta has not been
+      -- solved. Better to leave the constraint.
+      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
+             | otherwise -> return $ unblockOnMeta x
 
-    -- If we can't ever unblock reraise the error.
-    if blocker == neverUnblock then reraise else handle (err, blocker)
+    -- If it's not blocked or we can't ever unblock reraise the error.
+    if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
 
 ---------------------------------------------------------------------------
 -- * Records

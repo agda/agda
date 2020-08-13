@@ -1000,7 +1000,7 @@ data ProblemConstraint = PConstr
   , constraintUnblocker :: Blocker
   , theConstraint       :: Closure Constraint
   }
-  deriving (Data, Show)
+  deriving (Show)
 
 instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
@@ -1027,9 +1027,10 @@ data Constraint
   | FindInstance MetaId (Maybe [Candidate])
     -- ^ the first argument is the instance argument and the second one is the list of candidates
     --   (or Nothing if we haven’t determined the list of candidates yet)
-  | CheckFunDef Delayed A.DefInfo QName [A.Clause]
+  | CheckFunDef Delayed A.DefInfo QName [A.Clause] TCErr
+    -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
-  deriving (Data, Show)
+  deriving (Show)
 
 instance HasRange Constraint where
   getRange (IsEmpty r t) = r
@@ -1056,7 +1057,7 @@ instance Free Constraint where
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
       FindInstance _ cs     -> freeVars' cs
-      CheckFunDef _ _ _ _   -> mempty
+      CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
@@ -1074,7 +1075,7 @@ instance TermLike Constraint where
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
       FindInstance _ _       -> mempty
-      CheckFunDef _ _ _ _    -> mempty
+      CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
       CheckMetaInst m        -> mempty
@@ -3142,7 +3143,7 @@ data Warning
     --   or pattern synonym name (@True@),
     --   because this can be confusing to read.
   | RecordFieldWarning RecordFieldWarning
-  deriving (Show , Data)
+  deriving (Show)
 
 data RecordFieldWarning
   = DuplicateFieldsWarning [(C.Name, Range)]

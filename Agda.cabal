@@ -481,6 +481,7 @@ library
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Pretty.Call
+                    Agda.TypeChecking.Pretty.Constraint
                     Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Base

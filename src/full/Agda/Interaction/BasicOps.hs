@@ -450,9 +450,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             (,,) <$> reify tm <*> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
-    reify (CheckFunDef d i q cs) = do
+    reify (CheckFunDef d i q cs err) = do
       a <- reify =<< defType <$> getConstInfo q
-      return $ PostponedCheckFunDef q a
+      return $ PostponedCheckFunDef q a err
     reify (HasBiggerSort a) = OfType <$> reify a <*> reify (UnivSort a)
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (unDom a,b)
@@ -506,7 +506,9 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         , nest 2 $ "Candidate:"
         , nest 4 $ vcat [ bin (pretty q) "=" (pretty v) .: t | (q, v, t) <- cs ] ]
       PTSInstance a b      -> "PTS instance for" <+> pretty (a, b)
-      PostponedCheckFunDef q a -> "Check definition of" <+> pretty q <+> ":" <+> pretty a
+      PostponedCheckFunDef q a _err ->
+        vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
+             -- , nest 2 "stuck because" <?> pretty err ] -- We don't have Pretty for TCErr
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -545,7 +547,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
-    toConcrete (PostponedCheckFunDef q a) = PostponedCheckFunDef q <$> toConcrete a
+    toConcrete (PostponedCheckFunDef q a err) = PostponedCheckFunDef q <$> toConcrete a <*> pure err
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t

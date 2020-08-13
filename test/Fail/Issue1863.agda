@@ -1,8 +1,6 @@
 -- Jesper, 2017-08-13: This test case now fails since instantiation
 -- of metavariables during case splitting was disabled (see #2621).
 
-{-# OPTIONS --allow-unsolved-metas #-}
-
 record ⊤ : Set where
   constructor tt
 

@@ -15,7 +15,7 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity)
+  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity, TCErr)
 
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (InteractionId (..))
@@ -449,7 +449,7 @@ data OutputConstraint a b
       | SizeLtSat a
       | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
-      | PostponedCheckFunDef QName a
+      | PostponedCheckFunDef QName a TCErr
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

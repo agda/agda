@@ -20,6 +20,7 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
