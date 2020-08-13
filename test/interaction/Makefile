@@ -11,7 +11,7 @@ SHELL=/usr/bin/env bash
 # Get the current directory (OS dependent).
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
-pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')
+pwd=$(shell (cmd /c 'echo %CD%') | $(SED) -e 's/\\/\\\\\\\\/g')
 pwdPlusDelimiter=$(pwd)\\\\
 else
 pwd=$(shell pwd)

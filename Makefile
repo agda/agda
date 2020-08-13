@@ -159,8 +159,8 @@ type-check:
 	  --ghc-options=-fno-code \
 	  --ghc-options=-fwrite-interface \
 	  2>&1 \
-	  | sed -e '/.*dist.*build.*: No such file or directory/d' \
-	        -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+	  | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
+	           -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
@@ -541,7 +541,7 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h ##
 
 help: ## Display this information.
 	@echo "Available targets:"
-	@sed -n \
+	@$(SED) -n \
 		-e 's/^\.PHONY[[:blank:]]*:[[:blank:]]*\([[:graph:]]*[[:blank:]]*##\)/\1/p' \
 		-e 's/\([[:alnum:]_-]\{1,\}\)[[:blank:]]*:[[:blank:]]*[^#]*##[[:blank:]]*\([^\#]*\)$$/\1 ## \2/p' \
 		-e 's/^\(#\{2,\}\)$$//p' \
