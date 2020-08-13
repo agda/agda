@@ -11,11 +11,7 @@ all : Issue1168.api PrettyInterface.api ScopeFromInterface.api
 
 %.api : %.agdai %.hs
 	$(eval tmpdir = $(shell mktemp -d /tmp/api-test.XXXX))
-ifdef HAS_STACK
-	$(STACK) ghc -- -Wall -Werror -o $(tmpdir)/$* $*.hs
-else
 	$(GHC) -Wall -Werror -package Agda-$(VERSION) -o $(tmpdir)/$* $*.hs
-endif
 	$(tmpdir)/$*
 	rm -r $(tmpdir)
 

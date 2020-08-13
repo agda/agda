@@ -1,9 +1,20 @@
+include $(TOP)/mk/cabal.mk
+include $(TOP)/mk/stack.mk
+
 ifeq ($(GHC),)
-GHC := $(shell which ghc)
+  ifdef HAS_STACK
+    GHC := stack ghc --
+  else
+    GHC := $(shell which ghc)
+  endif
 endif
 
 ifeq ($(RUNGHC),)
-RUNGHC := $(shell which runghc)
+  ifdef HAS_STACK
+    RUNGHC := stack runghc --
+  else
+    RUNGHC := $(shell which runghc)
+  endif
 endif
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
