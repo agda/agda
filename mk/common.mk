@@ -10,9 +10,9 @@ ifneq ($(wildcard $(USER_CONFIG_MK)),)
 include $(USER_CONFIG_MK)
 endif
 
-# use gsed on Mac OS instead of sed
+# Use gsed on Mac OS instead of sed
 ifeq ($(shell uname), Darwin)
-sed=gsed
+  SED := gsed
 else
-sed=sed
+  SED := sed
 endif

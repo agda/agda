@@ -16,7 +16,7 @@ pwd=$(shell pwd)
 pwdPlusDelimiter=$(pwd)/
 endif
 
-clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
+clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
 
 # Andreas, 2017-04-24 ls -t: sort by newest first
 AgdaFiles=$(shell ls -t *agda)
@@ -28,7 +28,7 @@ default : $(Tests)
 export TMPDIR=highlighting-tmp
 
 # Filter out absolute pathes
-filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
+filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"$(pwd)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
@@ -37,14 +37,14 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
 
 run_test=if test -f $*.in; \
     then cat $*.in \
-         | $(sed) "s/ioTCM/IOTCM/g" \
-         | $(sed) "s/cmd_/Cmd_/g" \
-         | $(sed) "s/showImplicitArgs/ShowImplicitArgs/g" \
-         | $(sed) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
-         | $(sed) "s/top_command/IOTCM currentFile None Indirect/g" \
-         | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | $(SED) "s/ioTCM/IOTCM/g" \
+         | $(SED) "s/cmd_/Cmd_/g" \
+         | $(SED) "s/showImplicitArgs/ShowImplicitArgs/g" \
+         | $(SED) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
+         | $(SED) "s/top_command/IOTCM currentFile None Indirect/g" \
+         | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -v 0 -i . -i .. --interaction --no-default-libraries $(RTS_$*) \
            2>&1 | $(filter) ; \
     else /usr/bin/env bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \

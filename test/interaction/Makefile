@@ -18,7 +18,7 @@ pwd=$(shell pwd)
 pwdPlusDelimiter=$(pwd)/
 endif
 
-clean=/usr/bin/env bash $(shell pwd)/clean.sh $(sed)
+clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
 
 # Construct the list of tests to carry out.
 # Andreas, 2017-04-24 ls -t: sort by newest first
@@ -33,7 +33,7 @@ export BUILDDIR=_build/
 
 # Filter out absolute pathes, make all whitespace equal, remove
 # "Linking..." messages since GHC 7.0 doesn't have them.
-filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
+filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"$(pwd)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
@@ -46,15 +46,15 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
 
 run_test=if test -f $*.in; \
     then cat $*.in \
-         | $(sed) "s/ioTCM/IOTCM/g" \
-         | $(sed) "s/cmd_give/(cmd_give WithoutForce)/g" \
-         | $(sed) "s/cmd_/Cmd_/g" \
-         | $(sed) "s/showImplicitArgs/ShowImplicitArgs/g" \
-         | $(sed) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
-         | $(sed) "s/top_command/IOTCM currentFile None Indirect/g" \
-         | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | $(SED) "s/ioTCM/IOTCM/g" \
+         | $(SED) "s/cmd_give/(cmd_give WithoutForce)/g" \
+         | $(SED) "s/cmd_/Cmd_/g" \
+         | $(SED) "s/showImplicitArgs/ShowImplicitArgs/g" \
+         | $(SED) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
+         | $(SED) "s/top_command/IOTCM currentFile None Indirect/g" \
+         | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces $(AGDA_OPT) $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \
