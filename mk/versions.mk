@@ -1,4 +1,5 @@
 # Agda version.
+# This is incremented via the script src/release-tools/change-version.bash
 VERSION=2.6.2
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
