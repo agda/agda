@@ -13,7 +13,7 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 include ./mk/cabal.mk
-STACK_CMD=stack
+STACK=stack
 
 # mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
 include ./mk/pretty.mk
@@ -30,8 +30,8 @@ endif
 
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
-CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
+CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
+STACK_INSTALL_HELPER = $(STACK) install Agda --no-haddock --system-ghc
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
@@ -155,7 +155,7 @@ endif
 .PHONY: type-check
 type-check:
 	@echo "================= Type checking using Cabal with -fno-code ==============="
-	time $(CABAL_CMD) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
+	time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
 	  --ghc-options=-fno-code \
 	  --ghc-options=-fwrite-interface \
 	  2>&1 \
@@ -199,7 +199,7 @@ setup-emacs-mode : install-bin
 	$(AGDA_MODE) setup
 
 ## Clean ####################################################################
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
+clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
@@ -211,8 +211,8 @@ clean : ## Clean all local builds
 
 .PHONY : haddock ##
 haddock :
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
-	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
+	$(CABAL) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
+	$(CABAL) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
 ##############################################################################
 ## The user manual
@@ -483,21 +483,21 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
 	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
+	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
-		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
+		cd src/agda-bisect && $(CABAL) $(CABAL_INSTALL_CMD))
 
 ## HPC #######################################################################
 .PHONY: hpc-build ##
 hpc-build: ensure-hash-is-correct
-	$(CABAL_CMD) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
-	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
+	$(CABAL) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
+	$(CABAL) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
+	$(CABAL) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
@@ -559,7 +559,7 @@ debug : ## Print debug information.
 	@echo "BUILD_DIR             = $(BUILD_DIR)"
 	@echo "CABAL_BUILD_CMD       = $(CABAL_BUILD_CMD)"
 	@echo "CABAL_CLEAN_CMD       = $(CABAL_CLEAN_CMD)"
-	@echo "CABAL_CMD             = $(CABAL_CMD)"
+	@echo "CABAL                 = $(CABAL)"
 	@echo "CABAL_CONFIGURE_CMD   = $(CABAL_CONFIGURE_CMD)"
 	@echo "CABAL_CONFIGURE_OPTS  = $(CABAL_CONFIGURE_OPTS)"
 	@echo "CABAL_HADDOCK_CMD     = $(CABAL_HADDOCK_CMD)"
@@ -568,7 +568,7 @@ debug : ## Print debug information.
 	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
-	@echo "STACK_CMD             = $(STACK_CMD)"
+	@echo "STACK                 = $(STACK)"
 	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."

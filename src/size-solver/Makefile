@@ -12,7 +12,7 @@ ifneq ("$(wildcard ../../stack.yaml)","") # if `stack.yaml` exists
 	mkdir -p dist/build/size-solver
 	cp $(shell stack path --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
 else
-	$(CABAL_CMD) $(CABAL_INSTALL_CMD)
+	$(CABAL) $(CABAL_INSTALL_CMD)
 endif
 
 # Tested with shelltestrunner 1.9.
