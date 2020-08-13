@@ -20,18 +20,12 @@ include ./mk/pretty.mk
 
 # Run in interactive and parallel mode by default
 
-# You can use the $(PARALLEL_TESTS_FILE) file for setting the number of
-# parallel tests, e.g.
-#   PARALLEL_TESTS = 123
-
-PARALLEL_TESTS_FILE = mk/parallel-tests.mk
-
-ifeq ($(wildcard $(PARALLEL_TESTS_FILE)),)
-# Setting the default value.
-PARALLEL_TESTS = $(shell getconf _NPROCESSORS_ONLN)
-else
-# Getting the value from the $(PARALLEL_TESTS_FILE) file.
-include $(PARALLEL_TESTS_FILE)
+# You can use the PARALLEL_TESTS variable to control the number of parallel
+# tests. The default is one per processor. Invoke make like this:
+#   make PARALLEL_TESTS=123 test
+# Or set it in ./mk/config.mk, which is .gitignored
+ifeq ($(PARALLEL_TESTS),)
+PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
 endif
 
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
