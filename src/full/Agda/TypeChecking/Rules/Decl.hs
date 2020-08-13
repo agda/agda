@@ -93,12 +93,13 @@ checkDeclCached d@(A.Section _ mname (A.GeneralizeTel _ tbinds) _) = do
   writeToCurrentLog $ LeaveSection mname
 
 checkDeclCached d = do
+    NameId _ modId <- useTC stFreshNameId
     e <- readFromCachedLog
 
     reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
 
     case e of
-      (Just (Decl d',s)) | compareDecl d d' -> do
+      (Just (Decl d',s)) | compareDecl d d' && validState s modId -> do
         restorePostScopeState s
         reportSLn "cache.decl" 50 $ "range: " ++ prettyShow (getRange d)
         printSyntaxInfo (getRange d)
@@ -110,6 +111,8 @@ checkDeclCached d = do
    compareDecl A.Section{} A.Section{} = __IMPOSSIBLE__
    compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
    compareDecl x y = x == y
+   validState s modId = let NameId _ modId' = stPostFreshNameId s in
+     modId' == modId
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
    ignoreChanges m = localCache $ do
