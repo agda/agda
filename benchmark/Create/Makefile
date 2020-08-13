@@ -1,4 +1,8 @@
 # Andreas, 2020-02-15
+#
+TOP=../../
+
+include $(TOP)/mk/paths.mk
 
 .PHONY : default imp-%
 
@@ -7,13 +11,13 @@ default: imp-300
 # Benchmark nested imports with one data decl
 
 imp-% : import-%
-	time agda +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import-% :
 	runhaskell QuadraticImportOneData.hs $@ $*
 
 imp0-% : import0-%
-	time agda +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import0-% :
 	runhaskell QuadraticImportOneDataNoUsing.hs $@ $*
