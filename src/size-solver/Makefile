@@ -1,16 +1,16 @@
 SHELL=bash
 
 TOP=../../
-# include $(TOP)/mk/versions.mk
 
 include $(TOP)/mk/cabal.mk
+include $(TOP)/mk/stack.mk
 
 .PHONY : install-bin
 install-bin :
 ifneq ("$(wildcard ../../stack.yaml)","") # if `stack.yaml` exists
-	stack build size-solver
+	$(STACK) build size-solver
 	mkdir -p dist/build/size-solver
-	cp $(shell stack path --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
+	cp $(shell $(STACK) path --local-install-root)/bin/size-solver dist/build/size-solver/size-solver
 else
 	$(CABAL) $(CABAL_INSTALL_CMD)
 endif
@@ -19,7 +19,7 @@ endif
 .PHONY : test
 test :
 ifneq ("$(wildcard ../../stack.yaml)","") # if `stack.yaml` exists
-	stack install shelltestrunner
+	$(STACK) install shelltestrunner
 endif
 	shelltest --color --precise test/succeed.test
 	shelltest --color --precise test/fail.test

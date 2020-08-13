@@ -103,7 +103,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -117,7 +117,7 @@ ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -204,8 +204,8 @@ clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1);
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
-	stack clean --full
-	stack clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+	$(STACK) clean --full
+	$(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
 
 ## Haddock ###################################################################
 
@@ -479,9 +479,9 @@ install-fix-whitespace : $(FIXW_BIN)
 $(FIXW_BIN) :
 	git submodule update --init src/fix-whitespace
 ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	stack build fix-whitespace
+	$(STACK) build fix-whitespace
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
-	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
+	cp $(shell $(STACK) path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
 	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
 endif
