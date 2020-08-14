@@ -221,6 +221,17 @@ Testing and documentation
   This path is `.gitignored` and will be loaded if it exists. Put custom
   overrides there.
 
+* Test parallelization can be controlled via the `PARALLEL_TESTS` Makefile
+  variable. If unset, it will default to the number of CPUs available.
+  This variable can be customized per-run as usual:
+  ```sh
+    make PARALLEL_TESTS=4 test
+  ```
+  To keep it a persisted default, add it to your `mk/config.mk`:
+  ```make
+    PARALLEL_TESTS = 4
+  ```
+
 * You can run a single interaction test by going into the
   `test/interaction` directory and typing `make <test name>.cmp`.
 
