@@ -245,6 +245,16 @@ data Interaction' range
   | ToggleImplicitArgs
 
     ------------------------------------------------------------------------
+    -- Irrelevant arguments
+
+    -- | Tells Agda whether or not to show irrelevant arguments.
+  | ShowIrrelevantArgs    Bool -- Show them?
+
+
+    -- | Toggle display of irrelevant arguments.
+  | ToggleIrrelevantArgs
+
+    ------------------------------------------------------------------------
     -- | Goal commands
     --
     -- If the range is 'noRange', then the string comes from the

@@ -71,12 +71,13 @@ lispifyResponse (Resp_RunningInfo n s)
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
 lispifyResponse (Resp_Status s)
     = return [ L [ A "agda2-status-action"
-                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl])
+                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])
                  ]
              ]
   where
-    checked  = boolToMaybe (sChecked               s) "Checked"
-    showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
+    checked  = boolToMaybe (sChecked                 s) "Checked"
+    showImpl = boolToMaybe (sShowImplicitArguments   s) "ShowImplicit"
+    showIrr  = boolToMaybe (sShowIrrelevantArguments s) "ShowIrrelevant"
 
 lispifyResponse (Resp_JumpToError f p) = return
   [ lastTag 3 $
