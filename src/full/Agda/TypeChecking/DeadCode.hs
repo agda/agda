@@ -1,5 +1,6 @@
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
+import Data.Monoid (All(..))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -31,7 +32,7 @@ eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   let hasCompilePragma = Set.fromList . HMap.keys . HMap.filter (not . Map.null . defCompiledRep) $ defs
   let r     = reachableFrom (Set.union public hasCompilePragma) patsyn defs
       dead  = Set.fromList (HMap.keys defs) `Set.difference` r
-      valid = not . any (`Set.member` dead) . namesIn
+      valid = getAll . namesIn' (All . (`Set.notMember` dead))  -- no used name is dead
       defs' = HMap.map ( \ d -> d { defDisplay = filter valid (defDisplay d) } )
             $ HMap.filterWithKey (\ x _ -> Set.member x r) defs
       disp' = HMap.filter (not . null) $ HMap.map (filter valid) disp

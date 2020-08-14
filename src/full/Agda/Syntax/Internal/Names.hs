@@ -5,9 +5,8 @@
 module Agda.Syntax.Internal.Names where
 
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Map as Map
+import Data.Map (Map)
 import Data.Set (Set)
-import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -18,37 +17,58 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
-
+import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
+namesIn :: (NamesIn a, Collection QName m) => a -> m
+namesIn = namesIn' singleton
+
 class NamesIn a where
-  namesIn :: a -> Set QName
+  namesIn' :: Monoid m => (QName -> m) -> a -> m
 
-  default namesIn :: (Foldable f, NamesIn b, f b ~ a) => a -> Set QName
-  namesIn = foldMap namesIn
+  default namesIn' :: (Monoid m, Foldable f, NamesIn b, f b ~ a) => (QName -> m) -> a -> m
+  namesIn' = foldMap . namesIn'
 
+-- Generic collections
 instance NamesIn a => NamesIn (Maybe a)
 instance NamesIn a => NamesIn [a]
 instance NamesIn a => NamesIn (NonEmpty a)
+instance NamesIn a => NamesIn (Set a)
+instance NamesIn a => NamesIn (Map k a)
+
+-- Decorations
 instance NamesIn a => NamesIn (Arg a)
 instance NamesIn a => NamesIn (Dom a)
 instance NamesIn a => NamesIn (Named n a)
 instance NamesIn a => NamesIn (Abs a)
 instance NamesIn a => NamesIn (WithArity a)
-instance NamesIn a => NamesIn (Tele a)
+instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
 
+-- Specific collections
+instance NamesIn a => NamesIn (Tele a)
+
+-- Tuples
+
 instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
-  namesIn (x, y) = Set.union (namesIn x) (namesIn y)
+  namesIn' sg (x, y) = mappend (namesIn' sg x) (namesIn' sg y)
 
 instance (NamesIn a, NamesIn b, NamesIn c) => NamesIn (a, b, c) where
-  namesIn (x, y, z) = namesIn (x, (y, z))
+  namesIn' sg (x, y, z) = namesIn' sg (x, (y, z))
 
 instance (NamesIn a, NamesIn b, NamesIn c, NamesIn d) => NamesIn (a, b, c, d) where
-  namesIn (x, y, z, u) = namesIn ((x, y), (z, u))
+  namesIn' sg (x, y, z, u) = namesIn' sg ((x, y), (z, u))
 
 instance NamesIn CompKit where
-  namesIn (CompKit a b) = namesIn (a,b)
+  namesIn' sg (CompKit a b) = namesIn' sg (a,b)
+
+-- Base case
+
+instance NamesIn QName where
+  namesIn' sg x = sg x  -- interesting case!
+
+instance NamesIn ConHead where
+  namesIn' sg h = namesIn' sg (conName h)
 
 -- Andreas, 2017-07-27
 -- In the following clauses, the choice of fields is not obvious
@@ -59,145 +79,145 @@ instance NamesIn CompKit where
 -- If someone adds a field containing names, this would go unnoticed.
 
 instance NamesIn Definition where
-  namesIn def = namesIn (defType def, theDef def, defDisplay def)
+  namesIn' sg def = namesIn' sg (defType def, theDef def, defDisplay def)
 
 instance NamesIn Defn where
-  namesIn = \case
-    Axiom -> Set.empty
-    DataOrRecSig{} -> Set.empty
-    GeneralizableVar{} -> Set.empty
+  namesIn' sg = \case
+    Axiom              -> mempty
+    DataOrRecSig{}     -> mempty
+    GeneralizableVar{} -> mempty
+    PrimitiveSort{}    -> mempty
+    AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)
-    Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
-    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, fs, comp)
+    Function    { funClauses = cl, funCompiled = cc }
+      -> namesIn' sg (cl, cc)
+    Datatype    { dataClause = cl, dataCons = cs, dataSort = s }
+      -> namesIn' sg (cl, cs, s)
+    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp }
+      -> namesIn' sg (cl, c, fs, comp)
       -- Don't need recTel since those will be reachable from the constructor
-    Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }        -> namesIn (c, d, kit, fs)
-    Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
-    PrimitiveSort{} -> Set.empty
-    AbstractDefn{} -> __IMPOSSIBLE__
+    Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }
+      -> namesIn' sg (c, d, kit, fs)
+    Primitive   { primClauses = cl, primCompiled = cc }
+      -> namesIn' sg (cl, cc)
 
 instance NamesIn Clause where
-  namesIn Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t } =
-    namesIn (tel, ps, b, t)
+  namesIn' sg Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t } =
+    namesIn' sg (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where
-  namesIn (Case _ c) = namesIn c
-  namesIn (Done _ v) = namesIn v
-  namesIn Fail       = Set.empty
+  namesIn' sg (Case _ c) = namesIn' sg c
+  namesIn' sg (Done _ v) = namesIn' sg v
+  namesIn' sg Fail       = mempty
 
 -- Andreas, 2017-07-27
 -- Why ignoring the litBranches?
 instance NamesIn a => NamesIn (Case a) where
-  namesIn Branches{ conBranches = bs, catchAllBranch = c } =
-    namesIn (Map.toList bs, c)
+  namesIn' sg Branches{ conBranches = bs, catchAllBranch = c } =
+    namesIn' sg (bs, c)
 
 instance NamesIn (Pattern' a) where
-  namesIn = \case
-    VarP{}        -> Set.empty
-    LitP _ l      -> namesIn l
-    DotP _ v      -> namesIn v
-    ConP c _ args -> namesIn (c, args)
-    DefP o q args -> namesIn (q, args)
-    ProjP _ f     -> namesIn f
-    IApplyP _ t u _ -> namesIn (t, u)
+  namesIn' sg = \case
+    VarP{}          -> mempty
+    LitP _ l        -> namesIn' sg l
+    DotP _ v        -> namesIn' sg v
+    ConP c _ args   -> namesIn' sg (c, args)
+    DefP o q args   -> namesIn' sg (q, args)
+    ProjP _ f       -> namesIn' sg f
+    IApplyP _ t u _ -> namesIn' sg (t, u)
 
 instance NamesIn a => NamesIn (Type' a) where
-  namesIn (El s t) = namesIn (s, t)
+  namesIn' sg (El s t) = namesIn' sg (s, t)
 
 instance NamesIn Sort where
-  namesIn = \case
-    Type l   -> namesIn l
-    Prop l   -> namesIn l
-    Inf _ _  -> Set.empty
-    SSet l   -> namesIn l
-    SizeUniv -> Set.empty
-    PiSort a b -> namesIn (a, b)
-    FunSort a b -> namesIn (a, b)
-    UnivSort a -> namesIn a
-    MetaS _ es -> namesIn es
-    DefS d es  -> namesIn (d, es)
-    DummyS{}   -> Set.empty
+  namesIn' sg = \case
+    Type l      -> namesIn' sg l
+    Prop l      -> namesIn' sg l
+    Inf _ _     -> mempty
+    SSet l      -> namesIn' sg l
+    SizeUniv    -> mempty
+    PiSort a b  -> namesIn' sg (a, b)
+    FunSort a b -> namesIn' sg (a, b)
+    UnivSort a  -> namesIn' sg a
+    MetaS _ es  -> namesIn' sg es
+    DefS d es   -> namesIn' sg (d, es)
+    DummyS{}    -> mempty
 
 instance NamesIn Term where
-  namesIn = \case
-    Var _ args   -> namesIn args
-    Lam _ b      -> namesIn b
-    Lit l        -> namesIn l
-    Def f args   -> namesIn (f, args)
-    Con c _ args -> namesIn (c, args)
-    Pi a b       -> namesIn (a, b)
-    Sort s       -> namesIn s
-    Level l      -> namesIn l
-    MetaV _ args -> namesIn args
-    DontCare v   -> namesIn v
-    Dummy{}      -> Set.empty
+  namesIn' sg = \case
+    Var _ args   -> namesIn' sg args
+    Lam _ b      -> namesIn' sg b
+    Lit l        -> namesIn' sg l
+    Def f args   -> namesIn' sg (f, args)
+    Con c _ args -> namesIn' sg (c, args)
+    Pi a b       -> namesIn' sg (a, b)
+    Sort s       -> namesIn' sg s
+    Level l      -> namesIn' sg l
+    MetaV _ args -> namesIn' sg args
+    DontCare v   -> namesIn' sg v
+    Dummy{}      -> mempty
 
 instance NamesIn Level where
-  namesIn (Max _ ls) = namesIn ls
+  namesIn' sg (Max _ ls) = namesIn' sg ls
 
 instance NamesIn PlusLevel where
-  namesIn (Plus _ l) = namesIn l
+  namesIn' sg (Plus _ l) = namesIn' sg l
 
 instance NamesIn LevelAtom where
-  namesIn = \case
-    MetaLevel _ args -> namesIn args
-    BlockedLevel _ v -> namesIn v
-    NeutralLevel _ v -> namesIn v
-    UnreducedLevel v -> namesIn v
+  namesIn' sg = \case
+    MetaLevel _ args -> namesIn' sg args
+    BlockedLevel _ v -> namesIn' sg v
+    NeutralLevel _ v -> namesIn' sg v
+    UnreducedLevel v -> namesIn' sg v
 
 -- For QName literals!
 instance NamesIn Literal where
-  namesIn = \case
-    LitNat{}      -> Set.empty
-    LitWord64{}   -> Set.empty
-    LitString{}   -> Set.empty
-    LitChar{}     -> Set.empty
-    LitFloat{}    -> Set.empty
-    LitQName    x -> namesIn x
-    LitMeta{}     -> Set.empty
+  namesIn' sg = \case
+    LitNat{}      -> mempty
+    LitWord64{}   -> mempty
+    LitString{}   -> mempty
+    LitChar{}     -> mempty
+    LitFloat{}    -> mempty
+    LitQName    x -> namesIn' sg x
+    LitMeta{}     -> mempty
 
 instance NamesIn a => NamesIn (Elim' a) where
-  namesIn (Apply arg) = namesIn arg
-  namesIn (Proj _ f)  = namesIn f
-  namesIn (IApply x y arg) = namesIn (x, y, arg)
-
-instance NamesIn QName   where namesIn x = Set.singleton x  -- interesting case
-instance NamesIn ConHead where namesIn h = namesIn (conName h)
-
-instance NamesIn a => NamesIn (Open a)  where
+  namesIn' sg (Apply arg)      = namesIn' sg arg
+  namesIn' sg (Proj _ f)       = namesIn' sg f
+  namesIn' sg (IApply x y arg) = namesIn' sg (x, y, arg)
 
 instance NamesIn DisplayForm where
-  namesIn (Display _ ps v) = namesIn (ps, v)
+  namesIn' sg (Display _ ps v) = namesIn' sg (ps, v)
 
 instance NamesIn DisplayTerm where
-  namesIn = \case
-    DWithApp v us es -> namesIn (v, us, es)
-    DCon c _ vs      -> namesIn (c, vs)
-    DDef f es        -> namesIn (f, es)
-    DDot v           -> namesIn v
-    DTerm v          -> namesIn v
+  namesIn' sg = \case
+    DWithApp v us es -> namesIn' sg (v, us, es)
+    DCon c _ vs      -> namesIn' sg (c, vs)
+    DDef f es        -> namesIn' sg (f, es)
+    DDot v           -> namesIn' sg v
+    DTerm v          -> namesIn' sg v
 
 -- Pattern synonym stuff --
 
 newtype PSyn = PSyn A.PatternSynDefn
 instance NamesIn PSyn where
-  namesIn (PSyn (_args, p)) = namesIn p
+  namesIn' sg (PSyn (_args, p)) = namesIn' sg p
 
 instance NamesIn (A.Pattern' a) where
-  namesIn = \case
-    A.VarP{}               -> Set.empty
-    A.ConP _ c args        -> namesIn (c, args)
-    A.ProjP _ _ d          -> namesIn d
-    A.DefP _ f args        -> namesIn (f, args)
-    A.WildP{}              -> Set.empty
-    A.AsP _ _ p            -> namesIn p
-    A.AbsurdP{}            -> Set.empty
-    A.LitP _ l             -> namesIn l
-    A.PatternSynP _ c args -> namesIn (c, args)
-    A.RecP _ fs            -> namesIn fs
+  namesIn' sg = \case
+    A.VarP{}               -> mempty
+    A.ConP _ c args        -> namesIn' sg (c, args)
+    A.ProjP _ _ d          -> namesIn' sg d
+    A.DefP _ f args        -> namesIn' sg (f, args)
+    A.WildP{}              -> mempty
+    A.AsP _ _ p            -> namesIn' sg p
+    A.AbsurdP{}            -> mempty
+    A.LitP _ l             -> namesIn' sg l
+    A.PatternSynP _ c args -> namesIn' sg (c, args)
+    A.RecP _ fs            -> namesIn' sg fs
     A.DotP{}               -> __IMPOSSIBLE__    -- Dot patterns are not allowed in pattern synonyms
     A.EqualP{}             -> __IMPOSSIBLE__    -- Andrea: should we allow these in pattern synonyms?
-    A.WithP _ p            -> namesIn p
+    A.WithP _ p            -> namesIn' sg p
 
 instance NamesIn AmbiguousQName where
-  namesIn (AmbQ cs) = namesIn cs
+  namesIn' sg (AmbQ cs) = namesIn' sg cs

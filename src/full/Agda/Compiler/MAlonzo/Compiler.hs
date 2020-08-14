@@ -9,6 +9,7 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -278,7 +279,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
           else do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
-            mapM_ (`xqual` HS.Ident "_") $ namesIn ty
+            mapM_ (`xqual` HS.Ident "_") (namesIn ty :: Set QName)
 
           -- Check that the function isn't INLINE (since that will make this
           -- definition pointless).
