@@ -138,7 +138,7 @@ $(Tests) : %.cmp : %.out
 	@if diff -q -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
-			for file in ls `$*.*agda`; do touch $file; done ; \
+			touch -c $*.*agda; \
 			echo "=== Old output ==="; \
 			cat $*.out; \
 			echo "=== New output ==="; \
