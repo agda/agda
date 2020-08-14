@@ -122,8 +122,6 @@ $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 	@echo "=== End of output ==="
 	@rm -rf $(TMPDIR)
 
-#			diff -b $*.out $*.tmp;
-
 # Comparing output
 ########################################################################
 
@@ -137,7 +135,7 @@ $(Tests) : %.cmp : %.out
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
-	@if diff -b $*.out $*.tmp; \
+	@if diff -q -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
 			for file in ls `$*.*agda`; do touch $file; done ; \

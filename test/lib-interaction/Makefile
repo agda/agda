@@ -79,7 +79,7 @@ $(Tests) : %.cmp : %.out
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
-	@if diff -b $*.out $*.tmp; \
+	@if diff -q -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
 			echo "=== Old output ==="; \
