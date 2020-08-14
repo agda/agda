@@ -4,9 +4,6 @@ TOP = ../..
 
 include $(TOP)/mk/paths.mk
 
-# Enable read -n and 2>&1 |.
-SHELL=/usr/bin/env bash
-
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
 pwd=$(shell (cmd /c 'echo %CD%') | $(SED) -e 's/\\/\\\\\\\\/g')
@@ -35,7 +32,10 @@ filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's/\(\\n\| \)\+/ /g' \
      | $(clean)
 
-run_test=if test -f $*.in; \
+# Turn off "eager failure" flags (e, E, pipefail) while running the test.
+run_test=\
+    set +eE +o pipefail; \
+    if test -f $*.in; \
     then cat $*.in \
          | $(SED) "s/ioTCM/IOTCM/g" \
          | $(SED) "s/cmd_/Cmd_/g" \

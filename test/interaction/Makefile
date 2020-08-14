@@ -5,9 +5,6 @@ include $(TOP)/mk/paths.mk
 # Extra options when running agda --interaction
 AGDA_OPT=--no-default-libraries
 
-# Enable read -n and 2>&1 |.
-SHELL=/usr/bin/env bash
-
 # Get the current directory (OS dependent).
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
@@ -44,7 +41,10 @@ filter=$(SED) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's/Agda2> //g' \
      | $(clean)
 
-run_test=if test -f $*.in; \
+# Turn off "eager failure" flags (e, E, pipefail) while running the test.
+run_test=\
+    set +eE +o pipefail; \
+    if test -f $*.in; \
     then cat $*.in \
          | $(SED) "s/ioTCM/IOTCM/g" \
          | $(SED) "s/cmd_give/(cmd_give WithoutForce)/g" \

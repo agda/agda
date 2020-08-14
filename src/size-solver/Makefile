@@ -1,5 +1,3 @@
-SHELL=bash
-
 TOP=../../
 
 include $(TOP)/mk/cabal.mk
