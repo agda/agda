@@ -217,6 +217,10 @@ Testing and documentation
 * Run the test-suite, using `make test`.
   Maybe you want to build Agda first, using `make` or `make install-bin`.
 
+* To persist local Makefile options, create a file called `mk/config.mk`.
+  This path is `.gitignored` and will be loaded if it exists. Put custom
+  overrides there.
+
 * You can run a single interaction test by going into the
   `test/interaction` directory and typing `make <test name>.cmp`.
 
