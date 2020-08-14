@@ -1054,7 +1054,7 @@ introTactic pmLambda ii = do
     conName _   = __IMPOSSIBLE__
 
     showUnambiguousConName v =
-       render <$> pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+       render . pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
 
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
