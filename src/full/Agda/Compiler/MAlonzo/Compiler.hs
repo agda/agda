@@ -278,7 +278,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
           else do
             -- Make sure we have imports for all names mentioned in the type.
             hsty <- haskellType q
-            sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
+            mapM_ (`xqual` HS.Ident "_") $ namesIn ty
 
           -- Check that the function isn't INLINE (since that will make this
           -- definition pointless).
