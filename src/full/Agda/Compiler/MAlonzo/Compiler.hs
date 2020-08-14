@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Set as Set
 import Data.Text (Text)
-import qualified Data.Text as T
+import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.Semigroup ((<>))
 
@@ -472,7 +472,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
                                 (HS.UnGuardedRhs e) emptyBinds]]
 
   axiomErr :: HS.Exp
-  axiomErr = rtmError $ T.pack $ "postulate evaluated: " ++ prettyShow q
+  axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
@@ -748,7 +748,7 @@ litqname x =
   rteCon "QName" `apps`
   [ hsTypedInt n
   , hsTypedInt m
-  , HS.Lit $ HS.String $ T.pack $ prettyShow x
+  , HS.Lit $ HS.String $ Text.pack $ prettyShow x
   , rteCon "Fixity" `apps`
     [ litAssoc (fixityAssoc fx)
     , litPrec  (fixityLevel fx)
