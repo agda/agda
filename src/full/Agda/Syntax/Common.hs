@@ -371,9 +371,6 @@ data Modality = Modality
       --   Currently only the comonad is implemented.
   } deriving (Data, Eq, Ord, Show, Generic)
 
-defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
-
 -- | Pointwise composition.
 instance Semigroup Modality where
   (<>) = composeModality
@@ -447,6 +444,12 @@ unitModality = Modality unitRelevance unitQuantity unitCohesion
 -- | Absorptive element under addition.
 topModality :: Modality
 topModality = Modality topRelevance topQuantity topCohesion
+
+-- | The default Modality
+--   Beware that this is neither the additive unit nor the unit under
+--   composition, because the default quantity is ω.
+defaultModality :: Modality
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
 -- | Equality ignoring origin.
 
@@ -712,9 +715,6 @@ data Quantity
   deriving (Data, Show, Generic, Eq, Ord)
     -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
-defaultQuantity :: Quantity
-defaultQuantity = topQuantity
-
 -- | Equality ignoring origin.
 
 sameQuantity :: Quantity -> Quantity -> Bool
@@ -768,10 +768,17 @@ addQuantity = curry $ \case
   -- 1 + 1 = ω
   (Quantity1 _, Quantity1 _) -> topQuantity
 
+-- | Identity element under addition
 zeroQuantity :: Quantity
 zeroQuantity = Quantity0 mempty
 
--- | Identity element
+-- | Absorptive element!
+--   This differs from Relevance and Cohesion whose default
+--   is the multiplicative unit.
+defaultQuantity :: Quantity
+defaultQuantity = topQuantity
+
+-- | Identity element under composition
 unitQuantity :: Quantity
 unitQuantity = Quantity1 mempty
 
@@ -922,9 +929,6 @@ data Relevance
 allRelevances :: [Relevance]
 allRelevances = [minBound..maxBound]
 
-defaultRelevance :: Relevance
-defaultRelevance = Relevant
-
 instance HasRange Relevance where
   getRange _ = noRange
 
@@ -1070,6 +1074,10 @@ unitRelevance = Relevant
 topRelevance :: Relevance
 topRelevance = Relevant
 
+-- | Default Relevance is the identity element under composition
+defaultRelevance :: Relevance
+defaultRelevance = unitRelevance
+
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance
 irrToNonStrict Irrelevant = NonStrict
@@ -1188,9 +1196,6 @@ data Cohesion
 
 allCohesions :: [Cohesion]
 allCohesions = [minBound..maxBound]
-
-defaultCohesion :: Cohesion
-defaultCohesion = Continuous
 
 instance HasRange Cohesion where
   getRange _ = noRange
@@ -1329,6 +1334,10 @@ unitCohesion = Continuous
 -- | Absorptive element under addition.
 topCohesion :: Cohesion
 topCohesion = Flat
+
+-- | Default Cohesion is the identity element under composition
+defaultCohesion :: Cohesion
+defaultCohesion = unitCohesion
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
