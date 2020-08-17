@@ -980,10 +980,7 @@ instance PartialOrd Relevance where
 
 -- | @usableRelevance rel == False@ iff we cannot use a variable of @rel@.
 usableRelevance :: LensRelevance a => a -> Bool
-usableRelevance a = case getRelevance a of
-  Irrelevant -> False
-  NonStrict  -> False
-  Relevant   -> True
+usableRelevance = isRelevant
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
