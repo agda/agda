@@ -376,7 +376,7 @@ defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
 -- | Pointwise composition.
 instance Semigroup Modality where
-  Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
+  (<>) = composeModality
 
 -- | Pointwise unit.
 instance Monoid Modality where
@@ -405,7 +405,7 @@ usableModality a = usableRelevance m && usableQuantity m
 
 -- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
-composeModality = (<>)
+composeModality (Modality r q c) (Modality r' q' c') = Modality (r <> r') (q <> q') (c <> c')
 
 -- | Compose with modality flag from the left.
 --   This function is e.g. used to update the modality information
@@ -724,11 +724,7 @@ sameQuantity = curry $ \case
 -- Right-biased for origin.
 --
 instance Semigroup Quantity where
-  Quantity1{} <> q = q           -- right-bias!
-  q <> Quantity1{} = q
-  _ <> Quantity0 o = Quantity0 o -- right-bias!
-  Quantity0 o <> _ = Quantity0 o
-  _omega <> qomega = qomega      -- right-bias!
+  (<>) = composeQuantity
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
@@ -777,8 +773,20 @@ topQuantity = Quantityω mempty
 moreQuantity :: Quantity -> Quantity -> Bool
 moreQuantity m m' = related m POLE m'
 
+-- | Composition of quantities (multiplication).
+--
+-- 'Quantity0' is dominant.
+-- 'Quantity1' is neutral.
+--
+-- Right-biased for origin.
+--
 composeQuantity :: Quantity -> Quantity -> Quantity
-composeQuantity = (<>)
+composeQuantity = curry $ \case
+  (x@Quantity1{}, q            ) -> q -- right-bias!
+  (q            , x@Quantity1{}) -> q
+  (x            , q@Quantity0{}) -> q -- right-bias!
+  (q@Quantity0{}, x            ) -> q
+  (x            , q@Quantityω{}) -> q -- right-bias!
 
 -- | Compose with quantity flag from the left.
 --   This function is e.g. used to update the quantity information
