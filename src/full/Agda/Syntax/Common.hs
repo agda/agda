@@ -366,9 +366,6 @@ data Modality = Modality
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
-instance Null Modality where
-  empty = defaultModality
-
 -- | Pointwise composition.
 instance Semigroup Modality where
   Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
