@@ -203,9 +203,9 @@ applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
 applyCohesionToContext thing =
   case getCohesion thing of
-    m | m == mempty -> id
-      | otherwise   -> applyCohesionToContextOnly   m
-                       -- Cohesion does not apply to the judgment.
+    m | m == unitCohesion -> id
+      | otherwise         -> applyCohesionToContextOnly   m
+                             -- Cohesion does not apply to the judgment.
 
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
@@ -227,9 +227,9 @@ splittableCohesion a = do
 applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
 applyModalityToContext thing =
   case getModality thing of
-    m | m == mempty -> id
-      | otherwise   -> applyModalityToContextOnly   m
-                     . applyModalityToJudgementOnly m
+    m | m == unitModality -> id
+      | otherwise         -> applyModalityToContextOnly   m
+                           . applyModalityToJudgementOnly m
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

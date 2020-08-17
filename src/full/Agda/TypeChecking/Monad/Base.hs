@@ -2823,7 +2823,7 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = mempty
+                , envModality               = unitModality
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange

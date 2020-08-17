@@ -380,7 +380,7 @@ instance Semigroup Modality where
 
 -- | Pointwise unit.
 instance Monoid Modality where
-  mempty = Modality mempty mempty mempty
+  mempty = unitModality
   mappend = (<>)
 
 -- | Dominance ordering.
@@ -436,8 +436,13 @@ inverseApplyModality m = mapModality (m `inverseComposeModality`)
 addModality :: Modality -> Modality -> Modality
 addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
 
+-- | Identity under addition
 zeroModality :: Modality
 zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
+
+-- | Identity under composition
+unitModality :: Modality
+unitModality = Modality unitRelevance unitQuantity unitCohesion
 
 -- | Absorptive element under addition.
 topModality :: Modality
@@ -732,7 +737,7 @@ instance Semigroup Quantity where
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
 instance Monoid Quantity where
-  mempty  = Quantity1 mempty
+  mempty  = unitQuantity
   mappend = (<>)
 
 -- | Note that the order is @ω ≤ 0,1@, more options is smaller.
@@ -765,6 +770,10 @@ addQuantity = curry $ \case
 
 zeroQuantity :: Quantity
 zeroQuantity = Quantity0 mempty
+
+-- | Identity element
+unitQuantity :: Quantity
+unitQuantity = Quantity1 mempty
 
 -- | Absorptive element is ω.
 topQuantity :: Quantity
@@ -1034,9 +1043,8 @@ inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 instance Semigroup Relevance where
   (<>) = composeRelevance
 
--- | 'Relevant' is the unit.
 instance Monoid Relevance where
-  mempty  = Relevant
+  mempty  = unitRelevance
   mappend = (<>)
 
 instance POSemigroup Relevance where
@@ -1053,6 +1061,10 @@ addRelevance = min
 -- | 'Relevance' forms a monoid under addition, and even a semiring.
 zeroRelevance :: Relevance
 zeroRelevance = Irrelevant
+
+-- | Identity element under composition
+unitRelevance :: Relevance
+unitRelevance = Relevant
 
 -- | Absorptive element under addition.
 topRelevance :: Relevance
@@ -1292,7 +1304,7 @@ instance Semigroup Cohesion where
 
 -- | 'Continous' is the unit.
 instance Monoid Cohesion where
-  mempty  = Continuous
+  mempty  = unitCohesion
   mappend = (<>)
 
 instance POSemigroup Cohesion where
@@ -1309,6 +1321,10 @@ addCohesion = min
 -- | 'Cohesion' forms a monoid under addition, and even a semiring.
 zeroCohesion :: Cohesion
 zeroCohesion = Squash
+
+-- | Identity under composition
+unitCohesion :: Cohesion
+unitCohesion = Continuous
 
 -- | Absorptive element under addition.
 topCohesion :: Cohesion

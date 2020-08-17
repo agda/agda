@@ -744,7 +744,7 @@ instance LensHiding TypedBinding where
 
 instance LensRelevance TypedBinding where
   getRelevance (TBind _ (x :|_) _) = getRelevance x   -- Slightly dubious
-  getRelevance TLet{}              = mempty
+  getRelevance TLet{}              = unitRelevance
   mapRelevance f (TBind r xs e) = TBind r (fmap (mapRelevance f) xs) e
   mapRelevance f b@TLet{}       = b
 
