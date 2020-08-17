@@ -10,7 +10,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -355,6 +355,20 @@ sameHiding x y =
 -- * Modalities
 ---------------------------------------------------------------------------
 
+-- | Type wrapper to indicate additive monoid/semigroup context.
+newtype UnderAddition t = UnderAddition t deriving (Show, Functor, Eq, Ord, PartialOrd)
+
+instance Applicative UnderAddition where
+  pure = UnderAddition
+  (<*>) (UnderAddition f) (UnderAddition a) = pure (f a)
+
+-- | Type wrapper to indicate composition or multiplicative monoid/semigroup context.
+newtype UnderComposition t = UnderComposition t deriving (Show, Functor, Eq, Ord, PartialOrd)
+
+instance Applicative UnderComposition where
+  pure = UnderComposition
+  (<*>) (UnderComposition f) (UnderComposition a) = pure (f a)
+
 -- | We have a tuple of modalities, which might not be fully orthogonal.
 --   For instance, irrelevant stuff is also run-time irrelevant.
 data Modality = Modality
@@ -371,24 +385,36 @@ data Modality = Modality
       --   Currently only the comonad is implemented.
   } deriving (Data, Eq, Ord, Show, Generic)
 
--- | Pointwise composition.
-instance Semigroup Modality where
-  (<>) = composeModality
-
--- | Pointwise unit.
-instance Monoid Modality where
-  mempty = unitModality
-  mappend = (<>)
-
 -- | Dominance ordering.
 instance PartialOrd Modality where
   comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
 
-instance POSemigroup Modality where
-instance POMonoid Modality where
+-- | Pointwise composition.
+instance Semigroup (UnderComposition Modality) where
+  (<>) = liftA2 composeModality
 
-instance LeftClosedPOMonoid Modality where
-  inverseCompose = inverseComposeModality
+-- | Pointwise composition unit.
+instance Monoid (UnderComposition Modality) where
+  mempty  = pure unitModality
+  mappend = (<>)
+
+instance POSemigroup (UnderComposition Modality) where
+instance POMonoid (UnderComposition Modality) where
+
+instance LeftClosedPOMonoid (UnderComposition Modality) where
+  inverseCompose = liftA2 inverseComposeModality
+
+-- | Pointwise addition.
+instance Semigroup (UnderAddition Modality) where
+  (<>) = liftA2 addModality
+
+-- | Pointwise additive unit.
+instance Monoid (UnderAddition Modality) where
+  mempty  = pure zeroModality
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Modality) where
+instance POMonoid (UnderAddition Modality) where
 
 -- | @m `moreUsableModality` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -731,14 +757,30 @@ sameQuantity = curry $ \case
 --
 -- Right-biased for origin.
 --
-instance Semigroup Quantity where
-  (<>) = composeQuantity
+instance Semigroup (UnderComposition Quantity) where
+  (<>) = liftA2 composeQuantity
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
-instance Monoid Quantity where
-  mempty  = unitQuantity
+instance Monoid (UnderComposition Quantity) where
+  mempty  = pure unitQuantity
   mappend = (<>)
+
+instance POSemigroup (UnderComposition Quantity) where
+instance POMonoid (UnderComposition Quantity) where
+
+instance LeftClosedPOMonoid (UnderComposition Quantity) where
+  inverseCompose = liftA2 inverseComposeQuantity
+
+instance Semigroup (UnderAddition Quantity) where
+  (<>) = liftA2 addQuantity
+
+instance Monoid (UnderAddition Quantity) where
+  mempty  = pure zeroQuantity
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Quantity) where
+instance POMonoid (UnderAddition Quantity) where
 
 -- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
@@ -749,12 +791,6 @@ instance PartialOrd Quantity where
     (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
-
-instance POSemigroup Quantity where
-instance POMonoid Quantity where
-
-instance LeftClosedPOMonoid Quantity where
-  inverseCompose = inverseComposeQuantity
 
 -- | 'Quantity' forms an additive monoid with zero Quantity0.
 addQuantity :: Quantity -> Quantity -> Quantity
@@ -1044,18 +1080,29 @@ inverseApplyRelevance :: LensRelevance a => Relevance -> a -> a
 inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 
 -- | 'Relevance' forms a semigroup under composition.
-instance Semigroup Relevance where
-  (<>) = composeRelevance
+instance Semigroup (UnderComposition Relevance) where
+  (<>) = liftA2 composeRelevance
 
-instance Monoid Relevance where
-  mempty  = unitRelevance
+-- | 'Relevant' is the unit under composition.
+instance Monoid (UnderComposition Relevance) where
+  mempty  = pure unitRelevance
   mappend = (<>)
 
-instance POSemigroup Relevance where
-instance POMonoid Relevance where
+instance POSemigroup (UnderComposition Relevance) where
+instance POMonoid (UnderComposition Relevance) where
 
-instance LeftClosedPOMonoid Relevance where
-  inverseCompose = inverseComposeRelevance
+instance LeftClosedPOMonoid (UnderComposition Relevance) where
+  inverseCompose = liftA2 inverseComposeRelevance
+
+instance Semigroup (UnderAddition Relevance) where
+  (<>) = liftA2 addRelevance
+
+instance Monoid (UnderAddition Relevance) where
+  mempty  = pure zeroRelevance
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Relevance) where
+instance POMonoid (UnderAddition Relevance) where
 
 -- | Combine inferred 'Relevance'.
 --   The unit is 'Irrelevant'.
@@ -1304,19 +1351,31 @@ inverseApplyCohesion :: LensCohesion a => Cohesion -> a -> a
 inverseApplyCohesion rel = mapCohesion (rel `inverseComposeCohesion`)
 
 -- | 'Cohesion' forms a semigroup under composition.
-instance Semigroup Cohesion where
-  (<>) = composeCohesion
+instance Semigroup (UnderComposition Cohesion) where
+  (<>) = liftA2 composeCohesion
 
--- | 'Continous' is the unit.
-instance Monoid Cohesion where
-  mempty  = unitCohesion
+-- | 'Continous' is the multiplicative unit.
+instance Monoid (UnderComposition Cohesion) where
+  mempty  = pure unitCohesion
   mappend = (<>)
 
-instance POSemigroup Cohesion where
-instance POMonoid Cohesion where
+instance POSemigroup (UnderComposition Cohesion) where
+instance POMonoid (UnderComposition Cohesion) where
 
-instance LeftClosedPOMonoid Cohesion where
-  inverseCompose = inverseComposeCohesion
+instance LeftClosedPOMonoid (UnderComposition Cohesion) where
+  inverseCompose = liftA2 inverseComposeCohesion
+
+-- | 'Cohesion' forms a semigroup under addition.
+instance Semigroup (UnderAddition Cohesion) where
+  (<>) = liftA2 addCohesion
+
+-- | 'Squash' is the additive unit.
+instance Monoid (UnderAddition Cohesion) where
+  mempty  = pure zeroCohesion
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Cohesion) where
+instance POMonoid (UnderAddition Cohesion) where
 
 -- | Combine inferred 'Cohesion'.
 --   The unit is 'Squash'.
