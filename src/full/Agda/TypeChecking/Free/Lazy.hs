@@ -268,7 +268,7 @@ topVarOcc = VarOcc StronglyRigid topModality
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
 composeVarOcc :: Semigroup a => VarOcc' a -> VarOcc' a -> VarOcc' a
-composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m')
+composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (composeModality m m')
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a

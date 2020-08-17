@@ -143,7 +143,7 @@ instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables Proj{}    = []
 
 instance ForcedVariables a => ForcedVariables (Arg a) where
-  forcedVariables x = [ (m <> m', i) | (m', i) <- forcedVariables (unArg x) ]
+  forcedVariables x = [ (composeModality m m', i) | (m', i) <- forcedVariables (unArg x) ]
     where m = getModality x
 
 -- | Assumes that the term is in normal form.

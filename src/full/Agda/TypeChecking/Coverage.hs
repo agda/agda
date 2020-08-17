@@ -951,7 +951,7 @@ fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
         SplitCon c -> do
           q <- getQuantity <$> getConstInfo c
           case q of
-            Quantity0{} -> return $ mapQuantity (q <>)
+            Quantity0{} -> return $ mapQuantity (composeQuantity q)
             Quantity1{} -> return id
             Quantityω{} -> return id
         SplitLit{} -> return id

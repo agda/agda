@@ -405,7 +405,10 @@ usableModality a = usableRelevance m && usableQuantity m
 
 -- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
-composeModality (Modality r q c) (Modality r' q' c') = Modality (r <> r') (q <> q') (c <> c')
+composeModality (Modality r q c) (Modality r' q' c') =
+    Modality (r `composeRelevance` r')
+             (q `composeQuantity` q')
+             (c `composeCohesion` c')
 
 -- | Compose with modality flag from the left.
 --   This function is e.g. used to update the modality information
