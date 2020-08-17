@@ -97,13 +97,14 @@ jobs:
       run: |
         cabal build
 
+  # We can not use GHC 8.8.2, 8.8.3, 8.8.4 or 8.10.1 because #4543.
   # Windows:
   #   if: |
   #     !contains(github.event.head_commit.message, '[skip ci]')
   #     && !contains(github.event.head_commit.message, '[ci skip]')
   #     && !contains(github.event.head_commit.message, '[github skip]')
   #     && !contains(github.event.head_commit.message, '[skip github]')
-  #
+
   #   runs-on: windows-latest
   #   strategy:
   #     matrix:
