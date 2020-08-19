@@ -20,6 +20,7 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
@@ -433,16 +434,16 @@ isSizeConstraint_  isSizeType p Closure{ clValue = ValueCmp cmp (AsTermsOf s) _ 
 isSizeConstraint_ _isSizeType _ _ = False
 
 -- | Take out all size constraints of the given direction (DANGER!).
-takeSizeConstraints :: (Comparison -> Bool) -> TCM [Closure Constraint]
+takeSizeConstraints :: (Comparison -> Bool) -> TCM [ProblemConstraint]
 takeSizeConstraints p = do
   test <- isSizeTypeTest
-  map theConstraint <$> takeConstraints (mkIsSizeConstraint test p . theConstraint)
+  takeConstraints (mkIsSizeConstraint test p . theConstraint)
 
 -- | Find the size constraints of the matching direction.
-getSizeConstraints :: (Comparison -> Bool) -> TCM [Closure Constraint]
+getSizeConstraints :: (Comparison -> Bool) -> TCM [ProblemConstraint]
 getSizeConstraints p = do
   test <- isSizeTypeTest
-  filter (mkIsSizeConstraint test p) . map theConstraint <$> getAllConstraints
+  filter (mkIsSizeConstraint test p . theConstraint) <$> getAllConstraints
 
 -- | Return a list of size metas and their context.
 getSizeMetas :: Bool -> TCM [(MetaId, Type, Telescope)]
@@ -526,13 +527,13 @@ instance Pretty OldSizeConstraint where
 --   contexts.
 --
 --   cf. 'Agda.TypeChecking.LevelConstraints.simplifyLevelConstraint'
-oldComputeSizeConstraints :: [Closure Constraint] -> TCM [OldSizeConstraint]
+oldComputeSizeConstraints :: [ProblemConstraint] -> TCM [OldSizeConstraint]
 oldComputeSizeConstraints [] = return [] -- special case to avoid maximum []
 oldComputeSizeConstraints cs = catMaybes <$> mapM oldComputeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
-    gammas       = map (envContext . clEnv) cs
-    ls           = map clValue cs
+    gammas       = map (envContext . clEnv . theConstraint) cs
+    ls           = map (clValue . theConstraint) cs
     -- compute the longest context (common water level)
     ns           = map size gammas
     waterLevel   = maximum ns
@@ -672,7 +673,7 @@ oldSolveSizeConstraints = whenM haveSizedTypes $ do
     -- have been solved correctly.
     flip catchError (const cannotSolve) $
       noConstraints $
-        forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+        forM_ cs0 $ withConstraint solveConstraint
 
 
 -- | Old solver for size constraints using "Agda.Utils.Warshall".

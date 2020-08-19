@@ -462,7 +462,7 @@ checkLambda' cmp b xps typ body target = do
           then checkPath b body t
           else genericError "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone m tgt = postponeTypeCheckingProblem_ $
+    postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
 
     dontUseTargetType = do
@@ -489,7 +489,7 @@ checkLambda' cmp b xps typ body target = do
             t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
             let e    = A.Lam A.exprNoRange (A.DomainFull b) body
                 tgt' = telePi tel t1
-            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') $ ((alwaysUnblock ==) <$> instantiate x)
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') x
             return (tgt' , w)
 
       -- Now check body : ?t₁
@@ -682,13 +682,10 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
   t <- instantiateFull t
-  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (noMetas a) ->
-            postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -859,22 +856,21 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       -- Case: we do not know the meta, so cannot unblock.
       Nothing -> return neverUnblock
       -- Case: we know the meta here.
+      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
       -- Andreas, 2018-11-23: I do not understand why @InstV@ is necessarily impossible.
       -- The reasoning is probably that the state @st@ is more advanced that @s@
       -- in which @x@ was blocking, thus metas in @st@ should be more instantiated than
-      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise
-      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-      Just m | InstV{} <- mvInstantiation m -> return neverUnblock
-      -- Case: the meta is frozen (and not an interaction meta).
-      -- Postponing doesn't make sense.
-      Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
-        Nothing -> return neverUnblock
-      -- Remaining cases: the meta is known and can still be instantiated.
-        Just{}  -> return $ unblockOnMeta x
-      Just{} -> return $ unblockOnMeta x
+      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise.
+      -- Ulf, 2020-08-13: But treat this case as not blocked and reraise on both always and never.
+      -- Ulf, 2020-08-13: Previously we returned neverUnblock for frozen metas here, but this is in
+      -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
+      -- error means we rob the user of the tools needed to figure out why the meta has not been
+      -- solved. Better to leave the constraint.
+      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
+             | otherwise -> return $ unblockOnMeta x
 
-    -- If we can't ever unblock reraise the error.
-    if blocker == neverUnblock then reraise else handle (err, blocker)
+    -- If it's not blocked or we can't ever unblock reraise the error.
+    if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
 
 ---------------------------------------------------------------------------
 -- * Records
@@ -1223,7 +1219,7 @@ checkExpr' cmp e t =
         -- (which might be the blocking meta in which case we actually make progress).
         reportSDoc "tc.term" 50 $ vcat $
           [ "checking pattern got stuck on meta: " <+> pretty x ]
-        postponeTypeCheckingProblem (CheckExpr cmp e t) $ ((alwaysUnblock ==) <$> instantiate x)
+        postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
@@ -1306,7 +1302,7 @@ doQuoteTerm cmp et t = do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ allM metas isInstantiatedMeta
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()

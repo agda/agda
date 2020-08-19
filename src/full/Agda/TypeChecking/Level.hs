@@ -147,14 +147,16 @@ levelView' a = do
   view a
   where
     mkAtom ba = atomicLevel $ case ba of
-        NotBlocked _ (MetaV m as) -> MetaLevel m as
-        NotBlocked r _            -> case r of
-          StuckOn{}               -> NeutralLevel r $ ignoreBlocking ba
-          Underapplied{}          -> NeutralLevel r $ ignoreBlocking ba
-          AbsurdMatch{}           -> NeutralLevel r $ ignoreBlocking ba
-          MissingClauses{}        -> UnreducedLevel $ ignoreBlocking ba
-          ReallyNotBlocked{}      -> NeutralLevel r $ ignoreBlocking ba
-        Blocked m _               -> BlockedLevel m $ ignoreBlocking ba
+        Blocked _ (MetaV m as) -> MetaLevel m as
+        NotBlocked _ MetaV{}   -> __IMPOSSIBLE__
+        NotBlocked r _         ->
+          case r of
+            StuckOn{}            -> NeutralLevel r $ ignoreBlocking ba
+            Underapplied{}       -> NeutralLevel r $ ignoreBlocking ba
+            AbsurdMatch{}        -> NeutralLevel r $ ignoreBlocking ba
+            MissingClauses{}     -> UnreducedLevel $ ignoreBlocking ba
+            ReallyNotBlocked{}   -> NeutralLevel r $ ignoreBlocking ba
+        Blocked m _            -> BlockedLevel m $ ignoreBlocking ba
 
 -- | Given a level @l@, find the maximum constant @n@ such that @l = n + l'@
 levelPlusView :: Level -> (Integer, Level)

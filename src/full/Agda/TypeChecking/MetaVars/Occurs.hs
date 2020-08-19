@@ -359,7 +359,7 @@ instance Occurs Term where
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     let flexIfBlocked = case vb of
           -- Don't fail on blocked terms or metas
-          -- Blocked _ MetaV{} -> id  -- does not help with issue #856
+          Blocked _ MetaV{} -> id
           Blocked b _ -> flexibly . addOrUnblocker b
           -- Re #3594, do not fail hard when Underapplied:
           -- the occurrence could be computed away after eta expansion.
