@@ -70,7 +70,7 @@ jobs:
           travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         # Set up arguments and flags for stack compilation
         - ARGS=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
-        - FLAGS=(--flag Agda:enable-cluster-counting)
+        - FLAGS=(--flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
         - echo "*** GHC version ***"     && ghc     --version &&
           echo "*** Stack version ***"   && stack   --version &&
           echo "*** Haddock version ***" && haddock --version &&
@@ -120,7 +120,7 @@ jobs:
         - export PATH=$HOME/.local/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
 
-        - FLAGS=(--flag Agda:enable-cluster-counting)
+        - FLAGS=(--flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
         - ARGS=(--silent --stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
         - PARALLEL_TESTS=2
         - AGDA_TESTS_OPTIONS=("-j${PARALLEL_TESTS}" --hide-successes)
