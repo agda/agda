@@ -17,6 +17,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2.3.2
+        with:
+          submodules: recursive
 
       - uses: actions/setup-haskell@v1.1.2
         with:
