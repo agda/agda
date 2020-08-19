@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
 
@@ -389,11 +390,21 @@ instance Monoid NotBlocked where
   mempty  = ReallyNotBlocked
   mappend = (<>)
 
--- | What is causing the blocking? Or in other words which metas need to be solved to unblock the
---   blocked computation/constraint.
+-- A "problem" consists of a set of constraints and the same constraint can be part of multiple
+-- problems.
+newtype ProblemId = ProblemId Nat
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+-- This particular Show instance is ok because of the Num instance.
+instance Show   ProblemId where show   (ProblemId n) = show n
+instance Pretty ProblemId where pretty (ProblemId n) = pretty n
+
+-- | What is causing the blocking? Or in other words which metas or problems need to be solved to
+--   unblock the blocked computation/constraint.
 data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
+             | UnblockOnProblem ProblemId
   deriving (Data, Show, Eq, Ord)
 
 alwaysUnblock :: Blocker
@@ -429,6 +440,9 @@ unblockOnEither a b = unblockOnAny $ Set.fromList [a, b]
 unblockOnMeta :: MetaId -> Blocker
 unblockOnMeta = UnblockOnMeta
 
+unblockOnProblem :: ProblemId -> Blocker
+unblockOnProblem = UnblockOnProblem
+
 unblockOnAllMetas :: Set MetaId -> Blocker
 unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
 
@@ -436,14 +450,22 @@ unblockOnAnyMeta :: Set MetaId -> Blocker
 unblockOnAnyMeta = unblockOnAny . Set.mapMonotonic unblockOnMeta
 
 onBlockingMetasM :: Monad m => (MetaId -> m Blocker) -> Blocker -> m Blocker
-onBlockingMetasM f (UnblockOnAll bs) = unblockOnAll . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
-onBlockingMetasM f (UnblockOnAny bs) = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
-onBlockingMetasM f (UnblockOnMeta x) = f x
+onBlockingMetasM f (UnblockOnAll bs)    = unblockOnAll . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
+onBlockingMetasM f (UnblockOnAny bs)    = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
+onBlockingMetasM f (UnblockOnMeta x)    = f x
+onBlockingMetasM f b@UnblockOnProblem{} = pure b
 
 allBlockingMetas :: Blocker -> Set MetaId
-allBlockingMetas (UnblockOnAll us) = Set.unions $ map allBlockingMetas $ Set.toList us
-allBlockingMetas (UnblockOnAny us) = Set.unions $ map allBlockingMetas $ Set.toList us
-allBlockingMetas (UnblockOnMeta x) = Set.singleton x
+allBlockingMetas (UnblockOnAll us)  = Set.unions $ map allBlockingMetas $ Set.toList us
+allBlockingMetas (UnblockOnAny us)  = Set.unions $ map allBlockingMetas $ Set.toList us
+allBlockingMetas (UnblockOnMeta x)  = Set.singleton x
+allBlockingMetas UnblockOnProblem{} = Set.empty
+
+allBlockingProblems :: Blocker -> Set ProblemId
+allBlockingProblems (UnblockOnAll us)    = Set.unions $ map allBlockingProblems $ Set.toList us
+allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems $ Set.toList us
+allBlockingProblems UnblockOnMeta{}      = Set.empty
+allBlockingProblems (UnblockOnProblem p) = Set.singleton p
 
 -- Note: We pick the All rather than the Any as the semigroup instance.
 instance Semigroup Blocker where
@@ -454,11 +476,13 @@ instance Monoid Blocker where
   mappend = (<>)
 
 instance Pretty Blocker where
-  pretty (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
-  pretty (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
-  pretty (UnblockOnMeta m) = pretty m
+  pretty (UnblockOnAll us)      = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
+  pretty (UnblockOnAny us)      = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
+  pretty (UnblockOnMeta m)      = pretty m
+  pretty (UnblockOnProblem pid) = "problem" <+> pretty pid
 
--- | Something where a meta variable may block reduction.
+-- | Something where a meta variable may block reduction. Notably a top-level meta is considered
+--   blocking. This did not use to be the case (pre Aug 2020).
 data Blocked t
   = Blocked    { theBlocker      :: Blocker,  ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }

@@ -30,7 +30,7 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-        wakeConstraints (wakeUpIfBlockedOnProblem pid)
+        wakeConstraints (pure . wakeIfBlockedOnProblem pid . constraintUnblocker)
   return x
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
@@ -142,11 +142,33 @@ wakeUpWhen guard wake c | guard c   = wake c
 wakeUpWhen_ :: Applicative m => (ProblemConstraint -> Bool) -> ProblemConstraint -> m WakeUp
 wakeUpWhen_ p = wakeUpWhen p (const $ pure WakeUp)
 
-wakeUpIfBlockedOnProblem :: Applicative m => ProblemId -> ProblemConstraint -> m WakeUp
-wakeUpIfBlockedOnProblem pid = wakeUpWhen_ (blockedOn pid . clValue . theConstraint)
+wakeIfBlockedOnProblem :: ProblemId -> Blocker -> WakeUp
+wakeIfBlockedOnProblem pid u
+  | u' == alwaysUnblock = WakeUp
+  | otherwise           = DontWakeUp (Just u')
   where
-    blockedOn pid (Guarded _ pid') = pid == pid'
-    blockedOn _ _                  = False
+    u' = unblockProblem pid u
+
+wakeIfBlockedOnMeta :: MetaId -> Blocker -> WakeUp
+wakeIfBlockedOnMeta x u
+  | u' == alwaysUnblock = WakeUp
+  | otherwise           = DontWakeUp (Just u')
+  where
+    u' = unblockMeta x u
+
+unblockMeta :: MetaId -> Blocker -> Blocker
+unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
+                                  | otherwise = u
+unblockMeta _ u@UnblockOnProblem{} = u
+unblockMeta x (UnblockOnAll us)    = unblockOnAll $ Set.map (unblockMeta x) us
+unblockMeta x (UnblockOnAny us)    = unblockOnAny $ Set.map (unblockMeta x) us
+
+unblockProblem :: ProblemId -> Blocker -> Blocker
+unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
+                                        | otherwise = u
+unblockProblem _ u@UnblockOnMeta{} = u
+unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
+unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
 
 -- | Monad service class containing methods for adding and solving
 --   constraints
@@ -218,17 +240,16 @@ addConstraintTo bucket unblock c = do
     isBlocking = \case
       SortCmp{}        -> False
       LevelCmp{}       -> False
+      FindInstance{}   -> False
+      HasBiggerSort{}  -> False
+      HasPTSRule{}     -> False
       ValueCmp{}       -> True
       ValueCmpOnFace{} -> True
       ElimCmp{}        -> True
-      Guarded c _      -> isBlocking c
       UnBlock{}        -> True
-      FindInstance{}   -> False
       IsEmpty{}        -> True
       CheckSizeLtSat{} -> True
       CheckFunDef{}    -> True
-      HasBiggerSort{}  -> False
-      HasPTSRule{}     -> False
       UnquoteTactic{}  -> True
       CheckMetaInst{}  -> True
 

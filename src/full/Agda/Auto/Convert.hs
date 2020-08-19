@@ -284,7 +284,6 @@ getEqs = forMaybeMM getAllConstraints $ \ eqc -> do
       ei <- etaContract i
       ee <- etaContract e
       return $ Just (tomyIneq ineq, ee, ei)
-    MB.Guarded (MB.UnBlock _) _pid -> return Nothing
     _ -> return Nothing
 
 copatternsNotImplemented :: MB.TCM a

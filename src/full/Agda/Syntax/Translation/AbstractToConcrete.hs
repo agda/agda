@@ -22,6 +22,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , preserveInteractionIds
     , MonadAbsToCon, AbsToCon, Env
     , noTakenNames
+    , lookupQName
     ) where
 
 import Prelude hiding (null)

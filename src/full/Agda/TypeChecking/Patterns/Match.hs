@@ -206,7 +206,6 @@ matchPattern p u = case (p, u) of
       NotBlocked _ (Lit l')
           | l == l'            -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
-      NotBlocked _ (MetaV x _) -> return (DontKnow $ blocked_ x       , arg')
       Blocked b _              -> return (DontKnow $ Blocked b ()     , arg')
       NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
         where r' = stuckOn (Apply arg') r
@@ -291,7 +290,6 @@ matchPattern p u = case (p, u) of
                 return (m, Arg info $ bld (mergeElims vs vs1))
               Nothing
                                     -> return (No                          , arg)
-          NotBlocked _ (MetaV x vs) -> return (DontKnow $ blocked_ x       , arg)
           Blocked b _               -> return (DontKnow $ Blocked b ()     , arg)
           NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
             where r' = stuckOn (Apply arg) r

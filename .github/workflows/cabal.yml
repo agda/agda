@@ -32,9 +32,9 @@ jobs:
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -44,14 +44,14 @@ jobs:
         cabal update
         cabal configure -O0
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v2.1.0
       name: Cache dependencies
       with:
         path: "~/.cabal"
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v2.1.0
       name: Cache dist-newstyle
       with:
         path: dist-newstyle/build
@@ -75,7 +75,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
 
     - name: Install ghc and cabal-install
@@ -97,13 +97,14 @@ jobs:
       run: |
         cabal build
 
+  # We can not use GHC 8.8.2, 8.8.3, 8.8.4 or 8.10.1 because #4543.
   # Windows:
   #   if: |
   #     !contains(github.event.head_commit.message, '[skip ci]')
   #     && !contains(github.event.head_commit.message, '[ci skip]')
   #     && !contains(github.event.head_commit.message, '[github skip]')
   #     && !contains(github.event.head_commit.message, '[skip github]')
-  #
+
   #   runs-on: windows-latest
   #   strategy:
   #     matrix:
@@ -116,9 +117,9 @@ jobs:
   #     ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
   #   steps:
-  #   - uses: actions/checkout@v2.3.1
+  #   - uses: actions/checkout@v2.3.2
 
-  #   - uses: actions/setup-haskell@v1.1.1
+  #   - uses: actions/setup-haskell@v1.1.2
   #     with:
   #       ghc-version: ${{ matrix.ghc-ver }}
   #       cabal-version: ${{ matrix.cabal-ver }}

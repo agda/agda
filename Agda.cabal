@@ -74,11 +74,9 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.0.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
+                    stack-8.10.2.yaml
                     stack-8.10.1.yaml
                     stack-8.8.3.yaml
--- ASR (2020-03-27). We need to keep the below file because there is a
--- problem with GHC 8.8.3, Windows and stack. See Issue #4543.
-                    stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
                     stack-8.2.2.yaml
@@ -248,7 +246,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.2)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.3)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -481,6 +479,7 @@ library
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Pretty.Call
+                    Agda.TypeChecking.Pretty.Constraint
                     Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Base

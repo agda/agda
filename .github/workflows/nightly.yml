@@ -15,14 +15,14 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.1]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2.3.1
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/checkout@v2.3.2
+    - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
@@ -52,14 +52,14 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.1]
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
     - name: Install stack
       run: |
@@ -95,14 +95,14 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        ghc-ver: [8.8.2]
+        ghc-ver: [8.10.1]
         icu-ver: [58.2-3]
 
     env:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |

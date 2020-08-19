@@ -36,12 +36,12 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
     steps:
-    - uses: actions/checkout@v2.3.1
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/checkout@v2.3.2
+    - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v2.1.0
       name: Cache dependencies
       with:
         path: "~/.stack"
@@ -81,7 +81,7 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
     - name: Install stack
       run: |
@@ -121,7 +121,7 @@ jobs:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |

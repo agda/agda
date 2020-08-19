@@ -4,11 +4,11 @@
 
 module Agda.TypeChecking.DisplayForm where
 
-import Prelude hiding (all)
 import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
-import Data.Foldable (all)
+
+import Data.Monoid (All(..))
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -95,7 +95,7 @@ displayForm q es = do
     -- identifiers coming from the source term.
     wellScoped scope (Display _ _ d)
       | isWithDisplay d = True
-      | otherwise       = all (inScope scope) $ namesIn d
+      | otherwise       = getAll $ namesIn' (All . inScope scope) d  -- all names in d should be in scope
 
     inScope scope x = not $ null $ inverseScopeLookupName x scope
 

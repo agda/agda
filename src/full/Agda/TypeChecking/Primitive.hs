@@ -578,8 +578,8 @@ genPrimForce b ret = do
                     Datatype{} -> True
                     Record{}   -> True
                     _          -> False
-                MetaV{}    -> return False
                 Var{}      -> return False
+                MetaV{}    -> __IMPOSSIBLE__
                 Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))

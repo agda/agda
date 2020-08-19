@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument (blocked on any())
+  Resolve instance argument
     _8
       : (n₁ : Nat) ⦃ x = x₁ : NonZero n₁ ⦄ ⦃ y = y₁ : NonZero n₁ ⦄ →
         NonZero n₁

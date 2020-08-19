@@ -53,7 +53,7 @@ jobs:
   include:
     - stage: compilation
       env:
-        GHC_VER=8.10.1
+        GHC_VER=8.10.2
       cache:
         directories:
           - $HOME/.stack
@@ -90,11 +90,11 @@ jobs:
       stage: main
       name: "Bug, successful, and failing tests"
       env:
-        GHC_VER=8.10.1
+        GHC_VER=8.10.2
       addons:
         apt:
           packages:
-            - ghc-8.10.1
+            - ghc-8.10.2
             - cabal-install-3.2
             - texlive-binaries
             - librsvg2-bin
@@ -181,7 +181,7 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.10.1 CABAL_VER=3.2
+      env: GHC_VER=8.10.2 CABAL_VER=3.2
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&

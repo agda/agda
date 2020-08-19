@@ -1,7 +1,14 @@
-Issue2679c.agda:11,15-21
-I'm not sure if there should be a case for the constructor conC,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  conB b ≟ _11 (a1 = a1) (a2 = a2) (a3 = a3)
-when checking that the pattern conC b has type
-C a1 (_11 (a1 = a1) (a2 = a2) (a3 = a3))
+Failed to solve the following constraints:
+  Check definition of goo : (a1 a2 a3 : A) →
+                            C a1 (_11 (a1 = a1) (a2 = a2) (a3 = a3)) → Set
+    stuck because
+      Issue2679c.agda:11,15-21
+      I'm not sure if there should be a case for the constructor conC,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        conB b ≟ _11 (a1 = a1) (a2 = a2) (a3 = a3)
+      when checking that the pattern conC b has type
+      C a1 (_11 (a1 = a1) (a2 = a2) (a3 = a3))
+    (blocked on _11)
+Unsolved metas at the following locations:
+  Issue2679c.agda:10,32-33
