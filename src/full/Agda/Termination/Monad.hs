@@ -19,7 +19,7 @@ import Control.Monad.Reader
 import Data.Semigroup ( Semigroup(..) )
 import qualified Data.Set as Set
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options (optTerminationDepth)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

@@ -56,7 +56,7 @@ import System.Directory         ( doesFileExist, doesDirectoryExist )
 import Text.EditDistance
 import Text.Read                ( readMaybe )
 
-import Agda.Termination.CutOff  ( CutOff(..) )
+import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
 import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
@@ -332,11 +332,6 @@ defaultPragmaOptions = PragmaOptions
   , optAllowExec                 = False
   , optShowIdentitySubstitutions = False
   }
-
--- | The default termination depth.
-
-defaultCutOff :: CutOff
-defaultCutOff = CutOff 0 -- minimum value
 
 -- | The default output directory for LaTeX.
 
