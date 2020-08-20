@@ -1552,7 +1552,6 @@ levelMax n0 as0 = Max n as
     expandPlus (Plus m l) = levelPlus m (expandTm l)
 
     expandTm (Level l)       = expandLevel l
-    expandTm (Sort (Type l)) = expandLevel l -- TODO: get rid of this horrible hack!
     expandTm l               = atomicLevel l
 
     removeSubsumed [] = []

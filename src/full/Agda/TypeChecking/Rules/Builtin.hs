@@ -130,7 +130,7 @@ coreBuiltins =
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    hPi' "φ" (elSSet $ cl primInterval) $ \ phi ->
-                                                                   nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
+                                                                   nPi' "x" (el' a bA) $ \ x ->
                                                                    el's a $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (\ _ -> x)))
   , (builtinIZero                            |-> BuiltinDataCons tinterval)
   , (builtinIOne                             |-> BuiltinDataCons tinterval)
