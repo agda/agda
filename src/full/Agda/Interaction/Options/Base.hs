@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
 
-module Agda.Interaction.Options
+module Agda.Interaction.Options.Base
     ( CommandLineOptions(..)
     , PragmaOptions(..)
     , OptionsPragma
