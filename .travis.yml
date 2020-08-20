@@ -27,12 +27,12 @@ branches:
     - /^future-.*/
 
 ##############################################################################
-# The submodules are only needed by the tests using the standard library
-# and the cubical library, so they are fetched manually in the
-# `install` section.
+# The submodules are needed by tests using the standard library and the cubical
+# library, but also needed for stack to find fix-whitespace. Even if it doesn't
+# need it, stack expects it to be there.
 #
 git:
-  submodules: false
+  submodules: true
 
 ##############################################################################
 # Stages:
@@ -142,8 +142,6 @@ jobs:
 
     - <<: *main-job
       name: "Test suites using the standard library and the cubical library"
-      git:
-        submodules: true
       script:
         - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-test
         - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" cubical-test
@@ -153,8 +151,6 @@ jobs:
         - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-interaction
     - <<: *main-job
       name: "Compiler tests, benchmark summary, and other test suites"
-      git:
-        submodules: true
       script:
         - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" compiler-test
         - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" interaction

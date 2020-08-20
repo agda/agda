@@ -24,6 +24,9 @@ jobs:
         python-version: [3.7]
     steps:
     - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:

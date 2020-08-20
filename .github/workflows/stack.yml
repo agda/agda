@@ -37,6 +37,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
     - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -82,6 +85,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Install stack
       run: |
@@ -122,6 +127,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |

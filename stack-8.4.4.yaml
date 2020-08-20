@@ -10,3 +10,12 @@ extra-deps:
 - splitmix-0.0.3
 - tasty-silver-3.1.13
 - text-icu-0.7.0.1
+# Built as needed (e.g. via the makefile), but not by default:
+- 'src/fix-whitespace'
+- extra-1.7.1
+- filepattern-0.1.2
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'
