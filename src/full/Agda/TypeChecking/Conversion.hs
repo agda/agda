@@ -1303,14 +1303,18 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
               , prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView b
               ]
 
-      wrap $ case (levelMaxView a, levelMaxView b) of
+      -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+      aB <- mapM reduceB a
+      bB <- mapM reduceB b
+
+      wrap $ case (levelMaxView aB, levelMaxView bB) of
 
         -- 0 ≤ any
         (SingleClosed 0 :| [] , _) -> ok
 
         -- any ≤ 0
         (as , SingleClosed 0 :| []) ->
-          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ fmap ignoreBlocking a') (ClosedLevel 0)
 
         -- closed ≤ closed
         (SingleClosed m :| [], SingleClosed n :| []) -> if m <= n then ok else notok
@@ -1325,7 +1329,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
         -- ⊔ as ≤ single
         (as@(_:|_:_), b :| []) ->
-          forM_ as $ \ a' -> leqLevel (unSingleLevel a') (unSingleLevel b)
+          forM_ as $ \ a' -> leqLevel (unSingleLevel $ ignoreBlocking <$> a')
+                                      (unSingleLevel $ ignoreBlocking <$> b)
 
         -- reduce constants
         (as, bs)
@@ -1337,10 +1342,10 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | (subsumed@(_:_) , as') <- List1.partition isSubsumed as
-          -> leqLevel (unSingleLevels as') b
+          | (subsumed@(_:_) , as') <- List1.partition (isSubsumed . fmap ignoreBlocking) as
+          -> leqLevel (unSingleLevels $ (fmap . fmap) ignoreBlocking as') b
           where
-            isSubsumed a = any (`subsumes` a) bs
+            isSubsumed a = any (`subsumes` a) $ (fmap . fmap) ignoreBlocking bs
 
             subsumes :: SingleLevel -> SingleLevel -> Bool
             subsumes (SingleClosed m)        (SingleClosed n)        = m >= n
@@ -1353,7 +1358,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- (where _l' is a new metavariable)
         (as , bs)
           | cumulativity
-          , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (List1.toList bs)
+          , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
             mv <- lookupMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
@@ -1371,7 +1376,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
                     [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
                     , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
                     ]
-                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
+                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaV x' es)
 
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
@@ -1384,8 +1389,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         --   -- subsumed terms from the lhs.
 
         -- anything else
-        _ | noMetas (Level a , Level b) -> notok
-          | otherwise                   -> postpone
+        _ | noMetas (a, b) -> notok
+          | otherwise      -> postpone
       where
         ok       = return ()
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
@@ -1395,22 +1400,21 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
             TypeError{} -> notok
             err         -> throwError err
 
-        neutralOrClosed (SingleClosed _)                     = True
-        neutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
-        neutralOrClosed _                                    = False
+        neutralOrClosed (SingleClosed _)                   = True
+        neutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        neutralOrClosed _                                  = False
 
-        -- Is there exactly one @MetaLevel@ in the list of single levels?
-        singleMetaView :: [SingleLevel] -> Maybe (LevelAtom, [SingleLevel])
-        singleMetaView (SinglePlus (Plus 0 l@(MetaLevel m es)) : ls)
+        -- Is there exactly one @MetaV@ in the list of single levels?
+        singleMetaView :: [SingleLevel] -> Maybe (Term, [SingleLevel])
+        singleMetaView (SinglePlus (Plus 0 l@(MetaV m es)) : ls)
           | all (not . isMetaLevel) ls = Just (l,ls)
         singleMetaView (l : ls)
           | not $ isMetaLevel l = second (l:) <$> singleMetaView ls
         singleMetaView _ = Nothing
 
         isMetaLevel :: SingleLevel -> Bool
-        isMetaLevel (SinglePlus (Plus _ MetaLevel{})) = True
-        isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
-        isMetaLevel _ = False
+        isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
+        isMetaLevel _                             = False
 
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
@@ -1469,6 +1473,10 @@ equalLevel a b = do
                ]
         ]
 
+  -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+  as <- (mapM . mapM) reduceB as
+  bs <- (mapM . mapM) reduceB bs
+
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
         -- closed == closed
@@ -1486,20 +1494,24 @@ equalLevel a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
-          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel b')
+          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel $ ignoreBlocking <$> b')
         (as@(_:|_:_) , SingleClosed 0 :| []) ->
-          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ ignoreBlocking <$> a') (ClosedLevel 0)
 
         -- meta == any
-        (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
+        (SinglePlus (Plus k a) :| [] , SinglePlus (Plus l b) :| [])
           -- there is only a potential choice when k == l
-          | k == l -> do
+          | MetaV x as' <- ignoreBlocking a
+          , MetaV y bs' <- ignoreBlocking b
+          , k == l -> do
               lvl <- levelType
               equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
-        (SinglePlus (Plus k (MetaLevel x as')) :| [] , _)
-          | Just b' <- subLevel k b -> meta x as' b'
-        (_ , SinglePlus (Plus l (MetaLevel y bs')) :| [])
-          | Just a' <- subLevel l a -> meta y bs' a'
+        (SinglePlus (Plus k a) :| [] , _)
+          | MetaV x as' <- ignoreBlocking a
+          , Just b' <- subLevel k b -> meta x as' b'
+        (_ , SinglePlus (Plus l b) :| [])
+          | MetaV y bs' <- ignoreBlocking b
+          , Just a' <- subLevel l a -> meta y bs' a'
 
         -- a' ⊔ b == b
         _ | Just a' <- levelMaxDiff a b
@@ -1517,7 +1529,7 @@ equalLevel a b = do
           , not (any hasMeta (as <> bs))
           , length as == length bs -> do
               reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
-              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel) as bs
+              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel . fmap ignoreBlocking) as bs
 
         -- more cases?
         _ | noMetas (Level a , Level b) -> notok
@@ -1535,7 +1547,7 @@ equalLevel a b = do
           reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
           patternViolation (unblockOnAnyMetaIn (a, b))
 
-        -- perform assignment (MetaLevel x as) := b
+        -- perform assignment (MetaV x as) := b
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
@@ -1548,19 +1560,16 @@ equalLevel a b = do
             TypeError{} -> notok
             err         -> throwError err
 
-        isNeutral (SinglePlus (Plus _ NeutralLevel{})) = True
-        isNeutral _                                    = False
+        isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutral _                                  = False
 
-        isNeutralOrClosed (SingleClosed _)                     = True
-        isNeutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
-        isNeutralOrClosed _                                    = False
+        isNeutralOrClosed (SingleClosed _)                   = True
+        isNeutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutralOrClosed _                                  = False
 
-        hasMeta (SinglePlus a) = case a of
-          Plus _ MetaLevel{}        -> True
-          Plus _ (BlockedLevel _ v) -> isJust $ firstMeta v
-          Plus _ (NeutralLevel _ v) -> isJust $ firstMeta v
-          Plus _ (UnreducedLevel v) -> isJust $ firstMeta v
-        hasMeta (SingleClosed _) = False
+        hasMeta (SinglePlus (Plus _ Blocked{})) = True
+        hasMeta (SinglePlus (Plus _ a))         = isJust $ firstMeta $ ignoreBlocking a
+        hasMeta (SingleClosed _)                = False
 
         removeSubsumed a b =
           let as = List1.toList $ levelMaxView a

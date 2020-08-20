@@ -316,28 +316,15 @@ type Sort = Sort' Term
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
 data Level' t = Max Integer [PlusLevel' t]
-  deriving (Show, Data)
+  deriving (Show, Data, Functor, Foldable, Traversable)
 
 type Level = Level' Term
 
-data PlusLevel' t = Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
-  deriving (Show, Data)
+data PlusLevel' t = Plus Integer t
+  deriving (Show, Data, Functor, Foldable, Traversable)
 
 type PlusLevel = PlusLevel' Term
-
--- | An atomic term of type @Level@.
-data LevelAtom' t
-  = MetaLevel MetaId [Elim' t]
-    -- ^ A meta variable targeting @Level@ under some eliminations.
-  | BlockedLevel Blocker t
-    -- ^ A term of type @Level@ whose reduction is blocked by a meta.
-  | NeutralLevel NotBlocked t
-    -- ^ A neutral term of type @Level@.
-  | UnreducedLevel t
-    -- ^ Introduced by 'instantiate', removed by 'reduce'.
-  deriving (Show, Data)
-
-type LevelAtom = LevelAtom' Term
+type LevelAtom = Term
 
 ---------------------------------------------------------------------------
 -- * Brave Terms
@@ -974,7 +961,7 @@ dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
 
 -- | Aux: A dummy level to constitute a level/sort.
 dummyLevel' :: String -> Int -> Level
-dummyLevel' file line = unreducedLevel $ dummyTerm' file line
+dummyLevel' file line = atomicLevel $ dummyTerm' file line
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
@@ -1020,17 +1007,8 @@ __DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
 pattern ClosedLevel :: Integer -> Level
 pattern ClosedLevel n = Max n []
 
-atomicLevel :: LevelAtom -> Level
+atomicLevel :: t -> Level' t
 atomicLevel a = Max 0 [ Plus 0 a ]
-
-levelAtomTerm :: LevelAtom -> Term
-levelAtomTerm (MetaLevel m vs)   = MetaV m vs
-levelAtomTerm (NeutralLevel _ v) = v
-levelAtomTerm (BlockedLevel _ v) = v
-levelAtomTerm (UnreducedLevel v) = v
-
-unreducedLevel :: Term -> Level
-unreducedLevel v = atomicLevel $ UnreducedLevel v
 
 sort :: Sort -> Type
 sort s = El (UnivSort s) $ Sort s
@@ -1039,13 +1017,13 @@ ssort :: Level -> Type
 ssort l = El (UnivSort (SSet l)) $ Sort (SSet l)
 
 varSort :: Int -> Sort
-varSort n = Type $ atomicLevel $ NeutralLevel mempty $ var n
+varSort n = Type $ atomicLevel $ var n
 
 tmSort :: Term -> Sort
-tmSort t = Type $ unreducedLevel t
+tmSort t = Type $ atomicLevel t
 
 tmSSort :: Term -> Sort
-tmSSort t = SSet $ unreducedLevel t
+tmSSort t = SSet $ atomicLevel t
 
 -- | Given a constant @m@ and level @l@, compute @m + l@
 levelPlus :: Integer -> Level -> Level
@@ -1388,12 +1366,6 @@ instance TermSize Level where
 instance TermSize PlusLevel where
   tsize (Plus _ a)      = tsize a
 
-instance TermSize LevelAtom where
-  tsize (MetaLevel _   vs) = 1 + tsize vs
-  tsize (BlockedLevel _ v) = tsize v
-  tsize (NeutralLevel _ v) = tsize v
-  tsize (UnreducedLevel v) = tsize v
-
 instance TermSize a => TermSize (Substitution' a) where
   tsize IdS                = 1
   tsize (EmptyS _)         = 1
@@ -1431,12 +1403,6 @@ instance KillRange Level where
 
 instance KillRange PlusLevel where
   killRange (Plus n l) = killRange1 (Plus n) l
-
-instance KillRange LevelAtom where
-  killRange (MetaLevel n as)   = killRange1 (MetaLevel n) as
-  killRange (BlockedLevel m v) = killRange1 (BlockedLevel m) v
-  killRange (NeutralLevel r v) = killRange1 (NeutralLevel r) v
-  killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
 instance (KillRange a) => KillRange (Type' a) where
   killRange (El s v) = killRange2 El s v
@@ -1589,14 +1555,6 @@ instance Pretty Level where
 instance Pretty PlusLevel where
   prettyPrec p (Plus n a) = prettyPrecLevelSucs p n $ \p -> prettyPrec p a
 
-instance Pretty LevelAtom where
-  prettyPrec p a =
-    case a of
-      MetaLevel x els  -> prettyPrec p (MetaV x els)
-      BlockedLevel _ v -> prettyPrec p v
-      NeutralLevel _ v -> prettyPrec p v
-      UnreducedLevel v -> prettyPrec p v
-
 instance Pretty Sort where
   prettyPrec p s =
     case s of
@@ -1700,12 +1658,6 @@ instance NFData Level where
 
 instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
-
-instance NFData LevelAtom where
-  rnf (MetaLevel _ es)   = rnf es
-  rnf (BlockedLevel _ v) = rnf v
-  rnf (NeutralLevel _ v) = rnf v
-  rnf (UnreducedLevel v) = rnf v
 
 instance NFData a => NFData (Elim' a) where
   rnf (Apply x) = rnf x

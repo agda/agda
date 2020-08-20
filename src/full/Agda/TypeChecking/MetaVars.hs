@@ -191,8 +191,7 @@ newLevelMeta = do
   (x, v) <- newValueMeta RunMetaOccursCheck CmpEq =<< levelType
   return $ case v of
     Level l    -> l
-    MetaV x vs -> Max 0 [Plus 0 (MetaLevel x vs)]
-    _          -> Max 0 [Plus 0 (UnreducedLevel v)]
+    _          -> atomicLevel v
 
 -- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.

@@ -635,7 +635,7 @@ mkPrimSetOmega f = do
 
 -- mkPrimStrictSet :: TCM PrimitiveImpl
 -- mkPrimStrictSet = do
---   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ NeutralLevel mempty $ var 0])
+--   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ var 0])
 --   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
 --     l <- levelView' $ unArg a
 --     redReturn $ Sort $ SSet l

@@ -124,7 +124,7 @@ coreBuiltins =
   , (builtinSub                              |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                   el's a (cl primPartial <#> a <@> phi <@> bA) --> (ssort . unreducedLevel <$> a)
+                                                                   el's a (cl primPartial <#> a <@> phi <@> bA) --> (ssort . atomicLevel <$> a)
                                                                   ))
   , (builtinSubIn                            |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->

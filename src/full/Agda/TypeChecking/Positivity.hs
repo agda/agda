@@ -460,14 +460,6 @@ instance ComputeOccurrences Level where
 instance ComputeOccurrences PlusLevel where
   occurrences (Plus _ l) = occurrences l
 
-instance ComputeOccurrences LevelAtom where
-  occurrences = occurrences . unLevelAtom
-      -- MetaLevel x es -> occurrences $ MetaV x es
-      -- Andreas, 2016-07-25, issue 2108
-      -- NOT: OccursAs MetaArg <$> occurrences es
-      -- since we need to unSpine!
-      -- (Otherwise, we run into __IMPOSSIBLE__ at Proj elims)
-
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 

@@ -558,15 +558,8 @@ instance Free Sort where
 instance Free Level where
   freeVars' (Max _ as) = freeVars' as
 
-instance Free PlusLevel where
+instance Free t => Free (PlusLevel' t) where
   freeVars' (Plus _ l)    = freeVars' l
-
-instance Free LevelAtom where
-  freeVars' l = case l of
-    MetaLevel m vs   -> underFlexRig (Flexible $ singleton m) $ freeVars' vs
-    NeutralLevel _ v -> freeVars' v
-    BlockedLevel _ v -> freeVars' v
-    UnreducedLevel v -> freeVars' v
 
 instance Free t => Free [t]            where
 instance Free t => Free (Maybe t)      where

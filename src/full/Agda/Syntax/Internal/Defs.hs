@@ -94,13 +94,6 @@ instance GetDefs Level where
 instance GetDefs PlusLevel where
   getDefs (Plus _ l)    = getDefs l
 
-instance GetDefs LevelAtom where
-  getDefs a = case a of
-    MetaLevel x vs   -> getDefs x >> getDefs vs
-    BlockedLevel _ v -> getDefs v
-    NeutralLevel _ v -> getDefs v
-    UnreducedLevel v -> getDefs v
-
 -- collection instances
 
 instance GetDefs a => GetDefs (Maybe a) where

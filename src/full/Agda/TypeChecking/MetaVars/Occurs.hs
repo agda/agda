@@ -524,25 +524,6 @@ instance Occurs PlusLevel where
 
   metaOccurs m (Plus n l) = metaOccurs m l
 
-instance Occurs LevelAtom where
-  occurs l = do
-    unfold l >>= \case
-      MetaLevel m' args -> do
-        MetaV m' args <- occurs (MetaV m' args)
-        return $ MetaLevel m' args
-      NeutralLevel r v  -> NeutralLevel r  <$> occurs v
-      BlockedLevel m' v -> BlockedLevel m' <$> do flexibly $ occurs v
-      UnreducedLevel v  -> UnreducedLevel  <$> occurs v
-
-  metaOccurs m l = do
-    l <- instantiate l
-    case l of
-      MetaLevel m' args -> metaOccurs m $ MetaV m' args
-      NeutralLevel _ v  -> metaOccurs m v
-      BlockedLevel _ v  -> metaOccurs m v
-      UnreducedLevel v  -> metaOccurs m v
-
-
 instance Occurs Type where
   occurs (El s v) = uncurry El <$> occurs (s,v)
 
@@ -799,15 +780,6 @@ instance AnyRigid Level where
 
 instance AnyRigid PlusLevel where
   anyRigid f (Plus _ l)    = anyRigid f l
-
-instance AnyRigid LevelAtom where
-  anyRigid f l =
-    case l of
-      MetaLevel{} -> return False
-      NeutralLevel MissingClauses _ -> return False
-      NeutralLevel _              l -> anyRigid f l
-      BlockedLevel _              l -> anyRigid f l
-      UnreducedLevel              l -> anyRigid f l
 
 instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
   anyRigid f b = underAbstraction_ b $ anyRigid f

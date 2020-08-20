@@ -160,20 +160,8 @@ instance Instantiate t => Instantiate (Type' t) where
 instance Instantiate Level where
   instantiate' (Max m as) = levelMax m <$> instantiate' as
 
--- Note: since @PlusLevel' t@ embeds a @LevelAtom' t@, simply
--- using @traverse@ for @PlusLevel'@ would not be not correct.
-instance Instantiate PlusLevel where
-  instantiate' (Plus n a) = Plus n <$> instantiate' a
-
-instance Instantiate LevelAtom where
-  instantiate' l = case l of
-    MetaLevel m vs -> do
-      v <- instantiate' (MetaV m vs)
-      case v of
-        MetaV m vs -> return $ MetaLevel m vs
-        _          -> return $ UnreducedLevel v
-    UnreducedLevel l -> UnreducedLevel <$> instantiate' l
-    _ -> return l
+-- Use Traversable instance
+instance Instantiate t => Instantiate (PlusLevel' t)
 
 instance Instantiate a => Instantiate (Blocked a) where
   instantiate' v@NotBlocked{} = return v
@@ -282,13 +270,6 @@ instance IsMeta a => IsMeta (PlusLevel' a) where
   isMeta (Plus 0 l)  = isMeta l
   isMeta _           = Nothing
 
-instance IsMeta a => IsMeta (LevelAtom' a) where
-  isMeta = \case
-    MetaLevel m _    -> Just m
-    BlockedLevel _ t -> isMeta t
-    NeutralLevel _ t -> isMeta t
-    UnreducedLevel t -> isMeta t
-
 instance IsMeta CompareAs where
   isMeta (AsTermsOf a) = isMeta a
   isMeta AsSizes       = Nothing
@@ -359,28 +340,6 @@ instance Reduce Level where
 
 instance Reduce PlusLevel where
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
-
-instance Reduce LevelAtom where
-  reduceB' l = case l of
-    MetaLevel m vs   -> fromTm (MetaV m vs)
-    NeutralLevel r v -> return $ NotBlocked r $ NeutralLevel r v
-    BlockedLevel b v -> instantiate' b >>= \ case
-      b | b == alwaysUnblock -> fromTm v
-        | otherwise          -> return $ Blocked b $ BlockedLevel b v
-    UnreducedLevel v -> fromTm v
-    where
-      fromTm v = do
-        bv <- reduceB' v
-        hasAllReductions <- (allReductions `SmallSet.isSubsetOf`) <$>
-                              asksTC envAllowedReductions
-        let v = ignoreBlocking bv
-        case bv of
-          Blocked b (MetaV m es)            -> return $ Blocked b    $ MetaLevel m es
-          NotBlocked _ MetaV{}              -> __IMPOSSIBLE__
-          Blocked m _                       -> return $ Blocked m    $ BlockedLevel m v
-          NotBlocked r _ | hasAllReductions -> return $ NotBlocked r $ NeutralLevel r v
-                         | otherwise        -> return $ NotBlocked r $ UnreducedLevel v
-
 
 instance (Subst t a, Reduce a) => Reduce (Abs a) where
   reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
@@ -940,15 +899,6 @@ instance Simplify Level where
 instance Simplify PlusLevel where
   simplify' (Plus n l) = Plus n <$> simplify' l
 
-instance Simplify LevelAtom where
-  simplify' l = do
-    l <- instantiate' l
-    case l of
-      MetaLevel m vs   -> MetaLevel m <$> simplify' vs
-      BlockedLevel m v -> BlockedLevel m <$> simplify' v
-      NeutralLevel r v -> NeutralLevel r <$> simplify' v -- ??
-      UnreducedLevel v -> UnreducedLevel <$> simplify' v -- ??
-
 instance (Subst t a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
@@ -1116,15 +1066,6 @@ instance Normalise Level where
 
 instance Normalise PlusLevel where
   normalise' (Plus n l) = Plus n <$> normalise' l
-
-instance Normalise LevelAtom where
-  normalise' l = do
-    l <- reduce' l
-    case l of
-      MetaLevel m vs   -> MetaLevel m <$> normalise' vs
-      BlockedLevel m v -> BlockedLevel m <$> normalise' v
-      NeutralLevel r v -> NeutralLevel r <$> normalise' v
-      UnreducedLevel v -> UnreducedLevel <$> normalise' v
 
 instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
@@ -1321,19 +1262,6 @@ instance InstantiateFull Level where
 
 instance InstantiateFull PlusLevel where
   instantiateFull' (Plus n l) = Plus n <$> instantiateFull' l
-
-instance InstantiateFull LevelAtom where
-  instantiateFull' l = case l of
-    MetaLevel m vs -> do
-      v <- instantiateFull' (MetaV m vs)
-      case v of
-        MetaV m vs -> return $ MetaLevel m vs
-        _          -> return $ UnreducedLevel v
-    NeutralLevel r v -> NeutralLevel r <$> instantiateFull' v
-    BlockedLevel b v -> instantiate' b >>= \ case
-      b | b == alwaysUnblock -> UnreducedLevel <$> instantiateFull' v
-        | otherwise          -> BlockedLevel b <$> instantiateFull' v
-    UnreducedLevel v -> UnreducedLevel <$> instantiateFull' v
 
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
