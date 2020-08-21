@@ -975,12 +975,6 @@ instance ExtractCalls Level where
 instance ExtractCalls PlusLevel where
   extract (Plus n l) = extract l
 
-instance ExtractCalls LevelAtom where
-  extract (MetaLevel x es)   = extract es
-  extract (BlockedLevel x t) = extract t
-  extract (NeutralLevel _ t) = extract t
-  extract (UnreducedLevel t) = extract t
-
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
 maskSizeLt :: MonadTCM tcm => Dom Type -> tcm (Dom Type)
 maskSizeLt !dom = liftTCM $ do

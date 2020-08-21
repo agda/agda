@@ -835,12 +835,6 @@ instance Subst t a => Subst t (Level' a) where
 instance Subst t a => Subst t (PlusLevel' a) where
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
-instance Subst t a => Subst t (LevelAtom' a) where
-  applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
-  applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
-  applySubst rho (NeutralLevel _ v) = UnreducedLevel $ applySubst rho v
-  applySubst rho (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
-
 instance Subst Term Name where
   applySubst rho = id
 
@@ -1303,12 +1297,6 @@ instance Ord PlusLevel where
   -- Compare on the atom first. Makes most sense for levelMax.
   compare (Plus n a) (Plus m b) = compare (a,n) (b,m)
 
-instance Eq LevelAtom where
-  (==) = (==) `on` unLevelAtom
-
-instance Ord LevelAtom where
-  compare = compare `on` unLevelAtom
-
 -- | Syntactic 'Type' equality, ignores sort annotations.
 instance Eq a => Eq (Type' a) where
   (==) = (==) `on` unEl
@@ -1542,7 +1530,7 @@ piSort a b = case piSort' a b of
 levelMax :: Integer -> [PlusLevel] -> Level
 levelMax n0 as0 = Max n as
   where
-    -- step 1: flatten nested @Level@ expressions in @LevelAtom@s
+    -- step 1: flatten nested @Level@ expressions in @PlusLevel@s
     Max n1 as1 = expandLevel $ Max n0 as0
     -- step 2: remove subsumed @PlusLevel@s
     as2       = removeSubsumed as1
@@ -1561,18 +1549,10 @@ levelMax n0 as0 = Max n as
     expandLevel (Max m as) = lmax m [] $ map expandPlus as
 
     expandPlus :: PlusLevel -> Level
-    expandPlus (Plus m l) = levelPlus m $ expandAtom l
+    expandPlus (Plus m l) = levelPlus m (expandTm l)
 
-    expandAtom :: LevelAtom -> Level
-    expandAtom l = case l of
-      BlockedLevel _ v -> expandTm v
-      NeutralLevel _ v -> expandTm v
-      UnreducedLevel v -> expandTm v
-      MetaLevel{}      -> Max 0 [Plus 0 l]
-      where
-        expandTm (Level l)       = expandLevel l
-        expandTm (Sort (Type l)) = expandLevel l -- TODO: get rid of this horrible hack!
-        expandTm v               = Max 0 [Plus 0 l]
+    expandTm (Level l)       = expandLevel l
+    expandTm l               = atomicLevel l
 
     removeSubsumed [] = []
     removeSubsumed (Plus n a : bs)
@@ -1589,11 +1569,6 @@ levelLub (Max m as) (Max n bs) = levelMax (max m n) $ as ++ bs
 levelTm :: Level -> Term
 levelTm l =
   case l of
-    Max 0 [Plus 0 l] -> unLevelAtom l
+    Max 0 [Plus 0 l] -> l
     _                -> Level l
 
-unLevelAtom :: LevelAtom -> Term
-unLevelAtom (MetaLevel x es)   = MetaV x es
-unLevelAtom (NeutralLevel _ v) = v
-unLevelAtom (UnreducedLevel v) = v
-unLevelAtom (BlockedLevel _ v) = v

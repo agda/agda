@@ -135,14 +135,6 @@ instance ForceNotFree Level where
 instance ForceNotFree PlusLevel where
   forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
-instance ForceNotFree LevelAtom where
-  forceNotFree' l = case l of
-    MetaLevel x es   -> local (insertMetaSet x) $
-                        MetaLevel x    <$> forceNotFree' es
-    BlockedLevel x t -> BlockedLevel x <$> forceNotFree' t
-    NeutralLevel b t -> NeutralLevel b <$> forceNotFree' t
-    UnreducedLevel t -> UnreducedLevel <$> forceNotFreeR t  -- Already reduce in the cases above
-
 instance ForceNotFree Sort where
   -- Reduce for sorts already goes under all sort constructors, so we can get
   -- away without forceNotFreeR here.

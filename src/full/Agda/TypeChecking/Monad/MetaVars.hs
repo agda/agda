@@ -216,10 +216,6 @@ instance IsInstantiatedMeta PlusLevel where
   isInstantiatedMeta (Plus n l) | n == 0 = isInstantiatedMeta l
   isInstantiatedMeta _ = __IMPOSSIBLE__
 
-instance IsInstantiatedMeta LevelAtom where
-  isInstantiatedMeta (MetaLevel x es) = isInstantiatedMeta x
-  isInstantiatedMeta _ = __IMPOSSIBLE__
-
 instance IsInstantiatedMeta a => IsInstantiatedMeta [a] where
   isInstantiatedMeta = andM . map isInstantiatedMeta
 
@@ -618,12 +614,6 @@ instance UnFreezeMeta Level where
 
 instance UnFreezeMeta PlusLevel where
   unfreezeMeta (Plus _ a)    = unfreezeMeta a
-
-instance UnFreezeMeta LevelAtom where
-  unfreezeMeta (MetaLevel x _)    = unfreezeMeta x
-  unfreezeMeta (BlockedLevel _ t) = unfreezeMeta t
-  unfreezeMeta (NeutralLevel _ t) = unfreezeMeta t
-  unfreezeMeta (UnreducedLevel t) = unfreezeMeta t
 
 instance UnFreezeMeta a => UnFreezeMeta [a] where
   unfreezeMeta = mapM_ unfreezeMeta

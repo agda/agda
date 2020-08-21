@@ -817,17 +817,9 @@ instance AllHoles [PlusLevel] where
 
 instance AllHoles PlusLevel where
   type PType PlusLevel = ()
-  allHoles _ (Plus n l) = fmap (Plus n) <$> allHoles_ l
-
-instance AllHoles LevelAtom where
-  type PType LevelAtom = ()
-  allHoles _ l = do
+  allHoles _ (Plus n l) = do
     la <- levelType
-    case l of
-      MetaLevel{}      -> __IMPOSSIBLE__
-      BlockedLevel{}   -> __IMPOSSIBLE__
-      NeutralLevel b u -> fmap (NeutralLevel b) <$> allHoles la u
-      UnreducedLevel u -> fmap UnreducedLevel <$> allHoles la u
+    fmap (Plus n) <$> allHoles la l
 
 
 -- | Convert metavariables to normal variables. Warning: doesn't
@@ -890,13 +882,6 @@ instance MetasToVars Level where
 
 instance MetasToVars PlusLevel where
   metasToVars (Plus n x) = Plus n <$> metasToVars x
-
-instance MetasToVars LevelAtom where
-  metasToVars = \case
-    MetaLevel m es    -> NeutralLevel mempty <$> metasToVars (MetaV m es)
-    BlockedLevel _ u  -> UnreducedLevel      <$> metasToVars u
-    NeutralLevel nb u -> NeutralLevel nb     <$> metasToVars u
-    UnreducedLevel u  -> UnreducedLevel      <$> metasToVars u
 
 instance MetasToVars a => MetasToVars (Tele a) where
   metasToVars EmptyTel = pure EmptyTel

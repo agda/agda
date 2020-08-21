@@ -133,19 +133,6 @@ instance EmbPrj PlusLevel where
 
   value = valueN Plus
 
-instance EmbPrj LevelAtom where
-  icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
-  icod_ (UnreducedLevel a) = icodeN 1 UnreducedLevel a
-  icod_ (MetaLevel a b)    = __IMPOSSIBLE__
-  icod_ BlockedLevel{}     = __IMPOSSIBLE__
-
-  value = vcase valu where
-    valu [a]    = valuN UnreducedLevel a -- we forget that we are a NeutralLevel,
-                                         -- since we do not want do (de)serialize
-                                         -- the reason for neutrality
-    valu [1, a] = valuN UnreducedLevel a
-    valu _      = malformed
-
 instance EmbPrj IsFibrant where
   icod_ IsFibrant = return 0
   icod_ IsStrict  = return 1

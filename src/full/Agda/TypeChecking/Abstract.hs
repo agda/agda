@@ -189,13 +189,6 @@ instance AbsTerm Level where
 instance AbsTerm PlusLevel where
   absTerm u (Plus n l) = Plus n $ absTerm u l
 
-instance AbsTerm LevelAtom where
-  absTerm u l = case l of
-    MetaLevel m vs   -> UnreducedLevel $ absTerm u (MetaV m vs)
-    NeutralLevel r v -> NeutralLevel r $ absTerm u v
-    BlockedLevel _ v -> UnreducedLevel $ absTerm u v -- abstracting might remove the blockage
-    UnreducedLevel v -> UnreducedLevel $ absTerm u v
-
 instance AbsTerm a => AbsTerm (Elim' a) where
   absTerm = fmap . absTerm
 
@@ -257,9 +250,6 @@ instance EqualSy Level where
 
 instance EqualSy PlusLevel where
   equalSy (Plus n v) (Plus n' v') = n == n' && equalSy v v'
-
-instance EqualSy LevelAtom where
-  equalSy = equalSy `on` unLevelAtom
 
 instance EqualSy Sort where
   equalSy = curry $ \case

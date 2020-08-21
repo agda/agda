@@ -373,9 +373,3 @@ instance HasPolarity Level where
 instance HasPolarity PlusLevel where
   polarities i (Plus _ l) = polarities i l
 
-instance HasPolarity LevelAtom where
-  polarities i l = case l of
-    MetaLevel _ vs   -> map (const Invariant) <$> polarities i vs
-    BlockedLevel _ v -> polarities i v
-    NeutralLevel _ v -> polarities i v
-    UnreducedLevel v -> polarities i v

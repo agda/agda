@@ -117,9 +117,5 @@ etaLam i x b = do
     -- is in fact @Level@, e.g. @\(A : Set) → F lzero@ should not be
     -- eta-contracted to @F@.
     -- isVar0 True Level{}               = True
-    isVar0 tyty (Level (Max 0 [Plus 0 l])) = case l of
-      NeutralLevel _ v -> isVar0 tyty v
-      UnreducedLevel v -> isVar0 tyty v
-      BlockedLevel{}   -> False
-      MetaLevel{}      -> False
+    isVar0 tyty (Level (Max 0 [Plus 0 l])) = isVar0 tyty l
     isVar0 _ _ = False

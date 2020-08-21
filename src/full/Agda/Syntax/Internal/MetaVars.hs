@@ -48,13 +48,12 @@ allMetas' :: (TermLike a, Monoid m) => (MetaId -> m) -> a -> m
 allMetas' singl = foldTerm metas
   where
   metas (MetaV m _) = singl m
-  metas (Level l)   = levelMetas l
   metas (Sort s)    = sortMetas s
   metas _           = mempty
 
-  sortMetas (Type l)      = levelMetas l
-  sortMetas (Prop l)      = levelMetas l
-  sortMetas (SSet l)      = levelMetas l
+  sortMetas Type{}        = mempty
+  sortMetas Prop{}        = mempty
+  sortMetas SSet{}        = mempty
   sortMetas Inf{}         = mempty
   sortMetas SizeUniv{}    = mempty
   sortMetas (PiSort _ b)  = sortMetas $ unAbs b  -- the domain is a type so is covered by the fold
@@ -63,13 +62,6 @@ allMetas' singl = foldTerm metas
   sortMetas (MetaS x _)   = singl x
   sortMetas DefS{}        = mempty
   sortMetas DummyS{}      = mempty
-
-  levelMetas (Max _ as) = foldMap plusLevelMetas as
-
-  plusLevelMetas (Plus _ l)    = levelAtomMetas l
-
-  levelAtomMetas (MetaLevel m _) = singl m
-  levelAtomMetas _               = mempty
 
 -- | Returns 'allMetas' in a list.
 --   @allMetasList = allMetas (:[])@.

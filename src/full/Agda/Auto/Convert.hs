@@ -429,11 +429,7 @@ fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m as = any (fmExp m . Cm.unArg) as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
-fmLevel m (I.Plus _ l) = case l of
-  I.MetaLevel m' _   -> m == m'
-  I.NeutralLevel _ v -> fmExp m v
-  I.BlockedLevel _ v -> fmExp m v
-  I.UnreducedLevel v -> fmExp m v
+fmLevel m (I.Plus _ l) = fmExp m l
 
 -- ---------------------------------------------
 

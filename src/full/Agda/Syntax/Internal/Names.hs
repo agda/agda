@@ -163,13 +163,6 @@ instance NamesIn Level where
 instance NamesIn PlusLevel where
   namesIn' sg (Plus _ l) = namesIn' sg l
 
-instance NamesIn LevelAtom where
-  namesIn' sg = \case
-    MetaLevel _ args -> namesIn' sg args
-    BlockedLevel _ v -> namesIn' sg v
-    NeutralLevel _ v -> namesIn' sg v
-    UnreducedLevel v -> namesIn' sg v
-
 -- For QName literals!
 instance NamesIn Literal where
   namesIn' sg = \case

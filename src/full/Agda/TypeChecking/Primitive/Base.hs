@@ -77,7 +77,7 @@ el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
 el's :: Monad m => m Term -> m Term -> m Type
-el's l a = El <$> (SSet . unreducedLevel <$> l) <*> a
+el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type
 elInf t = (El (Inf IsFibrant 0) <$> t)
