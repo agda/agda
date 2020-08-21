@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
+{-# LANGUAGE TypeFamilies               #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -535,10 +535,13 @@ fromConPatternInfo i
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
-class PatternVars a b | b -> a where
-  patternVars :: b -> [Arg (Either a Term)]
+class PatternVars a where
+  type PatternVarOut a
+  patternVars :: a -> [Arg (Either (PatternVarOut a) Term)]
 
-instance PatternVars a (Arg (Pattern' a)) where
+instance PatternVars (Arg (Pattern' a)) where
+  type PatternVarOut (Arg (Pattern' a)) = a
+
   -- patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
   patternVars (Arg i (VarP _ x)   ) = [Arg i $ Left x]
   patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
@@ -549,10 +552,14 @@ instance PatternVars a (Arg (Pattern' a)) where
   patternVars (Arg i (IApplyP _ _ _ x)) = [Arg i $ Left x]
 
 
-instance PatternVars a (NamedArg (Pattern' a)) where
+instance PatternVars (NamedArg (Pattern' a)) where
+  type PatternVarOut (NamedArg (Pattern' a)) = a
+
   patternVars = patternVars . fmap namedThing
 
-instance PatternVars a b => PatternVars a [b] where
+instance PatternVars a => PatternVars [a] where
+  type PatternVarOut [a] = PatternVarOut a
+
   patternVars = concatMap patternVars
 
 -- | Retrieve the PatternInfo from a pattern
