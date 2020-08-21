@@ -1,7 +1,10 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 
-module Agda.TypeChecking.Monad.Base where
+module Agda.TypeChecking.Monad.Base
+  ( module Agda.TypeChecking.Monad.Base
+  , HasOptions (..)
+  ) where
 
 import Prelude hiding (null)
 
@@ -3682,18 +3685,6 @@ instance E.Exception TCErr
 -- * Accessing options
 -----------------------------------------------------------------------------
 
-class (Functor m, Applicative m, Monad m) => HasOptions m where
-  -- | Returns the pragma options which are currently in effect.
-  pragmaOptions      :: m PragmaOptions
-  -- | Returns the command line options which are currently in effect.
-  commandLineOptions :: m CommandLineOptions
-
-  default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
-  pragmaOptions      = lift pragmaOptions
-
-  default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
-  commandLineOptions = lift commandLineOptions
-
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
 
@@ -3704,15 +3695,6 @@ instance MonadIO m => HasOptions (TCMT m) where
 
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
-
-instance HasOptions m => HasOptions (ChangeT m)
-instance HasOptions m => HasOptions (ExceptT e m)
-instance HasOptions m => HasOptions (IdentityT m)
-instance HasOptions m => HasOptions (ListT m)
-instance HasOptions m => HasOptions (MaybeT m)
-instance HasOptions m => HasOptions (ReaderT r m)
-instance HasOptions m => HasOptions (StateT s m)
-instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
 
 -- Ternary options are annoying to deal with so we provide auxiliary
 -- definitions using @collapseDefault@.
