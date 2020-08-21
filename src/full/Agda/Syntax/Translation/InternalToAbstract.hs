@@ -1,6 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation   #-}
-{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
@@ -85,7 +84,7 @@ import Agda.Utils.Impossible
 
 
 -- | Like @reify@ but instantiates blocking metas, useful for reporting.
-reifyUnblocked :: Reify i a => i -> TCM a
+reifyUnblocked :: Reify i => i -> TCM (ReifiesTo i)
 reifyUnblocked t = locallyTCState stInstantiateBlocking (const True) $ reify t
 
 
@@ -139,7 +138,7 @@ noExprInfo = ExprRange noRange
 
 -- Conditional reification to omit terms that are not shown --------------
 
-reifyWhenE :: (Reify i Expr, MonadReify m) => Bool -> i -> m Expr
+reifyWhenE :: (Reify i, MonadReify m, Underscore (ReifiesTo i)) => Bool -> i -> m (ReifiesTo i)
 reifyWhenE True  i = reify i
 reifyWhenE False t = return underscore
 
@@ -156,25 +155,33 @@ type MonadReify m =
   , MonadDebug m
   )
 
-class Reify i a | i -> a where
-    reify     :: MonadReify m => i -> m a
+class Reify i where
+    type ReifiesTo i
+
+    reify :: MonadReify m => i -> m (ReifiesTo i)
 
     --   @reifyWhen False@ should produce an 'underscore'.
     --   This function serves to reify hidden/irrelevant things.
-    reifyWhen :: MonadReify m => Bool -> i -> m a
+    reifyWhen :: MonadReify m => Bool -> i -> m (ReifiesTo i)
     reifyWhen _ = reify
 
-instance Reify Bool Bool where
+instance Reify Bool where
+    type ReifiesTo Bool = Bool
     reify = return
 
-instance Reify Name Name where
+instance Reify Name where
+    type ReifiesTo Name = Name
     reify = return
 
-instance Reify Expr Expr where
+instance Reify Expr where
+    type ReifiesTo Expr = Expr
+
     reifyWhen = reifyWhenE
     reify = return
 
-instance Reify MetaId Expr where
+instance Reify MetaId where
+    type ReifiesTo MetaId = Expr
+
     reifyWhen = reifyWhenE
     reify x@(MetaId n) = do
       b <- asksTC envPrintMetasBare
@@ -203,7 +210,9 @@ instance Reify MetaId Expr where
 --   reifyWhen = reifyWhenE
 --   reify d = reifyTerm False $ dtermToTerm d
 
-instance Reify DisplayTerm Expr where
+instance Reify DisplayTerm where
+  type ReifiesTo DisplayTerm = Expr
+
   reifyWhen = reifyWhenE
   reify d = case d of
     DTerm v -> reifyTerm False v
@@ -397,11 +406,15 @@ reifyDisplayFormP f ps wps = do
               apps e =<< argsToExpr vs
             _ -> return underscore
 
-instance Reify Literal Expr where
+instance Reify Literal where
+  type ReifiesTo Literal = Expr
+
   reifyWhen = reifyWhenE
   reify l = return $ A.Lit empty l
 
-instance Reify Term Expr where
+instance Reify Term where
+  type ReifiesTo Term = Expr
+
   reifyWhen = reifyWhenE
   reify v = reifyTerm True v
 
@@ -805,12 +818,16 @@ nameFirstIfHidden dom (I.Apply (Arg info e) : es) | notVisible info =
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
 
-instance Reify i a => Reify (Named n i) (Named n a) where
+instance Reify i => Reify (Named n i) where
+  type ReifiesTo (Named n i) = Named n (ReifiesTo i)
+
   reify = traverse reify
   reifyWhen b = traverse (reifyWhen b)
 
 -- | Skip reification of implicit and irrelevant args if option is off.
-instance (Reify i a) => Reify (Arg i) (Arg a) where
+instance Reify i => Reify (Arg i) where
+  type ReifiesTo (Arg i) = Arg (ReifiesTo i)
+
   reify (Arg info i) = Arg info <$> (flip reifyWhen i =<< condition)
     where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
               `and2M` (return (getRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
@@ -1244,10 +1261,14 @@ recOrCon c co es = do
   fallback = apps (A.Con (unambiguous c)) es
   mkFA ax  = Left . FieldAssignment (unDom ax) . unArg
 
-instance Reify (QNamed I.Clause) A.Clause where
+instance Reify (QNamed I.Clause) where
+  type ReifiesTo (QNamed I.Clause) = A.Clause
+
   reify (QNamed f cl) = reify (NamedClause f True cl)
 
-instance Reify NamedClause A.Clause where
+instance Reify NamedClause where
+  type ReifiesTo NamedClause = A.Clause
+
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
     reportSLn "reify.clause" 60 $ unlines
       [ "reifying NamedClause"
@@ -1282,7 +1303,9 @@ instance Reify NamedClause A.Clause where
       stripImps :: MonadReify m => [NamedArg A.Pattern] -> SpineLHS -> m SpineLHS
       stripImps params (SpineLHS i f ps) =  SpineLHS i f <$> stripImplicits params ps
 
-instance Reify (QNamed System) [A.Clause] where
+instance Reify (QNamed System) where
+  type ReifiesTo (QNamed System) = [A.Clause]
+
   reify (QNamed f (System tel sys)) = addContext tel $ do
     reportS "reify.system" 40 $ show tel : map show sys
     view <- intervalView'
@@ -1309,11 +1332,15 @@ instance Reify (QNamed System) [A.Clause] where
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
-instance Reify Type Expr where
+instance Reify Type where
+    type ReifiesTo Type = Expr
+
     reifyWhen = reifyWhenE
     reify (I.El _ t) = reify t
 
-instance Reify Sort Expr where
+instance Reify Sort where
+    type ReifiesTo Sort = Expr
+
     reifyWhen = reifyWhenE
     reify s = do
       s <- instantiateFull s
@@ -1356,7 +1383,9 @@ instance Reify Sort Expr where
         I.DefS d es -> reify $ I.Def d es
         I.DummyS s -> return $ A.Lit empty $ LitString $ T.pack s
 
-instance Reify Level Expr where
+instance Reify Level where
+  type ReifiesTo Level = Expr
+
   reifyWhen = reifyWhenE
   reify l   = ifM haveLevels (reify =<< reallyUnLevelView l) $ {-else-} do
     -- Andreas, 2017-09-18, issue #2754
@@ -1365,7 +1394,9 @@ instance Reify Level Expr where
     name <- freshName_ (".#Lacking_Level_Builtins#" :: String)
     return $ A.Var name
 
-instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
+instance (Free i, Reify i) => Reify (Abs i) where
+  type ReifiesTo (Abs i) = (Name, ReifiesTo i)
+
   reify (NoAbs x v) = freshName_ x >>= \name -> (name,) <$> reify v
   reify (Abs s v) = do
 
@@ -1378,7 +1409,9 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
          $ reify v
     return (x,e)
 
-instance Reify I.Telescope A.Telescope where
+instance Reify I.Telescope where
+  type ReifiesTo I.Telescope = A.Telescope
+
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
     Arg info e <- reify arg
@@ -1389,22 +1422,31 @@ instance Reify I.Telescope A.Telescope where
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
     return $ TBind r tac xs e : bs
 
-instance Reify i a => Reify (Dom i) (Arg a) where
+instance Reify i => Reify (Dom i) where
+    type ReifiesTo (Dom i) = Arg (ReifiesTo i)
+
     reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
 
-instance Reify i a => Reify (I.Elim' i) (I.Elim' a) where
+instance Reify i => Reify (I.Elim' i)  where
+  type ReifiesTo (I.Elim' i) = I.Elim' (ReifiesTo i)
+
   reify = traverse reify
   reifyWhen b = traverse (reifyWhen b)
 
-instance Reify i a => Reify [i] [a] where
+instance Reify i => Reify [i] where
+  type ReifiesTo [i] = [ReifiesTo i]
+
   reify = traverse reify
   reifyWhen b = traverse (reifyWhen b)
 
-instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
+instance (Reify i1, Reify i2) => Reify (i1, i2) where
+    type ReifiesTo (i1, i2) = (ReifiesTo i1, ReifiesTo i2)
     reify (x,y) = (,) <$> reify x <*> reify y
 
-instance (Reify i1 a1, Reify i2 a2, Reify i3 a3) => Reify (i1,i2,i3) (a1,a2,a3) where
+instance (Reify i1, Reify i2, Reify i3) => Reify (i1,i2,i3) where
+    type ReifiesTo (i1, i2, i3) = (ReifiesTo i1, ReifiesTo i2, ReifiesTo i3)
     reify (x,y,z) = (,,) <$> reify x <*> reify y <*> reify z
 
-instance (Reify i1 a1, Reify i2 a2, Reify i3 a3, Reify i4 a4) => Reify (i1,i2,i3,i4) (a1,a2,a3,a4) where
+instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
+    type ReifiesTo (i1, i2, i3, i4) = (ReifiesTo i1, ReifiesTo i2, ReifiesTo i3, ReifiesTo i4)
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w

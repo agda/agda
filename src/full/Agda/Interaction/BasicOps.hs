@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -382,7 +382,8 @@ outputFormId (OutputForm _ _ _ o) = out o
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
 
-instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
+instance Reify ProblemConstraint where
+  type ReifiesTo ProblemConstraint = Closure (OutputForm Expr Expr)
   reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
     OutputForm (getRange c) (Set.toList pids) unblock <$> reify c
 
@@ -395,7 +396,9 @@ reifyElimToExpr e = case e of
     appl :: Text -> Arg Expr -> Expr
     appl s v = A.App defaultAppInfo_ (A.Lit empty (LitString s)) $ fmap unnamed v
 
-instance Reify Constraint (OutputConstraint Expr Expr) where
+instance Reify Constraint where
+    type ReifiesTo Constraint = OutputConstraint Expr Expr
+
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
     reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
@@ -556,7 +559,8 @@ instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
-instance Reify a e => Reify (IPBoundary' a) (IPBoundary' e) where
+instance Reify a => Reify (IPBoundary' a) where
+  type ReifiesTo (IPBoundary' a) = IPBoundary' (ReifiesTo a)
   reify = traverse reify
 
 instance ToConcrete a c => ToConcrete (IPBoundary' a) (IPBoundary' c) where

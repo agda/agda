@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Pretty
@@ -238,13 +239,13 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
 
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
+instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Named_ i) where
   prettyTCM x = prettyA =<< reify x
 
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
+instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Arg i) where
   prettyTCM x = prettyA =<< reify x
 
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
+instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Dom i) where
   prettyTCM x = prettyA =<< reify x
 
 instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
