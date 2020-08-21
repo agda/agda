@@ -73,10 +73,10 @@ equals = pure P.equals
 pretty :: (Applicative m, P.Pretty a) => a -> m Doc
 pretty x = pure $ P.pretty x
 
-prettyA :: (P.Pretty c, ToConcrete a c, MonadAbsToCon m) => a -> m Doc
+prettyA :: (ToConcrete a, P.Pretty (ConOfAbs a), MonadAbsToCon m) => a -> m Doc
 prettyA x = AP.prettyA x
 
-prettyAs :: (P.Pretty c, ToConcrete a [c], MonadAbsToCon m) => a -> m Doc
+prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], P.Pretty ce, MonadAbsToCon m) => a -> m Doc
 prettyAs x = AP.prettyAs x
 
 text :: Applicative m => String -> m Doc
@@ -239,13 +239,13 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
 
-instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Named_ i) where
+instance (Reify i, ToConcrete (ReifiesTo i), P.Pretty (ConOfAbs (ReifiesTo i))) => PrettyTCM (Named_ i) where
   prettyTCM x = prettyA =<< reify x
 
-instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Arg i) where
+instance (Reify i, ToConcrete (ReifiesTo i), P.Pretty (ConOfAbs (ReifiesTo i))) => PrettyTCM (Arg i) where
   prettyTCM x = prettyA =<< reify x
 
-instance (Reify i, ToConcrete (ReifiesTo i) c, P.Pretty c) => PrettyTCM (Dom i) where
+instance (Reify i, ToConcrete (ReifiesTo i), P.Pretty (ConOfAbs (ReifiesTo i))) => PrettyTCM (Dom i) where
   prettyTCM x = prettyA =<< reify x
 
 instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where

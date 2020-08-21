@@ -57,7 +57,7 @@ import Agda.Syntax.Concrete.Fixity (DoWarn(..))
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base as A
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
+import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete, ConOfAbs)
 import Agda.Syntax.DoNotation
 import Agda.Syntax.IdiomBrackets
 
@@ -294,7 +294,7 @@ checkModuleApplication (C.RecordModuleInstance _ recN) m0 x dir' =
 --   Preserves local variables.
 
 checkModuleMacro
-  :: (Pretty c, ToConcrete a c)
+  :: (ToConcrete a, Pretty (ConOfAbs a))
   => (ModuleInfo
       -> ModuleName
       -> A.ModuleApplication

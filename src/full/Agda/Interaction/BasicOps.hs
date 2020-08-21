@@ -518,12 +518,13 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       val .: ty = bin val ":" (pretty ty)
 
 
-instance (ToConcrete a c, ToConcrete b d) =>
-         ToConcrete (OutputForm a b) (OutputForm c d) where
+instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputForm a b) where
+    type ConOfAbs (OutputForm a b) = OutputForm (ConOfAbs a) (ConOfAbs b)
     toConcrete (OutputForm r pid u c) = OutputForm r pid u <$> toConcrete c
 
-instance (ToConcrete a c, ToConcrete b d) =>
-         ToConcrete (OutputConstraint a b) (OutputConstraint c d) where
+instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
+    type ConOfAbs (OutputConstraint a b) = OutputConstraint (ConOfAbs a) (ConOfAbs b)
+
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcreteCtx TopCtx t
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
@@ -555,15 +556,17 @@ instance (ToConcrete a c, ToConcrete b d) =>
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t
 
-instance (ToConcrete a c, ToConcrete b d) =>
-            ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
+instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint' a b) where
+  type ConOfAbs (OutputConstraint' a b) = OutputConstraint' (ConOfAbs a) (ConOfAbs b)
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 instance Reify a => Reify (IPBoundary' a) where
   type ReifiesTo (IPBoundary' a) = IPBoundary' (ReifiesTo a)
   reify = traverse reify
 
-instance ToConcrete a c => ToConcrete (IPBoundary' a) (IPBoundary' c) where
+instance ToConcrete a => ToConcrete (IPBoundary' a) where
+  type ConOfAbs (IPBoundary' a) = IPBoundary' (ConOfAbs a)
+
   toConcrete = traverse (toConcreteCtx TopCtx)
 
 instance Pretty c => Pretty (IPBoundary' c) where

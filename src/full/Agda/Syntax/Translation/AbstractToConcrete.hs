@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP                    #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
@@ -268,20 +268,20 @@ runAbsToCon m = do
     reportSLn "toConcrete" 50 $ "leaving AbsToCon"
     return x
 
-abstractToConcreteScope :: (ToConcrete a c, MonadAbsToCon m)
-                        => ScopeInfo -> a -> m c
+abstractToConcreteScope :: (ToConcrete a, MonadAbsToCon m)
+                        => ScopeInfo -> a -> m (ConOfAbs a)
 abstractToConcreteScope scope a = runReaderT (unAbsToCon $ toConcrete a) =<< makeEnv scope
 
-abstractToConcreteCtx :: (ToConcrete a c, MonadAbsToCon m)
-                      => Precedence -> a -> m c
+abstractToConcreteCtx :: (ToConcrete a, MonadAbsToCon m)
+                      => Precedence -> a -> m (ConOfAbs a)
 abstractToConcreteCtx ctx x = runAbsToCon $ withPrecedence ctx (toConcrete x)
 
-abstractToConcrete_ :: (ToConcrete a c, MonadAbsToCon m)
-                    => a -> m c
+abstractToConcrete_ :: (ToConcrete a, MonadAbsToCon m)
+                    => a -> m (ConOfAbs a)
 abstractToConcrete_ = runAbsToCon . toConcrete
 
-abstractToConcreteHiding :: (LensHiding i, ToConcrete a c, MonadAbsToCon m)
-                         => i -> a -> m c
+abstractToConcreteHiding :: (LensHiding i, ToConcrete a, MonadAbsToCon m)
+                         => i -> a -> m (ConOfAbs a)
 abstractToConcreteHiding i = runAbsToCon . toConcreteHiding i
 
 -- Dealing with names -----------------------------------------------------
@@ -504,9 +504,10 @@ addInstanceB Nothing  ds = ds
 
 -- The To Concrete Class --------------------------------------------------
 
-class ToConcrete a c | a -> c where
-    toConcrete :: a -> AbsToCon c
-    bindToConcrete :: a -> (c -> AbsToCon b) -> AbsToCon b
+class ToConcrete a where
+    type ConOfAbs a
+    toConcrete :: a -> AbsToCon (ConOfAbs a)
+    bindToConcrete :: a -> (ConOfAbs a -> AbsToCon b) -> AbsToCon b
 
     -- Christian Sattler, 2017-08-05:
     -- These default implementations are not valid semantically (at least
@@ -515,23 +516,23 @@ class ToConcrete a c | a -> c where
     bindToConcrete x ret = ret =<< toConcrete x
 
 -- | Translate something in a context of the given precedence.
-toConcreteCtx :: ToConcrete a c => Precedence -> a -> AbsToCon c
+toConcreteCtx :: ToConcrete a => Precedence -> a -> AbsToCon (ConOfAbs a)
 toConcreteCtx p x = withPrecedence p $ toConcrete x
 
 -- | Translate something in a context of the given precedence.
-bindToConcreteCtx :: ToConcrete a c => Precedence -> a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteCtx :: ToConcrete a => Precedence -> a -> (ConOfAbs a -> AbsToCon b) -> AbsToCon b
 bindToConcreteCtx p x ret = withPrecedence p $ bindToConcrete x ret
 
 -- | Translate something in the top context.
-toConcreteTop :: ToConcrete a c => a -> AbsToCon c
+toConcreteTop :: ToConcrete a => a -> AbsToCon (ConOfAbs a)
 toConcreteTop = toConcreteCtx TopCtx
 
 -- | Translate something in the top context.
-bindToConcreteTop :: ToConcrete a c => a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteTop :: ToConcrete a => a -> (ConOfAbs a -> AbsToCon b) -> AbsToCon b
 bindToConcreteTop = bindToConcreteCtx TopCtx
 
 -- | Translate something in a context indicated by 'Hiding' info.
-toConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> AbsToCon c
+toConcreteHiding :: (LensHiding h, ToConcrete a) => h -> a -> AbsToCon (ConOfAbs a)
 toConcreteHiding h =
   case getHiding h of
     NotHidden  -> toConcrete
@@ -539,7 +540,7 @@ toConcreteHiding h =
     Instance{} -> toConcreteTop
 
 -- | Translate something in a context indicated by 'Hiding' info.
-bindToConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteHiding :: (LensHiding h, ToConcrete a) => h -> a -> (ConOfAbs a -> AbsToCon b) -> AbsToCon b
 bindToConcreteHiding h =
   case getHiding h of
     NotHidden  -> bindToConcrete
@@ -548,18 +549,24 @@ bindToConcreteHiding h =
 
 -- General instances ------------------------------------------------------
 
-instance ToConcrete () () where
+instance ToConcrete () where
+  type ConOfAbs () = ()
   toConcrete = pure
 
-instance ToConcrete Bool Bool where
+instance ToConcrete Bool where
+  type ConOfAbs Bool = Bool
   toConcrete = pure
 
-instance ToConcrete a c => ToConcrete [a] [c] where
+instance ToConcrete a => ToConcrete [a] where
+    type ConOfAbs [a] = [ConOfAbs a]
+
     toConcrete     = mapM toConcrete
     bindToConcrete []     ret = ret []
     bindToConcrete (a:as) ret = bindToConcrete (a:|as) $ \ (c:|cs) -> ret (c:cs)
 
-instance ToConcrete a c => ToConcrete (List1 a) (List1 c) where
+instance ToConcrete a => ToConcrete (List1 a) where
+    type ConOfAbs (List1 a) = List1 (ConOfAbs a)
+
     toConcrete     = mapM toConcrete
     -- Andreas, 2017-04-11, Issue #2543
     -- The naive `thread'ing does not work as we have to undo
@@ -572,7 +579,9 @@ instance ToConcrete a c => ToConcrete (List1 a) (List1 c) where
           bindToConcrete as $ \ cs ->
             ret (c :| cs)
 
-instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Either c1 c2) where
+instance (ToConcrete a1, ToConcrete a2) => ToConcrete (Either a1 a2) where
+    type ConOfAbs (Either a1 a2) = Either (ConOfAbs a1) (ConOfAbs a2)
+
     toConcrete = traverseEither toConcrete toConcrete
     bindToConcrete (Left x) ret =
         bindToConcrete x $ \x ->
@@ -581,15 +590,18 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Eith
         bindToConcrete y $ \y ->
         ret (Right y)
 
-instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (a1,a2) (c1,c2) where
+instance (ToConcrete a1, ToConcrete a2) => ToConcrete (a1, a2) where
+    type ConOfAbs (a1, a2) = (ConOfAbs a1, ConOfAbs a2)
+
     toConcrete (x,y) = liftM2 (,) (toConcrete x) (toConcrete y)
     bindToConcrete (x,y) ret =
         bindToConcrete x $ \x ->
         bindToConcrete y $ \y ->
         ret (x,y)
 
-instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
-         ToConcrete (a1,a2,a3) (c1,c2,c3) where
+instance (ToConcrete a1, ToConcrete a2, ToConcrete a3) => ToConcrete (a1,a2,a3) where
+    type ConOfAbs (a1, a2, a3) = (ConOfAbs a1, ConOfAbs a2, ConOfAbs a3)
+
     toConcrete (x,y,z) = reorder <$> toConcrete (x,(y,z))
         where
             reorder (x,(y,z)) = (x,y,z)
@@ -598,42 +610,58 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
         where
             reorder (x,(y,z)) = (x,y,z)
 
-instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
+instance ToConcrete a => ToConcrete (Arg a) where
+    type ConOfAbs (Arg a) = Arg (ConOfAbs a)
+
     toConcrete (Arg i a) = Arg i <$> toConcreteHiding i a
 
     bindToConcrete (Arg info x) ret =
       bindToConcreteHiding info x $ ret . Arg info
 
-instance ToConcrete a c => ToConcrete (WithHiding a) (WithHiding c) where
+instance ToConcrete a => ToConcrete (WithHiding a) where
+  type ConOfAbs (WithHiding a) = WithHiding (ConOfAbs a)
+
   toConcrete     (WithHiding h a) = WithHiding h <$> toConcreteHiding h a
   bindToConcrete (WithHiding h a) ret = bindToConcreteHiding h a $ \ a ->
     ret $ WithHiding h a
 
-instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
+instance ToConcrete a => ToConcrete (Named name a)  where
+    type ConOfAbs (Named name a) = Named name (ConOfAbs a)
+
     toConcrete (Named n x) = Named n <$> toConcrete x
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
 
 -- Names ------------------------------------------------------------------
 
-instance ToConcrete A.Name C.Name where
+instance ToConcrete A.Name where
+  type ConOfAbs A.Name = C.Name
+
   toConcrete       = toConcreteName
   bindToConcrete x = bindName x
 
-instance ToConcrete BindName C.BoundName where
+instance ToConcrete BindName where
+  type ConOfAbs BindName = C.BoundName
+
   toConcrete       = fmap C.mkBoundName_ . toConcreteName . unBind
   bindToConcrete x = bindName (unBind x) . (. C.mkBoundName_)
 
-instance ToConcrete A.QName C.QName where
+instance ToConcrete A.QName where
+  type ConOfAbs A.QName = C.QName
+
   toConcrete = lookupQName AmbiguousConProjs
 
-instance ToConcrete A.ModuleName C.QName where
+instance ToConcrete A.ModuleName where
+  type ConOfAbs A.ModuleName = C.QName
   toConcrete = lookupModule
 
-instance ToConcrete AbstractName C.QName where
+instance ToConcrete AbstractName where
+  type ConOfAbs AbstractName = C.QName
   toConcrete = toConcrete . anameName
 
 -- | Assumes name is not 'UnknownName'.
-instance ToConcrete ResolvedName C.QName where
+instance ToConcrete ResolvedName where
+  type ConOfAbs ResolvedName = C.QName
+
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
@@ -652,7 +680,9 @@ addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
 
 -- Expression instance ----------------------------------------------------
 
-instance ToConcrete A.Expr C.Expr where
+instance ToConcrete A.Expr where
+    type ConOfAbs A.Expr = C.Expr
+
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
     toConcrete (Def' x suffix)     = Ident . addSuffixConcrete suffix <$> toConcrete x
     toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
@@ -856,7 +886,8 @@ makeDomainFree b = b
 -- to be implemented, each in terms of the corresponding one of ToConcrete a c.
 -- This mirrors the instance ToConcrete (Arg a) (Arg c).
 -- The default implementations of ToConcrete are not valid semantically.
-instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) where
+instance ToConcrete a => ToConcrete (FieldAssignment' a) where
+    type ConOfAbs (FieldAssignment' a) = FieldAssignment' (ConOfAbs a)
     toConcrete = traverse toConcrete
 
     bindToConcrete (FieldAssignment name a) ret =
@@ -878,13 +909,17 @@ forceNameIfHidden x
          $ C.nameToRawName $ nameConcrete
          $ unBind $ A.binderName $ namedArg x
 
-instance ToConcrete a b => ToConcrete (A.Binder' a) (C.Binder' b) where
+instance ToConcrete a => ToConcrete (A.Binder' a) where
+  type ConOfAbs (A.Binder' a) = C.Binder' (ConOfAbs a)
+
   bindToConcrete (A.Binder p a) ret =
     bindToConcrete a $ \ a ->
     bindToConcrete p $ \ p ->
     ret $ C.Binder p a
 
-instance ToConcrete A.LamBinding (Maybe C.LamBinding) where
+instance ToConcrete A.LamBinding where
+    type ConOfAbs A.LamBinding = Maybe C.LamBinding
+
     bindToConcrete (A.DomainFree t x) ret = do
       t <- traverse toConcrete t
       let setTac x = x { bnameTactic = t }
@@ -892,7 +927,9 @@ instance ToConcrete A.LamBinding (Maybe C.LamBinding) where
         ret . Just . C.DomainFree . updateNamedArg (fmap setTac)
     bindToConcrete (A.DomainFull b) ret = bindToConcrete b $ ret . fmap C.DomainFull
 
-instance ToConcrete A.TypedBinding (Maybe C.TypedBinding) where
+instance ToConcrete A.TypedBinding where
+    type ConOfAbs A.TypedBinding = Maybe C.TypedBinding
+
     bindToConcrete (A.TBind r t xs e) ret = do
         t <- traverse toConcrete t
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
@@ -903,7 +940,9 @@ instance ToConcrete A.TypedBinding (Maybe C.TypedBinding) where
         bindToConcrete lbs $ \ ds -> do
         ret $ C.mkTLet r $ concat ds
 
-instance ToConcrete A.LetBinding [C.Declaration] where
+instance ToConcrete A.LetBinding where
+    type ConOfAbs A.LetBinding = [C.Declaration]
+
     bindToConcrete (A.LetBind i info x t e) ret =
         bindToConcrete x $ \ x ->
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
@@ -935,7 +974,9 @@ instance ToConcrete A.LetBinding [C.Declaration] where
       -- Note that the range of the declaration site is dropped.
       ret []
 
-instance ToConcrete A.WhereDeclarations WhereClause where
+instance ToConcrete A.WhereDeclarations where
+  type ConOfAbs A.WhereDeclarations = WhereClause
+
   bindToConcrete (A.WhereDecls _ Nothing) ret = ret C.NoWhere
   bindToConcrete (A.WhereDecls (Just am) (Just (A.Section _ _ _ ds))) ret = do
     ds' <- declsToConcrete ds
@@ -972,7 +1013,9 @@ openModule' x dir restrict env = env{currentScope = set scopeModules mods' sInfo
 declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration]) where
+instance ToConcrete A.RHS where
+    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration])
+
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
       e <- toConcrete e
@@ -989,16 +1032,21 @@ instance ToConcrete A.RHS (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declar
       eqs <- toConcrete xeqs
       return (rhs, eqs, es, wh ++ whs)
 
-instance (ToConcrete p q, ToConcrete a b) =>
-         ToConcrete (RewriteEqn' qn p a) (RewriteEqn' () q b) where
+instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn p a) where
+  type ConOfAbs (RewriteEqn' qn p a) = (RewriteEqn' () (ConOfAbs p) (ConOfAbs a))
+
   toConcrete = \case
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
     Invert qn pes -> Invert () <$> mapM toConcrete pes
 
-instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
+instance ToConcrete (Maybe A.QName) where
+  type ConOfAbs (Maybe A.QName) = Maybe C.Name
+
   toConcrete = mapM (toConcrete . qnameName)
 
-instance ToConcrete (Constr A.Constructor) C.Declaration where
+instance ToConcrete (Constr A.Constructor) where
+  type ConOfAbs (Constr A.Constructor) = C.Declaration
+
   toConcrete (Constr (A.ScopedDecl scope [d])) =
     withScope scope $ toConcrete (Constr d)
   toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
@@ -1008,7 +1056,9 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = head <$> toConcrete d
 
-instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
+instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
+  type ConOfAbs (A.Clause' a) = [C.Declaration]
+
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ ell -> do
@@ -1016,7 +1066,9 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
                 return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
 
-instance ToConcrete A.ModuleApplication C.ModuleApplication where
+instance ToConcrete A.ModuleApplication where
+  type ConOfAbs A.ModuleApplication = C.ModuleApplication
+
   toConcrete (A.SectionApp tel y es) = do
     y  <- toConcreteCtx FunctionCtx y
     bindToConcrete tel $ \ tel -> do
@@ -1028,7 +1080,9 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
     recm <- toConcrete recm
     return $ C.RecordModuleInstance (getRange recm) recm
 
-instance ToConcrete A.Declaration [C.Declaration] where
+instance ToConcrete A.Declaration where
+  type ConOfAbs A.Declaration = [C.Declaration]
+
   toConcrete (ScopedDecl scope ds) =
     withScope scope (declsToConcrete ds)
 
@@ -1147,7 +1201,9 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
-instance ToConcrete RangeAndPragma C.Pragma where
+instance ToConcrete RangeAndPragma where
+  type ConOfAbs RangeAndPragma = C.Pragma
+
   toConcrete (RangeAndPragma r p) = case p of
     A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
     A.BuiltinPragma b x       -> C.BuiltinPragma r b <$> toConcrete x
@@ -1165,15 +1221,20 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
-instance ToConcrete A.SpineLHS C.LHS where
+instance ToConcrete A.SpineLHS where
+  type ConOfAbs A.SpineLHS = C.LHS
+
   bindToConcrete lhs = bindToConcrete (A.spineToLhs lhs :: A.LHS)
 
-instance ToConcrete A.LHS C.LHS where
+instance ToConcrete A.LHS where
+    type ConOfAbs A.LHS = C.LHS
+
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
           ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
 
-instance ToConcrete A.LHSCore C.Pattern where
+instance ToConcrete A.LHSCore where
+  type ConOfAbs A.LHSCore = C.Pattern
   bindToConcrete = bindToConcrete . lhsCoreToPattern
 
 appBracketsArgs :: [arg] -> PrecedenceStack -> Bool
@@ -1186,13 +1247,16 @@ newtype SplitPattern a = SplitPattern a
 newtype BindingPattern = BindingPat A.Pattern
 newtype FreshenName = FreshenName BindName
 
-instance ToConcrete FreshenName A.Name where
+instance ToConcrete FreshenName where
+  type ConOfAbs FreshenName = A.Name
   bindToConcrete (FreshenName BindName{ unBind = x }) ret = bindToConcrete x $ \ y -> ret x { nameConcrete = y }
 
 -- Pass 1: (Issue #2729)
 -- Takes care of binding the originally user-written pattern variables, but doesn't actually
 -- translate anything to Concrete.
-instance ToConcrete (UserPattern A.Pattern) A.Pattern where
+instance ToConcrete (UserPattern A.Pattern) where
+  type ConOfAbs (UserPattern A.Pattern) = A.Pattern
+
   bindToConcrete (UserPattern p) ret = do
     reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 1)" ++ show p
     case p of
@@ -1222,14 +1286,18 @@ instance ToConcrete (UserPattern A.Pattern) A.Pattern where
                                 ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (UserPattern p) $ ret . A.WithP i
 
-instance ToConcrete (UserPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) where
+instance ToConcrete (UserPattern (NamedArg A.Pattern)) where
+  type ConOfAbs (UserPattern (NamedArg A.Pattern)) = NamedArg A.Pattern
+
   bindToConcrete (UserPattern np) ret =
     case getOrigin np of
       CaseSplit -> ret np
       _         -> bindToConcrete (fmap (fmap UserPattern) np) ret
 
 -- Pass 2a: locate case-split pattern.  Don't bind anything!
-instance ToConcrete (SplitPattern A.Pattern) A.Pattern where
+instance ToConcrete (SplitPattern A.Pattern) where
+  type ConOfAbs (SplitPattern A.Pattern) = A.Pattern
+
   bindToConcrete (SplitPattern p) ret = do
     reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 2a)" ++ show p
     case p of
@@ -1253,7 +1321,8 @@ instance ToConcrete (SplitPattern A.Pattern) A.Pattern where
                                 ret (A.AsP i x p)
       A.WithP i p            -> bindToConcrete (SplitPattern p) $ ret . A.WithP i
 
-instance ToConcrete (SplitPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) where
+instance ToConcrete (SplitPattern (NamedArg A.Pattern)) where
+  type ConOfAbs (SplitPattern (NamedArg A.Pattern)) = NamedArg A.Pattern
   bindToConcrete (SplitPattern np) ret =
     case getOrigin np of
       CaseSplit -> bindToConcrete (fmap (fmap BindingPat  ) np) ret
@@ -1263,7 +1332,8 @@ instance ToConcrete (SplitPattern (NamedArg A.Pattern)) (NamedArg A.Pattern) whe
 -- Pass 2b:
 -- Takes care of freshening and binding pattern variables introduced by case split.
 -- Still does not translate anything to Concrete.
-instance ToConcrete BindingPattern A.Pattern where
+instance ToConcrete BindingPattern where
+  type ConOfAbs BindingPattern = A.Pattern
   bindToConcrete (BindingPat p) ret = do
     reportSLn "toConcrete.pat" 100 $ "binding pattern (pass 2b)" ++ show p
     case p of
@@ -1283,7 +1353,9 @@ instance ToConcrete BindingPattern A.Pattern where
                                 ret (A.AsP i (mkBindName x) p)
       A.WithP i p            -> bindToConcrete (BindingPat p) $ ret . A.WithP i
 
-instance ToConcrete A.Pattern C.Pattern where
+instance ToConcrete A.Pattern where
+  type ConOfAbs A.Pattern = C.Pattern
+
   bindToConcrete p ret = do
     prec <- currentPrecedence
     bindToConcrete (UserPattern p) $ \ p -> do
@@ -1378,7 +1450,9 @@ instance ToConcrete A.Pattern C.Pattern where
     applyTo args c = bracketP_ (appBracketsArgs args) $ do
       foldl C.AppP c <$> toConcreteCtx argumentCtx_ args
 
-instance ToConcrete (Maybe A.Pattern) (Maybe C.Pattern) where
+instance ToConcrete (Maybe A.Pattern) where
+  type ConOfAbs (Maybe A.Pattern) = Maybe C.Pattern
+
   toConcrete = traverse toConcrete
 
 -- Helpers for recovering natural number literals
@@ -1500,7 +1574,7 @@ tryToRecoverOpAppP p = do
       _                   -> Nothing
       -- ProjP _ _ d   -> Just (HdDef (headAmbQ d), [])   -- ? Andreas, 2016-04-21
 
-recoverOpApp :: forall a c . (ToConcrete a c, HasRange c)
+recoverOpApp :: forall a c . (ToConcrete a, c ~ ConOfAbs a, HasRange c)
   => ((PrecedenceStack -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (a -> Bool)  -- ^ Check for lambdas
   -> (Range -> C.QName -> A.Name -> List1 (MaybeSection c) -> c)  -- ^ @opApp@
@@ -1621,10 +1695,10 @@ tryToRecoverPatternSynP = recoverPatternSyn apply matchPatternSynP
   where apply c args = PatternSynP patNoRange (unambiguous c) args
 
 -- | General pattern synonym recovery parameterised over expression type
-recoverPatternSyn :: ToConcrete a c =>
+recoverPatternSyn :: ToConcrete a =>
   (A.QName -> [NamedArg a] -> a)         -> -- applySyn
   (PatternSynDefn -> a -> Maybe [Arg a]) -> -- match
-  a -> AbsToCon c -> AbsToCon c
+  a -> AbsToCon (ConOfAbs a) -> AbsToCon (ConOfAbs a)
 recoverPatternSyn applySyn match e fallback = do
   doFold <- asks foldPatternSynonyms
   if not doFold then fallback else do
@@ -1663,9 +1737,11 @@ recoverPatternSyn applySyn match e fallback = do
 
 -- Some instances that are related to interaction with users -----------
 
-instance ToConcrete InteractionId C.Expr where
+instance ToConcrete InteractionId where
+    type ConOfAbs InteractionId = C.Expr
     toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
 
-instance ToConcrete NamedMeta C.Expr where
+instance ToConcrete NamedMeta where
+    type ConOfAbs NamedMeta = C.Expr
     toConcrete i = do
       return $ C.Underscore noRange (Just $ prettyShow i)
