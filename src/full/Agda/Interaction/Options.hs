@@ -36,12 +36,11 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
-import Control.Monad            ( when, void  )
-import Control.Monad.Except
-import Control.Monad.Trans
+import Control.Monad ( when, void )
+import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
+import Control.Monad.Trans ( MonadIO(liftIO), MonadTrans(lift) )
 
-import Data.IORef
-import Data.Function
+import Data.Function ( on )
 import Data.Maybe
 import Data.Map                 ( Map )
 import qualified Data.Map as Map
@@ -58,8 +57,13 @@ import Text.Read                ( readMaybe )
 
 import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library
+import Agda.Interaction.Library ( ExeName, LibName )
 import Agda.Interaction.Options.Help
+  ( Help(HelpFor, GeneralHelp)
+  , string2HelpTopic
+  , allHelpTopics
+  , helpTopicUsage
+  )
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
