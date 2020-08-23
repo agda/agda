@@ -32,10 +32,10 @@ Note that the same version of the Agda executable must be used.")
       (require 'filladapt)
     (error nil))
   (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
-  (unless (fboundp 'propertize)                    ; for Xemacs 21.4
-    ;; FIXME: XEmacs-21.4 (patch 22) does have `propertize' and so does Emacs-22
+  (unless (fboundp 'agda2-propertize)                    ; for Xemacs 21.4
+    ;; FIXME: XEmacs-21.4 (patch 22) does have `agda2-propertize' and so does Emacs-22
     ;; (and agda2-mode doesn't work in Emacs-21, AFAICT).
-    (defun propertize (string &rest properties)
+    (defun agda2-propertize (string &rest properties)
       "Return a copy of STRING with text properties added.
 First argument is the string to copy.
 Remaining arguments form a sequence of PROPERTY VALUE pairs for text
@@ -1572,7 +1572,7 @@ ways."
      (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
      (overlay-put o 'agda2-gn           n)
      (overlay-put o 'face               'highlight)
-     (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
+     (overlay-put o 'after-string       (agda2-propertize (format "%s" n) 'face 'highlight)))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional length)
   "Ensures that the goal markers cannot be tampered with.
