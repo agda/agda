@@ -72,3 +72,9 @@ normaliseNaN x
 doubleToWord64 :: Double -> Word64
 doubleToWord64 = castDoubleToWord64 . normaliseNaN
 
+doubleToRatio :: Double -> (Integer, Integer)
+doubleToRatio x
+  | isNaN     x = ( 0, 0)
+  | isPosInf  x = ( 1, 0)
+  | isNegInf  x = (-1, 0)
+  | otherwise   = let y = toRational x in (numerator y, denominator y)

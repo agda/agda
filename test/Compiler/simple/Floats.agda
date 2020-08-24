@@ -1,7 +1,9 @@
 
 module _ where
 
+open import Agda.Builtin.Sigma
 open import Common.Prelude
+open import Common.Integer
 
 print : Float → IO Unit
 print x = putStrLn (primShowFloat x)
@@ -9,6 +11,10 @@ print x = putStrLn (primShowFloat x)
 printB : Bool → IO Unit
 printB true  = putStrLn "true"
 printB false = putStrLn "false"
+
+printR : Σ Integer (λ _ → Nat) → IO Unit
+printR (n , d) =
+  putStrLn ("(" +S+ primShowInteger n +S+ ", " +S+ primShowNat d +S+ ")")
 
 _/_   = primFloatDiv
 _==_  = primFloatEquality
@@ -40,6 +46,9 @@ isZero : Float → String
 isZero 0.0  = "pos"
 isZero -0.0 = "neg"
 isZero _    = "nonzero"
+
+toRatio : Float → Σ Integer (λ _ → Nat)
+toRatio = primFloatToRatio
 
 main : IO Unit
 main =
@@ -105,4 +114,11 @@ main =
   putStr "cos (acos 0.6)      = " ,, print (cos (acos 0.6)) ,,
   putStr "tan (atan 0.4)      = " ,, print (tan (atan 0.4)) ,,
   putStr "tan (atan2 0.4 1.0) = " ,, print (tan (atan2 0.4 1.0)) ,,
+
+  -- Conversion to ratios.
+  putStr "toRatio NaN  = " ,, printR (toRatio NaN) ,,
+  putStr "toRatio Inf  = " ,, printR (toRatio Inf) ,,
+  putStr "toRatio -Inf = " ,, printR (toRatio -Inf) ,,
+  putStr "toRatio 1.5  = " ,, printR (toRatio 1.5) ,,
+
   return unit

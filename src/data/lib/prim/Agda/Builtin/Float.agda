@@ -40,3 +40,20 @@ primitive
   primATan          : Float → Float
   primATan2         : Float → Float → Float
   primShowFloat     : Float → String
+
+{-# COMPILE JS primFloatToRatio = function(x) {
+    if (x !== x) {
+      return z_jAgda_Agda_Builtin_Sigma["_,_"](0)(0);
+    }
+    else if (x === Infinity) {
+      return z_jAgda_Agda_Builtin_Sigma["_,_"](1)(0);
+    }
+    else if (x === -Infinity) {
+      return z_jAgda_Agda_Builtin_Sigma["_,_"](-1)(0);
+    }
+    else {
+      return z_jAgda_Agda_Builtin_Sigma["_,_"](Math.round(x*10e8))(10e8);
+    }
+  }
+#-}
+

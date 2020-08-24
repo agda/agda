@@ -221,6 +221,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
   , "primFloatToWord64"     |-> return "MAlonzo.RTE.Float.doubleToWord64"
+  , "primFloatToRatio"      |-> return "MAlonzo.RTE.Float.doubleToRatio"
   , "primFloatToWord64Injective" |-> return "erased"
 
   -- Character functions
