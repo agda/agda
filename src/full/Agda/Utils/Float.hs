@@ -4,12 +4,14 @@
 module Agda.Utils.Float
   ( normaliseNaN
   , doubleToWord64
+  , doubleToRatio
   , floatEq
   , floatLt
   , toStringWithoutDotZero
   ) where
 
 import Data.Maybe       ( fromMaybe )
+import Data.Ratio       ( numerator, denominator )
 import Data.Word
 import Numeric.IEEE     ( IEEE(identicalIEEE, nan) )
 #if __GLASGOW_HASKELL__ >= 804
@@ -36,6 +38,13 @@ normaliseNaN x
 doubleToWord64 :: Double -> Word64
 doubleToWord64 = castDoubleToWord64 . normaliseNaN
 
+doubleToRatio :: Double -> (Integer, Integer)
+doubleToRatio x
+  | isNaN     x = ( 0, 0)
+  | isPosInf  x = ( 1, 0)
+  | isNegInf  x = (-1, 0)
+  | otherwise   = let y = toRational x in (numerator y, denominator y)
+
 floatEq :: Double -> Double -> Bool
 floatEq x y = identicalIEEE x y  || (isNaN x && isNaN y)
 
@@ -55,10 +64,17 @@ floatLt x y =
       | isNaN x                    = LT
       | isNaN y                    = GT
       | otherwise                  = compare (x, isNegZero y) (y, isNegZero x)
-    isNegInf  z = z < 0 && isInfinite z
-    isNegZero z = identicalIEEE z (-0.0)
 
 -- | Remove suffix @.0@ from printed floating point number.
 toStringWithoutDotZero :: Double -> String
 toStringWithoutDotZero d = fromMaybe s $ stripSuffix ".0" s
   where s = show d
+
+isPosInf :: Double -> Bool
+isPosInf x = x > 0 && isInfinite x
+
+isNegInf :: Double -> Bool
+isNegInf x = x < 0 && isInfinite x
+
+isNegZero :: Double -> Bool
+isNegZero z = identicalIEEE z (-0.0)

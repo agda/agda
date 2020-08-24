@@ -9,3 +9,4 @@ open import Agda.Builtin.Equality
 primitive
 
   primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
+  primFloatToRatioInjective : ∀ a b → primFloatToRatio a ≡ primFloatToRatio b → a ≡ b
