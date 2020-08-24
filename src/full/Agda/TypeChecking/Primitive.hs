@@ -466,13 +466,6 @@ primFloatToWord64Injective = do
   toWord <- primFunName <$> getPrimitive "primFloatToWord64"
   mkPrimInjective float word toWord
 
-primFloatToRatioInjective :: TCM PrimitiveImpl
-primFloatToRatioInjective = do
-  float   <- primType (undefined :: Double)
-  ratio   <- primType (undefined :: (Integer, Nat))
-  toRatio <- primFunName <$> getPrimitive "primFloatToRatio"
-  mkPrimInjective float ratio toRatio
-
 primQNameToWord64sInjective :: TCM PrimitiveImpl
 primQNameToWord64sInjective = do
   name    <- primType (undefined :: QName)
@@ -853,7 +846,6 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
   , "primShowFloat"       |-> mkPrimFun1 (T.pack . show   :: Double -> Text)
   , "primFloatToRatio"    |-> mkPrimFun1 (second Nat . doubleToRatio :: Double -> (Integer, Nat))
-  , "primFloatToRatioInjective" |-> primFloatToRatioInjective
   , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
 
