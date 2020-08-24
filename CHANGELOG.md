@@ -151,6 +151,18 @@ Language
   local confluence can be restored by using the
   `--local-confluence-check` flag.
 
+Builtins
+--------
+
+- New primitive primFloatToRatio, which converts floating-point numbers to ratios,
+  represented as a pair of a numerator and a denominator.
+  
+  ```agda
+  primFloatToRatio : Float → Σ Int λ _ → Nat
+  ```
+  
+  The primitive maps NaN to (0 , 0), Infinity to (1 , 0), and -Infinity to (-1, 0).
+ 
 
 Reflection
 ----------
