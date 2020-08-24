@@ -1,4 +1,5 @@
 ;;; eri.el --- Enhanced relative indentation (eri)
+;; SPDX-License-Identifier: MIT License
 
 ;; Version: 1.0
 
