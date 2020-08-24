@@ -169,16 +169,23 @@ endif
 
 # Type check the Agda source only (-fno-code).
 # Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
+#
+# Might "fail" with errors like
+#
+#   ar: ./dist-2.6.2-no-code/build/Agda/Auto/Auto.o: No such file or directory
+#   ...
+#
+# Thus, ignore exit code.
 
 .PHONY: type-check
 type-check:
 	@echo "================= Type checking using Cabal with -fno-code ==============="
-	time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
-	  --ghc-options=-fno-code \
-	  --ghc-options=-fwrite-interface \
-	  2>&1 \
-	  | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
-	           -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+	-time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
+          --ghc-options=-fno-code \
+          --ghc-options=-fwrite-interface \
+          2>&1 \
+          | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
+                   -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
