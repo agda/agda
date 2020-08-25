@@ -238,7 +238,7 @@ for instance), but all bindings start with ``\``.
 
 To see all characters you can input using the Agda input method type
 ``M-x describe-input-method RET Agda`` or type ``M-x
-agda-input-show-translations RET RET`` (with some exceptions in
+agda2-input-show-translations RET RET`` (with some exceptions in
 certain versions of Emacs).
 
 If you know the Unicode name of a character you can input it using
@@ -256,7 +256,7 @@ minibuffer, which is used to give input to many Agda and Emacs
 commands.)
 
 The Agda input method can be customised via ``M-x customize-group RET
-agda-input``.
+agda2-input``.
 
 OK, but how can I find out what to type to get the ... character?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -292,7 +292,7 @@ For instance, for ``∷`` I get the following:
 Here it says that I can type ``\::`` to get a ``∷``. If there is no
 "to input" line, then you can add a key binding to the Agda input
 method by using ``M-x customize-variable RET
-agda-input-user-translations``.
+agda2-input-user-translations``.
 
 Show me some commonly used characters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

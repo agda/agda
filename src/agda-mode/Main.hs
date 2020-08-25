@@ -204,7 +204,7 @@ emacsLispFiles =
   , "agda2-queue.el"
   , "eri.el"
   , "agda2.el"
-  , "agda-input.el"
+  , "agda2-input.el"
   , "agda2-highlight.el"
   , "agda2-mode.el"
   ]

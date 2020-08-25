@@ -1,4 +1,4 @@
-;;; agda-input.el --- The Agda input method
+;;; agda2-input.el --- The Agda input method
 
 ;;; Commentary:
 
@@ -6,13 +6,13 @@
 ;; Quail input methods. By default the input method is geared towards
 ;; the input of mathematical and other symbols in Agda programs.
 ;;
-;; Use M-x customize-group agda-input to customise this input method.
+;; Use M-x customize-group agda2-input to customise this input method.
 ;; Note that the functions defined under "Functions used to tweak
 ;; translation pairs" below can be used to tweak both the key
 ;; translations inherited from other input methods as well as the
 ;; ones added specifically for this one.
 ;;
-;; Use agda-input-show-translations to see all the characters which
+;; Use agda2-input-show-translations to see all the characters which
 ;; can be typed using this input method (except for those
 ;; corresponding to ASCII characters).
 
@@ -27,20 +27,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Utility functions
 
-(defun agda-input-concat-map (f xs)
+(defun agda2-input-concat-map (f xs)
   "Concat (map F XS)."
   (apply 'append (mapcar f xs)))
 
-(defun agda-input-to-string-list (s)
+(defun agda2-input-to-string-list (s)
   "Convert a string S to a list of one-character strings, after
 removing all space and newline characters."
-  (agda-input-concat-map
+  (agda2-input-concat-map
    (lambda (c) (if (member c (string-to-list " \n"))
               nil
             (list (string c))))
    (string-to-list s)))
 
-(defun agda-input-character-range (from to)
+(defun agda2-input-character-range (from to)
   "A string consisting of the characters from FROM to TO."
   (let (seq)
     (dotimes (i (1+ (- to from)))
@@ -52,33 +52,33 @@ removing all space and newline characters."
 
 ;; lexical-let is used since Elisp lacks lexical scoping.
 
-(defun agda-input-compose (f g)
+(defun agda2-input-compose (f g)
   "\x -> concatMap F (G x)"
   (lexical-let ((f1 f) (g1 g))
-    (lambda (x) (agda-input-concat-map f1 (funcall g1 x)))))
+    (lambda (x) (agda2-input-concat-map f1 (funcall g1 x)))))
 
-(defun agda-input-or (f g)
+(defun agda2-input-or (f g)
   "\x -> F x ++ G x"
   (lexical-let ((f1 f) (g1 g))
     (lambda (x) (append (funcall f1 x) (funcall g1 x)))))
 
-(defun agda-input-nonempty ()
+(defun agda2-input-nonempty ()
   "Only keep pairs with a non-empty first component."
   (lambda (x) (if (> (length (car x)) 0) (list x))))
 
-(defun agda-input-prepend (prefix)
+(defun agda2-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
   (lexical-let ((prefix1 prefix))
     (lambda (x) `((,(concat prefix1 (car x)) . ,(cdr x))))))
 
-(defun agda-input-prefix (prefix)
+(defun agda2-input-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX."
   (lexical-let ((prefix1 prefix))
     (lambda (x)
       (if (equal (substring (car x) 0 (length prefix1)) prefix1)
           (list x)))))
 
-(defun agda-input-suffix (suffix)
+(defun agda2-input-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX."
   (lexical-let ((suffix1 suffix))
     (lambda (x)
@@ -87,60 +87,60 @@ removing all space and newline characters."
                  suffix1)
           (list x)))))
 
-(defun agda-input-drop (ss)
+(defun agda2-input-drop (ss)
   "Drop pairs matching one of the given key sequences.
 SS should be a list of strings."
   (lexical-let ((ss1 ss))
     (lambda (x) (unless (member (car x) ss1) (list x)))))
 
-(defun agda-input-drop-beginning (n)
+(defun agda2-input-drop-beginning (n)
   "Drop N characters from the beginning of each key sequence."
   (lexical-let ((n1 n))
     (lambda (x) `((,(substring (car x) n1) . ,(cdr x))))))
 
-(defun agda-input-drop-end (n)
+(defun agda2-input-drop-end (n)
   "Drop N characters from the end of each key sequence."
   (lexical-let ((n1 n))
     (lambda (x)
       `((,(substring (car x) 0 (- (length (car x)) n1)) .
          ,(cdr x))))))
 
-(defun agda-input-drop-prefix (prefix)
+(defun agda2-input-drop-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX.
 This prefix is dropped."
-  (agda-input-compose
-   (agda-input-drop-beginning (length prefix))
-   (agda-input-prefix prefix)))
+  (agda2-input-compose
+   (agda2-input-drop-beginning (length prefix))
+   (agda2-input-prefix prefix)))
 
-(defun agda-input-drop-suffix (suffix)
+(defun agda2-input-drop-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX.
 This suffix is dropped."
   (lexical-let ((suffix1 suffix))
-    (agda-input-compose
-     (agda-input-drop-end (length suffix1))
-     (agda-input-suffix suffix1))))
+    (agda2-input-compose
+     (agda2-input-drop-end (length suffix1))
+     (agda2-input-suffix suffix1))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Customization
 
-;; The :set keyword is set to 'agda-input-incorporate-changed-setting
+;; The :set keyword is set to 'agda2-input-incorporate-changed-setting
 ;; so that the input method gets updated immediately when users
 ;; customize it. However, the setup functions cannot be run before all
 ;; variables have been defined. Hence the :initialize keyword is set to
 ;; 'custom-initialize-default to ensure that the setup is not performed
-;; until agda-input-setup is called at the end of this file.
+;; until agda2-input-setup is called at the end of this file.
 
-(defgroup agda-input nil
+(defgroup agda2-input nil
   "The Agda input method.
 After tweaking these settings you may want to inspect the resulting
-translations using `agda-input-show-translations'."
+translations using `agda2-input-show-translations'."
   :group 'agda2
   :group 'leim)
 
-(defcustom agda-input-tweak-all
-  '(agda-input-compose
-    (agda-input-prepend "\\")
-    (agda-input-nonempty))
+(defcustom agda2-input-tweak-all
+  '(agda2-input-compose
+    (agda2-input-prepend "\\")
+    (agda2-input-nonempty))
   "An expression yielding a function which can be used to tweak
 all translations before they are included in the input method.
 The resulting function (if non-nil) is applied to every
@@ -149,23 +149,23 @@ pairs. (Note that the translations can be anything accepted by
 `quail-defrule'.)
 
 If you change this setting manually (without using the
-customization buffer) you need to call `agda-input-setup' in
+customization buffer) you need to call `agda2-input-setup' in
 order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
+  :group 'agda2-input
+  :set 'agda2-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
   :type 'sexp)
 
-(defcustom agda-input-inherit
-  `(("TeX" . (agda-input-compose
-              (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
-              (agda-input-or
-               (agda-input-drop-prefix "\\")
-               (agda-input-or
-                (agda-input-compose
-                 (agda-input-drop '("^l" "^o" "^r" "^v"))
-                 (agda-input-prefix "^"))
-                (agda-input-prefix "_")))))
+(defcustom agda2-input-inherit
+  `(("TeX" . (agda2-input-compose
+              (agda2-input-drop '("geq" "leq" "bullet" "qed" "par"))
+              (agda2-input-or
+               (agda2-input-drop-prefix "\\")
+               (agda2-input-or
+                (agda2-input-compose
+                 (agda2-input-drop '("^l" "^o" "^r" "^v"))
+                 (agda2-input-prefix "^"))
+                (agda2-input-prefix "_")))))
     )
   "A list of Quail input methods whose translations should be
 inherited by the Agda input method (with the exception of
@@ -173,28 +173,28 @@ translations corresponding to ASCII characters).
 
 The list consists of pairs (qp . tweak), where qp is the name of
 a Quail package, and tweak is an expression of the same kind as
-`agda-input-tweak-all' which is used to tweak the translation
+`agda2-input-tweak-all' which is used to tweak the translation
 pairs of the input method.
 
 The inherited translation pairs are added last, after
-`agda-input-user-translations' and `agda-input-translations'.
+`agda2-input-user-translations' and `agda2-input-translations'.
 
 If you change this setting manually (without using the
-customization buffer) you need to call `agda-input-setup' in
+customization buffer) you need to call `agda2-input-setup' in
 order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
+  :group 'agda2-input
+  :set 'agda2-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
   :type '(repeat (cons (string :tag "Quail package")
                        (sexp :tag "Tweaking function"))))
 
-(defcustom agda-input-translations
+(defcustom agda2-input-translations
   (let ((max-lisp-eval-depth 2800)) `(
 
   ;; Equality and similar symbols.
 
-  ("eq"  . ,(agda-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕"))
-  ("eqn" . ,(agda-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
+  ("eq"  . ,(agda2-input-to-string-list "=∼∽≈≋∻∾∿≀≃⋍≂≅ ≌≊≡≣≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≍≎≏≬⋕"))
+  ("eqn" . ,(agda2-input-to-string-list "≠≁ ≉     ≄  ≇≆  ≢                 ≭    "))
 
                     ("=n"  . ("≠"))
   ("~"    . ("∼"))  ("~n"  . ("≁"))
@@ -220,10 +220,10 @@ order for the change to take effect."
 
   ;; Inequality and similar symbols.
 
-  ("leq"  . ,(agda-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞"))
-  ("leqn" . ,(agda-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
-  ("geq"  . ,(agda-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟"))
-  ("geqn" . ,(agda-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
+  ("leq"  . ,(agda2-input-to-string-list "<≪⋘≤≦≲ ≶≺≼≾⊂⊆ ⋐⊏⊑ ⊰⊲⊴⋖⋚⋜⋞"))
+  ("leqn" . ,(agda2-input-to-string-list "≮  ≰≨≴⋦≸⊀ ⋨⊄⊈⊊  ⋢⋤ ⋪⋬   ⋠"))
+  ("geq"  . ,(agda2-input-to-string-list ">≫⋙≥≧≳ ≷≻≽≿⊃⊇ ⋑⊐⊒ ⊱⊳⊵⋗⋛⋝⋟"))
+  ("geqn" . ,(agda2-input-to-string-list "≯  ≱≩≵⋧≹⊁ ⋩⊅⊉⊋  ⋣⋥ ⋫⋭   ⋡"))
 
   ("<="   . ("≤"))  (">="   . ("≥"))
   ("<=n"  . ("≰"))  (">=n"  . ("≱"))
@@ -244,15 +244,15 @@ order for the change to take effect."
 
   ;; Set membership etc.
 
-  ("member" . ,(agda-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
+  ("member" . ,(agda2-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
 
   ("inn" . ("∉"))
   ("nin" . ("∌"))
 
   ;; Intersections, unions etc.
 
-  ("intersection" . ,(agda-input-to-string-list "∩⋂∧⋀⋏⨇⊓⨅⋒∏ ⊼      ⨉"))
-  ("union"        . ,(agda-input-to-string-list "∪⋃∨⋁⋎⨈⊔⨆⋓∐⨿⊽⊻⊍⨃⊎⨄⊌∑⅀"))
+  ("intersection" . ,(agda2-input-to-string-list "∩⋂∧⋀⋏⨇⊓⨅⋒∏ ⊼      ⨉"))
+  ("union"        . ,(agda2-input-to-string-list "∪⋃∨⋁⋎⨈⊔⨆⋓∐⨿⊽⊻⊍⨃⊎⨄⊌∑⅀"))
 
   ("and" . ("∧"))  ("or"  . ("∨"))
   ("And" . ("⋀"))  ("Or"  . ("⋁"))
@@ -263,7 +263,7 @@ order for the change to take effect."
 
   ;; Entailment etc.
 
-  ("entails" . ,(agda-input-to-string-list "⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"))
+  ("entails" . ,(agda2-input-to-string-list "⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"))
 
   ("|-"   . ("⊢"))  ("|-n"  . ("⊬"))
   ("-|"   . ("⊣"))
@@ -287,9 +287,9 @@ order for the change to take effect."
 
   ;; Corners, ceilings and floors.
 
-  ("c"  . ,(agda-input-to-string-list "⌜⌝⌞⌟⌈⌉⌊⌋"))
-  ("cu" . ,(agda-input-to-string-list "⌜⌝  ⌈⌉  "))
-  ("cl" . ,(agda-input-to-string-list "  ⌞⌟  ⌊⌋"))
+  ("c"  . ,(agda2-input-to-string-list "⌜⌝⌞⌟⌈⌉⌊⌋"))
+  ("cu" . ,(agda2-input-to-string-list "⌜⌝  ⌈⌉  "))
+  ("cl" . ,(agda2-input-to-string-list "  ⌞⌟  ⌊⌋"))
 
   ("cul" . ("⌜"))  ("cuL" . ("⌈"))
   ("cur" . ("⌝"))  ("cuR" . ("⌉"))
@@ -306,9 +306,9 @@ order for the change to take effect."
   ("*"         . ("⋆"))
   (".+"        . ("∔"))
   (".-"        . ("∸"))
-  (":"         . ,(agda-input-to-string-list "∶⦂ː꞉˸፥፦：﹕︓"))
-  (","         . ,(agda-input-to-string-list "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､"))
-  (";"         . ,(agda-input-to-string-list "؛⁏፤꛶；︔﹔⍮⸵;"))
+  (":"         . ,(agda2-input-to-string-list "∶⦂ː꞉˸፥፦：﹕︓"))
+  (","         . ,(agda2-input-to-string-list "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､"))
+  (";"         . ,(agda2-input-to-string-list "؛⁏፤꛶；︔﹔⍮⸵;"))
   ("::"        . ("∷"))
   ("::-"       . ("∺"))
   ("-:"        . ("∹"))
@@ -345,22 +345,22 @@ order for the change to take effect."
 
   ;; Various symbols.
 
-  ("integral" . ,(agda-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
-  ("angle"    . ,(agda-input-to-string-list "∟∡∢⊾⊿"))
-  ("join"     . ,(agda-input-to-string-list "⋈⋉⋊⋋⋌⨝⟕⟖⟗"))
+  ("integral" . ,(agda2-input-to-string-list "∫∬∭∮∯∰∱∲∳"))
+  ("angle"    . ,(agda2-input-to-string-list "∟∡∢⊾⊿"))
+  ("join"     . ,(agda2-input-to-string-list "⋈⋉⋊⋋⋌⨝⟕⟖⟗"))
 
   ;; Arrows.
 
-  ("l"  . ,(agda-input-to-string-list "←⇐⇚⇇⇆↤⇦↞↼↽⇠⇺↜⇽⟵⟸↚⇍⇷ ↹     ↢↩↫⇋⇜⇤⟻⟽⤆↶↺⟲                                     "))
-  ("r"  . ,(agda-input-to-string-list "→⇒⇛⇉⇄↦⇨↠⇀⇁⇢⇻↝⇾⟶⟹↛⇏⇸⇶ ↴    ↣↪↬⇌⇝⇥⟼⟾⤇↷↻⟳⇰⇴⟴⟿ ➵➸➙➔➛➜➝➞➟➠➡➢➣➤➧➨➩➪➫➬➭➮➯➱➲➳➺➻➼➽➾⊸"))
-  ("u"  . ,(agda-input-to-string-list "↑⇑⟰⇈⇅↥⇧↟↿↾⇡⇞          ↰↱➦ ⇪⇫⇬⇭⇮⇯                                           "))
-  ("d"  . ,(agda-input-to-string-list "↓⇓⟱⇊⇵↧⇩↡⇃⇂⇣⇟         ↵↲↳➥ ↯                                                "))
-  ("ud" . ,(agda-input-to-string-list "↕⇕   ↨⇳                                                                    "))
-  ("lr" . ,(agda-input-to-string-list "↔⇔         ⇼↭⇿⟷⟺↮⇎⇹                                                        "))
-  ("ul" . ,(agda-input-to-string-list "↖⇖                        ⇱↸                                               "))
-  ("ur" . ,(agda-input-to-string-list "↗⇗                                         ➶➹➚                             "))
-  ("dr" . ,(agda-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
-  ("dl" . ,(agda-input-to-string-list "↙⇙                                                                         "))
+  ("l"  . ,(agda2-input-to-string-list "←⇐⇚⇇⇆↤⇦↞↼↽⇠⇺↜⇽⟵⟸↚⇍⇷ ↹     ↢↩↫⇋⇜⇤⟻⟽⤆↶↺⟲                                     "))
+  ("r"  . ,(agda2-input-to-string-list "→⇒⇛⇉⇄↦⇨↠⇀⇁⇢⇻↝⇾⟶⟹↛⇏⇸⇶ ↴    ↣↪↬⇌⇝⇥⟼⟾⤇↷↻⟳⇰⇴⟴⟿ ➵➸➙➔➛➜➝➞➟➠➡➢➣➤➧➨➩➪➫➬➭➮➯➱➲➳➺➻➼➽➾⊸"))
+  ("u"  . ,(agda2-input-to-string-list "↑⇑⟰⇈⇅↥⇧↟↿↾⇡⇞          ↰↱➦ ⇪⇫⇬⇭⇮⇯                                           "))
+  ("d"  . ,(agda2-input-to-string-list "↓⇓⟱⇊⇵↧⇩↡⇃⇂⇣⇟         ↵↲↳➥ ↯                                                "))
+  ("ud" . ,(agda2-input-to-string-list "↕⇕   ↨⇳                                                                    "))
+  ("lr" . ,(agda2-input-to-string-list "↔⇔         ⇼↭⇿⟷⟺↮⇎⇹                                                        "))
+  ("ul" . ,(agda2-input-to-string-list "↖⇖                        ⇱↸                                               "))
+  ("ur" . ,(agda2-input-to-string-list "↗⇗                                         ➶➹➚                             "))
+  ("dr" . ,(agda2-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
+  ("dl" . ,(agda2-input-to-string-list "↙⇙                                                                         "))
 
   ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))  ("<="  . ("⇐"))
   ("r-"  . ("→"))  ("->"  . ("→"))  ("r="  . ("⇒"))  ("=>"  . ("⇒"))
@@ -401,61 +401,61 @@ order for the change to take effect."
 
   ;; Ellipsis.
 
-  ("..." . ,(agda-input-to-string-list "⋯⋮⋰⋱"))
+  ("..." . ,(agda2-input-to-string-list "⋯⋮⋰⋱"))
 
   ;; Box-drawing characters.
 
-  ("---" . ,(agda-input-to-string-list "─│┌┐└┘├┤┬┼┴╴╵╶╷╭╮╯╰╱╲╳"))
-  ("--=" . ,(agda-input-to-string-list "═║╔╗╚╝╠╣╦╬╩     ╒╕╘╛╞╡╤╪╧ ╓╖╙╜╟╢╥╫╨"))
-  ("--_" . ,(agda-input-to-string-list "━┃┏┓┗┛┣┫┳╋┻╸╹╺╻
+  ("---" . ,(agda2-input-to-string-list "─│┌┐└┘├┤┬┼┴╴╵╶╷╭╮╯╰╱╲╳"))
+  ("--=" . ,(agda2-input-to-string-list "═║╔╗╚╝╠╣╦╬╩     ╒╕╘╛╞╡╤╪╧ ╓╖╙╜╟╢╥╫╨"))
+  ("--_" . ,(agda2-input-to-string-list "━┃┏┓┗┛┣┫┳╋┻╸╹╺╻
                                         ┍┯┑┕┷┙┝┿┥┎┰┒┖┸┚┠╂┨┞╀┦┟╁┧┢╈┪┡╇┩
                                         ┮┭┶┵┾┽┲┱┺┹╊╉╆╅╄╃ ╿╽╼╾"))
-  ("--." . ,(agda-input-to-string-list "╌╎┄┆┈┊
+  ("--." . ,(agda2-input-to-string-list "╌╎┄┆┈┊
                                         ╍╏┅┇┉┋"))
 
   ;; Triangles.
 
   ;; Big/small, black/white.
 
-  ("t" . ,(agda-input-to-string-list "◂◃◄◅▸▹►▻▴▵▾▿◢◿◣◺◤◸◥◹"))
-  ("T" . ,(agda-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
+  ("t" . ,(agda2-input-to-string-list "◂◃◄◅▸▹►▻▴▵▾▿◢◿◣◺◤◸◥◹"))
+  ("T" . ,(agda2-input-to-string-list "◀◁▶▷▲△▼▽◬◭◮"))
 
-  ("tb" . ,(agda-input-to-string-list "◂▸▴▾◄►◢◣◤◥"))
-  ("tw" . ,(agda-input-to-string-list "◃▹▵▿◅▻◿◺◸◹"))
+  ("tb" . ,(agda2-input-to-string-list "◂▸▴▾◄►◢◣◤◥"))
+  ("tw" . ,(agda2-input-to-string-list "◃▹▵▿◅▻◿◺◸◹"))
 
-  ("Tb" . ,(agda-input-to-string-list "◀▶▲▼"))
-  ("Tw" . ,(agda-input-to-string-list "◁▷△▽"))
+  ("Tb" . ,(agda2-input-to-string-list "◀▶▲▼"))
+  ("Tw" . ,(agda2-input-to-string-list "◁▷△▽"))
 
   ;; Squares.
 
-  ("sq"  . ,(agda-input-to-string-list "■□◼◻◾◽▣▢▤▥▦▧▨▩◧◨◩◪◫◰◱◲◳"))
-  ("sqb" . ,(agda-input-to-string-list "■◼◾"))
-  ("sqw" . ,(agda-input-to-string-list "□◻◽"))
+  ("sq"  . ,(agda2-input-to-string-list "■□◼◻◾◽▣▢▤▥▦▧▨▩◧◨◩◪◫◰◱◲◳"))
+  ("sqb" . ,(agda2-input-to-string-list "■◼◾"))
+  ("sqw" . ,(agda2-input-to-string-list "□◻◽"))
   ("sq." . ("▣"))
   ("sqo" . ("▢"))
 
   ;; Rectangles.
 
-  ("re"  . ,(agda-input-to-string-list "▬▭▮▯"))
-  ("reb" . ,(agda-input-to-string-list "▬▮"))
-  ("rew" . ,(agda-input-to-string-list "▭▯"))
+  ("re"  . ,(agda2-input-to-string-list "▬▭▮▯"))
+  ("reb" . ,(agda2-input-to-string-list "▬▮"))
+  ("rew" . ,(agda2-input-to-string-list "▭▯"))
 
   ;; Parallelograms.
 
-  ("pa"  . ,(agda-input-to-string-list "▰▱"))
+  ("pa"  . ,(agda2-input-to-string-list "▰▱"))
   ("pab" . ("▰"))
   ("paw" . ("▱"))
 
   ;; Diamonds.
 
-  ("di"  . ,(agda-input-to-string-list "◆◇◈"))
+  ("di"  . ,(agda2-input-to-string-list "◆◇◈"))
   ("dib" . ("◆"))
   ("diw" . ("◇"))
   ("di." . ("◈"))
 
   ;; Circles.
 
-  ("ci"   . ,(agda-input-to-string-list "●○◎◌◯◍◐◑◒◓◔◕◖◗◠◡◴◵◶◷⚆⚇⚈⚉"))
+  ("ci"   . ,(agda2-input-to-string-list "●○◎◌◯◍◐◑◒◓◔◕◖◗◠◡◴◵◶◷⚆⚇⚈⚉"))
   ("cib"  . ("●"))
   ("ciw"  . ("○"))
   ("ci."  . ("◎"))
@@ -464,8 +464,8 @@ order for the change to take effect."
 
   ;; Stars.
 
-  ("st"   . ,(agda-input-to-string-list "⋆✦✧✶✴✹ ★☆✪✫✯✰✵✷✸"))
-  ("st4"  . ,(agda-input-to-string-list "✦✧"))
+  ("st"   . ,(agda2-input-to-string-list "⋆✦✧✶✴✹ ★☆✪✫✯✰✵✷✸"))
+  ("st4"  . ,(agda2-input-to-string-list "✦✧"))
   ("st6"  . ("✶"))
   ("st8"  . ("✴"))
   ("st12" . ("✹"))
@@ -558,8 +558,8 @@ order for the change to take effect."
 
   ;; Parentheses.
 
-  ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢"))
-  (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣"))
+  ("(" . ,(agda2-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢"))
+  (")" . ,(agda2-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣"))
 
   ("[[" . ("⟦"))
   ("]]" . ("⟧"))
@@ -584,23 +584,23 @@ order for the change to take effect."
 
   ;; Primes.
 
-  ("'" . ,(agda-input-to-string-list "′″‴⁗"))
-  ("`" . ,(agda-input-to-string-list "‵‶‷"))
+  ("'" . ,(agda2-input-to-string-list "′″‴⁗"))
+  ("`" . ,(agda2-input-to-string-list "‵‶‷"))
 
   ;; Fractions.
 
-  ("frac" . ,(agda-input-to-string-list "¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅟"))
+  ("frac" . ,(agda2-input-to-string-list "¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞⅟"))
 
   ;; Bullets.
 
-  ("bu"  . ,(agda-input-to-string-list "•◦‣⁌⁍"))
+  ("bu"  . ,(agda2-input-to-string-list "•◦‣⁌⁍"))
   ("bub" . ("•"))
   ("buw" . ("◦"))
   ("but" . ("‣"))
 
   ;; Musical symbols.
 
-  ("note" . ,(agda-input-to-string-list "♩♪♫♬"))
+  ("note" . ,(agda2-input-to-string-list "♩♪♫♬"))
   ("b"    . ("♭"))
   ("#"    . ("♯"))
 
@@ -613,12 +613,12 @@ order for the change to take effect."
   ("??"         . ("⁇"))
   ("?!"         . ("‽" "⁈"))
   ("!?"         . ("⁉"))
-  ("die"        . ,(agda-input-to-string-list "⚀⚁⚂⚃⚄⚅"))
-  ("asterisk"   . ,(agda-input-to-string-list "⁎⁑⁂✢✣✤✥✱✲✳✺✻✼✽❃❉❊❋"))
+  ("die"        . ,(agda2-input-to-string-list "⚀⚁⚂⚃⚄⚅"))
+  ("asterisk"   . ,(agda2-input-to-string-list "⁎⁑⁂✢✣✤✥✱✲✳✺✻✼✽❃❉❊❋"))
   ("8<"         . ("✂" "✄"))
   ("tie"        . ("⁀"))
   ("undertie"   . ("‿"))
-  ("apl"        . ,(agda-input-to-string-list "⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈
+  ("apl"        . ,(agda2-input-to-string-list "⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈
                                                ⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛
                                                ⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮
                                                ⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⎕"))
@@ -629,22 +629,22 @@ order for the change to take effect."
   ;; translations:
   ;; ̀ ́ ̂ ̃ ̄ ̆ ̇ ̈ ̋ ̌ ̣ ̧ ̱
 
-  ("^--" . ,(agda-input-to-string-list"̅̿"))
-  ("_--" . ,(agda-input-to-string-list"̲̳"))
-  ("^~"  . ,(agda-input-to-string-list"̃͌"))
+  ("^--" . ,(agda2-input-to-string-list"̅̿"))
+  ("_--" . ,(agda2-input-to-string-list"̲̳"))
+  ("^~"  . ,(agda2-input-to-string-list"̃͌"))
   ("_~"  .  (                         "̰"))
-  ("^."  . ,(agda-input-to-string-list"̇̈⃛⃜"))
-  ("_."  . ,(agda-input-to-string-list"̣̤"))
-  ("^l"  . ,(agda-input-to-string-list"⃖⃐⃔"))
+  ("^."  . ,(agda2-input-to-string-list"̇̈⃛⃜"))
+  ("_."  . ,(agda2-input-to-string-list"̣̤"))
+  ("^l"  . ,(agda2-input-to-string-list"⃖⃐⃔"))
   ("^l-" .  (                         "⃖"))
-  ("^r"  . ,(agda-input-to-string-list"⃗⃑⃕"))
+  ("^r"  . ,(agda2-input-to-string-list"⃗⃑⃕"))
   ("^r-" .  (                         "⃗"))
   ("^lr" .  (                         "⃡"))
   ("_lr" .  (                         "͍"))
-  ("^^"  . ,(agda-input-to-string-list"̂̑͆"))
-  ("_^"  . ,(agda-input-to-string-list"̭̯̪"))
-  ("^v"  . ,(agda-input-to-string-list"̌̆"))
-  ("_v"  . ,(agda-input-to-string-list"̬̮̺"))
+  ("^^"  . ,(agda2-input-to-string-list"̂̑͆"))
+  ("_^"  . ,(agda2-input-to-string-list"̭̯̪"))
+  ("^v"  . ,(agda2-input-to-string-list"̌̆"))
+  ("_v"  . ,(agda2-input-to-string-list"̬̮̺"))
 
   ;; Shorter forms of many greek letters plus ƛ.
 
@@ -1039,54 +1039,54 @@ order for the change to take effect."
 
   ;; Circled, parenthesised etc. numbers and letters.
 
-  ( "(0)" . ,(agda-input-to-string-list " ⓪"))
-  ( "(1)" . ,(agda-input-to-string-list "⑴①⒈❶➀➊"))
-  ( "(2)" . ,(agda-input-to-string-list "⑵②⒉❷➁➋"))
-  ( "(3)" . ,(agda-input-to-string-list "⑶③⒊❸➂➌"))
-  ( "(4)" . ,(agda-input-to-string-list "⑷④⒋❹➃➍"))
-  ( "(5)" . ,(agda-input-to-string-list "⑸⑤⒌❺➄➎"))
-  ( "(6)" . ,(agda-input-to-string-list "⑹⑥⒍❻➅➏"))
-  ( "(7)" . ,(agda-input-to-string-list "⑺⑦⒎❼➆➐"))
-  ( "(8)" . ,(agda-input-to-string-list "⑻⑧⒏❽➇➑"))
-  ( "(9)" . ,(agda-input-to-string-list "⑼⑨⒐❾➈➒"))
-  ("(10)" . ,(agda-input-to-string-list "⑽⑩⒑❿➉➓"))
-  ("(11)" . ,(agda-input-to-string-list "⑾⑪⒒"))
-  ("(12)" . ,(agda-input-to-string-list "⑿⑫⒓"))
-  ("(13)" . ,(agda-input-to-string-list "⒀⑬⒔"))
-  ("(14)" . ,(agda-input-to-string-list "⒁⑭⒕"))
-  ("(15)" . ,(agda-input-to-string-list "⒂⑮⒖"))
-  ("(16)" . ,(agda-input-to-string-list "⒃⑯⒗"))
-  ("(17)" . ,(agda-input-to-string-list "⒄⑰⒘"))
-  ("(18)" . ,(agda-input-to-string-list "⒅⑱⒙"))
-  ("(19)" . ,(agda-input-to-string-list "⒆⑲⒚"))
-  ("(20)" . ,(agda-input-to-string-list "⒇⑳⒛"))
+  ( "(0)" . ,(agda2-input-to-string-list " ⓪"))
+  ( "(1)" . ,(agda2-input-to-string-list "⑴①⒈❶➀➊"))
+  ( "(2)" . ,(agda2-input-to-string-list "⑵②⒉❷➁➋"))
+  ( "(3)" . ,(agda2-input-to-string-list "⑶③⒊❸➂➌"))
+  ( "(4)" . ,(agda2-input-to-string-list "⑷④⒋❹➃➍"))
+  ( "(5)" . ,(agda2-input-to-string-list "⑸⑤⒌❺➄➎"))
+  ( "(6)" . ,(agda2-input-to-string-list "⑹⑥⒍❻➅➏"))
+  ( "(7)" . ,(agda2-input-to-string-list "⑺⑦⒎❼➆➐"))
+  ( "(8)" . ,(agda2-input-to-string-list "⑻⑧⒏❽➇➑"))
+  ( "(9)" . ,(agda2-input-to-string-list "⑼⑨⒐❾➈➒"))
+  ("(10)" . ,(agda2-input-to-string-list "⑽⑩⒑❿➉➓"))
+  ("(11)" . ,(agda2-input-to-string-list "⑾⑪⒒"))
+  ("(12)" . ,(agda2-input-to-string-list "⑿⑫⒓"))
+  ("(13)" . ,(agda2-input-to-string-list "⒀⑬⒔"))
+  ("(14)" . ,(agda2-input-to-string-list "⒁⑭⒕"))
+  ("(15)" . ,(agda2-input-to-string-list "⒂⑮⒖"))
+  ("(16)" . ,(agda2-input-to-string-list "⒃⑯⒗"))
+  ("(17)" . ,(agda2-input-to-string-list "⒄⑰⒘"))
+  ("(18)" . ,(agda2-input-to-string-list "⒅⑱⒙"))
+  ("(19)" . ,(agda2-input-to-string-list "⒆⑲⒚"))
+  ("(20)" . ,(agda2-input-to-string-list "⒇⑳⒛"))
 
-  ("(a)"  . ,(agda-input-to-string-list "⒜Ⓐⓐ"))
-  ("(b)"  . ,(agda-input-to-string-list "⒝Ⓑⓑ"))
-  ("(c)"  . ,(agda-input-to-string-list "⒞Ⓒⓒ"))
-  ("(d)"  . ,(agda-input-to-string-list "⒟Ⓓⓓ"))
-  ("(e)"  . ,(agda-input-to-string-list "⒠Ⓔⓔ"))
-  ("(f)"  . ,(agda-input-to-string-list "⒡Ⓕⓕ"))
-  ("(g)"  . ,(agda-input-to-string-list "⒢Ⓖⓖ"))
-  ("(h)"  . ,(agda-input-to-string-list "⒣Ⓗⓗ"))
-  ("(i)"  . ,(agda-input-to-string-list "⒤Ⓘⓘ"))
-  ("(j)"  . ,(agda-input-to-string-list "⒥Ⓙⓙ"))
-  ("(k)"  . ,(agda-input-to-string-list "⒦Ⓚⓚ"))
-  ("(l)"  . ,(agda-input-to-string-list "⒧Ⓛⓛ"))
-  ("(m)"  . ,(agda-input-to-string-list "⒨Ⓜⓜ"))
-  ("(n)"  . ,(agda-input-to-string-list "⒩Ⓝⓝ"))
-  ("(o)"  . ,(agda-input-to-string-list "⒪Ⓞⓞ"))
-  ("(p)"  . ,(agda-input-to-string-list "⒫Ⓟⓟ"))
-  ("(q)"  . ,(agda-input-to-string-list "⒬Ⓠⓠ"))
-  ("(r)"  . ,(agda-input-to-string-list "⒭Ⓡⓡ"))
-  ("(s)"  . ,(agda-input-to-string-list "⒮Ⓢⓢ"))
-  ("(t)"  . ,(agda-input-to-string-list "⒯Ⓣⓣ"))
-  ("(u)"  . ,(agda-input-to-string-list "⒰Ⓤⓤ"))
-  ("(v)"  . ,(agda-input-to-string-list "⒱Ⓥⓥ"))
-  ("(w)"  . ,(agda-input-to-string-list "⒲Ⓦⓦ"))
-  ("(x)"  . ,(agda-input-to-string-list "⒳Ⓧⓧ"))
-  ("(y)"  . ,(agda-input-to-string-list "⒴Ⓨⓨ"))
-  ("(z)"  . ,(agda-input-to-string-list "⒵Ⓩⓩ"))
+  ("(a)"  . ,(agda2-input-to-string-list "⒜Ⓐⓐ"))
+  ("(b)"  . ,(agda2-input-to-string-list "⒝Ⓑⓑ"))
+  ("(c)"  . ,(agda2-input-to-string-list "⒞Ⓒⓒ"))
+  ("(d)"  . ,(agda2-input-to-string-list "⒟Ⓓⓓ"))
+  ("(e)"  . ,(agda2-input-to-string-list "⒠Ⓔⓔ"))
+  ("(f)"  . ,(agda2-input-to-string-list "⒡Ⓕⓕ"))
+  ("(g)"  . ,(agda2-input-to-string-list "⒢Ⓖⓖ"))
+  ("(h)"  . ,(agda2-input-to-string-list "⒣Ⓗⓗ"))
+  ("(i)"  . ,(agda2-input-to-string-list "⒤Ⓘⓘ"))
+  ("(j)"  . ,(agda2-input-to-string-list "⒥Ⓙⓙ"))
+  ("(k)"  . ,(agda2-input-to-string-list "⒦Ⓚⓚ"))
+  ("(l)"  . ,(agda2-input-to-string-list "⒧Ⓛⓛ"))
+  ("(m)"  . ,(agda2-input-to-string-list "⒨Ⓜⓜ"))
+  ("(n)"  . ,(agda2-input-to-string-list "⒩Ⓝⓝ"))
+  ("(o)"  . ,(agda2-input-to-string-list "⒪Ⓞⓞ"))
+  ("(p)"  . ,(agda2-input-to-string-list "⒫Ⓟⓟ"))
+  ("(q)"  . ,(agda2-input-to-string-list "⒬Ⓠⓠ"))
+  ("(r)"  . ,(agda2-input-to-string-list "⒭Ⓡⓡ"))
+  ("(s)"  . ,(agda2-input-to-string-list "⒮Ⓢⓢ"))
+  ("(t)"  . ,(agda2-input-to-string-list "⒯Ⓣⓣ"))
+  ("(u)"  . ,(agda2-input-to-string-list "⒰Ⓤⓤ"))
+  ("(v)"  . ,(agda2-input-to-string-list "⒱Ⓥⓥ"))
+  ("(w)"  . ,(agda2-input-to-string-list "⒲Ⓦⓦ"))
+  ("(x)"  . ,(agda2-input-to-string-list "⒳Ⓧⓧ"))
+  ("(y)"  . ,(agda2-input-to-string-list "⒴Ⓨⓨ"))
+  ("(z)"  . ,(agda2-input-to-string-list "⒵Ⓩⓩ"))
 
   ))
   "A list of translations specific to the Agda input method.
@@ -1099,30 +1099,30 @@ Note that if you customize this setting you will not
 automatically benefit (or suffer) from modifications to its
 default value when the library is updated.  If you just want to
 add some bindings it is probably a better idea to customize
-`agda-input-user-translations'.
+`agda2-input-user-translations'.
 
 These translation pairs are included after those in
-`agda-input-user-translations', but before the ones inherited
-from other input methods (see `agda-input-inherit').
+`agda2-input-user-translations', but before the ones inherited
+from other input methods (see `agda2-input-inherit').
 
 If you change this setting manually (without using the
-customization buffer) you need to call `agda-input-setup' in
+customization buffer) you need to call `agda2-input-setup' in
 order for the change to take effect."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
+  :group 'agda2-input
+  :set 'agda2-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
   :type '(repeat (cons (string :tag "Key sequence")
                        (repeat :tag "Translations" string))))
 
-(defcustom agda-input-user-translations nil
-  "Like `agda-input-translations', but more suitable for user
+(defcustom agda2-input-user-translations nil
+  "Like `agda2-input-translations', but more suitable for user
 customizations since by default it is empty.
 
 These translation pairs are included first, before those in
-`agda-input-translations' and the ones inherited from other input
+`agda2-input-translations' and the ones inherited from other input
 methods."
-  :group 'agda-input
-  :set 'agda-input-incorporate-changed-setting
+  :group 'agda2-input
+  :set 'agda2-input-incorporate-changed-setting
   :initialize 'custom-initialize-default
   :type '(repeat (cons (string :tag "Key sequence")
                        (repeat :tag "Translations" string))))
@@ -1130,7 +1130,7 @@ methods."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Inspecting and modifying translation maps
 
-(defun agda-input-get-translations (qp)
+(defun agda2-input-get-translations (qp)
   "Return a list containing all translations from the Quail
 package QP (except for those corresponding to ASCII).
 Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
@@ -1142,7 +1142,7 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
       (quail-build-decode-map (list (quail-map)) "" decode-map 0)
       (cdr decode-map))))
 
-(defun agda-input-show-translations (qp)
+(defun agda2-input-show-translations (qp)
   "Display all translations used by the Quail package QP (a string).
 \(Except for those corresponding to ASCII)."
   (interactive (list (read-input-method-name
@@ -1151,32 +1151,32 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
     (with-output-to-temp-buffer buf
       (with-current-buffer buf
         (quail-insert-decode-map
-         (cons 'decode-map (agda-input-get-translations qp)))))))
+         (cons 'decode-map (agda2-input-get-translations qp)))))))
 
-(defun agda-input-add-translations (trans)
+(defun agda2-input-add-translations (trans)
   "Add the given translations TRANS to the Agda input method.
 TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION). The
 translations are appended to the current translations."
   (with-temp-buffer
-    (dolist (tr (agda-input-concat-map (eval agda-input-tweak-all) trans))
+    (dolist (tr (agda2-input-concat-map (eval agda2-input-tweak-all) trans))
       (quail-defrule (car tr) (cdr tr) "Agda" t))))
 
-(defun agda-input-inherit-package (qp &optional fun)
+(defun agda2-input-inherit-package (qp &optional fun)
   "Let the Agda input method inherit the translations from the
 Quail package QP (except for those corresponding to ASCII).
 
 The optional function FUN can be used to modify the translations.
 It is given a pair (KEY-SEQUENCE . TRANSLATION) and should return
 a list of such pairs."
-  (let ((trans (agda-input-get-translations qp)))
-    (agda-input-add-translations
-     (if fun (agda-input-concat-map fun trans)
+  (let ((trans (agda2-input-get-translations qp)))
+    (agda2-input-add-translations
+     (if fun (agda2-input-concat-map fun trans)
        trans))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Setting up the input method
 
-(defun agda-input-setup ()
+(defun agda2-input-setup ()
   "Set up the Agda input method based on the customisable
 variables and underlying input methods."
 
@@ -1190,27 +1190,27 @@ tasks as well."
      nil nil nil nil nil nil t ; maximum-shortest
      ))
 
-  (agda-input-add-translations
+  (agda2-input-add-translations
    (mapcar (lambda (tr) (cons (car tr) (vconcat (cdr tr))))
-           (append agda-input-user-translations
-                   agda-input-translations)))
-  (dolist (def agda-input-inherit)
-    (agda-input-inherit-package (car def)
+           (append agda2-input-user-translations
+                   agda2-input-translations)))
+  (dolist (def agda2-input-inherit)
+    (agda2-input-inherit-package (car def)
                                 (eval (cdr def)))))
 
-(defun agda-input-incorporate-changed-setting (sym val)
+(defun agda2-input-incorporate-changed-setting (sym val)
   "Update the Agda input method based on the customisable
 variables and underlying input methods.
 Suitable for use in the :set field of `defcustom'."
   (set-default sym val)
-  (agda-input-setup))
+  (agda2-input-setup))
 
 ;; Set up the input method.
 
-(agda-input-setup)
+(agda2-input-setup)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details
 
-(provide 'agda-input)
-;;; agda-input.el ends here
+(provide 'agda2-input)
+;;; agda2-input.el ends here
