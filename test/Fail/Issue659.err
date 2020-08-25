@@ -1,4 +1,4 @@
-Issue659.agda:32,11-15
-(Set _a_29) != Agda.Primitive.Setω
-when checking that the expression M.id has type
-P k₁ ((ℓ : Level) → R ℓ)
+Issue659.agda:32,7-10
+Agda.Primitive.Setω != (Set _a_29)
+when checking that the solution (ℓ : Level) → R ℓ of metavariable
+_A_30 has the expected type Set _a_29

@@ -7,7 +7,6 @@ Failed to solve the following constraints:
     (blocked on _A_28)
   lzero = _a_26 (blocked on _a_26)
   ℕ =< _A_28 (blocked on _A_28)
-  _a_26 = lzero (blocked on _a_26)
   _A_28 =< ℕ (blocked on _A_28)
 Unsolved metas at the following locations:
   FrozenMVar2.agda:20,1-28
