@@ -147,6 +147,9 @@ ifIsSort t yes no = do
     Sort s -> yes s
     _      -> no
 
+ifNotSort :: (MonadReduce m) => Type -> m a -> (Sort -> m a) -> m a
+ifNotSort t = flip $ ifIsSort t
+
 -- | Result is in reduced form.
 shouldBeSort
   :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadError TCErr m)

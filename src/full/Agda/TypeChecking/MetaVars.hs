@@ -673,21 +673,24 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- Jesper, 2020-04-22: We do this before any of the other steps
   -- because comparing the sorts might lead to some metavariables
   -- being solved, which can help with pruning (see #4615).
+  -- Jesper, 2020-08-25: --no-sort-comparison is now the default
+  -- behaviour.
   let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-  whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
-         (optCumulativity <$> pragmaOptions)) $ piApplyM' abort t args >>= \case
-    El _ (Sort s) -> do
-      cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-        case mvJudgement mvar of
-          HasType{ jComparison = cmp } -> return cmp
-          IsSort{} -> __IMPOSSIBLE__
-      s' <- sortOf v
-      reportSDoc "tc.meta.assign" 40 $
-        "Instantiating sort" <+> prettyTCM s <+>
-        "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
-      traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
-        compareSort cmp s' s
-    _ -> return ()
+  t' <- piApplyM' abort t args
+  -- If the type @t@ is not a sort, we know that the type already
+  -- matches (since this is an invariant maintained by the conversion
+  -- checker) so we only need to do something when @t@ is a sort.
+  ifNotSort t' (return ()) $ \s -> do
+    cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
+      case mvJudgement mvar of
+        HasType{ jComparison = cmp } -> return cmp
+        IsSort{} -> __IMPOSSIBLE__
+    s' <- sortOf v
+    reportSDoc "tc.meta.assign" 40 $
+      "Instantiating sort" <+> prettyTCM s <+>
+      "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+    traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+      compareSort cmp s' s
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
