@@ -41,19 +41,39 @@ primitive
   primATan2         : Float → Float → Float
   primShowFloat     : Float → String
 
-{-# COMPILE JS primFloatToRatio = function(x) {
-    if (x !== x) {
+{-# COMPILE JS
+  primFloatToRatio = function(float) {
+    if (isNaN(float)) {
       return z_jAgda_Agda_Builtin_Sigma["_,_"](0)(0);
     }
-    else if (x === Infinity) {
+    else if (float > 0 && !isFinite(float)) {
       return z_jAgda_Agda_Builtin_Sigma["_,_"](1)(0);
     }
-    else if (x === -Infinity) {
+    else if (float < 0 && !isFinite(float)) {
       return z_jAgda_Agda_Builtin_Sigma["_,_"](-1)(0);
     }
     else {
-      return z_jAgda_Agda_Builtin_Sigma["_,_"](Math.round(x*10e8))(10e8);
+      // Greatest common factor function
+      var gcf = function(x, y) {
+        var z;
+        x = Math.abs(x);
+        y = Math.abs(y);
+        while (y) {
+          z = x % y;
+          x = y;
+          y = z;
+        }
+        return x;
+      };
+      // Start with a ratio with 9 decimal places precision
+      var numerator = Math.round(float*1e9);
+      var denominator = 1e9;
+      // Normalise
+      var greatestCommonFactor = gcf(numerator, denominator);
+      numerator /= greatestCommonFactor;
+      denominator /= greatestCommonFactor;
+      return z_jAgda_Agda_Builtin_Sigma["_,_"](numerator)(denominator);
     }
-  }
+  };
 #-}
 
