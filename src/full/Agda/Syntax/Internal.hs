@@ -341,8 +341,8 @@ newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 -- | Even if we are not stuck on a meta during reduction
 --   we can fail to reduce a definition by pattern matching
 --   for another reason.
-data NotBlocked
-  = StuckOn Elim
+data NotBlocked' t
+  = StuckOn (Elim' t)
     -- ^ The 'Elim' is neutral and blocks a pattern match.
   | Underapplied
     -- ^ Not enough arguments were supplied to complete the matching.
@@ -358,6 +358,8 @@ data NotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
   deriving (Show, Data)
+
+type NotBlocked = NotBlocked' Term
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
