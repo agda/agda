@@ -131,45 +131,6 @@ buildConstraint unblock c = do
   pids <- asksTC envActiveProblems
   buildProblemConstraint pids unblock c
 
--- | Should a constraint wake up or not? If not, we might refine the unblocker.
-data WakeUp = WakeUp | DontWakeUp (Maybe Blocker)
-  deriving (Show, Eq)
-
-wakeUpWhen :: (ProblemConstraint -> Bool) -> (ProblemConstraint -> WakeUp) -> ProblemConstraint -> WakeUp
-wakeUpWhen guard wake c | guard c   = wake c
-                        | otherwise = DontWakeUp Nothing
-
-wakeUpWhen_ :: (ProblemConstraint -> Bool) -> ProblemConstraint -> WakeUp
-wakeUpWhen_ p = wakeUpWhen p (const WakeUp)
-
-wakeIfBlockedOnProblem :: ProblemId -> Blocker -> WakeUp
-wakeIfBlockedOnProblem pid u
-  | u' == alwaysUnblock = WakeUp
-  | otherwise           = DontWakeUp (Just u')
-  where
-    u' = unblockProblem pid u
-
-wakeIfBlockedOnMeta :: MetaId -> Blocker -> WakeUp
-wakeIfBlockedOnMeta x u
-  | u' == alwaysUnblock = WakeUp
-  | otherwise           = DontWakeUp (Just u')
-  where
-    u' = unblockMeta x u
-
-unblockMeta :: MetaId -> Blocker -> Blocker
-unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
-                                  | otherwise = u
-unblockMeta _ u@UnblockOnProblem{} = u
-unblockMeta x (UnblockOnAll us)    = unblockOnAll $ Set.map (unblockMeta x) us
-unblockMeta x (UnblockOnAny us)    = unblockOnAny $ Set.map (unblockMeta x) us
-
-unblockProblem :: ProblemId -> Blocker -> Blocker
-unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
-                                        | otherwise = u
-unblockProblem _ u@UnblockOnMeta{} = u
-unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
-unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
-
 -- | Monad service class containing methods for adding and solving
 --   constraints
 class ( MonadTCEnv m

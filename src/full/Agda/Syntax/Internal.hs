@@ -5,6 +5,8 @@
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
+    , module Agda.Syntax.Internal.Blockers
+    , module Agda.Syntax.Internal.Elim
     , module Agda.Syntax.Abstract.Name
     , MetaId(..), ProblemId(..)
     ) where
@@ -30,6 +32,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal.Blockers
+import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Empty
 
@@ -214,27 +218,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 
 type ConInfo = ConOrigin
 
--- | Eliminations, subsuming applications and projections.
---
-data Elim' a
-  = Apply (Arg a)         -- ^ Application.
-  | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
-  | IApply a a a -- ^ IApply x y r, x and y are the endpoints
-  deriving (Data, Show, Functor, Foldable, Traversable)
-
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
-
--- | This instance cheats on 'Proj', use with care.
---   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.
---   Same for IApply
-instance LensOrigin (Elim' a) where
-  getOrigin (Apply a)   = getOrigin a
-  getOrigin Proj{}      = UserWritten
-  getOrigin IApply{}    = UserWritten
-  mapOrigin f (Apply a) = Apply $ mapOrigin f a
-  mapOrigin f e@Proj{}  = e
-  mapOrigin f e@IApply{} = e
 
 -- | Binder.
 --
@@ -338,191 +323,11 @@ newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 -- * Blocked Terms
 ---------------------------------------------------------------------------
 
--- | Even if we are not stuck on a meta during reduction
---   we can fail to reduce a definition by pattern matching
---   for another reason.
-data NotBlocked' t
-  = StuckOn (Elim' t)
-    -- ^ The 'Elim' is neutral and blocks a pattern match.
-  | Underapplied
-    -- ^ Not enough arguments were supplied to complete the matching.
-  | AbsurdMatch
-    -- ^ We matched an absurd clause, results in a neutral 'Def'.
-  | MissingClauses
-    -- ^ We ran out of clauses, all considered clauses
-    --   produced an actual mismatch.
-    --   This can happen when try to reduce a function application
-    --   but we are still missing some function clauses.
-    --   See "Agda.TypeChecking.Patterns.Match".
-  | ReallyNotBlocked
-    -- ^ Reduction was not blocked, we reached a whnf
-    --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data)
-
+type Blocked    = Blocked' Term
 type NotBlocked = NotBlocked' Term
-
--- | 'ReallyNotBlocked' is the unit.
---   'MissingClauses' is dominant.
---   @'StuckOn'{}@ should be propagated, if tied, we take the left.
-instance Semigroup NotBlocked where
-  ReallyNotBlocked <> b = b
-  -- MissingClauses is dominant (absorptive)
-  b@MissingClauses <> _ = b
-  _ <> b@MissingClauses = b
-  -- StuckOn is second strongest
-  b@StuckOn{}      <> _ = b
-  _ <> b@StuckOn{}      = b
-  b <> _                = b
-
-instance Monoid NotBlocked where
-  -- ReallyNotBlocked is neutral
-  mempty  = ReallyNotBlocked
-  mappend = (<>)
-
--- | What is causing the blocking? Or in other words which metas or problems need to be solved to
---   unblock the blocked computation/constraint.
-data Blocker = UnblockOnAll (Set Blocker)
-             | UnblockOnAny (Set Blocker)
-             | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
-             | UnblockOnProblem ProblemId
-  deriving (Data, Show, Eq, Ord)
-
-alwaysUnblock :: Blocker
-alwaysUnblock = UnblockOnAll Set.empty
-
-neverUnblock :: Blocker
-neverUnblock = UnblockOnAny Set.empty
-
-unblockOnAll :: Set Blocker -> Blocker
-unblockOnAll us =
-  case allViewS us of
-    us | [u] <- Set.toList us -> u
-    us                        -> UnblockOnAll us
-  where
-    allViewS = Set.unions . map allView . Set.toList
-    allView (UnblockOnAll us) = allViewS us
-    allView u                 = Set.singleton u
-
-unblockOnAny :: Set Blocker -> Blocker
-unblockOnAny us =
-  case anyViewS us of
-    us | [u] <- Set.toList us        -> u
-    us | Set.member alwaysUnblock us -> alwaysUnblock
-       | otherwise                   -> UnblockOnAny us
-  where
-    anyViewS = Set.unions . map anyView . Set.toList
-    anyView (UnblockOnAny us) = anyViewS us
-    anyView u                 = Set.singleton u
-
-unblockOnEither :: Blocker -> Blocker -> Blocker
-unblockOnEither a b = unblockOnAny $ Set.fromList [a, b]
-
-unblockOnMeta :: MetaId -> Blocker
-unblockOnMeta = UnblockOnMeta
-
-unblockOnProblem :: ProblemId -> Blocker
-unblockOnProblem = UnblockOnProblem
-
-unblockOnAllMetas :: Set MetaId -> Blocker
-unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
-
-unblockOnAnyMeta :: Set MetaId -> Blocker
-unblockOnAnyMeta = unblockOnAny . Set.mapMonotonic unblockOnMeta
-
-onBlockingMetasM :: Monad m => (MetaId -> m Blocker) -> Blocker -> m Blocker
-onBlockingMetasM f (UnblockOnAll bs)    = unblockOnAll . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
-onBlockingMetasM f (UnblockOnAny bs)    = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
-onBlockingMetasM f (UnblockOnMeta x)    = f x
-onBlockingMetasM f b@UnblockOnProblem{} = pure b
-
-allBlockingMetas :: Blocker -> Set MetaId
-allBlockingMetas (UnblockOnAll us)  = Set.unions $ map allBlockingMetas $ Set.toList us
-allBlockingMetas (UnblockOnAny us)  = Set.unions $ map allBlockingMetas $ Set.toList us
-allBlockingMetas (UnblockOnMeta x)  = Set.singleton x
-allBlockingMetas UnblockOnProblem{} = Set.empty
-
-allBlockingProblems :: Blocker -> Set ProblemId
-allBlockingProblems (UnblockOnAll us)    = Set.unions $ map allBlockingProblems $ Set.toList us
-allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems $ Set.toList us
-allBlockingProblems UnblockOnMeta{}      = Set.empty
-allBlockingProblems (UnblockOnProblem p) = Set.singleton p
-
--- Note: We pick the All rather than the Any as the semigroup instance.
-instance Semigroup Blocker where
-  x <> y = unblockOnAll $ Set.fromList [x, y]
-
-instance Monoid Blocker where
-  mempty = alwaysUnblock
-  mappend = (<>)
-
-instance Pretty Blocker where
-  pretty (UnblockOnAll us)      = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
-  pretty (UnblockOnAny us)      = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
-  pretty (UnblockOnMeta m)      = pretty m
-  pretty (UnblockOnProblem pid) = "problem" <+> pretty pid
-
--- | Something where a meta variable may block reduction. Notably a top-level meta is considered
---   blocking. This did not use to be the case (pre Aug 2020).
-data Blocked t
-  = Blocked    { theBlocker      :: Blocker,  ignoreBlocking :: t }
-  | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
-  deriving (Data, Show, Functor, Foldable, Traversable)
-
-instance Decoration Blocked where
-  traverseF f (Blocked b x)     = Blocked b <$> f x
-  traverseF f (NotBlocked nb x) = NotBlocked nb <$> f x
-
--- | Blocking on _all_ blockers.
-instance Applicative Blocked where
-  pure = notBlocked
-  f <*> e = ((f $> ()) `mappend` (e $> ())) $> ignoreBlocking f (ignoreBlocking e)
-
--- | @'Blocked' t@ without the @t@.
+--
+-- | @'Blocked a@ without the @a@.
 type Blocked_ = Blocked ()
-
-instance Semigroup Blocked_ where
-  Blocked x _    <> Blocked y _    = Blocked (x <> y) ()
-  b@Blocked{}    <> NotBlocked{}   = b
-  NotBlocked{}   <> b@Blocked{}    = b
-  NotBlocked x _ <> NotBlocked y _ = NotBlocked (x <> y) ()
-
-instance Monoid Blocked_ where
-  mempty = notBlocked ()
-  mappend = (<>)
-
--- | When trying to reduce @f es@, on match failed on one
---   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
---   @stuckOn e r@ produces the new @NotBlocked@ info.
---
---   'MissingClauses' must be propagated, as this is blockage
---   that can be lifted in the future (as more clauses are added).
---
---   @'StuckOn' e0@ is also propagated, since it provides more
---   precise information as @StuckOn e@ (as @e0@ is the original
---   reason why reduction got stuck and usually a subterm of @e@).
---   An information like @StuckOn (Apply (Arg info (Var i [])))@
---   (stuck on a variable) could be used by the lhs/coverage checker
---   to trigger a split on that (pattern) variable.
---
---   In the remaining cases for @r@, we are terminally stuck
---   due to @StuckOn e@.  Propagating @'AbsurdMatch'@ does not
---   seem useful.
---
---   'Underapplied' must not be propagated, as this would mean
---   that @f es@ is underapplied, which is not the case (it is stuck).
---   Note that 'Underapplied' can only arise when projection patterns were
---   missing to complete the original match (in @e@).
---   (Missing ordinary pattern would mean the @e@ is of function type,
---   but we cannot match against something of function type.)
-stuckOn :: Elim -> NotBlocked -> NotBlocked
-stuckOn e r =
-  case r of
-    MissingClauses   -> r
-    StuckOn{}        -> r
-    Underapplied     -> r'
-    AbsurdMatch      -> r'
-    ReallyNotBlocked -> r'
-  where r' = StuckOn e
 
 ---------------------------------------------------------------------------
 -- * Definitions
@@ -1119,26 +924,6 @@ instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)
 
 ---------------------------------------------------------------------------
--- * Handling blocked terms.
----------------------------------------------------------------------------
-
-blockedOn :: Blocker -> a -> Blocked a
-blockedOn b | alwaysUnblock == b = notBlocked
-            | otherwise          = Blocked b
-
-blocked :: MetaId -> a -> Blocked a
-blocked = Blocked . unblockOnMeta
-
-notBlocked :: a -> Blocked a
-notBlocked = NotBlocked ReallyNotBlocked
-
-blocked_ :: MetaId -> Blocked_
-blocked_ x = blocked x ()
-
-notBlocked_ :: Blocked_
-notBlocked_ = notBlocked ()
-
----------------------------------------------------------------------------
 -- * Simple operations on terms and types.
 ---------------------------------------------------------------------------
 
@@ -1225,40 +1010,6 @@ hasElims v =
     Level{}    -> Nothing
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
-
--- | Drop 'Apply' constructor. (Safe)
-isApplyElim :: Elim' a -> Maybe (Arg a)
-isApplyElim (Apply u) = Just u
-isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r) = Just (defaultArg r)
-
-isApplyElim' :: Empty -> Elim' a -> Arg a
-isApplyElim' e = fromMaybe (absurd e) . isApplyElim
-
--- | Drop 'Apply' constructors. (Safe)
-allApplyElims :: [Elim' a] -> Maybe [Arg a]
-allApplyElims = mapM isApplyElim
-
--- | Split at first non-'Apply'
-splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
-splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
-splitApplyElims es             = ([], es)
-
-class IsProjElim e where
-  isProjElim  :: e -> Maybe (ProjOrigin, QName)
-
-instance IsProjElim (Elim' a) where
-  isProjElim (Proj o d) = Just (o, d)
-  isProjElim Apply{}    = Nothing
-  isProjElim IApply{} = Nothing
-
--- | Discards @Proj f@ entries.
-argsFromElims :: Elims -> Args
-argsFromElims = mapMaybe isApplyElim
-
--- | Drop 'Proj' constructors. (Safe)
-allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
-allProjElims = mapM isProjElim
 
 ---------------------------------------------------------------------------
 -- * Null instances.
@@ -1458,9 +1209,6 @@ instance KillRange a => KillRange (Blocked a) where
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
-instance KillRange a => KillRange (Elim' a) where
-  killRange = fmap killRange
-
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
@@ -1578,12 +1326,6 @@ instance Pretty Sort where
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
-instance Pretty tm => Pretty (Elim' tm) where
-  prettyPrec p (Apply v)    = prettyPrec p v
-  prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
-  prettyPrec p (IApply x y r) = prettyPrec p r
---  prettyPrec p (IApply x y r) = text "@[" <> prettyPrec 0 x <> text ", " <> prettyPrec 0 y <> text "]" <> prettyPrec p r
-
 instance Pretty DBPatVar where
   prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
 
@@ -1651,11 +1393,6 @@ instance NFData Level where
 
 instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
-
-instance NFData a => NFData (Elim' a) where
-  rnf (Apply x) = rnf x
-  rnf Proj{}    = ()
-  rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
 
 instance NFData e => NFData (Dom e) where
   rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
