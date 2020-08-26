@@ -30,7 +30,7 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-        wakeConstraints (pure . wakeIfBlockedOnProblem pid . constraintUnblocker)
+        wakeConstraints (wakeIfBlockedOnProblem pid . constraintUnblocker)
   return x
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
@@ -131,45 +131,6 @@ buildConstraint unblock c = do
   pids <- asksTC envActiveProblems
   buildProblemConstraint pids unblock c
 
--- | Should a constraint wake up or not? If not, we might refine the unblocker.
-data WakeUp = WakeUp | DontWakeUp (Maybe Blocker)
-  deriving (Show, Eq)
-
-wakeUpWhen :: Applicative m => (ProblemConstraint -> Bool) -> (ProblemConstraint -> m WakeUp) -> ProblemConstraint -> m WakeUp
-wakeUpWhen guard wake c | guard c   = wake c
-                        | otherwise = pure $ DontWakeUp Nothing
-
-wakeUpWhen_ :: Applicative m => (ProblemConstraint -> Bool) -> ProblemConstraint -> m WakeUp
-wakeUpWhen_ p = wakeUpWhen p (const $ pure WakeUp)
-
-wakeIfBlockedOnProblem :: ProblemId -> Blocker -> WakeUp
-wakeIfBlockedOnProblem pid u
-  | u' == alwaysUnblock = WakeUp
-  | otherwise           = DontWakeUp (Just u')
-  where
-    u' = unblockProblem pid u
-
-wakeIfBlockedOnMeta :: MetaId -> Blocker -> WakeUp
-wakeIfBlockedOnMeta x u
-  | u' == alwaysUnblock = WakeUp
-  | otherwise           = DontWakeUp (Just u')
-  where
-    u' = unblockMeta x u
-
-unblockMeta :: MetaId -> Blocker -> Blocker
-unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
-                                  | otherwise = u
-unblockMeta _ u@UnblockOnProblem{} = u
-unblockMeta x (UnblockOnAll us)    = unblockOnAll $ Set.map (unblockMeta x) us
-unblockMeta x (UnblockOnAny us)    = unblockOnAny $ Set.map (unblockMeta x) us
-
-unblockProblem :: ProblemId -> Blocker -> Blocker
-unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
-                                        | otherwise = u
-unblockProblem _ u@UnblockOnMeta{} = u
-unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
-unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
-
 -- | Monad service class containing methods for adding and solving
 --   constraints
 class ( MonadTCEnv m
@@ -194,7 +155,7 @@ class ( MonadTCEnv m
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
 
-  wakeConstraints :: (ProblemConstraint-> m WakeUp) -> m ()
+  wakeConstraints :: (ProblemConstraint-> WakeUp) -> m ()
 
   stealConstraints :: ProblemId -> m ()
 
@@ -213,8 +174,7 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
 
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
-  wakeConstraints wake = ReaderT $ \ e ->
-    let run = flip runReaderT e in wakeConstraints (run . wake)
+  wakeConstraints = lift . wakeConstraints
 
 addAndUnblocker :: MonadConstraint m => Blocker -> m a -> m a
 addAndUnblocker u = catchPatternErr $ \ u' -> patternViolation (u <> u')

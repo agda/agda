@@ -374,7 +374,9 @@ library
                     Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
+                    Agda.Syntax.Internal.Blockers
                     Agda.Syntax.Internal.Defs
+                    Agda.Syntax.Internal.Elim
                     Agda.Syntax.Internal.Generic
                     Agda.Syntax.Internal.MetaVars
                     Agda.Syntax.Internal.Names

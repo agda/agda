@@ -2050,6 +2050,19 @@ instance Hashable MetaId
 
 newtype Constr a = Constr a
 
+-----------------------------------------------------------------------------
+-- * Problems
+-----------------------------------------------------------------------------
+
+-- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
+--   problems.
+newtype ProblemId = ProblemId Nat
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+-- This particular Show instance is ok because of the Num instance.
+instance Show   ProblemId where show   (ProblemId n) = show n
+instance Pretty ProblemId where pretty (ProblemId n) = pretty n
+
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)
 ------------------------------------------------------------------------
