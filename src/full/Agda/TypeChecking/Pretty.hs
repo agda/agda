@@ -208,7 +208,7 @@ instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM IsForced     where prettyTCM = text . show
 
 prettyR
-  :: (R.ToAbstract r a, PrettyTCM a, MonadPretty m, MonadError TCErr m)
+  :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
   => r -> m Doc
 prettyR = prettyTCM <=< toAbstractWithoutImplicit
 
