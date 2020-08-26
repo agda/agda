@@ -44,8 +44,8 @@ import Agda.Syntax.Literal
 -- by Agda.Syntax.Parser.LexActions.foolAlex in a preprocessing pass.
 
 $digit       = 0-9
-$binarydigit = 0-1
 $hexdigit    = [ $digit a-f A-F ]
+$binarydigit = 0-1
 $alpha       = [ A-Z a-z _ ]
 $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $digit $alpha $op ]
