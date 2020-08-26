@@ -198,21 +198,14 @@ number str = case str of
     num             -> parseNumber 10 num
     where
         parseNumber :: Integer -> String -> Integer
-        parseNumber radix = foldl' (addDigit radix)  0
-
-        addDigit :: Integer -> Integer -> Char -> Integer
-        addDigit radix n '_' = n
-        addDigit radix n c   = n * radix + fromIntegral (parseDigit c)
+        parseNumber radix = foldl' (addDigit radix) 0
 
         -- We rely on Agda.Syntax.Parser.Lexer to enforce that the digits are
         -- in the correct range (so e.g. the digit 'E' cannot appear in a
         -- binary number).
-        parseDigit :: Char -> Int
-        parseDigit c
-            | '0' <= c && c <= '9' = ord c - ord '0'
-            | 'a' <= c && c <= 'f' = ord c - ord 'a' + 10
-            | 'A' <= c && c <= 'F' = ord c - ord 'A' + 10
-            | otherwise            = __IMPOSSIBLE__
+        addDigit :: Integer -> Integer -> Char -> Integer
+        addDigit radix n '_' = n
+        addDigit radix n c   = n * radix + fromIntegral (digitToInt c)
 
 integer :: String -> Integer
 integer = \case
