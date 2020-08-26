@@ -30,7 +30,7 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
         reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-        wakeConstraints (pure . wakeIfBlockedOnProblem pid . constraintUnblocker)
+        wakeConstraints (wakeIfBlockedOnProblem pid . constraintUnblocker)
   return x
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
@@ -135,12 +135,12 @@ buildConstraint unblock c = do
 data WakeUp = WakeUp | DontWakeUp (Maybe Blocker)
   deriving (Show, Eq)
 
-wakeUpWhen :: Applicative m => (ProblemConstraint -> Bool) -> (ProblemConstraint -> m WakeUp) -> ProblemConstraint -> m WakeUp
+wakeUpWhen :: (ProblemConstraint -> Bool) -> (ProblemConstraint -> WakeUp) -> ProblemConstraint -> WakeUp
 wakeUpWhen guard wake c | guard c   = wake c
-                        | otherwise = pure $ DontWakeUp Nothing
+                        | otherwise = DontWakeUp Nothing
 
-wakeUpWhen_ :: Applicative m => (ProblemConstraint -> Bool) -> ProblemConstraint -> m WakeUp
-wakeUpWhen_ p = wakeUpWhen p (const $ pure WakeUp)
+wakeUpWhen_ :: (ProblemConstraint -> Bool) -> ProblemConstraint -> WakeUp
+wakeUpWhen_ p = wakeUpWhen p (const WakeUp)
 
 wakeIfBlockedOnProblem :: ProblemId -> Blocker -> WakeUp
 wakeIfBlockedOnProblem pid u
@@ -194,7 +194,7 @@ class ( MonadTCEnv m
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
 
-  wakeConstraints :: (ProblemConstraint-> m WakeUp) -> m ()
+  wakeConstraints :: (ProblemConstraint-> WakeUp) -> m ()
 
   stealConstraints :: ProblemId -> m ()
 
@@ -213,8 +213,7 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
 
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
-  wakeConstraints wake = ReaderT $ \ e ->
-    let run = flip runReaderT e in wakeConstraints (run . wake)
+  wakeConstraints = lift . wakeConstraints
 
 addAndUnblocker :: MonadConstraint m => Blocker -> m a -> m a
 addAndUnblocker u = catchPatternErr $ \ u' -> patternViolation (u <> u')
