@@ -1683,7 +1683,7 @@ transpTel delta phi args = do
   ineg <- liftTCM primINeg
   let
     noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
-    bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
+    bapp :: (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
     gTransp (Just l) t phi a = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
     gTransp Nothing  t phi a = do

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Generalize
   ( generalizeType

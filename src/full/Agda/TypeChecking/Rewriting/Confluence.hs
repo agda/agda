@@ -1,6 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Checking local or global confluence of rewrite rules.
@@ -565,7 +564,7 @@ instance ParallelReduce a => ParallelReduce (Elim' a) where
   parReduce e@Proj{}   = pure e
   parReduce IApply{}   = __IMPOSSIBLE__ -- not yet supported
 
-instance (Free a, Subst t a, ParallelReduce a) => ParallelReduce (Abs a) where
+instance (Free a, Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
   parReduce = mapAbstraction __DUMMY_DOM__ parReduce
 
 
@@ -631,7 +630,7 @@ ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
 -- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class (Subst Term p , Free p) => AllHoles p where
+class (TermSubst p, Free p) => AllHoles p where
   type PType p
   allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
            => PType p -> p -> m (OneHole p)

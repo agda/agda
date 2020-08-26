@@ -212,7 +212,7 @@ prettyR
   => r -> m Doc
 prettyR = prettyTCM <=< toAbstractWithoutImplicit
 
-instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
+instance (Pretty a, PrettyTCM a, EndoSubst a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = "idS"
   prettyTCM (Wk m IdS) = "wkS" <+> pretty m
   prettyTCM (EmptyS _) = "emptyS"

@@ -1,5 +1,5 @@
-{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 -- | Solving size constraints under hypotheses.
 --
@@ -680,7 +680,8 @@ instance Pretty SizeMeta where pretty = P.pretty . sizeMetaId
 instance PrettyTCM SizeMeta where
   prettyTCM (SizeMeta x es) = prettyTCM (MetaV x $ map (Apply . defaultArg . var) es)
 
-instance Subst Term SizeMeta where
+instance Subst SizeMeta where
+  type SubstArg SizeMeta = Term
   applySubst sigma (SizeMeta x es) = SizeMeta x (map raise es)
     where
       raise i =
@@ -696,7 +697,8 @@ type DBSizeExpr = SizeExpr' NamedRigid SizeMeta
 -- deriving instance Traversable (SizeExpr' Int)
 
 -- | Only for 'raise'.
-instance Subst Term (SizeExpr' NamedRigid SizeMeta) where
+instance Subst (SizeExpr' NamedRigid SizeMeta) where
+  type SubstArg (SizeExpr' NamedRigid SizeMeta) = Term
   applySubst sigma a =
     case a of
       Infty   -> a
@@ -709,7 +711,8 @@ instance Subst Term (SizeExpr' NamedRigid SizeMeta) where
 
 type SizeConstraint = Constraint' NamedRigid SizeMeta
 
-instance Subst Term SizeConstraint where
+instance Subst SizeConstraint where
+  type SubstArg SizeConstraint = Term
   applySubst sigma (Constraint a cmp b) =
     Constraint (applySubst sigma a) cmp (applySubst sigma b)
 

@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where

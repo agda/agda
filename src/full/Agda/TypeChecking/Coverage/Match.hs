@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 {-| Given
 
     1. the function clauses @cs@
@@ -157,12 +159,14 @@ toSplitPSubst = (fmap . fmap) toSplitVar
 fromSplitPSubst :: SplitPSubstitution -> PatternSubstitution
 fromSplitPSubst = (fmap . fmap) fromSplitVar
 
-applySplitPSubst :: (Subst Term a) => SplitPSubstitution -> a -> a
+applySplitPSubst :: TermSubst a => SplitPSubstitution -> a -> a
 applySplitPSubst = applyPatSubst . fromSplitPSubst
 
 -- TODO: merge this instance and the one for DeBruijnPattern in
 -- Substitute.hs into one for Subst (Pattern' a) (Pattern' a).
-instance Subst SplitPattern SplitPattern where
+instance Subst SplitPattern where
+  type SubstArg SplitPattern = SplitPattern
+
   applySubst IdS p = p
   applySubst rho p = case p of
     VarP i x     ->
