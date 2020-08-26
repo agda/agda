@@ -6,7 +6,7 @@
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Abstract.Name
-    , MetaId(..)
+    , MetaId(..), ProblemId(..)
     ) where
 
 import Prelude hiding (null)
@@ -378,15 +378,6 @@ instance Monoid NotBlocked where
   -- ReallyNotBlocked is neutral
   mempty  = ReallyNotBlocked
   mappend = (<>)
-
--- A "problem" consists of a set of constraints and the same constraint can be part of multiple
--- problems.
-newtype ProblemId = ProblemId Nat
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
-
--- This particular Show instance is ok because of the Num instance.
-instance Show   ProblemId where show   (ProblemId n) = show n
-instance Pretty ProblemId where pretty (ProblemId n) = pretty n
 
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.
