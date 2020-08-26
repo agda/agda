@@ -20,6 +20,7 @@ module Agda.Syntax.Parser.LexActions
 
 import Data.Bifunctor
 import Data.Char
+import Data.List
 import Data.Maybe
 
 import Agda.Syntax.Common (pattern Ranged)
@@ -191,9 +192,24 @@ symbol s = withInterval_ (TokSymbol s)
 -- | Parse a number.
 
 number :: String -> Integer
-number str = read $ case str of
-  '0' : 'x' : num -> str
-  _               -> concat $ wordsBy ('_' ==) str
+number str = case str of
+    '0' : 'x' : num -> parseNumber 16 num
+    '0' : 'b' : num -> parseNumber 2  num
+    num             -> parseNumber 10 num
+    where
+        parseNumber :: Integer -> String -> Integer
+        parseNumber radix = foldl' (addDigit radix)  0
+
+        addDigit :: Integer -> Integer -> Char -> Integer
+        addDigit radix n '_' = n
+        addDigit radix n c   = n * radix + fromIntegral (parseDigit c)
+
+        parseDigit :: Char -> Int
+        parseDigit c
+            | '0' <= c && c <= '9' = ord c - ord '0'
+            | 'a' <= c && c <= 'f' = ord c - ord 'a' + 10
+            | 'A' <= c && c <= 'F' = ord c - ord 'A' + 10
+            | otherwise            = __IMPOSSIBLE__
 
 integer :: String -> Integer
 integer = \case

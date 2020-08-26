@@ -44,6 +44,7 @@ import Agda.Syntax.Literal
 -- by Agda.Syntax.Parser.LexActions.foolAlex in a preprocessing pass.
 
 $digit       = 0-9
+$binarydigit = 0-1
 $hexdigit    = [ $digit a-f A-F ]
 $alpha       = [ A-Z a-z _ ]
 $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
@@ -54,7 +55,9 @@ $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
 @number       = $digit+ | "0x" $hexdigit+
-@prettynumber = $digit+ ([_] $digit+)* | "0x" $hexdigit+
+@prettynumber = $digit+ ([_] $digit+)*
+              | "0x" $hexdigit+ ([_] $hexdigit+)*
+              | "0b" $binarydigit+ ([_] $binarydigit+)*
 @integer      = [\-]? @prettynumber
 @exponent     = [eE] [\-\+]? @number
 @float        = @integer \. @number @exponent? | @number @exponent
