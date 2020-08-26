@@ -858,7 +858,7 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mappend = (<>)
 
 -- | Removes argument names.  Preserves names present in the source.
-removeNameUnlessUserWritten :: (LensNamed n a, LensOrigin n) => a -> a
+removeNameUnlessUserWritten :: (LensNamed a, LensOrigin (NameOf a)) => a -> a
 removeNameUnlessUserWritten a
   | (getOrigin <$> getNameOf a) == Just UserWritten = a
   | otherwise = setNameOf Nothing a

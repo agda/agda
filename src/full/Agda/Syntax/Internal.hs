@@ -87,7 +87,8 @@ instance Eq a => Eq (Dom' t a) where
   Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
     (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
 
-instance LensNamed NamedName (Dom' t e) where
+instance LensNamed (Dom' t e) where
+  type NameOf (Dom' t e) = NamedName
   lensNamed f dom = f (domName dom) <&> \ nm -> dom { domName = nm }
 
 instance LensArgInfo (Dom' t e) where
