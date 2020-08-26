@@ -5,12 +5,11 @@ import Data.Data (Data)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
-import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal.Elim
 
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Functor
 
 ---------------------------------------------------------------------------
@@ -160,7 +159,7 @@ instance Semigroup a => Semigroup (Blocked' t a) where
   NotBlocked{}   <> b@Blocked{}    = b
   NotBlocked x a <> NotBlocked y b = NotBlocked (x <> y) (a <> b)
 
-instance Monoid a => Monoid (Blocked' t a) where
+instance (Semigroup a, Monoid a) => Monoid (Blocked' t a) where
   mempty = notBlocked mempty
   mappend = (<>)
 
