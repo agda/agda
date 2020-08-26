@@ -204,6 +204,9 @@ number str = case str of
         addDigit radix n '_' = n
         addDigit radix n c   = n * radix + fromIntegral (parseDigit c)
 
+        -- We rely on Agda.Syntax.Parser.Lexer to enforce that the digits are
+        -- in the correct range (so e.g. the digit 'E' cannot appear in a
+        -- binary number).
         parseDigit :: Char -> Int
         parseDigit c
             | '0' <= c && c <= '9' = ord c - ord '0'
