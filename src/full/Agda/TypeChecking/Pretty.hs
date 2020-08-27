@@ -352,6 +352,7 @@ instance PrettyTCM DBPatVar where
   prettyTCM = prettyTCM . var . dbPatVarIndex
 
 instance PrettyTCM a => PrettyTCM (Pattern' a) where
+  prettyTCM :: forall m. MonadPretty m => Pattern' a -> m Doc
   prettyTCM (IApplyP _ _ _ x)    = prettyTCM x
   prettyTCM (VarP _ x)    = prettyTCM x
   prettyTCM (DotP _ t)    = ".(" <> prettyTCM t <> ")"
@@ -363,15 +364,15 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
       where
         -- NONE OF THESE BINDINGS IS USED AT THE MOMENT:
         b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
-        showRec :: MonadPretty m => m Doc -- Defined, but currently not used
+        showRec :: m Doc -- Defined, but currently not used
         showRec = sep
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
-        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
+        showField :: Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
         showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
-        showCon :: MonadPretty m => m Doc -- NB:: Defined but not used
+        showCon :: m Doc -- NB:: Defined but not used
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP _ l)    = text (P.prettyShow l)
