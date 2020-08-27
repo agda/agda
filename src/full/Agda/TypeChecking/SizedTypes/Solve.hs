@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Solving size constraints under hypotheses.
@@ -727,7 +728,8 @@ data HypSizeConstraint = HypSizeConstraint
   , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
   }
 
-instance Flexs SizeMeta HypSizeConstraint where
+instance Flexs HypSizeConstraint where
+  type FlexOf HypSizeConstraint = SizeMeta
   flexs (HypSizeConstraint _ _ hs c) = flexs hs `mappend` flexs c
 
 instance PrettyTCM HypSizeConstraint where
