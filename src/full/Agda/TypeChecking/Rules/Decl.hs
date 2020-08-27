@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Rules.Decl where
 
@@ -225,7 +226,8 @@ checkDecl d = setCurrentRange d $ do
 
     -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
-          . ( MonadTCEnv m, MonadPretty m, MonadDebug m, MonadBench Phase m
+          . ( MonadTCEnv m, MonadPretty m, MonadDebug m
+            , MonadBench m, Bench.BenchPhase m ~ Phase
             , AnyIsAbstract i )
           => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
