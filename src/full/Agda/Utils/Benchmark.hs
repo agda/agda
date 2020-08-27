@@ -125,9 +125,6 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
 class (Ord a, Functor m, MonadIO m) => MonadBench a m | m -> a where
   getBenchmark :: m (Benchmark a)
 
-  getsBenchmark :: (Benchmark a -> c) -> m c
-  getsBenchmark f = f <$> getBenchmark
-
   putBenchmark :: Benchmark a -> m ()
   putBenchmark b = modifyBenchmark $ const b
 
@@ -138,6 +135,9 @@ class (Ord a, Functor m, MonadIO m) => MonadBench a m | m -> a where
 
   -- | We need to be able to terminate benchmarking in case of an exception.
   finally :: m b -> m c -> m b
+
+getsBenchmark :: MonadBench a m => (Benchmark a -> c) -> m c
+getsBenchmark f = f <$> getBenchmark
 
 -- needs UndecidableInstances because of weakness of FunctionalDependencies
 instance MonadBench a m => MonadBench a (ReaderT r m) where
