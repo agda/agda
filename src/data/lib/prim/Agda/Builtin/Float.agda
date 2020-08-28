@@ -80,13 +80,13 @@ primitive
 primFloatNumericalEquality = primFloatEquality
 {-# WARNING_ON_USAGE primFloatNumericalEquality
 "Warning: primFloatNumericalEquality was deprecated in Agda v2.6.2.
-Please use primFloatPartialInequality instead."
+Please use primFloatEquality instead."
 #-}
 
 primFloatNumericalLess = primFloatLess
 {-# WARNING_ON_USAGE primFloatNumericalLess
 "Warning: primFloatNumericalLess was deprecated in Agda v2.6.2.
-Please use primFloatPartialInequality instead."
+Please use primFloatLess instead."
 #-}
 
 primRound = primFloatRound
