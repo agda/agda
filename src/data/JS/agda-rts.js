@@ -188,6 +188,9 @@ exports.primFloatIsDenormalitd = function(x) {
 exports.primFloatIsNegativeZero = function(x) {
     return Object.is(x, -0.0);
 };
+exports.primFloatIsSafeInteger = function(x) {
+    return Number.isSafeInteger(x);
+};
 
 
 // These WORD64 values were obtained via `castDoubleToWord64` in Haskell:
@@ -219,7 +222,6 @@ exports.primFloatToWord64 = function(x) {
             parseInt(sign + mantissa + exponent, 2).toString());
     }
 };
-
 exports.primNatToFloat = function(x) {
     return x.valueOf();
 };
@@ -231,9 +233,16 @@ exports.primRatioToFloat = function(x) {
         return x.valueOf() / y.valueOf();
     };
 };
-exports.primFloatEncode = function(x) {
+exports.iprimFloatEncode = function(x) {
     return function(y) {
-        return x.valueOf() * (2 ** y.valueOf());
+        var mantissa = x.valueOf();
+        var exponent = y.valueOf();
+        if (Number.isSafeInteger(mantissa) && -1024 <= exponent && exponent <= 1024) {
+            return mantissa * (2 ** exponent);
+        }
+        else {
+            return null;
+        }
     };
 };
 exports.primShowFloat = function(x) {

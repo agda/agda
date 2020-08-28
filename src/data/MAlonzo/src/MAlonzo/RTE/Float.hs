@@ -125,7 +125,35 @@ doubleDecode x
       | mantissa `mod` 2 == 0 = normalise (mantissa `div` 2) (exponent + 1)
       | otherwise = (mantissa, exponent)
 
--- |Encode a mantissa and an exponent as a Double.
-doubleEncode :: Integer -> Integer -> Double
-doubleEncode mantissa exponent = encodeFloat mantissa (fromInteger exponent)
+-- |Checks whether or not the Double is within a safe range of operation.
+isSafeInteger :: Double -> Bool
+isSafeInteger x = minSafeInteger <= x && x <= maxSafeInteger
+  where
+    minSafeInteger = encodeFloat minSafeMantissa 0
+    maxSafeInteger = encodeFloat maxSafeMantissa 0
 
+-- |The smallest representable mantissa. Simultaneously, the smallest integer which can be
+--  represented as a Double without loss of precision.
+minSafeMantissa :: Integer
+minSafeMantissa = - maxSafeInteger
+
+-- |The largest representable mantissa. Simultaneously, the largest integer which can be
+--  represented as a Double without loss of precision.
+maxSafeMantissa :: Integer
+maxSafeMantissa = 2 ^ 53 - 1
+
+-- |The largest representable exponent.
+minSafeExponent :: Integer
+minSafeExponent = -1024
+
+-- |The smallest representable exponent.
+maxSafeExponent :: Integer
+maxSafeExponent = 1024
+
+-- |Encode a mantissa and an exponent as a Double.
+doubleEncode :: Integer -> Integer -> Maybe Double
+doubleEncode mantissa exponent
+  = if minSafeMantissa <= mantissa && mantissa <= maxSafeMantissa &&
+       minSafeExponent <= exponent && exponent <= maxSafeExponent
+    then Just (encodeFloat mantissa (fromInteger exponent))
+    else Nothing

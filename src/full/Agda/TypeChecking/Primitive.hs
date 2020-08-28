@@ -832,6 +832,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primFloatIsNaN"             |-> mkPrimFun1 (isNaN :: Double -> Bool)
   , "primFloatIsDenormalized"    |-> mkPrimFun1 (isDenormalized :: Double -> Bool)
   , "primFloatIsNegativeZero"    |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
+  , "primFloatIsSafeInteger"     |-> mkPrimFun1 isSafeInteger
   , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
   , "primNatToFloat"             |-> mkPrimFun1 (fromIntegral :: Nat -> Double)

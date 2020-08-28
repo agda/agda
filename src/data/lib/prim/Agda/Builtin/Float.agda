@@ -23,6 +23,7 @@ primitive
   primFloatIsNaN             : Float → Bool
   primFloatIsDenormalized    : Float → Bool
   primFloatIsNegativeZero    : Float → Bool
+  primFloatIsSafeInteger     : Float → Bool
   -- Conversions
   primFloatToWord64          : Float → Word64
   primNatToFloat             : Nat → Float
@@ -74,6 +75,17 @@ primitive
         else {
             return z_jAgda_Agda_Builtin_Maybe["just"](z_jAgda_Agda_Builtin_Sigma["_,_"](mantissa)(exponent));
         }
+    };
+#-}
+{-# COMPILE JS
+    primFloatEncode = function(x) {
+         x = agdaRTS.iprimFloat(x); // see agda-rts.js
+         if (x === null) {
+             return z_jAgda_Agda_Builtin_Maybe["nothing"];
+         }
+         else {
+             return z_jAgda_Agda_Builtin_Maybe["just"](x);
+         }
     };
 #-}
 
