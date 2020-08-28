@@ -681,7 +681,7 @@ library
                  -Werror=warnings-deprecations
                  -Werror=wrong-do-bind
 
-  -- NOTE: If adding flags, also add to `.ghci-8.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
@@ -690,7 +690,7 @@ library
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci-8.6`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
@@ -700,6 +700,9 @@ library
 
   default-language: Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
   default-extensions: BangPatterns
                     , ConstraintKinds
                     --L-T Chen (2019-07-15):
@@ -886,6 +889,9 @@ test-suite agda-tests
 
   default-language:  Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
   default-extensions:  BangPatterns
                      , ConstraintKinds
                      , DataKinds
@@ -912,7 +918,7 @@ test-suite agda-tests
                      , TupleSections
                      , TypeSynonymInstances
 
-  -- NOTE: If adding flags, also add to `.ghci-8.0`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
   if impl(ghc <= 8.0.2)
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
@@ -985,13 +991,13 @@ test-suite agda-tests
 
   -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
   -- error.
-  -- NOTE: If adding flags, also add to `.ghci-8.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Werror=cpp-undef
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci-8.6`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
