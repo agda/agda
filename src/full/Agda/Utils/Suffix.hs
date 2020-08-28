@@ -74,8 +74,11 @@ suffixView s
 
 -- | Print suffix.
 
+renderSuffix :: Suffix -> String
+renderSuffix NoSuffix      = ""
+renderSuffix (Prime n)     = replicate n '\''
+renderSuffix (Index i)     = show i
+renderSuffix (Subscript i) = map toSubscriptDigit (show i)
+
 addSuffix :: String -> Suffix -> String
-addSuffix s NoSuffix      = s
-addSuffix s (Prime n)     = s ++ replicate n '\''
-addSuffix s (Index i)     = s ++ show i
-addSuffix s (Subscript i) = s ++ map toSubscriptDigit (show i)
+addSuffix str suffix = str ++ renderSuffix suffix
