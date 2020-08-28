@@ -664,17 +664,22 @@ instance ToConcrete ResolvedName where
 
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
-    DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
+    DefinedName _ x s    -> addSuffixConcrete s $ toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
     ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
-addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
-addSuffixConcrete A.NoSuffix = id
-addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
+addSuffixConcrete :: HasOptions m => A.Suffix -> m C.QName -> m C.QName
+addSuffixConcrete A.NoSuffix x = x
+addSuffixConcrete (A.Suffix i) x = do
+  glyphMode <- optUseUnicode <$> pragmaOptions
+  addSuffixConcrete' glyphMode i <$> x
+
+addSuffixConcrete' :: UnicodeOrAscii -> Integer -> C.QName -> C.QName
+addSuffixConcrete' glyphMode i = set (C.lensQNameName . nameSuffix) suffix
   where
-    suffix = Just $ case unsafeUnicodeOrAscii of
+    suffix = Just $ case glyphMode of
       UnicodeOk -> Subscript $ fromInteger i
       AsciiOnly -> Index $ fromInteger i
 
@@ -684,7 +689,7 @@ instance ToConcrete A.Expr where
     type ConOfAbs A.Expr = C.Expr
 
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def' x suffix)     = Ident . addSuffixConcrete suffix <$> toConcrete x
+    toConcrete (Def' x suffix)     = Ident <$> addSuffixConcrete suffix (toConcrete x)
     toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = Ident <$> toConcrete x
