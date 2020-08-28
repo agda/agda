@@ -47,14 +47,17 @@ castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
   F.peek buf
 #endif
 
+-- NOTE: normalisation of NaN values isn't necessary here,
+--       since comparisons to NaN always return false anyway.
+
 doubleEq :: Double -> Double -> Bool
-doubleEq = (==) `on` normaliseNaN
+doubleEq = (==)
 
 doubleLe :: Double -> Double -> Bool
-doubleLe = (<=) `on` normaliseNaN
+doubleLe = (<=)
 
 doubleLt :: Double -> Double -> Bool
-doubleLt = (<)  `on` normaliseNaN
+doubleLt = (<)
 
 negativeZero :: Double
 negativeZero = 0.0
