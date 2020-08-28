@@ -43,7 +43,7 @@ negativeInfinity :: Double
 negativeInfinity = -positiveInfinity
 
 nan :: Double
-nan = 0 / 0
+nan = 0.0 / 0.0
 
 isPosInf :: Double -> Bool
 isPosInf x = x > 0.0 && isInfinite x
@@ -68,7 +68,7 @@ doubleCeiling = fmap ceiling . asFinite
 
 normaliseNaN :: Double -> Double
 normaliseNaN x
-  | isNaN x   = (0/0)
+  | isNaN x   = nan
   | otherwise = x
 
 doubleToWord64 :: Double -> Word64
@@ -122,7 +122,7 @@ doubleDecode x
   where
     normalise :: Integer -> Integer -> (Integer, Integer)
     normalise mantissa exponent
-      | mantissa `mod` 2 == 0 = normalise (mantissa `div` 2) (exponent + 1)
+      | even mantissa = normalise (mantissa `div` 2) (exponent + 1)
       | otherwise = (mantissa, exponent)
 
 -- |Checks whether or not the Double is within a safe range of operation.
