@@ -16,8 +16,6 @@ import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.Semigroup ((<>))
 
-import Numeric.IEEE
-
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
@@ -56,6 +54,7 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Float
 import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -718,17 +717,13 @@ literal l = case l of
     -- Ulf, 2016-09-28: and #2218.
     floatExp :: Double -> String -> CC HS.Exp
     floatExp x s
-      | isNegativeZero x = rte "negativeZero"
-      | isNegativeInf  x = rte "negativeInfinity"
-      | isInfinite x     = rte "positiveInfinity"
-      | isNegativeNaN x  = rte "negativeNaN"
-      | isNaN x          = rte "positiveNaN"
-      | otherwise        = return $ typed s
+      | isPosInf  x = rte "positiveInfinity"
+      | isNegInf  x = rte "negativeInfinity"
+      | isNegZero x = rte "negativeZero"
+      | isNaN     x = rte "nan"
+      | otherwise   = return $ typed s
       where
         rte s = do tell YesFloat; return $ HS.Var $ HS.Qual mazRTEFloat $ HS.Ident s
-
-    isNegativeInf x = isInfinite x && x < 0.0
-    isNegativeNaN x = isNaN x && not (identicalIEEE x (0.0 / 0.0))
 
 hslit :: Literal -> HS.Literal
 hslit = \case

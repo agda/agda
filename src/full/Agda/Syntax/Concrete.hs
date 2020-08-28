@@ -597,21 +597,25 @@ observeHiding = \case
 
 isPattern :: Expr -> Maybe Pattern
 isPattern = \case
-  Ident x         -> return $ IdentP x
-  App _ e1 e2     -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e       -> ParenP r <$> isPattern e
-  Underscore r _  -> return $ WildP r
-  Absurd r        -> return $ AbsurdP r
-  As r x e        -> pushUnderBracesP r (AsP r x) <$> isPattern e
-  Dot r e         -> return $ pushUnderBracesE r (DotP r) e
-  Lit r l         -> return $ LitP r l
-  HiddenArg r e   -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e -> InstanceP r <$> mapM isPattern e
-  RawApp r es     -> RawAppP r <$> mapM isPattern es
-  Quote r         -> return $ QuoteP r
-  Equal r e1 e2   -> return $ EqualP r [(e1, e2)]
-  Ellipsis r      -> return $ EllipsisP r
-  Rec r es        -> do
+  Ident x            -> return $ IdentP x
+  App _ e1 e2        -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
+  Paren r e          -> ParenP r <$> isPattern e
+  Underscore r _     -> return $ WildP r
+  Absurd r           -> return $ AbsurdP r
+  As r x e           -> pushUnderBracesP r (AsP r x) <$> isPattern e
+  Dot r e            -> return $ pushUnderBracesE r (DotP r) e
+  -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
+  -- point numbers is not stable across architectures and with different
+  -- compiler flags.
+  Lit _ (LitFloat _) -> Nothing
+  Lit r l            -> return $ LitP r l
+  HiddenArg r e      -> HiddenP r <$> mapM isPattern e
+  InstanceArg r e    -> InstanceP r <$> mapM isPattern e
+  RawApp r es        -> RawAppP r <$> mapM isPattern es
+  Quote r            -> return $ QuoteP r
+  Equal r e1 e2      -> return $ EqualP r [(e1, e2)]
+  Ellipsis r         -> return $ EllipsisP r
+  Rec r es           -> do
     fs <- mapM maybeLeft es
     RecP r <$> mapM (mapM isPattern) fs
   -- WithApp has already lost the range information of the bars '|'

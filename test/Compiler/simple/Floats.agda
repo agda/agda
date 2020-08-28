@@ -12,8 +12,6 @@ printB false = putStrLn "false"
 
 _/_   = primFloatDiv
 _==_  = primFloatEquality
-_=N=_ = primFloatNumericalEquality
-_<N_  = primFloatNumericalLess
 _<_   = primFloatLess
 
 NaN : Float
@@ -28,13 +26,13 @@ Inf = 1.0 / 0.0
 -Inf : Float
 -Inf = -1.0 / 0.0
 
-sin   = primSin
-cos   = primCos
-tan   = primTan
-asin  = primASin
-acos  = primACos
-atan  = primATan
-atan2 = primATan2
+sin   = primFloatSin
+cos   = primFloatCos
+tan   = primFloatTan
+asin  = primFloatASin
+acos  = primFloatACos
+atan  = primFloatATan
+atan2 = primFloatATan2
 
 isZero : Float → String
 isZero 0.0  = "pos"
@@ -54,13 +52,11 @@ main =
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
 
-  putStr "Inf == Inf = " ,, printB (Inf == Inf) ,,
-
   -- Issues #2155 and #2194.
+  putStr "Inf == Inf = " ,, printB (Inf == Inf) ,,
   putStr "NaN == NaN = " ,, printB (NaN == NaN) ,,
   -- Issue #2194.
   putStr "NaN == -NaN = " ,, printB (NaN == (primFloatNegate NaN)) ,,
-
   -- Issue #2169.
   putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
 
@@ -70,9 +66,9 @@ main =
   putStr "isZero  1.0 = " ,, putStrLn (isZero 1.0) ,,
 
   -- numerical equality
-  putStr "NaN =N= NaN  = " ,, printB (NaN =N= NaN) ,,
-  putStr "0.0 =N= -0.0 = " ,, printB (0.0 =N= -0.0) ,,
-  putStr "0.0 =N= 12.0 = " ,, printB (0.0 =N= 12.0) ,,
+  putStr "NaN == NaN  = " ,, printB (NaN == NaN) ,,
+  putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
+  putStr "0.0 == 12.0 = " ,, printB (0.0 == 12.0) ,,
 
   putStr "NaN  < -Inf = " ,, printB (NaN < -Inf) ,,
   putStr "-Inf < NaN  = " ,, printB (-Inf < NaN) ,,
@@ -87,18 +83,18 @@ main =
   putStr "NaN  < -5.0 = " ,, printB (NaN < -5.0) ,,
   putStr "-5.0 < NaN  = " ,, printB (-5.0 < NaN) ,,
 
-  putStr "NaN  <N -Inf = " ,, printB (NaN <N -Inf) ,,
-  putStr "-Inf <N NaN  = " ,, printB (-Inf <N NaN) ,,
-  putStr "0.0  <N -0.0 = " ,, printB (0.0 <N -0.0) ,,
-  putStr "-0.0 <N 0.0  = " ,, printB (-0.0 <N 0.0) ,,
+  putStr "NaN  < -Inf = " ,, printB (NaN <N -Inf) ,,
+  putStr "-Inf < NaN  = " ,, printB (-Inf <N NaN) ,,
+  putStr "0.0  < -0.0 = " ,, printB (0.0 <N -0.0) ,,
+  putStr "-0.0 < 0.0  = " ,, printB (-0.0 <N 0.0) ,,
 
   -- Issue #2208.
-  putStr "NaN  <N NaN  = " ,, printB (NaN <N NaN) ,,
-  putStr "-NaN <N -NaN = " ,, printB (-NaN <N -NaN) ,,
-  putStr "NaN  <N -NaN = " ,, printB (NaN <N -NaN) ,,
-  putStr "-NaN <N NaN  = " ,, printB (-NaN <N NaN) ,,
-  putStr "NaN  <N -5.0 = " ,, printB (NaN <N -5.0) ,,
-  putStr "-5.0 <N NaN  = " ,, printB (-5.0 <N NaN) ,,
+  putStr "NaN  < NaN  = " ,, printB (NaN <N NaN) ,,
+  putStr "-NaN < -NaN = " ,, printB (-NaN <N -NaN) ,,
+  putStr "NaN  < -NaN = " ,, printB (NaN <N -NaN) ,,
+  putStr "-NaN < NaN  = " ,, printB (-NaN <N NaN) ,,
+  putStr "NaN  < -5.0 = " ,, printB (NaN <N -5.0) ,,
+  putStr "-5.0 < NaN  = " ,, printB (-5.0 <N NaN) ,,
 
   putStr "e                   = " ,, print (primExp 1.0) ,,
   putStr "sin (asin 0.6)      = " ,, print (sin (asin 0.6)) ,,

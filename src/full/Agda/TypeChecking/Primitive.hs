@@ -12,6 +12,7 @@ module Agda.TypeChecking.Primitive
        ) where
 
 import Data.Char
+import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -814,38 +815,57 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- Sorts
   , "primSetOmega"        |-> mkPrimSetOmega IsFibrant
   , "primStrictSetOmega"  |-> mkPrimSetOmega IsStrict
---  , "primStrictSet"       |-> mkPrimStrictSet
 
   -- Floating point functions
-  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
-  , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
-  , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
-  , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
-  , "primFloatNegate"     |-> mkPrimFun1 (negate          :: Fun Double)
-  , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
-  -- ASR (2016-09-29). We use bitwise equality for comparing Double
-  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
-  -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> mkPrimFun2 (floatEq         :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
-  , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
-  , "primFloatNumericalLess"     |-> mkPrimFun2 ((<)      :: Rel Double)
-  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round   . normaliseNaN :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor   . normaliseNaN :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling . normaliseNaN :: Double -> Integer)
-  , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
-  , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
-  , "primCos"             |-> mkPrimFun1 (cos             :: Fun Double)
-  , "primTan"             |-> mkPrimFun1 (tan             :: Fun Double)
-  , "primASin"            |-> mkPrimFun1 (asin            :: Fun Double)
-  , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
-  , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
-  , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
-  , "primShowFloat"       |-> mkPrimFun1 (T.pack . show   :: Double -> Text)
-  , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
+  --
+  -- Wen, 2020-08-26: Primitives which convert from Float into other, more
+  -- well-behaved numeric types should check for unrepresentable values, e.g.,
+  -- NaN and the infinities, and return `nothing` if those are encountered, to
+  -- ensure that the returned numbers are sensible. That means `primFloatRound`,
+  -- `primFloatFloor`, `primFloatCeiling`, and `primFloatDecode`. The conversion
+  -- `primFloatRatio` represents NaN as (0,0), and the infinities as (±1,0).
+  --
+  , "primFloatEquality"          |-> mkPrimFun2 doubleEq
+  , "primFloatInequality"        |-> mkPrimFun2 doubleLe
+  , "primFloatLess"              |-> mkPrimFun2 doubleLt
+  , "primFloatIsInfinite"        |-> mkPrimFun1 (isInfinite :: Double -> Bool)
+  , "primFloatIsNaN"             |-> mkPrimFun1 (isNaN :: Double -> Bool)
+  , "primFloatIsDenormalized"    |-> mkPrimFun1 (isDenormalized :: Double -> Bool)
+  , "primFloatIsNegativeZero"    |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
+  , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
+  , "primNatToFloat"             |-> mkPrimFun1 (fromIntegral :: Nat -> Double)
+  , "primIntToFloat"             |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+  , "primFloatRound"             |-> mkPrimFun1 doubleRound
+  , "primFloatFloor"             |-> mkPrimFun1 doubleFloor
+  , "primFloatCeiling"           |-> mkPrimFun1 doubleCeiling
+  , "primFloatToRatio"           |-> mkPrimFun1 doubleToRatio
+  , "primRatioToFloat"           |-> mkPrimFun2 ratioToDouble
+  , "primFloatDecode"            |-> mkPrimFun1 doubleDecode
+  , "primFloatEncode"            |-> mkPrimFun2 doubleEncode
+  , "primShowFloat"              |-> mkPrimFun1 (T.pack . show :: Double -> Text)
+  , "primFloatPlus"              |-> mkPrimFun2 ((+) :: Op Double)
+  , "primFloatMinus"             |-> mkPrimFun2 ((-) :: Op Double)
+  , "primFloatTimes"             |-> mkPrimFun2 ((*) :: Op Double)
+  , "primFloatNegate"            |-> mkPrimFun1 (negate :: Fun Double)
+  , "primFloatDiv"               |-> mkPrimFun2 ((/) :: Op Double)
+  , "primFloatSqrt"              |-> mkPrimFun1 (sqrt :: Fun Double)
+  , "primFloatExp"               |-> mkPrimFun1 (exp :: Fun Double)
+  , "primFloatLog"               |-> mkPrimFun1 (log :: Fun Double)
+  , "primFloatSin"               |-> mkPrimFun1 (sin :: Fun Double)
+  , "primFloatCos"               |-> mkPrimFun1 (cos :: Fun Double)
+  , "primFloatTan"               |-> mkPrimFun1 (tan :: Fun Double)
+  , "primFloatASin"              |-> mkPrimFun1 (asin :: Fun Double)
+  , "primFloatACos"              |-> mkPrimFun1 (acos :: Fun Double)
+  , "primFloatATan"              |-> mkPrimFun1 (atan :: Fun Double)
+  , "primFloatATan2"             |-> mkPrimFun2 (atan2 :: Op Double)
+  , "primFloatSinh"              |-> mkPrimFun1 (sinh :: Fun Double)
+  , "primFloatCosh"              |-> mkPrimFun1 (cosh :: Fun Double)
+  , "primFloatTanh"              |-> mkPrimFun1 (tanh :: Fun Double)
+  , "primFloatASinh"             |-> mkPrimFun1 (asinh :: Fun Double)
+  , "primFloatACosh"             |-> mkPrimFun1 (acosh :: Fun Double)
+  , "primFloatATanh"             |-> mkPrimFun1 (atanh :: Fun Double)
+  , "primFloatPow"               |-> mkPrimFun2 ((**) :: Op Double)
 
   -- Character functions
   , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)

@@ -10,13 +10,12 @@ import Data.Data (Data)
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import Numeric.IEEE ( IEEE(identicalIEEE) )
-
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
-import Agda.Utils.Pretty
 import Agda.Utils.FileName
+import Agda.Utils.Float ( doubleDenotEq, doubleDenotOrd )
+import Agda.Utils.Pretty
 
 type RLiteral = Ranged Literal
 data Literal
@@ -57,7 +56,7 @@ instance Eq Literal where
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
   LitWord64 n == LitWord64 m = n == m
-  LitFloat x  == LitFloat y  = identicalIEEE x y || (isNaN x && isNaN y)
+  LitFloat x  == LitFloat y  = doubleDenotEq x y
   LitString s == LitString t = s == t
   LitChar c   == LitChar d   = c == d
   LitQName x  == LitQName y  = x == y
@@ -67,7 +66,7 @@ instance Eq Literal where
 instance Ord Literal where
   LitNat n    `compare` LitNat m    = n `compare` m
   LitWord64 n `compare` LitWord64 m = n `compare` m
-  LitFloat x  `compare` LitFloat y  = compareFloat x y
+  LitFloat x  `compare` LitFloat y  = doubleDenotOrd x y
   LitString s `compare` LitString t = s `compare` t
   LitChar c   `compare` LitChar d   = c `compare` d
   LitQName x  `compare` LitQName y  = x `compare` y
@@ -86,23 +85,6 @@ instance Ord Literal where
   compare _ LitQName{}  = GT
   -- compare LitMeta{} _   = LT
   -- compare _ LitMeta{}   = GT
-
--- NOTE: This is not the same ordering as primFloatNumericalEquality!
--- This ordering must be a total order of all allowed float values,
--- while primFloatNumericalEquality is only a preorder
-compareFloat :: Double -> Double -> Ordering
-compareFloat x y
-  | identicalIEEE x y          = EQ
-  | isNegInf x                 = LT
-  | isNegInf y                 = GT
-  | isNaN x && isNaN y         = EQ
-  | isNaN x                    = LT
-  | isNaN y                    = GT
-  | isNegativeZero x && x == y = LT
-  | isNegativeZero y && x == y = GT
-  | otherwise                  = compare x y
-  where
-    isNegInf z = z < 0 && isInfinite z
 
 instance KillRange Literal where
   killRange (LitNat    x) = LitNat    x
