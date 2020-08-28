@@ -2,7 +2,7 @@
 
 -- Should be kept in sync with Agda.Utils.Float (minus toStringWithDotZero).
 
-module Agda.Utils.Float where
+module MAlonzo.RTE.Float where
 
 import Data.Bifunctor   ( bimap, second )
 import Data.Function    ( on )
@@ -37,7 +37,7 @@ doubleLt :: Double -> Double -> Bool
 doubleLt = (<)
 
 negativeZero :: Double
-negativeZero = 0.0
+negativeZero = -0.0
 
 positiveInfinity :: Double
 positiveInfinity = 1.0 / 0.0
@@ -58,7 +58,7 @@ isPosZero :: Double -> Bool
 isPosZero x = doubleDenotEq x 0.0
 
 isNegZero :: Double -> Bool
-isNegZero x = x == 0.0 && not (isPosZero x)
+isNegZero x = doubleDenotEq x (-0.0)
 
 doubleRound :: Double -> Maybe Integer
 doubleRound = fmap round . asFinite

@@ -81,7 +81,7 @@ isPosZero :: Double -> Bool
 isPosZero x = doubleDenotEq x 0.0
 
 isNegZero :: Double -> Bool
-isNegZero x = x == 0.0 && not (isPosZero x)
+isNegZero x = doubleDenotEq x (-0.0)
 
 doubleRound :: Double -> Maybe Integer
 doubleRound = fmap round . asFinite

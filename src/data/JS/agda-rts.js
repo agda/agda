@@ -186,7 +186,7 @@ exports.primFloatIsDenormalitd = function(x) {
     return false; // TODO: probably incorrect
 };
 exports.primFloatIsNegativeZero = function(x) {
-    return Object.is(x, -0.0);
+    return Object.is(x,-0.0);
 };
 exports.primFloatIsSafeInteger = function(x) {
     return Number.isSafeInteger(x);
