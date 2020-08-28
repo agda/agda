@@ -20,7 +20,6 @@
 :set -Wdodgy-imports
 :set -Wduplicate-exports
 :set -Wempty-enumerations
-:set -Whi-shadowing
 :set -Widentities
 :set -Wincomplete-patterns
 :set -Winline-rule-shadowing
