@@ -24,7 +24,7 @@ module Agda.Utils.Float
   , toStringWithoutDotZero
   ) where
 
-import Data.Bifunctor   ( second )
+import Data.Bifunctor   ( bimap, second )
 import Data.Function    ( on )
 import Data.Maybe       ( fromMaybe )
 import Data.Ratio       ( (%), numerator, denominator )
@@ -157,31 +157,40 @@ doubleDecode x
 isSafeInteger :: Double -> Bool
 isSafeInteger x = minSafeInteger <= x && x <= maxSafeInteger
   where
-    minSafeInteger = encodeFloat minSafeMantissa 0
-    maxSafeInteger = encodeFloat maxSafeMantissa 0
+    minSafeInteger = encodeFloat minMantissa 0
+    maxSafeInteger = encodeFloat maxMantissa 0
+
+doubleRadix :: Integer
+doubleRadix = floatRadix (undefined :: Double)
+
+doubleDigits :: Int
+doubleDigits = floatDigits (undefined :: Double)
+
+doubleRange :: (Int, Int)
+doubleRange = floatRange (undefined :: Double)
 
 -- |The smallest representable mantissa. Simultaneously, the smallest integer which can be
 --  represented as a Double without loss of precision.
-minSafeMantissa :: Integer
-minSafeMantissa = - maxSafeMantissa
+minMantissa :: Integer
+minMantissa = - maxMantissa
 
 -- |The largest representable mantissa. Simultaneously, the largest integer which can be
 --  represented as a Double without loss of precision.
-maxSafeMantissa :: Integer
-maxSafeMantissa = 2 ^ 53 - 1
+maxMantissa :: Integer
+maxMantissa = (doubleRadix ^ toInteger doubleDigits) - 1
 
 -- |The largest representable exponent.
-minSafeExponent :: Integer
-minSafeExponent = -1024
+minExponent :: Integer
+minExponent = toInteger $ (fst doubleRange - doubleDigits) - 1
 
 -- |The smallest representable exponent.
-maxSafeExponent :: Integer
-maxSafeExponent = 1024
+maxExponent :: Integer
+maxExponent = toInteger $ snd doubleRange - doubleDigits
 
 -- |Encode a mantissa and an exponent as a Double.
 doubleEncode :: Integer -> Integer -> Maybe Double
 doubleEncode mantissa exponent
-  = if minSafeMantissa <= mantissa && mantissa <= maxSafeMantissa &&
-       minSafeExponent <= exponent && exponent <= maxSafeExponent
+  = if minMantissa <= mantissa && mantissa <= maxMantissa &&
+       minExponent <= exponent && exponent <= maxExponent
     then Just (encodeFloat mantissa (fromInteger exponent))
     else Nothing

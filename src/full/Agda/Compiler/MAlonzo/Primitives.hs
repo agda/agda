@@ -127,6 +127,7 @@ importsForPrim =
   , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
   , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
   , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
+  , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
   , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
   , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
   , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
@@ -202,6 +203,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatIsNaN"             |-> return "(isNaN :: Double -> Bool)"
   , "primFloatIsDenormalized"    |-> return "(isDenormalized :: Double -> Bool)"
   , "primFloatIsNegativeZero"    |-> return "(isNegativeZero :: Double -> Bool)"
+  , "primFloatIsSafeInteger"     |-> return "MAlonzo.RTE.Float.isSafeInteger"
   , "primFloatToWord64"          |-> return "MAlonzo.RTE.Float.doubleToWord64"
   , "primFloatToWord64Injective" |-> return "erased"
   , "primNatToFloat"             |-> return "(fromIntegral :: Integer -> Double)"

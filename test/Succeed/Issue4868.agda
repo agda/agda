@@ -67,17 +67,17 @@ _ : -Infinity ≡ᵇ -Infinity ≡ true  ; _ = refl
 
 -- ** Decoding and Encoding
 
-_ : decode  NaN                ≡ nothing                 ; _ = refl
-_ : decode  Infinity           ≡ nothing                 ; _ = refl
-_ : decode -Infinity           ≡ nothing                 ; _ = refl
-_ : decode  1.0                ≡ just (pos 1 , pos 0)    ; _ = refl
-_ : decode  1.5                ≡ just (pos 3 , negsuc 0) ; _ = refl
+_ : decode  NaN                                  ≡ nothing                      ; _ = refl
+_ : decode  Infinity                             ≡ nothing                      ; _ = refl
+_ : decode -Infinity                             ≡ nothing                      ; _ = refl
+_ : decode  1.0                                  ≡ just (pos 1 , pos 0)         ; _ = refl
+_ : decode  1.5                                  ≡ just (pos 3 , negsuc 0)      ; _ = refl
 
-_ : encode  (pos 1) (pos 0)    ≡ 1.0                     ; _ = refl
-_ : encode  (pos 3) (negsuc 0) ≡ 1.5                     ; _ = refl
-
-_ = {!encode (negsuc 6755399441055743) (pos 972)!}
-
+_ : encode  (pos 1) (pos 0)                      ≡ just 1.0                     ; _ = refl
+_ : encode  (pos 3) (negsuc 0)                   ≡ just 1.5                     ; _ = refl
+_ : encode  (pos 9007199254740991) (pos 0)       ≡ just 9007199254740991.0      ; _ = refl
+_ : encode  (pos 9007199254740991) (pos 971)     ≡ just 1.7976931348623157e308  ; _ = refl
+_ : encode  (pos 9007199254740991) (negsuc 1023) ≡ just 5.0104209000224314e-293 ; _ = refl
 
 -- * Ratios
 

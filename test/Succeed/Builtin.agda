@@ -100,7 +100,7 @@ primitive
   primFloatToRatio           : Float → (Sigma Int λ _ → Int)
   primRatioToFloat           : Int → Int → Float
   primFloatDecode            : Float → Maybe (Sigma Int λ _ → Int)
-  primFloatEncode            : Int → Int → Float
+  primFloatEncode            : Int → Int → Maybe Float
   primShowFloat              : Float → String
   primFloatPlus              : Float → Float → Float
   primFloatMinus             : Float → Float → Float
