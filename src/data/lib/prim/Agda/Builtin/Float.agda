@@ -62,13 +62,13 @@ primitive
 
 {-# COMPILE JS
     primFloatToRatio = function(x) {
-        x = agdaRTS.iprimFloatToRatio(x); // see agda-rts.js
+        x = agdaRTS.iprimFloatToRatio(x);
         return z_jAgda_Agda_Builtin_Sigma["_,_"](x.numerator)(x.denominator);
     };
 #-}
 {-# COMPILE JS
     primFloatDecode = function(x) {
-        x = agdaRTS.iprimFloatDecode(x); // see agda-rts.js
+        x = agdaRTS.iprimFloatDecode(x);
         if (x === null) {
             return z_jAgda_Agda_Builtin_Maybe["nothing"];
         }
