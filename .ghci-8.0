@@ -45,8 +45,8 @@
 
 :set -XBangPatterns
 :set -XConstraintKinds
-:set -XDataKinds
 :set -XDefaultSignatures
+:set -XDeriveDataTypeable
 :set -XDeriveFoldable
 :set -XDeriveFunctor
 :set -XDeriveTraversable
@@ -54,11 +54,13 @@
 :set -XFlexibleContexts
 :set -XFlexibleInstances
 :set -XFunctionalDependencies
+:set -XInstanceSigs
 :set -XLambdaCase
 :set -XMultiParamTypeClasses
 :set -XMultiWayIf
 :set -XNamedFieldPuns
 :set -XOverloadedStrings
+:set -XPatternSynonyms
 :set -XRankNTypes
 :set -XRecordWildCards
 :set -XScopedTypeVariables

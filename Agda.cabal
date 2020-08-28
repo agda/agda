@@ -703,6 +703,7 @@ library
   -- NOTE: If adding or removing default extensions, also change:
   --         .ghci-8.0
   --         .hlint.yaml
+  -- This should also use the same extensions as the `test-suite` target below.
   default-extensions: BangPatterns
                     , ConstraintKinds
                     --L-T Chen (2019-07-15):
@@ -892,9 +893,13 @@ test-suite agda-tests
   -- NOTE: If adding or removing default extensions, also change:
   --         .ghci-8.0
   --         .hlint.yaml
+  -- This should also use the same extensions as the `library` target above.
   default-extensions:  BangPatterns
                      , ConstraintKinds
-                     , DataKinds
+                     --L-T Chen (2019-07-15):
+                     -- Enabling DataKinds only locally makes the compile time
+                     -- slightly shorter, see PR #3920.
+                     --, DataKinds
                      , DefaultSignatures
                      , DeriveDataTypeable
                      , DeriveFoldable
