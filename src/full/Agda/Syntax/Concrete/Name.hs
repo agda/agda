@@ -259,14 +259,14 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
-nextStr :: String -> String
-nextStr s = case suffixView s of
+nextRawName :: RawName -> RawName
+nextRawName s = case suffixView s of
   (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) nextStr x
+nextName x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) nextRawName x
 nextName NoName{} = __IMPOSSIBLE__
 
 -- | Zoom on the last non-hole in a name.
