@@ -804,14 +804,13 @@ interpret (Cmd_make_case ii rng s) = do
     -- very dirty hack, string manipulation by dropping the function name
     -- and replacing the last " = " with " -> ". It's important not to replace
     -- the equal sign in named implicit with an arrow!
-    extlam_dropName :: Bool -> CaseContext -> String -> String
+    extlam_dropName :: UnicodeOrAscii -> CaseContext -> String -> String
     extlam_dropName _ Nothing x = x
-    extlam_dropName unicode Just{}  x
+    extlam_dropName glyphMode Just{}  x
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
-        replEquals ("=" : ws)
-           | unicode   = (render $ _arrow $ specialCharactersForGlyphs UnicodeOk) : ws
-           | otherwise = (render $ _arrow $ specialCharactersForGlyphs AsciiOnly) : ws
+        arrow = render $ _arrow $ specialCharactersForGlyphs glyphMode
+        replEquals ("=" : ws) = arrow : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 
