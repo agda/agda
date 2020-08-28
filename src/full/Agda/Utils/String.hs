@@ -88,12 +88,6 @@ addFinalNewLine s | last s == '\n' = s
 indent :: Integral i => i -> String -> String
 indent i = unlines . map (List.genericReplicate i ' ' ++) . lines
 
-newtype Str = Str { unStr :: String }
-  deriving Eq
-
-instance Show Str where
-  show = unStr
-
 -- | Show a number using comma to separate powers of 1,000.
 
 showThousandSep :: Show a => a -> String
