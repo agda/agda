@@ -34,7 +34,7 @@ primitive
   primFloatToRatio           : Float → (Σ Int λ _ → Int)
   primRatioToFloat           : Int → Int → Float
   primFloatDecode            : Float → Maybe (Σ Int λ _ → Int)
-  primFloatEncode            : Int → Int → Float
+  primFloatEncode            : Int → Int → Maybe Float
   primShowFloat              : Float → String
   -- Operations
   primFloatPlus              : Float → Float → Float

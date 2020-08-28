@@ -135,7 +135,7 @@ isSafeInteger x = minSafeInteger <= x && x <= maxSafeInteger
 -- |The smallest representable mantissa. Simultaneously, the smallest integer which can be
 --  represented as a Double without loss of precision.
 minSafeMantissa :: Integer
-minSafeMantissa = - maxSafeInteger
+minSafeMantissa = - maxSafeMantissa
 
 -- |The largest representable mantissa. Simultaneously, the largest integer which can be
 --  represented as a Double without loss of precision.

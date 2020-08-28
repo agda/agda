@@ -639,6 +639,7 @@ primitives = Set.fromList
   , "primFloatIsNaN"
   , "primFloatIsDenormalized"
   , "primFloatIsNegativeZero"
+  , "primFloatIsSafeInteger"
   , "primFloatToWord64"
   -- , "primFloatToWord64Injective"  -- missing
   , "primNatToFloat"
@@ -649,7 +650,7 @@ primitives = Set.fromList
   -- , "primFloatToRatio"            -- in Agda.Builtin.Float
   , "primRatioToFloat"
   -- , "primFloatDecode"             -- in Agda.Builtin.Float
-  , "primFloatEncode"
+  -- , "primFloatEncode"             -- in Agda.Builtin.Float
   , "primShowFloat"
   , "primFloatPlus"
   , "primFloatMinus"
