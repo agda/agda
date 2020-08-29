@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Agda.Auto.CaseSplit where
@@ -207,16 +206,19 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-class Replace o t u | t u -> o where
-  replace' :: Nat -> MExp o -> t -> Reader (Nat, Nat) u
+class Replace t u where
+  type ReplaceWith t u
+  replace' :: Nat -> MExp (ReplaceWith t u) -> t -> Reader (Nat, Nat) u
 
-replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
+replace :: Replace t u => Nat -> Nat -> MExp (ReplaceWith t u) -> t -> u
 replace sv nnew e t = replace' 0 e t `runReader` (sv, nnew)
 
-instance Replace o t u => Replace o (Abs t) (Abs u) where
+instance Replace t u => Replace (Abs t) (Abs u) where
+  type ReplaceWith (Abs t) (Abs u) = ReplaceWith t u
   replace' n re (Abs mid b) = Abs mid <$> replace' (n + 1) re b
 
-instance Replace o (Exp o) (MExp o) where
+instance Replace (Exp o) (MExp o) where
+  type ReplaceWith (Exp o) (MExp o) = o
   replace' n re e = case e of
     App uid ok elr@(Var v) args -> do
       ih         <- NotM <$> replace' n re args
@@ -237,10 +239,12 @@ instance Replace o (Exp o) (MExp o) where
     Sort{} -> return $ NotM e
     AbsurdLambda{} -> return $ NotM e
 
-instance Replace o t u => Replace o (MM t (RefInfo o)) u where
+instance Replace t u => Replace (MM t (RefInfo o)) u where
+  type ReplaceWith (MM t (RefInfo o)) u = ReplaceWith t u
   replace' n re = replace' n re . rm __IMPOSSIBLE__
 
-instance Replace o (ArgList o) (ArgList o) where
+instance Replace (ArgList o) (ArgList o) where
+  type ReplaceWith (ArgList o) (ArgList o) = o
   replace' n re args = case args of
     ALNil           -> return ALNil
     ALCons hid a as ->
