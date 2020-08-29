@@ -61,30 +61,66 @@ primitive
   primFloatPow               : Float → Float → Float
 
 {-# COMPILE JS
+    primFloatRound = function(x) {
+        x = agdaRTS._primFloatRound(x);
+        if (x === null) {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+        }
+        else {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+        }
+    };
+#-}
+{-# COMPILE JS
+    primFloatFloor = function(x) {
+        x = agdaRTS._primFloatFloor(x);
+        if (x === null) {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+        }
+        else {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+        }
+    };
+#-}
+{-# COMPILE JS
+    primFloatCeiling = function(x) {
+        x = agdaRTS._primFloatCeiling(x);
+        if (x === null) {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+        }
+        else {
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+        }
+    };
+#-}
+{-# COMPILE JS
     primFloatToRatio = function(x) {
-        x = agdaRTS.iprimFloatToRatio(x);
+        x = agdaRTS._primFloatToRatio(x);
         return z_jAgda_Agda_Builtin_Sigma["_,_"](x.numerator)(x.denominator);
     };
 #-}
 {-# COMPILE JS
     primFloatDecode = function(x) {
-        x = agdaRTS.iprimFloatDecode(x);
+        x = agdaRTS._primFloatDecode(x);
         if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["nothing"];
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
         }
         else {
-            return z_jAgda_Agda_Builtin_Maybe["just"](z_jAgda_Agda_Builtin_Sigma["_,_"](mantissa)(exponent));
+            return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](
+                z_jAgda_Agda_Builtin_Sigma["_,_"](x.mantissa)(x.exponent));
         }
     };
 #-}
 {-# COMPILE JS
     primFloatEncode = function(x) {
-        x = agdaRTS.iprimFloat(x);
-        if (x === null) {
-            return z_jAgda_Agda_Builtin_Maybe["nothing"];
-        }
-        else {
-            return z_jAgda_Agda_Builtin_Maybe["just"](x);
+        return function (y) {
+            x = agdaRTS.uprimFloatEncode(x, y);
+            if (x === null) {
+                return z_jAgda_Agda_Builtin_Maybe["Maybe"]["nothing"];
+            }
+            else {
+                return z_jAgda_Agda_Builtin_Maybe["Maybe"]["just"](x);
+            }
         }
     };
 #-}

@@ -6,7 +6,7 @@
 // emitted by the JavaScript backend. Whenever possible, the curried primitives
 // should be implemented in terms of the uncurried ones.
 //
-// Primitives prefixed by 'i' are internal variants, usually for those primitives
+// Primitives prefixed by '_' are internal variants, usually for those primitives
 // which return Agda types like Maybe. These are never emitted by the compiler,
 // but can be used internally to define other prefixes.
 
@@ -76,7 +76,7 @@ exports.primNatMinus = function(x) {
 };
 
 // Floating-point numbers
-const igreatestCommonFactor = function(x, y) {
+var _primFloatGreatestCommonFactor = function(x, y) {
     var z;
     x = Math.abs(x);
     y = Math.abs(y);
@@ -87,57 +87,57 @@ const igreatestCommonFactor = function(x, y) {
     }
     return x;
 };
-exports.iprimFloatRound = function(x) {
-    if (Number.isNaN(x)) {
+exports._primFloatRound = function(x) {
+    if (exports.primFloatIsNaN(x) || exports.primFloatIsInfinite(x)) {
         return null;
     }
     else {
         return Math.round(x);
     }
 };
-exports.iprimFloatFloor = function(x) {
-    if (Number.isNaN(x)) {
+exports._primFloatFloor = function(x) {
+    if (exports.primFloatIsNaN(x) || exports.primFloatIsInfinite(x)) {
         return null;
     }
     else {
         return Math.floor(x);
     }
 };
-exports.iprimFloatCeiling = function(x) {
-    if (Number.isNaN(x)) {
+exports._primFloatCeiling = function(x) {
+    if (exports.primFloatIsNaN(x) || exports.primFloatIsInfinite(x)) {
         return null;
     }
     else {
         return Math.ceil(x);
     }
 };
-exports.iprimFloatToRatio = function(x) {
-    if (Number.isNaN(x)) {
+exports._primFloatToRatio = function(x) {
+    if (exports.primFloatIsNaN(x)) {
         return {numerator:  0, denominator: 0};
     }
-    else if (x > 0 && !Number.isFinite(x)) {
+    else if (x > 0 && exports.primFloatIsInfinite(x)) {
         return {numerator:  1, denominator: 0};
     }
-    else if (x < 0 && !Number.isFinite(x)) {
+    else if (x < 0 && exports.primFloatIsInfinite(x)) {
         return {numerator: -1, denominator: 0};
     }
     else {
         var numerator = Math.round(x*1e9);
         var denominator = 1e9;
-        var gcf = greatestCommonFactor(numerator, denominator);
-        numerator /= greatestCommonFactor;
-        denominator /= greatestCommonFactor;
+        var gcf = _primFloatGreatestCommonFactor(numerator, denominator);
+        numerator /= gcf;
+        denominator /= gcf;
         return {numerator: numerator, denominator: denominator};
     }
 };
-exports.iprimFloatDecode = function(x) {
-    if (Number.isNaN(x)) {
+exports._primFloatDecode = function(x) {
+    if (exports.primFloatIsNaN(x)) {
         return null;
     }
-    else if (x < 0.0 && !Number.isFinite(x)) {
+    else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return null;
     }
-    else if (0.0 < x && !Number.isFinite(x)) {
+    else if (0.0 < x && exports.primFloatIsInfinite(x)) {
         return null;
     }
     else {
@@ -154,16 +154,11 @@ exports.iprimFloatDecode = function(x) {
     }
 };
 exports.uprimFloatEquality = function(x, y) {
-    if (Number.isNaN(x) && Number.isNaN(y)) {
-        return true;
-    }
-    else {
-        return x === y;
-    }
+    return x === y;
 };
 exports.primFloatEquality = function(x) {
     return function(y) {
-        exports.uprimFloatEquality(x, y);
+        return exports.uprimFloatEquality(x, y);
     };
 };
 exports.primFloatInequality = function(x) {
@@ -177,13 +172,13 @@ exports.primFloatLess = function(x) {
     };
 };
 exports.primFloatIsInfinite = function(x) {
-    return !Number.isFinite(x) && !Number.isNaN(x);
+    return !Number.isNaN(x) && !Number.isFinite(x);
 };
 exports.primFloatIsNaN = function(x) {
     return Number.isNaN(x);
 };
 exports.primFloatIsDenormalized = function(x) {
-    return false; // TODO: probably incorrect
+    return false; // TODO: not sure this is possible? ¯\_(ツ)_/¯
 };
 exports.primFloatIsNegativeZero = function(x) {
     return Object.is(x,-0.0);
@@ -194,25 +189,29 @@ exports.primFloatIsSafeInteger = function(x) {
 
 
 // These WORD64 values were obtained via `castDoubleToWord64` in Haskell:
-const WORD64_NAN     = exports.primIntegerFromString("18444492273895866368");
-const WORD64_POS_INF = exports.primIntegerFromString("9218868437227405312");
-const WORD64_NEG_INF = exports.primIntegerFromString("18442240474082181120");
+const WORD64_NAN      = exports.primIntegerFromString("18444492273895866368");
+const WORD64_POS_INF  = exports.primIntegerFromString("9218868437227405312");
+const WORD64_NEG_INF  = exports.primIntegerFromString("18442240474082181120");
+const WORD64_NEG_ZERO = exports.primIntegerFromString("9223372036854775808");
 
 // Tests: 1.5 -> 4609434218613702656
 
 exports.primFloatToWord64 = function(x) {
-    if (Number.isNaN(x)) {
+    if (exports.primFloatIsNaN(x)) {
         return WORD64_NAN;
     }
-    else if (x < 0.0 && !Number.isFinite(x)) {
+    else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return WORD64_NEG_INF;
     }
-    else if (0.0 < x && !Number.isFinite(x)) {
+    else if (0.0 < x && exports.primFloatIsInfinite(x)) {
         return WORD64_POS_INF;
+    }
+    else if (exports.primFloatIsNegativeZero(x)) {
+        return WORD64_NEG_ZERO;
     }
     else {
         var mantissa, exponent;
-        ({mantissa, exponent} = exports.iprimFloatDecode(x));
+        ({mantissa, exponent} = exports._primFloatDecode(x));
         var sign = Math.sign(mantissa);
         mantissa *= sign;
         sign = (sign === -1 ? "1" : "0");
@@ -233,17 +232,15 @@ exports.primRatioToFloat = function(x) {
         return x.valueOf() / y.valueOf();
     };
 };
-exports.iprimFloatEncode = function(x) {
-    return function(y) {
-        var mantissa = x.valueOf();
-        var exponent = y.valueOf();
-        if (Number.isSafeInteger(mantissa) && -1024 <= exponent && exponent <= 1024) {
-            return mantissa * (2 ** exponent);
-        }
-        else {
-            return null;
-        }
-    };
+exports.uprimFloatEncode = function(x, y) {
+    var mantissa = x.valueOf();
+    var exponent = y.valueOf();
+    if (Number.isSafeInteger(mantissa) && -1024 <= exponent && exponent <= 1024) {
+        return mantissa * (2 ** exponent);
+    }
+    else {
+        return null;
+    }
 };
 exports.primShowFloat = function(x) {
     // See Issue #2192.
@@ -286,7 +283,7 @@ exports.primFloatSqrt = function(x) {
 exports.primFloatExp = function(x) {
     return Math.exp(x);
 };
-exports.primFloatExp = function(x) {
+exports.primFloatLog = function(x) {
     return Math.log(x);
 };
 exports.primFloatSin = function(x) {
