@@ -1,0 +1,4 @@
+Issue4888.agda:3,1-23
+Missing type signature for left hand side impor Agda.Builtin.Nat
+when scope checking the declaration
+  impor Agda.Builtin.Nat

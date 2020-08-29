@@ -29,6 +29,7 @@ import Data.Bifunctor
 import Data.Foldable (traverse_)
 import Data.Set (Set)
 import Data.Map (Map)
+import Data.Functor (void)
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
@@ -1240,6 +1241,13 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                          -- That is the range if the parser inserted the anon. module.
                        , r == beginningOfFile (getRange insideDecls) -> do
 
+                         -- GA #4888: We know we are in a bad place. But we still scopecheck
+                         -- the initial segment on the off chance we generate a better error
+                         -- message.
+                         void importPrimitives
+                         void $ toAbstract outsideDecls
+                         void $ toAbstract ds0
+                         -- Fail with a crude error otherwise
                          traceCall (SetRange $ getRange ds0) $ genericError
                            "Illegal declaration(s) before top-level module"
 
@@ -1263,18 +1271,8 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                   checkModuleName (C.toTopLevelModuleName m0) (SourceFile file) $ Just expectedMName
                   return m0
           setTopLevelModule m
-          am           <- toAbstract (NewModuleQName m)
-          noImportSorts <- not . optImportSorts <$> pragmaOptions
-          -- Add implicit `open import Agda.Primitive using (Set; Prop)`
-          let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
-              agdaSetName         = C.simpleName "Set"
-              agdaPropName        = C.simpleName "Prop"
-              usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
-              directives          = ImportDirective noRange usingDirective [] [] Nothing
-              importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
-          primitiveImport <- if noImportSorts
-                             then return []
-                             else toAbstract importAgdaPrimitive
+          am <- toAbstract (NewModuleQName m)
+          primitiveImport <- importPrimitives
           -- Scope check the declarations outside
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecl) <- scopeCheckModule r m am tel $
@@ -1290,6 +1288,22 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',
         -- thus, this case is impossible:
         _ -> __IMPOSSIBLE__
+
+     where
+
+      importPrimitives :: ScopeM [A.Declaration]
+      importPrimitives = do
+          noImportSorts <- not . optImportSorts <$> pragmaOptions
+          -- Add implicit `open import Agda.Primitive using (Set; Prop)`
+          let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
+              agdaSetName         = C.simpleName "Set"
+              agdaPropName        = C.simpleName "Prop"
+              usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
+              directives          = ImportDirective noRange usingDirective [] [] Nothing
+              importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
+          if noImportSorts
+            then return []
+            else toAbstract importAgdaPrimitive
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
