@@ -79,13 +79,13 @@ primitive
 #-}
 {-# COMPILE JS
     primFloatEncode = function(x) {
-         x = agdaRTS.iprimFloat(x); // see agda-rts.js
-         if (x === null) {
-             return z_jAgda_Agda_Builtin_Maybe["nothing"];
-         }
-         else {
-             return z_jAgda_Agda_Builtin_Maybe["just"](x);
-         }
+        x = agdaRTS.iprimFloat(x);
+        if (x === null) {
+            return z_jAgda_Agda_Builtin_Maybe["nothing"];
+        }
+        else {
+            return z_jAgda_Agda_Builtin_Maybe["just"](x);
+        }
     };
 #-}
 

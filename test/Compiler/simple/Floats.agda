@@ -245,9 +245,6 @@ main = do
   checkB "isInfinite -0.0           " false (isInfinite -0.0           )
   checkB "isInfinite  1.0           " false (isInfinite  1.0           )
   checkB "isInfinite  1.5           " false (isInfinite  1.5           )
-  checkB "isInfinite ((MaxFloat * MaxFloat) ÷ MaxFloat)"
-        true
-        (isInfinite ((MaxFloat * MaxFloat) ÷ MaxFloat))
   checkB "isNegativeZero  NaN       " false (isNegativeZero  NaN       )
   checkB "isNegativeZero -NaN       " false (isNegativeZero -NaN       )
   checkB "isNegativeZero  Infinity  " false (isNegativeZero  Infinity  )
@@ -267,7 +264,12 @@ main = do
   checkB "isSafeInteger MinFloat    " false (isSafeInteger MinFloat    )
   checkB "isSafeInteger MaxSafeIntF " true  (isSafeInteger MaxSafeIntF )
 
--- ** Conversions
+  -- Depends on optimisation settings:
+  -- checkB "isInfinite ((MaxFloat * MaxFloat) ÷ MaxFloat)"
+  --        true
+  --        (isInfinite ((MaxFloat * MaxFloat) ÷ MaxFloat))
+
+  -- ** Conversions
 
   checkS "show  NaN     " "NaN"       (showF NaN     )
   checkS "show -NaN     " "NaN"       (showF -NaN     )

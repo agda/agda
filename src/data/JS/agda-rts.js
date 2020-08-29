@@ -182,7 +182,7 @@ exports.primFloatIsInfinite = function(x) {
 exports.primFloatIsNaN = function(x) {
     return Number.isNaN(x);
 };
-exports.primFloatIsDenormalitd = function(x) {
+exports.primFloatIsDenormalized = function(x) {
     return false; // TODO: probably incorrect
 };
 exports.primFloatIsNegativeZero = function(x) {

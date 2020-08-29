@@ -127,7 +127,7 @@ simpleTests comp = do
   return $ testGroup "simple" $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
-        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/", "-O0", "-fno-excess-precision"]
+        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
