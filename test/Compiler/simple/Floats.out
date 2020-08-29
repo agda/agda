@@ -98,14 +98,6 @@ out > show  Infinity = Infinity = Infinity
 out > show -Infinity = -Infinity = -Infinity
 out > show  1.0      = 1.0 = 1.0
 out > show  1.5      = 1.5 = 1.5
-out > toℕ (toWord 1.0)       = 4607182418800017408 = 4607182418800017408
-out > toℕ (toWord 1.5)       = 4609434218613702656 = 4609434218613702656
-out > toℕ (toWord 0.0)       = 0 = 0
-out > toℕ (toWord -0.0)      = 9223372036854775808 = 9223372036854775808
-out > toℕ (toWord NaN)       = 18444492273895866368 = 18444492273895866368
-out > toℕ (toWord -NaN)      = 18444492273895866368 = 18444492273895866368
-out > toℕ (toWord Infinity)  = 9218868437227405312 = 9218868437227405312
-out > toℕ (toWord -Infinity) = 18442240474082181120 = 18442240474082181120
 out > round 1.0       = (just (1)) = (just (1))
 out > round 1.5       = (just (2)) = (just (2))
 out > round NaN       = nothing = nothing
