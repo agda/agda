@@ -113,7 +113,12 @@ doubleToRatio x
 
 -- |Encode an integer ratio as a double.
 ratioToDouble :: Integer -> Integer -> Double
-ratioToDouble x  y = fromRational (x % y)
+ratioToDouble n d
+  | d == 0 = case compare n 0 of
+      LT -> negativeInfinity
+      EQ -> nan
+      GT -> positiveInfinity
+  | otherwise = fromRational (n % d)
 
 -- |Decode a Double to its mantissa and its exponent, normalised such that the
 -- mantissa is the smallest possible number without loss of accuracy.
@@ -128,12 +133,11 @@ doubleDecode x
       | even mantissa = normalise (mantissa `div` 2) (exponent + 1)
       | otherwise = (mantissa, exponent)
 
+
 -- |Checks whether or not the Double is within a safe range of operation.
 isSafeInteger :: Double -> Bool
-isSafeInteger x = minSafeInteger <= x && x <= maxSafeInteger
-  where
-    minSafeInteger = encodeFloat minMantissa 0
-    maxSafeInteger = encodeFloat maxMantissa 0
+isSafeInteger x = case properFraction x of
+  (n, f) -> f == 0.0 && minMantissa <= n && n <= maxMantissa
 
 doubleRadix :: Integer
 doubleRadix = floatRadix (undefined :: Double)
