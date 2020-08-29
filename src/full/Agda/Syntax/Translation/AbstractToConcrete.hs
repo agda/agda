@@ -674,7 +674,7 @@ addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
 addSuffixConcrete A.NoSuffix = id
 addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
   where
-    suffix = case subscriptAllowed of
+    suffix = Just $ case subscriptAllowed of
       UnicodeOk -> Subscript $ fromInteger i
       AsciiOnly -> Index $ fromInteger i
 

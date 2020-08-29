@@ -260,8 +260,12 @@ instance LensInScope QName where
 ------------------------------------------------------------------------
 
 nextRawName :: RawName -> RawName
-nextRawName s = case suffixView s of
-  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+nextRawName s = addSuffix root (maybe initialSuffix nextSuffix suffix)
+  where
+  (root, suffix) = suffixView s
+  initialSuffix = case subscriptAllowed of
+    UnicodeOk -> Subscript 1
+    AsciiOnly -> Index 1
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
@@ -288,31 +292,28 @@ firstNonTakenName taken x =
   else x
 
 -- | Lens for accessing and modifying the suffix of a name.
---   The suffix of a @NoName@ is always @NoSuffix@, and should not be
+--   The suffix of a @NoName@ is always @Nothing@, and should not be
 --   changed.
-nameSuffix :: Lens' Suffix Name
-nameSuffix (f :: Suffix -> f Suffix) = \case
+nameSuffix :: Lens' (Maybe Suffix) Name
+nameSuffix (f :: Maybe Suffix -> f (Maybe Suffix)) = \case
 
-  n@NoName{} -> f NoSuffix <&> \case
-    NoSuffix    -> n
-    Prime{}     -> __IMPOSSIBLE__
-    Index{}     -> __IMPOSSIBLE__
-    Subscript{} -> __IMPOSSIBLE__
+  n@NoName{} -> f Nothing <&> \case
+    Nothing -> n
+    Just {} -> __IMPOSSIBLE__
 
   n@Name{} -> lensNameParts (lastIdPart idSuf) n
     where
     idSuf s =
       let (root, suffix) = suffixView s
-      in  addSuffix root <$> f suffix
-
+      in maybe root (addSuffix root) <$> (f suffix)
 
 -- | Split a name into a base name plus a suffix.
-nameSuffixView :: Name -> (Suffix, Name)
-nameSuffixView = nameSuffix (,NoSuffix)
+nameSuffixView :: Name -> (Maybe Suffix, Name)
+nameSuffixView = nameSuffix (,Nothing)
 
--- | Replaces the suffix of a name. Unless the suffix is @NoSuffix@,
+-- | Replaces the suffix of a name. Unless the suffix is @Nothing@,
 --   the name should not be @NoName@.
-setNameSuffix :: Suffix -> Name -> Name
+setNameSuffix :: Maybe Suffix -> Name -> Name
 setNameSuffix = set nameSuffix
 
 -- | Get a raw version of the name with all suffixes removed. For
