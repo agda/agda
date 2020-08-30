@@ -38,7 +38,6 @@ open import Agda.Builtin.Float
            ; primFloatIsInfinite     to isInfinite
            ; primFloatIsNaN          to isNaN
            ; primFloatIsNegativeZero to isNegativeZero
-           ; primFloatIsDenormalized to isDenormalized
            ; primFloatIsSafeInteger  to isSafeInteger
            )
 open import Agda.Builtin.Int
@@ -177,12 +176,6 @@ _ : isNegativeZero  0.0      ≡ false ; _ = refl
 _ : isNegativeZero -0.0      ≡ true  ; _ = refl
 _ : isNegativeZero  1.0      ≡ false ; _ = refl
 _ : isNegativeZero  1.5      ≡ false ; _ = refl
-
-_ : isDenormalized 1.0         ≡ false ; _ = refl
-_ : isDenormalized 1.5         ≡ false ; _ = refl
-_ : isDenormalized MaxFloat    ≡ false ; _ = refl
-_ : isDenormalized MinFloat    ≡ false ; _ = refl
-_ : isDenormalized MaxSafeIntF ≡ false ; _ = refl
 
 _ : isSafeInteger 1.0         ≡ true  ; _ = refl
 _ : isSafeInteger 1.5         ≡ false ; _ = refl

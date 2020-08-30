@@ -89,7 +89,6 @@ primitive
   primFloatLess              : Float → Float → Bool
   primFloatIsInfinite        : Float → Bool
   primFloatIsNaN             : Float → Bool
-  primFloatIsDenormalized    : Float → Bool
   primFloatIsNegativeZero    : Float → Bool
   primFloatToWord64          : Float → Word64
   primNatToFloat             : Nat → Float
