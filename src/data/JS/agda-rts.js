@@ -115,16 +115,16 @@ exports._primFloatToRatio = function(x) {
     if (exports.primFloatIsNaN(x)) {
         return null;
     }
-    else if (Object.is(x,-Infinity)) {
+    else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return null;
     }
-    else if (Object.is(x,Infinity)) {
+    else if (x > 0.0 && exports.primFloatIsInfinite(x)) {
         return null;
     }
-    else if (Object.is(x,-0.0)) {
+    else if (exports.primFloatIsNegativeZero(x)) {
         return {numerator: 0, denominator: 1};
     }
-    else if (Object.is(x,0.0)) {
+    else if (x == 0.0) {
         return {numerator: 0, denominator: 1};
     }
     else {
@@ -143,7 +143,7 @@ exports._primFloatDecode = function(x) {
     else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return null;
     }
-    else if (0.0 < x && exports.primFloatIsInfinite(x)) {
+    else if (x > 0.0 && exports.primFloatIsInfinite(x)) {
         return null;
     }
     else {
@@ -205,16 +205,16 @@ exports.primFloatToWord64 = function(x) {
     if (exports.primFloatIsNaN(x)) {
         return WORD64_NAN;
     }
-    else if (Object.is(x,-Infinity)) {
+    else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
         return WORD64_NEG_INF;
     }
-    else if (Object.is(x,Infinity)) {
+    else if (x > 0.0 && exports.primFloatIsInfinite(x)) {
         return WORD64_POS_INF;
     }
-    else if (Object.is(x,-0.0)) {
+    else if (exports.primFloatIsNegativeZero(x)) {
         return WORD64_NEG_ZERO;
     }
-    else if (Object.is(x,0.0)) {
+    else if (x == 0.0) {
         return WORD64_POS_ZERO;
     }
     else {
