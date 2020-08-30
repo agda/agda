@@ -162,10 +162,10 @@ Builtins
   primFloatLess       : Float -> Float -> Bool -- from primFloatNumericLess
   primFloatInequality : Float -> Float -> Bool -- new
   ```
-  The “numeric” relations are now deprecated. 
+  The “numeric” relations are now deprecated.
 
   There are several new predicates on floating-point numbers:
-  ```agda 
+  ```agda
   primFloatIsInfinite     : Float -> Bool -- new
   primFloatIsNaN          : Float -> Bool -- new
   primFloatIsSafeInteger  : Float -> Bool -- new
@@ -173,11 +173,11 @@ Builtins
   The primFloatIsSafeInteger function determines whether the value is a number
   that is a safe integer, i.e., is within the range where the arithmetic
   operations do not lose precision.
-  
+
   The operations for conversion to integers (primRound, primFloor, and
   primCeiling) were renamed for consistency, and return a value of type `Maybe
   Int`, returning `nothing` for NaN and the infinities:
-  ```agda 
+  ```agda
   primFloatRound   : Float → Maybe Int -- from primRound
   primFloatFloor   : Float → Maybe Int -- from primFloor
   primFloatCeiling : Float → Maybe Int -- from primCeiling
@@ -195,7 +195,7 @@ Builtins
   and exponent, such that `f = mantissa * 2 ^ exponent`, normalised such that
   the mantissa is the smallest possible number. The `primFloatEncode` function
   encodes a pair of a mantissa and exponent to a floating-point number.
-  
+
   There are several new operations:
   ```agda
   primFloatPow        : Float -> Float -> Float -- new
