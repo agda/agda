@@ -192,35 +192,39 @@ exports.primFloatIsSafeInteger = function(x) {
 const WORD64_NAN      = exports.primIntegerFromString("18444492273895866368");
 const WORD64_POS_INF  = exports.primIntegerFromString("9218868437227405312");
 const WORD64_NEG_INF  = exports.primIntegerFromString("18442240474082181120");
+const WORD64_POS_ZERO = exports.primIntegerFromString("0");
 const WORD64_NEG_ZERO = exports.primIntegerFromString("9223372036854775808");
-
-// Tests: 1.5 -> 4609434218613702656
 
 exports.primFloatToWord64 = function(x) {
     if (exports.primFloatIsNaN(x)) {
         return WORD64_NAN;
     }
-    else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
+    else if (Object.is(x,-Infinity)) {
         return WORD64_NEG_INF;
     }
-    else if (0.0 < x && exports.primFloatIsInfinite(x)) {
+    else if (Object.is(x,Infinity)) {
         return WORD64_POS_INF;
     }
-    else if (exports.primFloatIsNegativeZero(x)) {
+    else if (Object.is(x,-0.0)) {
         return WORD64_NEG_ZERO;
+    }
+    else if (Object.is(x,0.0)) {
+        return WORD64_POS_ZERO;
     }
     else {
         var mantissa, exponent;
         ({mantissa, exponent} = exports._primFloatDecode(x));
         var sign = Math.sign(mantissa);
+        console.log(mantissa);
         mantissa *= sign;
         sign = (sign === -1 ? "1" : "0");
-        mantissa = ((mantissa >>> 0).toString(2)).padStart(11, "0");
-        exponent = ((exponent >>> 0).toString(2)).padStart(52, "0");
-        return exports.primIntegerFromString(
-            parseInt(sign + mantissa + exponent, 2).toString());
+        mantissa = (mantissa.toString(2)).padStart(11, "0");
+        exponent = (mantissa.toString(2)).padStart(52, "0");
+        return exports.primIntegerFromString(parseInt(
+            sign + mantissa + exponent, 2).toString());
     }
 };
+
 exports.primNatToFloat = function(x) {
     return x.valueOf();
 };
