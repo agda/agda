@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -847,7 +846,8 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
   m `catchError` \ err -> do
 
-    let reraise = throwError err
+    let reraise :: MonadError TCErr m => m a
+        reraise = throwError err
 
     -- Get the blocker responsible for the type error.
     -- If we do not find a blocker or the error should not be handled,
