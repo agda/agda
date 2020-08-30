@@ -1,5 +1,7 @@
 ;;; eri.el --- Enhanced relative indentation (eri)
 
+;; Version: 1.0
+
 ;;; Commentary:
 
 ;;; Code:

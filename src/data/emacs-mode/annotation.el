@@ -1,5 +1,7 @@
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
+;; Version: 1.0
+
 ;; Note that this library enumerates buffer positions starting from 1,
 ;; just like Emacs.
 
