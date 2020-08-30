@@ -287,6 +287,11 @@ exports.primFloatDiv = function(x) {
     return x / y;
   };
 };
+exports.primFloatPow = function(x) {
+    return function(y) {
+        return x ** y;
+    };
+};
 exports.primFloatSqrt = function(x) {
     return Math.sqrt(x);
 };
@@ -318,6 +323,24 @@ exports.primFloatATan2 = function(x) {
     return function(y){
         return Math.atan2(x, y);
     };
+};
+exports.primFloatSinh = function(x) {
+    return Math.sinh(x);
+};
+exports.primFloatCosh = function(x) {
+    return Math.cosh(x);
+};
+exports.primFloatTanh = function(x) {
+    return Math.tanh(x);
+};
+exports.primFloatASinh = function(x) {
+    return Math.asinh(x);
+};
+exports.primFloatACosh = function(x) {
+    return Math.acosh(x);
+};
+exports.primFloatATanh = function(x) {
+    return Math.atanh(x);
 };
 
 // Other stuff

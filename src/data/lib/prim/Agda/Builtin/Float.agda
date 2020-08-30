@@ -41,6 +41,7 @@ primitive
   primFloatMinus             : Float → Float → Float
   primFloatTimes             : Float → Float → Float
   primFloatDiv               : Float → Float → Float
+  primFloatPow               : Float → Float → Float
   primFloatNegate            : Float → Float
   primFloatSqrt              : Float → Float
   primFloatExp               : Float → Float
@@ -58,7 +59,6 @@ primitive
   primFloatASinh             : Float → Float
   primFloatACosh             : Float → Float
   primFloatATanh             : Float → Float
-  primFloatPow               : Float → Float → Float
 
 {-# COMPILE JS
     primFloatRound = function(x) {
