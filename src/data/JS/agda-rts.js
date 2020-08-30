@@ -113,13 +113,19 @@ exports._primFloatCeiling = function(x) {
 };
 exports._primFloatToRatio = function(x) {
     if (exports.primFloatIsNaN(x)) {
-        return {numerator:  0, denominator: 0};
+        return null;
     }
-    else if (x > 0 && exports.primFloatIsInfinite(x)) {
-        return {numerator:  1, denominator: 0};
+    else if (Object.is(x,-Infinity)) {
+        return null;
     }
-    else if (x < 0 && exports.primFloatIsInfinite(x)) {
-        return {numerator: -1, denominator: 0};
+    else if (Object.is(x,Infinity)) {
+        return null;
+    }
+    else if (Object.is(x,-0.0)) {
+        return {numerator: 0, denominator: 1};
+    }
+    else if (Object.is(x,0.0)) {
+        return {numerator: 0, denominator: 1};
     }
     else {
         var numerator = Math.round(x*1e9);
