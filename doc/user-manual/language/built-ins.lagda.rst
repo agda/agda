@@ -394,7 +394,7 @@ primitive functions are available (with suitable bindings for
     primFloatIsInfinite        : Float → Bool
     primFloatIsNaN             : Float → Bool
     primFloatIsNegativeZero    : Float → Bool
-    
+
     -- Conversions
     primNatToFloat             : Nat → Float
     primIntToFloat             : Int → Float
