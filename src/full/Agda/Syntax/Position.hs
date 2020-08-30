@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE NoMonomorphismRestriction  #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
