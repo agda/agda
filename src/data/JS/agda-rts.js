@@ -113,19 +113,19 @@ exports._primFloatCeiling = function(x) {
 };
 exports._primFloatToRatio = function(x) {
     if (exports.primFloatIsNaN(x)) {
-        return null;
+        return {numerator: 0.0, denominator: 0.0};
     }
     else if (x < 0.0 && exports.primFloatIsInfinite(x)) {
-        return null;
+        return {numerator: -1.0, denominator: 0.0};
     }
     else if (x > 0.0 && exports.primFloatIsInfinite(x)) {
-        return null;
+        return {numerator: 1.0, denominator: 0.0};
     }
     else if (exports.primFloatIsNegativeZero(x)) {
-        return {numerator: 0, denominator: 1};
+        return {numerator: 0.0, denominator: 1.0};
     }
     else if (x == 0.0) {
-        return {numerator: 0, denominator: 1};
+        return {numerator: 0.0, denominator: 1.0};
     }
     else {
         var numerator = Math.round(x*1e9);
@@ -182,9 +182,6 @@ exports.primFloatIsInfinite = function(x) {
 };
 exports.primFloatIsNaN = function(x) {
     return Number.isNaN(x);
-};
-exports.primFloatIsDenormalized = function(x) {
-    return false; // TODO: not sure this is possible? ¯\_(ツ)_/¯
 };
 exports.primFloatIsNegativeZero = function(x) {
     return Object.is(x,-0.0);

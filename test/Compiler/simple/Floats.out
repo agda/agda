@@ -80,11 +80,6 @@ out > isNegativeZero  0.0        = false = false
 out > isNegativeZero -0.0        = true = true
 out > isNegativeZero  1.0        = false = false
 out > isNegativeZero  1.5        = false = false
-out > isDenormalized 1.0         = false = false
-out > isDenormalized 1.5         = false = false
-out > isDenormalized MaxFloat    = false = false
-out > isDenormalized MinFloat    = false = false
-out > isDenormalized MaxSafeIntF = false = false
 out > isSafeInteger 1.0          = true = true
 out > isSafeInteger 1.5          = false = false
 out > isSafeInteger MaxFloat     = false = false

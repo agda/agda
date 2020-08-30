@@ -44,7 +44,6 @@ open import Agda.Builtin.Float
            ; primFloatIsInfinite     to isInfinite
            ; primFloatIsNaN          to isNaN
            ; primFloatIsNegativeZero to isNegativeZero
-           ; primFloatIsDenormalized to isDenormalized
            ; primFloatIsSafeInteger  to isSafeInteger
            )
 open import Agda.Builtin.Int
@@ -263,11 +262,6 @@ main = do
   checkB "isNegativeZero -0.0       " true  (isNegativeZero -0.0       )
   checkB "isNegativeZero  1.0       " false (isNegativeZero  1.0       )
   checkB "isNegativeZero  1.5       " false (isNegativeZero  1.5       )
-  checkB "isDenormalized 1.0        " false (isDenormalized 1.0        )
-  checkB "isDenormalized 1.5        " false (isDenormalized 1.5        )
-  checkB "isDenormalized MaxFloat   " false (isDenormalized MaxFloat   )
-  checkB "isDenormalized MinFloat   " false (isDenormalized MinFloat   )
-  checkB "isDenormalized MaxSafeIntF" false (isDenormalized MaxSafeIntF)
   checkB "isSafeInteger 1.0         " true  (isSafeInteger 1.0         )
   checkB "isSafeInteger 1.5         " false (isSafeInteger 1.5         )
   checkB "isSafeInteger MaxFloat    " false (isSafeInteger MaxFloat    )

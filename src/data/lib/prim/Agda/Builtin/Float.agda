@@ -21,7 +21,6 @@ primitive
   primFloatLess              : Float → Float → Bool
   primFloatIsInfinite        : Float → Bool
   primFloatIsNaN             : Float → Bool
-  primFloatIsDenormalized    : Float → Bool
   primFloatIsNegativeZero    : Float → Bool
   primFloatIsSafeInteger     : Float → Bool
   -- Conversions

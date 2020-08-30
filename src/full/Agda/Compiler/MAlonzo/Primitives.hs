@@ -201,7 +201,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatLess"              |-> return "MAlonzo.RTE.Float.doubleLt"
   , "primFloatIsInfinite"        |-> return "(isInfinite :: Double -> Bool)"
   , "primFloatIsNaN"             |-> return "(isNaN :: Double -> Bool)"
-  , "primFloatIsDenormalized"    |-> return "(isDenormalized :: Double -> Bool)"
   , "primFloatIsNegativeZero"    |-> return "(isNegativeZero :: Double -> Bool)"
   , "primFloatIsSafeInteger"     |-> return "MAlonzo.RTE.Float.isSafeInteger"
   , "primFloatToWord64"          |-> return "MAlonzo.RTE.Float.doubleToWord64"

@@ -637,7 +637,6 @@ primitives = Set.fromList
   , "primFloatLess"
   , "primFloatIsInfinite"
   , "primFloatIsNaN"
-  , "primFloatIsDenormalized"
   , "primFloatIsNegativeZero"
   , "primFloatIsSafeInteger"
   , "primFloatToWord64"
