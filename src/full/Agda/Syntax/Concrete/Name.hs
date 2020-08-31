@@ -20,6 +20,7 @@ import GHC.Generics (Generic)
 import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName

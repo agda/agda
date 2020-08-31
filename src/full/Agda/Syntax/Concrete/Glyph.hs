@@ -2,6 +2,9 @@
 -}
 module Agda.Syntax.Concrete.Glyph
   ( UnicodeOrAscii(..)
+  , unsafeUnicodeOrAscii
+  , unsafeUnicodeOrAsciiIORef
+  , unsafeSetUnicodeOrAscii
   , specialCharactersForGlyphs
   , braces', dbraces
   , forallQ
@@ -10,10 +13,26 @@ module Agda.Syntax.Concrete.Glyph
   , SpecialCharacters(..)
   ) where
 
-import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unsafeUnicodeOrAscii)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+
+-- | We want to know whether we are allowed to insert unicode characters or not.
+data UnicodeOrAscii = UnicodeOk | AsciiOnly
+
+{-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
+unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
+unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
+
+{-# NOINLINE unsafeSetUnicodeOrAscii #-}
+unsafeSetUnicodeOrAscii :: UnicodeOrAscii -> IO ()
+unsafeSetUnicodeOrAscii = writeIORef unsafeUnicodeOrAsciiIORef
+
+-- | Are we allowed to use unicode supscript characters?
+unsafeUnicodeOrAscii :: UnicodeOrAscii
+unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readIORef unsafeUnicodeOrAsciiIORef)
 
 -- | Picking the appropriate set of special characters depending on
 -- whether we are allowed to use unicode or have to limit ourselves
