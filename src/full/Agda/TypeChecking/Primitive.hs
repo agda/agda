@@ -834,8 +834,8 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primFloatIsSafeInteger"     |-> mkPrimFun1 isSafeInteger
   , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
-  , "primNatToFloat"             |-> mkPrimFun1 (fromIntegral :: Nat -> Double)
-  , "primIntToFloat"             |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+  , "primNatToFloat"             |-> mkPrimFun1 (intToDouble :: Nat -> Double)
+  , "primIntToFloat"             |-> mkPrimFun1 (intToDouble :: Integer -> Double)
   , "primFloatRound"             |-> mkPrimFun1 doubleRound
   , "primFloatFloor"             |-> mkPrimFun1 doubleFloor
   , "primFloatCeiling"           |-> mkPrimFun1 doubleCeiling
@@ -844,28 +844,28 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primFloatDecode"            |-> mkPrimFun1 doubleDecode
   , "primFloatEncode"            |-> mkPrimFun2 doubleEncode
   , "primShowFloat"              |-> mkPrimFun1 (T.pack . show :: Double -> Text)
-  , "primFloatPlus"              |-> mkPrimFun2 ((+) :: Op Double)
-  , "primFloatMinus"             |-> mkPrimFun2 ((-) :: Op Double)
-  , "primFloatTimes"             |-> mkPrimFun2 ((*) :: Op Double)
-  , "primFloatNegate"            |-> mkPrimFun1 (negate :: Fun Double)
-  , "primFloatDiv"               |-> mkPrimFun2 ((/) :: Op Double)
-  , "primFloatSqrt"              |-> mkPrimFun1 (sqrt :: Fun Double)
-  , "primFloatExp"               |-> mkPrimFun1 (exp :: Fun Double)
-  , "primFloatLog"               |-> mkPrimFun1 (log :: Fun Double)
-  , "primFloatSin"               |-> mkPrimFun1 (sin :: Fun Double)
-  , "primFloatCos"               |-> mkPrimFun1 (cos :: Fun Double)
-  , "primFloatTan"               |-> mkPrimFun1 (tan :: Fun Double)
-  , "primFloatASin"              |-> mkPrimFun1 (asin :: Fun Double)
-  , "primFloatACos"              |-> mkPrimFun1 (acos :: Fun Double)
-  , "primFloatATan"              |-> mkPrimFun1 (atan :: Fun Double)
-  , "primFloatATan2"             |-> mkPrimFun2 (atan2 :: Op Double)
-  , "primFloatSinh"              |-> mkPrimFun1 (sinh :: Fun Double)
-  , "primFloatCosh"              |-> mkPrimFun1 (cosh :: Fun Double)
-  , "primFloatTanh"              |-> mkPrimFun1 (tanh :: Fun Double)
-  , "primFloatASinh"             |-> mkPrimFun1 (asinh :: Fun Double)
-  , "primFloatACosh"             |-> mkPrimFun1 (acosh :: Fun Double)
-  , "primFloatATanh"             |-> mkPrimFun1 (atanh :: Fun Double)
-  , "primFloatPow"               |-> mkPrimFun2 ((**) :: Op Double)
+  , "primFloatPlus"              |-> mkPrimFun2 doublePlus
+  , "primFloatMinus"             |-> mkPrimFun2 doubleMinus
+  , "primFloatTimes"             |-> mkPrimFun2 doubleTimes
+  , "primFloatNegate"            |-> mkPrimFun1 doubleNegate
+  , "primFloatDiv"               |-> mkPrimFun2 doubleDiv
+  , "primFloatPow"               |-> mkPrimFun2 doublePow
+  , "primFloatSqrt"              |-> mkPrimFun1 doubleSqrt
+  , "primFloatExp"               |-> mkPrimFun1 doubleExp
+  , "primFloatLog"               |-> mkPrimFun1 doubleLog
+  , "primFloatSin"               |-> mkPrimFun1 doubleSin
+  , "primFloatCos"               |-> mkPrimFun1 doubleCos
+  , "primFloatTan"               |-> mkPrimFun1 doubleTan
+  , "primFloatASin"              |-> mkPrimFun1 doubleASin
+  , "primFloatACos"              |-> mkPrimFun1 doubleACos
+  , "primFloatATan"              |-> mkPrimFun1 doubleATan
+  , "primFloatATan2"             |-> mkPrimFun2 doubleATan2
+  , "primFloatSinh"              |-> mkPrimFun1 doubleSinh
+  , "primFloatCosh"              |-> mkPrimFun1 doubleCosh
+  , "primFloatTanh"              |-> mkPrimFun1 doubleTanh
+  , "primFloatASinh"             |-> mkPrimFun1 doubleASinh
+  , "primFloatACosh"             |-> mkPrimFun1 doubleCosh
+  , "primFloatATanh"             |-> mkPrimFun1 doubleTanh
 
   -- Character functions
   , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)

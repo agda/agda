@@ -11,6 +11,29 @@ module Agda.Utils.Float
   , doubleEq
   , doubleLe
   , doubleLt
+  , intToDouble
+  , doublePlus
+  , doubleMinus
+  , doubleTimes
+  , doubleNegate
+  , doubleDiv
+  , doublePow
+  , doubleSqrt
+  , doubleExp
+  , doubleLog
+  , doubleSin
+  , doubleCos
+  , doubleTan
+  , doubleASin
+  , doubleACos
+  , doubleATan
+  , doubleATan2
+  , doubleSinh
+  , doubleCosh
+  , doubleTanh
+  , doubleASinh
+  , doubleACosh
+  , doubleATanh
   , doubleRound
   , doubleFloor
   , doubleCeiling
@@ -33,7 +56,7 @@ import Data.Word        ( Word64 )
 import Agda.Utils.List  ( stripSuffix )
 
 #if __GLASGOW_HASKELL__ >= 804
-import GHC.Float (castDoubleToWord64)
+import GHC.Float (castDoubleToWord64, castWord64ToDouble)
 #else
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Foreign          as F
@@ -45,22 +68,123 @@ castDoubleToWord64 :: Double -> Word64
 castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
   F.poke (F.castPtr buf) float
   F.peek buf
+
+castWord64ToDouble :: Word64 -> Double
+castWord64ToDouble word = unsafePerformIO $ F.alloca $ \buf -> do
+  F.poke (F.castPtr buf) word
+  F.peek buf
 #endif
 
--- NOTE: normalisation of NaN values isn't necessary here,
---       since comparisons to NaN always return false anyway.
-
+{-# INLINE doubleEq #-}
 doubleEq :: Double -> Double -> Bool
 doubleEq = (==)
 
+{-# INLINE doubleLe #-}
 doubleLe :: Double -> Double -> Bool
 doubleLe = (<=)
 
+{-# INLINE doubleLt #-}
 doubleLt :: Double -> Double -> Bool
 doubleLt = (<)
 
+truncateDouble :: Double -> Double
+truncateDouble = castWord64ToDouble . castDoubleToWord64
+
+{-# INLINE intToDouble #-}
+intToDouble :: Integral a => a -> Double
+intToDouble = truncateDouble . fromIntegral
+
+{-# INLINE doublePlus #-}
+doublePlus :: Double -> Double -> Double
+doublePlus x y = truncateDouble (x + y)
+
+{-# INLINE doubleMinus #-}
+doubleMinus :: Double -> Double -> Double
+doubleMinus x y = truncateDouble (x - y)
+
+{-# INLINE doubleTimes #-}
+doubleTimes :: Double -> Double -> Double
+doubleTimes x y = truncateDouble (x * y)
+
+{-# INLINE doubleNegate #-}
+doubleNegate :: Double -> Double
+doubleNegate = negate -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleDiv #-}
+doubleDiv :: Double -> Double -> Double
+doubleDiv = (/) -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doublePow #-}
+doublePow :: Double -> Double -> Double
+doublePow x y = truncateDouble (x ** y)
+
+{-# INLINE doubleSqrt #-}
+doubleSqrt :: Double -> Double
+doubleSqrt = sqrt -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleExp #-}
+doubleExp :: Double -> Double
+doubleExp x = truncateDouble (exp x)
+
+{-# INLINE doubleLog #-}
+doubleLog :: Double -> Double
+doubleLog = log -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleSin #-}
+doubleSin :: Double -> Double
+doubleSin = sin -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleCos #-}
+doubleCos :: Double -> Double
+doubleCos = cos -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleTan #-}
+doubleTan :: Double -> Double
+doubleTan = tan -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleASin #-}
+doubleASin :: Double -> Double
+doubleASin = asin -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleACos #-}
+doubleACos :: Double -> Double
+doubleACos = acos -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATan #-}
+doubleATan :: Double -> Double
+doubleATan = atan -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATan2 #-}
+doubleATan2 :: Double -> Double -> Double
+doubleATan2 = atan2 -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleSinh #-}
+doubleSinh :: Double -> Double
+doubleSinh = sinh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleCosh #-}
+doubleCosh :: Double -> Double
+doubleCosh = cosh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleTanh #-}
+doubleTanh :: Double -> Double
+doubleTanh = tanh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleASinh #-}
+doubleASinh :: Double -> Double
+doubleASinh = asinh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleACosh #-}
+doubleACosh :: Double -> Double
+doubleACosh = acosh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATanh #-}
+doubleATanh :: Double -> Double
+doubleATanh = atanh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE negativeZero #-}
 negativeZero :: Double
-negativeZero = 0.0
+negativeZero = -0.0
 
 positiveInfinity :: Double
 positiveInfinity = 1.0 / 0.0

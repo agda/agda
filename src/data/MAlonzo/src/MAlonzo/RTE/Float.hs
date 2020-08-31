@@ -1,16 +1,17 @@
 {-# LANGUAGE CPP #-}
 
--- Should be kept in sync with Agda.Utils.Float (minus toStringWithDotZero).
-
 module MAlonzo.RTE.Float where
 
 import Data.Bifunctor   ( bimap, second )
 import Data.Function    ( on )
+import Data.Maybe       ( fromMaybe )
 import Data.Ratio       ( (%), numerator, denominator )
 import Data.Word        ( Word64 )
 
+import Agda.Utils.List  ( stripSuffix )
+
 #if __GLASGOW_HASKELL__ >= 804
-import GHC.Float (castDoubleToWord64)
+import GHC.Float (castDoubleToWord64, castWord64ToDouble)
 #else
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Foreign          as F
@@ -22,20 +23,121 @@ castDoubleToWord64 :: Double -> Word64
 castDoubleToWord64 float = unsafePerformIO $ F.alloca $ \buf -> do
   F.poke (F.castPtr buf) float
   F.peek buf
+
+castWord64ToDouble :: Word64 -> Double
+castWord64ToDouble word = unsafePerformIO $ F.alloca $ \buf -> do
+  F.poke (F.castPtr buf) word
+  F.peek buf
 #endif
 
--- NOTE: normalisation of NaN values isn't necessary here,
---       since comparisons to NaN always return false anyway.
-
+{-# INLINE doubleEq #-}
 doubleEq :: Double -> Double -> Bool
 doubleEq = (==)
 
+{-# INLINE doubleLe #-}
 doubleLe :: Double -> Double -> Bool
 doubleLe = (<=)
 
+{-# INLINE doubleLt #-}
 doubleLt :: Double -> Double -> Bool
 doubleLt = (<)
 
+truncateDouble :: Double -> Double
+truncateDouble = castWord64ToDouble . castDoubleToWord64
+
+{-# INLINE intToDouble #-}
+intToDouble :: Integral a => a -> Double
+intToDouble = truncateDouble . fromIntegral
+
+{-# INLINE doublePlus #-}
+doublePlus :: Double -> Double -> Double
+doublePlus x y = truncateDouble (x + y)
+
+{-# INLINE doubleMinus #-}
+doubleMinus :: Double -> Double -> Double
+doubleMinus x y = truncateDouble (x - y)
+
+{-# INLINE doubleTimes #-}
+doubleTimes :: Double -> Double -> Double
+doubleTimes x y = truncateDouble (x * y)
+
+{-# INLINE doubleNegate #-}
+doubleNegate :: Double -> Double
+doubleNegate = negate -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleDiv #-}
+doubleDiv :: Double -> Double -> Double
+doubleDiv = (/) -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doublePow #-}
+doublePow :: Double -> Double -> Double
+doublePow x y = truncateDouble (x ** y)
+
+{-# INLINE doubleSqrt #-}
+doubleSqrt :: Double -> Double
+doubleSqrt = sqrt -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleExp #-}
+doubleExp :: Double -> Double
+doubleExp x = truncateDouble (exp x)
+
+{-# INLINE doubleLog #-}
+doubleLog :: Double -> Double
+doubleLog = log -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleSin #-}
+doubleSin :: Double -> Double
+doubleSin = sin -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleCos #-}
+doubleCos :: Double -> Double
+doubleCos = cos -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleTan #-}
+doubleTan :: Double -> Double
+doubleTan = tan -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleASin #-}
+doubleASin :: Double -> Double
+doubleASin = asin -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleACos #-}
+doubleACos :: Double -> Double
+doubleACos = acos -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATan #-}
+doubleATan :: Double -> Double
+doubleATan = atan -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATan2 #-}
+doubleATan2 :: Double -> Double -> Double
+doubleATan2 = atan2 -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleSinh #-}
+doubleSinh :: Double -> Double
+doubleSinh = sinh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleCosh #-}
+doubleCosh :: Double -> Double
+doubleCosh = cosh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleTanh #-}
+doubleTanh :: Double -> Double
+doubleTanh = tanh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleASinh #-}
+doubleASinh :: Double -> Double
+doubleASinh = asinh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleACosh #-}
+doubleACosh :: Double -> Double
+doubleACosh = acosh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE doubleATanh #-}
+doubleATanh :: Double -> Double
+doubleATanh = atanh -- NOTE: doesn't cause underflow/overflow
+
+{-# INLINE negativeZero #-}
 negativeZero :: Double
 negativeZero = -0.0
 
@@ -104,6 +206,11 @@ asFinite x
   | isInfinite x = Nothing
   | otherwise    = Just x
 
+-- |Remove suffix @.0@ from printed floating point number.
+toStringWithoutDotZero :: Double -> String
+toStringWithoutDotZero d = fromMaybe s $ stripSuffix ".0" s
+  where s = show d
+
 -- |Decode a Double to an integer ratio.
 doubleToRatio :: Double -> (Integer, Integer)
 doubleToRatio x
@@ -121,7 +228,7 @@ ratioToDouble n d
   | otherwise = fromRational (n % d)
 
 -- |Decode a Double to its mantissa and its exponent, normalised such that the
--- mantissa is the smallest possible number without loss of accuracy.
+--  mantissa is the smallest possible number without loss of accuracy.
 doubleDecode :: Double -> Maybe (Integer, Integer)
 doubleDecode x
   | isNaN      x = Nothing
@@ -132,7 +239,6 @@ doubleDecode x
     normalise mantissa exponent
       | even mantissa = normalise (mantissa `div` 2) (exponent + 1)
       | otherwise = (mantissa, exponent)
-
 
 -- |Checks whether or not the Double is within a safe range of operation.
 isSafeInteger :: Double -> Bool
