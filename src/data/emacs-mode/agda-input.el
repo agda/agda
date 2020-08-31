@@ -1,4 +1,5 @@
-;;; agda-input.el --- The Agda input method -*- lexical-binding: t; -*-
+;;; -*- lexical-binding: t; -*-
+;;; agda-input.el --- The Agda input method
 
 ;;; Commentary:
 
