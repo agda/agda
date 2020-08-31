@@ -5,16 +5,8 @@ import Data.Char
 
 import Agda.Utils.Impossible
 
-import Data.IORef
-import qualified System.IO.Unsafe as UNSAFE
-import Agda.Interaction.Options.IORefs
-
 ------------------------------------------------------------------------
 -- Subscript digits
-
--- | Are we allowed to use unicode supscript characters?
-subscriptAllowed :: UnicodeOrAscii
-subscriptAllowed = UNSAFE.unsafePerformIO (readIORef unicodeOrAsciiIORef)
 
 -- | Is the character one of the subscripts @'₀'@-@'₉'@?
 

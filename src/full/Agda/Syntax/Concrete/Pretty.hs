@@ -7,7 +7,6 @@ module Agda.Syntax.Concrete.Pretty where
 
 import Prelude hiding ( null )
 
-import Data.IORef
 import Data.Maybe
 import qualified Data.Foldable  as Fold
 import qualified Data.Semigroup as Semigroup
@@ -18,7 +17,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
 
-import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unsafeUnicodeOrAsciiIORef)
+import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unsafeUnicodeOrAscii)
 
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
@@ -33,8 +32,6 @@ import Agda.Utils.Singleton
 import Agda.Utils.String
 
 import Agda.Utils.Impossible
-
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
@@ -74,8 +71,7 @@ data SpecialCharacters = SpecialCharacters
 {-# NOINLINE specialCharacters #-}
 specialCharacters :: SpecialCharacters
 specialCharacters =
-  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAsciiIORef) in
-  case opt of
+  case unsafeUnicodeOrAscii of
     UnicodeOk -> SpecialCharacters { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
                                    , _lambda  = "\x03bb"
                                    , _arrow   = "\x2192"

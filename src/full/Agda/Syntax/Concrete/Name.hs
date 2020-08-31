@@ -263,7 +263,7 @@ nextRawName :: RawName -> RawName
 nextRawName s = addSuffix root (maybe initialSuffix nextSuffix suffix)
   where
   (root, suffix) = suffixView s
-  initialSuffix = case subscriptAllowed of
+  initialSuffix = case unsafeUnicodeOrAscii of
     UnicodeOk -> Subscript 1
     AsciiOnly -> Index 1
 

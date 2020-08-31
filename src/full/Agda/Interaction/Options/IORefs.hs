@@ -2,6 +2,7 @@
 
 module Agda.Interaction.Options.IORefs
     ( UnicodeOrAscii(..)
+    , unsafeUnicodeOrAscii
     , unsafeUnicodeOrAsciiIORef
     ) where
 
@@ -16,3 +17,7 @@ data UnicodeOrAscii = UnicodeOk | AsciiOnly
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
 unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
 unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
+
+-- | Are we allowed to use unicode supscript characters?
+unsafeUnicodeOrAscii :: UnicodeOrAscii
+unsafeUnicodeOrAscii = UNSAFE.unsafePerformIO (readIORef unsafeUnicodeOrAsciiIORef)
