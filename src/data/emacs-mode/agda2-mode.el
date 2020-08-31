@@ -14,7 +14,7 @@
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
-(require 'cl)
+(require 'cl-lib)
 (require 'compile)
 (require 'pp)
 (require 'time-date)
@@ -35,7 +35,7 @@ Note that the same version of the Agda executable must be used.")
   (unless (fboundp 'propertize)                    ; for Xemacs 21.4
     ;; FIXME: XEmacs-21.4 (patch 22) does have `propertize' and so does Emacs-22
     ;; (and agda2-mode doesn't work in Emacs-21, AFAICT).
-    (defun propertize (string &rest properties)
+    (cl-defun propertize (string &rest properties)
       "Return a copy of STRING with text properties added.
 First argument is the string to copy.
 Remaining arguments form a sequence of PROPERTY VALUE pairs for text
@@ -49,7 +49,7 @@ properties to add to the result."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
 
-(defmacro agda2-let (varbind funcbind &rest body)
+(cl-defmacro agda2-let (varbind funcbind &rest body)
   "Expands to (let* VARBIND (cl-labels FUNCBIND BODY...)).
 Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
   (declare (debug ((&rest [&or symbolp (symbolp form)])
@@ -185,7 +185,7 @@ to this variable to take effect."
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
     ;; Then override the remaining special cases.
-    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+    (cl-dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
                   (?. . ".") (?\; . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
@@ -257,8 +257,8 @@ menus.")
     (define-key map [menu-bar Agda]
       (cons "Agda" (make-sparse-keymap "Agda")))
     (define-key map [down-mouse-3]  'agda2-popup-menu-3)
-    (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional keys kinds desc) d
+    (cl-dolist (d (reverse agda2-command-table))
+      (cl-destructuring-bind (f &optional keys kinds desc) d
         (if keys (define-key map keys f))
         (if (member 'global kinds)
             (define-key map
@@ -268,8 +268,8 @@ menus.")
 
 (defvar agda2-goal-map
   (let ((map (make-sparse-keymap "Agda goal")))
-    (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional keys kinds desc) d
+    (cl-dolist (d (reverse agda2-command-table))
+      (cl-destructuring-bind (f &optional keys kinds desc) d
         (if (member 'local kinds)
             (define-key map
               (vector (intern desc)) (cons desc f)))))
@@ -423,7 +423,7 @@ agda2-include-dirs is not bound." :warning))
  ;; seem to remove the text properties set by the Agda mode.
  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
-(defun agda2-restart ()
+(cl-defun agda2-restart ()
   "Tries to start or restart the Agda process."
   (interactive)
 
@@ -482,17 +482,17 @@ agda2-include-dirs is not bound." :warning))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda
 
-(defun agda2-raise-error ()
+(cl-defun agda2-raise-error ()
   "Raises an error.
 The error message directs the user to the *agda2* buffer."
   (error "Problem encountered. The *agda2* buffer can perhaps explain why."))
 
-(defun agda2-running-p nil
+(cl-defun agda2-running-p nil
   "Does the *agda2* buffer exist, and is the Agda2 process running?"
   (and (buffer-live-p agda2-process-buffer)
        (eq (agda2-process-status) 'run)))
 
-(defun agda2-send-command (restart &rest args)
+(cl-defun agda2-send-command (restart &rest args)
   "Send a command to the Agda process.
 Sends the list of strings ARGS to the process. If RESTART is
 non-nil and the process is not running, or the *agda2*
@@ -511,7 +511,7 @@ process."
       (insert "\n")
       (process-send-string agda2-process (concat command "\n")))))
 
-(defun agda2-go (save highlight how-busy do-abort &rest args)
+(cl-defun agda2-go (save highlight how-busy do-abort &rest args)
   "Executes commands in the Agda2 interpreter.
 Sends the list of strings ARGS to the Agda2 interpreter, waits
 for output and executes the responses, if any.
@@ -535,7 +535,7 @@ not executed and an error is raised. The same applies if DO-ABORT
 is non-nil and the Agda process is `busy'."
 
   ; Check that how-busy is well-formed.
-  (assert (or (equal how-busy 'busy)
+  (cl-assert (or (equal how-busy 'busy)
               (equal how-busy 'not-so-busy)))
 
   (when (and agda2-in-progress
@@ -576,7 +576,7 @@ is non-nil and the Agda process is `busy'."
          "("
          (append args '(")"))))
 
-(defun agda2-abort ()
+(cl-defun agda2-abort ()
   "Tries to abort the current computation, if any.
 May be more efficient than restarting Agda."
   (interactive)
@@ -587,7 +587,7 @@ May be more efficient than restarting Agda."
                       "Indirect"
                       "Cmd_abort"))
 
-(defun agda2-abort-done ()
+(cl-defun agda2-abort-done ()
   "Removes annotations, resets certain variables.
 Intended to be used by the backend if an abort command was
 successful."
@@ -595,7 +595,7 @@ successful."
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
-(defun agda2-output-filter (proc chunk)
+(cl-defun agda2-output-filter (proc chunk)
   "Evaluate the Agda process's commands.
 This filter function assumes that every line contains either some
 kind of error message (which cannot be parsed as a list), or
@@ -654,7 +654,7 @@ reloaded from `agda2-highlighting-file', unless
                 (agda2-queue-from-string output-chunk-incomplete))
 
           ;; Handle every complete line.
-          (dolist (line (butlast lines))
+          (cl-dolist (line (butlast lines))
             (let* (;; The command. Lines which cannot be parsed as a single
                    ;; list, without any junk, are ignored.
                    (cmd (condition-case nil
@@ -698,7 +698,7 @@ reloaded from `agda2-highlighting-file', unless
 
           (agda2-run-last-commands)))))))
 
-(defun agda2-run-last-commands nil
+(cl-defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
 \(After the prompt has reappeared.) See `agda2-output-filter'."
 
@@ -720,7 +720,7 @@ reloaded from `agda2-highlighting-file', unless
   (unless agda2-in-progress
       (setq agda2-highlight-in-progress nil)))
 
-(defun agda2-abort-highlighting nil
+(cl-defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
 This function should be used in `first-change-hook'."
   (when agda2-highlight-in-progress
@@ -728,7 +728,7 @@ This function should be used in `first-change-hook'."
     (message "\"%s\" has been modified. Interrupting highlighting."
              (buffer-name (current-buffer)))))
 
-(defun agda2-goal-cmd (cmd save &optional want ask &rest args)
+(cl-defun agda2-goal-cmd (cmd save &optional want ask &rest args)
   "Reads input from goal or minibuffer and sends command to Agda.
 
 An error is raised if point is not in a goal.
@@ -753,7 +753,7 @@ range is given.
 
 If SAVE is 'save, then the buffer is saved just before the
 command is sent to Agda (if it is sent)."
-  (multiple-value-bind (o g) (agda2-goal-at (point))
+  (cl-multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
     (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
                                                (- (overlay-end   o) 2)))
@@ -774,7 +774,7 @@ command is sent to Agda (if it is sent)."
 ;; which can be exploited by an attacker which manages to trick
 ;; someone into type-checking compromised Agda code.
 
-(defun agda2-exec-response (response)
+(cl-defun agda2-exec-response (response)
   "Interprets response."
   (let ((inhibit-read-only t))
     (eval response)))
@@ -782,7 +782,7 @@ command is sent to Agda (if it is sent)."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
 
-(defun agda2-load ()
+(cl-defun agda2-load ()
   "Load current buffer."
   (interactive)
   (agda2-go 'save t 'busy t "Cmd_load"
@@ -790,7 +790,7 @@ command is sent to Agda (if it is sent)."
             (agda2-list-quote agda2-program-args)
             ))
 
-(defun agda2-compile ()
+(cl-defun agda2-compile ()
   "Compile the current module.
 
 The variable `agda2-backend' determines which backend is used."
@@ -809,7 +809,7 @@ The variable `agda2-backend' determines which backend is used."
               (agda2-list-quote agda2-program-args)
               )))
 
-(defmacro agda2-maybe-forced (name comment cmd save want)
+(cl-defmacro agda2-maybe-forced (name comment cmd save want)
   "This macro constructs a function NAME which runs CMD.
 COMMENT is used to build the function's comment. The function
 NAME takes a prefix argument which tells whether it should
@@ -818,7 +818,7 @@ apply force or not when running CMD (through
 SAVE is used as `agda2-goal-cmd's SAVE argument and
 WANT is used as `agda2-goal-cmd's WANT argument)."
   (let ((eval (make-symbol "eval")))
-  `(defun ,name (&optional prefix)
+  `(cl-defun ,name (&optional prefix)
      ,(concat comment ".
 
 The action depends on the prefix argument:
@@ -842,11 +842,11 @@ The action depends on the prefix argument:
   'save
   "expression to give")
 
-;; (defun agda2-give()
+;; (cl-defun agda2-give()
 ;;   "Give to the goal at point the expression in it" (interactive)
 ;;   (agda2-goal-cmd "Cmd_give" 'save "expression to give"))
 
-(defun agda2-give-action (old-g paren)
+(cl-defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."
   (let
      ;; Don't run modification hooks: we don't want this to
@@ -854,7 +854,7 @@ The action depends on the prefix argument:
       ((inhibit-modification-hooks t))
   (agda2-update old-g paren)))
 
-(defun agda2-refine (pmlambda)
+(cl-defun agda2-refine (pmlambda)
   "Refine the goal at point.
 If the goal contains an expression e, and some \"suffix\" of the
 type of e unifies with the goal type, then the goal is replaced
@@ -873,23 +873,23 @@ of new goals."
       (agda2-goal-cmd "Cmd_refine_or_intro True" 'save 'goal)
     (agda2-goal-cmd "Cmd_refine_or_intro False" 'save 'goal)))
 
-(defun agda2-autoOne ()
+(cl-defun agda2-autoOne ()
  "Simple proof search" (interactive)
  (agda2-goal-cmd "Cmd_autoOne" 'save 'goal))
 
-(defun agda2-autoAll ()
+(cl-defun agda2-autoAll ()
   (interactive)
   "Solves all goals by simple proof search."
   (agda2-go nil nil 'busy t "Cmd_autoAll")
 )
 
-(defun agda2-make-case ()
+(cl-defun agda2-make-case ()
   "Refine the pattern variables given in the goal.
 Assumes that <clause> = {!<variables>!} is on one line."
   (interactive)
   (agda2-goal-cmd "Cmd_make_case" 'save "pattern variables to case (empty for split on result)"))
 
-(defun agda2-make-case-action (newcls)
+(cl-defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
@@ -903,7 +903,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
     (goto-char p0))
   (agda2-load))
 
-(defun agda2-make-case-action-extendlam (newcls)
+(cl-defun agda2-make-case-action-extendlam (newcls)
   "Replace definition of extended lambda with new clauses NEWCLS and reload."
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
@@ -916,8 +916,8 @@ Assumes that <clause> = {!<variables>!} is on one line."
     (re-search-backward "{!")
     (while (and (not (equal (preceding-char) ?\;)) (>= bracketCount 0) (> (point) p1))
       (backward-char)
-      (if (equal (preceding-char) ?}) (incf bracketCount))
-      (if (equal (preceding-char) ?{) (decf bracketCount)))
+      (if (equal (preceding-char) ?}) (cl-incf bracketCount))
+      (if (equal (preceding-char) ?{) (cl-decf bracketCount)))
     (let* ((is-lambda-where (= (point) p1))
            (p (point)))
       (delete-region (point) pmax)
@@ -928,16 +928,16 @@ Assumes that <clause> = {!<variables>!} is on one line."
       (goto-char p)))
   (agda2-load))
 
-(defun agda2-status-action (status)
+(cl-defun agda2-status-action (status)
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
-(defmacro agda2-information-buffer (buffer kind title)
+(cl-defmacro agda2-information-buffer (buffer kind title)
   "Used to define functions like `agda2-info-buffer'."
-  `(defun ,buffer nil
+  `(cl-defun ,buffer nil
      ,(concat "Creates the Agda " kind
               " buffer, if it does not already exist.
 The buffer is returned.")
@@ -971,7 +971,7 @@ The buffer is returned.")
 
 (agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
 
-(defun agda2-info-action (name text &optional append)
+(cl-defun agda2-info-action (name text &optional append)
   "Insert TEXT into the Agda info buffer and display it.
 NAME is displayed in the buffer's mode line.
 
@@ -1041,7 +1041,7 @@ is inserted, and point is placed before this text."
     ;; Move point in every window displaying the information buffer.
     ;; Exception: If we are appending, don't move point in selected
     ;; windows.
-    (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
+    (cl-dolist (window (get-buffer-window-list buf 'no-minibuffer t))
       (unless (and append
                    (equal window (selected-window)))
         (with-selected-window window
@@ -1049,37 +1049,37 @@ is inserted, and point is placed before this text."
               (goto-char (point-max))
             (goto-char (point-min))))))))
 
-(defun agda2-info-action-and-copy (name text &optional append)
+(cl-defun agda2-info-action-and-copy (name text &optional append)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
   (kill-new text)
   (agda2-info-action name text append))
 
-(defun agda2-show-constraints()
+(cl-defun agda2-show-constraints()
   "Show constraints." (interactive)
   (agda2-go nil t 'busy t "Cmd_constraints"))
 
-(defun agda2-remove-annotations ()
+(cl-defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
   (interactive)
-  (dolist (o (overlays-in (point-min) (point-max)))
+  (cl-dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (let ((inhibit-read-only t))
     (annotation-preserve-mod-p-and-undo
      (set-text-properties (point-min) (point-max) '()))
     (force-mode-line-update)))
 
-(defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
+(cl-defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
   (agda2-mv-goal 'next-single-property-change     'agda2-delim2 1 (point-min)))
-(defun agda2-previous-goal () "Go to the previous goal, if any." (interactive)
+(cl-defun agda2-previous-goal () "Go to the previous goal, if any." (interactive)
   (agda2-mv-goal 'previous-single-property-change 'agda2-delim3 0 (point-max)))
-(defun agda2-mv-goal (change delim adjust wrapped)
+(cl-defun agda2-mv-goal (change delim adjust wrapped)
   (agda2-let ()
       ((go (p) (while (and (setq p (funcall change p 'category))
                            (not (eq (get-text-property p 'category) delim))))
            (if p (goto-char (+ adjust p)))))
     (or (go (point)) (go wrapped) (message "No goals in the buffer"))))
 
-(defun agda2-quit ()
+(cl-defun agda2-quit ()
   "Quit and clean up after agda2."
   (interactive)
   (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
@@ -1087,7 +1087,7 @@ is inserted, and point is placed before this text."
   (agda2-remove-annotations)
   (agda2-term))
 
-(defun agda2-term (&optional nicely)
+(cl-defun agda2-term (&optional nicely)
   "Interrupt the Agda process and kill its buffer.
 If this function is invoked with a prefix argument, then Agda is
 asked nicely to terminate itself after any previously invoked
@@ -1117,7 +1117,7 @@ commands have completed."
     (when (buffer-live-p agda2-process-buffer)
       (kill-buffer agda2-process-buffer))))
 
-(defun agda2-kill-process-buffer (&optional process event)
+(cl-defun agda2-kill-process-buffer (&optional process event)
   "Kills the Agda process buffer, if any.
 But only if the Agda process does not exist or has terminated.
 
@@ -1138,7 +1138,7 @@ This function can be used as a process sentinel."
 ;; functions which can be used either directly from a goal or at a global
 ;; level and are modifiable using one of three levels of normalisation.
 
-(defmacro agda2-proto-maybe-normalised (name comment cmd norm0 norm1 norm2 norm3 spec)
+(cl-defmacro agda2-proto-maybe-normalised (name comment cmd norm0 norm1 norm2 norm3 spec)
   "This macro constructs a function NAME which runs CMD.
 COMMENT is used to build the function's comment.
 The function NAME takes a prefix argument which tells whether it
@@ -1150,7 +1150,7 @@ SPEC can be either (fromgoal want) or (global prompt).
   ;; Names bound in a macro should be ``uninterned'' to avoid name capture
   ;; We use the macro `agda2--with-gensyms' to bind these.
   (agda2--with-gensyms (eval prefix args)
-    `(defun ,name (,prefix &rest ,args)
+    `(cl-defun ,name (,prefix &rest ,args)
        ,(format "%s.
 
 The form of the result depends on the prefix argument:
@@ -1202,7 +1202,7 @@ The form of the result depends on the prefix argument:
                                     (agda2-string-quote (car ,args))
                                     "")))))))))
 
-(defmacro agda2-maybe-normalised (name comment cmd want)
+(cl-defmacro agda2-maybe-normalised (name comment cmd want)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
     ("Simplified"   "simplified")
@@ -1211,7 +1211,7 @@ The form of the result depends on the prefix argument:
     ("HeadNormal"   "head normalised")
     (fromgoal ,want)))
 
-(defmacro agda2-maybe-normalised-asis (name comment cmd want)
+(cl-defmacro agda2-maybe-normalised-asis (name comment cmd want)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
     ("AsIs"       "returned as is")
@@ -1220,7 +1220,7 @@ The form of the result depends on the prefix argument:
     ("HeadNormal" "head normalised")
     (fromgoal ,want)))
 
-(defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
+(cl-defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
     ("Simplified"   "simplified")
@@ -1229,7 +1229,7 @@ The form of the result depends on the prefix argument:
     ("HeadNormal"   "head normalised")
     (global ,prompt)))
 
-(defmacro agda2-maybe-normalised-toplevel-asis-noprompt (name comment cmd)
+(cl-defmacro agda2-maybe-normalised-toplevel-asis-noprompt (name comment cmd)
   `(agda2-proto-maybe-normalised
     ,name ,comment ,cmd
     ("AsIs"       "returned as is")
@@ -1258,7 +1258,7 @@ top-level module"
    "Cmd_infer_toplevel"
    "Expression")
 
-(defun agda2-infer-type-maybe-toplevel ()
+(cl-defun agda2-infer-type-maybe-toplevel ()
   "Infers the type of the given expression.
 Either uses the scope of the current goal or, if point is not in a goal, the
 top-level scope."
@@ -1267,19 +1267,19 @@ top-level scope."
                           'agda2-infer-type
                         'agda2-infer-type-toplevel)))
 
-(defun agda2-why-in-scope ()
+(cl-defun agda2-why-in-scope ()
   "Explain why something is in scope in a goal."
   (interactive)
   (agda2-goal-cmd "Cmd_why_in_scope" nil "Name"))
 
-(defun agda2-why-in-scope-toplevel (name)
+(cl-defun agda2-why-in-scope-toplevel (name)
   "Explain why something is in scope at the top level."
   (interactive "MName: ")
   (agda2-go nil t 'busy t
             "Cmd_why_in_scope_toplevel"
             (agda2-string-quote name)))
 
-(defun agda2-why-in-scope-maybe-toplevel ()
+(cl-defun agda2-why-in-scope-maybe-toplevel ()
   "Explains why a given name is in scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
@@ -1344,7 +1344,7 @@ Along with their types."
   "Name"
 )
 
-(defun agda2-module-contents-maybe-toplevel ()
+(cl-defun agda2-module-contents-maybe-toplevel ()
   "Shows all the top-level names in the given module.
 Along with their types.
 
@@ -1355,7 +1355,7 @@ a goal, the top-level scope."
                           'agda2-module-contents
                         'agda2-module-contents-toplevel)))
 
-(defun agda2-solve-maybe-all ()
+(cl-defun agda2-solve-maybe-all ()
   "Solves goals that are already instantiated internally.
 Either only one if point is a goal, or all of them."
   (interactive)
@@ -1364,7 +1364,7 @@ Either only one if point is a goal, or all of them."
                           'agda2-solveAll))
 )
 
-(defun agda2-auto-maybe-all ()
+(cl-defun agda2-auto-maybe-all ()
   "Run auto.
 Either only one if point is a goal, or all of them."
   (interactive)
@@ -1392,7 +1392,7 @@ Either only one if point is a goal, or all of them."
   nil
 )
 
-(defun agda2-solveAll-action (iss)
+(cl-defun agda2-solveAll-action (iss)
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons 'agda2-solve-action (cons g (cons txt nil)))))
@@ -1400,13 +1400,13 @@ Either only one if point is a goal, or all of them."
           (push (cons 1 cmd) agda2-last-responses)
         (nconc agda2-last-responses (cons (cons 3 cmd) nil))))))
 
-(defun agda2-solve-action (g txt)
+(cl-defun agda2-solve-action (g txt)
   (save-excursion
     (agda2-replace-goal g txt)
     (agda2-goto-goal g)
     (agda2-give)))
 
-(defun agda2-compute-normalised (&optional arg)
+(cl-defun agda2-compute-normalised (&optional arg)
   "Compute the normal form of the expression in the goal at point.
 
 With the prefix argument `(4)' \"abstract\" is ignored during the
@@ -1425,7 +1425,7 @@ With any other prefix the head normal form is computed."
                             (" HeadCompute")))))
     (agda2-goal-cmd cmd nil "expression to normalise")))
 
-(defun agda2-compute-normalised-toplevel (expr &optional arg)
+(cl-defun agda2-compute-normalised-toplevel (expr &optional arg)
   "Compute the normal form of the given expression.
 The scope used for the expression is that of the last point
 inside the current top-level module.
@@ -1445,7 +1445,7 @@ computation."
     (agda2-go nil t 'busy t
               (concat cmd (agda2-string-quote expr)))))
 
-(defun agda2-compute-normalised-maybe-toplevel ()
+(cl-defun agda2-compute-normalised-maybe-toplevel ()
   "Compute the normal form of the given expression.
 The scope used for the expression is that of the last point
 inside the current top-level module.
@@ -1461,7 +1461,7 @@ computation."
       (call-interactively 'agda2-compute-normalised)
     (call-interactively 'agda2-compute-normalised-toplevel)))
 
-(defun agda2-display-program-version ()
+(cl-defun agda2-display-program-version ()
   "Display version of Agda"
   (interactive)
   (agda2-go nil nil 'busy t "Cmd_show_version"))
@@ -1469,7 +1469,7 @@ computation."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
-(defun agda2-highlight-reload nil
+(cl-defun agda2-highlight-reload nil
   "Loads precomputed syntax highlighting info for the current buffer.
 Only if the buffer is unmodified, and only if there is anything to load."
  (unless (buffer-modified-p)
@@ -1477,11 +1477,11 @@ Only if the buffer is unmodified, and only if there is anything to load."
              "Cmd_load_highlighting_info"
              (agda2-string-quote (buffer-file-name)))))
 
-(defun agda2-literate-p ()
+(cl-defun agda2-literate-p ()
   "Is the current buffer a literate Agda buffer?"
   (not (equal (file-name-extension (buffer-file-name)) "agda")))
 
-(defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
+(cl-defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
   (declare (debug t) (indent 1))
   (let ((s (make-symbol "v")))
     `(let ((,s ,exp))
@@ -1490,7 +1490,7 @@ Only if the buffer is unmodified, and only if there is anything to load."
                      `((equal ,s ,(car branch)) ,@(cdr branch)))
                    branches)))))
 
-(defun agda2-goals-action (goals)
+(cl-defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
 GOALS is a list of the buffer's goal numbers, in the order in
 which they appear in the buffer. Note that this function should
@@ -1560,7 +1560,7 @@ ways."
                                    (insert "{!!}")
                                    (make (- (point) 4))))))))))
 
-(defun agda2-make-goal (p q n)
+(cl-defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
   (annotation-preserve-mod-p-and-undo
    (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
@@ -1574,7 +1574,7 @@ ways."
      (overlay-put o 'face               'highlight)
      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
-(defun agda2-protect-goal-markers (ol action beg end &optional length)
+(cl-defun agda2-protect-goal-markers (ol action beg end &optional length)
   "Ensures that the goal markers cannot be tampered with.
 Except if `inhibit-read-only' is non-nil or /all/ of the goal is
 modified."
@@ -1597,7 +1597,7 @@ modified."
       (unless inhibit-read-only
         (signal 'text-read-only nil))))))
 
-(defun agda2-update (old-g new-txt)
+(cl-defun agda2-update (old-g new-txt)
   "Update the goal OLD-G.
 If NEW-TXT is a string, then the goal is replaced by the string,
 and otherwise the text inside the goal is retained (parenthesised
@@ -1605,14 +1605,14 @@ if NEW-TXT is `'paren').
 
 Removes the goal braces, but does not remove the goal overlay or
 text properties."
-  (multiple-value-bind (p q) (agda2-range-of-goal old-g)
+  (cl-multiple-value-bind (p q) (agda2-range-of-goal old-g)
     (save-excursion
       (cond ((stringp new-txt)
              (agda2-replace-goal old-g new-txt))
             ((equal new-txt 'paren)
              (goto-char (- q 2)) (insert ")")
              (goto-char (+ p 2)) (insert "(")))
-      (multiple-value-bind (p q) (agda2-range-of-goal old-g)
+      (cl-multiple-value-bind (p q) (agda2-range-of-goal old-g)
         (delete-region (- q 2) q)
         (delete-region p (+ p 2)))
         ;; Update highlighting
@@ -1626,21 +1626,21 @@ text properties."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc
 
-(defun agda2-process-status ()
+(cl-defun agda2-process-status ()
   "Status of `agda2-process-buffer', or \"no process\"."
   (condition-case nil
       (process-status agda2-process)
     (error "no process")))
 
-(defun agda2-intersperse (sep xs)
+(cl-defun agda2-intersperse (sep xs)
   (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
 
-(defun agda2-goal-Range (o)
+(cl-defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
   (agda2-mkRange `(,(+ (overlay-start o) 2)
                    ,(- (overlay-end   o) 2))))
 
-(defun agda2-mkRange (points)
+(cl-defun agda2-mkRange (points)
   "A string representing a range corresponding to POINTS.
 POINTS must be a list of integers, and its length must be 0 or 2."
   (if points
@@ -1651,7 +1651,7 @@ POINTS must be a list of integers, and its length must be 0 or 2."
                       (agda2-mkPos (cadr points))))
     "noRange"))
 
-(defun agda2-mkPos (&optional p)
+(cl-defun agda2-mkPos (&optional p)
   "The Haskell PositionWithoutFile corresponding to P or `point'."
   (save-excursion
     (save-restriction
@@ -1662,7 +1662,7 @@ POINTS must be a list of integers, and its length must be 0 or 2."
               (count-lines (point-min) (point))
               (1+ (current-column))))))
 
-(defun agda2-char-quote (c)
+(cl-defun agda2-char-quote (c)
   "Convert character C to the notation used in Haskell strings.
 The non-ASCII characters are actually rendered as
 \"\\xNNNN\\&\", i.e. followed by a \"null character\", to avoid
@@ -1673,7 +1673,7 @@ points < 128) are converted to singleton strings."
     ;; FIXME: Why return a list rather than a string?  --Stef
     (append (format "\\x%x\\&" (encode-char c 'ucs)) nil)))
 
-(defun agda2-string-quote (s)
+(cl-defun agda2-string-quote (s)
   "Format S as a Haskell string literal.
 Removes any text properties, escapes newlines, double quotes,
 etc., adds surrounding double quotes, and converts non-ASCII
@@ -1683,43 +1683,43 @@ characters to the \\xNNNN notation used in Haskell strings."
     (set-text-properties 0 (length s2) nil s2)
     (mapconcat 'agda2-char-quote (pp-to-string s2) "")))
 
-(defun agda2-list-quote (strings)
+(cl-defun agda2-list-quote (strings)
   "Convert a list of STRINGS into a string representing it in Haskell syntax."
   (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
-(defun agda2-goal-at(pos)
+(cl-defun agda2-goal-at(pos)
   "Return (goal overlay, goal number) at POS, or nil."
   (let ((os (and pos (overlays-at pos))) o g)
     (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
     (if g (list o g))))
 
-(defun agda2-goal-overlay (g)
+(cl-defun agda2-goal-overlay (g)
   "Returns the overlay of goal number G, if any."
   (car
    (remove nil
            (mapcar (lambda (o) (if (equal (overlay-get o 'agda2-gn) g) o))
                    (overlays-in (point-min) (point-max))))))
 
-(defun agda2-range-of-goal (g)
+(cl-defun agda2-range-of-goal (g)
   "The range of goal G."
   (let ((o (agda2-goal-overlay g)))
     (if o (list (overlay-start o) (overlay-end o)))))
 
-(defun agda2-goto-goal (g)
+(cl-defun agda2-goto-goal (g)
   (let ((p (+ 2 (car (agda2-range-of-goal g)))))
     (if p (goto-char p))))
 
-(defun agda2-replace-goal (g newtxt)
+(cl-defun agda2-replace-goal (g newtxt)
   "Replace the content of goal G with NEWTXT." (interactive)
   (save-excursion
-    (multiple-value-bind (p q) (agda2-range-of-goal g)
+    (cl-multiple-value-bind (p q) (agda2-range-of-goal g)
       (setq p (+ p 2) q (- q 2))
       (let ((indent (and (goto-char p) (current-column))))
         (delete-region p q) (insert newtxt)
         (while (re-search-backward "^" p t)
           (insert-char ?  indent) (backward-char (1+ indent)))))))
 
-(defun agda2-forget-all-goals ()
+(cl-defun agda2-forget-all-goals ()
   "Remove all goal annotations.
 \(Including some text properties which might be used by other
 \(minor) modes.)"
@@ -1732,7 +1732,7 @@ characters to the \\xNNNN notation used in Haskell strings."
               (point-max))
       (delete-overlay (car (agda2-goal-at p))))))
 
-(defun agda2-decl-beginning ()
+(cl-defun agda2-decl-beginning ()
   "Find the beginning point of the declaration containing the point.
 To do: dealing with semicolon separated decls."
   (interactive)
@@ -1756,14 +1756,14 @@ To do: dealing with semicolon separated decls."
           (or (match-end 2) (match-end 1))
         pDef))))
 
-(defun agda2-beginning-of-decl ()
+(cl-defun agda2-beginning-of-decl ()
   (interactive)
   (goto-char (agda2-decl-beginning)))
 
 (defvar agda2-debug-buffer-name "*Agda debug*"
   "The name of the buffer used for Agda debug messages.")
 
-(defun agda2-verbose (msg)
+(cl-defun agda2-verbose (msg)
   "Appends the string MSG to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
@@ -1775,7 +1775,7 @@ a file is loaded."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs
 
-(defun agda2-comments-and-paragraphs-setup nil
+(cl-defun agda2-comments-and-paragraphs-setup nil
   "Set up comment and paragraph handling for the Agda mode."
 
   ;; Empty lines (all white space according to Emacs) delimit
@@ -1804,7 +1804,7 @@ a file is loaded."
     (add-to-list (make-local-variable 'filladapt-token-conversion-table)
                  '(agda2-comment . exact))))
 
-(defun agda2-comment-dwim-rest-of-buffer ()
+(cl-defun agda2-comment-dwim-rest-of-buffer ()
   "Comment or uncomment the rest of the buffer.
 From the beginning of the current line to the end of the buffer."
   (interactive)
@@ -1817,7 +1817,7 @@ From the beginning of the current line to the end of the buffer."
           (comment-dwim nil))
       (pop-mark))))
 
-(defun agda2-highlight-tokens nil
+(cl-defun agda2-highlight-tokens nil
   "Compute token-based highlighting information.
 
 Unless `agda2-highlight-level' is `none' or the Agda process is
@@ -1833,14 +1833,14 @@ the buffer."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
 
-(defun agda2-goto-definition-keyboard (&optional other-window)
+(cl-defun agda2-goto-definition-keyboard (&optional other-window)
   "Go to the definition site of the name under point (if any).
 If this function is invoked with a prefix argument then another window is used
 to display the given position."
   (interactive "P")
   (annotation-goto-indirect (point) other-window))
 
-(defun agda2-goto-definition-mouse (ev)
+(cl-defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
   (interactive "e")
@@ -1849,14 +1849,14 @@ Otherwise, yank (see `mouse-yank-primary')."
     ;; (call-interactively (key-binding ev))?  --Stef
     (mouse-yank-primary ev)))
 
-(defun agda2-go-back nil
+(cl-defun agda2-go-back nil
   "Go back to the previous position in which
 `agda2-goto-definition-keyboard' or `agda2-goto-definition-mouse' was
 invoked."
   (interactive)
   (annotation-go-back))
 
-(defun agda2-maybe-goto (filepos)
+(cl-defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
 FILEPOS should have the form (FILE . POSITION).
 
@@ -1879,7 +1879,7 @@ configuration and the selected window are not changed."
             (let ((windows (get-buffer-window-list buffer
                                                    'no-minibuffer t)))
               (if windows
-                  (dolist (window windows)
+                  (cl-dolist (window windows)
                     (with-selected-window window
                       (goto-char (cdr filepos))))
                 (with-current-buffer buffer
@@ -1888,7 +1888,7 @@ configuration and the selected window are not changed."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments
 
-(defun agda2-display-implicit-arguments (&optional arg)
+(cl-defun agda2-display-implicit-arguments (&optional arg)
   "Toggle display of implicit arguments.
 With prefix argument, turn on display of implicit arguments if
 the argument is a positive number, otherwise turn it off."
@@ -1903,7 +1903,7 @@ the argument is a positive number, otherwise turn it off."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
-(defun agda2-popup-menu-3 (ev)
+(cl-defun agda2-popup-menu-3 (ev)
   "If in a goal, popup the goal menu and call chosen command."
   (interactive "e")
   (let (choice)
@@ -1916,7 +1916,7 @@ the argument is a positive number, otherwise turn it off."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Switching to a different version of Agda
 
-(defun get-agda-program-versions ()
+(cl-defun get-agda-program-versions ()
   "Get \"version strings\" of executables starting with
 'agda-mode' in current path."
   (delete-dups
@@ -1924,9 +1924,9 @@ the argument is a positive number, otherwise turn it off."
              ;; strip 'agda-mode' prefix
              (replace-regexp-in-string "^agda-mode-?" ""
                                        (file-name-nondirectory path)))
-           (remove-if-not 'file-executable-p
+           (cl-remove-if-not 'file-executable-p
              ;; concatenate result
-             (reduce 'append
+             (cl-reduce 'append
                      ;; for each directory in exec-path, get list of
                      ;; files whose name starts with 'agda-mode'
                      (mapcar (lambda (path)
@@ -1937,7 +1937,7 @@ the argument is a positive number, otherwise turn it off."
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
 
-(defun agda2-set-program-version (version)
+(cl-defun agda2-set-program-version (version)
   "Tries to switch to Agda version VERSION.
 
 This command assumes that the agda and agda-mode executables for

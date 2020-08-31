@@ -3,7 +3,7 @@
 ;; Note that this library enumerates buffer positions starting from 1,
 ;; just like Emacs.
 
-(require 'cl)
+(require 'cl-lib)
 
 (defvar annotation-bindings nil
   "An association list mapping symbols to faces.")
@@ -12,7 +12,7 @@
 (defvar annotation-goto-stack nil
   "Positions from which `annotation-goto' was invoked.")
 
-(defun annotation-goto-indirect (link &optional other-window)
+(cl-defun annotation-goto-indirect (link &optional other-window)
   "Follow the `annotation-goto' hyperlink pointed to by LINK, if any.
 
 LINK should be a buffer position, or an event object (in which
@@ -49,7 +49,7 @@ display the target position."
         (annotation-goto-and-push source-buffer source-pos target
                                   other-window)))))
 
-(defun annotation-go-back nil
+(cl-defun annotation-go-back nil
   "Go back to the previous position.
 The previous position in which `annotation-goto-and-push' was
 successfully invoked."
@@ -57,7 +57,7 @@ successfully invoked."
     (let ((pos (pop annotation-goto-stack)))
       (annotation-goto pos))))
 
-(defun annotation-goto-and-push (source-buffer source-pos filepos &optional other-window)
+(cl-defun annotation-goto-and-push (source-buffer source-pos filepos &optional other-window)
   "Like `annotation-goto', but pushes a position when successful.
 The position consists of the file visited by SOURCE-BUFFER, and
 the position given by SOURCE-POS."
@@ -71,7 +71,7 @@ the position given by SOURCE-POS."
               annotation-goto-stack))
       t)))
 
-(defun annotation-goto (filepos &optional other-window)
+(cl-defun annotation-goto (filepos &optional other-window)
   "Go to file position FILEPOS if the file is readable.
 FILEPOS should have the form (FILE . POS).  Return t if successful.
 
@@ -88,7 +88,7 @@ given position."
             t)
         (error "File does not exist or is unreadable: %s." file)))))
 
-(defun annotation-merge-faces (start end faces)
+(cl-defun annotation-merge-faces (start end faces)
   "Helper procedure used by `annotation-annotate'.
 For each position in the range the FACES are merged
 with the current value of the annotation-faces text property, and
@@ -97,19 +97,19 @@ the resulting list of faces.
 
 Precondition: START and END must be numbers, and START must be
 less than END."
-  (assert (condition-case nil (< start end) (error nil)))
+  (cl-assert (condition-case nil (< start end) (error nil)))
   (let ((pos start)
         mid)
     (while (< pos end)
       (setq mid (next-single-property-change pos 'annotation-faces
                                              nil end))
       (let* ((old-faces (get-text-property pos 'annotation-faces))
-             (all-faces (union old-faces faces)))
+             (all-faces (cl-union old-faces faces)))
         (mapc (lambda (prop) (put-text-property pos mid prop all-faces))
               '(annotation-faces face))
         (setq pos mid)))))
 
-(defun annotation-annotate
+(cl-defun annotation-annotate
     (start end anns &optional token-based info goto)
   "Annotate text between START and END in the current buffer.
 
@@ -186,15 +186,15 @@ with)."
               (setq mid (next-single-property-change pos
                            'annotation-annotations nil end))
               (let* ((old-props (get-text-property pos 'annotation-annotations))
-                     (all-props (union old-props props)))
+                     (all-props (cl-union old-props props)))
                 (add-text-properties pos mid
                    `(annotation-annotated t annotation-annotations ,all-props))
                 (setq pos mid)))))))))
 
-(defmacro annotation-preserve-mod-p-and-undo (&rest code)
+(cl-defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both the undo data and the modification bit.
 Modification hooks are also disabled."
-  (declare (debug (&rest form)))
+  (cl-declare (debug (&rest form)))
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          ;; Don't check if the file is being modified by some other process.
@@ -207,7 +207,7 @@ Modification hooks are also disabled."
          (progn ,@code)
        (restore-buffer-modified-p ,modp)))))
 
-(defun annotation-remove-annotations (&optional token-based start end)
+(cl-defun annotation-remove-annotations (&optional token-based start end)
   "Remove text properties set by `annotation-annotate'.
 
 In the current buffer. If START and END are given, then
@@ -242,7 +242,7 @@ buffer."
                       (cons 'annotation-annotations props)))))
        (setq pos (unless (or (not pos2) (>= pos2 end)) pos2))))))
 
-(defun annotation-load (goto-help remove &rest cmds)
+(cl-defun annotation-load (goto-help remove &rest cmds)
   "Apply highlighting annotations in CMDS in the current buffer.
 
 The argument CMDS should be a list of lists (start end anns
@@ -273,8 +273,8 @@ buffer."
   (annotation-preserve-mod-p-and-undo
     (when (listp cmds)
       (let ((pos (point-min)))
-        (dolist (cmd cmds)
-          (destructuring-bind
+        (cl-dolist (cmd cmds)
+          (cl-destructuring-bind
               (start end anns &optional token-based info goto) cmd
             (let ((info (if (and (not info) (consp goto))
                             goto-help

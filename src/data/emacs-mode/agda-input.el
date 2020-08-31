@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t -*-
+;;
 ;;; agda-input.el --- The Agda input method
 
 ;;; Commentary:
@@ -19,7 +21,7 @@
 ;;; Code:
 
 (require 'quail)
-(require 'cl)
+(require 'cl-lib)
 ;; Quail is quite stateful, so be careful when editing this code.  Note
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
@@ -27,11 +29,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Utility functions
 
-(defun agda-input-concat-map (f xs)
+(cl-defun agda-input-concat-map (f xs)
   "Concat (map F XS)."
   (apply 'append (mapcar f xs)))
 
-(defun agda-input-to-string-list (s)
+(cl-defun agda-input-to-string-list (s)
   "Convert a string S to a list of one-character strings, after
 removing all space and newline characters."
   (agda-input-concat-map
@@ -40,7 +42,7 @@ removing all space and newline characters."
             (list (string c))))
    (string-to-list s)))
 
-(defun agda-input-character-range (from to)
+(cl-defun agda-input-character-range (from to)
   "A string consisting of the characters from FROM to TO."
   (let (seq)
     (dotimes (i (1+ (- to from)))
@@ -50,72 +52,70 @@ removing all space and newline characters."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions used to tweak translation pairs
 
-;; lexical-let is used since Elisp lacks lexical scoping.
-
-(defun agda-input-compose (f g)
+(cl-defun agda-input-compose (f g)
   "\x -> concatMap F (G x)"
-  (lexical-let ((f1 f) (g1 g))
+  (let ((f1 f) (g1 g))
     (lambda (x) (agda-input-concat-map f1 (funcall g1 x)))))
 
-(defun agda-input-or (f g)
+(cl-defun agda-input-or (f g)
   "\x -> F x ++ G x"
-  (lexical-let ((f1 f) (g1 g))
+  (let ((f1 f) (g1 g))
     (lambda (x) (append (funcall f1 x) (funcall g1 x)))))
 
-(defun agda-input-nonempty ()
+(cl-defun agda-input-nonempty ()
   "Only keep pairs with a non-empty first component."
   (lambda (x) (if (> (length (car x)) 0) (list x))))
 
-(defun agda-input-prepend (prefix)
+(cl-defun agda-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
-  (lexical-let ((prefix1 prefix))
+  (let ((prefix1 prefix))
     (lambda (x) `((,(concat prefix1 (car x)) . ,(cdr x))))))
 
-(defun agda-input-prefix (prefix)
+(cl-defun agda-input-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX."
-  (lexical-let ((prefix1 prefix))
+  (let ((prefix1 prefix))
     (lambda (x)
       (if (equal (substring (car x) 0 (length prefix1)) prefix1)
           (list x)))))
 
-(defun agda-input-suffix (suffix)
+(cl-defun agda-input-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX."
-  (lexical-let ((suffix1 suffix))
+  (let ((suffix1 suffix))
     (lambda (x)
       (if (equal (substring (car x)
                             (- (length (car x)) (length suffix1)))
                  suffix1)
           (list x)))))
 
-(defun agda-input-drop (ss)
+(cl-defun agda-input-drop (ss)
   "Drop pairs matching one of the given key sequences.
 SS should be a list of strings."
-  (lexical-let ((ss1 ss))
+  (let ((ss1 ss))
     (lambda (x) (unless (member (car x) ss1) (list x)))))
 
-(defun agda-input-drop-beginning (n)
+(cl-defun agda-input-drop-beginning (n)
   "Drop N characters from the beginning of each key sequence."
-  (lexical-let ((n1 n))
+  (let ((n1 n))
     (lambda (x) `((,(substring (car x) n1) . ,(cdr x))))))
 
-(defun agda-input-drop-end (n)
+(cl-defun agda-input-drop-end (n)
   "Drop N characters from the end of each key sequence."
-  (lexical-let ((n1 n))
+  (let ((n1 n))
     (lambda (x)
       `((,(substring (car x) 0 (- (length (car x)) n1)) .
          ,(cdr x))))))
 
-(defun agda-input-drop-prefix (prefix)
+(cl-defun agda-input-drop-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX.
 This prefix is dropped."
   (agda-input-compose
    (agda-input-drop-beginning (length prefix))
    (agda-input-prefix prefix)))
 
-(defun agda-input-drop-suffix (suffix)
+(cl-defun agda-input-drop-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX.
 This suffix is dropped."
-  (lexical-let ((suffix1 suffix))
+  (let ((suffix1 suffix))
     (agda-input-compose
      (agda-input-drop-end (length suffix1))
      (agda-input-suffix suffix1))))
@@ -1130,7 +1130,7 @@ methods."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Inspecting and modifying translation maps
 
-(defun agda-input-get-translations (qp)
+(cl-defun agda-input-get-translations (qp)
   "Return a list containing all translations from the Quail
 package QP (except for those corresponding to ASCII).
 Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
@@ -1142,7 +1142,7 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
       (quail-build-decode-map (list (quail-map)) "" decode-map 0)
       (cdr decode-map))))
 
-(defun agda-input-show-translations (qp)
+(cl-defun agda-input-show-translations (qp)
   "Display all translations used by the Quail package QP (a string).
 \(Except for those corresponding to ASCII)."
   (interactive (list (read-input-method-name
@@ -1153,7 +1153,7 @@ Each pair in the list has the form (KEY-SEQUENCE . TRANSLATION)."
         (quail-insert-decode-map
          (cons 'decode-map (agda-input-get-translations qp)))))))
 
-(defun agda-input-add-translations (trans)
+(cl-defun agda-input-add-translations (trans)
   "Add the given translations TRANS to the Agda input method.
 TRANS is a list of pairs (KEY-SEQUENCE . TRANSLATION). The
 translations are appended to the current translations."
@@ -1161,7 +1161,7 @@ translations are appended to the current translations."
     (dolist (tr (agda-input-concat-map (eval agda-input-tweak-all) trans))
       (quail-defrule (car tr) (cdr tr) "Agda" t))))
 
-(defun agda-input-inherit-package (qp &optional fun)
+(cl-defun agda-input-inherit-package (qp &optional fun)
   "Let the Agda input method inherit the translations from the
 Quail package QP (except for those corresponding to ASCII).
 
@@ -1176,7 +1176,7 @@ a list of such pairs."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Setting up the input method
 
-(defun agda-input-setup ()
+(cl-defun agda-input-setup ()
   "Set up the Agda input method based on the customisable
 variables and underlying input methods."
 
@@ -1198,7 +1198,7 @@ tasks as well."
     (agda-input-inherit-package (car def)
                                 (eval (cdr def)))))
 
-(defun agda-input-incorporate-changed-setting (sym val)
+(cl-defun agda-input-incorporate-changed-setting (sym val)
   "Update the Agda input method based on the customisable
 variables and underlying input methods.
 Suitable for use in the :set field of `defcustom'."

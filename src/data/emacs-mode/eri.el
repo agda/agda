@@ -4,36 +4,36 @@
 
 ;;; Code:
 
-(require 'cl)
+(require 'cl-lib)
 
-(defun eri-current-line-length nil
+(cl-defun eri-current-line-length nil
   "Calculate length of current line."
   (- (line-end-position) (line-beginning-position)))
 
-(defun eri-current-line-empty nil
+(cl-defun eri-current-line-empty nil
   "Return non-nil if the current line is empty (not counting white space)."
   (equal (current-indentation)
          (eri-current-line-length)))
 
-(defun eri-maximum (xs)
+(cl-defun eri-maximum (xs)
   "Calculate maximum element in XS.
 Returns nil if the list is empty."
   (if xs (apply 'max xs)))
 
-(defun eri-take (n xs)
+(cl-defun eri-take (n xs)
   "Return the first N elements of XS."
   (butlast xs (- (length xs) n)))
 
-(defun eri-split (x xs)
+(cl-defun eri-split (x xs)
   "Return a pair of lists (XS1 . XS2).
 If XS is sorted, then XS = (append XS1 XS2), and all elements in
 XS1 are <= X, whereas all elements in XS2 are > X."
-  (let* ((pos (or (position-if (lambda (y) (> y x)) xs) (length xs)))
+  (let* ((pos (or (cl-position-if (lambda (y) (> y x)) xs) (length xs)))
          (xs1 (eri-take pos xs))
          (xs2 (nthcdr pos xs)))
     (cons xs1 xs2)))
 
-(defun eri-calculate-indentation-points-on-line (max)
+(cl-defun eri-calculate-indentation-points-on-line (max)
   "Calculate indentation points on current line.
 Only points left of column number MAX are included. If MAX is
 nil, then all points are included. Points are returned in
@@ -66,7 +66,7 @@ Example (positions marked with ^ are returned):
         (nreverse result) ; Destructive operation.
         ))))
 
-(defun eri-new-indentation-points ()
+(cl-defun eri-new-indentation-points ()
   "Calculate new indentation points.
 Returns a singleton list containing the column number two steps
 in from the indentation of the first non-empty line (white space
@@ -85,7 +85,7 @@ then the empty list is returned."
           nil
         (list (+ 2 (current-indentation)))))))
 
-(defun eri-calculate-indentation-points (reverse)
+(cl-defun eri-calculate-indentation-points (reverse)
   "Calculate points used to indent the current line.
 The points are given in reverse order if REVERSE is non-nil. See
 `eri-indent' for a description of how the indentation points are
@@ -126,7 +126,7 @@ the returned list."
           (nreverse ps2)
         ps2))))
 
-(defun eri-indent (&optional reverse)
+(cl-defun eri-indent (&optional reverse)
   "Cycle between some possible indentation points.
 With prefix argument REVERSE, cycle in reverse order.
 
@@ -195,7 +195,7 @@ follows:
       (if (< (current-column) indentation)
           (indent-line-to indentation)))))
 
-(defun eri-indent-reverse nil
+(cl-defun eri-indent-reverse nil
   "Cycle between some possible indentation points (in reverse order).
 See `eri-indent' for a description of how the indentation points
 are calculated."
