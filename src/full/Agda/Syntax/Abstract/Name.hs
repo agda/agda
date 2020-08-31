@@ -5,6 +5,7 @@
 module Agda.Syntax.Abstract.Name
   ( module Agda.Syntax.Abstract.Name
   , IsNoName(..)
+  , FreshNameMode(..)
   ) where
 
 import Prelude hiding (length)
@@ -21,7 +22,7 @@ import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
+import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..), FreshNameMode(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Functor
@@ -271,8 +272,8 @@ isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
-nextName :: Name -> Name
-nextName x = x { nameConcrete = C.nextName (nameConcrete x) }
+nextName :: C.FreshNameMode -> Name -> Name
+nextName freshNameMode x = x { nameConcrete = C.nextName freshNameMode (nameConcrete x) }
 
 sameRoot :: Name -> Name -> Bool
 sameRoot = C.sameRoot `on` nameConcrete

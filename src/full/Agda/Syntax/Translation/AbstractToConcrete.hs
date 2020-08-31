@@ -379,6 +379,8 @@ toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
 
 
 -- | Choose a new unshadowed name for the given abstract name
+-- | NOTE: See @withName@ in @Agda.Syntax.Translation.ReflectedToAbstract@ for similar logic.
+-- | NOTE: See @freshConcreteName@ in @Agda.Syntax.Scope.Monad@ also for similar logic.
 chooseName :: A.Name -> AbsToCon C.Name
 chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   -- If the name is currently in scope, we do not rename it
@@ -390,8 +392,12 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   _ -> do
     taken   <- takenNames
     toAvoid <- shadowingNames x
+    glyphMode <- optUseUnicode <$> pragmaOptions
+    let freshNameMode = case glyphMode of
+          UnicodeOk -> A.UnicodeSubscript
+          AsciiOnly -> A.AsciiCounter
     let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid)) . C.nameToRawName
-        y = firstNonTakenName shouldAvoid $ nameConcrete x
+        y = firstNonTakenName freshNameMode shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
       , "names already taken:      " <+> prettyList_ (Set.toList taken)

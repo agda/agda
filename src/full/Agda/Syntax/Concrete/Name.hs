@@ -260,19 +260,29 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
-nextRawName :: RawName -> RawName
-nextRawName s = addSuffix root (maybe initialSuffix nextSuffix suffix)
+-- | Method by which to generate fresh unshadowed names.
+data FreshNameMode
+  = UnicodeSubscript
+  -- ^ Append an integer Unicode subscript: x, x₁, x₂, …
+  | AsciiCounter
+  -- ^ Append an integer ASCII counter: x, x1, x2, …
+  | PrimeTickCount
+  -- ^ Append an ASCII prime/apostrophe: x, x', x'', …
+
+nextRawName :: FreshNameMode -> RawName -> RawName
+nextRawName freshNameMode s = addSuffix root (maybe initialSuffix nextSuffix suffix)
   where
   (root, suffix) = suffixView s
-  initialSuffix = case unsafeUnicodeOrAscii of
-    UnicodeOk -> Subscript 1
-    AsciiOnly -> Index 1
+  initialSuffix = case freshNameMode of
+    UnicodeSubscript -> Subscript 1
+    AsciiCounter -> Index 1
+    PrimeTickCount -> Prime 1
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
-nextName :: Name -> Name
-nextName x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) nextRawName x
-nextName NoName{} = __IMPOSSIBLE__
+nextName :: FreshNameMode -> Name -> Name
+nextName freshNameMode x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) (nextRawName freshNameMode) x
+nextName             _ NoName{} = __IMPOSSIBLE__
 
 -- | Zoom on the last non-hole in a name.
 lastIdPart :: Lens' RawName NameParts
@@ -286,10 +296,10 @@ lastIdPart f = loop
 
 -- | Get the first version of the concrete name that does not satisfy
 --   the given predicate.
-firstNonTakenName :: (Name -> Bool) -> Name -> Name
-firstNonTakenName taken x =
+firstNonTakenName :: FreshNameMode -> (Name -> Bool) -> Name -> Name
+firstNonTakenName freshNameMode taken x =
   if taken x
-  then firstNonTakenName taken (nextName x)
+  then firstNonTakenName freshNameMode taken (nextName freshNameMode x)
   else x
 
 -- | Lens for accessing and modifying the suffix of a name.

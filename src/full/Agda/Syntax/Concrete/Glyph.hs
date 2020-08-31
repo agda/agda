@@ -2,8 +2,6 @@
 -}
 module Agda.Syntax.Concrete.Glyph
   ( UnicodeOrAscii(..)
-  , unsafeUnicodeOrAscii
-  , unsafeUnicodeOrAsciiIORef
   , unsafeSetUnicodeOrAscii
   , specialCharactersForGlyphs
   , braces', dbraces
