@@ -8,8 +8,6 @@ import Data.Maybe       ( fromMaybe )
 import Data.Ratio       ( (%), numerator, denominator )
 import Data.Word        ( Word64 )
 
-import Agda.Utils.List  ( stripSuffix )
-
 #if __GLASGOW_HASKELL__ >= 804
 import GHC.Float (castDoubleToWord64, castWord64ToDouble)
 #else
@@ -205,11 +203,6 @@ asFinite x
   | isNaN      x = Nothing
   | isInfinite x = Nothing
   | otherwise    = Just x
-
--- |Remove suffix @.0@ from printed floating point number.
-toStringWithoutDotZero :: Double -> String
-toStringWithoutDotZero d = fromMaybe s $ stripSuffix ".0" s
-  where s = show d
 
 -- |Decode a Double to an integer ratio.
 doubleToRatio :: Double -> (Integer, Integer)
