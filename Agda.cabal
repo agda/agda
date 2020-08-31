@@ -362,6 +362,7 @@ library
                     Agda.Syntax.Concrete.Definitions
                     Agda.Syntax.Concrete.Fixity
                     Agda.Syntax.Concrete.Generic
+                    Agda.Syntax.Concrete.Glyph
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators.Parser.Monad
