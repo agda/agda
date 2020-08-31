@@ -54,13 +54,11 @@ removing all space and newline characters."
 
 (defun agda-input-compose (f g)
   "\x -> concatMap F (G x)"
-  (let ((f1 f) (g1 g))
-    (lambda (x) (agda-input-concat-map f1 (funcall g1 x)))))
+    (lambda (x) (agda-input-concat-map f (funcall g x))))
 
 (defun agda-input-or (f g)
   "\x -> F x ++ G x"
-  (let ((f1 f) (g1 g))
-    (lambda (x) (append (funcall f1 x) (funcall g1 x)))))
+    (lambda (x) (append (funcall f x) (funcall g x))))
 
 (defun agda-input-nonempty ()
   "Only keep pairs with a non-empty first component."
@@ -68,42 +66,36 @@ removing all space and newline characters."
 
 (defun agda-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
-  (let ((prefix1 prefix))
-    (lambda (x) `((,(concat prefix1 (car x)) . ,(cdr x))))))
+    (lambda (x) `((,(concat prefix (car x)) . ,(cdr x)))))
 
 (defun agda-input-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX."
-  (let ((prefix1 prefix))
     (lambda (x)
-      (if (equal (substring (car x) 0 (length prefix1)) prefix1)
-          (list x)))))
+      (if (equal (substring (car x) 0 (length prefix)) prefix)
+          (list x))))
 
 (defun agda-input-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX."
-  (let ((suffix1 suffix))
     (lambda (x)
       (if (equal (substring (car x)
-                            (- (length (car x)) (length suffix1)))
-                 suffix1)
-          (list x)))))
+                            (- (length (car x)) (length suffix)))
+                 suffix)
+          (list x))))
 
 (defun agda-input-drop (ss)
   "Drop pairs matching one of the given key sequences.
 SS should be a list of strings."
-  (let ((ss1 ss))
-    (lambda (x) (unless (member (car x) ss1) (list x)))))
+    (lambda (x) (unless (member (car x) ss) (list x))))
 
 (defun agda-input-drop-beginning (n)
   "Drop N characters from the beginning of each key sequence."
-  (let ((n1 n))
-    (lambda (x) `((,(substring (car x) n1) . ,(cdr x))))))
+    (lambda (x) `((,(substring (car x) n) . ,(cdr x)))))
 
 (defun agda-input-drop-end (n)
   "Drop N characters from the end of each key sequence."
-  (let ((n1 n))
     (lambda (x)
-      `((,(substring (car x) 0 (- (length (car x)) n1)) .
-         ,(cdr x))))))
+      `((,(substring (car x) 0 (- (length (car x)) n)) .
+         ,(cdr x)))))
 
 (defun agda-input-drop-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX.
@@ -115,10 +107,9 @@ This prefix is dropped."
 (defun agda-input-drop-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX.
 This suffix is dropped."
-  (let ((suffix1 suffix))
     (agda-input-compose
-     (agda-input-drop-end (length suffix1))
-     (agda-input-suffix suffix1))))
+     (agda-input-drop-end (length suffix))
+     (agda-input-suffix suffix)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Customization

@@ -1949,7 +1949,7 @@ VERSION is empty, then agda and agda-mode are used instead.)"
 
   (let*
       ((agda-buffers
-        (mapcan (lambda (buf)
+        (cl-mapcan (lambda (buf)
                   (with-current-buffer buf
                     (when (equal major-mode 'agda2-mode)
                       (list buf))))

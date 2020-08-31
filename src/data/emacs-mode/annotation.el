@@ -238,7 +238,7 @@ buffer."
                     (or (not token-based)
                         (member 'annotation-token-based props)))
            (remove-text-properties pos (or pos2 (point-max))
-              (mapcan (lambda (prop) (list prop nil))
+              (cl-mapcan (lambda (prop) (list prop nil))
                       (cons 'annotation-annotations props)))))
        (setq pos (unless (or (not pos2) (>= pos2 end)) pos2))))))
 
