@@ -68,26 +68,37 @@ data SpecialCharacters = SpecialCharacters
   , _emptyIdiomBrkt :: Doc
   }
 
+specialCharactersUnicode :: SpecialCharacters
+specialCharactersUnicode = SpecialCharacters
+  { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
+  , _lambda  = "\x03bb"
+  , _arrow   = "\x2192"
+  , _forallQ = "\x2200"
+  , _leftIdiomBrkt  = "\x2987"
+  , _rightIdiomBrkt = "\x2988"
+  , _emptyIdiomBrkt = "\x2987\x2988"
+  }
+
+specialCharactersAscii :: SpecialCharacters
+specialCharactersAscii = SpecialCharacters
+  { _dbraces = braces . braces'
+  , _lambda  = "\\"
+  , _arrow   = "->"
+  , _forallQ = "forall"
+  , _leftIdiomBrkt  = "(|"
+  , _rightIdiomBrkt = "|)"
+  , _emptyIdiomBrkt = "(|)"
+  }
+
+-- | Return the glyph set based on a given (unicode or ascii) glyph mode
+specialCharactersForGlyphs :: UnicodeOrAscii -> SpecialCharacters
+specialCharactersForGlyphs UnicodeOk = specialCharactersUnicode
+specialCharactersForGlyphs AsciiOnly = specialCharactersAscii
+
+-- | Choose the glyph set based on the unsafe IORef.
 {-# NOINLINE specialCharacters #-}
 specialCharacters :: SpecialCharacters
-specialCharacters =
-  case unsafeUnicodeOrAscii of
-    UnicodeOk -> SpecialCharacters { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
-                                   , _lambda  = "\x03bb"
-                                   , _arrow   = "\x2192"
-                                   , _forallQ = "\x2200"
-                                   , _leftIdiomBrkt  = "\x2987"
-                                   , _rightIdiomBrkt = "\x2988"
-                                   , _emptyIdiomBrkt = "\x2987\x2988"
-                                   }
-    AsciiOnly -> SpecialCharacters { _dbraces = braces . braces'
-                                   , _lambda  = "\\"
-                                   , _arrow   = "->"
-                                   , _forallQ = "forall"
-                                   , _leftIdiomBrkt  = "(|"
-                                   , _rightIdiomBrkt = "|)"
-                                   , _emptyIdiomBrkt = "(|)"
-                                   }
+specialCharacters = specialCharactersForGlyphs unsafeUnicodeOrAscii
 
 braces' :: Doc -> Doc
 braces' d = ifNull (render d) (braces d) {-else-} $ \ s ->
