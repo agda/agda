@@ -74,7 +74,7 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
-GHC_OPTS           = "+RTS -M1.7G -RTS"
+GHC_OPTS           = "+RTS -M2.3G -RTS"
 else
 GHC_OPTS           = "+RTS -M4G -RTS"
 endif
