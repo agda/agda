@@ -809,8 +809,8 @@ interpret (Cmd_make_case ii rng s) = do
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
         replEquals ("=" : ws)
-           | unicode   = "→" : ws
-           | otherwise = "->" : ws
+           | unicode   = (render $ _arrow $ specialCharactersForGlyphs UnicodeOk) : ws
+           | otherwise = (render $ _arrow $ specialCharactersForGlyphs AsciiOnly) : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 
