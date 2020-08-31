@@ -2,7 +2,7 @@
 
 module Agda.Interaction.Options.IORefs
     ( UnicodeOrAscii(..)
-    , unicodeOrAscii
+    , unsafeUnicodeOrAsciiIORef
     ) where
 
 import Data.IORef
@@ -13,6 +13,6 @@ import qualified System.IO.Unsafe as UNSAFE
 
 data UnicodeOrAscii = UnicodeOk | AsciiOnly
 
-{-# NOINLINE unicodeOrAscii #-}
-unicodeOrAscii :: IORef UnicodeOrAscii
-unicodeOrAscii = UNSAFE.unsafePerformIO $ newIORef UnicodeOk
+{-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
+unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii
+unsafeUnicodeOrAsciiIORef = UNSAFE.unsafePerformIO $ newIORef UnicodeOk

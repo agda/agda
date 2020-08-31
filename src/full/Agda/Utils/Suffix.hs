@@ -14,7 +14,7 @@ import Agda.Interaction.Options.IORefs
 
 -- | Are we allowed to use unicode supscript characters?
 subscriptAllowed :: UnicodeOrAscii
-subscriptAllowed = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii)
+subscriptAllowed = UNSAFE.unsafePerformIO (readIORef unicodeOrAsciiIORef)
 
 -- | Is the character one of the subscripts @'₀'@-@'₉'@?
 

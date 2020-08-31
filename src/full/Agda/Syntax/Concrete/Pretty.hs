@@ -18,7 +18,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
 
-import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
+import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unsafeUnicodeOrAsciiIORef)
 
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
@@ -74,7 +74,7 @@ data SpecialCharacters = SpecialCharacters
 {-# NOINLINE specialCharacters #-}
 specialCharacters :: SpecialCharacters
 specialCharacters =
-  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
+  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAsciiIORef) in
   case opt of
     UnicodeOk -> SpecialCharacters { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
                                    , _lambda  = "\x03bb"

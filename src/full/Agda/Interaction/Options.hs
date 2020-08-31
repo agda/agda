@@ -605,7 +605,7 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
-  lift $ writeIORef unicodeOrAscii AsciiOnly
+  lift $ writeIORef unsafeUnicodeOrAsciiIORef AsciiOnly
   return $ o { optUseUnicode = False }
 
 ghciInteractionFlag :: Flag CommandLineOptions
