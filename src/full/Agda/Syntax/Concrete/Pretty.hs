@@ -123,6 +123,10 @@ leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
 rightIdiomBrkt = _rightIdiomBrkt specialCharacters
 emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 
+arrow, lambda :: Doc
+arrow  = _arrow specialCharacters
+lambda = _lambda specialCharacters
+
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @
 --   { d₁
@@ -136,10 +140,6 @@ bracesAndSemicolons :: Foldable t => t Doc -> Doc
 bracesAndSemicolons ts = case Fold.toList ts of
   []       -> "{}"
   (d : ds) -> sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
-
-arrow, lambda :: Doc
-arrow  = _arrow specialCharacters
-lambda = _lambda specialCharacters
 
 -- | @prettyHiding info visible doc@ puts the correct braces
 --   around @doc@ according to info @info@ and returns
