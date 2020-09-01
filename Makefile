@@ -77,7 +77,7 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 # given to ghc to compile Agda. To do this set GHC_RTS_OPTS in mk/config.mk (gitignored).
 ifeq ($(GHC_RTS_OPTS),)
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
-GHC_RTS_OPTS := -M1.7G
+GHC_RTS_OPTS := -M2.3G
 else
 ifeq ($(GHC_VERSION),8.10)
 GHC_RTS_OPTS := -M6G
