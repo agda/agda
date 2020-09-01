@@ -58,8 +58,8 @@ import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
-import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
+import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -605,7 +605,7 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
-  lift $ writeIORef unicodeOrAscii AsciiOnly
+  lift $ unsafeSetUnicodeOrAscii AsciiOnly
   return $ o { optUseUnicode = False }
 
 ghciInteractionFlag :: Flag CommandLineOptions

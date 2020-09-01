@@ -54,6 +54,7 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pattern as C
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Abstract.Pattern as A
@@ -66,7 +67,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
-import Agda.Interaction.Options.IORefs
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
@@ -674,7 +674,7 @@ addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
 addSuffixConcrete A.NoSuffix = id
 addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
   where
-    suffix = case subscriptAllowed of
+    suffix = Just $ case unsafeUnicodeOrAscii of
       UnicodeOk -> Subscript $ fromInteger i
       AsciiOnly -> Index $ fromInteger i
 
