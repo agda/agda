@@ -73,11 +73,21 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
+# Depending on your machine and ghc version you might want to tweak the amount of memory
+# given to ghc to compile Agda. To do this set GHC_RTS_OPTS in mk/config.mk (gitignored).
+ifeq ($(GHC_RTS_OPTS),)
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
-GHC_OPTS           = "+RTS -M1.7G -RTS"
+GHC_RTS_OPTS := -M1.7G
 else
-GHC_OPTS           = "+RTS -M4G -RTS"
+ifeq ($(GHC_VERSION),8.10)
+GHC_RTS_OPTS := -M6G
+else
+GHC_RTS_OPTS := -M4G
 endif
+endif
+endif
+GHC_OPTS = "+RTS $(GHC_RTS_OPTS) -RTS"
+
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
