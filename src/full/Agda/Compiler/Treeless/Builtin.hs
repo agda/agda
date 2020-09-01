@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 -- | Translates the Agda builtin nat datatype to arbitrary-precision integers.
 --
 -- Philipp, 20150921:
@@ -134,7 +135,7 @@ transform BuiltinKit{..} = tr
                 b -> [posAlt  b]
               where
                 -- subst scrutinee for the pos argument
-                sub :: Subst TTerm a => a -> a
+                sub :: SubstWith TTerm a => a -> a
                 sub = applySubst (TVar e :# IdS)
 
                 posAlt b = TAGuard (tOp PGeq (TVar e) (tInt 0)) $ sub b

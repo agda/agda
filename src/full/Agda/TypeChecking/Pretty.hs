@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
@@ -72,10 +72,10 @@ equals = pure P.equals
 pretty :: (Applicative m, P.Pretty a) => a -> m Doc
 pretty x = pure $ P.pretty x
 
-prettyA :: (P.Pretty c, ToConcrete a c, MonadAbsToCon m) => a -> m Doc
+prettyA :: (ToConcrete a, P.Pretty (ConOfAbs a), MonadAbsToCon m) => a -> m Doc
 prettyA x = AP.prettyA x
 
-prettyAs :: (P.Pretty c, ToConcrete a [c], MonadAbsToCon m) => a -> m Doc
+prettyAs :: (ToConcrete a, ConOfAbs a ~ [ce], P.Pretty ce, MonadAbsToCon m) => a -> m Doc
 prettyAs x = AP.prettyAs x
 
 text :: Applicative m => String -> m Doc
@@ -195,23 +195,33 @@ instance (PrettyTCM a, PrettyTCM b, PrettyTCM c) => PrettyTCM (a,b,c) where
   prettyTCM (a, b, c) = parens $
     prettyTCM a <> comma <> prettyTCM b <> comma <> prettyTCM c
 
-instance PrettyTCM Term         where prettyTCM = prettyA <=< reify
-instance PrettyTCM Type         where prettyTCM = prettyA <=< reify
-instance PrettyTCM Sort         where prettyTCM = prettyA <=< reify
-instance PrettyTCM DisplayTerm  where prettyTCM = prettyA <=< reify
-instance PrettyTCM NamedClause  where prettyTCM = prettyA <=< reify
-instance PrettyTCM (QNamed Clause) where prettyTCM = prettyA <=< reify
-instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
-instance PrettyTCM Permutation  where prettyTCM = text . show
-instance PrettyTCM Polarity     where prettyTCM = text . show
-instance PrettyTCM IsForced     where prettyTCM = text . show
+instance PrettyTCM Term               where prettyTCM = prettyA <=< reify
+instance PrettyTCM Type               where prettyTCM = prettyA <=< reify
+instance PrettyTCM Sort               where prettyTCM = prettyA <=< reify
+instance PrettyTCM DisplayTerm        where prettyTCM = prettyA <=< reify
+instance PrettyTCM NamedClause        where prettyTCM = prettyA <=< reify
+instance PrettyTCM (QNamed Clause)    where prettyTCM = prettyA <=< reify
+instance PrettyTCM Level              where prettyTCM = prettyA <=< reify . Level
+instance PrettyTCM (Named_ Term)      where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Arg Term)         where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Arg Type)         where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Arg Bool)         where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Arg A.Expr)       where prettyTCM = prettyA <=< reify
+instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify
+instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Dom (Name, Type)) where prettyTCM = prettyA <=< reify
+
+instance PrettyTCM Permutation where prettyTCM = text . show
+instance PrettyTCM Polarity    where prettyTCM = text . show
+instance PrettyTCM IsForced    where prettyTCM = text . show
 
 prettyR
-  :: (R.ToAbstract r a, PrettyTCM a, MonadPretty m, MonadError TCErr m)
+  :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
   => r -> m Doc
 prettyR = prettyTCM <=< toAbstractWithoutImplicit
 
-instance (Pretty a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
+instance (Pretty a, PrettyTCM a, EndoSubst a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = "idS"
   prettyTCM (Wk m IdS) = "wkS" <+> pretty m
   prettyTCM (EmptyS _) = "emptyS"
@@ -237,15 +247,6 @@ instance PrettyTCM MetaId where
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
   prettyTCM (NotBlocked _ x) = prettyTCM x
-
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
-  prettyTCM x = prettyA =<< reify x
-
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
-  prettyTCM x = prettyA =<< reify x
-
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
-  prettyTCM x = prettyA =<< reify x
 
 instance (PrettyTCM k, PrettyTCM v) => PrettyTCM (Map k v) where
   prettyTCM m = "Map" <> braces (sep $ punctuate comma
@@ -352,6 +353,7 @@ instance PrettyTCM DBPatVar where
   prettyTCM = prettyTCM . var . dbPatVarIndex
 
 instance PrettyTCM a => PrettyTCM (Pattern' a) where
+  prettyTCM :: forall m. MonadPretty m => Pattern' a -> m Doc
   prettyTCM (IApplyP _ _ _ x)    = prettyTCM x
   prettyTCM (VarP _ x)    = prettyTCM x
   prettyTCM (DotP _ t)    = ".(" <> prettyTCM t <> ")"
@@ -363,15 +365,15 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
       where
         -- NONE OF THESE BINDINGS IS USED AT THE MOMENT:
         b = conPRecord i && patOrigin (conPInfo i) /= PatOCon
-        showRec :: MonadPretty m => m Doc -- Defined, but currently not used
+        showRec :: m Doc -- Defined, but currently not used
         showRec = sep
           [ "record"
           , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
           ]
-        showField :: MonadPretty m => Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
+        showField :: Arg QName -> NamedArg (Pattern' a) -> m Doc -- NB:: Defined but not used
         showField (Arg ai x) p =
           sep [ prettyTCM (A.qnameName x) <+> "=" , nest 2 $ prettyTCM $ namedArg p ]
-        showCon :: MonadPretty m => m Doc -- NB:: Defined but not used
+        showCon :: m Doc -- NB:: Defined but not used
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> prettyTCM t
   prettyTCM (LitP _ l)    = text (P.prettyShow l)
@@ -441,15 +443,20 @@ instance PrettyTCM Occurrence where
 -- | Pairing something with a node (for printing only).
 data WithNode n a = WithNode n a
 
-instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
-  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
+-- | Pretty-print something paired with a (printable) node.
+-- | This intermediate typeclass exists to avoid UndecidableInstances.
+class PrettyTCMWithNode a where
+  prettyTCMWithNode :: (PrettyTCM n, MonadPretty m) => WithNode n a -> m Doc
 
-instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
+instance PrettyTCMWithNode Occurrence where
+  prettyTCMWithNode (WithNode n o) = prettyTCM o <+> prettyTCM n
+
+instance (PrettyTCM n, PrettyTCMWithNode e) => PrettyTCM (Graph n e) where
   prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
     where
       pr (n, es) = sep
         [ prettyTCM n
-        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
+        , nest 2 $ vcat $ map (prettyTCMWithNode . uncurry WithNode) $ Map.assocs es
         ]
 
 instance PrettyTCM SplitTag where

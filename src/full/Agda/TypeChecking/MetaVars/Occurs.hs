@@ -1,7 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation  #-}
+{-# LANGUAGE TypeFamilies              #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -576,7 +575,7 @@ instance Occurs a => Occurs (Elim' a) where
   metaOccurs m (Apply a) = metaOccurs m a
   metaOccurs m (IApply x y a) = metaOccurs m (x,(y,a))
 
-instance (Occurs a, Subst t a) => Occurs (Abs a) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs b@(Abs s _) = Abs   s <$> do underAbstraction_ b $ underBinder . occurs
   occurs (NoAbs s x) = NoAbs s <$> occurs x
 
@@ -781,7 +780,7 @@ instance AnyRigid Level where
 instance AnyRigid PlusLevel where
   anyRigid f (Plus _ l)    = anyRigid f l
 
-instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
+instance (Subst a, AnyRigid a) => AnyRigid (Abs a) where
   anyRigid f b = underAbstraction_ b $ anyRigid f
 
 instance AnyRigid a => AnyRigid (Arg a) where

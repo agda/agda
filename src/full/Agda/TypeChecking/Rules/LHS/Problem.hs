@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
@@ -341,16 +342,20 @@ getUserVariableNames tel names = runWriter $
     partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
 
 
-instance Subst Term (Problem a) where
+instance Subst (Problem a) where
+  type SubstArg (Problem a) = Term
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
 
-instance Subst Term AsBinding where
+instance Subst AsBinding where
+  type SubstArg AsBinding = Term
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
-instance Subst Term DotPattern where
+instance Subst DotPattern where
+  type SubstArg DotPattern = Term
   applySubst rho (Dot e v a) = uncurry (Dot e) $ applySubst rho (v, a)
 
-instance Subst Term AbsurdPattern where
+instance Subst AbsurdPattern where
+  type SubstArg AbsurdPattern = Term
   applySubst rho (Absurd r a) = Absurd r $ applySubst rho a
 
 instance PrettyTCM ProblemEq where

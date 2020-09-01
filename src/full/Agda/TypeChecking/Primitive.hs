@@ -1,6 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
@@ -78,9 +76,19 @@ instance Pretty Lvl where
 class PrimType a where
   primType :: a -> TCM Type
 
+  -- This used to be a catch-all instance `PrimType a => PrimTerm a` which required UndecidableInstances.
+  -- Now we declare the instances separately, but enforce the catch-all-ness with a superclass constraint on PrimTerm.
+  default primType :: PrimTerm a => a -> TCM Type
+  primType _ = el $ primTerm (undefined :: a)
+
+class PrimType a => PrimTerm a where
+  primTerm :: a -> TCM Term
+
+instance (PrimType a, PrimType b) => PrimType (a -> b)
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
   primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
+instance (PrimType a, PrimType b) => PrimType (a, b)
 instance (PrimType a, PrimType b) => PrimTerm (a, b) where
   primTerm _ = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
@@ -94,30 +102,51 @@ instance (PrimType a, PrimType b) => PrimTerm (a, b) where
              <@> pure (unEl a')
              <@> pure (nolam $ unEl b')
 
-instance PrimTerm a => PrimType a where
-  primType _ = el $ primTerm (undefined :: a)
-
-class    PrimTerm a       where primTerm :: a -> TCM Term
+instance PrimType Integer
 instance PrimTerm Integer where primTerm _ = primInteger
+
+instance PrimType Word64
 instance PrimTerm Word64  where primTerm _ = primWord64
+
+instance PrimType Bool
 instance PrimTerm Bool    where primTerm _ = primBool
+
+instance PrimType Char
 instance PrimTerm Char    where primTerm _ = primChar
+
+instance PrimType Double
 instance PrimTerm Double  where primTerm _ = primFloat
+
+instance PrimType Text
 instance PrimTerm Text    where primTerm _ = primString
+
+instance PrimType Nat
 instance PrimTerm Nat     where primTerm _ = primNat
+
+instance PrimType Lvl
 instance PrimTerm Lvl     where primTerm _ = primLevel
+
+instance PrimType QName
 instance PrimTerm QName   where primTerm _ = primQName
+
+instance PrimType MetaId
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
+
+instance PrimType Type
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimType Fixity'
 instance PrimTerm Fixity' where primTerm _ = primFixity
 
+instance PrimTerm a => PrimType [a]
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (Maybe a)
 instance PrimTerm a => PrimTerm (Maybe a) where
   primTerm _ = tMaybe (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (IO a)
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 

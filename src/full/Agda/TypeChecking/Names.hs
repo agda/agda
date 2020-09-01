@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
 
 {-| EDSL to construct terms without touching De Bruijn indices.
 
@@ -82,7 +81,7 @@ cxtSubst ctx = do
      then return $ raiseS (genericLength ctx' - genericLength ctx)
      else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
-inCxt :: (MonadFail m, Subst t a) => Names -> a -> NamesT m a
+inCxt :: (MonadFail m, Subst a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   sigma <- cxtSubst ctx
   return $ applySubst sigma a
@@ -94,20 +93,20 @@ cl' = pure
 cl :: Monad m => m a -> NamesT m a
 cl = lift
 
-open :: (MonadFail m, Subst t a) => a -> NamesT m (NamesT m a)
+open :: (MonadFail m, Subst a) => a -> NamesT m (NamesT m a)
 open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
+bind' :: (MonadFail m, Subst b, DeBruijn b, Subst a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
 bind :: ( MonadFail m
-        , Subst t' b
+        , Subst b
         , DeBruijn b
-        , Subst t a
+        , Subst a
         , Free a
         ) =>
         ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)

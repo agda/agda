@@ -1,5 +1,4 @@
-{-# LANGUAGE NondecreasingIndentation   #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Unification algorithm for specializing datatype indices, as described in
 --     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
@@ -614,7 +613,7 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
 -- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.
 --
 -- This is naturally sensitive to normalization.
-isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
+isHom :: (Free a, Subst a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
   return $ raise (-n) x
