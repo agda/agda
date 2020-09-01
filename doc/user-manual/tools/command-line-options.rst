@@ -215,12 +215,12 @@ Copatterns and projections
 Experimental features
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. option:: --confluence-check
+.. option:: --confluence-check, --local-confluence-check
 
      .. versionadded:: 2.6.1
 
-     Enable optional confluence checking of REWRITE rules (see
-     :ref:`confluence-check`).
+     Enable optional (global or local) confluence checking of REWRITE
+     rules (see :ref:`confluence-check`).
 
 .. option:: --cubical
 
@@ -241,6 +241,10 @@ Experimental features
 
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
+
+.. option:: --allow-exec
+
+     Enable system calls during type checking (see :ref:`reflection`).
 
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
@@ -813,6 +817,7 @@ again, the source file is re-typechecked instead:
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--warning`
+* :option:`--allow-exec`
 
 
 .. _Vim: https://www.vim.org/

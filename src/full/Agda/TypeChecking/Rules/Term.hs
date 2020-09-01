@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.Either (partitionEithers, lefts)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
@@ -143,10 +144,24 @@ isType_ e = traceCall (IsType_ e) $ do
         NoSuffix -> return $ sort (mkProp 0)
         Suffix i -> return $ sort (mkProp i)
 
+    -- Setᵢ
+    A.Def' x suffix | x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (mkSSet 0)
+        Suffix i -> return $ sort (mkSSet i)
+
     -- Setωᵢ
-    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
-      NoSuffix -> return $ sort (Inf 0)
-      Suffix i -> return $ sort (Inf i)
+    A.Def' x suffix | x == nameOfSetOmega IsFibrant -> case suffix of
+      NoSuffix -> return $ sort (Inf IsFibrant 0)
+      Suffix i -> return $ sort (Inf IsFibrant i)
+
+    -- SSetωᵢ
+    A.Def' x suffix | x == nameOfSetOmega IsStrict -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (Inf IsStrict 0)
+        Suffix i -> return $ sort (Inf IsStrict i)
 
     -- Set ℓ
     A.App i s arg
@@ -170,6 +185,17 @@ isType_ e = traceCall (IsType_ e) $ do
         "Use --universe-polymorphism to enable level arguments to Prop"
       applyRelevanceToContext NonStrict $
         sort . Prop <$> checkLevel arg
+
+    -- SSet ℓ
+    A.App i s arg
+      | visible arg,
+        A.Def x <- unScope s,
+        x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      unlessM hasUniversePolymorphism $ genericError
+        "Use --universe-polymorphism to enable level arguments to SSet"
+      applyRelevanceToContext NonStrict $
+        sort . SSet <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -367,7 +393,7 @@ checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
     let x    = updateNamedArg (A.unBind . A.binderName) x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
-    interval <- elInf primInterval
+    interval <- primIntervalType
     v <- addContext ([x], interval) $
            checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
@@ -440,7 +466,7 @@ checkLambda' cmp b xps typ body target = do
           then checkPath b body t
           else genericError "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone m tgt = postponeTypeCheckingProblem_ $
+    postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
 
     dontUseTargetType = do
@@ -467,7 +493,7 @@ checkLambda' cmp b xps typ body target = do
             t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
             let e    = A.Lam A.exprNoRange (A.DomainFull b) body
                 tgt' = telePi tel t1
-            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') $ isInstantiatedMeta x
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') x
             return (tgt' , w)
 
       -- Now check body : ?t₁
@@ -590,6 +616,7 @@ lambdaCohesionCheck dom info
         typeError WrongCohesionInLambda
       return info
 
+-- Andreas, issue #630: take name from function type if lambda name is "_".
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
   | isNoName x = addContext (y, dom)                 -- Note: String instance
@@ -636,7 +663,7 @@ checkPostponedLambda0 cmp (Arg info (x : xs, mt)) body target =
 insertHiddenLambdas
   :: Hiding                       -- ^ Expected hiding.
   -> Type                         -- ^ Expected to be a function type.
-  -> (MetaId -> Type -> TCM Term) -- ^ Continuation on blocked type.
+  -> (Blocker -> Type -> TCM Term) -- ^ Continuation on blocked type.
   -> (Type -> TCM Term)           -- ^ Continuation when expected hiding found.
                                   --   The continuation may assume that the @Type@
                                   --   is of the form @(El _ (Pi _ _))@.
@@ -671,13 +698,10 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
   t <- instantiateFull t
-  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (noMetas a) ->
-            postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -786,7 +810,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
 --   Note that the returned meta might only exists in the state where the error was
 --   thrown, thus, be an invalid 'MetaId' in the current state.
 --
-catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, MetaId) -> TCM a) -> TCM a
+catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, Blocker) -> TCM a) -> TCM a
 catchIlltypedPatternBlockedOnMeta m handle = do
 
   -- Andreas, 2016-07-13, issue 2028.
@@ -797,15 +821,17 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     let reraise = throwError err
 
-    -- Get the blocking meta responsible for the type error.
-    -- If we do not find such a meta or the error should not be handled,
+    -- Get the blocker responsible for the type error.
+    -- If we do not find a blocker or the error should not be handled,
     -- we reraise the error.
-    x <- maybe reraise return =<< do
+    blocker <- maybe reraise return =<< do
       case err of
         TypeError _ s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
             IlltypedPattern p a -> isBlocked a
+
+            SortOfSplitVarError m _ -> return m
 
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403
@@ -815,7 +841,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- (seems to archieve a bit along @normalize@, but how much??).
               problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
               -- over-approximating the set of metas actually blocking unification
-              return $ firstMeta problem
+              return $ Just $ unblockOnAnyMetaIn problem
 
             SplitError (BlockedType aClosure) ->
               enterClosure aClosure $ \ a -> isBlocked a
@@ -829,7 +855,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         _ -> return Nothing
 
     reportSDoc "tc.postpone" 20 $ vcat $
-      [ "checking definition blocked on meta: " <+> prettyTCM x ]
+      [ "checking definition blocked on: " <+> prettyTCM blocker ]
 
     -- Note that we messed up the state a bit.  We might want to unroll these state changes.
     -- However, they are mostly harmless:
@@ -839,25 +865,28 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- Thus, reset the state!
     putTC st
 
-    -- The meta might not be known in the reset state, as it could have been created
-    -- somewhere on the way to the type error.
-    lookupMeta' x >>= \case
-      -- Case: we do not know the meta, so we reraise.
-      Nothing -> reraise
+    -- There might be metas in the blocker not known in the reset state, as they could have been
+    -- created somewhere on the way to the type error.
+    blocker <- (`onBlockingMetasM` blocker) $ \ x ->
+                lookupMeta' x >>= \ case
+      -- Case: we do not know the meta, so cannot unblock.
+      Nothing -> return neverUnblock
       -- Case: we know the meta here.
+      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
       -- Andreas, 2018-11-23: I do not understand why @InstV@ is necessarily impossible.
       -- The reasoning is probably that the state @st@ is more advanced that @s@
       -- in which @x@ was blocking, thus metas in @st@ should be more instantiated than
-      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise
-      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-      Just m | InstV{} <- mvInstantiation m -> reraise
-      -- Case: the meta is frozen (and not an interaction meta).
-      -- Postponing doesn't make sense, so we reraise.
-      Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
-        Nothing -> reraise
-      -- Remaining cases: the meta is known and can still be instantiated.
-        Just{}  -> handle (err, x)
-      Just{} -> handle (err, x)
+      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise.
+      -- Ulf, 2020-08-13: But treat this case as not blocked and reraise on both always and never.
+      -- Ulf, 2020-08-13: Previously we returned neverUnblock for frozen metas here, but this is in
+      -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
+      -- error means we rob the user of the tools needed to figure out why the meta has not been
+      -- solved. Better to leave the constraint.
+      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
+             | otherwise -> return $ unblockOnMeta x
+
+    -- If it's not blocked or we can't ever unblock reraise the error.
+    if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
 
 ---------------------------------------------------------------------------
 -- * Records
@@ -1205,8 +1234,8 @@ checkExpr' cmp e t =
         -- being sure it will be retried when a meta is solved
         -- (which might be the blocking meta in which case we actually make progress).
         reportSDoc "tc.term" 50 $ vcat $
-          [ "checking pattern got stuck on meta: " <+> text (show x) ]
-        postponeTypeCheckingProblem (CheckExpr cmp e t) $ isInstantiatedMeta x
+          [ "checking pattern got stuck on meta: " <+> pretty x ]
+        postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
@@ -1289,7 +1318,7 @@ doQuoteTerm cmp et t = do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
@@ -1306,18 +1335,15 @@ unquoteTactic tac hole goal = do
     , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
-    Left (BlockedOnMeta oldState x) -> do
+    Left (BlockedOnMeta oldState blocker) -> do
       putTC oldState
-      mi <- lookupMeta' x
-      (r, meta) <- case mi of
-        Nothing -> do -- fresh meta: need to block on something else!
-          (noRange,) . firstMeta <$> instantiateFull goal
-            -- Remark:
-            -- Nothing:  Nothing to block on, leave it yellow. Alternative: fail.
-            -- Just x:   range?
-        Just mi -> return (getRange mi, Just x)
+      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupMeta' x
+      blocker' <- onBlockingMetasM stripFreshMeta blocker
+      r <- case Set.toList $ allBlockingMetas blocker' of
+            x : _ -> getRange <$> lookupMeta' x
+            []    -> return noRange
       setCurrentRange r $
-        addConstraint (UnquoteTactic meta tac hole goal)
+        addConstraint blocker' (UnquoteTactic tac hole goal)
     Left err -> typeError $ UnquoteFailed err
     Right _ -> return ()
 

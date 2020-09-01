@@ -86,7 +86,13 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   if termVars `ISet.isSubsetOf` allowedVars then return () else do
   let
     illegalVars = rigid ISet.\\ allowedVars
-  if ISet.null illegalVars then patternViolation -- only flexible vars are infringing
+    -- flexVars = flexibleVars fv
+    -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
+  if ISet.null illegalVars then  -- only flexible vars are infringing
+    -- TODO: be more precise about which metas
+    -- flexVars = flexibleVars fv
+    -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
+    patternViolation alwaysUnblock
   else do
     typeError . GenericDocError =<<
          ("The following vars are not allowed in a later value applied to"
@@ -101,12 +107,12 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
 -- to use only on lock terms
 isVar :: Term -> TCMT IO (Maybe Int)
 isVar (Var l []) = return $ Just l
-isVar (MetaV{}) = patternViolation
+isVar (MetaV m _) = patternViolation (unblockOnMeta m)
 isVar _ = return $ Nothing
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
-  ifBlocked t (\ _ _ -> patternViolation) $ \ _ t -> do
+  ifBlocked t (\ b _ -> patternViolation b) $ \ _ t -> do
   timeless <- mapM getName' [builtinInterval, builtinIsOne]
   case unEl t of
     Def q _ | Just q `elem` timeless -> return True
@@ -115,10 +121,12 @@ isTimeless t = do
 
 checkEarlierThan :: Term -> VarSet -> TCM ()
 checkEarlierThan lk fvs = do
+  -- we should use ifBlocked lk 
   mv <- isVar =<< reduce lk
-  caseMaybe mv patternViolation $ \ i -> do
+  caseMaybe mv (patternViolation alwaysUnblock) $ \ i -> do
     let problems = filter (<= i) $ Set.toList fvs
     forM_ problems $ \ j -> do
       ty <- typeOfBV j
       unlessM (isTimeless ty) $
-        patternViolation
+        -- should be an error?
+        patternViolation alwaysUnblock

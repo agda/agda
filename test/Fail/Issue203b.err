@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  b =< _14 (A = A) (B = B)
-  a =< _14 (A = A) (B = B)
+  b =< _14 (A = A) (B = B) (blocked on _14)
+  a =< _14 (A = A) (B = B) (blocked on _14)
 Unsolved metas at the following locations:
   Issue203b.agda:8,11-12
   Issue203b.agda:12,48-49

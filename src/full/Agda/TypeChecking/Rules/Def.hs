@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
@@ -98,11 +99,11 @@ checkFunDef delayed i name cs = do
         -- If it's a macro check that it ends in Term → TC ⊤
         let ismacro = isMacro . theDef $ def
         when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
-    `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
+    `catchIlltypedPatternBlockedOnMeta` \ (err, blocker) -> do
         reportSDoc "tc.def" 20 $ vcat $
-          [ "checking function definition got stuck on meta: " <+> text (show x) ]
-        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked x ()
-        addConstraint $ CheckFunDef delayed i name cs
+          [ "checking function definition got stuck on: " <+> pretty blocker ]
+        modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
+        addConstraint blocker $ CheckFunDef delayed i name cs err
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -388,9 +389,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Jesper, 2019-05-30: if the constructors used in the
         -- lhs of a clause have rewrite rules, we need to check
         -- confluence here
-        whenM (optConfluenceCheck <$> pragmaOptions) $ inTopContext $
+        whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> inTopContext $
           forM_ (zip cs [0..]) $ \(c , clauseNo) ->
-            checkConfluenceOfClause name clauseNo c
+            checkConfluenceOfClause confChk name clauseNo c
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
@@ -529,7 +530,7 @@ checkSystemCoverage f [n] t cs = do
         pcs = zip phis cs
 
       reportSDoc "tc.sys.cover" 20 $ fsep $ map prettyTCM pats
-      interval <- elInf primInterval
+      interval <- primIntervalType
       reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 

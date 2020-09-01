@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-} -- for type equality ~
-{-# LANGUAGE TypeApplications #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -391,10 +390,7 @@ moduleNameToFileName (TopLevelModuleName _ ms) ext =
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
-    foldr
-      ($)
-      (takeDirectory $ filePath file)
-      (replicate (length m - 1) takeDirectory)
+    iterate takeDirectory (filePath file) !! length m
 
 ------------------------------------------------------------------------
 -- * No name stuff

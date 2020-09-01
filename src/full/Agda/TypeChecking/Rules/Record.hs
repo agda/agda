@@ -172,7 +172,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction $ map argFromDom fs
+          con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
@@ -335,10 +335,10 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
-      whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
+      whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> forM_ fs $ \f -> do
         cls <- defClauses <$> getConstInfo (unDom f)
         forM (zip cls [0..]) $ \(cl,i) ->
-          checkConfluenceOfClause (unDom f) i cl
+          checkConfluenceOfClause confChk (unDom f) i cl
 
       return ()
   where
@@ -433,7 +433,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
            io <- primIOne
            Just io_name <- getBuiltinName' builtinIOne
            one <- primItIsOne
-           tInterval <- elInf primInterval
+           tInterval <- primIntervalType
            let
               (ix,rhs) =
                 case cmd of
@@ -448,7 +448,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                   -- body = u i1 itIsOne
                   DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
 
-              p = ConP (ConHead io_name Inductive [])
+              p = ConP (ConHead io_name IsData Inductive [])
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                          , conPFallThrough = True })
                          []

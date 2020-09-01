@@ -1,8 +1,6 @@
 # Top-level Makefile for Agda 2
 # Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli, Liang-Ting Chen
 
-SHELL=bash
-
 # Profiling verbosity for std-lib-test
 PROFVERB=7
 
@@ -13,31 +11,35 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 include ./mk/cabal.mk
-STACK_CMD=stack
+include ./mk/stack.mk
 
 # mk/prtty.mk pretty prints information, depending on whether it is run on Travis on not
 include ./mk/pretty.mk
 
 # Run in interactive and parallel mode by default
 
-# You can use the $(PARALLEL_TESTS_FILE) file for setting the number of
-# parallel tests, e.g.
-#   PARALLEL_TESTS = 123
-
-PARALLEL_TESTS_FILE = mk/parallel-tests.mk
-
-ifeq ($(wildcard $(PARALLEL_TESTS_FILE)),)
-# Setting the default value.
-PARALLEL_TESTS = $(shell getconf _NPROCESSORS_ONLN)
-else
-# Getting the value from the $(PARALLEL_TESTS_FILE) file.
-include $(PARALLEL_TESTS_FILE)
+# You can use the PARALLEL_TESTS variable to control the number of parallel
+# tests. The default is one per processor. Invoke make like this:
+#   make PARALLEL_TESTS=123 test
+# Or set it in ./mk/config.mk, which is .gitignored
+ifeq ($(PARALLEL_TESTS),)
+PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
 endif
 
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
-CABAL_INSTALL_HELPER = $(CABAL_CMD) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_INSTALL_HELPER = $(STACK_CMD) install Agda --no-haddock --system-ghc
+CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
+STACK_INSTALL_HELPER = $(STACK) install Agda --no-haddock
+
+# If running on Travis, use --system-ghc.
+# Developers running `make` will usually want to use the GHC version they've
+# specified in their stack.yaml. Otherwise they can put that option in
+# themselves.
+# Note that GitHub workflows currently do not use the Makefile, but instead
+# invoke `stack` directly. (See: .github/workflows/stack.yml)
+ifneq ($(TRAVIS),)
+STACK_INSTALL_HELPER += --system-ghc
+endif
 
 # 2016-07-15. We use a different build directory in the quick
 # installation for avoiding recompilation (see Issue #2083 and
@@ -71,10 +73,10 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
-ifeq ("$(shell ghc --info | grep 'target word size' | cut -d\" -f4)","4")
+ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_OPTS           = "+RTS -M1.7G -RTS"
 else
-GHC_OPTS           = "+RTS -M3G -RTS"
+GHC_OPTS           = "+RTS -M4G -RTS"
 endif
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
@@ -105,11 +107,11 @@ ensure-hash-is-correct:
 
 .PHONY: install-bin ## Install Agda and test suites via cabal (or stack if stack.yaml exists).
 install-bin: ensure-hash-is-correct
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -119,11 +121,11 @@ endif
 
 .PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
 fast-install-bin:
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell stack path --dist-dir)/build $(BUILD_DIR)
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -134,7 +136,7 @@ endif
 # Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
 # .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
 # quick-install-bin: ensure-hash-is-correct
-# ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+# ifdef HAS_STACK
 # 	@echo "===================== Installing using Stack ============================="
 # 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 # else
@@ -147,7 +149,7 @@ endif
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
 quicker-install-bin:
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
+ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
 else
@@ -161,12 +163,12 @@ endif
 .PHONY: type-check
 type-check:
 	@echo "================= Type checking using Cabal with -fno-code ==============="
-	time cabal $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
+	time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
 	  --ghc-options=-fno-code \
 	  --ghc-options=-fwrite-interface \
 	  2>&1 \
-	  | sed -e '/.*dist.*build.*: No such file or directory/d' \
-	        -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+	  | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
+	           -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
@@ -205,20 +207,20 @@ setup-emacs-mode : install-bin
 	$(AGDA_MODE) setup
 
 ## Clean ####################################################################
-clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
+clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 clean : ## Clean all local builds
 	$(call clean_helper,$(BUILD_DIR))
 	$(call clean_helper,$(QUICK_BUILD_DIR))
-	stack clean --full
-	stack clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
+	$(STACK) clean --full
+	$(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
 
 ## Haddock ###################################################################
 
 .PHONY : haddock ##
 haddock :
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
-	$(CABAL_CMD) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
+	$(CABAL) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS)
+	$(CABAL) $(CABAL_HADDOCK_CMD) --builddir=$(BUILD_DIR)
 
 ##############################################################################
 ## The user manual
@@ -257,12 +259,12 @@ std-lib :
 
 .PHONY : up-to-date-std-lib ##
 up-to-date-std-lib : std-lib
-	@(cd std-lib && make setup)
+	@($(MAKE) -C std-lib setup)
 
 .PHONY : fast-forward-std-lib ##
 fast-forward-std-lib :
 	git submodule update --init --remote std-lib
-	@(cd std-lib && make setup)
+	@($(MAKE) -C std-lib setup)
 
 ##############################################################################
 ## Cubical library
@@ -330,7 +332,9 @@ common :
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed )
+		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
+		rm test/Succeed/exec-tc/executables )
 
 .PHONY : fail ##
 fail :
@@ -375,7 +379,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && runhaskell GenerateEverything.hs && \
+		(cd std-lib && $(RUNGHC) GenerateEverything.hs && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
@@ -482,26 +486,26 @@ install-fix-whitespace : $(FIXW_BIN)
 
 $(FIXW_BIN) :
 	git submodule update --init src/fix-whitespace
-ifneq ("$(wildcard stack.yaml)","") # if `stack.yaml` exists
-	stack build fix-whitespace
+ifdef HAS_STACK
+	$(STACK) build fix-whitespace
 	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
-	cp $(shell stack path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
+	cp $(shell $(STACK) path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
 else
-	cd $(FIXW_PATH) && $(CABAL_CMD) $(CABAL_INSTALL_CMD)
+	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
 endif
 
 ## agda-bisect standalone program ############################################
 .PHONY : install-agda-bisect ## Install agda-bisect.
 install-agda-bisect :
 	@$(call decorate, "Installing the agda-bisect program", \
-		cd src/agda-bisect && $(CABAL_CMD) $(CABAL_INSTALL_CMD))
+		cd src/agda-bisect && $(CABAL) $(CABAL_INSTALL_CMD))
 
 ## HPC #######################################################################
 .PHONY: hpc-build ##
 hpc-build: ensure-hash-is-correct
-	$(CABAL_CMD) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
-	$(CABAL_CMD) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
-	$(CABAL_CMD) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
+	$(CABAL) $(CABAL_CLEAN_CMD) $(CABAL_OPTS)
+	$(CABAL) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
+	$(CABAL) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
@@ -519,7 +523,7 @@ agda-loc : ## Agda files (tests) in this project
 	@wc $(agdalocfiles)
 
 loc : ## Source code of Agda
-	make -C src/full loc
+	$(MAKE) -C src/full loc
 
 ## Module dependency graph ###################################################
 
@@ -545,7 +549,7 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h ##
 
 help: ## Display this information.
 	@echo "Available targets:"
-	@sed -n \
+	@$(SED) -n \
 		-e 's/^\.PHONY[[:blank:]]*:[[:blank:]]*\([[:graph:]]*[[:blank:]]*##\)/\1/p' \
 		-e 's/\([[:alnum:]_-]\{1,\}\)[[:blank:]]*:[[:blank:]]*[^#]*##[[:blank:]]*\([^\#]*\)$$/\1 ## \2/p' \
 		-e 's/^\(#\{2,\}\)$$//p' \
@@ -563,7 +567,7 @@ debug : ## Print debug information.
 	@echo "BUILD_DIR             = $(BUILD_DIR)"
 	@echo "CABAL_BUILD_CMD       = $(CABAL_BUILD_CMD)"
 	@echo "CABAL_CLEAN_CMD       = $(CABAL_CLEAN_CMD)"
-	@echo "CABAL_CMD             = $(CABAL_CMD)"
+	@echo "CABAL                 = $(CABAL)"
 	@echo "CABAL_CONFIGURE_CMD   = $(CABAL_CONFIGURE_CMD)"
 	@echo "CABAL_CONFIGURE_OPTS  = $(CABAL_CONFIGURE_OPTS)"
 	@echo "CABAL_HADDOCK_CMD     = $(CABAL_HADDOCK_CMD)"
@@ -572,7 +576,7 @@ debug : ## Print debug information.
 	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
-	@echo "STACK_CMD             = $(STACK_CMD)"
+	@echo "STACK                 = $(STACK)"
 	@echo "STACK_INSTALL_OPTS    = $(STACK_INSTALL_OPTS)"
 	@echo
 	@echo "Run \`make -pq\` to get a detailed report."

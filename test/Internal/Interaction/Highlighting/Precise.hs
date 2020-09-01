@@ -128,7 +128,7 @@ instance CoArbitrary Aspect where
   coarbitrary Markup        = variant 9
 
 instance Arbitrary NameKind where
-  arbitrary = oneof $ [liftM Constructor arbitrary] ++
+  arbitrary = oneof $ [fmap Constructor arbitrary] ++
                       map return [ Bound
                                  , Datatype
                                  , Field

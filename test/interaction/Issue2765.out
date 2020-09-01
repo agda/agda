@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals*" "?0 : Level " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-status-action "")
-(agda2-info-action "*Constraints*" "?0 := a ⊔ b ⊔ c" nil)
+(agda2-info-action "*Constraints*" "?0 := a ⊔ b ⊔ c ()" nil)

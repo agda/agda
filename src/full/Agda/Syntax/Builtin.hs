@@ -29,7 +29,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
-  builtinSet, builtinProp, builtinSetOmega,
+  builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
   builtinLockUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
@@ -66,7 +66,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMNoConstraints,
-  builtinAgdaTCMRunSpeculative
+  builtinAgdaTCMRunSpeculative,
+  builtinAgdaTCMExec
   :: String
 
 builtinNat                               = "NATURAL"
@@ -154,6 +155,8 @@ builtinSet                               = "TYPE"
 builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
 builtinLockUniv                          = "primLockUniv"
+builtinSSetOmega                         = "STRICTSETOMEGA"
+builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"
 builtinFromNeg                           = "FROMNEG"
 builtinFromString                        = "FROMSTRING"
@@ -254,6 +257,7 @@ builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
+builtinAgdaTCMExec                       = "AGDATCMEXEC"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -283,6 +287,8 @@ builtinsNoDef =
   , builtinSet
   , builtinProp
   , builtinSetOmega
+  , builtinStrictSet
+  , builtinSSetOmega
   ]
 
 sizeBuiltins :: [String]

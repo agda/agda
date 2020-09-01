@@ -1,5 +1,4 @@
-{-# LANGUAGE NondecreasingIndentation   #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Unification algorithm for specializing datatype indices, as described in
 --     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
@@ -210,11 +209,11 @@ unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
-          , nest 2 $ prettyTCM tel
-          , nest 2 $ addContext tel $ text $ show $ map flexVar flex
-          , nest 2 $ addContext tel $ parens (prettyTCM a)
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM us
-          , nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
+          , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
+          , ("flex =" <+>) $ nest 2 $ addContext tel $ text $ show $ map flexVar flex
+          , ("a    =" <+>) $ nest 2 $ addContext tel $ parens (prettyTCM a)
+          , ("us   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM us
+          , ("vs   =" <+>) $ nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
@@ -614,7 +613,7 @@ completeStrategyAt k s = msum $ map (\strat -> strat k s) $
 -- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.
 --
 -- This is naturally sensitive to normalization.
-isHom :: (Free a, Subst Term a) => Int -> a -> Maybe a
+isHom :: (Free a, Subst a) => Int -> a -> Maybe a
 isHom n x = do
   guard $ getAll $ runFree (All . (>= n)) IgnoreNot x
   return $ raise (-n) x
@@ -873,9 +872,11 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
     isReflexive <- liftTCM $ addContext (varTel s) $ tryCatch $ do
       nonConstraining $ equalTerm a u v
     withoutK <- liftTCM withoutKOption
+    splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
       Just err     -> return $ DontKnow []
-      _ | withoutK -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
+      _ | withoutK && not splitOnStrict
+                   -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
       _            -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
@@ -1278,8 +1279,7 @@ patternBindingForcedVars forced v = do
             if IntMap.null bound
               then return $ dotP v  -- bound nothing
               else do
-                let cpi = (toConPatternInfo ci) { conPRecord = True,
-                                                  conPLazy   = True } -- Not setting conPType. Is this a problem?
+                let cpi = (toConPatternInfo ci) { conPLazy   = True } -- Not setting conPType. Is this a problem?
                 return $ ConP c cpi $ map (setOrigin Inserted) ps
           | otherwise -> return $ dotP v   -- Higher constructor (es has IApply)
 

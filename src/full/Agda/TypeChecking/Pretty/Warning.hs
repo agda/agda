@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 
 import Agda.Syntax.Common ( AgdaSourceErrorLocation(..), ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
@@ -42,32 +43,6 @@ instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning fl _ _ _ _) = do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow fl
     pure $ tcWarningPrintedWarning w
-
-prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-  where
-    r   = getRange c
-    f :: MonadPretty m => m Doc -> m Doc
-    f d = if null $ P.pretty r
-          then d
-          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
-
-prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
-    isBlocked = not . null . blocking . clValue . theConstraint
-    cs' = filter interestingConstraint cs
-    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
-    blocking (Guarded c pid) = pid : blocking c
-    blocking _               = []
 
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
@@ -266,7 +241,7 @@ prettyWarning = \case
       [pretty o] ++ pwords "flag from a module which does."
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
-      [ "Confluence check failed:"
+      [ "Local confluence check failed:"
       , prettyTCM lhs , "reduces to both"
       , prettyTCM rhs1 , "and" , prettyTCM rhs2
       , "which are not equal because"
@@ -281,6 +256,31 @@ prettyWarning = \case
           ]
         ]
       , map (nest 2 . return) cs
+      ]
+
+    RewriteAmbiguousRules lhs rhs1 rhs2 -> vcat
+      [ ( fsep $ concat
+          [ pwords "Global confluence check failed:" , [prettyTCM lhs]
+          , pwords "can be rewritten to either" , [prettyTCM rhs1]
+          , pwords "or" , [prettyTCM rhs2 <> "."]
+          ])
+      , fsep $ concat
+        [ pwords "Possible fix: add a rewrite rule with left-hand side"
+        , [prettyTCM lhs] , pwords "to resolve the ambiguity."
+        ]
+      ]
+
+    RewriteMissingRule u v rhou -> vcat
+      [ fsep $ concat
+        [ pwords "Global confluence check failed:" , [prettyTCM u]
+        , pwords "unfolds to" , [prettyTCM v] , pwords "which should further unfold to"
+        , [prettyTCM rhou] , pwords "but it does not."
+        ]
+      , fsep $ concat
+        [ pwords "Possible fix: add a rule to rewrite"
+        , [ prettyTCM v , "to" , prettyTCM rhou <> "," ]
+        , pwords "or change the order of the rules so more specialized rules come later."
+        ]
       ]
 
     PragmaCompileErased bn qn -> fsep $ concat

@@ -12,7 +12,7 @@
 --
 --   @
 
-{-# LANGUAGE PatternSynonyms #-}
+
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
   -- because of https://gitlab.haskell.org/ghc/ghc/issues/10339

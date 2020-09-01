@@ -239,7 +239,9 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     A.Proj o p | isAmbiguous p -> inferProjApp e o (unAmbQ p) args
     A.Def' x s | x == nameOfSet      -> inferSet e x s args
     A.Def' x s | x == nameOfProp     -> inferProp e x s args
-    A.Def' x s | x == nameOfSetOmega -> inferSetOmega e x s args
+    A.Def' x s | x == nameOfSSet     -> inferSSet e x s args
+    A.Def' x s | x == nameOfSetOmega IsFibrant -> inferSetOmega e x IsFibrant s args
+    A.Def' x s | x == nameOfSetOmega IsStrict  -> inferSetOmega e x IsStrict s args
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
@@ -470,7 +472,9 @@ checkHeadApplication cmp e t hd args = do
   case hd of
     A.Def' c s | c == nameOfSet      -> checkSet cmp e t c s args
     A.Def' c s | c == nameOfProp     -> checkProp cmp e t c s args
-    A.Def' c s | c == nameOfSetOmega -> checkSetOmega cmp e t c s args
+    A.Def' c s | c == nameOfSSet     -> checkSSet cmp e t c s args
+    A.Def' c s | c == nameOfSetOmega IsFibrant -> checkSetOmega cmp e t c IsFibrant s args
+    A.Def' c s | c == nameOfSetOmega IsStrict  -> checkSetOmega cmp e t c IsStrict s args
 
     -- Type checking #. The # that the user can write will be a Def, but the
     -- sharp we generate in the body of the wrapper is a Con.
@@ -722,7 +726,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             | visible info
             , PathType s _ _ bA x y <- viewPath t0' -> do
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
-                u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
+                u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
                   checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
@@ -894,7 +898,7 @@ checkConstructorApplication cmp org t c args = do
         dropPar _ [] = Nothing
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: List1 QName -> Type -> TCM (Either (TCM Bool) ConHead)
+disambiguateConstructor :: List1 QName -> Type -> TCM (Either Blocker ConHead)
 disambiguateConstructor cs0 t = do
   reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
@@ -922,24 +926,20 @@ disambiguateConstructor cs0 t = do
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
       -- Lets look at the target type at this point
-      let getCon :: TCM (Maybe ConHead)
-          getCon = do
-            TelV tel t1 <- telViewPath t
-            addContext tel $ do
-             reportSDoc "tc.check.term.con" 40 $ nest 2 $
-               "target type: " <+> prettyTCM t1
-             ifBlocked t1 (\ m t -> return Nothing) $ \ _ t' ->
-               caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-                 case [ c | (d', c) <- dcs, d == d' ] of
-                   [c] -> do
-                     reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedConstructor (conInductive c) (conName c)
-                     return $ Just c
-                   []  -> badCon $ t' $> Def d []
-                   c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
-                            fmap conName $ c :| cs
-      let unblock = isJust <$> getCon
-      maybeToEither unblock <$> getCon
+      TelV tel t1 <- telViewPath t
+      addContext tel $ do
+       reportSDoc "tc.check.term.con" 40 $ nest 2 $
+         "target type: " <+> prettyTCM t1
+       ifBlocked t1 (\ b t -> return $ Left b) $ \ _ t' ->
+         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
+           case [ c | (d', c) <- dcs, d == d' ] of
+             [c] -> do
+               reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+               storeDisambiguatedConstructor (conInductive c) (conName c)
+               return $ Right c
+             []  -> badCon $ t' $> Def d []
+             c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
+                      fmap conName $ c :| cs
 
 ---------------------------------------------------------------------------
 -- * Projections
@@ -1000,9 +1000,9 @@ inferOrCheckProjApp e o ds args mt = do
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from)
       -- is blocked by meta m.
-      postpone m = do
+      postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ isInstantiatedMeta m
+        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) b
         return (v, tc, NotCheckedTarget)
 
   -- The following cases need to be considered:
@@ -1053,9 +1053,9 @@ inferOrCheckProjAppToKnownPrincipalArg ::
   Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
 inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone m = do
+      postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ isInstantiatedMeta m
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
   (vargs, ta) <- implicitArgs (-1) (not . visible) ta
@@ -1182,11 +1182,24 @@ checkProp cmp e t q s args = do
   unlessM isPropEnabled $ typeError NeedOptionProp
   checkSetOrProp Prop cmp e t q s args
 
+checkSSet
+  :: Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSSet cmp e t q s args = do
+  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+  checkLeveledSort SSet SSet cmp e t q s args
+
 checkSetOrProp
   :: (Level -> Sort) -> Comparison -> A.Expr -> Type
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
 checkSetOrProp mkSort cmp e t q suffix args = do
-  (v, t0) <- inferSetOrProp mkSort e q suffix args
+  checkLeveledSort mkSort Type cmp e t q suffix args
+
+checkLeveledSort
+  :: (Level -> Sort) -> (Level -> Sort) -> Comparison -> A.Expr -> Type
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkLeveledSort mkSort mkSortOfSort cmp e t q suffix args = do
+  (v, t0) <- inferLeveledSort mkSort mkSortOfSort e q suffix args
   coerce cmp v t0 t
 
 inferSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
@@ -1197,36 +1210,48 @@ inferProp e q s args = do
   unlessM isPropEnabled $ typeError NeedOptionProp
   inferSetOrProp Prop e q s args
 
+inferSSet :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSSet e q s args = do
+  unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+  inferLeveledSort SSet SSet e q s args
+
 inferSetOrProp
   :: (Level -> Sort) -> A.Expr
   -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOrProp mkSort e q suffix args = case args of
+inferSetOrProp mkSort e q suffix args = inferLeveledSort mkSort Type e q suffix args
+
+inferLeveledSort
+  :: (Level -> Sort) -> (Level -> Sort) -> A.Expr
+  -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferLeveledSort mkSort mkSortOfSort e q suffix args = case args of
   [] -> do
     let n = case suffix of
               NoSuffix -> 0
               Suffix n -> n
-    return (Sort (mkSort $ ClosedLevel n) , sort (Type $ ClosedLevel $ n + 1))
+    return (Sort (mkSort $ ClosedLevel n) , sort (mkSortOfSort $ ClosedLevel $ n + 1))
   [arg] -> do
     unless (visible arg) $ typeError $ WrongHidingInApplication $ sort $ mkSort $ ClosedLevel 0
     unlessM hasUniversePolymorphism $ genericError
       "Use --universe-polymorphism to enable level arguments to Set"
     l <- applyRelevanceToContext NonStrict $ checkLevel arg
-    return (Sort $ mkSort l , sort (Type $ levelSuc l))
+    return (Sort $ mkSort l , sort (mkSortOfSort $ levelSuc l))
   arg : _ -> typeError . GenericDocError =<< fsep
     [ prettyTCM q , "cannot be applied to more than one argument" ]
 
-checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> Suffix -> [NamedArg A.Expr] -> TCM Term
-checkSetOmega cmp e t q s args = do
-  (v, t0) <- inferSetOmega e q s args
+checkSetOmega :: Comparison -> A.Expr -> Type -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM Term
+checkSetOmega cmp e t q f s args = do
+  (v, t0) <- inferSetOmega e q f s args
   coerce cmp v t0 t
 
-inferSetOmega :: A.Expr -> QName -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
-inferSetOmega e q suffix args = do
+inferSetOmega :: A.Expr -> QName -> IsFibrant -> Suffix -> [NamedArg A.Expr] -> TCM (Term, Type)
+inferSetOmega e q f suffix args = do
+  when (f == IsStrict) $
+    unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
   let n = case suffix of
             NoSuffix -> 0
             Suffix n -> n
   case args of
-    [] -> return (Sort (Inf n) , sort (Inf $ 1 + n))
+    [] -> return (Sort (Inf f n) , sort (Inf f $ 1 + n))
     arg : _ -> typeError . GenericDocError =<< fsep
         [ prettyTCM q , "cannot be applied to an argument" ]
 
@@ -1340,7 +1365,7 @@ checkPrimComp c rs vs _ = do
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       let lz = unArg l `apply` [iz]
           az = unArg a `apply` [iz]
-      ty <- elInf $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
+      ty <- el's (pure (unArg l `apply` [iz])) $ primPartial <#> pure (unArg l `apply` [iz]) <@> pure (unArg phi) <@> pure (unArg a `apply` [iz])
       bAz <- el' (pure $ lz) (pure $ az)
       a0 <- blockArg bAz (rs !!! 4) a0 $ do
         equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
@@ -1361,7 +1386,7 @@ checkPrimHComp c rs vs _ = do
       -- iz = i0
       iz <- Arg defaultArgInfo <$> intervalUnview IZero
       -- ty = Partial φ A
-      ty <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
+      ty <- el's (pure (unArg l)) $ primPartial <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
       -- (λ _ → a) = u i0 : ty
       bA <- el' (pure $ unArg l) (pure $ unArg a)
       a0 <- blockArg bA (rs !!! 4) a0 $ do
@@ -1387,7 +1412,7 @@ checkPrimTrans c rs vs _ = do
       -- ty = (i : I) -> Set (l i)
       ty <- runNamesT [] $ do
         l <- open $ unArg l
-        nPi' "i" (elInf $ cl primInterval) $ \ i -> (sort . tmSort <$> (l <@> i))
+        nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (l <@> i))
       a <- blockArg ty (rs !!! 1) a $ do
         equalTermOnFace (unArg phi) ty
           (unArg a)
@@ -1470,7 +1495,7 @@ check_glue c rs vs _ = do
             glam iinfo "o" $ \ o -> f o <@> (t <..> o)
       ty <- runNamesT [] $ do
             [lb, phi, bA] <- mapM (open . unArg) [lb, phi, bA]
-            elInf $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
+            el's lb $ cl primPartialP <#> lb <@> phi <@> glam iinfo "o" (\ _ -> bA)
       let a' = Lam iinfo (NoAbs "o" $ unArg a)
       ta <- el' (pure $ unArg la) (pure $ unArg bA)
       a <- blockArg ta (rs !!! 7) a $ equalTerm ty a' v

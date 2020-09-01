@@ -1,5 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP             #-}
 
+#if  __GLASGOW_HASKELL__ > 800
+{-# OPTIONS_GHC -Wno-error=missing-signatures #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Quickcheck properties for 'Agda.Utils.ListT'.

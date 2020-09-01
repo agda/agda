@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Data where
@@ -241,7 +242,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
         -- Cannot compose indexed inductive types yet.
         (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-          then return (ConHead c Inductive [], emptyCompKit, Nothing)
+          then return (ConHead c IsData Inductive [], emptyCompKit, Nothing)
           else do
             -- Name for projection of ith field of constructor c is just c-i
             names <- forM [0 .. size fields - 1] $ \ i ->
@@ -258,7 +259,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , "names  =" <+> pretty names
               ]
 
-            let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+            let con = ConHead c IsData Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
             comp <- inTopContext $ defineCompData d con params names fields dataT boundary
@@ -643,16 +644,17 @@ toLType ty = do
     Type l -> return $ Just $ LEl l (unEl ty)
     _      -> return $ Nothing
 
-instance Subst Term LType where
+instance Subst LType where
+  type SubstArg LType = Term
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
 -- | A @Type@ that either has sort @Type l@ or is a closed definition.
 --   Such a type supports some version of transp.
 --   In particular we want to allow the Interval as a @ClosedType@.
-data CType = ClosedType QName | LType LType deriving (Eq,Show)
+data CType = ClosedType Sort QName | LType LType deriving (Eq,Show)
 
 fromCType :: CType -> Type
-fromCType (ClosedType q) = El (Inf 0) (Def q [])
+fromCType (ClosedType s q) = El s (Def q [])
 fromCType (LType t) = fromLType t
 
 toCType :: MonadReduce m => Type -> m (Maybe CType)
@@ -660,15 +662,16 @@ toCType ty = do
   sort <- reduce $ getSort ty
   case sort of
     Type l -> return $ Just $ LType (LEl l (unEl ty))
-    Inf 0  -> do
+    SSet l  -> do
       t <- reduce (unEl ty)
       case t of
-        Def q [] -> return $ Just $ ClosedType q
+        Def q [] -> return $ Just $ ClosedType (SSet l) q
         _        -> return $ Nothing
     _      -> return $ Nothing
 
-instance Subst Term CType where
-  applySubst rho t@ClosedType{} = t
+instance Subst CType where
+  type SubstArg CType = Term
+  applySubst rho (ClosedType s t) = ClosedType (applySubst rho s) t
   applySubst rho (LType t) = LType $ applySubst rho t
 
 
@@ -705,7 +708,7 @@ defineTranspForFields
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]), Substitution)
 defineTranspForFields pathCons applyProj name params fsT fns rect = do
-  interval <- elInf primInterval
+  interval <- primIntervalType
   let deltaI = expTelescope interval params
   iz <- primIZero
   io <- primIOne
@@ -713,8 +716,8 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   imax <- getPrimitiveTerm "primIMax"
   ineg <- getPrimitiveTerm "primINeg"
   transp <- getPrimitiveTerm builtinTrans
-  por <- getPrimitiveTerm "primPOr"
-  one <- primItIsOne
+  -- por <- getPrimitiveTerm "primPOr"
+  -- one <- primItIsOne
   reportSDoc "trans.rec" 20 $ text $ show params
   reportSDoc "trans.rec" 20 $ text $ show deltaI
   reportSDoc "trans.rec" 10 $ text $ show fsT
@@ -727,7 +730,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   theType <- (abstract deltaI <$>) $ runNamesT [] $ do
               rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
                                                              pure rect')
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+              nPi' "phi" primIntervalType $ \ phi ->
                (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
 
   reportSDoc "trans.rec" 20 $ prettyTCM theType
@@ -868,7 +871,7 @@ defineHCompForFields
   -> LType        -- ^ record type (δ : Δ) ⊢ R[δ]
   -> TCM ((QName, Telescope, Type, [Dom Type], [Term]),Substitution)
 defineHCompForFields applyProj name params fsT fns rect = do
-  interval <- elInf primInterval
+  interval <- primIntervalType
   let delta = params
   iz <- primIZero
   io <- primIOne
@@ -891,8 +894,8 @@ defineHCompForFields applyProj name params fsT fns rect = do
 
   theType <- (abstract delta <$>) $ runNamesT [] $ do
               rect <- open $ fromLType rect
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               nPi' "i" (elInf $ cl primInterval) (\ i ->
+              nPi' "phi" primIntervalType $ \ phi ->
+               nPi' "i" primIntervalType (\ i ->
                 pPi' "o" phi $ \ _ -> rect) -->
                rect --> rect
 

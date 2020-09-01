@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE PatternSynonyms #-}
+
 {-# LANGUAGE TypeFamilies  #-}
 
 {-|
@@ -666,12 +666,6 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
 compile :: Normalisation -> Term -> AM s
 compile nf t = Eval (Closure Unevaled t emptyEnv []) [NormaliseK | nf == NF]
 
--- | The abstract machine treats uninstantiated meta-variables as blocked, but the rest of Agda does
---   not.
-topMetaIsNotBlocked :: Blocked Term -> Blocked Term
-topMetaIsNotBlocked (Blocked _ t@MetaV{}) = notBlocked t
-topMetaIsNotBlocked b = b
-
 decodePointer :: Pointer s -> ST s Term
 decodePointer p = decodeClosure_ =<< derefPointer_ p
 
@@ -696,7 +690,7 @@ decodeClosure :: Closure s -> ST s (Blocked Term)
 decodeClosure (Closure isV t env spine) = do
     vs <- decodeEnv env
     es <- decodeSpine spine
-    return $ topMetaIsNotBlocked (applyE (applySubst (parS vs) t) es <$ b)
+    return $ applyE (applySubst (parS vs) t) es <$ b
   where
     parS = foldr (:#) IdS  -- parallelS is too strict
     b    = case isV of
@@ -1265,7 +1259,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           case iview $ ignoreBlocking br of
             IZero -> evalPointerAM x es ctrl
             IOne  -> evalPointerAM y es ctrl
-            _     -> (<* blockedOrMeta br) <$> go es
+            _     -> (<* br) <$> go es
         go (e : es) = go es
 
     -- Normalise the spine and apply the closure to the result. The closure must be a value closure.

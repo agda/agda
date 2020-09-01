@@ -167,6 +167,10 @@ instance EmbPrj FileType where
 instance EmbPrj AbsolutePath where
   icod_ file = do
     d <- asks absPathD
+    -- Andreas, 2020-08-11, issue #4828
+    -- AbsolutePath is no longer canonical (can contain symlinks).
+    -- The dictonary contains canonical pathes, though.
+    file <- liftIO $ canonicalizeAbsolutePath file
     liftIO $ flip fromMaybeM (H.lookup d file) $ do
       -- The path @file@ should be cached in the dictionary @d@.
       -- This seems not to be the case, thus, crash here.

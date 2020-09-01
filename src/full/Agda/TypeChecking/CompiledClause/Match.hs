@@ -184,7 +184,6 @@ match' ((c, es, patch) : stack) = do
               _ | fallThrough -> match' $ catchAllFrame $ stack
 
               Blocked x _            -> no (Blocked x) es'
-              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.

@@ -36,7 +36,7 @@ import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView, deepUnscope)
@@ -52,7 +52,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.CheckInternal (checkInternal)
-import Agda.TypeChecking.Datatypes hiding (DataOrRecord(..), isDataOrRecordType)
+import Agda.TypeChecking.Datatypes hiding (isDataOrRecordType)
 import Agda.TypeChecking.Errors (dropTopLevelModule)
 import Agda.TypeChecking.Irrelevance
 -- Prevent "Ambiguous occurrence ‘DontKnow’" when loading with ghci.
@@ -821,7 +821,7 @@ splitStrategy = filter shouldSplit
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
-  :: forall tcm a. (MonadTCM tcm, MonadReduce tcm, MonadAddContext tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm, MonadReader Nat tcm)
+  :: forall tcm a. (MonadTCM tcm, MonadReduce tcm, MonadAddContext tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadDebug tcm, MonadReader Nat tcm, HasBuiltins tcm)
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
@@ -1009,7 +1009,7 @@ checkLHS mf = updateModality checkLHS_ where
         softTypeError . GenericDocError =<<
         hsep [ "Not a finite domain:" , prettyTCM $ unDom dom ]
 
-      tInterval <- liftTCM $ elInf primInterval
+      tInterval <- liftTCM $ primIntervalType
 
       names <- liftTCM $ addContext tel $ do
         LeftoverPatterns{patternVariables = vars} <- getLeftoverPatterns $ problem ^. problemEqs
@@ -1189,9 +1189,18 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- We should be at a data/record type
       (dr, d, pars, ixs) <- addContext delta1 $ isDataOrRecordType a
+      let isRec = case dr of
+            IsData{}   -> False
+            IsRecord{} -> True
 
       checkMatchingAllowed dr  -- No splitting on coinductive constructors.
-      checkSortOfSplitVar dr a (Just target)
+      addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
+
+      -- Jesper, 2019-09-13: if the data type we split on is a strict
+      -- set, we locally enable --with-K during unification.
+      withKIfStrict <- reduce (getSort a) >>= \case
+        SSet{} -> return $ locallyTC eSplitOnStrict $ const True
+        _      -> return id
 
       -- The constructor should construct an element of this datatype
       (c :: ConHead, b :: Type) <- liftTCM $ addContext delta1 $ case ambC of
@@ -1240,6 +1249,7 @@ checkLHS mf = updateModality checkLHS_ where
             , nest 2 $ vcat
               [ "c      =" <+> prettyTCM c <+> ":" <+> prettyTCM b
               , "d      =" <+> prettyTCM (Def d (map Apply pars)) <+> ":" <+> prettyTCM da
+              , "isRec  =" <+> (text . show) isRec
               , "gamma  =" <+> prettyTCM gamma
               , "pars   =" <+> brackets (fsep $ punctuate comma $ map prettyTCM pars)
               , "ixs    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ixs)
@@ -1294,7 +1304,7 @@ checkLHS mf = updateModality checkLHS_ where
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a
 
-      liftTCM (unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
+      liftTCM (withKIfStrict $ unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
         NoUnify neg -> hardTypeError $ ImpossibleConstructor (conName c) neg
@@ -1324,11 +1334,10 @@ checkLHS mf = updateModality checkLHS_ where
           -- Andreas, 2010-09-09, save the type.
           -- It is relative to Δ₁, but it should be relative to Δ₁'
           let a' = applyPatSubst rho1 a
-          -- Also remember if we are a record pattern.
-          isRec <- isRecord d
 
+          -- Also remember if we are a record pattern.
           let cpi = ConPatternInfo { conPInfo   = PatternInfo PatOCon []
-                                   , conPRecord = isJust isRec
+                                   , conPRecord = isRec
                                    , conPFallThrough = False
                                    , conPType   = Just $ Arg info a'
                                    , conPLazy   = False } -- Don't mark eta-record matches as lazy (#4254)
@@ -1418,6 +1427,7 @@ data DataOrRecord
     { recordInduction   :: Maybe Induction
     , recordEtaEquality :: EtaEquality
     }
+  deriving (Show)
 
 -- | Check if the type is a data or record type and return its name,
 --   definition, parameters, and indices. Fails softly if the type could become
@@ -1862,19 +1872,49 @@ checkParameters dc d pars = liftTCM $ do
 
 checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
-                    => DataOrRecord -> a -> Maybe ty -> m ()
-checkSortOfSplitVar dr a mtarget = do
+                    => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
+checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    Type{} -> return ()
+    sa@Type{} -> whenM isTwoLevelEnabled $ do
+     if
+      | IsRecord _ _ <- dr     -> return ()
+      | Just target <- mtarget -> do
+          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
+          unlessM (isFibrant target) $ splitOnFibrantError mtarget
+          forM_ (telToList tel) $ \ d -> do
+            let ty = snd $ unDom d
+            unlessM (isFibrant ty) $
+              unlessM (isInterval ty) $
+                splitOnFibrantError' ty
+      | otherwise              -> do
+          reportSDoc "tc.sort.check" 20 $ "no target"
+          splitOnFibrantError mtarget
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> unlessM (isPropM target) splitOnPropError
-      | otherwise              -> splitOnPropError
+      | Just target <- mtarget -> do
+        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
+        unlessM (isPropM target) splitOnPropError
+      | otherwise              -> do
+          reportSDoc "tc.sort.check" 20 $ "no target prop"
+          splitOnPropError
     Inf{} -> return () -- see #4109
-    _      -> softTypeError =<< do
-      liftTCM $ GenericDocError <$> sep
+    SSet{} -> return ()
+    sa      -> softTypeError =<< do
+      liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
 
   where
     splitOnPropError = softTypeError $ GenericError
       "Cannot split on datatype in Prop unless target is in Prop"
+
+    splitOnFibrantError' t = softTypeError =<< do
+      liftTCM $ SortOfSplitVarError <$> (mplus <$> isBlocked (getSort t) <*> isBlocked t) <*> fsep
+        [ "Cannot eliminate fibrant type" , prettyTCM a
+        , "unless context type", prettyTCM t, "is also fibrant."
+        ]
+
+    splitOnFibrantError tgt = softTypeError =<< do
+      liftTCM $ SortOfSplitVarError <$> (maybe (return Nothing) (isBlocked . getSort) tgt) <*> fsep
+        [ "Cannot eliminate fibrant type" , prettyTCM a
+        , "unless target type is also fibrant"
+        ]

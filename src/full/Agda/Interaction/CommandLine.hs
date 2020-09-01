@@ -15,7 +15,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Internal (telToList)
+import Agda.Syntax.Internal (telToList, alwaysUnblock)
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
@@ -159,8 +159,8 @@ showMetas [] =
         mapM_ (liftIO . print) =<< mapM showII interactionMetas
         mapM_ print' hiddenMetas
     where
-        showII o = withInteractionId (outputFormId $ OutputForm noRange [] o) $ prettyA o
-        showM  o = withMetaId (nmid $ outputFormId $ OutputForm noRange [] o) $ prettyA o
+        showII o = withInteractionId (outputFormId $ OutputForm noRange [] alwaysUnblock o) $ prettyA o
+        showM  o = withMetaId (nmid $ outputFormId $ OutputForm noRange [] alwaysUnblock o) $ prettyA o
 
         metaId (OfType i _) = i
         metaId (JustType i) = i

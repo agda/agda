@@ -121,6 +121,10 @@ errorWarnings = Set.fromList
   , CoInfectiveImport_
   , RewriteNonConfluent_
   , RewriteMaybeNonConfluent_
+  , RewriteAmbiguousRules_
+  , RewriteMissingRule_
+  , ExeNotFoundWarning_
+  , ExeNotExecutableWarning_
   ]
 
 allWarnings :: Set WarningName
@@ -198,6 +202,8 @@ data WarningName
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
+  | RewriteAmbiguousRules_
+  | RewriteMissingRule_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -227,6 +233,9 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
+  -- System call warnings
+  | ExeNotFoundWarning_
+  | ExeNotExecutableWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -342,8 +351,10 @@ warningNameDescription = \case
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
-  RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
-  RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
+  RewriteNonConfluent_             -> "Failed local confluence check while joining critical pairs."
+  RewriteAmbiguousRules_           -> "Failed global confluence check because of overlapping rules."
+  RewriteMissingRule_              -> "Failed global confluence check because of missing rule."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
@@ -369,3 +380,6 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
+  -- System call warnings
+  ExeNotFoundWarning_              -> "Trusted executable cannot be found."
+  ExeNotExecutableWarning_         -> "Trusted executable does not have permission to execute."

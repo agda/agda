@@ -3,6 +3,7 @@ module Agda.TypeChecking.MetaVars.Mention where
 
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -36,12 +37,11 @@ instance MentionsMeta Level where
 instance MentionsMeta PlusLevel where
   mentionsMetas xs (Plus _ a) = mentionsMetas xs a
 
-instance MentionsMeta LevelAtom where
-  mentionsMetas xs l = case l of
-    MetaLevel m vs   -> HashSet.member m xs || mentionsMetas xs vs
-    BlockedLevel m _ -> HashSet.member m xs  -- if it's blocked on a different meta it doesn't matter if it mentions the meta somewhere else
-    UnreducedLevel l -> mentionsMetas xs l
-    NeutralLevel _ l -> mentionsMetas xs l
+instance MentionsMeta Blocker where
+  mentionsMetas xs (UnblockOnAll bs)  = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnAny bs)  = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnMeta x)  = HashSet.member x xs
+  mentionsMetas xs UnblockOnProblem{} = False
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
@@ -50,7 +50,8 @@ instance MentionsMeta Sort where
   mentionsMetas xs s = case s of
     Type l     -> mentionsMetas xs l
     Prop l     -> mentionsMetas xs l
-    Inf _      -> False
+    Inf _ _    -> False
+    SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
     LockUniv   -> False
     PiSort a s -> mentionsMetas xs (a, s)
@@ -104,9 +105,7 @@ instance MentionsMeta Constraint where
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
-    TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
-    Guarded{}           -> False  -- This gets woken up when the problem it's guarded by is solved
     UnBlock _           -> True   -- this might be a postponed typechecking
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on
@@ -116,9 +115,7 @@ instance MentionsMeta Constraint where
     CheckFunDef{}       -> True   -- not sure what metas this depends on
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
-    UnquoteTactic bl tac hole goal -> case bl of
-      Nothing -> False
-      Just m  -> HashSet.member m xs
+    UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     where

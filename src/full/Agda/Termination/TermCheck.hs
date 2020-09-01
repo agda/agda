@@ -573,7 +573,7 @@ instance TermToPattern Term DeBruijnPattern where
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
       suc <- terGetSizeSuc
-      if Just s == suc then ConP (ConHead s Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
+      if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
        else return $ dotP t
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
@@ -619,7 +619,7 @@ termClause clause = do
       DotP o t -> termToDBP t
       p        -> return p
     stripCoCon p = case p of
-      ConP (ConHead c _ _) _ _ -> do
+      ConP (ConHead c _ _ _) _ _ -> do
         ifM ((Just c ==) <$> terGetSizeSuc) (return p) $ {- else -} do
         whatInduction c >>= \case
           Inductive   -> return p
@@ -678,11 +678,12 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Inf n      -> return empty
+      Inf f n    -> return empty
       SizeUniv   -> return empty
       LockUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
+      SSet t     -> terUnguarded $ extract t
       PiSort a s -> extract (a, s)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
@@ -732,17 +733,6 @@ function g es0 = do
 
     -- First, look for calls in the arguments of the call gArgs.
 
-    -- We have to reduce constructors in case they're reexported.
-    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
-    -- thus, we need to use traverseTermM.
-    let (reduceCon :: Term -> TCM Term) = traverseTermM $ \ t -> case t of
-           Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
-           _ -> return t
-
-    -- Reduce constructors only when this call is actually a recursive one.
-    -- es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ forM es $
-    --         etaContract <=< traverse reduceCon <=< instantiateFull
-
     -- If the function is a projection but not for a coinductive record,
     -- then preserve guardedness for its principal argument.
     isProj <- isProjectionButNotCoinductive g
@@ -777,12 +767,11 @@ function g es0 = do
          es <- -- ifM terGetHaveInlinedWith (return es0) {-else-} $
            liftTCM $ forM es0 $
              -- 2017-09-09, re issue #2732
-             -- The eta-contraction here does not seem necessary to make structural order
+             -- The eta-contraction that was here does not seem necessary to make structural order
              -- comparison not having to worry about eta.
              -- Maybe we thought an eta redex could come from a meta instantiation.
              -- However, eta-contraction is already performed by instantiateFull.
              -- See test/Succeed/Issue2732-termination.agda.
-             -- etaContract <=<
              traverse reduceCon <=< instantiateFull
 
            -- 2017-05-16, issue #2403: Argument normalization is too expensive,
@@ -855,6 +844,16 @@ function g es0 = do
              ]
          return $ CallGraph.insert src tgt cm info calls
 
+  where
+    -- We have to reduce constructors in case they're reexported.
+    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
+    -- thus, we need to use traverseTermM.
+    reduceCon :: Term -> TCM Term
+    reduceCon = traverseTermM $ \case
+      Con c ci vs -> (`applyE` vs) <$> reduce (Con c ci [])  -- make sure we don't reduce the arguments
+      t -> return t
+
+
 -- | Try to get rid of a function call targeting the current SCC
 --   using a non-recursive clause.
 --
@@ -907,7 +906,7 @@ instance ExtractCalls Term where
     case t of
 
       -- Constructed value.
-      Con ConHead{conName = c} _ es -> do
+      Con ConHead{conName = c, conDataRecord = dataOrRec} _ es -> do
         let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         -- A constructor preserves the guardedness of all its arguments.
         let argsg = zip args $ repeat True
@@ -915,13 +914,16 @@ instance ExtractCalls Term where
         -- If we encounter a coinductive record constructor
         -- in a type mutual with the current target
         -- then we count it as guarding.
-        ind <- ifM ((Just c ==) <$> terGetSharp) (return CoInductive) $ do
-          caseMaybeM (liftTCM $ isRecordConstructor c) (return Inductive) $ \ (q, def) -> do
+        let inductive   = return Inductive
+            coinductive = return CoInductive
+        ind <- ifM ((Just c ==) <$> terGetSharp) coinductive $ {-else-} do
+          if dataOrRec == IsData then inductive else do
+          caseMaybeM (liftTCM $ isRecordConstructor c) inductive $ \ (q, def) -> do
             reportSLn "term.check.term" 50 $ "constructor " ++ prettyShow c ++ " has record type " ++ prettyShow q
-            (\ b -> if b then CoInductive else Inductive) <$>
-              andM [ return $ recInduction def == Just CoInductive
-                   , targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def
-                   ]
+            if recInduction def /= Just CoInductive then inductive else do
+            ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def)
+               {-then-} coinductive
+               {-else-} inductive
         constructor c ind argsg
 
       -- Function, data, or record type.
@@ -973,12 +975,6 @@ instance ExtractCalls Level where
 
 instance ExtractCalls PlusLevel where
   extract (Plus n l) = extract l
-
-instance ExtractCalls LevelAtom where
-  extract (MetaLevel x es)   = extract es
-  extract (BlockedLevel x t) = extract t
-  extract (NeutralLevel _ t) = extract t
-  extract (UnreducedLevel t) = extract t
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
 maskSizeLt :: MonadTCM tcm => Dom Type -> tcm (Dom Type)

@@ -3,14 +3,17 @@ Failed to solve the following constraints:
   Candidates
     a : A
     overlap B.a b : A
+    (stuck)
   Resolve instance argument _24 : ⦃ c = c₁ : C ⦄ ⦃ d = d₁ : D ⦄ → A
   Candidates
     overlap C.a c : A
     D.a d : A
+    (stuck)
   Resolve instance argument _30 : ⦃ b = b₁ : B ⦄ → A
   Candidates
     overlap B.a b : A
     a : A
+    (stuck)
 Unsolved metas at the following locations:
   DisallowedOverlaps.agda:27,9-11
   DisallowedOverlaps.agda:31,9-11

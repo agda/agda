@@ -1,4 +1,4 @@
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --two-level #-}
 module Issue2487.b where
 
 -- trying to import a cubical, non-safe module

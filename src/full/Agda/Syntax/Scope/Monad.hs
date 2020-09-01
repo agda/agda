@@ -41,7 +41,7 @@ import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWar
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega )
+import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega, builtinSSetOmega )
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
@@ -393,7 +393,8 @@ canHaveSuffixTest = do
   builtinSet  <- getBuiltinName' builtinSet
   builtinProp <- getBuiltinName' builtinProp
   builtinSetOmega <- getBuiltinName' builtinSetOmega
-  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega]
+  builtinSSetOmega <- getBuiltinName' builtinSSetOmega
+  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
@@ -727,7 +728,7 @@ applyImportDirectiveM
   -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
   -> Scope                             -- ^ Input scope.
   -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
-applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
+applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
     -- Module names do not come with fixities, thus, we should complain if the
     -- user has supplied fixity annotations to @renaming module@ clauses.
@@ -804,6 +805,18 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
+    -- Andreas, 2020-06-23, issue #4773, fixing regression in 2.5.1.
+    -- Import directive may not mention private things.
+    -- ```agda
+    --   module M where private X = Set
+    --   module N = M using (X)
+    -- ```
+    -- Further, modules (N) need not copy private things (X) from other
+    -- modules (M) ever, since they cannot legally referred to
+    -- (neither through qualification (N.X) nor open N).
+    -- Thus, we can unconditionally remove private definitions
+    -- before we apply the import directive.
+    scope = restrictPrivate scope0
 
     -- | Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.
@@ -940,8 +953,7 @@ openModule kind mam cm dir = do
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
-                noGeneralizedVarsIfLetOpen kind .
-                restrictPrivate =<< getNamedScope m
+                noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)

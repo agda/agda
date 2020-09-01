@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.Benchmarking
   , B.MonadBench
+  , B.BenchPhase
   , B.getBenchmark
   , updateBenchmarkingStatus
   , B.billTo, B.billPureTo, B.billToCPS

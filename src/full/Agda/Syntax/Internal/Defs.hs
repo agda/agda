@@ -78,7 +78,8 @@ instance GetDefs Sort where
   getDefs s = case s of
     Type l    -> getDefs l
     Prop l    -> getDefs l
-    Inf _     -> return ()
+    Inf _ _   -> return ()
+    SSet l    -> getDefs l
     SizeUniv  -> return ()
     LockUniv  -> return ()
     PiSort a s  -> getDefs a >> getDefs s
@@ -93,13 +94,6 @@ instance GetDefs Level where
 
 instance GetDefs PlusLevel where
   getDefs (Plus _ l)    = getDefs l
-
-instance GetDefs LevelAtom where
-  getDefs a = case a of
-    MetaLevel x vs   -> getDefs x >> getDefs vs
-    BlockedLevel _ v -> getDefs v
-    NeutralLevel _ v -> getDefs v
-    UnreducedLevel v -> getDefs v
 
 -- collection instances
 

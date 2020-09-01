@@ -1,6 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
@@ -14,6 +12,7 @@ module Agda.TypeChecking.Primitive
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -77,9 +76,19 @@ instance Pretty Lvl where
 class PrimType a where
   primType :: a -> TCM Type
 
+  -- This used to be a catch-all instance `PrimType a => PrimTerm a` which required UndecidableInstances.
+  -- Now we declare the instances separately, but enforce the catch-all-ness with a superclass constraint on PrimTerm.
+  default primType :: PrimTerm a => a -> TCM Type
+  primType _ = el $ primTerm (undefined :: a)
+
+class PrimType a => PrimTerm a where
+  primTerm :: a -> TCM Term
+
+instance (PrimType a, PrimType b) => PrimType (a -> b)
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
   primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
+instance (PrimType a, PrimType b) => PrimType (a, b)
 instance (PrimType a, PrimType b) => PrimTerm (a, b) where
   primTerm _ = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
@@ -93,30 +102,51 @@ instance (PrimType a, PrimType b) => PrimTerm (a, b) where
              <@> pure (unEl a')
              <@> pure (nolam $ unEl b')
 
-instance PrimTerm a => PrimType a where
-  primType _ = el $ primTerm (undefined :: a)
-
-class    PrimTerm a       where primTerm :: a -> TCM Term
+instance PrimType Integer
 instance PrimTerm Integer where primTerm _ = primInteger
+
+instance PrimType Word64
 instance PrimTerm Word64  where primTerm _ = primWord64
+
+instance PrimType Bool
 instance PrimTerm Bool    where primTerm _ = primBool
+
+instance PrimType Char
 instance PrimTerm Char    where primTerm _ = primChar
+
+instance PrimType Double
 instance PrimTerm Double  where primTerm _ = primFloat
+
+instance PrimType Text
 instance PrimTerm Text    where primTerm _ = primString
+
+instance PrimType Nat
 instance PrimTerm Nat     where primTerm _ = primNat
+
+instance PrimType Lvl
 instance PrimTerm Lvl     where primTerm _ = primLevel
+
+instance PrimType QName
 instance PrimTerm QName   where primTerm _ = primQName
+
+instance PrimType MetaId
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
+
+instance PrimType Type
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimType Fixity'
 instance PrimTerm Fixity' where primTerm _ = primFixity
 
+instance PrimTerm a => PrimType [a]
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (Maybe a)
 instance PrimTerm a => PrimTerm (Maybe a) where
   primTerm _ = tMaybe (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (IO a)
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 
@@ -443,6 +473,13 @@ primStringToListInjective = do
   toList <- primFunName <$> getPrimitive "primStringToList"
   mkPrimInjective string chars toList
 
+primStringFromListInjective :: TCM PrimitiveImpl
+primStringFromListInjective = do
+  chars  <- primType (undefined :: String)
+  string <- primType (undefined :: Text)
+  fromList <- primFunName <$> getPrimitive "primStringFromList"
+  mkPrimInjective chars string fromList
+
 primWord64ToNatInjective :: TCM PrimitiveImpl
 primWord64ToNatInjective =  do
   word  <- primType (undefined :: Word64)
@@ -570,8 +607,8 @@ genPrimForce b ret = do
                     Datatype{} -> True
                     Record{}   -> True
                     _          -> False
-                MetaV{}    -> return False
                 Var{}      -> return False
+                MetaV{}    -> __IMPOSSIBLE__
                 Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
@@ -620,17 +657,24 @@ mkPrimLevelMax = do
     b' <- levelView' $ unArg b
     redReturn $ Level $ levelLub a' b'
 
-mkPrimSetOmega :: TCM PrimitiveImpl
-mkPrimSetOmega = do
-  let t = sort $ Inf 1
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
+mkPrimSetOmega :: IsFibrant -> TCM PrimitiveImpl
+mkPrimSetOmega f = do
+  let t = sort $ Inf f 1
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf f 0
 
 primLockUniv' :: TCM PrimitiveImpl
 primLockUniv' = do
   let t = sort $ Type $ levelSuc $ Max 0 []
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
+-- mkPrimStrictSet :: TCM PrimitiveImpl
+-- mkPrimStrictSet = do
+--   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ var 0])
+--   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
+--     l <- levelView' $ unArg a
+--     redReturn $ Sort $ SSet l
+
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -640,10 +684,10 @@ mkPrimFun1TCM mt f = do
       case ts of
         [v] ->
           redBind (toA v) singleton $ \ x -> do
-            b <- f x
-            case firstMeta b of
-              Just m  -> return $ NoReduction [reduced (Blocked m v)]
-              Nothing -> redReturn =<< fromB b
+            b <- fromB =<< f x
+            case allMetas Set.singleton b of
+              ms | Set.null ms -> redReturn b
+                 | otherwise   -> return $ NoReduction [reduced (Blocked (unblockOnAllMetas ms) v)]
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
@@ -679,6 +723,31 @@ mkPrimFun2 f = do
               (\w' -> [ reduced $ notBlocked $ Arg (argInfo v) (fromA x)
                       , w']) $ \y ->
           redReturn $ fromC $ f x y
+        _ -> __IMPOSSIBLE__
+
+mkPrimFun3 :: ( PrimType a, FromTerm a, ToTerm a
+              , PrimType b, FromTerm b, ToTerm b
+              , PrimType c, FromTerm c
+              , PrimType d, ToTerm d ) =>
+              (a -> b -> c -> d) -> TCM PrimitiveImpl
+mkPrimFun3 f = do
+    (toA, fromA) <- (,) <$> fromTerm <*> toTerm
+    (toB, fromB) <- (,) <$> fromTerm <*> toTerm
+    toC          <- fromTerm
+    fromD        <- toTerm
+    t <- primType f
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ts ->
+      let argFrom fromX a x =
+            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
+      in case ts of
+        [a,b,c] ->
+          redBind (toA a)
+              (\a' -> [a', notReduced b, notReduced c]) $ \x ->
+          redBind (toB b)
+              (\b' -> [argFrom fromA a x, b', notReduced c]) $ \y ->
+          redBind (toC c)
+              (\c' -> [ argFrom fromA a x, argFrom fromB b y, c']) $ \z ->
+          redReturn $ fromD $ f x y z
         _ -> __IMPOSSIBLE__
 
 mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
@@ -777,7 +846,9 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primLevelMax"        |-> mkPrimLevelMax
 
   -- Sorts
-  , "primSetOmega"        |-> mkPrimSetOmega
+  , "primSetOmega"        |-> mkPrimSetOmega IsFibrant
+  , "primStrictSetOmega"  |-> mkPrimSetOmega IsStrict
+--  , "primStrictSet"       |-> mkPrimStrictSet
 
   -- Floating point functions
   , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
@@ -828,13 +899,14 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
-  , "primStringToList"          |-> mkPrimFun1 T.unpack
-  , "primStringToListInjective" |-> primStringToListInjective
-  , "primStringFromList"        |-> mkPrimFun1 T.pack
-  , "primStringAppend"          |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
-  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Text)
-  , "primShowString"            |-> mkPrimFun1 (T.pack . prettyShow . LitString)
-  , "primStringUncons"          |-> mkPrimFun1 T.uncons
+  , "primStringToList"            |-> mkPrimFun1 T.unpack
+  , "primStringToListInjective"   |-> primStringToListInjective
+  , "primStringFromList"          |-> mkPrimFun1 T.pack
+  , "primStringFromListInjective" |-> primStringFromListInjective
+  , "primStringAppend"            |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
+  , "primStringEquality"          |-> mkPrimFun2 ((==) :: Rel Text)
+  , "primShowString"              |-> mkPrimFun1 (T.pack . prettyShow . LitString)
+  , "primStringUncons"            |-> mkPrimFun1 T.uncons
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality

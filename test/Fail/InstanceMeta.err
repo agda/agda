@@ -3,6 +3,7 @@ Failed to solve the following constraints:
   Candidates
     eq-Bool : Eq Bool
     eq-Maybe : {A : Set} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
+    (stuck)
 Unsolved metas at the following locations:
   InstanceMeta.agda:34,13-15
 Unsolved interaction metas at the following locations:

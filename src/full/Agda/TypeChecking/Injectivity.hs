@@ -139,8 +139,8 @@ headSymbol' v = do
       Lit _      -> return Nothing
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
-      MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
+      MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
@@ -239,8 +239,8 @@ checkOverapplication es = updateHeads overapplied
         Function{}     -> False
         Datatype{}     -> True
         Record{}       -> True
-        Constructor{conSrcCon = ConHead{ conFields = fs }}
-                       -> null fs   -- Record constructors can be eliminated by projections
+        Constructor{conSrcCon = ConHead{ conDataRecord = d, conFields = fs }}
+                       -> d == IsData || null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
         PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
@@ -281,10 +281,9 @@ functionInverse v = case v of
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
--- | Precondition: The first argument must be blocked and the second must be
---                 neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
-useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
+-- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
+useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
+useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   inv <- functionInverse blk
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
@@ -339,7 +338,7 @@ useInjectivity dir ty blk neu = locallyTC eInjectivityDepth succ $ do
           Just hd -> invertFunction cmp blk inv hd fallback err success
             where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
   where
-    fallback     = addConstraint $ app (ValueCmp cmp ty) blk neu
+    fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
     success blk' = app (compareAs cmp ty) blk' neu
 
     (cmp, app) = case dir of

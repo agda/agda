@@ -21,6 +21,7 @@ import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -111,6 +112,20 @@ addDefaultLibraries root o
   | otherwise = do
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
+
+addTrustedExecutables
+  :: CommandLineOptions
+  -> TCM CommandLineOptions
+addTrustedExecutables o
+  | optShowVersion o = do
+  return o
+  | otherwise = do
+  trustedExes <- libToTCM $ getTrustedExecutables
+  -- Wen, 2020-06-03
+  -- Replace the map wholesale instead of computing the union because this function
+  -- should never be called more than once, and doing so either has the same result
+  -- or is a security risk.
+  return o{ optTrustedExecutables = trustedExes }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
@@ -214,6 +229,9 @@ hasInputFile = isJust . optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
+
+isTwoLevelEnabled :: HasOptions m => m Bool
+isTwoLevelEnabled = collapseDefault . optTwoLevel <$> pragmaOptions
 
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool

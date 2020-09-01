@@ -13,8 +13,7 @@ import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarn
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import Agda.Interaction.Library
-import Agda.Interaction.Library.Parse
+import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
 import Agda.Utils.Pretty
 
@@ -86,6 +85,8 @@ instance EmbPrj Warning where
     DuplicateUsing a                      -> icodeN 33 DuplicateUsing a
     UselessHiding a                       -> icodeN 34 UselessHiding a
     GenericUseless a b                    -> icodeN 35 GenericUseless a b
+    RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
+    RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -124,6 +125,8 @@ instance EmbPrj Warning where
     [33, a]              -> valuN DuplicateUsing a
     [34, a]              -> valuN UselessHiding a
     [35, a, b]           -> valuN GenericUseless a b
+    [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
+    [37, a, b, c]        -> valuN RewriteMissingRule a b c
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where
@@ -214,10 +217,22 @@ instance EmbPrj LibWarning where
 
 instance EmbPrj LibWarning' where
   icod_ = \case
-    UnknownField a -> icodeN 0 UnknownField a
+    UnknownField     a   -> icodeN 0 UnknownField a
+    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
+    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
-    [0, a]   -> valuN UnknownField a
+    [0, a]    -> valuN UnknownField a
+    [1, a, b] -> valuN ExeNotFound a b
+    [2, a, b] -> valuN ExeNotExecutable a b
+    _ -> malformed
+
+instance EmbPrj ExecutablesFile where
+  icod_ = \case
+    ExecutablesFile a b -> icodeN 0 ExecutablesFile a b
+
+  value = vcase $ \case
+    [0, a, b] -> valuN ExecutablesFile a b
     _ -> malformed
 
 instance EmbPrj LibPositionInfo where
@@ -225,7 +240,7 @@ instance EmbPrj LibPositionInfo where
     LibPositionInfo a b c -> icodeN 0 LibPositionInfo a b c
 
   value = vcase $ \case
-    [0, a, b, c]   -> valuN LibPositionInfo a b c
+    [0, a, b, c] -> valuN LibPositionInfo a b c
     _ -> malformed
 
 instance EmbPrj Doc where
@@ -235,13 +250,22 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb
     _ -> malformed
+
+instance EmbPrj ConfluenceCheck where
+  icod_ LocalConfluenceCheck  = icodeN' LocalConfluenceCheck
+  icod_ GlobalConfluenceCheck = icodeN 0 GlobalConfluenceCheck
+
+  value = vcase valu where
+    valu []  = valuN LocalConfluenceCheck
+    valu [0] = valuN GlobalConfluenceCheck
+    valu _   = malformed
 
 instance EmbPrj WarningMode where
   icod_ = \case

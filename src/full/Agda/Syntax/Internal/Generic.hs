@@ -10,6 +10,7 @@ import Data.Monoid ((<>))
 #endif
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Utils.Functor
 
 -- | Generic term traversal.
 --
@@ -24,7 +25,6 @@ class TermLike a where
 
   default traverseTermM :: (Monad m, Traversable f, TermLike b, f b ~ a)
                         => (Term -> m Term) -> a -> m a
-
   traverseTermM = traverse . traverseTermM
 
   -- | Generic fold, ignoring sorts.
@@ -63,8 +63,8 @@ instance TermLike a => TermLike (Arg a)        where
 instance TermLike a => TermLike (Dom a)        where
 instance TermLike a => TermLike [a]            where
 instance TermLike a => TermLike (Maybe a)      where
-instance TermLike a => TermLike (Abs a)        where
 instance TermLike a => TermLike (Blocked a)    where
+instance TermLike a => TermLike (Abs a)        where
 instance TermLike a => TermLike (Tele a)       where
 instance TermLike a => TermLike (WithHiding a) where
 
@@ -120,18 +120,6 @@ instance TermLike PlusLevel where
   traverseTermM f (Plus n l) = Plus n <$> traverseTermM f l
   foldTerm f (Plus _ l)      = foldTerm f l
 
-instance TermLike LevelAtom where
-  traverseTermM f l = case l of
-    MetaLevel m vs   -> MetaLevel m <$> traverseTermM f vs
-    NeutralLevel r v -> NeutralLevel r <$> traverseTermM f v
-    BlockedLevel m v -> BlockedLevel m <$> traverseTermM f v
-    UnreducedLevel v -> UnreducedLevel <$> traverseTermM f v
-  foldTerm f l = case l of
-    MetaLevel m vs   -> foldTerm f vs
-    NeutralLevel _ v -> foldTerm f v
-    BlockedLevel _ v -> foldTerm f v
-    UnreducedLevel v -> foldTerm f v
-
 instance TermLike Type where
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
@@ -140,7 +128,8 @@ instance TermLike Sort where
   traverseTermM f s = case s of
     Type l     -> Type <$> traverseTermM f l
     Prop l     -> Prop <$> traverseTermM f l
-    Inf _      -> pure s
+    Inf _ _    -> pure s
+    SSet l     -> SSet <$> traverseTermM f l
     SizeUniv   -> pure s
     LockUniv   -> pure s
     PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
@@ -153,7 +142,8 @@ instance TermLike Sort where
   foldTerm f s = case s of
     Type l     -> foldTerm f l
     Prop l     -> foldTerm f l
-    Inf _      -> mempty
+    Inf _ _    -> mempty
+    SSet l     -> foldTerm f l
     SizeUniv   -> mempty
     LockUniv   -> mempty
     PiSort a b -> foldTerm f a <> foldTerm f b

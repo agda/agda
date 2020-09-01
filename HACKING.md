@@ -32,10 +32,19 @@ Note: Some instructions in this document are likely outdated,
 so take everything with a grain of salt.
 Fixes to outdated instructions welcome!
 
-Working with git
+Working with Git
 ================
 
 Since: 2013-06-15.
+
+Cloning
+--------
+
+Since Agda's repository uses submodules, you should cloning the
+repository by running:
+```bash
+git clone --recurse-submodules git@github.com:agda/agda.git
+```
 
 Branches
 ---------
@@ -208,6 +217,21 @@ Testing and documentation
 * Run the test-suite, using `make test`.
   Maybe you want to build Agda first, using `make` or `make install-bin`.
 
+* To persist local Makefile options, create a file called `mk/config.mk`.
+  This path is `.gitignored` and will be loaded if it exists. Put custom
+  overrides there.
+
+* Test parallelization can be controlled via the `PARALLEL_TESTS` Makefile
+  variable. If unset, it will default to the number of CPUs available.
+  This variable can be customized per-run as usual:
+  ```sh
+    make PARALLEL_TESTS=4 test
+  ```
+  To keep it a persisted default, add it to your `mk/config.mk`:
+  ```make
+    PARALLEL_TESTS = 4
+  ```
+
 * You can run a single interaction test by going into the
   `test/interaction` directory and typing `make <test name>.cmp`.
 
@@ -322,6 +346,25 @@ you some time. One caveat:
 
 You should see the status in your GitHub Actions page and
 the Travis dashboard page, if successful.
+
+### Skipping workflows / Work-In-Progress (WIP) commits
+
+It is also possible to skip Travis jobs and/or GitHub workflows using a special
+phrase in the (head) commit message. The phrase may appear anywhere in the
+commit message. The acceptable phrases are listed below.
+
+The Travis jobs and GitHub workflows will check for the phrase in the head commit
+(only) of a push (i.e. if you push 3 commits at once, only the most recent
+commit's message is checked for the phrase).
+
+| Phrase | Effect |
+|---|---|
+| `[ci skip]` | Skips both Travis jobs and GitHub workflows |
+| `[skip ci]` | As-per `[ci skip]` |
+| `[travis skip]` | Skip only Travis jobs (i.e. GitHub workflows will still run) |
+| `[skip travis]` | As-per `[travis skip]` |
+| `[github skip]` | Skip only GitHub workflows (i.e. Travis jobs will still run) |
+| `[skip github]` | As-per `[github skip]` |
 
 Some Agda Hacking Lore
 ======================

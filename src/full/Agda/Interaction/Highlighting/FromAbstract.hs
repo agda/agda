@@ -78,9 +78,6 @@ type HiliteM = Reader HiliteEnv
 -- | Highlighter.
 type Hiliter = HiliteM File
 
-instance Semigroup Hiliter where
-  (<>) = liftA2 (<>)
-
 instance Monoid Hiliter where
   mempty  = pure mempty
   mappend = (<>)

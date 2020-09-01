@@ -453,6 +453,8 @@ warningHighlighting' b w = case tcWarning w of
   LibraryWarning{}           -> mempty
   RewriteNonConfluent{}      -> confluenceErrorHighlighting w
   RewriteMaybeNonConfluent{} -> confluenceErrorHighlighting w
+  RewriteAmbiguousRules{}    -> confluenceErrorHighlighting w
+  RewriteMissingRule{}       -> confluenceErrorHighlighting w
   PragmaCompileErased{}      -> deadcodeHighlighting w
   NotInScopeW{}              -> deadcodeHighlighting w
   AsPatternShadowsConstructorOrPatternSynonym{}
@@ -619,7 +621,6 @@ constraintsHighlighting ms cs =
     Closure{ clValue = IsEmpty r t           } -> Just r
     Closure{ clEnv = e, clValue = ValueCmp{} } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = ElimCmp{}  } -> Just $ getRange (envRange e)
-    Closure{ clEnv = e, clValue = TelCmp{}   } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = SortCmp{}  } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = LevelCmp{} } -> Just $ getRange (envRange e)
     Closure{ clEnv = e, clValue = CheckSizeLtSat{} } -> Just $ getRange (envRange e)

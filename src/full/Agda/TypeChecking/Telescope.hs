@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Telescope where
 
@@ -37,7 +38,7 @@ import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.Impossible
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
-flattenTel :: Subst Term a => Tele (Dom a) -> [Dom a]
+flattenTel :: TermSubst a => Tele (Dom a) -> [Dom a]
 flattenTel EmptyTel          = []
 flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 
@@ -334,9 +335,11 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
 
-    cpi         = noConPatternInfo
+    cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
+      , conPFallThrough
+                   = False
       , conPType   = Just $ snd <$> argFromDom a
       , conPLazy   = True
       }
@@ -492,7 +495,7 @@ pathViewAsPi'whnf = do
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El (Inf 0) interval
+          i = El (SSet $ ClosedLevel 0) interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 
@@ -575,21 +578,21 @@ ifNotPi = flip . ifPi
 ifNotPiType :: MonadReduce m => Type -> (Type -> m a) -> (Dom Type -> Abs Type -> m a) -> m a
 ifNotPiType = flip . ifPiType
 
-ifNotPiOrPathType :: (MonadReduce tcm, MonadTCM tcm) => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPiOrPathType :: (MonadReduce tcm, HasBuiltins tcm) => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
 ifNotPiOrPathType t no yes = do
-  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (liftTCM pathViewAsPi'whnf <*> pure t))
+  ifPiType t yes (\ t -> either (uncurry yes . fst) (const $ no t) =<< (pathViewAsPi'whnf <*> pure t))
 
 
 -- | A safe variant of 'piApply'.
 
 class PiApplyM a where
-  piApplyM' :: MonadReduce m => m Empty -> Type -> a -> m Type
+  piApplyM' :: (MonadReduce m, HasBuiltins m) => m Empty -> Type -> a -> m Type
 
-  piApplyM :: MonadReduce m => Type -> a -> m Type
+  piApplyM :: (MonadReduce m, HasBuiltins m) => Type -> a -> m Type
   piApplyM = piApplyM' __IMPOSSIBLE__
 
 instance PiApplyM Term where
-  piApplyM' err t v = ifNotPiType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
+  piApplyM' err t v = ifNotPiOrPathType t (\_ -> absurd <$> err) {-else-} $ \ _ b -> return $ absApp b v
 
 instance PiApplyM a => PiApplyM (Arg a) where
   piApplyM' err t = piApplyM' err t . unArg
@@ -616,7 +619,7 @@ data OutputTypeName
   = OutputTypeName QName
   | OutputTypeVar
   | OutputTypeVisiblePi
-  | OutputTypeNameNotYetKnown
+  | OutputTypeNameNotYetKnown Blocker
   | NoOutputTypeName
 
 -- | Strips all hidden and instance Pi's and return the argument
@@ -624,7 +627,7 @@ data OutputTypeName
 getOutputTypeName :: Type -> TCM (Telescope, OutputTypeName)
 getOutputTypeName t = do
   TelV tel t' <- telViewUpTo' (-1) notVisible t
-  ifBlocked (unEl t') (\ _ _ -> return (tel , OutputTypeNameNotYetKnown)) $ \ _ v ->
+  ifBlocked (unEl t') (\ b _ -> return (tel , OutputTypeNameNotYetKnown b)) $ \ _ v ->
     case v of
       -- Possible base types:
       Def n _  -> return (tel , OutputTypeName n)
@@ -646,7 +649,7 @@ addTypedInstance x t = do
   (tel , n) <- getOutputTypeName t
   case n of
     OutputTypeName n -> addNamedInstance x n
-    OutputTypeNameNotYetKnown -> addUnknownInstance x
+    OutputTypeNameNotYetKnown{} -> addUnknownInstance x
     NoOutputTypeName -> warning $ WrongInstanceDeclaration
     OutputTypeVar -> warning $ WrongInstanceDeclaration
     OutputTypeVisiblePi -> warning $ InstanceWithExplicitArg x

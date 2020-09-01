@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  _0 (F1 = F1) =< Set₁
+  _0 (F1 = F1) =< Set₁ (blocked on _0)
 Unsolved metas at the following locations:
   Issue2420.agda:10,10-14
 Unsolved interaction metas at the following locations:

@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Rules.Decl where
 
@@ -225,7 +226,8 @@ checkDecl d = setCurrentRange d $ do
 
     -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
-          . ( MonadTCEnv m, MonadPretty m, MonadDebug m, MonadBench Phase m
+          . ( MonadTCEnv m, MonadPretty m, MonadDebug m
+            , MonadBench m, Bench.BenchPhase m ~ Phase
             , AnyIsAbstract i )
           => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
@@ -688,8 +690,12 @@ checkPrimitive i x (Arg info e) =
           , "primLevelSuc"
           , "primLevelMax"
           , "primSetOmega"
+          , "primStrictSet"
+          , "primStrictSetOmega"
           ]
-    when (name `elem` builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
+    when (name `elem` builtinPrimitives) $ do
+      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x

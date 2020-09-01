@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --confluence-check #-}
+{-# OPTIONS --rewriting --local-confluence-check #-}
 
 module RewritingNat where
 

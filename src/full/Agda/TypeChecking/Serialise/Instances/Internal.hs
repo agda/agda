@@ -65,8 +65,18 @@ instance EmbPrj a => EmbPrj (Elim' a) where
     valu [0, a, b] = valuN Proj a b
     valu _         = malformed
 
+instance EmbPrj I.DataOrRecord where
+  icod_ = \case
+    IsData      -> icodeN' IsData
+    IsRecord pm -> icodeN' IsRecord pm
+
+  value = vcase $ \case
+    []   -> valuN IsData
+    [pm] -> valuN IsRecord pm
+    _    -> malformed
+
 instance EmbPrj I.ConHead where
-  icod_ (ConHead a b c) = icodeN' ConHead a b c
+  icod_ (ConHead a b c d) = icodeN' ConHead a b c d
 
   value = valueN ConHead
 
@@ -123,30 +133,26 @@ instance EmbPrj PlusLevel where
 
   value = valueN Plus
 
-instance EmbPrj LevelAtom where
-  icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
-  icod_ (UnreducedLevel a) = icodeN 1 UnreducedLevel a
-  icod_ (MetaLevel a b)    = __IMPOSSIBLE__
-  icod_ BlockedLevel{}     = __IMPOSSIBLE__
+instance EmbPrj IsFibrant where
+  icod_ IsFibrant = return 0
+  icod_ IsStrict  = return 1
 
-  value = vcase valu where
-    valu [a]    = valuN UnreducedLevel a -- we forget that we are a NeutralLevel,
-                                         -- since we do not want do (de)serialize
-                                         -- the reason for neutrality
-    valu [1, a] = valuN UnreducedLevel a
-    valu _      = malformed
+  value 0 = return IsFibrant
+  value 1 = return IsStrict
+  value _ = malformed
 
 instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icodeN 0 Type a
   icod_ (Prop  a  ) = icodeN 1 Prop a
   icod_ SizeUniv    = icodeN 2 SizeUniv
-  icod_ (Inf a)     = icodeN 3 Inf a
+  icod_ (Inf f a)   = icodeN 3 Inf f a
   icod_ (PiSort a b) = icodeN 4 PiSort a b
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 7 DefS a b
-  icod_ LockUniv    = icodeN 8 LockUniv
+  icod_ (SSet  a  ) = icodeN 8 SSet a
+  icod_ LockUniv    = icodeN 9 LockUniv
   icod_ (DummyS s)   = do
     liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
     __IMPOSSIBLE__
@@ -155,12 +161,13 @@ instance EmbPrj I.Sort where
     valu [0, a]    = valuN Type  a
     valu [1, a]    = valuN Prop  a
     valu [2]       = valuN SizeUniv
-    valu [3, a]    = valuN Inf a
+    valu [3, f, a] = valuN Inf f a
     valu [4, a, b] = valuN PiSort a b
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
     valu [7, a, b] = valuN DefS a b
-    valu [8]       = valuN LockUniv
+    valu [8, a]    = valuN SSet a
+    valu [9]       = valuN LockUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -253,14 +260,14 @@ instance EmbPrj NLPType where
 instance EmbPrj NLPSort where
   icod_ (PType a)   = icodeN 0 PType a
   icod_ (PProp a)   = icodeN 1 PProp a
-  icod_ (PInf a)    = icodeN 2 PInf a
+  icod_ (PInf f a)  = icodeN 2 PInf f a
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
   icod_ PLockUniv   = icodeN 4 PSizeUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
     valu [1, a] = valuN PProp a
-    valu [2, a] = valuN PInf a
+    valu [2, f, a] = valuN PInf f a
     valu [3]    = valuN PSizeUniv
     valu [4]    = valuN PLockUniv
     valu _      = malformed

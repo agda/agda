@@ -187,7 +187,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
-    primSet, primProp, primSetOmega,
+    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -218,7 +218,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
     primAgdaTCMNoConstraints,
-    primAgdaTCMRunSpeculative
+    primAgdaTCMRunSpeculative,
+    primAgdaTCMExec
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -304,6 +305,8 @@ primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
 primLockUniv                          = getPrimitiveTerm builtinLockUniv
+primSSetOmega                         = getBuiltin builtinSSetOmega
+primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
@@ -404,6 +407,7 @@ primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisati
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
+primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 
 -- | The coinductive primitives.
 
@@ -434,7 +438,8 @@ coinductionKit = tryMaybe coinductionKit'
 data SortKit = SortKit
   { nameOfSet      :: QName
   , nameOfProp     :: QName
-  , nameOfSetOmega :: QName
+  , nameOfSSet     :: QName
+  , nameOfSetOmega :: IsFibrant -> QName
   }
 
 sortKit :: HasBuiltins m => m SortKit
@@ -442,10 +447,15 @@ sortKit = do
   Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
-    , nameOfSetOmega = setomega
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
     }
 
 
