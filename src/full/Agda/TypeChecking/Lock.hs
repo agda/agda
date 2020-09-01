@@ -7,30 +7,22 @@ module Agda.TypeChecking.Lock
   )
 where
 
-import Control.Arrow (first, second)
 import Control.Monad.Reader
 
-import qualified Data.Map as Map
-import qualified Data.IntMap as IMap
+--import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
 
-import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute.Class
-import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 
-import Agda.Utils.Function
-import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -60,7 +52,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
      ]
 
   -- Strategy: compute allowed variables, check that @t@ doesn't use more.
-  mv <- isVar =<< reduce (unArg lk)
+  mv <- isVar (unArg lk)
   caseMaybe mv noVar $ \ i -> do
 
   isLock i
@@ -94,9 +86,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     -- blockingMetas = map (`lookupVarMap` flexVars) (ISet.toList $ termVars ISet.\\ allowedVars)
     patternViolation alwaysUnblock
   else do
-    typeError . GenericDocError =<<
-         ("The following vars are not allowed in a later value applied to"
-          <+> prettyTCM lk <+> ":" <+> prettyTCM (map var $ ISet.toList illegalVars))
+    notAllowedVarsError (unArg lk) (ISet.toList illegalVars)
  where
    noVar = typeError $ GenericError "lock should be a var"
    isLock i = do
@@ -106,27 +96,32 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
 
 -- to use only on lock terms
 isVar :: Term -> TCMT IO (Maybe Int)
-isVar (Var l []) = return $ Just l
-isVar (MetaV m _) = patternViolation (unblockOnMeta m)
-isVar _ = return $ Nothing
+isVar t = do
+  t <- abortIfBlocked t
+  case t of
+    (Var l []) -> return $ Just l
+    _          -> return $ Nothing
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
-  ifBlocked t (\ b _ -> patternViolation b) $ \ _ t -> do
+  t <- abortIfBlocked t
   timeless <- mapM getName' [builtinInterval, builtinIsOne]
   case unEl t of
     Def q _ | Just q `elem` timeless -> return True
     _                                -> return False
 
+notAllowedVarsError :: Term -> [Int] -> TCM b
+notAllowedVarsError lk is = do
+        typeError . GenericDocError =<<
+         ("The following vars are not allowed in a later value applied to"
+          <+> prettyTCM lk <+> ":" <+> prettyTCM (map var $ is))
 
 checkEarlierThan :: Term -> VarSet -> TCM ()
 checkEarlierThan lk fvs = do
-  -- we should use ifBlocked lk
-  mv <- isVar =<< reduce lk
-  caseMaybe mv (patternViolation alwaysUnblock) $ \ i -> do
+  mv <- isVar lk
+  caseMaybe mv __IMPOSSIBLE__ $ \ i -> do
     let problems = filter (<= i) $ Set.toList fvs
     forM_ problems $ \ j -> do
       ty <- typeOfBV j
       unlessM (isTimeless ty) $
-        -- should be an error?
-        patternViolation alwaysUnblock
+        notAllowedVarsError lk [j]
