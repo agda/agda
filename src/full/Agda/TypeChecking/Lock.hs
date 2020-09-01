@@ -121,7 +121,7 @@ isTimeless t = do
 
 checkEarlierThan :: Term -> VarSet -> TCM ()
 checkEarlierThan lk fvs = do
-  -- we should use ifBlocked lk 
+  -- we should use ifBlocked lk
   mv <- isVar =<< reduce lk
   caseMaybe mv (patternViolation alwaysUnblock) $ \ i -> do
     let problems = filter (<= i) $ Set.toList fvs
