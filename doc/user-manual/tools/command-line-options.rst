@@ -752,7 +752,7 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
      name.
 
 Examples
-~~~~~~~~
+--------
 
 Run Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
@@ -768,6 +768,8 @@ as described in :ref:`package-system`
 .. code-block:: console
 
    agda -l standard-library -i. file.agda
+
+(Or if you have added ``standard-library`` to your ``defaults`` file, simply ``agda file.agda``)
 
 .. _consistency-checking-options:
 
