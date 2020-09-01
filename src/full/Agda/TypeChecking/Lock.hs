@@ -68,7 +68,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   cxt <- getContext
   let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
 
-  let fv = freeVarsIgnore IgnoreInAnnotations t
+  let fv = freeVarsIgnore IgnoreInAnnotations (t,ty)
   let
     rigid = rigidVars fv
     -- flexible = IMap.keysSet $ flexibleVars fv
