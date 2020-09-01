@@ -55,3 +55,43 @@ hcompLater A φ u u0 = primHComp (\ { i (φ = i1) → u i 1=1 }) (outS u0)
 
 hcompLater-test : ∀ (A : ▹ Set) φ (u : I → Partial φ (▸ A)) → (u0 : (▸ A) [ φ ↦ u i0 ]) → hcompLater A φ u u0 ≡ hcompLater-prim A φ u u0
 hcompLater-test A φ u x = \ _ → hcompLater-prim A φ u x
+
+ap : ∀ {A B : Set} (f : A → B) → ∀ {x y} → x ≡ y → f x ≡ f y
+ap f eq = \ i → f (eq i)
+
+_$>_ : ∀ {A B : Set} {f g : A → B} → f ≡ g → ∀ x → f x ≡ g x
+eq $> x = \ i → eq i x
+later-ext : ∀ {A : Set} → {f g : ▹ A} → (▸ \ α → f α ≡ g α) → f ≡ g
+later-ext eq = \ i α → eq α i
+
+postulate
+  dfix : ∀ {l} {A : Set l} → (▹ A → A) → ▹ A
+  pfix : ∀ {l} {A : Set l} (f : ▹ A → A) → dfix f ≡ (\ _ → f (dfix f))
+
+pfix' : ∀ {l} {A : Set l} (f : ▹ A → A) → ▸ \ α → dfix f α ≡ f (dfix f)
+pfix' f α i = pfix f i α
+
+fix : ∀ {l} {A : Set l} → (▹ A → A) → A
+fix f = f (dfix f)
+
+data gStream (A : Set) : Set where
+  cons : (x : A) (xs : ▹ gStream A) → gStream A
+
+
+repeat : ∀ {A : Set} → A → gStream A
+repeat a = fix \ repeat▹ → cons a repeat▹
+
+repeat-eq : ∀ {A : Set} (a : A) → repeat a ≡ cons a (\ α → repeat a)
+repeat-eq a = ap (cons a) (pfix (cons a))
+
+map : ∀ {A B : Set} → (A → B) → gStream A → gStream B
+map f = fix \ map▹ → \ { (cons a as) → cons (f a) \ α → map▹ α (as α) }
+
+map-eq : ∀ {A B : Set} → (f : A → B) → ∀ a as → map f (cons a as) ≡ cons (f a) (\ α → map f (as α))
+map-eq f a b = ap (cons _) (later-ext \ α → pfix' _ α $> b α)
+
+_∙_ : ∀ {A : Set} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
+_∙_ {x = x} p q i = primHComp (\ j → \ { (i = i0) → x; (i = i1) → q j}) (p i)
+
+map-repeat : ∀ {A B : Set} → (a : A) → (f : A → B) → map f (repeat a) ≡ repeat (f a)
+map-repeat a f = fix \ prf▹ → ap (map f) (repeat-eq a) ∙ (map-eq f a _ ∙ ap (cons (f a)) (later-ext prf▹ ∙ later-ext \ α → \ i → pfix' (cons (f a)) α (primINeg i) ))
