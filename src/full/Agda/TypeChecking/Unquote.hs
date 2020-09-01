@@ -32,6 +32,7 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -677,12 +678,17 @@ evalTCM v = do
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
       a <- liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext (domFromArg a :: Dom Type)) m
+      liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      strengthen __UNREACHABLE__ <$> extendCxt a (evalTCM $ raise 1 m)
+      fmap (strengthen __IMPOSSIBLE__) $ extendCxt a $ do
+        v <- evalTCM $ raise 1 m
+        when (freeIn 0 v) $ liftTCM $ genericDocError =<<
+          hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
+            <?> prettyTCM v
+        return v
 
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
