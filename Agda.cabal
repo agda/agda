@@ -238,7 +238,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.2)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.11)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
