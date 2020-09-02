@@ -9,9 +9,13 @@
 -- overriden (e.g. --cubical implies --without-K) while in the other case the
 -- user has made a mistake which they need to fix.
 
-module Agda.Utils.WithDefault where
+module Agda.Utils.WithDefault
+  ( WithDefault (Default, Value)
+  , setDefault
+  , collapseDefault
+  ) where
 
-import Agda.Utils.TypeLits
+import Agda.Utils.TypeLits (KnownBool, boolVal)
 
 -- We don't want to have to remember for each flag whether its default value
 -- is True or False. So we bake it into the representation: the flag's type

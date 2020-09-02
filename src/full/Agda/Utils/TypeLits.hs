@@ -5,7 +5,10 @@
 
 -- | Type level literals, inspired by GHC.TypeLits.
 
-module Agda.Utils.TypeLits where
+module Agda.Utils.TypeLits
+  ( KnownBool
+  , boolVal
+  ) where
 
 -- | Singleton for type level booleans.
 
