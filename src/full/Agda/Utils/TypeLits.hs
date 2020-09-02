@@ -1,37 +1,27 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE GADTs          #-}
-
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 
 -- | Type level literals, inspired by GHC.TypeLits.
 
 module Agda.Utils.TypeLits
   ( KnownBool
   , boolVal
+  , KnownVal
+  , knownVal
   ) where
 
--- | Singleton for type level booleans.
+-- | Singleton for type level values.
+-- | A known value is one we can obtain a singleton for.
 
-data SBool (b :: Bool) where
-  STrue  :: SBool 'True
-  SFalse :: SBool 'False
+class KnownVal (v :: t) where
+  knownVal :: forall proxy. proxy v -> t
 
-eraseSBool :: SBool b -> Bool
-eraseSBool = \case
-  STrue  -> True
-  SFalse -> False
+-- | Type-level booleans.
 
--- | A known boolean is one we can obtain a singleton for.
---   Concrete values are trivially known.
+instance KnownVal 'True  where knownVal _ = True
+instance KnownVal 'False where knownVal _ = False
 
-class KnownBool (b :: Bool) where
-  boolSing :: SBool b
-
-instance KnownBool 'True where
-  boolSing = STrue
-
-instance KnownBool 'False where
-  boolSing = SFalse
+type KnownBool (b :: Bool) = KnownVal b
 
 boolVal :: forall proxy b. KnownBool b => proxy b -> Bool
-boolVal _ = eraseSBool (boolSing :: SBool b)
+boolVal = knownVal
