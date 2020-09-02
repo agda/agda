@@ -287,8 +287,9 @@ compareTerm' cmp a m n =
                   isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     not <$> usesCopatterns q -- a def by copattern can reduce if projected
                   isNeutral _                   = return True
-                  isMeta (NotBlocked _ MetaV{}) = True
-                  isMeta _                      = False
+                  isMeta b = case ignoreBlocking b of
+                               MetaV{} -> True
+                               _       -> False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
               m <- reduceB m
@@ -378,25 +379,6 @@ compareTerm' cmp a m n =
               compareTerm cmp ty (mkOut m) (mkOut n)
          Def q [] | Just q == mI -> compareInterval cmp a' m n
          _ -> compareAtom cmp (AsTermsOf a') m n
-
--- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
---   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
---   not.
-compareTel :: MonadConversion m => Type -> Type ->
-  Comparison -> Telescope -> Telescope -> m ()
-compareTel t1 t2 cmp tel1 tel2 =
-  verboseBracket "tc.conv.tel" 20 "compareTel" $
-  catchConstraint (TelCmp t1 t2 cmp tel1 tel2) $ case (tel1, tel2) of
-    (EmptyTel, EmptyTel) -> return ()
-    (EmptyTel, _)        -> bad
-    (_, EmptyTel)        -> bad
-    (ExtendTel dom1{-@(Dom i1 a1)-} tel1, ExtendTel dom2{-@(Dom i2 a2)-} tel2) -> do
-      compareDom cmp dom1 dom2 tel1 tel2 bad bad bad bad $
-        compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
-  where
-    -- Andreas, 2011-05-10 better report message about types
-    bad = typeError $ UnequalTypes cmp t2 t1
-      -- switch t2 and t1 because of contravariance!
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
@@ -497,11 +479,12 @@ compareAtom cmp t m n =
     case (mb, nb) of
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
-      (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
-          | x == y , cmpBlocked -> do
+      _ | MetaV x xArgs <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
+          MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
+        if | x == y, cmpBlocked -> do
               a <- metaType x
               compareElims [] [] a (MetaV x []) xArgs yArgs
-          | x == y ->
+           | x == y ->
             case intersectVars xArgs yArgs of
               -- all relevant arguments are variables
               Just kills -> do
@@ -515,7 +498,7 @@ compareAtom cmp t m n =
               -- not all relevant arguments are variables
               Nothing -> checkDefinitionalEquality -- Check definitional equality on meta-variables
                               -- (same as for blocked terms)
-          | otherwise -> do
+           | otherwise -> do
               [p1, p2] <- mapM getMetaPriority [x,y]
               -- First try the one with the highest priority. If that doesn't
               -- work, try the low priority one.
@@ -532,9 +515,9 @@ compareAtom cmp t m n =
               -- Unblock on both unblockers of solve1 and solve2
               catchPatternErr (`addOrUnblocker` solve2) solve1
 
-      -- one side a meta, the other an unblocked term
-      (NotBlocked _ (MetaV x es), _) -> assign dir x es n
-      (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
+      -- one side a meta
+      _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
+      _ | MetaV x es <- ignoreBlocking nb -> assign rid x es m
       (Blocked{}, Blocked{})  -> checkDefinitionalEquality
       (Blocked b _, _) -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term goes first
       (_, Blocked b _) -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
@@ -1071,10 +1054,6 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
         compareAs cmp AsTypes a1 a2
-        unlessM ((optCumulativity <$> pragmaOptions) `or2M`
-                 (not . optCompareSorts <$> pragmaOptions)) $
-          compareSort CmpEq s1 s2
-        return ()
 
 leqType :: MonadConversion m => Type -> Type -> m ()
 leqType = compareType CmpLeq
@@ -1320,14 +1299,18 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
               , prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView b
               ]
 
-      wrap $ case (levelMaxView a, levelMaxView b) of
+      -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+      aB <- mapM reduceB a
+      bB <- mapM reduceB b
+
+      wrap $ case (levelMaxView aB, levelMaxView bB) of
 
         -- 0 ≤ any
         (SingleClosed 0 :| [] , _) -> ok
 
         -- any ≤ 0
         (as , SingleClosed 0 :| []) ->
-          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ fmap ignoreBlocking a') (ClosedLevel 0)
 
         -- closed ≤ closed
         (SingleClosed m :| [], SingleClosed n :| []) -> if m <= n then ok else notok
@@ -1342,7 +1325,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
         -- ⊔ as ≤ single
         (as@(_:|_:_), b :| []) ->
-          forM_ as $ \ a' -> leqLevel (unSingleLevel a') (unSingleLevel b)
+          forM_ as $ \ a' -> leqLevel (unSingleLevel $ ignoreBlocking <$> a')
+                                      (unSingleLevel $ ignoreBlocking <$> b)
 
         -- reduce constants
         (as, bs)
@@ -1354,10 +1338,10 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | (subsumed@(_:_) , as') <- List1.partition isSubsumed as
-          -> leqLevel (unSingleLevels as') b
+          | (subsumed@(_:_) , as') <- List1.partition (isSubsumed . fmap ignoreBlocking) as
+          -> leqLevel (unSingleLevels $ (fmap . fmap) ignoreBlocking as') b
           where
-            isSubsumed a = any (`subsumes` a) bs
+            isSubsumed a = any (`subsumes` a) $ (fmap . fmap) ignoreBlocking bs
 
             subsumes :: SingleLevel -> SingleLevel -> Bool
             subsumes (SingleClosed m)        (SingleClosed n)        = m >= n
@@ -1370,7 +1354,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- (where _l' is a new metavariable)
         (as , bs)
           | cumulativity
-          , Just (mb@(MetaLevel x es) , bs') <- singleMetaView (List1.toList bs)
+          , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
             mv <- lookupMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
@@ -1388,7 +1372,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
                     [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
                     , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
                     ]
-                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaLevel x' es)
+                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaV x' es)
 
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
@@ -1401,8 +1385,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         --   -- subsumed terms from the lhs.
 
         -- anything else
-        _ | noMetas (Level a , Level b) -> notok
-          | otherwise                   -> postpone
+        _ | noMetas (a, b) -> notok
+          | otherwise      -> postpone
       where
         ok       = return ()
         notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
@@ -1412,22 +1396,21 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
             TypeError{} -> notok
             err         -> throwError err
 
-        neutralOrClosed (SingleClosed _)                     = True
-        neutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
-        neutralOrClosed _                                    = False
+        neutralOrClosed (SingleClosed _)                   = True
+        neutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        neutralOrClosed _                                  = False
 
-        -- Is there exactly one @MetaLevel@ in the list of single levels?
-        singleMetaView :: [SingleLevel] -> Maybe (LevelAtom, [SingleLevel])
-        singleMetaView (SinglePlus (Plus 0 l@(MetaLevel m es)) : ls)
+        -- Is there exactly one @MetaV@ in the list of single levels?
+        singleMetaView :: [SingleLevel] -> Maybe (Term, [SingleLevel])
+        singleMetaView (SinglePlus (Plus 0 l@(MetaV m es)) : ls)
           | all (not . isMetaLevel) ls = Just (l,ls)
         singleMetaView (l : ls)
           | not $ isMetaLevel l = second (l:) <$> singleMetaView ls
         singleMetaView _ = Nothing
 
         isMetaLevel :: SingleLevel -> Bool
-        isMetaLevel (SinglePlus (Plus _ MetaLevel{})) = True
-        isMetaLevel (SinglePlus (Plus _ UnreducedLevel{})) = __IMPOSSIBLE__
-        isMetaLevel _ = False
+        isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
+        isMetaLevel _                             = False
 
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
@@ -1486,6 +1469,10 @@ equalLevel a b = do
                ]
         ]
 
+  -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+  as <- (mapM . mapM) reduceB as
+  bs <- (mapM . mapM) reduceB bs
+
   catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
         -- closed == closed
@@ -1503,20 +1490,24 @@ equalLevel a b = do
 
         -- 0 == a ⊔ b
         (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
-          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel b')
+          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel $ ignoreBlocking <$> b')
         (as@(_:|_:_) , SingleClosed 0 :| []) ->
-          forM_ as $ \ a' -> equalLevel (unSingleLevel a') (ClosedLevel 0)
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ ignoreBlocking <$> a') (ClosedLevel 0)
 
         -- meta == any
-        (SinglePlus (Plus k (MetaLevel x as')) :| [] , SinglePlus (Plus l (MetaLevel y bs')) :| [])
+        (SinglePlus (Plus k a) :| [] , SinglePlus (Plus l b) :| [])
           -- there is only a potential choice when k == l
-          | k == l -> do
+          | MetaV x as' <- ignoreBlocking a
+          , MetaV y bs' <- ignoreBlocking b
+          , k == l -> do
               lvl <- levelType
               equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
-        (SinglePlus (Plus k (MetaLevel x as')) :| [] , _)
-          | Just b' <- subLevel k b -> meta x as' b'
-        (_ , SinglePlus (Plus l (MetaLevel y bs')) :| [])
-          | Just a' <- subLevel l a -> meta y bs' a'
+        (SinglePlus (Plus k a) :| [] , _)
+          | MetaV x as' <- ignoreBlocking a
+          , Just b' <- subLevel k b -> meta x as' b'
+        (_ , SinglePlus (Plus l b) :| [])
+          | MetaV y bs' <- ignoreBlocking b
+          , Just a' <- subLevel l a -> meta y bs' a'
 
         -- a' ⊔ b == b
         _ | Just a' <- levelMaxDiff a b
@@ -1534,7 +1525,7 @@ equalLevel a b = do
           , not (any hasMeta (as <> bs))
           , length as == length bs -> do
               reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
-              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel) as bs
+              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel . fmap ignoreBlocking) as bs
 
         -- more cases?
         _ | noMetas (Level a , Level b) -> notok
@@ -1552,7 +1543,7 @@ equalLevel a b = do
           reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
           patternViolation (unblockOnAnyMetaIn (a, b))
 
-        -- perform assignment (MetaLevel x as) := b
+        -- perform assignment (MetaV x as) := b
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
@@ -1565,19 +1556,16 @@ equalLevel a b = do
             TypeError{} -> notok
             err         -> throwError err
 
-        isNeutral (SinglePlus (Plus _ NeutralLevel{})) = True
-        isNeutral _                                    = False
+        isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutral _                                  = False
 
-        isNeutralOrClosed (SingleClosed _)                     = True
-        isNeutralOrClosed (SinglePlus (Plus _ NeutralLevel{})) = True
-        isNeutralOrClosed _                                    = False
+        isNeutralOrClosed (SingleClosed _)                   = True
+        isNeutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutralOrClosed _                                  = False
 
-        hasMeta (SinglePlus a) = case a of
-          Plus _ MetaLevel{}        -> True
-          Plus _ (BlockedLevel _ v) -> isJust $ firstMeta v
-          Plus _ (NeutralLevel _ v) -> isJust $ firstMeta v
-          Plus _ (UnreducedLevel v) -> isJust $ firstMeta v
-        hasMeta (SingleClosed _) = False
+        hasMeta (SinglePlus (Plus _ Blocked{})) = True
+        hasMeta (SinglePlus (Plus _ a))         = isJust $ firstMeta $ ignoreBlocking a
+        hasMeta (SingleClosed _)                = False
 
         removeSubsumed a b =
           let as = List1.toList $ levelMaxView a
@@ -1948,7 +1936,7 @@ compareInterval cmp i t u = do
   it <- decomposeInterval' t
   iu <- decomposeInterval' u
   case () of
-    _ | blockedOrMeta tb || blockedOrMeta ub -> do
+    _ | isBlocked tb || isBlocked ub -> do
       -- in case of metas we wouldn't be able to make progress by how we deal with de morgan laws.
       -- (because the constraints generated by decomposition are sufficient but not necessary).
       -- but we could still prune/solve some metas by comparing the terms as atoms.
@@ -1966,9 +1954,8 @@ compareInterval cmp i t u = do
                    reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
                    patternViolation (unblockOnAnyMetaIn (t, u))
  where
-   blockedOrMeta Blocked{} = True
-   blockedOrMeta (NotBlocked _ (MetaV{})) = True
-   blockedOrMeta _ = False
+   isBlocked Blocked{}    = True
+   isBlocked NotBlocked{} = False
 
 
 type Conj = (Map.Map Int (Set.Set Bool),[Term])

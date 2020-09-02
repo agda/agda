@@ -140,8 +140,8 @@ headSymbol' v = do
       Lit _      -> return Nothing
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
-      MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
+      MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
@@ -240,8 +240,8 @@ checkOverapplication es = updateHeads overapplied
         Function{}     -> False
         Datatype{}     -> True
         Record{}       -> True
-        Constructor{conSrcCon = ConHead{ conFields = fs }}
-                       -> null fs   -- Record constructors can be eliminated by projections
+        Constructor{conSrcCon = ConHead{ conDataRecord = d, conFields = fs }}
+                       -> d == IsData || null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
         PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__

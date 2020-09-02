@@ -1,6 +1,6 @@
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE AllowAmbiguousTypes   #-}
-{-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -68,7 +68,7 @@ import Agda.Utils.Impossible
 --   propagate the same strategy to subtrees.
 {-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> Term -> Elims -> Term #-}
 {-# SPECIALIZE applyTermE :: (Empty -> Term -> Elims -> Term) -> BraveTerm -> Elims -> BraveTerm #-}
-applyTermE :: forall t. (Coercible Term t, Apply t, Subst t t)
+applyTermE :: forall t. (Coercible Term t, Apply t, EndoSubst t)
            => (Empty -> Term -> Elims -> Term) -> t -> Elims -> t
 applyTermE err' m [] = m
 applyTermE err' m es = coerce $
@@ -105,7 +105,7 @@ instance Apply BraveTerm where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
-    (Con (ConHead _ _ fs) _ vs) -> do
+    (Con (ConHead _ IsRecord{} _ fs) _ vs) -> do
       (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Jesper, 2019-10-17: dont unfold irrelevant projections
       guard $ not $ isIrrelevant fld
@@ -119,12 +119,14 @@ conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Te
 conApp fk ch                  ci args []             = Con ch ci args
 conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
 conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
-conApp fk ch@(ConHead c _ fs) ci args ees@(Proj o f : es) =
-  let failure err = flip trace err $
-        "conApp: constructor " ++ prettyShow c ++
-        " with fields\n" ++ unlines (map (("  " ++) . prettyShow) fs) ++
-        " and args\n" ++ unlines (map (("  " ++) . prettyShow) args) ++
-        " projected by " ++ prettyShow f
+conApp fk ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
+  let failure :: forall a. a -> a
+      failure err = flip trace err $ concat
+        [ "conApp: constructor ", prettyShow c
+        , unlines $ " with fields" : map (("  " ++) . prettyShow) fs
+        , unlines $ " and args"    : map (("  " ++) . prettyShow) args
+        , " projected by ", prettyShow f
+        ]
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
       stuck err = fk err (Con ch ci args) [Proj o f]
       -- Recurse using the instance for 't', see @applyTermE@
@@ -220,7 +222,7 @@ instance Apply Sort where
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
 
-instance Subst Term a => Apply (Tele a) where
+instance TermSubst a => Apply (Tele a) where
   apply tel               []       = tel
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
@@ -416,7 +418,7 @@ instance Apply Clause where
         --    Δ′ ⊢ ρ′ : Δ[xⁱ:=v]
         --  so we just need Δ[xⁱ:=v] ⊢ σ : Δ and then ρ = ρ′ ∘ σ.
         --  That's achieved by σ = singletonS i v'.
-        mkSub :: Subst a a => (Term -> a) -> Nat -> [NamedArg DeBruijnPattern] -> [Term] -> Substitution' a
+        mkSub :: EndoSubst a => (Term -> a) -> Nat -> [NamedArg DeBruijnPattern] -> [Term] -> Substitution' a
         mkSub _ _ [] [] = idS
         mkSub tm n (p : ps) (v : vs) =
           case namedArg p of
@@ -774,15 +776,16 @@ renamingR :: DeBruijn a => Permutation -> Substitution' a
 renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst t a => Empty -> Permutation -> a -> a
+renameP :: Subst a => Empty -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
-instance Subst a a => Subst a (Substitution' a) where
+instance EndoSubst a => Subst (Substitution' a) where
+  type SubstArg (Substitution' a) = a
   applySubst rho sgm = composeS rho sgm
 
 {-# SPECIALIZE applySubstTerm :: Substitution -> Term -> Term #-}
 {-# SPECIALIZE applySubstTerm :: Substitution' BraveTerm -> BraveTerm -> BraveTerm #-}
-applySubstTerm :: forall t. (Coercible t Term, Subst t t, Apply t) => Substitution' t -> t -> t
+applySubstTerm :: forall t. (Coercible t Term, EndoSubst t, Apply t) => Substitution' t -> t -> t
 applySubstTerm IdS t = t
 applySubstTerm rho t    = coerce $ case coerce t of
     Var i es    -> coerce $ lookupS rho i  `applyE` subE es
@@ -797,23 +800,27 @@ applySubstTerm rho t    = coerce $ case coerce t of
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
  where
-   sub :: forall a b. (Coercible b a, Subst t a) => b -> b
+   sub :: forall a b. (Coercible b a, SubstWith t a) => b -> b
    sub t = coerce $ applySubst rho (coerce t :: a)
    subE :: Elims -> Elims
    subE  = sub @[Elim' t]
    subPi :: (Dom Type, Abs Type) -> (Dom Type, Abs Type)
    subPi = sub @(Dom' t (Type'' t t), Abs (Type'' t t))
 
-instance Subst Term Term where
+instance Subst Term where
+  type SubstArg Term = Term
   applySubst = applySubstTerm
 
-instance Subst BraveTerm BraveTerm where
+instance Subst BraveTerm where
+  type SubstArg BraveTerm = BraveTerm
   applySubst = applySubstTerm
 
-instance (Coercible a Term, Subst t a, Subst t b) => Subst t (Type'' a b) where
+instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Type'' a b) where
+  type SubstArg (Type'' a b) = SubstArg a
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
-instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
+instance (Coercible a Term, Subst a) => Subst (Sort' a) where
+  type SubstArg (Sort' a) = SubstArg a
   applySubst rho s = case s of
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
@@ -826,30 +833,28 @@ instance (Coercible a Term, Subst t a) => Subst t (Sort' a) where
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
     DummyS{}   -> s
-    where sub x = applySubst rho x
+    where
+      sub :: forall b. (Subst b, SubstArg a ~ SubstArg b) => b -> b
+      sub x = applySubst rho x
 
-instance Subst t a => Subst t (Level' a) where
+instance Subst a => Subst (Level' a) where
+  type SubstArg (Level' a) = SubstArg a
   applySubst rho (Max n as) = Max n $ applySubst rho as
 
-instance Subst t a => Subst t (PlusLevel' a) where
+instance Subst a => Subst (PlusLevel' a) where
+  type SubstArg (PlusLevel' a) = SubstArg a
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
-instance Subst t a => Subst t (LevelAtom' a) where
-  applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
-  applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
-  applySubst rho (NeutralLevel _ v) = UnreducedLevel $ applySubst rho v
-  applySubst rho (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
-
-instance Subst Term Name where
+instance Subst Name where
+  type SubstArg Name = Term
   applySubst rho = id
 
-instance {-# OVERLAPPING #-} Subst Term String where
-  applySubst rho = id
-
-instance Subst Term ConPatternInfo where
+instance Subst ConPatternInfo where
+  type SubstArg ConPatternInfo = Term
   applySubst rho i = i{ conPType = applySubst rho $ conPType i }
 
-instance Subst Term Pattern where
+instance Subst Pattern where
+  type SubstArg Pattern = Term
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DefP o q ps  -> DefP o q $ applySubst rho ps
@@ -859,7 +864,8 @@ instance Subst Term Pattern where
     ProjP{}      -> p
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
-instance Subst Term A.ProblemEq where
+instance Subst A.ProblemEq where
+  type SubstArg A.ProblemEq = Term
   applySubst rho (A.ProblemEq p v a) =
     uncurry (A.ProblemEq p) $ applySubst rho (v,a)
 
@@ -879,7 +885,7 @@ instance DeBruijn NLPat where
     PBoundVar{} -> Nothing -- or... ?
     PTerm{}     -> Nothing -- or... ?
 
-applyNLPatSubst :: (Subst Term a) => Substitution' NLPat -> a -> a
+applyNLPatSubst :: TermSubst a => Substitution' NLPat -> a -> a
 applyNLPatSubst = applySubst . fmap nlPatToTerm
   where
     nlPatToTerm :: NLPat -> Term
@@ -892,10 +898,11 @@ applyNLPatSubst = applySubst . fmap nlPatToTerm
       PSort s        -> __IMPOSSIBLE__
       PBoundVar i es -> __IMPOSSIBLE__
 
-applyNLSubstToDom :: Subst NLPat a => Substitution' NLPat -> Dom a -> Dom a
+applyNLSubstToDom :: SubstWith NLPat a => Substitution' NLPat -> Dom a -> Dom a
 applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst rho $ domTactic dom }
 
-instance Subst NLPat NLPat where
+instance Subst NLPat where
+  type SubstArg NLPat = NLPat
   applySubst rho p = case p of
     PVar i bvs -> lookupS rho i `applyBV` bvs
     PDef f es -> PDef f $ applySubst rho es
@@ -916,17 +923,20 @@ instance Subst NLPat NLPat where
         PSort s        -> __IMPOSSIBLE__
         PBoundVar i es -> __IMPOSSIBLE__
 
-instance Subst NLPat NLPType where
+instance Subst NLPType where
+  type SubstArg NLPType = NLPat
   applySubst rho (NLPType s a) = NLPType (applySubst rho s) (applySubst rho a)
 
-instance Subst NLPat NLPSort where
+instance Subst NLPSort where
+  type SubstArg NLPSort = NLPat
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
 
-instance Subst NLPat RewriteRule where
+instance Subst RewriteRule where
+  type SubstArg RewriteRule = NLPat
   applySubst rho (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
@@ -934,37 +944,41 @@ instance Subst NLPat RewriteRule where
                   (applyNLPatSubst (liftS n rho) t)
     where n = size gamma
 
-instance Subst t a => Subst t (Blocked a) where
+instance Subst a => Subst (Blocked a) where
+  type SubstArg (Blocked a) = SubstArg a
   applySubst rho b = fmap (applySubst rho) b
 
-instance Subst Term DisplayForm where
+instance Subst DisplayForm where
+  type SubstArg DisplayForm = Term
   applySubst rho (Display n ps v) =
     Display n (applySubst (liftS 1 rho) ps)
               (applySubst (liftS n rho) v)
 
-instance Subst Term DisplayTerm where
+instance Subst DisplayTerm where
+  type SubstArg DisplayTerm = Term
   applySubst rho (DTerm v)        = DTerm $ applySubst rho v
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
   applySubst rho (DCon c ci vs)   = DCon c ci $ applySubst rho vs
   applySubst rho (DDef c es)      = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
-instance Subst t a => Subst t (Tele a) where
+instance Subst a => Subst (Tele a) where
+  type SubstArg (Tele a) = SubstArg a
   applySubst rho  EmptyTel         = EmptyTel
   applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
 
-instance Subst Term Constraint where
+instance Subst Constraint where
+  type SubstArg Constraint = Term
+
   applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
-    TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
-    Guarded c cs             -> Guarded (rf c) cs
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
-    FindInstance m b cands   -> FindInstance m b (rf cands)
+    FindInstance m cands     -> FindInstance m (rf cands)
     UnBlock{}                -> c
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
@@ -972,56 +986,82 @@ instance Subst Term Constraint where
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
+      rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x
 
-instance Subst Term CompareAs where
+instance Subst CompareAs where
+  type SubstArg CompareAs = Term
   applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
   applySubst rho AsSizes       = AsSizes
   applySubst rho AsTypes       = AsTypes
 
-instance Subst t a => Subst t (Elim' a) where
+instance Subst a => Subst (Elim' a) where
+  type SubstArg (Elim' a) = SubstArg a
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
     IApply x y r -> IApply (applySubst rho x) (applySubst rho y) (applySubst rho r)
     Proj{}  -> e
 
-instance Subst t a => Subst t (Abs a) where
+instance Subst a => Subst (Abs a) where
+  type SubstArg (Abs a) = SubstArg a
   applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
-instance Subst t a => Subst t (Arg a) where
+instance Subst a => Subst (Arg a) where
+  type SubstArg (Arg a) = SubstArg a
   applySubst IdS arg = arg
   applySubst rho arg = setFreeVariables unknownFreeVariables $ fmap (applySubst rho) arg
 
-instance Subst t a => Subst t (Named name a) where
+instance Subst a => Subst (Named name a) where
+  type SubstArg (Named name a) = SubstArg a
   applySubst rho = fmap (applySubst rho)
 
-instance (Subst t a, Subst t b) => Subst t (Dom' a b) where
+instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
+  type SubstArg (Dom' a b) = SubstArg a
+
   applySubst IdS dom = dom
   applySubst rho dom = setFreeVariables unknownFreeVariables $
     fmap (applySubst rho) dom{ domTactic = applySubst rho (domTactic dom) }
 
-instance Subst t a          => Subst t (Maybe a)      where
-instance Subst t a          => Subst t [a]            where
-instance (Ord k, Subst t a) => Subst t (Map k a)      where
-instance Subst t a          => Subst t (WithHiding a) where
+instance Subst a => Subst (Maybe a) where
+  type SubstArg (Maybe a) = SubstArg a
 
-instance Subst Term () where
+instance Subst a => Subst [a] where
+  type SubstArg [a] = SubstArg a
+
+instance (Ord k, Subst a) => Subst (Map k a) where
+  type SubstArg (Map k a) = SubstArg a
+
+instance Subst a => Subst (WithHiding a) where
+  type SubstArg (WithHiding a) = SubstArg a
+
+instance Subst () where
+  type SubstArg () = Term
   applySubst _ _ = ()
 
-instance (Subst t a, Subst t b) => Subst t (a, b) where
+instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (a, b) where
+  type SubstArg (a, b) = SubstArg a
   applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
-instance (Subst t a, Subst t b, Subst t c) => Subst t (a, b, c) where
+instance (Subst a, Subst b, Subst c, SubstArg a ~ SubstArg b, SubstArg b ~ SubstArg c) => Subst (a, b, c) where
+  type SubstArg (a, b, c) = SubstArg a
   applySubst rho (x,y,z) = (applySubst rho x, applySubst rho y, applySubst rho z)
 
-instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) where
+instance
+  ( Subst a, Subst b, Subst c, Subst d
+  , SubstArg a ~ SubstArg b
+  , SubstArg b ~ SubstArg c
+  , SubstArg c ~ SubstArg d
+  ) => Subst (a, b, c, d) where
+  type SubstArg (a, b, c, d) = SubstArg a
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
-instance Subst Term Candidate where
+instance Subst Candidate where
+  type SubstArg Candidate = Term
   applySubst rho (Candidate q u t ov) = Candidate q (applySubst rho u) (applySubst rho t) ov
 
-instance Subst Term EqualityView where
+instance Subst EqualityView where
+  type SubstArg EqualityView = Term
   applySubst rho (OtherType t) = OtherType
     (applySubst rho t)
   applySubst rho (EqualityType s eq l t a b) = EqualityType
@@ -1041,7 +1081,7 @@ instance DeBruijn a => DeBruijn (Pattern' a) where
 fromPatternSubstitution :: PatternSubstitution -> Substitution
 fromPatternSubstitution = fmap patternToTerm
 
-applyPatSubst :: (Subst Term a) => PatternSubstitution -> a -> a
+applyPatSubst :: TermSubst a => PatternSubstitution -> a -> a
 applyPatSubst = applySubst . fromPatternSubstitution
 
 
@@ -1065,7 +1105,8 @@ usePatternInfo i p = case patternOrigin p of
     ProjP{} -> __IMPOSSIBLE__
     (IApplyP _ t u x) -> IApplyP i t u x
 
-instance Subst DeBruijnPattern DeBruijnPattern where
+instance Subst DeBruijnPattern where
+  type SubstArg DeBruijnPattern = DeBruijnPattern
   applySubst IdS p = p
   applySubst rho p = case p of
     VarP i x     ->
@@ -1088,7 +1129,8 @@ instance Subst DeBruijnPattern DeBruijnPattern where
         = VarP o $ x { dbPatVarName = n }
       useName _ x = x
 
-instance Subst Term Range where
+instance Subst Range where
+  type SubstArg Range = Term
   applySubst _ = id
 
 ---------------------------------------------------------------------------
@@ -1128,8 +1170,8 @@ type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Show, Functor)
 
-deriving instance (Subst Term a, Eq  a) => Eq  (TelV a)
-deriving instance (Subst Term a, Ord a) => Ord (TelV a)
+deriving instance (TermSubst a, Eq  a) => Eq  (TelV a)
+deriving instance (TermSubst a, Ord a) => Ord (TelV a)
 
 -- | Takes off all exposed function domains from the given type.
 --   This means that it does not reduce to expose @Pi@-types.
@@ -1281,8 +1323,8 @@ deriving instance Eq t => Eq (Blocked t)
 deriving instance Eq CandidateKind
 deriving instance Eq Candidate
 
-deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
-deriving instance (Subst t a, Ord a) => Ord (Tele a)
+deriving instance (Subst a, Eq a)  => Eq  (Tele a)
+deriving instance (Subst a, Ord a) => Ord (Tele a)
 
 -- Andreas, 2019-11-16, issue #4201: to avoid potential unintended
 -- performance loss, the Eq instance for Constraint is disabled:
@@ -1298,18 +1340,11 @@ deriving instance (Subst t a, Ord a) => Ord (Tele a)
 -- Therefore, I hope this comment is sufficient to prevent a resurrection
 -- of the Eq instance for Constraint.
 
-deriving instance Eq CompareAs
 deriving instance Eq Section
 
 instance Ord PlusLevel where
   -- Compare on the atom first. Makes most sense for levelMax.
   compare (Plus n a) (Plus m b) = compare (a,n) (b,m)
-
-instance Eq LevelAtom where
-  (==) = (==) `on` unLevelAtom
-
-instance Ord LevelAtom where
-  compare = compare `on` unLevelAtom
 
 -- | Syntactic 'Type' equality, ignores sort annotations.
 instance Eq a => Eq (Type' a) where
@@ -1399,23 +1434,23 @@ instance Ord Term where
 -- | Equality of binders relies on weakening
 --   which is a special case of renaming
 --   which is a special case of substitution.
-instance (Subst t a, Eq a) => Eq (Abs a) where
+instance (Subst a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b  -- no need to raise if both are NoAbs
   a         == b         = absBody a == absBody b
 
-instance (Subst t a, Ord a) => Ord (Abs a) where
+instance (Subst a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b  -- no need to raise if both are NoAbs
   a         `compare` b         = absBody a `compare` absBody b
 
 deriving instance Ord a => Ord (Dom a)
 
-instance (Subst t a, Eq a)  => Eq  (Elim' a) where
+instance (Subst a, Eq a)  => Eq  (Elim' a) where
   Apply  a == Apply  b = a == b
   Proj _ x == Proj _ y = x == y
   IApply x y r == IApply x' y' r' = x == x' && y == y' && r == r'
   _ == _ = False
 
-instance (Subst t a, Ord a) => Ord (Elim' a) where
+instance (Subst a, Ord a) => Ord (Elim' a) where
   Apply  a `compare` Apply  b = a `compare` b
   Proj _ x `compare` Proj _ y = x `compare` y
   IApply x y r `compare` IApply x' y' r' = compare x x' `mappend` compare y y' `mappend` compare r r'
@@ -1544,7 +1579,7 @@ piSort a b = case piSort' a b of
 levelMax :: Integer -> [PlusLevel] -> Level
 levelMax n0 as0 = Max n as
   where
-    -- step 1: flatten nested @Level@ expressions in @LevelAtom@s
+    -- step 1: flatten nested @Level@ expressions in @PlusLevel@s
     Max n1 as1 = expandLevel $ Max n0 as0
     -- step 2: remove subsumed @PlusLevel@s
     as2       = removeSubsumed as1
@@ -1563,18 +1598,10 @@ levelMax n0 as0 = Max n as
     expandLevel (Max m as) = lmax m [] $ map expandPlus as
 
     expandPlus :: PlusLevel -> Level
-    expandPlus (Plus m l) = levelPlus m $ expandAtom l
+    expandPlus (Plus m l) = levelPlus m (expandTm l)
 
-    expandAtom :: LevelAtom -> Level
-    expandAtom l = case l of
-      BlockedLevel _ v -> expandTm v
-      NeutralLevel _ v -> expandTm v
-      UnreducedLevel v -> expandTm v
-      MetaLevel{}      -> Max 0 [Plus 0 l]
-      where
-        expandTm (Level l)       = expandLevel l
-        expandTm (Sort (Type l)) = expandLevel l -- TODO: get rid of this horrible hack!
-        expandTm v               = Max 0 [Plus 0 l]
+    expandTm (Level l)       = expandLevel l
+    expandTm l               = atomicLevel l
 
     removeSubsumed [] = []
     removeSubsumed (Plus n a : bs)
@@ -1591,11 +1618,5 @@ levelLub (Max m as) (Max n bs) = levelMax (max m n) $ as ++ bs
 levelTm :: Level -> Term
 levelTm l =
   case l of
-    Max 0 [Plus 0 l] -> unLevelAtom l
+    Max 0 [Plus 0 l] -> l
     _                -> Level l
-
-unLevelAtom :: LevelAtom -> Term
-unLevelAtom (MetaLevel x es)   = MetaV x es
-unLevelAtom (NeutralLevel _ v) = v
-unLevelAtom (UnreducedLevel v) = v
-unLevelAtom (BlockedLevel _ v) = v

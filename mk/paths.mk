@@ -1,4 +1,6 @@
+include $(TOP)/mk/common.mk
 include $(TOP)/mk/versions.mk
+include $(TOP)/mk/ghc.mk
 
 MACRO_DIR = $(TOP)/macros
 

@@ -441,11 +441,7 @@ checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
 
     checkLevelAtom l = do
       lvl <- levelType
-      UnreducedLevel <$> case l of
-        MetaLevel x es   -> checkInternal' action (MetaV x es) CmpLeq lvl
-        BlockedLevel _ v -> checkInternal' action v CmpLeq lvl
-        NeutralLevel _ v -> checkInternal' action v CmpLeq lvl
-        UnreducedLevel v -> checkInternal' action v CmpLeq lvl
+      checkInternal' action l CmpLeq lvl
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 cmptype :: (MonadCheckInternal m) => Comparison -> Type -> Type -> m ()

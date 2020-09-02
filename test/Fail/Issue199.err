@@ -1,7 +1,15 @@
-Issue199.agda:11,6-9
-I'm not sure if there should be a case for the constructor p,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  {D} ≟ {_T_13}
-  d ≟ _15
-when checking that the pattern p _ has type P _15
+Failed to solve the following constraints:
+  Check definition of foo : {A : Set} {l : D A} → P l → Set₁
+    stuck because
+      Issue199.agda:11,6-9
+      I'm not sure if there should be a case for the constructor p,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        {D} ≟ {_T_13}
+        d ≟ _15
+      when checking that the pattern p _ has type P _15
+    (blocked on any(_A_12, _T_13, _15))
+  D A =< _T_13 _A_12 (blocked on _T_13)
+Unsolved metas at the following locations:
+  Issue199.agda:10,25-26
+  Issue199.agda:10,27-28

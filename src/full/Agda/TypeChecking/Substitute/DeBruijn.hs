@@ -29,15 +29,6 @@ instance DeBruijn Term where
       Level l -> deBruijnView l
       _ -> Nothing
 
-instance DeBruijn LevelAtom where
-  deBruijnVar = NeutralLevel ReallyNotBlocked . deBruijnVar
-  deBruijnView l =
-    case l of
-      NeutralLevel _ u -> deBruijnView u
-      UnreducedLevel u -> deBruijnView u
-      MetaLevel{}    -> Nothing
-      BlockedLevel{} -> Nothing
-
 instance DeBruijn PlusLevel where
   deBruijnVar = Plus 0 . deBruijnVar
   deBruijnView l =

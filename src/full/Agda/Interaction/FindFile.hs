@@ -48,7 +48,7 @@ import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Monad ( ifM, unlessM )
 import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
@@ -214,9 +214,7 @@ checkModuleName name (SourceFile file) mexpected =
     Right src -> do
       let file' = srcFilePath src
       file <- liftIO $ absolute (filePath file)
-      if file === file' then
-        return ()
-       else
+      unlessM (liftIO $ sameFile file file') $
         typeError $ ModuleDefinedInOtherFile name file file'
 
 -- | Computes the module name of the top-level module in the given

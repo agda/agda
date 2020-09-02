@@ -120,10 +120,6 @@ instance TermLike PlusLevel where
   traverseTermM f (Plus n l) = Plus n <$> traverseTermM f l
   foldTerm f (Plus _ l)      = foldTerm f l
 
-instance TermLike LevelAtom where
-  traverseTermM f l = UnreducedLevel <$> traverseTermM f (levelAtomTerm l)
-  foldTerm f = foldTerm f . levelAtomTerm
-
 instance TermLike Type where
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t

@@ -342,7 +342,7 @@ tryResolveName kinds names x = do
       -- If the name has a suffix, also consider the possibility that
       -- the base name is in scope (e.g. the builtin sorts `Set` and `Prop`).
       canHaveSuffix <- canHaveSuffixTest
-      let (xsuffix, xbase) = (C.lensQNameName . nameSuffix) (,C.NoSuffix) x
+      let (xsuffix, xbase) = (C.lensQNameName . nameSuffix) (,Nothing) x
           possibleBaseNames = filter (canHaveSuffix . anameName . fst) $ possibleNames xbase
           suffixedNames = (,) <$> fromConcreteSuffix xsuffix <*> nonEmpty possibleBaseNames
       case (nonEmpty $ possibleNames x) of
@@ -381,10 +381,10 @@ tryResolveName kinds names x = do
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
     d { anameName = A.QName (setRange (getRange x) qm) (qn { nameConcrete = x }) }
   fromConcreteSuffix = \case
-    C.NoSuffix    -> Nothing
-    C.Prime{}     -> Nothing
-    C.Index i     -> Just $ A.Suffix $ toInteger i
-    C.Subscript i -> Just $ A.Suffix $ toInteger i
+    Nothing              -> Nothing
+    Just C.Prime{}       -> Nothing
+    Just (C.Index i)     -> Just $ A.Suffix $ toInteger i
+    Just (C.Subscript i) -> Just $ A.Suffix $ toInteger i
 
 -- | Test if a given abstract name can appear with a suffix. Currently
 --   only true for the names of builtin sorts @Set@ and @Prop@.

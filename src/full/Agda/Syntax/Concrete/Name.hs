@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-} -- for type equality ~
-{-# LANGUAGE TypeApplications #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -21,6 +20,7 @@ import GHC.Generics (Generic)
 import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
@@ -260,14 +260,18 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
-nextStr :: String -> String
-nextStr s = case suffixView s of
-  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+nextRawName :: RawName -> RawName
+nextRawName s = addSuffix root (maybe initialSuffix nextSuffix suffix)
+  where
+  (root, suffix) = suffixView s
+  initialSuffix = case unsafeUnicodeOrAscii of
+    UnicodeOk -> Subscript 1
+    AsciiOnly -> Index 1
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
 nextName :: Name -> Name
-nextName x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) nextStr x
+nextName x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) nextRawName x
 nextName NoName{} = __IMPOSSIBLE__
 
 -- | Zoom on the last non-hole in a name.
@@ -289,31 +293,28 @@ firstNonTakenName taken x =
   else x
 
 -- | Lens for accessing and modifying the suffix of a name.
---   The suffix of a @NoName@ is always @NoSuffix@, and should not be
+--   The suffix of a @NoName@ is always @Nothing@, and should not be
 --   changed.
-nameSuffix :: Lens' Suffix Name
-nameSuffix (f :: Suffix -> f Suffix) = \case
+nameSuffix :: Lens' (Maybe Suffix) Name
+nameSuffix (f :: Maybe Suffix -> f (Maybe Suffix)) = \case
 
-  n@NoName{} -> f NoSuffix <&> \case
-    NoSuffix    -> n
-    Prime{}     -> __IMPOSSIBLE__
-    Index{}     -> __IMPOSSIBLE__
-    Subscript{} -> __IMPOSSIBLE__
+  n@NoName{} -> f Nothing <&> \case
+    Nothing -> n
+    Just {} -> __IMPOSSIBLE__
 
   n@Name{} -> lensNameParts (lastIdPart idSuf) n
     where
     idSuf s =
       let (root, suffix) = suffixView s
-      in  addSuffix root <$> f suffix
-
+      in maybe root (addSuffix root) <$> (f suffix)
 
 -- | Split a name into a base name plus a suffix.
-nameSuffixView :: Name -> (Suffix, Name)
-nameSuffixView = nameSuffix (,NoSuffix)
+nameSuffixView :: Name -> (Maybe Suffix, Name)
+nameSuffixView = nameSuffix (,Nothing)
 
--- | Replaces the suffix of a name. Unless the suffix is @NoSuffix@,
+-- | Replaces the suffix of a name. Unless the suffix is @Nothing@,
 --   the name should not be @NoName@.
-setNameSuffix :: Suffix -> Name -> Name
+setNameSuffix :: Maybe Suffix -> Name -> Name
 setNameSuffix = set nameSuffix
 
 -- | Get a raw version of the name with all suffixes removed. For
@@ -391,10 +392,7 @@ moduleNameToFileName (TopLevelModuleName _ ms) ext =
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
-    foldr
-      ($)
-      (takeDirectory $ filePath file)
-      (replicate (length m - 1) takeDirectory)
+    iterate takeDirectory (filePath file) !! length m
 
 ------------------------------------------------------------------------
 -- * No name stuff

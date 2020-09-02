@@ -47,6 +47,10 @@ import qualified Data.Text.Lazy as TL
 import Data.IORef
 
 import qualified System.Console.Haskeline as Haskeline
+-- MonadException is replaced by MonadCatch in haskeline 0.8
+#if MIN_VERSION_haskeline(0,8,0)
+import qualified Control.Monad.Catch as Haskeline (catch)
+#endif
 
 import Agda.Benchmarking (Benchmark, Phase)
 
@@ -734,23 +738,6 @@ instance HasFresh NameId where
 instance HasFresh Int where
   freshLens = stFreshInt
 
-newtype ProblemId = ProblemId Nat
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instance is deprecated, and Pretty[TCM] should be used
--- instead. Later, simply derive Show for this type.
-
--- ASR (28 December 2014). This instance is not used anymore (module
--- the test suite) when reporting errors. See Issue 1293.
-
--- This particular Show instance is ok because of the Num instance.
-instance Show ProblemId where
-  show (ProblemId n) = show n
-
-instance Pretty ProblemId where
-  pretty (ProblemId n) = pretty n
-
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
@@ -1013,7 +1000,7 @@ data ProblemConstraint = PConstr
   , constraintUnblocker :: Blocker
   , theConstraint       :: Closure Constraint
   }
-  deriving (Data, Show)
+  deriving (Show)
 
 instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
@@ -1022,7 +1009,6 @@ data Constraint
   = ValueCmp Comparison CompareAs Term Term
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
-  | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
 --  | ShortCut MetaId Term Type
@@ -1031,19 +1017,20 @@ data Constraint
   | HasPTSRule (Dom Type) (Abs Sort)
   | CheckMetaInst MetaId
   | UnBlock MetaId
-  | Guarded Constraint ProblemId
+    -- ^ Meta created for a term blocked by a postponed type checking problem or unsolved
+    --   constraints. The 'MetaInstantiation' for the meta (when unsolved) is either 'BlockedConst'
+    --   or 'PostponedTypeCheckingProblem'.
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Term
     -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
-  | FindInstance MetaId Blocker (Maybe [Candidate])
-    -- ^ the first argument is the instance argument, the second one is the metas
-    --   on which the constraint may be blocked on and the third one is the list
-    --   of candidates (or Nothing if we haven’t determined the list of
-    --   candidates yet)
-  | CheckFunDef Delayed A.DefInfo QName [A.Clause]
+  | FindInstance MetaId (Maybe [Candidate])
+    -- ^ the first argument is the instance argument and the second one is the list of candidates
+    --   (or Nothing if we haven’t determined the list of candidates yet)
+  | CheckFunDef Delayed A.DefInfo QName [A.Clause] TCErr
+    -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
-  deriving (Data, Show)
+  deriving (Show)
 
 instance HasRange Constraint where
   getRange (IsEmpty r t) = r
@@ -1055,7 +1042,6 @@ instance HasRange Constraint where
   getRange (SortCmp cmp s s') = getRange (s,s')
   getRange (LevelCmp cmp l l') = getRange (l,l')
   getRange (UnBlock x) = getRange x
-  getRange (Guarded c pid) = getRange c
   getRange (FindInstance x cands) = getRange x
 -}
 
@@ -1065,15 +1051,13 @@ instance Free Constraint where
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
-      TelCmp _ _ _ tel tel' -> freeVars' (tel, tel')
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
       UnBlock _             -> mempty
-      Guarded c _           -> freeVars' c
       IsEmpty _ t           -> freeVars' t
       CheckSizeLtSat u      -> freeVars' u
-      FindInstance _ _ cs   -> freeVars' cs
-      CheckFunDef _ _ _ _   -> mempty
+      FindInstance _ cs     -> freeVars' cs
+      CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
@@ -1088,12 +1072,10 @@ instance TermLike Constraint where
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
-      Guarded c _            -> foldTerm f c
-      TelCmp _ _ _ tel1 tel2 -> foldTerm f (tel1, tel2)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
-      FindInstance _ _ _     -> mempty
-      CheckFunDef _ _ _ _    -> mempty
+      FindInstance _ _       -> mempty
+      CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
       CheckMetaInst m        -> mempty
@@ -1257,7 +1239,7 @@ data MetaInstantiation
         | Open               -- ^ unsolved
         | OpenInstance       -- ^ open, to be instantiated by instance search
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
+        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
 
 -- | Solving a 'CheckArgs' constraint may or may not check the target type. If
 --   it did, it returns a handle to any unsolved constraints.
@@ -2257,11 +2239,7 @@ notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
-reduced b = case b of
-  NotBlocked _ (Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked (unblockOnMeta x) ()) v
-  _                                -> MaybeRed (Reduced $ () <$ b)      v
-  where
-    v = ignoreBlocking b
+reduced b = MaybeRed (Reduced $ () <$ b) $ ignoreBlocking b
 
 -- | Controlling 'reduce'.
 data AllowedReduction
@@ -3168,7 +3146,7 @@ data Warning
     --   or pattern synonym name (@True@),
     --   because this can be confusing to read.
   | RecordFieldWarning RecordFieldWarning
-  deriving (Show , Data)
+  deriving (Show)
 
 data RecordFieldWarning
   = DuplicateFieldsWarning [(C.Name, Range)]
@@ -4099,7 +4077,8 @@ runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
 
 instance MonadError TCErr IM where
   throwError     = liftIO . E.throwIO
-  catchError m h = liftTCM $ runIM m `catchError` (runIM . h)
+  catchError (TCM m) h = TCM $ \s env ->
+    m s env `Haskeline.catch` \e -> unTCM (h e) s env
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
@@ -4145,7 +4124,8 @@ instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
 --   "Agda.Benchmarking".
-instance MonadBench Phase TCM where
+instance MonadBench TCM where
+  type BenchPhase TCM = Phase
   getBenchmark = liftIO $ getBenchmark
   putBenchmark = liftIO . putBenchmark
   finally = finally_

@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.
@@ -338,15 +337,6 @@ instance UsableRelevance Level where
 instance UsableRelevance PlusLevel where
   usableRel rel (Plus _ l) = usableRel rel l
 
-instance UsableRelevance LevelAtom where
-  usableRel rel l = case l of
-    MetaLevel m vs -> do
-      mrel <- getMetaRelevance <$> lookupMeta m
-      return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
-    NeutralLevel _ v -> usableRel rel v
-    BlockedLevel _ v -> usableRel rel v
-    UnreducedLevel v -> usableRel rel v
-
 instance UsableRelevance a => UsableRelevance [a] where
   usableRel rel = andM . map (usableRel rel)
 
@@ -368,7 +358,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
 instance UsableRelevance a => UsableRelevance (Dom a) where
   usableRel rel Dom{unDom = u} = usableRel rel u
 
-instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
+instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
 
 -- | Check whether something can be used in a position of the given modality.
@@ -444,15 +434,6 @@ instance UsableModality Level where
 --   usableMod mod ClosedLevel{} = return True
 --   usableMod mod (Plus _ l)    = usableMod mod l
 
--- instance UsableModality LevelAtom where
---   usableMod mod l = case l of
---     MetaLevel m vs -> do
---       mmod <- getMetaModality <$> lookupMeta m
---       return (mmod `moreUsableModality` mod) `and2M` usableMod mod vs
---     NeutralLevel _ v -> usableMod mod v
---     BlockedLevel _ v -> usableMod mod v
---     UnreducedLevel v -> usableMod mod v
-
 instance UsableModality a => UsableModality [a] where
   usableMod mod = andM . map (usableMod mod)
 
@@ -474,7 +455,7 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
+instance (Subst a, UsableModality a) => UsableModality (Abs a) where
   usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
 
 

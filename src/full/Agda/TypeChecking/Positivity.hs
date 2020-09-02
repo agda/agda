@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
@@ -32,7 +31,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange)
-import Agda.TypeChecking.Datatypes ( isDataOrRecordType, DataOrRecord(..) )
+import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
@@ -373,9 +372,6 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = Reader OccEnv
 
-instance Semigroup a => Semigroup (OccM a) where
-  ma <> mb = liftA2 (<>) ma mb
-
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
   mappend = (<>)
@@ -465,14 +461,6 @@ instance ComputeOccurrences Level where
 
 instance ComputeOccurrences PlusLevel where
   occurrences (Plus _ l) = occurrences l
-
-instance ComputeOccurrences LevelAtom where
-  occurrences = occurrences . unLevelAtom
-      -- MetaLevel x es -> occurrences $ MetaV x es
-      -- Andreas, 2016-07-25, issue 2108
-      -- NOT: OccursAs MetaArg <$> occurrences es
-      -- since we need to unSpine!
-      -- (Otherwise, we run into __IMPOSSIBLE__ at Proj elims)
 
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
@@ -791,8 +779,8 @@ instance Pretty Node where
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
-instance PrettyTCM n => PrettyTCM (WithNode n (Edge OccursWhere)) where
-  prettyTCM (WithNode n (Edge o w)) = vcat
+instance PrettyTCMWithNode (Edge OccursWhere) where
+  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]

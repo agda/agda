@@ -32,7 +32,6 @@ compareAtom  :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> 
 compareArgs  :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()
 compareElims :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
 compareType  :: MonadConversion m => Comparison -> Type -> Type -> m ()
-compareTel   :: MonadConversion m => Type -> Type -> Comparison -> Telescope -> Telescope -> m ()
 compareSort  :: MonadConversion m => Comparison -> Sort -> Sort -> m ()
 compareLevel :: MonadConversion m => Comparison -> Level -> Level -> m ()
 equalTerm    :: MonadConversion m => Type -> Term -> Term -> m ()

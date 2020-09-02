@@ -1,4 +1,6 @@
 resolver: lts-16.5
+compiler: ghc-8.8.3
+compiler-check: match-exact
 
 extra-deps:
 - STMonadTrans-0.4.4
@@ -7,6 +9,10 @@ extra-deps:
 - equivalence-0.3.5
 - geniplate-mirror-0.7.6
 - text-icu-0.7.0.1
+# Built as needed (e.g. via the makefile), but not by default:
+- 'src/fix-whitespace'
+- extra-1.7.2
+- filepattern-0.1.2
 
 # Local packages, usually specified by relative directory name
 packages:

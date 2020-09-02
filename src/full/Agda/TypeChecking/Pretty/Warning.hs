@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 
 import Agda.Syntax.Common ( AgdaSourceErrorLocation(..), ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
@@ -42,32 +43,6 @@ instance PrettyTCM TCWarning where
   prettyTCM w@(TCWarning fl _ _ _ _) = do
     reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow fl
     pure $ tcWarningPrintedWarning w
-
-prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-  where
-    r   = getRange c
-    f :: MonadPretty m => m Doc -> m Doc
-    f d = if null $ P.pretty r
-          then d
-          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
-
-prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
-    isBlocked = not . null . blocking . clValue . theConstraint
-    cs' = filter interestingConstraint cs
-    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-    blocking (Guarded c pid) = pid : blocking c
-    blocking _               = []
 
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case

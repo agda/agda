@@ -8,12 +8,17 @@ import Control.Monad.State
 import Control.Monad.Writer hiding ((<>))
 
 import Data.Char
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
 
-import Agda.Syntax.Common
+import System.Process ( readProcessWithExitCode )
+import System.Exit ( ExitCode(..) )
+
+import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
@@ -22,8 +27,12 @@ import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
 
+import Agda.Interaction.Library ( ExeName )
+import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
+
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -42,7 +51,6 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.String ( Str(Str), unStr )
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
@@ -530,6 +538,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
+             , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
              failEval
     I.Def f [_, _, u, v] ->
@@ -553,7 +562,7 @@ evalTCM v = do
       if norm then normalise v else instantiateFull v
 
     mkT l a = El s a
-      where s = Type $ Max 0 [Plus 0 $ UnreducedLevel l]
+      where s = Type $ atomicLevel l
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
@@ -668,12 +677,17 @@ evalTCM v = do
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
       a <- liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext (domFromArg a :: Dom Type)) m
+      liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      strengthen __UNREACHABLE__ <$> extendCxt a (evalTCM $ raise 1 m)
+      fmap (strengthen __IMPOSSIBLE__) $ extendCxt a $ do
+        v <- evalTCM $ raise 1 m
+        when (freeIn 0 v) $ liftTCM $ genericDocError =<<
+          hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
+            <?> prettyTCM v
+        return v
 
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
@@ -766,3 +780,55 @@ evalTCM v = do
           return x
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
+
+
+------------------------------------------------------------------------
+-- * Trusted executables
+------------------------------------------------------------------------
+
+type ExeArg  = Text
+type StdIn   = Text
+type StdOut  = Text
+type StdErr  = Text
+
+-- | Raise an error if the @--allow-exec@ option was not specified.
+--
+requireAllowExec :: TCM ()
+requireAllowExec = do
+  allowExec <- optAllowExec <$> pragmaOptions
+  unless allowExec $
+    typeError $ GenericError "Missing option --allow-exec"
+
+-- | Convert an @ExitCode@ to an Agda natural number.
+--
+exitCodeToNat :: ExitCode -> Nat
+exitCodeToNat  ExitSuccess    = Nat 0
+exitCodeToNat (ExitFailure n) = Nat (toInteger n)
+
+-- | Call a trusted executable with the given arguments and input.
+--
+--   Returns the exit code, stdout, and stderr.
+--
+tcExec :: ExeName -> [ExeArg] -> StdIn -> TCM Term
+tcExec exe args stdIn = do
+  requireAllowExec
+  exes <- optTrustedExecutables <$> commandLineOptions
+  case Map.lookup exe exes of
+    Nothing -> raiseExeNotFound exe exes
+    Just fp -> do
+      let strArgs    = T.unpack <$> args
+      let strStdIn   = T.unpack stdIn
+      (datExitCode, strStdOut, strStdErr) <- lift $ readProcessWithExitCode fp strArgs strStdIn
+      let natExitCode = exitCodeToNat datExitCode
+      let txtStdOut   = T.pack strStdOut
+      let txtStdErr   = T.pack strStdErr
+      toR <- toTerm
+      return $ toR (natExitCode, (txtStdOut, txtStdErr))
+
+-- | Raise an error if the trusted executable cannot be found.
+--
+raiseExeNotFound :: ExeName -> Map ExeName FilePath -> TCM a
+raiseExeNotFound exe exes = genericDocError =<< do
+  vcat . map pretty $
+    ("Could not find '" ++ T.unpack exe ++ "' in list of trusted executables:") :
+    [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]

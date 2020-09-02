@@ -65,8 +65,18 @@ instance EmbPrj a => EmbPrj (Elim' a) where
     valu [0, a, b] = valuN Proj a b
     valu _         = malformed
 
+instance EmbPrj I.DataOrRecord where
+  icod_ = \case
+    IsData      -> icodeN' IsData
+    IsRecord pm -> icodeN' IsRecord pm
+
+  value = vcase $ \case
+    []   -> valuN IsData
+    [pm] -> valuN IsRecord pm
+    _    -> malformed
+
 instance EmbPrj I.ConHead where
-  icod_ (ConHead a b c) = icodeN' ConHead a b c
+  icod_ (ConHead a b c d) = icodeN' ConHead a b c d
 
   value = valueN ConHead
 
@@ -122,19 +132,6 @@ instance EmbPrj PlusLevel where
   icod_ (Plus a b) = icodeN' Plus a b
 
   value = valueN Plus
-
-instance EmbPrj LevelAtom where
-  icod_ (NeutralLevel r a) = icodeN' (NeutralLevel r) a
-  icod_ (UnreducedLevel a) = icodeN 1 UnreducedLevel a
-  icod_ (MetaLevel a b)    = __IMPOSSIBLE__
-  icod_ BlockedLevel{}     = __IMPOSSIBLE__
-
-  value = vcase valu where
-    valu [a]    = valuN UnreducedLevel a -- we forget that we are a NeutralLevel,
-                                         -- since we do not want do (de)serialize
-                                         -- the reason for neutrality
-    valu [1, a] = valuN UnreducedLevel a
-    valu _      = malformed
 
 instance EmbPrj IsFibrant where
   icod_ IsFibrant = return 0

@@ -1,7 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation  #-}
+{-# LANGUAGE TypeFamilies              #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -359,7 +358,7 @@ instance Occurs Term where
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     let flexIfBlocked = case vb of
           -- Don't fail on blocked terms or metas
-          -- Blocked _ MetaV{} -> id  -- does not help with issue #856
+          Blocked _ MetaV{} -> id
           Blocked b _ -> flexibly . addOrUnblocker b
           -- Re #3594, do not fail hard when Underapplied:
           -- the occurrence could be computed away after eta expansion.
@@ -524,25 +523,6 @@ instance Occurs PlusLevel where
 
   metaOccurs m (Plus n l) = metaOccurs m l
 
-instance Occurs LevelAtom where
-  occurs l = do
-    unfold l >>= \case
-      MetaLevel m' args -> do
-        MetaV m' args <- occurs (MetaV m' args)
-        return $ MetaLevel m' args
-      NeutralLevel r v  -> NeutralLevel r  <$> occurs v
-      BlockedLevel m' v -> BlockedLevel m' <$> do flexibly $ occurs v
-      UnreducedLevel v  -> UnreducedLevel  <$> occurs v
-
-  metaOccurs m l = do
-    l <- instantiate l
-    case l of
-      MetaLevel m' args -> metaOccurs m $ MetaV m' args
-      NeutralLevel _ v  -> metaOccurs m v
-      BlockedLevel _ v  -> metaOccurs m v
-      UnreducedLevel v  -> metaOccurs m v
-
-
 instance Occurs Type where
   occurs (El s v) = uncurry El <$> occurs (s,v)
 
@@ -595,7 +575,7 @@ instance Occurs a => Occurs (Elim' a) where
   metaOccurs m (Apply a) = metaOccurs m a
   metaOccurs m (IApply x y a) = metaOccurs m (x,(y,a))
 
-instance (Occurs a, Subst t a) => Occurs (Abs a) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs b@(Abs s _) = Abs   s <$> do underAbstraction_ b $ underBinder . occurs
   occurs (NoAbs s x) = NoAbs s <$> occurs x
 
@@ -800,16 +780,7 @@ instance AnyRigid Level where
 instance AnyRigid PlusLevel where
   anyRigid f (Plus _ l)    = anyRigid f l
 
-instance AnyRigid LevelAtom where
-  anyRigid f l =
-    case l of
-      MetaLevel{} -> return False
-      NeutralLevel MissingClauses _ -> return False
-      NeutralLevel _              l -> anyRigid f l
-      BlockedLevel _              l -> anyRigid f l
-      UnreducedLevel              l -> anyRigid f l
-
-instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
+instance (Subst a, AnyRigid a) => AnyRigid (Abs a) where
   anyRigid f b = underAbstraction_ b $ anyRigid f
 
 instance AnyRigid a => AnyRigid (Arg a) where

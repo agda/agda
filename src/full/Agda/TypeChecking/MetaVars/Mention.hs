@@ -37,17 +37,11 @@ instance MentionsMeta Level where
 instance MentionsMeta PlusLevel where
   mentionsMetas xs (Plus _ a) = mentionsMetas xs a
 
-instance MentionsMeta LevelAtom where
-  mentionsMetas xs l = case l of
-    MetaLevel m vs   -> HashSet.member m xs || mentionsMetas xs vs
-    BlockedLevel b _ -> mentionsMetas xs b  -- if it's blocked on a different meta it doesn't matter if it mentions the meta somewhere else
-    UnreducedLevel l -> mentionsMetas xs l
-    NeutralLevel _ l -> mentionsMetas xs l
-
 instance MentionsMeta Blocker where
-  mentionsMetas xs (UnblockOnAll bs) = mentionsMetas xs $ Set.toList bs
-  mentionsMetas xs (UnblockOnAny bs) = mentionsMetas xs $ Set.toList bs
-  mentionsMetas xs (UnblockOnMeta x) = HashSet.member x xs
+  mentionsMetas xs (UnblockOnAll bs)  = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnAny bs)  = mentionsMetas xs $ Set.toList bs
+  mentionsMetas xs (UnblockOnMeta x)  = HashSet.member x xs
+  mentionsMetas xs UnblockOnProblem{} = False
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
@@ -110,9 +104,7 @@ instance MentionsMeta Constraint where
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
-    TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
-    Guarded{}           -> False  -- This gets woken up when the problem it's guarded by is solved
     UnBlock _           -> True   -- this might be a postponed typechecking
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on

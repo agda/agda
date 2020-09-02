@@ -20,6 +20,12 @@ on:
 
 jobs:
   Ubuntu:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
     runs-on: ubuntu-18.04
 
     strategy:
@@ -30,12 +36,15 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
     steps:
-    - uses: actions/checkout@v2.3.1
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v2.1.0
       name: Cache dependencies
       with:
         path: "~/.stack"
@@ -58,6 +67,12 @@ jobs:
         stack build ${ARGS} ${NON_DEFAULT_FLAGS}
 
   macOS:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
     runs-on: macos-latest
 
     strategy:
@@ -69,7 +84,9 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Install stack
       run: |
@@ -93,6 +110,12 @@ jobs:
         stack build ${ARGS} ${NON_DEFAULT_FLAGS}
 
   Windows:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
     runs-on: windows-latest
     strategy:
       matrix:
@@ -103,7 +126,9 @@ jobs:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |

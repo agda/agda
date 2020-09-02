@@ -711,3 +711,36 @@ Example usage:
       defId id-name
 
     unquoteDecl id′ = mkId id′
+
+System Calls
+~~~~~~~~~~~~
+
+It is possible to run system calls as part of a metaprogram, using the ``execTC`` builtin. You can use this feature to implement type providers, or to call external solvers. For instance, the following example calls ``/bin/echo`` from Agda:
+
+.. code-block:: agda
+
+  postulate
+    execTC : (exe : String) (args : List String) (stdIn : String)
+           → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
+
+  {-# BUILTIN AGDATCMEXEC execTC #-}
+
+  macro
+    echo : List String → Term → TC ⊤
+    echo args hole = do
+      (exitCode , (stdOut , stdErr)) ← execTC "echo" args ""
+      unify hole (lit (string stdOut))
+
+  _ : echo ("hello" ∷ "world" ∷ []) ≡ "hello world\n"
+  _ = refl
+
+The ``execTC`` builtin takes three arguments: the basename of the executable (e.g., ``"echo"``), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
+
+It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file:
+
+.. code-block:: text
+
+  # contents of ~/.agda/executables
+  /bin/echo
+
+The executable can then be called by passing its basename to ``execTC``, subtracting the ``.exe`` on Windows.

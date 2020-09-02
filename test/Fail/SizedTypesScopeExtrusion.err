@@ -1,4 +1,4 @@
 SizedTypesScopeExtrusion.agda:21,41-42
 Cannot solve size constraints
-∞ =< i : Size
+∞ =< i : Size (blocked on _size_15, belongs to problems 34, 35)
 when checking that the expression x has type Nat

@@ -220,11 +220,11 @@ findInstance m Nothing = do
     case cands of
       Left unblock -> do
         reportSLn "tc.instance" 20 "Can't figure out target of instance goal. Postponing constraint."
-        addConstraint unblock $ FindInstance m unblock Nothing
+        addConstraint unblock $ FindInstance m Nothing
       Right cs -> findInstance m (Just cs)
 
 findInstance m (Just cands) =                          -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
-  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m b $ Just cands)
+  whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m $ Just cands)
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.

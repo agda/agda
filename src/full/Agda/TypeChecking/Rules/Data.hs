@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Data where
@@ -259,7 +260,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
 
         -- Cannot compose indexed inductive types yet.
         (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-          then return (ConHead c Inductive [], emptyCompKit, Nothing)
+          then return (ConHead c IsData Inductive [], emptyCompKit, Nothing)
           else do
             -- Name for projection of ith field of constructor c is just c-i
             names <- forM [0 .. size fields - 1] $ \ i ->
@@ -276,7 +277,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , "names  =" <+> pretty names
               ]
 
-            let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+            let con = ConHead c IsData Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
             comp <- inTopContext $ defineCompData d con params names fields dataT boundary

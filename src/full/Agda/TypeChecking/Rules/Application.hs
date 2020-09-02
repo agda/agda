@@ -873,7 +873,7 @@ checkConstructorApplication cmp org t c args = do
         dropPar _ [] = Nothing
 
 -- | Returns an unblocking action in case of failure.
-disambiguateConstructor :: List1 QName -> Type -> TCM (Either (TCM Bool) ConHead)
+disambiguateConstructor :: List1 QName -> Type -> TCM (Either Blocker ConHead)
 disambiguateConstructor cs0 t = do
   reportSLn "tc.check.term.con" 40 $ "Ambiguous constructor: " ++ prettyShow cs0
 
@@ -901,24 +901,20 @@ disambiguateConstructor cs0 t = do
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf c0 t
       -- Lets look at the target type at this point
-      let getCon :: TCM (Maybe ConHead)
-          getCon = do
-            TelV tel t1 <- telViewPath t
-            addContext tel $ do
-             reportSDoc "tc.check.term.con" 40 $ nest 2 $
-               "target type: " <+> prettyTCM t1
-             ifBlocked t1 (\ m t -> return Nothing) $ \ _ t' ->
-               caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
-                 case [ c | (d', c) <- dcs, d == d' ] of
-                   [c] -> do
-                     reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
-                     storeDisambiguatedConstructor (conInductive c) (conName c)
-                     return $ Just c
-                   []  -> badCon $ t' $> Def d []
-                   c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
-                            fmap conName $ c :| cs
-      let unblock = isJust <$> getCon
-      maybeToEither unblock <$> getCon
+      TelV tel t1 <- telViewPath t
+      addContext tel $ do
+       reportSDoc "tc.check.term.con" 40 $ nest 2 $
+         "target type: " <+> prettyTCM t1
+       ifBlocked t1 (\ b t -> return $ Left b) $ \ _ t' ->
+         caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
+           case [ c | (d', c) <- dcs, d == d' ] of
+             [c] -> do
+               reportSLn "tc.check.term.con" 40 $ "  decided on: " ++ prettyShow c
+               storeDisambiguatedConstructor (conInductive c) (conName c)
+               return $ Right c
+             []  -> badCon $ t' $> Def d []
+             c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
+                      fmap conName $ c :| cs
 
 ---------------------------------------------------------------------------
 -- * Projections
@@ -981,7 +977,7 @@ inferOrCheckProjApp e o ds args mt = do
       -- is blocked by meta m.
       postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) $ ((== alwaysUnblock) <$> instantiate b)
+        v <- postponeTypeCheckingProblem (CheckExpr cmp e tc) b
         return (v, tc, NotCheckedTarget)
 
   -- The following cases need to be considered:
@@ -1034,7 +1030,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
   let cmp = caseMaybe mt CmpEq fst
       postpone b = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) $ ((== alwaysUnblock) <$> instantiate b)
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
   (vargs, ta) <- implicitArgs (-1) (not . visible) ta

@@ -242,6 +242,10 @@ Experimental features
      Enable declaration and use of REWRITE rules (see
      :ref:`rewriting`).
 
+.. option:: --allow-exec
+
+     Enable system calls during type checking (see :ref:`reflection`).
+
 Errors and warnings
 ~~~~~~~~~~~~~~~~~~~
 
@@ -747,13 +751,25 @@ Individual warnings can be turned on and off by ``-W {Name}`` and ``-W
      Terms marked as eligible for instance search should end with a
      name.
 
-For example, the following command runs Agda with all warnings
+Examples
+--------
+
+Run Agda with all warnings
 enabled, except for warnings about empty ``abstract`` blocks:
 
 .. code-block:: console
 
    agda -W all --warning=noEmptyAbstract file.agda
 
+Run Agda on a file which uses the standard library.
+Note that you must have already created a ``libraries`` file
+as described in :ref:`package-system`
+
+.. code-block:: console
+
+   agda -l standard-library -i. file.agda
+
+(Or if you have added ``standard-library`` to your ``defaults`` file, simply ``agda file.agda``)
 
 .. _consistency-checking-options:
 
@@ -813,6 +829,7 @@ again, the source file is re-typechecked instead:
 * :option:`--instance-search-depth`
 * :option:`--inversion-max-depth`
 * :option:`--warning`
+* :option:`--allow-exec`
 
 
 .. _Vim: https://www.vim.org/

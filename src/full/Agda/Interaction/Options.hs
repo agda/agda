@@ -41,6 +41,8 @@ import Control.Monad.Trans
 import Data.IORef
 import Data.Function
 import Data.Maybe
+import Data.Map                 ( Map )
+import qualified Data.Map as Map
 import Data.List                ( intercalate )
 import qualified Data.Set as Set
 
@@ -56,8 +58,8 @@ import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
-import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
+import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -97,6 +99,8 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
+  , optTrustedExecutables             :: Map ExeName FilePath
+  -- ^ Map names of trusted executables to absolute paths
   , optShowVersion           :: Bool
   , optShowHelp              :: Maybe Help
   , optInteractive           :: Bool
@@ -180,7 +184,6 @@ data PragmaOptions = PragmaOptions
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
   , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
-  , optCompareSorts              :: Bool  -- ^ Should conversion checker compare sorts of types?
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -202,6 +205,7 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optAllowExec                 :: Bool
   }
   deriving (Show, Eq)
 
@@ -238,6 +242,7 @@ defaultOptions = Options
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs           = True
   , optUseLibs               = True
+  , optTrustedExecutables    = Map.empty
   , optShowVersion           = False
   , optShowHelp              = Nothing
   , optInteractive           = False
@@ -308,7 +313,6 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optDoubleCheck               = False
   , optSyntacticEquality         = True
-  , optCompareSorts              = True
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -320,6 +324,7 @@ defaultPragmaOptions = PragmaOptions
   , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
+  , optAllowExec                 = False
   }
 
 -- | The default termination depth.
@@ -426,6 +431,7 @@ unsafePragmaOptions clo opts =
   [ "--cubical and --with-K"                     | optCubical opts
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
+  [ "--allow-exec"                               | optAllowExec opts                 ] ++
   []
 
 -- | If any these options have changed, then the file will be
@@ -463,7 +469,6 @@ restartOptions =
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
   , (B . not . optSyntacticEquality, "--no-syntactic-equality")
-  , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
   , (B . optCallByName, "--call-by-name")
@@ -473,6 +478,7 @@ restartOptions =
   , (B . (== Just LocalConfluenceCheck) . optConfluenceCheck, "--local-confluence-check")
   , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
   , (B . not . optImportSorts, "--no-import-sorts")
+  , (B . optAllowExec, "--allow-exec")
   ]
 
 -- to make all restart options have the same type
@@ -541,7 +547,7 @@ noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
 
 noSortComparisonFlag :: Flag PragmaOptions
-noSortComparisonFlag o = return $ o { optCompareSorts = False }
+noSortComparisonFlag o = return o
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ _ = throwError $
@@ -599,7 +605,7 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
-  lift $ writeIORef unicodeOrAscii AsciiOnly
+  lift $ unsafeSetUnicodeOrAscii AsciiOnly
   return $ o { optUseUnicode = False }
 
 ghciInteractionFlag :: Flag CommandLineOptions
@@ -892,6 +898,9 @@ withCompilerFlag fp o = case optWithCompiler o of
 noImportSorts :: Flag PragmaOptions
 noImportSorts o = return $ o { optImportSorts = False }
 
+allowExec :: Flag PragmaOptions
+allowExec o = return $ o { optAllowExec = True }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1092,8 +1101,6 @@ pragmaOptions =
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
-    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
-                    "disable the comparison of sorts when checking conversion of types"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
@@ -1124,6 +1131,8 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+    , Option []     ["allow-exec"] (NoArg allowExec)
+                    "allow system calls to trusted executables with primExec"
     ]
 
 -- | Pragma options of previous versions of Agda.
@@ -1134,6 +1143,8 @@ deadPragmaOptions =
                     "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
                     "the option has been removed"
+    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
+                    "disable the comparison of sorts when checking conversion of types"
     ]
 
 -- | Used for printing usage info.

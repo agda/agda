@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Primitive.Cubical where
 
@@ -319,7 +320,7 @@ primSubOut' = do
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           hPi' "u" (el's a $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
-          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' a bA
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
@@ -1773,7 +1774,7 @@ transpSysTel' flag delta us phi args = do
   ineg <- liftTCM primINeg
   let
     noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
-    bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
+    bapp :: (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
     doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
                            | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
@@ -2125,7 +2126,8 @@ toLType ty = do
     Type l -> return $ Just $ LEl l (unEl ty)
     _      -> return $ Nothing
 
-instance Subst Term LType where
+instance Subst LType where
+  type SubstArg LType = Term
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
 -- | A @Type@ that either has sort @Type l@ or is a closed definition.
@@ -2152,7 +2154,8 @@ toCType ty = do
         _        -> return $ Nothing
     _      -> return $ Nothing
 
-instance Subst Term CType where
+instance Subst CType where
+  type SubstArg CType = Term
   applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
   applySubst rho (LType t) = LType $ applySubst rho t
 

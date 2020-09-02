@@ -15,14 +15,17 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.1]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2.3.1
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.2
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
@@ -52,14 +55,16 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.1]
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Install stack
       run: |
@@ -95,14 +100,16 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        ghc-ver: [8.8.2]
+        ghc-ver: [8.10.1]
         icu-ver: [58.2-3]
 
     env:
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Download ICU ${{ matrix.icu-ver }}
       run: |
@@ -129,7 +136,6 @@ jobs:
         cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
         cp -av .stack-work/install/**/bin/agda.exe upload/bin
         cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
-        cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
         cp -avr src/data upload
         cp -av .github/*.bat upload
 

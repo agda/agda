@@ -1,5 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
-
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
 --   @
@@ -112,25 +110,6 @@ instance SynEq PlusLevel where
     | n == n'   = Plus n <$$> synEq v v'
     | otherwise = inequal (l, l')
 
-instance SynEq LevelAtom where
-  synEq l l' = do
-    l  <- lift (unBlock =<< instantiate' l)
-    case (l, l') of
-      (MetaLevel m vs  , MetaLevel m' vs'  ) | m == m' -> MetaLevel m    <$$> synEq vs vs'
-      (UnreducedLevel v, UnreducedLevel v' )           -> UnreducedLevel <$$> synEq v v'
-      -- The reason for being blocked should not matter for equality.
-      (NeutralLevel r v, NeutralLevel r' v')           -> NeutralLevel r <$$> synEq v v'
-      (BlockedLevel m v, BlockedLevel m' v')           -> BlockedLevel m <$$> synEq v v'
-      _ -> inequal (l, l')
-    where
-      unBlock l =
-        case l of
-          BlockedLevel b v ->
-            ifM ((alwaysUnblock ==) <$> instantiate b)
-                (pure $ UnreducedLevel v)
-                (pure l)
-          _ -> pure l
-
 instance SynEq Sort where
   synEq s s' = do
     (s, s') <- lift $ instantiate' (s, s')
@@ -166,7 +145,7 @@ instance SynEq a => SynEq (Elim' a) where
                           -> (IApply u v *** IApply u' v') <$> synEq r r'
       _                   -> inequal (e, e')
 
-instance (Subst t a, SynEq a) => SynEq (Abs a) where
+instance (Subst a, SynEq a) => SynEq (Abs a) where
   synEq a a' =
     case (a, a') of
       (NoAbs x b, NoAbs x' b') -> (NoAbs x *** NoAbs x') <$>  synEq b b'

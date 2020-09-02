@@ -2,8 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
-{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
+{-# LANGUAGE TypeFamilies               #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -365,9 +364,6 @@ data Modality = Modality
 
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
-
-instance Null Modality where
-  empty = defaultModality
 
 -- | Pointwise composition.
 instance Semigroup Modality where
@@ -1684,38 +1680,43 @@ userNamed :: Ranged ArgName -> a -> Named_ a
 userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
-class LensNamed name a | a -> name where
-  lensNamed :: Lens' (Maybe name) a
+class LensNamed a where
+  -- | The type of the name
+  type NameOf a
+  lensNamed :: Lens' (Maybe (NameOf a)) a
 
   -- Lenses lift through decorations:
-  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' (Maybe (NameOf a)) a
   lensNamed = traverseF . lensNamed
 
-instance LensNamed name a => LensNamed name (Arg a) where
+instance LensNamed a => LensNamed (Arg a) where
+  type NameOf (Arg a) = NameOf a
 
-instance LensNamed name (Maybe name) where
+instance LensNamed (Maybe a) where
+  type NameOf (Maybe a) = a
   lensNamed = id
 
-instance LensNamed name (Named name a) where
+instance LensNamed (Named name a) where
+  type NameOf (Named name a) = name
+
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
-getNameOf :: LensNamed name a => a -> Maybe name
+getNameOf :: LensNamed a => a -> Maybe (NameOf a)
 getNameOf a = a ^. lensNamed
 
-setNameOf :: LensNamed name a => Maybe name -> a -> a
+setNameOf :: LensNamed a => Maybe (NameOf a) -> a -> a
 setNameOf = set lensNamed
 
-mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
+mapNameOf :: LensNamed a => (Maybe (NameOf a) -> Maybe (NameOf a)) -> a -> a
 mapNameOf = over lensNamed
-
-bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf :: (LensNamed a, NameOf a ~ NamedName) => a -> Maybe ArgName
 bareNameOf a = rangedThing . woThing <$> getNameOf a
 
-bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault :: (LensNamed a, NameOf a ~ NamedName) => ArgName -> a -> ArgName
 bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
 
 -- | Equality of argument names of things modulo 'Range' and 'Origin'.
-namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame :: (LensNamed a, LensNamed b, NameOf a ~ NamedName, NameOf b ~ NamedName) => a -> b -> Bool
 namedSame a b = case (getNameOf a, getNameOf b) of
   (Nothing, Nothing) -> True
   (Just x , Just y ) -> sameName x y
@@ -1732,8 +1733,8 @@ namedSame a b = case (getNameOf a, getNameOf b) of
 --   @@
 --
 fittingNamedArg
-  :: ( LensNamed NamedName arg, LensHiding arg
-     , LensNamed NamedName dom, LensHiding dom )
+  :: ( LensNamed arg, NameOf arg ~ NamedName, LensHiding arg
+     , LensNamed dom, NameOf dom ~ NamedName, LensHiding dom )
   => arg -> dom -> Maybe Bool
 fittingNamedArg arg dom
     | not $ sameHiding arg dom = no
@@ -2052,6 +2053,19 @@ instance NFData MetaId where
 instance Hashable MetaId
 
 newtype Constr a = Constr a
+
+-----------------------------------------------------------------------------
+-- * Problems
+-----------------------------------------------------------------------------
+
+-- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
+--   problems.
+newtype ProblemId = ProblemId Nat
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+-- This particular Show instance is ok because of the Num instance.
+instance Show   ProblemId where show   (ProblemId n) = show n
+instance Pretty ProblemId where pretty (ProblemId n) = pretty n
 
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)

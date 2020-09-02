@@ -63,6 +63,7 @@ import Agda.TypeChecking.Serialise.Instances () --instance only
 
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
 import Agda.Utils.IORef
 
@@ -71,7 +72,7 @@ import Agda.Utils.IORef
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20200717 * 10 + 0
+currentInterfaceVersion = 20200902 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -298,5 +299,8 @@ icodeFileMod
 icodeFileMod fileMod = do
   hmap <- asks absPathD
   forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
+    -- Andreas, 2020-08-11, issue #4828.
+    -- Expand symlinks before storing in the dictonary.
+    absolutePath <- liftIO $ canonicalizeAbsolutePath absolutePath
     i <- icod_ topLevelModuleName
     liftIO $ H.insert hmap absolutePath i

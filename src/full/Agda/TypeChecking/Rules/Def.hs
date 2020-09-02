@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
@@ -102,7 +103,7 @@ checkFunDef delayed i name cs = do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
-        addConstraint blocker $ CheckFunDef delayed i name cs
+        addConstraint blocker $ CheckFunDef delayed i name cs err
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-| EDSL to construct terms without touching De Bruijn indices.
 
@@ -87,7 +87,7 @@ cxtSubst ctx = do
      then return $ raiseS (genericLength ctx' - genericLength ctx)
      else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
-inCxt :: (MonadFail m, Subst t a) => Names -> a -> NamesT m a
+inCxt :: (MonadFail m, Subst a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   sigma <- cxtSubst ctx
   return $ applySubst sigma a
@@ -99,19 +99,19 @@ cl' = pure
 cl :: Monad m => m a -> NamesT m a
 cl = lift
 
-open :: (MonadFail m, Subst t a) => a -> NamesT m (NamesT m a)
+open :: (MonadFail m, Subst a) => a -> NamesT m (NamesT m a)
 open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m) => ArgName -> ((forall t' b. (Subst t' b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
+bind' :: (MonadFail m) => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
 bind :: ( MonadFail m
         ) =>
-        ArgName -> ((forall t' b. (Subst t' b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
+        ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
 
 
@@ -136,7 +136,8 @@ ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
 
 data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving (Functor,Foldable,Traversable)
 
-instance Subst t a => Subst t (AbsN a) where
+instance Subst a => Subst (AbsN a) where
+  type SubstArg (AbsN a) = SubstArg a
   applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
 
 -- | Will crash on @NoAbs@
@@ -144,26 +145,31 @@ toAbsN :: Abs (AbsN a) -> AbsN a
 toAbsN (Abs n x') = AbsN (n : absNName x') (unAbsN x')
 toAbsN NoAbs{} = __IMPOSSIBLE__
 
-absAppN :: Subst t a => AbsN a -> [t] -> a
+absAppN :: Subst a => AbsN a -> [SubstArg a] -> a
 absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
+
+type ArgVars m = (forall b. (Subst b, DeBruijn b) => [NamesT m (Arg b)])
+
+type Vars m = (forall b. (Subst b, DeBruijn b) => [NamesT m b])
+type Var m = (forall b. (Subst b, DeBruijn b) => NamesT m b)
 
 bindN :: ( MonadFail m
         ) =>
-        [ArgName] -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b]) -> NamesT m a) -> NamesT m (AbsN a)
+        [ArgName] -> (Vars m -> NamesT m a) -> NamesT m (AbsN a)
 bindN [] f = AbsN [] <$> f []
 bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
 
 bindNArg :: ( MonadFail m
         ) =>
-        [Arg ArgName] -> ((forall t' b. (Subst t' b, DeBruijn b) => [NamesT m (Arg b)]) -> NamesT m a) -> NamesT m (AbsN a)
+        [Arg ArgName] -> (ArgVars m -> NamesT m a) -> NamesT m (AbsN a)
 bindNArg [] f = AbsN [] <$> f []
 bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
 
 
 applyN :: ( Monad m
-        , Subst t a
+        , Subst a
         ) =>
-        NamesT m (AbsN a) -> [NamesT m t] -> NamesT m a
+        NamesT m (AbsN a) -> [NamesT m (SubstArg a)] -> NamesT m a
 applyN f xs = do
   f <- f
   xs <- sequence xs
@@ -171,19 +177,15 @@ applyN f xs = do
   return $ absAppN f xs
 
 applyN' :: ( Monad m
-        , Subst t a
+        , Subst a
         ) =>
-        NamesT m (AbsN a) -> NamesT m [t] -> NamesT m a
+        NamesT m (AbsN a) -> NamesT m [SubstArg a] -> NamesT m a
 applyN' f xs = do
   f <- f
   xs <- xs
   unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
   return $ absAppN f xs
 
-type ArgVars m = (forall t' b. (Subst t' b, DeBruijn b) => [NamesT m (Arg b)])
-
-type Vars m = (forall t' b. (Subst t' b, DeBruijn b) => [NamesT m b])
-type Var m = (forall t' b. (Subst t' b, DeBruijn b) => NamesT m b)
 abstractN :: ( MonadFail m
              , Abstract a
              ) =>

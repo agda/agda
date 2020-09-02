@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonomorphismRestriction #-} -- TODO remove
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -32,7 +31,7 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
@@ -865,9 +864,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
         transpSys data_ty sys (pure iz) x0
       absApp <$> pure c <*> i
     sysphi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ o -> do
-      c <- mkComp $ bindN ["i","j"] $ \ ij -> do
-        let i = ij List.!! 0
-            j = ij List.!! 1
+      c <- mkComp $ bindN ["i","j"] $ \ _ij -> do
         trX `applyN` g1 `applyN` (psi:q) `applyN` [x0]
       absApp <$> pure c <*> i
     syse <- mkBndry $ bind "j" $ \ _ -> sequence $ g1 ++ [absApp <$> pat_rec <*> pure iz] ++ d
@@ -1079,6 +1076,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     bind "u0" $ \ u0 -> do
     bindN (map unArg deltaArgNames) $ \ d -> do
     let
+      x0 :: Vars TCM
       x0 = [psi,u,u0]
       ps :: NamesT TCM NAPs
       ps = old_ps `applyN` (g1
@@ -1501,7 +1499,8 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
                     (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
   (ty,rhs) <- addContext working_tel $ runNamesT [] $ do
     let
-        raiseFrom tel = raise (size working_tel - size tel)
+        raiseFrom :: Subst a => Telescope -> a -> a
+        raiseFrom tel x = raise (size working_tel - size tel) x
         all_args = teleArgs working_tel :: Args
         (gamma_args,phi:p:delta_args) = splitAt (size gamma) all_args
     old_t <- open $ raiseFrom EmptyTel old_t
@@ -1645,6 +1644,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
   io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
   iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
   let
+    cannotCreate :: MonadTCError m => Doc -> Closure (Abs Type) -> m a
     cannotCreate doc t = do
       typeError . SplitError $ CannotCreateMissingClause f (tel,fromSplitPatterns ps) doc t
   let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
@@ -1798,7 +1798,8 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
             reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
             case s of
               Type l -> open =<< lam "i" (\ _ -> pure $ Level l)
-              _      -> cannotCreate "Cannot compose with type family:" =<< liftTCM (buildClosure t)
+              _      -> do cl <- liftTCM (buildClosure t)
+                           liftTCM (cannotCreate "Cannot compose with type family:" cl)
 
           let
             pOr_ty i phi psi u0 u1 = pure tPOr <#> (ty_level <@> i)
