@@ -1,5 +1,5 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 
 -- | Potentially uninitialised Booleans
 
@@ -15,19 +15,19 @@ module Agda.Utils.WithDefault
   , collapseDefault
   ) where
 
-import Agda.Utils.TypeLits (KnownBool, boolVal)
+import Agda.Utils.TypeLits (KnownVal, knownVal)
 
 -- We don't want to have to remember for each flag whether its default value
 -- is True or False. So we bake it into the representation: the flag's type
 -- will mention its default value as a phantom parameter.
 
-data WithDefault (b :: Bool) = Default | Value Bool
+data WithDefault (b :: t) = Default | Value t
   deriving (Eq, Show)
 
 -- The main mode of operation of these flags, apart from setting them explicitly,
 -- is to toggle them one way or the other if they hadn't been already.
 
-setDefault :: Bool -> WithDefault b -> WithDefault b
+setDefault :: t -> WithDefault (b :: t) -> WithDefault b
 setDefault b = \case
   Default -> Value b
   t -> t
@@ -35,7 +35,7 @@ setDefault b = \case
 -- Provided that the default value is a known boolean (in practice we only use
 -- True or False), we can collapse a potentially uninitialised value to a boolean.
 
-collapseDefault :: KnownBool b => WithDefault b -> Bool
+collapseDefault :: KnownVal (b :: t) => WithDefault b -> t
 collapseDefault = \case
-  w@Default -> boolVal w
+  w@Default -> knownVal w
   Value b -> b

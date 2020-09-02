@@ -1,3 +1,4 @@
+{-# LANGUAGE PolyKinds            #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
@@ -200,7 +201,7 @@ instance EmbPrj a => EmbPrj (Position' a) where
 
   value = valueN P.Pn
 
-instance Typeable b => EmbPrj (WithDefault b) where
+instance (EmbPrj t, Typeable (b :: t)) => EmbPrj (WithDefault b) where
   icod_ = \case
     Default -> icodeN' Default
     Value b -> icodeN' Value b
