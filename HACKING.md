@@ -232,6 +232,13 @@ Testing and documentation
     PARALLEL_TESTS = 4
   ```
 
+* RTS options to ghc can be provided through the `GHC_RTS_OPTS` variable,
+  either on the command line
+  ```sh
+    make GHC_RTS_OPTS=-M8G install-bin
+  ```
+  or in `mk/config.mk`.
+
 * You can run a single interaction test by going into the
   `test/interaction` directory and typing `make <test name>.cmp`.
 
