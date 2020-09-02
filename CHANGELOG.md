@@ -309,6 +309,8 @@ Emacs mode
 
   `C-u C-u C-u C-c C-n downFrom 5` returns `4 ∷ downFrom 4`.
 
+* New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
+
 
 JS backend
 ----------
