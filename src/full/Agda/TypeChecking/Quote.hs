@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
+import Agda.Syntax.Internal.Pattern ( dbPatPerm', hasDefP )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -216,6 +216,11 @@ quotingKit = do
       quoteArgs :: Args -> ReduceM Term
       quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
+      -- has the clause been generated (in particular by --cubical)?
+      -- TODO: have an explicit clause origin field?
+      generatedClause :: Clause -> Bool
+      generatedClause cl = hasDefP (namedClausePats cl)
+
       quoteTerm :: Term -> ReduceM Term
       quoteTerm v =
         case unSpine v of
@@ -232,6 +237,7 @@ quotingKit = do
               qx Function{ funExtLam = Just (ExtLamInfo m _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
+                    cs <- return $ filter (not . generatedClause) cs
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause . (`apply` pars)) cs)
