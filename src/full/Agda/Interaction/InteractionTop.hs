@@ -43,6 +43,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -809,8 +810,8 @@ interpret (Cmd_make_case ii rng s) = do
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
         replEquals ("=" : ws)
-           | unicode   = "→" : ws
-           | otherwise = "->" : ws
+           | unicode   = (render $ _arrow $ specialCharactersForGlyphs UnicodeOk) : ws
+           | otherwise = (render $ _arrow $ specialCharactersForGlyphs AsciiOnly) : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 

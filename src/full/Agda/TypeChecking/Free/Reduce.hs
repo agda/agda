@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 -- | Free variable check that reduces the subject to make certain variables not
 --   free. Used when pruning metavariables in Agda.TypeChecking.MetaVars.Occurs.
 module Agda.TypeChecking.Free.Reduce
@@ -50,7 +52,7 @@ type MonadFreeRed m =
   , MonadReduce m
   )
 
-class (PrecomputeFreeVars a, Subst Term a) => ForceNotFree a where
+class (PrecomputeFreeVars a, Subst a) => ForceNotFree a where
   -- Reduce the argument if necessary, to make as many as possible of
   -- the variables in the state not free. Updates the state, marking
   -- the variables that couldn't be make not free as `MaybeFree`. By
@@ -85,7 +87,7 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Arg a) where
   -- traverse.
   forceNotFree' = reduceIfFreeVars (traverse forceNotFree')
 
-instance (Reduce a, ForceNotFree a) => ForceNotFree (Dom a) where
+instance (Reduce a, ForceNotFree a, TermSubst a) => ForceNotFree (Dom a) where
   forceNotFree' = traverse forceNotFreeR
 
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where

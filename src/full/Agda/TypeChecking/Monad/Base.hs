@@ -4121,7 +4121,8 @@ instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm)
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
 --   "Agda.Benchmarking".
-instance MonadBench Phase TCM where
+instance MonadBench TCM where
+  type BenchPhase TCM = Phase
   getBenchmark = liftIO $ getBenchmark
   putBenchmark = liftIO . putBenchmark
   finally = finally_

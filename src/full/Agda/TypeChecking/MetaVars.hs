@@ -1218,7 +1218,7 @@ expandProjectedVars
   :: ( Show a, PrettyTCM a, NoProjectedVar a
      -- , Normalise a, TermLike a, Subst Term a
      , ReduceAndEtaContract a
-     , PrettyTCM b, Subst Term b
+     , PrettyTCM b, TermSubst b
      )
   => a  -- ^ Meta variable arguments.
   -> b  -- ^ Right hand side.
@@ -1239,7 +1239,7 @@ expandProjectedVars args v ret = loop (args, v) where
       Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
-etaExpandProjectedVar :: (PrettyTCM a, Subst Term a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
@@ -1276,11 +1276,11 @@ instance NoProjectedVar a => NoProjectedVar [a] where
 
 
 -- | Normalize just far enough to be able to eta-contract maximally.
-class (TermLike a, Subst Term a, Reduce a) => ReduceAndEtaContract a where
+class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
   reduceAndEtaContract :: a -> TCM a
 
   default reduceAndEtaContract
-    :: (Traversable f, TermLike b, Subst Term b, Reduce b, ReduceAndEtaContract b, f b ~ a)
+    :: (Traversable f, TermLike b, Subst b, Reduce b, ReduceAndEtaContract b, f b ~ a)
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 

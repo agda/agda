@@ -191,7 +191,8 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                  nsol' <- readIORef nsol
                  if nsol' /= 0 && depreached then loop (d + costIncrease) else return depreached
 
-        let getsols sol = do
+        let getsols :: [I.Term] -> TCM [(MetaId, A.Expr)]
+            getsols sol = do
              exprs <- forM (zip (Map.keys tccons) sol) $ \ (mi, e) -> do
                mv   <- lookupMeta mi
                e    <- etaContract e

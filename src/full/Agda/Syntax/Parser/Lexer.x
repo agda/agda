@@ -45,6 +45,7 @@ import Agda.Syntax.Literal
 
 $digit       = 0-9
 $hexdigit    = [ $digit a-f A-F ]
+$binarydigit = 0-1
 $alpha       = [ A-Z a-z _ ]
 $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $digit $alpha $op ]
@@ -54,7 +55,9 @@ $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
 @number       = $digit+ | "0x" $hexdigit+
-@prettynumber = $digit+ ([_] $digit+)* | "0x" $hexdigit+
+@prettynumber = $digit+ ([_] $digit+)*
+              | "0x" $hexdigit+ ([_] $hexdigit+)*
+              | "0b" $binarydigit+ ([_] $binarydigit+)*
 @integer      = [\-]? @prettynumber
 @exponent     = [eE] [\-\+]? @number
 @float        = @integer \. @number @exponent? | @number @exponent

@@ -1,5 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
-
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
 --   @
@@ -147,7 +145,7 @@ instance SynEq a => SynEq (Elim' a) where
                           -> (IApply u v *** IApply u' v') <$> synEq r r'
       _                   -> inequal (e, e')
 
-instance (Subst t a, SynEq a) => SynEq (Abs a) where
+instance (Subst a, SynEq a) => SynEq (Abs a) where
   synEq a a' =
     case (a, a') of
       (NoAbs x b, NoAbs x' b') -> (NoAbs x *** NoAbs x') <$>  synEq b b'

@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeFamilies         #-}  -- for type equality ~
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -777,8 +776,8 @@ instance Pretty Node where
 instance PrettyTCM Node where
   prettyTCM = return . P.pretty
 
-instance PrettyTCM n => PrettyTCM (WithNode n (Edge OccursWhere)) where
-  prettyTCM (WithNode n (Edge o w)) = vcat
+instance PrettyTCMWithNode (Edge OccursWhere) where
+  prettyTCMWithNode (WithNode n (Edge o w)) = vcat
     [ prettyTCM o <+> prettyTCM n
     , nest 2 $ return $ P.pretty w
     ]

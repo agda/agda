@@ -151,6 +151,9 @@ Language
   local confluence can be restored by using the
   `--local-confluence-check` flag.
 
+* Binary integer literals with prefix `0b` (for instance, `0b11001001`) are now
+  supported.
+
 Builtins
 --------
 

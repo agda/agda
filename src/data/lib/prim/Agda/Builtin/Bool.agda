@@ -10,8 +10,6 @@ data Bool : Set where
 {-# BUILTIN FALSE false #-}
 {-# BUILTIN TRUE  true  #-}
 
-{-# COMPILE UHC Bool = data __BOOL__ (__FALSE__ | __TRUE__) #-}
-
 {-# COMPILE JS Bool  = function (x,v) { return ((x)? v["true"]() : v["false"]()); } #-}
 {-# COMPILE JS false = false #-}
 {-# COMPILE JS true  = true  #-}
