@@ -1,3 +1,4 @@
-Issue2365.agda:19,5-8
+Issue2365.agda:19,1-8
 Negative literals are not supported in patterns
-when checking that the pattern -20 has type Int
+when scope checking the left-hand side lit -20 in the definition of
+lit

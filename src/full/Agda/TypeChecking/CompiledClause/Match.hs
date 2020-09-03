@@ -3,8 +3,9 @@ module Agda.TypeChecking.CompiledClause.Match where
 
 import qualified Data.Map as Map
 
-import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Internal
+import Agda.Syntax.Literal
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding (constructorForm)
@@ -154,11 +155,21 @@ match' ((c, es, patch) : stack) = do
 
             fallThrough <- return $ (Just True ==) (fallThrough bs) && isJust (catchAllBranch bs)
 
+            sucName <- getBuiltinName' builtinSuc
+
             let
               isCon b =
                 case ignoreBlocking b of
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
+
+              isSuc c = (Just (conName c) == sucName)
+
+              -- If we were stuck before, we keep the old reason, otherwise we give reason StuckOn here.
+              stuck = case eb of
+                Blocked x _            -> no (Blocked x) es'
+                NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
+
             -- Now do the matching on the @n@ths argument:
             case eb of
               -- In case of a literal, try also its constructor form
@@ -172,6 +183,18 @@ match' ((c, es, patch) : stack) = do
               NotBlocked _ (Apply (Arg info v@(Def q vs))) | Just{} <- Map.lookup q (conBranches bs) -> performedSimplification $ do
                 match' $ conFrame' q (Def q) vs $ catchAllFrame $ stack
 
+              -- In case of a suc constructor, we must first check if we could
+              -- match any of the literals. Otherwise, push the conFrame
+              b | Just t@(Con c ci vs) <- isCon b, isSuc c -> do
+                d <- sucDepth t
+                if all (cannotMatchLiteral d) (Map.keys (litBranches bs)) then
+                  performedSimplification $ match' $ conFrame c ci vs $ catchAllFrame $ stack
+                else
+                  stuck
+                where
+                  cannotMatchLiteral d (LitNat i) = d > i
+                  cannotMatchLiteral d _          = __IMPOSSIBLE__
+
               -- In case of a constructor, push the conFrame
               b | Just (Con c ci vs) <- isCon b -> performedSimplification $
                 match' $ conFrame c ci vs $ catchAllFrame $ stack
@@ -183,12 +206,8 @@ match' ((c, es, patch) : stack) = do
 
               _ | fallThrough -> match' $ catchAllFrame $ stack
 
-              Blocked x _            -> no (Blocked x) es'
-
-              -- Otherwise, we are stuck.  If we were stuck before,
-              -- we keep the old reason, otherwise we give reason StuckOn here.
-              NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
-
+              -- Otherwise, we are stuck.
+              _ -> stuck
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}

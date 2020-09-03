@@ -1,0 +1,6 @@
+Issue2364.agda:4,1-5,16
+With clause pattern 3 is not an instance of its parent pattern 5
+when checking that the clause
+lit 5 with 0
+lit 3 | _ = Nat
+has type Nat → Set

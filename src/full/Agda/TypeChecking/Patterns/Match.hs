@@ -14,6 +14,7 @@ import qualified Data.IntMap as IntMap
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
@@ -202,13 +203,17 @@ matchPattern p u = case (p, u) of
   (LitP _ l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
-    case w of
-      NotBlocked _ (Lit l')
+        stuck = case w of
+          Blocked b _     -> return (DontKnow $ Blocked b ()     , arg')
+          NotBlocked r t  -> return (DontKnow $ NotBlocked (stuckOn (Apply arg') r) () , arg')
+    case ignoreBlocking w of
+      Lit l'
           | l == l'            -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
-      Blocked b _              -> return (DontKnow $ Blocked b ()     , arg')
-      NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
-        where r' = stuckOn (Apply arg') r
+      t | LitNat i <- l        -> do
+          d <- sucDepth t
+          if d > i then return (No, arg') else stuck
+      _                        -> stuck
 
   -- Case constructor pattern.
   (ConP c cpi ps, Arg info v) -> do
@@ -300,40 +305,3 @@ matchPattern p u = case (p, u) of
 yesSimplification :: (Match a, b) -> (Match a, b)
 yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
 yesSimplification r              = r
-
--- Matching patterns against patterns -------------------------------------
-
--- | Match a single pattern.
-matchPatternP :: DeBruijnPattern
-             -> Arg DeBruijnPattern
-             -> ReduceM (Match DeBruijnPattern)
-matchPatternP p (Arg info (DotP _ v)) = do
-  (m, arg) <- matchPattern p (Arg info v)
-  return $ fmap (DotP defaultPatternInfo) m
-matchPatternP p arg@(Arg info q) = do
-  let varMatch x = return $ Yes NoSimplification $ singleton (dbPatVarIndex x, arg)
-      termMatch  = do
-        (m, arg) <- matchPattern p (fmap patternToTerm arg)
-        return $ fmap (DotP defaultPatternInfo) m
-  case p of
-    ProjP{}         -> __IMPOSSIBLE__
-    IApplyP _ _ _ x -> varMatch x
-    VarP _ x        -> varMatch x
-    DotP _ _        -> return $ Yes NoSimplification empty
-    LitP{}          -> termMatch -- Literal patterns bind no variables so we can fall back to the Term version.
-    DefP{}          -> termMatch
-
-    ConP c cpi ps ->
-      case q of
-        ConP c' _ qs | c == c'   -> matchPatternsP ps ((map . fmap) namedThing qs)
-                     | otherwise -> return No
-        LitP{} -> fmap toLitP <$> termMatch
-          where toLitP (DotP _ (Lit l)) = litP l   -- All bindings should be to literals
-                toLitP _                = __IMPOSSIBLE__
-        _      -> termMatch
-
-matchPatternsP :: [NamedArg DeBruijnPattern]
-               -> [Arg DeBruijnPattern]
-               -> ReduceM (Match DeBruijnPattern)
-matchPatternsP ps qs = do
-  mconcat <$> zipWithM matchPatternP (map namedArg ps) qs

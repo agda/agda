@@ -2807,7 +2807,9 @@ instance ToAbstract C.Pattern where
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
-    toAbstract (C.LitP r l)     = return $ A.LitP (PatRange r) l
+    toAbstract (C.LitP r l)     = case l of
+      LitNat n | n < 0 -> genericError "Negative literals are not supported in patterns"
+      _                -> return $ A.LitP (PatRange r) l
 
     toAbstract p0@(C.AsP r x p) = do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!

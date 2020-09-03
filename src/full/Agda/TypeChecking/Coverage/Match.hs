@@ -421,9 +421,16 @@ matchPat p q = case p of
     VarP _ x -> if l `elem` splitExcludedLits x
                 then no
                 else blockedOnLiteral (splitPatVarIndex x) l
-    _ -> isLitP q >>= \case
-      Just l' -> if l == l' then yes [] else no
-      Nothing -> no
+    LitP _ l' -> if l == l' then yes [] else no
+    DotP _ u -> reduce u >>= \case
+      Lit l' -> if l == l' then yes [] else no
+      _      -> no
+    _ -> case l of
+      LitNat _ -> do
+        -- Peel off constructor of literal and try again
+        p' <- patternConstructorForm p
+        matchPat p' q
+      _ -> no
 
   ProjP _ d -> case q of
     ProjP _ d' -> do
@@ -435,7 +442,7 @@ matchPat p q = case p of
 
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.
-  ConP c ci ps -> unDotP q >>= unLitP >>= \case
+  ConP c ci ps -> unDotP q >>= patternConstructorForm >>= \case
     VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
     ConP c' i qs
       | c == c'   -> matchPats ps qs
@@ -467,35 +474,3 @@ unDotP (DotP o v) = reduce v >>= \case
   Lit l -> return $ LitP (PatternInfo PatODot []) l
   v     -> return $ dotP v
 unDotP p = return p
-
-isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
-isLitP (LitP _ l) = return $ Just l
-isLitP (DotP _ u) = reduce u >>= \case
-  Lit l -> return $ Just l
-  _ -> return $ Nothing
-isLitP (ConP c ci []) = do
-  Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-  if c == zero
-    then return $ Just $ LitNat 0
-    else return Nothing
-isLitP (ConP c ci [a]) | visible a && isRelevant a = do
-  Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
-  if c == suc
-    then fmap inc <$> isLitP (namedArg a)
-    else return Nothing
-  where
-    inc :: Literal -> Literal
-    inc (LitNat n) = LitNat $ n + 1
-    inc _ = __IMPOSSIBLE__
-isLitP _ = return Nothing
-
-unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
-unLitP (LitP info l@(LitNat n)) | n >= 0 = do
-  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
-                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
-                                  (Lit l)
-  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
-      toP _ = __IMPOSSIBLE__
-      cpi   = noConPatternInfo { conPInfo = info }
-  return $ ConP c cpi $ map (fmap unnamed . toP) es
-unLitP p = return p

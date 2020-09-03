@@ -158,6 +158,29 @@ constructorForm' pZero pSuc v =
       | otherwise -> pure v
     _ -> pure v
 
+-- | Rewrite a pattern to constructor form if possible.
+patternConstructorForm :: HasBuiltins m => Pattern' a -> m (Pattern' a)
+patternConstructorForm (LitP info (LitNat n))
+  | n == 0    = do
+      Con z _ _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+      return $ ConP z cinfo []
+  | n > 0     = do
+      Con s _ _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+      let pred = LitP info (LitNat (n - 1))
+      return $ ConP s cinfo [defaultNamedArg pred]
+  | otherwise = __IMPOSSIBLE__
+  where
+    cinfo = noConPatternInfo { conPInfo = info }
+patternConstructorForm p = return p
+
+-- | Count the number of suc constructors at the head of a term.
+sucDepth :: HasBuiltins m => Term -> m Integer
+sucDepth v = do
+  Con s _ _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  let go (Con c _ [Apply a]) | c == s   = 1 + go (unArg a)
+      go _                              = 0
+  return $! go v
+
 ---------------------------------------------------------------------------
 -- * The names of built-in things
 ---------------------------------------------------------------------------

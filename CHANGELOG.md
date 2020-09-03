@@ -154,6 +154,10 @@ Language
 * Binary integer literals with prefix `0b` (for instance, `0b11001001`) are now
   supported.
 
+* Agda now allows pattern matching on any natural number literal. Previously,
+  the maximum value Agda could pattern match on was 20, since these patterns
+  were internally translated to `suc` and `zero` patterns.
+
 Reflection
 ----------
 

@@ -1091,7 +1091,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         Blocked{} | null [()|Con{} <- [t]] -> stuck -- we might as well check the blocking tag first
         _ -> case t of
           -- Case: suc constructor
-          Con c ci [] | isSuc c -> matchSuc $ matchCatchall $ failedMatch f stack ctrl
+          Con c ci [] | isSuc c -> matchSuc $ matchSucLit t $ matchCatchall $ failedMatch f stack ctrl
 
           -- Case: constructor
           Con c ci [] -> matchCon c ci (length spine) $ matchCatchall $ failedMatch f stack ctrl
@@ -1101,10 +1101,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Con c ci es -> do
             spine' <- elimsToSpine env es
             runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
-          -- Case: natural number literals. Literal natural number patterns are translated to
-          -- suc-matches, so there is no need to try matchLit.
-          Lit (LitNat 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
-          Lit (LitNat n) -> matchLitSuc n $ matchCatchall $ failedMatch f stack ctrl
+          -- Case: natural number literals. Try matchLit before matching the zero/suc constructor
+          Lit l@(LitNat n) -> matchLit l $ matchNatCon n $ matchCatchall $ failedMatch f stack ctrl
 
           -- Case: literal
           Lit l -> matchLit l $ matchCatchall $ failedMatch f stack ctrl
@@ -1163,16 +1161,28 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         matchSuc = fsucBranch bs `ifJust` \ cc ->
             runAM (Match f cc (spine0 <> spine <> spine1) catchallStack ctrl)
 
+        -- Matching a 'suc' constructor against natural number literals
+        matchSucLit t cont
+          -- Short-circuit if there are no literals to avoid evaluating sucDepth
+          | Map.null (flitBranches bs) = cont
+          | otherwise = do
+              d <- sucDepth cl
+              if all (cannotMatchLiteral d) (Map.keys (flitBranches bs)) then cont else stuck
+          | otherwise = stuck
+          where
+            cannotMatchLiteral d (LitNat i) = d > i
+            cannotMatchLiteral d _          = __IMPOSSIBLE__
+
+        -- Matching a literal 0. Simply calls matchCon with the zero constructor.
+        matchNatCon 0 = matchCon (fromMaybe __IMPOSSIBLE__ zero) ConOSystem 0
+                            -- If we have a nat literal we have builtin zero.
+
         -- Matching a non-zero natural number literal: Subtract one from the literal and
         -- insert it in the spine for the Match state.
-        matchLitSuc n = fsucBranch bs `ifJust` \ cc ->
+        matchNatCon n = fsucBranch bs `ifJust` \ cc ->
             runAM (Match f cc (spine0 <> [Apply $ defaultArg arg] <> spine1) catchallStack ctrl)
           where n'  = n - 1
                 arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
-
-        -- Matching a literal 0. Simply calls matchCon with the zero constructor.
-        matchLitZero = matchCon (fromMaybe __IMPOSSIBLE__ zero) ConOSystem 0
-                            -- If we have a nat literal we have builtin zero.
 
     -- Case: Match state. Here we look at the case tree and take the appropriate action:
     --   - FFail: stuck
@@ -1367,6 +1377,14 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
     lam :: Arg String -> Term -> Term
     lam x t = Lam (argInfo x) (Abs (unArg x) t)
+
+    -- Count the number of suc constructors at the head of a closure. suc is
+    -- strict, so we assume the argument is always evaluated.
+    sucDepth :: Closure s -> ST s Integer
+    sucDepth (Closure _ t env [Apply arg]) | Con c _ [] <- t, isSuc c = do
+      argClosure <- derefPointer_ (unArg arg)
+      (1 +) <$> sucDepth argClosure
+    sucDepth _ = return 0
 
 -- Pretty printing --------------------------------------------------------
 

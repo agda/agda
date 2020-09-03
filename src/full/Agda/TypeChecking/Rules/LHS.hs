@@ -60,7 +60,7 @@ import Agda.TypeChecking.Irrelevance
 -- We can't explicitly hide just the constructor here because it isn't in the
 -- hs-boot file.
 import {-# SOURCE #-} Agda.TypeChecking.Empty (ensureEmptyType)
-import Agda.TypeChecking.Patterns.Abstract
+import qualified Agda.TypeChecking.Patterns.Abstract as A
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records hiding (getRecordConstructor)
 import Agda.TypeChecking.Reduce
@@ -197,83 +197,90 @@ updateProblemEqs eqs = do
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
-    update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
-      Con c ci es -> do
-        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        -- we should only simplify equations between fully applied constructors
-        contype <- getFullyAppliedConType c =<< reduce (unDom a)
-        caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
-        TelV ctel _ <- telViewPath b
-        let bs = instTel ctel (map unArg vs)
+    update eq@(ProblemEq p v a) = do
+      v <- reduce v
+      -- Peel off constructors of natural number literals (unless both sides
+      -- are literals, in which case we will short-circuit the match)
+      (p, v) <- case (p, v) of
+        (A.LitP _ _, Lit _) -> return (p, v)
+        _ -> (,) <$> A.patternConstructorForm p <*> constructorForm v
 
-        p <- expandLitPattern p
-        case p of
-          A.AsP{} -> __IMPOSSIBLE__
-          A.ConP cpi ambC ps -> do
-            (c',_) <- disambiguateConstructor ambC d pars
+      case v of
+        Con c ci es -> do
+          let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          -- we should only simplify equations between fully applied constructors
+          contype <- getFullyAppliedConType c =<< reduce (unDom a)
+          caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
+          TelV ctel _ <- telViewPath b
+          let bs = instTel ctel (map unArg vs)
 
-            -- Issue #3014: If the constructor is forced but the user wrote a
-            -- different constructor,that's an error. We simply keep the
-            -- problem equation, this will result in a proper error message later.
-            if conName c /= conName c' then return [eq] else do
+          case p of
+            A.AsP{} -> __IMPOSSIBLE__
+            A.ConP cpi ambC ps -> do
+              (c',_) <- disambiguateConstructor ambC d pars
 
-            -- Insert implicit patterns
-            ps <- insertImplicitPatterns ExpandLast ps ctel
-            reportSDoc "tc.lhs.imp" 20 $
-              "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
+              -- Issue #3014: If the constructor is forced but the user wrote a
+              -- different constructor,that's an error. We simply keep the
+              -- problem equation, this will result in a proper error message later.
+              if conName c /= conName c' then return [eq] else do
 
-            -- Check argument count and hiding (not just count: #3074)
-            let checkArgs [] [] = return ()
-                checkArgs (p : ps) (v : vs)
-                  | getHiding p == getHiding v = checkArgs ps vs
-                  | otherwise                  = setCurrentRange p $ genericDocError =<< do
-                      fsep $ pwords ("Expected an " ++ which (getHiding v) ++ " argument " ++
-                                     "instead of "  ++ which (getHiding p) ++ " argument") ++
-                             [ prettyA p ]
-                  where which NotHidden  = "explicit"
-                        which Hidden     = "implicit"
-                        which Instance{} = "instance"
-                checkArgs [] vs = genericDocError =<< do
-                    fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> ","] ++
-                           pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
-                  where n = length (filter visible vs)
-                        arguments | n == 1    = "argument"
-                                  | otherwise = "arguments"
-                checkArgs (p : _) [] = setCurrentRange p $ genericDocError =<< do
-                  fsep $ pwords "Too many arguments to constructor" ++ [prettyTCM c]
-            checkArgs ps vs
+              -- Insert implicit patterns
+              ps <- insertImplicitPatterns ExpandLast ps ctel
+              reportSDoc "tc.lhs.imp" 20 $
+                "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
 
-            updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
+              -- Check argument count and hiding (not just count: #3074)
+              let checkArgs [] [] = return ()
+                  checkArgs (p : ps) (v : vs)
+                    | getHiding p == getHiding v = checkArgs ps vs
+                    | otherwise                  = setCurrentRange p $ genericDocError =<< do
+                        fsep $ pwords ("Expected an " ++ which (getHiding v) ++ " argument " ++
+                                      "instead of "  ++ which (getHiding p) ++ " argument") ++
+                              [ prettyA p ]
+                    where which NotHidden  = "explicit"
+                          which Hidden     = "implicit"
+                          which Instance{} = "instance"
+                  checkArgs [] vs = genericDocError =<< do
+                      fsep $ pwords "Too few arguments to constructor" ++ [prettyTCM c <> ","] ++
+                            pwords ("expected " ++ show n ++ " more explicit "  ++ arguments)
+                    where n = length (filter visible vs)
+                          arguments | n == 1    = "argument"
+                                    | otherwise = "arguments"
+                  checkArgs (p : _) [] = setCurrentRange p $ genericDocError =<< do
+                    fsep $ pwords "Too many arguments to constructor" ++ [prettyTCM c]
+              checkArgs ps vs
 
-          A.RecP pi fs -> do
-            axs <- map argFromDom . recFields . theDef <$> getConstInfo d
+              updates $ zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
 
-            -- Andreas, 2018-09-06, issue #3122.
-            -- Associate the concrete record field names used in the record pattern
-            -- to their counterpart in the record type definition.
-            disambiguateRecordFields (map _nameFieldA fs) (map unArg axs)
+            A.RecP pi fs -> do
+              axs <- map argFromDom . recFields . theDef <$> getConstInfo d
 
-            let cxs = map (fmap (nameConcrete . qnameName)) axs
+              -- Andreas, 2018-09-06, issue #3122.
+              -- Associate the concrete record field names used in the record pattern
+              -- to their counterpart in the record type definition.
+              disambiguateRecordFields (map _nameFieldA fs) (map unArg axs)
 
-            -- In fs omitted explicit fields are replaced by underscores,
-            -- and the fields are put in the correct order.
-            ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs cxs
+              let cxs = map (fmap (nameConcrete . qnameName)) axs
 
-            -- We also need to insert missing implicit or instance fields.
-            ps <- insertImplicitPatterns ExpandLast ps ctel
+              -- In fs omitted explicit fields are replaced by underscores,
+              -- and the fields are put in the correct order.
+              ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs cxs
 
-            let eqs = zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
-            updates eqs
+              -- We also need to insert missing implicit or instance fields.
+              ps <- insertImplicitPatterns ExpandLast ps ctel
 
-          _ -> return [eq]
+              let eqs = zipWith3 ProblemEq (map namedArg ps) (map unArg vs) bs
+              updates eqs
 
-      Lit l | A.LitP _ l' <- p , l == l' -> return []
+            _ -> return [eq]
 
-      _ | A.EqualP{} <- p -> do
-        itisone <- liftTCM primItIsOne
-        ifM (tryConversion $ equalTerm (unDom a) v itisone) (return []) (return [eq])
+        Lit l | A.LitP _ l' <- p , l == l' -> return []
 
-      _ -> return [eq]
+        _ | A.EqualP{} <- p -> do
+          itisone <- liftTCM primItIsOne
+          ifM (tryConversion $ equalTerm (unDom a) v itisone) (return []) (return [eq])
+
+        _ -> return [eq]
 
     instTel :: Telescope -> [Term] -> [Dom Type]
     instTel EmptyTel _                   = []
@@ -889,7 +896,6 @@ checkLHS mf = updateModality checkLHS_ where
       let pos = size tel - (i+1)
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
-      p <- liftTCM $ expandLitPattern p
       case snd $ asView p of
         (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
         p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing

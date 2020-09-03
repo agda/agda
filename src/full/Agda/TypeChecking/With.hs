@@ -24,7 +24,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Patterns.Abstract
+import qualified Agda.TypeChecking.Patterns.Abstract as A
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
@@ -316,7 +316,7 @@ stripWithClausePatterns
   -> TCM ([A.ProblemEq], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
 stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
-  ps <- expandPatternSynonyms ps
+  ps <- A.expandPatternSynonyms ps
   -- Ulf, 2016-11-16 Issue 2303: We need the module parameter
   -- instantiations from qs, so we make sure
   -- that t is the top-level type of the parent function and add patterns for
@@ -400,8 +400,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         let v = patternToTerm (namedArg q)
         tell [ProblemEq (A.VarP x) v a]
         strip self t (fmap (p <$) p0 : ps) qs
-    strip self t ps0@(p0 : ps) qs0@(q : qs) = do
-      p <- liftTCM $ (traverse . traverse) expandLitPattern p0
+    strip self t ps0@(p : ps) qs0@(q : qs) = do
       reportSDoc "tc.with.strip" 15 $ vcat
         [ "strip"
         , nest 2 $ "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
@@ -410,6 +409,12 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         , nest 2 $ "self=" <+> prettyTCM self
         , nest 2 $ "t   =" <+> prettyTCM t
         ]
+      -- Peel off constructors of natural number literals (unless both sides
+      -- are literals, in which case we will short-circuit the match)
+      (p, q) <- case (namedArg p, namedArg q) of
+        (A.LitP _ _, LitP _ _) -> return (p, q)
+        _ -> liftTCM $ (,) <$> (traverse . traverse) A.patternConstructorForm p
+                           <*> (traverse . traverse) patternConstructorForm q
       case namedArg q of
         ProjP o d -> case A.isProjP p of
           Just (o', AmbQ ds) -> do
@@ -546,10 +551,10 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           strip (self `applyE` e) t' ps qs
 
         mismatch = addContext delta $ typeError $
-          WithClausePatternMismatch (namedArg p0) q
+          WithClausePatternMismatch (namedArg p) q
         mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep
           [ "With clause pattern"
-          , prettyA p0
+          , prettyA p
           , "is not an instance of its parent pattern"
           , P.fsep <$> prettyTCMPatterns [q]
           , text $ "since the parent pattern is " ++ prettyProjOrigin o ++

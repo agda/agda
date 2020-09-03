@@ -22,32 +22,21 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
 
--- | Expand literal integer pattern into suc/zero constructor patterns.
---
-expandLitPattern :: A.Pattern -> TCM A.Pattern
-expandLitPattern p = case asView p of
-  (xs, A.LitP info (LitNat n))
-    | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
-    | n > 20    -> tooBig
-    | otherwise -> do
+-- | Rewrite a pattern to constructor form if possible.
+patternConstructorForm :: A.Pattern' a -> TCM (A.Pattern' a)
+patternConstructorForm (A.LitP info (LitNat n))
+  | n == 0    = do
       Con z _ _ <- primZero
+      return $ A.ConP cinfo (unambiguous $ setRange r $ conName z) []
+  | n > 0     = do
       Con s _ _ <- primSuc
-      let r     = getRange info
-      let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
-          suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
-          cinfo = A.ConPatInfo ConOCon info ConPatEager
-          p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr ((A.AsP info) . A.mkBindName) p' xs
-  _ -> return p
-
+      let pred = A.LitP info (LitNat (n - 1))
+      return $ A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg pred]
+  | otherwise = __IMPOSSIBLE__
   where
-    tooBig = typeError $ GenericError $
-      "Matching on natural number literals is done by expanding " ++
-      "the literal to the corresponding constructor pattern, so " ++
-      "you probably don't want to do it this way."
-    negLit = typeError $ GenericError $
-      "Negative literals are not supported in patterns"
-
+    r     = getRange info
+    cinfo = A.ConPatInfo ConOCon info ConPatEager
+patternConstructorForm p = return p
 
 -- | Expand away (deeply) all pattern synonyms in a pattern.
 
