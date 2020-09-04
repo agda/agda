@@ -266,8 +266,15 @@ data FreshNameMode
   -- ^ Append an integer Unicode subscript: x, x₁, x₂, …
   | AsciiCounter
   -- ^ Append an integer ASCII counter: x, x1, x2, …
-  | PrimeTickCount
-  -- ^ Append an ASCII prime/apostrophe: x, x', x'', …
+
+  -- Note that @Agda.Utils.Suffix@ supports an additional style, @Prime@, but
+  -- we currently only encounter it when extending an existing name of that
+  -- format, (x', x'', …), not for an initially-generated permutation. There's
+  -- no reason we couldn't, except that we currently choose between
+  -- subscript/counter styles based on the --no-unicode mode rather than any
+  -- finer-grained option.
+  --   | PrimeTickCount
+  --   ^ Append an ASCII prime/apostrophe: x, x', x'', …
 
 nextRawName :: FreshNameMode -> RawName -> RawName
 nextRawName freshNameMode s = addSuffix root (maybe initialSuffix nextSuffix suffix)
@@ -276,7 +283,6 @@ nextRawName freshNameMode s = addSuffix root (maybe initialSuffix nextSuffix suf
   initialSuffix = case freshNameMode of
     UnicodeSubscript -> Subscript 1
     AsciiCounter -> Index 1
-    PrimeTickCount -> Prime 1
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
