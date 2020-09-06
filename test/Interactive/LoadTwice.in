@@ -1,0 +1,6 @@
+:load test/Interactive/LoadTwice1.agda
+:typeOf t1
+:load test/Interactive/LoadTwice2.agda
+:typeOf t1
+:typeOf f
+:quit

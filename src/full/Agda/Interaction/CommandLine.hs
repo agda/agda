@@ -12,6 +12,7 @@ import Text.Read (readMaybe)
 import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
 import Agda.Interaction.Monad
+import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -77,8 +78,8 @@ interaction prompt cmds eval = loop
                     loop
 
 -- | The interaction loop.
-interactionLoop :: TCM (Maybe Interface) -> IM ()
-interactionLoop doTypeCheck =
+interactionLoop :: CommandLineOptions -> TCM (Maybe Interface) -> IM ()
+interactionLoop opts doTypeCheck =
     do  liftTCM reload
         interaction "Main> " commands evalTerm
     where
@@ -106,7 +107,7 @@ interactionLoop doTypeCheck =
             , "give"        |> \args -> continueAfter $ giveMeta args
             , "Refine"      |> \args -> continueAfter $ refineMeta args
             , "metas"       |> \args -> continueAfter $ showMetas args
-            , "load"        |> \args -> continueAfter $ loadFile reload args
+            , "load"        |> \args -> continueAfter $ loadFile opts reload args
             , "eval"        |> \args -> continueAfter $ evalIn args
             , "typeOf"      |> \args -> continueAfter $ typeOf args
             , "typeIn"      |> \args -> continueAfter $ typeIn args
@@ -126,11 +127,13 @@ withCurrentFile cont = do
   mpath <- getInputFile'
   localTC (\ e -> e { envCurrentPath = mpath }) cont
 
-loadFile :: TCM () -> [String] -> TCM ()
-loadFile reload [file] = do
+loadFile :: CommandLineOptions -> TCM () -> [String] -> TCM ()
+loadFile opts reload [file] = do
+  putTC initState
+  setCommandLineOptions opts
   setInputFile file
   withCurrentFile reload
-loadFile _ _ = liftIO $ putStrLn ":load file"
+loadFile _ _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [] =

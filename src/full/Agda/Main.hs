@@ -65,7 +65,7 @@ runAgda' backends = runTCMPrettyErrors $ do
 
 defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
 defaultInteraction opts
-  | i         = runIM . interactionLoop
+  | i         = runIM . interactionLoop opts
   | ghci      = mimicGHCi . (failIfInt =<<)
   | json      = jsonREPL . (failIfInt =<<)
   | otherwise = (() <$)

@@ -1,0 +1,4 @@
+nameNameParts = Id "Bool1"
+Not in scope
+when scope checking t1
+nameNameParts = Id "Bool2"
