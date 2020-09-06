@@ -193,7 +193,14 @@ sortOf t = do
 
     sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
     sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__
-    sortOfE a hd (e:es) = case e of
+    sortOfE a hd (e:es) = do
+     reportSDoc "tc.sort" 50 $ vcat
+       [ "sortOfE"
+       , "  a  = " <+> prettyTCM a
+       , "  hd = " <+> prettyTCM (hd [])
+       , "  e  = " <+> prettyTCM e
+       ]
+     case e of
       Apply (Arg ai v) -> ifNotPiType a __IMPOSSIBLE__ $ \b c -> do
         sortOfE (c `absApp` v) (hd . (e:)) es
       Proj o f -> do
