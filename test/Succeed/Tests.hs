@@ -165,6 +165,7 @@ noDoubleCheckTests =
   , "Issue3639"
   , "Issue4320"
   , "Issue4404"
+  , "Issue4907"
   , "Issue709"
   , "OutStream"
   , "RewriteExt"
