@@ -536,8 +536,9 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         || prp || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
   case def of
-    Constructor{conSrcCon = c} ->
-      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
+    Constructor{conSrcCon = c} -> do
+      let hd = Con (c `withRangeOf` f) ConOSystem
+      rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
