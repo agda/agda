@@ -137,6 +137,9 @@ instance SynEq a => SynEq [a] where
     | length as == length as' = unzip <$> zipWithM synEq' as as'
     | otherwise               = inequal (as, as')
 
+instance (SynEq a, SynEq b) => SynEq (a,b) where
+  synEq (a,b) (a',b') = (,) <$$> synEq a a' <**> synEq b b'
+
 instance SynEq a => SynEq (Elim' a) where
   synEq e e' =
     case (e, e') of
