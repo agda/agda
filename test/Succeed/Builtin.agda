@@ -1,5 +1,7 @@
 module Builtin where
 
+open import Agda.Primitive
+
 data Bool : Set where
   false : Bool
   true  : Bool
@@ -48,6 +50,24 @@ postulate
 {-# BUILTIN FLOAT   Float  #-}
 {-# BUILTIN CHAR    Char   #-}
 
+data Maybe (A : Set) : Set where
+  just : A → Maybe A
+  nothing : Maybe A
+
+{-# BUILTIN MAYBE Maybe #-}
+
+record Sigma {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+  constructor _,_
+  field
+    fst : A
+    snd : B fst
+
+open Sigma public
+
+infixr 4 _,_
+
+{-# BUILTIN SIGMA Sigma #-}
+
 infixr 10 _::_
 data List (A : Set) : Set where
   nil  : List A
@@ -55,37 +75,56 @@ data List (A : Set) : Set where
 
 {-# BUILTIN LIST List   #-}
 
+postulate Word64 : Set
+{-# BUILTIN WORD64 Word64 #-}
+
 primitive
 
   -- Integer functions
   primShowInteger     : Int -> String
 
-    -- Floating point functions
-  primNatToFloat     : Nat   -> Float
-  primFloatPlus      : Float -> Float -> Float
-  primFloatMinus     : Float -> Float -> Float
-  primFloatTimes     : Float -> Float -> Float
-  primFloatNegate    : Float -> Float
-  primFloatDiv       : Float -> Float -> Float
-  primFloatEquality  : Float -> Float -> Bool
-  primFloatNumericalEquality : Float -> Float -> Bool
-  primFloatNumericalLess     : Float -> Float -> Bool
-  primFloatSqrt      : Float -> Float
-  primRound          : Float -> Int
-  primFloor          : Float -> Int
-  primCeiling        : Float -> Int
-  primExp            : Float -> Float
-  primLog            : Float -> Float
-  primSin            : Float -> Float
-  primCos            : Float -> Float
-  primTan            : Float -> Float
-  primASin           : Float -> Float
-  primACos           : Float -> Float
-  primATan           : Float -> Float
-  primATan2          : Float -> Float -> Float
-  primShowFloat      : Float -> String
+  -- Floating point function
+  primFloatInequality        : Float → Float → Bool
+  primFloatEquality          : Float → Float → Bool
+  primFloatLess              : Float → Float → Bool
+  primFloatIsInfinite        : Float → Bool
+  primFloatIsNaN             : Float → Bool
+  primFloatIsNegativeZero    : Float → Bool
+  primFloatToWord64          : Float → Word64
+  primNatToFloat             : Nat → Float
+  primIntToFloat             : Int → Float
+  primFloatRound             : Float → Maybe Int
+  primFloatFloor             : Float → Maybe Int
+  primFloatCeiling           : Float → Maybe Int
+  primFloatToRatio           : Float → (Sigma Int λ _ → Int)
+  primRatioToFloat           : Int → Int → Float
+  primFloatDecode            : Float → Maybe (Sigma Int λ _ → Int)
+  primFloatEncode            : Int → Int → Maybe Float
+  primShowFloat              : Float → String
+  primFloatPlus              : Float → Float → Float
+  primFloatMinus             : Float → Float → Float
+  primFloatTimes             : Float → Float → Float
+  primFloatDiv               : Float → Float → Float
+  primFloatNegate            : Float → Float
+  primFloatSqrt              : Float → Float
+  primFloatExp               : Float → Float
+  primFloatLog               : Float → Float
+  primFloatSin               : Float → Float
+  primFloatCos               : Float → Float
+  primFloatTan               : Float → Float
+  primFloatASin              : Float → Float
+  primFloatACos              : Float → Float
+  primFloatATan              : Float → Float
+  primFloatATan2             : Float → Float → Float
+  primFloatSinh              : Float → Float
+  primFloatCosh              : Float → Float
+  primFloatTanh              : Float → Float
+  primFloatASinh             : Float → Float
+  primFloatACosh             : Float → Float
+  primFloatATanh             : Float → Float
+  primFloatPow               : Float → Float → Float
 
-    -- Character functions
+   -- Character functions
   primCharEquality   : Char -> Char -> Bool
   primIsLower        : Char -> Bool
   primIsDigit        : Char -> Bool
@@ -128,13 +167,13 @@ pi : Float
 pi = 3.141592653589793
 
 sin : Float -> Float
-sin = primSin
+sin = primFloatSin
 
 cos : Float -> Float
-cos = primCos
+cos = primFloatCos
 
 tan : Float -> Float
-tan = primTan
+tan = primFloatTan
 
 reverse : {A : Set} -> List A -> List A
 reverse xs = rev xs nil
@@ -173,8 +212,8 @@ thm-show-pos = refl
 thm-show-neg : primShowInteger (negsuc 41) ≡ "-42"
 thm-show-neg = refl
 
-thm-floor : primFloor 4.2 ≡ pos 4
+thm-floor : primFloatFloor 4.2 ≡ just (pos 4)
 thm-floor = refl
 
-thm-ceiling : primCeiling -5.1 ≡ negsuc 4
+thm-ceiling : primFloatCeiling -5.1 ≡ just (negsuc 4)
 thm-ceiling = refl
