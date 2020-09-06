@@ -58,6 +58,7 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , MonadReduce
            , MonadError e
            , MonadAddContext
+           , HasConstInfo
            )
 
 -- deriving instance MonadState s m => MonadState s (NamesT m)
