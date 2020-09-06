@@ -675,22 +675,50 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- being solved, which can help with pruning (see #4615).
   -- Jesper, 2020-08-25: --no-sort-comparison is now the default
   -- behaviour.
-  let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-  t' <- piApplyM' abort t args
-  -- If the type @t@ is not a sort, we know that the type already
-  -- matches (since this is an invariant maintained by the conversion
-  -- checker) so we only need to do something when @t@ is a sort.
-  ifNotSort t' (return ()) $ \s -> do
-    cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-      case mvJudgement mvar of
-        HasType{ jComparison = cmp } -> return cmp
-        IsSort{} -> __IMPOSSIBLE__
-    s' <- sortOf v
-    reportSDoc "tc.meta.assign" 40 $
-      "Instantiating sort" <+> prettyTCM s <+>
-      "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
-    traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
-      compareSort cmp s' s
+  --
+  -- Under most circumstances, the conversion checker guarantees that
+  -- the solution for the meta has the correct type, so there is no
+  -- need to check anything. However, there are two circumstances in
+  -- which we do need to check the type of the solution:
+  --
+  -- 1. When comparing two types they are not guaranteed to have the
+  --    same sort.
+  --
+  -- 2. When --cumulativity is enabled the same can happen when
+  --    comparing two terms at a sort type.
+
+  cumulativity <- optCumulativity <$> pragmaOptions
+
+  let checkSolutionSort cmp0 t = do
+
+        let cmp = if cumulativity then cmp0 else CmpEq
+
+        let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+        t' <- piApplyM' abort t args
+        s <- shouldBeSort t'
+
+        s' <- sortOf v
+
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+        traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+          compareSort cmp s' s
+
+
+  case (target , mvJudgement mvar) of
+    -- Case 1 (comparing term to meta as types)
+    (AsTypes{}   , HasType _ cmp t) -> checkSolutionSort cmp t
+
+    -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
+    (AsTermsOf{} , HasType _ cmp t)
+      | cumulativity -> ifIsSort t (\s -> checkSolutionSort cmp $ sort s) (return ())
+
+    (AsTypes{}   , IsSort{}       ) -> return ()
+    (AsTermsOf{} , _              ) -> return ()
+    (AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
+
+
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
