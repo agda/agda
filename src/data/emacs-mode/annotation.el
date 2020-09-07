@@ -2,9 +2,14 @@
 
 ;; Version: 1.0
 
+;; SPDX-License-Identifier: MIT License
+;; URL: https://github.com/agda/agda
+;; Version: 1.0
+
+;;; Commentary:
+
 ;; Note that this library enumerates buffer positions starting from 1,
 ;; just like Emacs.
-;; SPDX-License-Identifier: MIT License
 
 (require 'cl)
 
