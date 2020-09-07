@@ -241,7 +241,7 @@ While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
-transport operation and homogeneous composition operations. The
+transport operation `transp` and homogeneous composition operations `hcomp`. The
 transport operation is generalized in the sense that it lets us
 specify where it is the identity function.
 
@@ -249,21 +249,22 @@ specify where it is the identity function.
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for ``transp A r
-a`` to type-check, which is that ``A`` has to be *constant* on
-``r``. This means that ``A`` should be a constant function whenever
-the constraint ``r = i1`` is satisfied.  For example:
+There is an additional side condition to be satisfied for a usage of ``transp`` to type-check.
+In a call ``transp A r a``, where ``A`` and ``r`` can both depend on any other interval variables currently in scope,
+Agda will try to convert ``A`` to a constant function in those cases where
+the constraint ``r = i1`` is satisfied. This must succeed for the call to ``transp`` to type-check,
+as it is necessary for the computation rule of ``transp`` to make sense:
+When``r`` is ``i1``, ``transp A r`` will compute as the identity function, requiring ``A i0`` to be convertible to ``A i1``.
+
+For example:
 
 * If ``r`` is ``i0`` then ``A`` can be anything, since this side
   condition is vacuously true.
 
 * If ``r`` is ``i1`` then ``A`` must be a constant function.
 
-* If ``r`` is some in-scope variable ``i`` then ``A`` only needs to be
+* If ``r`` is some in-scope variable ``i`` on which ``A`` depends as well, then ``A`` only needs to be
   a constant function when substituting ``i1`` for ``i``.
-
-When ``r`` is equal to ``i1`` the ``transp`` function will compute as
-the identity function.
 
 .. code-block:: agda
 
