@@ -18,7 +18,10 @@ import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 -- | We want to know whether we are allowed to insert unicode characters or not.
-data UnicodeOrAscii = UnicodeOk | AsciiOnly deriving (Show, Eq)
+data UnicodeOrAscii
+  = UnicodeOk
+  | AsciiOnly
+  deriving (Show, Eq, Enum, Bounded)
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
 unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii

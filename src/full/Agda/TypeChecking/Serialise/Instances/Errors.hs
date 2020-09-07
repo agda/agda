@@ -258,14 +258,7 @@ instance EmbPrj PragmaOptions where
       valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb
     _ -> malformed
 
-instance EmbPrj UnicodeOrAscii where
-  icod_ UnicodeOk = icodeN' UnicodeOk
-  icod_ AsciiOnly = icodeN 0 AsciiOnly
-
-  value = vcase valu where
-    valu []  = valuN UnicodeOk
-    valu [0] = valuN AsciiOnly
-    valu _   = malformed
+instance EmbPrj UnicodeOrAscii
 
 instance EmbPrj ConfluenceCheck where
   icod_ LocalConfluenceCheck  = icodeN' LocalConfluenceCheck
