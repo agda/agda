@@ -379,6 +379,8 @@ toConcreteName x = (Map.findWithDefault [] x <$> useConcreteNames) >>= loop
 
 
 -- | Choose a new unshadowed name for the given abstract name
+-- | NOTE: See @withName@ in @Agda.Syntax.Translation.ReflectedToAbstract@ for similar logic.
+-- | NOTE: See @freshConcreteName@ in @Agda.Syntax.Scope.Monad@ also for similar logic.
 chooseName :: A.Name -> AbsToCon C.Name
 chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   -- If the name is currently in scope, we do not rename it
@@ -390,8 +392,12 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   _ -> do
     taken   <- takenNames
     toAvoid <- shadowingNames x
+    glyphMode <- optUseUnicode <$> pragmaOptions
+    let freshNameMode = case glyphMode of
+          UnicodeOk -> A.UnicodeSubscript
+          AsciiOnly -> A.AsciiCounter
     let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid)) . C.nameToRawName
-        y = firstNonTakenName shouldAvoid $ nameConcrete x
+        y = firstNonTakenName freshNameMode shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
       , "names already taken:      " <+> prettyList_ (Set.toList taken)
@@ -664,17 +670,22 @@ instance ToConcrete ResolvedName where
 
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
-    DefinedName _ x s    -> addSuffixConcrete s <$> toConcrete x
+    DefinedName _ x s    -> addSuffixConcrete s $ toConcrete x
     FieldName xs         -> toConcrete (NonEmpty.head xs)
     ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
     PatternSynResName xs -> toConcrete (NonEmpty.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
-addSuffixConcrete :: A.Suffix -> C.QName -> C.QName
-addSuffixConcrete A.NoSuffix = id
-addSuffixConcrete (A.Suffix i) = set (C.lensQNameName . nameSuffix) suffix
+addSuffixConcrete :: HasOptions m => A.Suffix -> m C.QName -> m C.QName
+addSuffixConcrete A.NoSuffix x = x
+addSuffixConcrete (A.Suffix i) x = do
+  glyphMode <- optUseUnicode <$> pragmaOptions
+  addSuffixConcrete' glyphMode i <$> x
+
+addSuffixConcrete' :: UnicodeOrAscii -> Integer -> C.QName -> C.QName
+addSuffixConcrete' glyphMode i = set (C.lensQNameName . nameSuffix) suffix
   where
-    suffix = Just $ case unsafeUnicodeOrAscii of
+    suffix = Just $ case glyphMode of
       UnicodeOk -> Subscript $ fromInteger i
       AsciiOnly -> Index $ fromInteger i
 
@@ -684,7 +695,7 @@ instance ToConcrete A.Expr where
     type ConOfAbs A.Expr = C.Expr
 
     toConcrete (Var x)             = Ident . C.QName <$> toConcrete x
-    toConcrete (Def' x suffix)     = Ident . addSuffixConcrete suffix <$> toConcrete x
+    toConcrete (Def' x suffix)     = Ident <$> addSuffixConcrete suffix (toConcrete x)
     toConcrete (Proj ProjPrefix p) = Ident <$> toConcrete (headAmbQ p)
     toConcrete (Proj _          p) = C.Dot noRange . Ident <$> toConcrete (headAmbQ p)
     toConcrete (A.Macro x)         = Ident <$> toConcrete x

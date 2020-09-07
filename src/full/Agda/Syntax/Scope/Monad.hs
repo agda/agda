@@ -289,6 +289,8 @@ freshAbstractQName' x = do
   freshAbstractQName fx x
 
 -- | Create a concrete name that is not yet in scope.
+-- | NOTE: See @chooseName@ in @Agda.Syntax.Translation.AbstractToConcrete@ for similar logic.
+-- | NOTE: See @withName@ in @Agda.Syntax.Translation.ReflectedToAbstract@ for similar logic.
 freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
 freshConcreteName r i s = do
   let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
