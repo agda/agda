@@ -52,7 +52,7 @@ jobs:
   include:
     - stage: compilation
       env:
-        GHC_VER=8.8.3
+        GHC_VER=8.10.2
       cache:
         directories:
           - $HOME/.stack
@@ -89,11 +89,11 @@ jobs:
       stage: main
       name: "Bug, successful, and failing tests"
       env:
-        GHC_VER=8.8.3
+        GHC_VER=8.10.2
       addons:
         apt:
           packages:
-            - ghc-8.8.3
+            - ghc-8.10.2
             - cabal-install-3.0
             - texlive-binaries
             - librsvg2-bin
@@ -177,7 +177,7 @@ jobs:
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.8.3 CABAL_VER=3.0
+      env: GHC_VER=8.10.2 CABAL_VER=3.0
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
@@ -224,6 +224,8 @@ jobs:
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
 
+    - <<: *complete-job
+      env: GHC_VER=8.8.4 CABAL_VER=3.0
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
     - <<: *complete-job
