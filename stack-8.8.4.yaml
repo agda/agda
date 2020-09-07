@@ -1,0 +1,9 @@
+resolver: lts-16.13
+compiler: ghc-8.8.4
+compiler-check: match-exact
+
+extra-deps:
+- data-hash-0.2.0.1
+- equivalence-0.3.5
+- geniplate-mirror-0.7.7
+- STMonadTrans-0.4.4
