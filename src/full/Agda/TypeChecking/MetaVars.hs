@@ -675,22 +675,50 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- being solved, which can help with pruning (see #4615).
   -- Jesper, 2020-08-25: --no-sort-comparison is now the default
   -- behaviour.
-  let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-  t' <- piApplyM' abort t args
-  -- If the type @t@ is not a sort, we know that the type already
-  -- matches (since this is an invariant maintained by the conversion
-  -- checker) so we only need to do something when @t@ is a sort.
-  ifNotSort t' (return ()) $ \s -> do
-    cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-      case mvJudgement mvar of
-        HasType{ jComparison = cmp } -> return cmp
-        IsSort{} -> __IMPOSSIBLE__
-    s' <- sortOf v
-    reportSDoc "tc.meta.assign" 40 $
-      "Instantiating sort" <+> prettyTCM s <+>
-      "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
-    traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
-      compareSort cmp s' s
+  --
+  -- Under most circumstances, the conversion checker guarantees that
+  -- the solution for the meta has the correct type, so there is no
+  -- need to check anything. However, there are two circumstances in
+  -- which we do need to check the type of the solution:
+  --
+  -- 1. When comparing two types they are not guaranteed to have the
+  --    same sort.
+  --
+  -- 2. When --cumulativity is enabled the same can happen when
+  --    comparing two terms at a sort type.
+
+  cumulativity <- optCumulativity <$> pragmaOptions
+
+  let checkSolutionSort cmp0 t = do
+
+        let cmp = if cumulativity then cmp0 else CmpEq
+
+        let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+        t' <- piApplyM' abort t args
+        s <- shouldBeSort t'
+
+        s' <- sortOf v
+
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+        traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+          compareSort cmp s' s
+
+
+  case (target , mvJudgement mvar) of
+    -- Case 1 (comparing term to meta as types)
+    (AsTypes{}   , HasType _ cmp t) -> checkSolutionSort cmp t
+
+    -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
+    (AsTermsOf{} , HasType _ cmp t)
+      | cumulativity -> ifIsSort t (\s -> checkSolutionSort cmp $ sort s) (return ())
+
+    (AsTypes{}   , IsSort{}       ) -> return ()
+    (AsTermsOf{} , _              ) -> return ()
+    (AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
+
+
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
@@ -1218,7 +1246,7 @@ expandProjectedVars
   :: ( Show a, PrettyTCM a, NoProjectedVar a
      -- , Normalise a, TermLike a, Subst Term a
      , ReduceAndEtaContract a
-     , PrettyTCM b, Subst Term b
+     , PrettyTCM b, TermSubst b
      )
   => a  -- ^ Meta variable arguments.
   -> b  -- ^ Right hand side.
@@ -1239,7 +1267,7 @@ expandProjectedVars args v ret = loop (args, v) where
       Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
-etaExpandProjectedVar :: (PrettyTCM a, Subst Term a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
@@ -1276,11 +1304,11 @@ instance NoProjectedVar a => NoProjectedVar [a] where
 
 
 -- | Normalize just far enough to be able to eta-contract maximally.
-class (TermLike a, Subst Term a, Reduce a) => ReduceAndEtaContract a where
+class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
   reduceAndEtaContract :: a -> TCM a
 
   default reduceAndEtaContract
-    :: (Traversable f, TermLike b, Subst Term b, Reduce b, ReduceAndEtaContract b, f b ~ a)
+    :: (Traversable f, TermLike b, Subst b, Reduce b, ReduceAndEtaContract b, f b ~ a)
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 

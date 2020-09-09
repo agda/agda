@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| Compile-time irrelevance.
@@ -359,7 +358,7 @@ instance UsableRelevance a => UsableRelevance (Arg a) where
 instance UsableRelevance a => UsableRelevance (Dom a) where
   usableRel rel Dom{unDom = u} = usableRel rel u
 
-instance (Subst t a, UsableRelevance a) => UsableRelevance (Abs a) where
+instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
   usableRel rel abs = underAbstraction_ abs $ \u -> usableRel rel u
 
 -- | Check whether something can be used in a position of the given modality.
@@ -456,7 +455,7 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-instance (Subst t a, UsableModality a) => UsableModality (Abs a) where
+instance (Subst a, UsableModality a) => UsableModality (Abs a) where
   usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
 
 

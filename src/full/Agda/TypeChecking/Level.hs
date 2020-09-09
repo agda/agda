@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Level where
 
@@ -235,7 +236,9 @@ singleLevelView l = case levelMaxView l of
   s :| [] -> Just s
   _       -> Nothing
 
-instance Subst Term t => Subst Term (SingleLevel' t) where
+instance Subst t => Subst (SingleLevel' t) where
+  type SubstArg (SingleLevel' t) = SubstArg t
+
   applySubst sub (SingleClosed m) = SingleClosed m
   applySubst sub (SinglePlus a)   = SinglePlus $ applySubst sub a
 

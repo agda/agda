@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Monad.Open
         ( makeOpen
@@ -22,14 +23,14 @@ makeOpen x = do
 
 -- | Extract the value from an open term. The checkpoint at which it was
 --   created must be in scope.
-getOpen :: (Subst Term a, MonadTCEnv m) => Open a -> m a
+getOpen :: (TermSubst a, MonadTCEnv m) => Open a -> m a
 getOpen (OpenThing cp x) = do
   sub <- checkpointSubstitution cp
   return $ applySubst sub x
 
 -- | Extract the value from an open term. Returns `Nothing` if the checkpoint
 --   at which it was created is not in scope.
-tryGetOpen :: (Subst Term a, MonadTCEnv m) => Open a -> m (Maybe a)
+tryGetOpen :: (TermSubst a, MonadTCEnv m) => Open a -> m (Maybe a)
 tryGetOpen (OpenThing cp x) = fmap (`applySubst` x) <$> viewTC (eCheckpoints . key cp)
 
 -- | An 'Open' is closed if it has checkpoint 0.

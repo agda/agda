@@ -43,6 +43,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -803,14 +804,13 @@ interpret (Cmd_make_case ii rng s) = do
     -- very dirty hack, string manipulation by dropping the function name
     -- and replacing the last " = " with " -> ". It's important not to replace
     -- the equal sign in named implicit with an arrow!
-    extlam_dropName :: Bool -> CaseContext -> String -> String
+    extlam_dropName :: UnicodeOrAscii -> CaseContext -> String -> String
     extlam_dropName _ Nothing x = x
-    extlam_dropName unicode Just{}  x
+    extlam_dropName glyphMode Just{}  x
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
-        replEquals ("=" : ws)
-           | unicode   = "→" : ws
-           | otherwise = "->" : ws
+        arrow = render $ _arrow $ specialCharactersForGlyphs glyphMode
+        replEquals ("=" : ws) = arrow : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 

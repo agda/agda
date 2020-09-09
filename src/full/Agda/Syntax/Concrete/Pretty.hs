@@ -3,11 +3,13 @@
 
 {-| Pretty printer for the concrete syntax.
 -}
-module Agda.Syntax.Concrete.Pretty where
+module Agda.Syntax.Concrete.Pretty
+  ( module Agda.Syntax.Concrete.Pretty
+  , module Agda.Syntax.Concrete.Glyph
+  ) where
 
 import Prelude hiding ( null )
 
-import Data.IORef
 import Data.Maybe
 import qualified Data.Foldable  as Fold
 import qualified Data.Semigroup as Semigroup
@@ -17,8 +19,7 @@ import qualified Data.Text as T
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Position
-
-import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
+import Agda.Syntax.Concrete.Glyph
 
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
@@ -29,12 +30,8 @@ import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
-import Agda.Utils.Singleton
-import Agda.Utils.String
 
 import Agda.Utils.Impossible
-
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
@@ -57,65 +54,6 @@ deriving instance Show WhereClause
 deriving instance Show ModuleApplication
 deriving instance Show DoStmt
 
--- | Picking the appropriate set of special characters depending on
--- whether we are allowed to use unicode or have to limit ourselves
--- to ascii.
-
-data SpecialCharacters = SpecialCharacters
-  { _dbraces :: Doc -> Doc
-  , _lambda  :: Doc
-  , _arrow   :: Doc
-  , _forallQ :: Doc
-  , _leftIdiomBrkt  :: Doc
-  , _rightIdiomBrkt :: Doc
-  , _emptyIdiomBrkt :: Doc
-  }
-
-{-# NOINLINE specialCharacters #-}
-specialCharacters :: SpecialCharacters
-specialCharacters =
-  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
-  case opt of
-    UnicodeOk -> SpecialCharacters { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
-                                   , _lambda  = "\x03bb"
-                                   , _arrow   = "\x2192"
-                                   , _forallQ = "\x2200"
-                                   , _leftIdiomBrkt  = "\x2987"
-                                   , _rightIdiomBrkt = "\x2988"
-                                   , _emptyIdiomBrkt = "\x2987\x2988"
-                                   }
-    AsciiOnly -> SpecialCharacters { _dbraces = braces . braces'
-                                   , _lambda  = "\\"
-                                   , _arrow   = "->"
-                                   , _forallQ = "forall"
-                                   , _leftIdiomBrkt  = "(|"
-                                   , _rightIdiomBrkt = "|)"
-                                   , _emptyIdiomBrkt = "(|)"
-                                   }
-
-braces' :: Doc -> Doc
-braces' d = ifNull (render d) (braces d) {-else-} $ \ s ->
-  braces (spaceIfDash (head s) <> d <> spaceIfDash (last s))
-  -- Add space to avoid starting a comment (Ulf, 2010-09-13, #269)
-  -- Andreas, 2018-07-21, #3161: Also avoid ending a comment
-  where
-  spaceIfDash '-' = " "
-  spaceIfDash _   = empty
-
--- double braces...
-dbraces :: Doc -> Doc
-dbraces = _dbraces specialCharacters
-
--- forall quantifier
-forallQ :: Doc
-forallQ = _forallQ specialCharacters
-
--- left, right, and empty idiom bracket
-leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt :: Doc
-leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
-rightIdiomBrkt = _rightIdiomBrkt specialCharacters
-emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
-
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @
 --   { d₁
@@ -129,10 +67,6 @@ bracesAndSemicolons :: Foldable t => t Doc -> Doc
 bracesAndSemicolons ts = case Fold.toList ts of
   []       -> "{}"
   (d : ds) -> sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
-
-arrow, lambda :: Doc
-arrow  = _arrow specialCharacters
-lambda = _lambda specialCharacters
 
 -- | @prettyHiding info visible doc@ puts the correct braces
 --   around @doc@ according to info @info@ and returns

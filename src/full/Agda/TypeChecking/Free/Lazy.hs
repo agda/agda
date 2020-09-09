@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.

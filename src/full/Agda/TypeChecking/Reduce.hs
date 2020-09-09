@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Reduce where
@@ -341,7 +340,7 @@ instance Reduce Level where
 instance Reduce PlusLevel where
   reduceB' (Plus n l) = fmap (Plus n) <$> reduceB' l
 
-instance (Subst t a, Reduce a) => Reduce (Abs a) where
+instance (Subst a, Reduce a) => Reduce (Abs a) where
   reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
   reduce' (NoAbs x v) = NoAbs x <$> reduce' v
 
@@ -537,8 +536,9 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         || prp || isIrrelevant (defArgInfo info)
       copatterns = defCopatternLHS info
   case def of
-    Constructor{conSrcCon = c} ->
-      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
+    Constructor{conSrcCon = c} -> do
+      let hd = Con (c `withRangeOf` f) ConOSystem
+      rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
@@ -899,7 +899,7 @@ instance Simplify Level where
 instance Simplify PlusLevel where
   simplify' (Plus n l) = Plus n <$> simplify' l
 
-instance (Subst t a, Simplify a) => Simplify (Abs a) where
+instance (Subst a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
 
@@ -911,7 +911,7 @@ instance Simplify a => Simplify (Closure a) where
         x <- enterClosure cl simplify'
         return $ cl { clValue = x }
 
-instance (Subst t a, Simplify a) => Simplify (Tele a) where
+instance (Subst a, Simplify a) => Simplify (Tele a) where
   simplify' EmptyTel        = return EmptyTel
   simplify' (ExtendTel a b) = uncurry ExtendTel <$> simplify' (a, b)
 
@@ -1067,7 +1067,7 @@ instance Normalise Level where
 instance Normalise PlusLevel where
   normalise' (Plus n l) = Plus n <$> normalise' l
 
-instance (Subst t a, Normalise a) => Normalise (Abs a) where
+instance (Subst a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
 
@@ -1084,7 +1084,7 @@ instance Normalise a => Normalise (Closure a) where
         x <- enterClosure cl normalise'
         return $ cl { clValue = x }
 
-instance (Subst t a, Normalise a) => Normalise (Tele a) where
+instance (Subst a, Normalise a) => Normalise (Tele a) where
   normalise' EmptyTel        = return EmptyTel
   normalise' (ExtendTel a b) = uncurry ExtendTel <$> normalise' (a, b)
 
@@ -1286,7 +1286,7 @@ instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' p@ProjP{}      = return p
     instantiateFull' (IApplyP o t u x) = IApplyP o <$> instantiateFull' t <*> instantiateFull' u <*> instantiateFull' x
 
-instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
+instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
@@ -1334,7 +1334,7 @@ instance InstantiateFull Signature where
 instance InstantiateFull Section where
   instantiateFull' (Section tel) = Section <$> instantiateFull' tel
 
-instance (Subst t a, InstantiateFull a) => InstantiateFull (Tele a) where
+instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
   instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
 

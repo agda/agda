@@ -1,6 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 ;;; agda-input.el --- The Agda input method
 
+;; SPDX-License-Identifier: MIT License
 ;;; Commentary:
 
 ;; A highly customisable input method which can inherit from other

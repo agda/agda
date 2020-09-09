@@ -140,14 +140,18 @@ checkTelePiSort :: Type -> TCM ()
 --  underAbstraction a b checkTelePiSort
 checkTelePiSort _ = return ()
 
-ifIsSort :: (MonadReduce m) => Type -> (Sort -> m a) -> m a -> m a
+ifIsSort :: (MonadReduce m, MonadError TCErr m) => Type -> (Sort -> m a) -> m a -> m a
 ifIsSort t yes no = do
-  t <- reduce t
-  case unEl t of
-    Sort s -> yes s
-    _      -> no
+  -- Jesper, 2020-09-06, subtle: do not use @abortIfBlocked@ here
+  -- since we want to take the yes branch whenever the type is a sort,
+  -- even if it is blocked.
+  bt <- reduceB t
+  case unEl (ignoreBlocking bt) of
+    Sort s                     -> yes s
+    _      | Blocked m _ <- bt -> patternViolation m
+           | otherwise         -> no
 
-ifNotSort :: (MonadReduce m) => Type -> m a -> (Sort -> m a) -> m a
+ifNotSort :: (MonadReduce m, MonadError TCErr m) => Type -> m a -> (Sort -> m a) -> m a
 ifNotSort t = flip $ ifIsSort t
 
 -- | Result is in reduced form.
@@ -160,7 +164,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (MonadReduce m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (MonadReduce m, MonadError TCErr m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
@@ -193,7 +197,14 @@ sortOf t = do
 
     sortOfE :: Type -> (Elims -> Term) -> Elims -> m Sort
     sortOfE a hd []     = ifIsSort a return __IMPOSSIBLE__
-    sortOfE a hd (e:es) = case e of
+    sortOfE a hd (e:es) = do
+     reportSDoc "tc.sort" 50 $ vcat
+       [ "sortOfE"
+       , "  a  = " <+> prettyTCM a
+       , "  hd = " <+> prettyTCM (hd [])
+       , "  e  = " <+> prettyTCM e
+       ]
+     case e of
       Apply (Arg ai v) -> ifNotPiType a __IMPOSSIBLE__ $ \b c -> do
         sortOfE (c `absApp` v) (hd . (e:)) es
       Proj o f -> do

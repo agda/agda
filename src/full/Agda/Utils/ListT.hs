@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP  #-}
-{-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
+{-# LANGUAGE UndecidableInstances  #-} -- Due MonadReader/MonadState fundep
 
 -- | @ListT@ done right,
 --   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative

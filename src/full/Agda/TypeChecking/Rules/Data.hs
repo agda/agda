@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Data where
@@ -643,7 +644,8 @@ toLType ty = do
     Type l -> return $ Just $ LEl l (unEl ty)
     _      -> return $ Nothing
 
-instance Subst Term LType where
+instance Subst LType where
+  type SubstArg LType = Term
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
 -- | A @Type@ that either has sort @Type l@ or is a closed definition.
@@ -667,7 +669,8 @@ toCType ty = do
         _        -> return $ Nothing
     _      -> return $ Nothing
 
-instance Subst Term CType where
+instance Subst CType where
+  type SubstArg CType = Term
   applySubst rho (ClosedType s t) = ClosedType (applySubst rho s) t
   applySubst rho (LType t) = LType $ applySubst rho t
 

@@ -1,6 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
@@ -12,6 +10,7 @@ module Agda.TypeChecking.Primitive
        ) where
 
 import Data.Char
+import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -78,9 +77,19 @@ instance Pretty Lvl where
 class PrimType a where
   primType :: a -> TCM Type
 
+  -- This used to be a catch-all instance `PrimType a => PrimTerm a` which required UndecidableInstances.
+  -- Now we declare the instances separately, but enforce the catch-all-ness with a superclass constraint on PrimTerm.
+  default primType :: PrimTerm a => a -> TCM Type
+  primType _ = el $ primTerm (undefined :: a)
+
+class PrimType a => PrimTerm a where
+  primTerm :: a -> TCM Term
+
+instance (PrimType a, PrimType b) => PrimType (a -> b)
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
   primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
+instance (PrimType a, PrimType b) => PrimType (a, b)
 instance (PrimType a, PrimType b) => PrimTerm (a, b) where
   primTerm _ = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
@@ -94,30 +103,51 @@ instance (PrimType a, PrimType b) => PrimTerm (a, b) where
              <@> pure (unEl a')
              <@> pure (nolam $ unEl b')
 
-instance PrimTerm a => PrimType a where
-  primType _ = el $ primTerm (undefined :: a)
-
-class    PrimTerm a       where primTerm :: a -> TCM Term
+instance PrimType Integer
 instance PrimTerm Integer where primTerm _ = primInteger
+
+instance PrimType Word64
 instance PrimTerm Word64  where primTerm _ = primWord64
+
+instance PrimType Bool
 instance PrimTerm Bool    where primTerm _ = primBool
+
+instance PrimType Char
 instance PrimTerm Char    where primTerm _ = primChar
+
+instance PrimType Double
 instance PrimTerm Double  where primTerm _ = primFloat
+
+instance PrimType Text
 instance PrimTerm Text    where primTerm _ = primString
+
+instance PrimType Nat
 instance PrimTerm Nat     where primTerm _ = primNat
+
+instance PrimType Lvl
 instance PrimTerm Lvl     where primTerm _ = primLevel
+
+instance PrimType QName
 instance PrimTerm QName   where primTerm _ = primQName
+
+instance PrimType MetaId
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
+
+instance PrimType Type
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimType Fixity'
 instance PrimTerm Fixity' where primTerm _ = primFixity
 
+instance PrimTerm a => PrimType [a]
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (Maybe a)
 instance PrimTerm a => PrimTerm (Maybe a) where
   primTerm _ = tMaybe (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (IO a)
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 
@@ -814,38 +844,57 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- Sorts
   , "primSetOmega"        |-> mkPrimSetOmega IsFibrant
   , "primStrictSetOmega"  |-> mkPrimSetOmega IsStrict
---  , "primStrictSet"       |-> mkPrimStrictSet
 
   -- Floating point functions
-  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
-  , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
-  , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
-  , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
-  , "primFloatNegate"     |-> mkPrimFun1 (negate          :: Fun Double)
-  , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
-  -- ASR (2016-09-29). We use bitwise equality for comparing Double
-  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
-  -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> mkPrimFun2 (floatEq         :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
-  , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
-  , "primFloatNumericalLess"     |-> mkPrimFun2 ((<)      :: Rel Double)
-  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round   . normaliseNaN :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor   . normaliseNaN :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling . normaliseNaN :: Double -> Integer)
-  , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
-  , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
-  , "primCos"             |-> mkPrimFun1 (cos             :: Fun Double)
-  , "primTan"             |-> mkPrimFun1 (tan             :: Fun Double)
-  , "primASin"            |-> mkPrimFun1 (asin            :: Fun Double)
-  , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
-  , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
-  , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
-  , "primShowFloat"       |-> mkPrimFun1 (T.pack . show   :: Double -> Text)
-  , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
+  --
+  -- Wen, 2020-08-26: Primitives which convert from Float into other, more
+  -- well-behaved numeric types should check for unrepresentable values, e.g.,
+  -- NaN and the infinities, and return `nothing` if those are encountered, to
+  -- ensure that the returned numbers are sensible. That means `primFloatRound`,
+  -- `primFloatFloor`, `primFloatCeiling`, and `primFloatDecode`. The conversion
+  -- `primFloatRatio` represents NaN as (0,0), and the infinities as (±1,0).
+  --
+  , "primFloatEquality"          |-> mkPrimFun2 doubleEq
+  , "primFloatInequality"        |-> mkPrimFun2 doubleLe
+  , "primFloatLess"              |-> mkPrimFun2 doubleLt
+  , "primFloatIsInfinite"        |-> mkPrimFun1 (isInfinite :: Double -> Bool)
+  , "primFloatIsNaN"             |-> mkPrimFun1 (isNaN :: Double -> Bool)
+  , "primFloatIsNegativeZero"    |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
+  , "primFloatIsSafeInteger"     |-> mkPrimFun1 isSafeInteger
+  , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
+  , "primNatToFloat"             |-> mkPrimFun1 (intToDouble :: Nat -> Double)
+  , "primIntToFloat"             |-> mkPrimFun1 (intToDouble :: Integer -> Double)
+  , "primFloatRound"             |-> mkPrimFun1 doubleRound
+  , "primFloatFloor"             |-> mkPrimFun1 doubleFloor
+  , "primFloatCeiling"           |-> mkPrimFun1 doubleCeiling
+  , "primFloatToRatio"           |-> mkPrimFun1 doubleToRatio
+  , "primRatioToFloat"           |-> mkPrimFun2 ratioToDouble
+  , "primFloatDecode"            |-> mkPrimFun1 doubleDecode
+  , "primFloatEncode"            |-> mkPrimFun2 doubleEncode
+  , "primShowFloat"              |-> mkPrimFun1 (T.pack . show :: Double -> Text)
+  , "primFloatPlus"              |-> mkPrimFun2 doublePlus
+  , "primFloatMinus"             |-> mkPrimFun2 doubleMinus
+  , "primFloatTimes"             |-> mkPrimFun2 doubleTimes
+  , "primFloatNegate"            |-> mkPrimFun1 doubleNegate
+  , "primFloatDiv"               |-> mkPrimFun2 doubleDiv
+  , "primFloatPow"               |-> mkPrimFun2 doublePow
+  , "primFloatSqrt"              |-> mkPrimFun1 doubleSqrt
+  , "primFloatExp"               |-> mkPrimFun1 doubleExp
+  , "primFloatLog"               |-> mkPrimFun1 doubleLog
+  , "primFloatSin"               |-> mkPrimFun1 doubleSin
+  , "primFloatCos"               |-> mkPrimFun1 doubleCos
+  , "primFloatTan"               |-> mkPrimFun1 doubleTan
+  , "primFloatASin"              |-> mkPrimFun1 doubleASin
+  , "primFloatACos"              |-> mkPrimFun1 doubleACos
+  , "primFloatATan"              |-> mkPrimFun1 doubleATan
+  , "primFloatATan2"             |-> mkPrimFun2 doubleATan2
+  , "primFloatSinh"              |-> mkPrimFun1 doubleSinh
+  , "primFloatCosh"              |-> mkPrimFun1 doubleCosh
+  , "primFloatTanh"              |-> mkPrimFun1 doubleTanh
+  , "primFloatASinh"             |-> mkPrimFun1 doubleASinh
+  , "primFloatACosh"             |-> mkPrimFun1 doubleCosh
+  , "primFloatATanh"             |-> mkPrimFun1 doubleTanh
 
   -- Character functions
   , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)

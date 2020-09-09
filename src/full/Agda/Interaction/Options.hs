@@ -10,6 +10,7 @@ module Agda.Interaction.Options
     , HtmlHighlight(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
+    , UnicodeOrAscii(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -58,8 +59,8 @@ import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
-import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
+import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -136,7 +137,7 @@ data CommandLineOptions = Options
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
-  , optUseUnicode                :: Bool
+  , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -273,7 +274,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
-  , optUseUnicode                = True
+  , optUseUnicode                = UnicodeOk
   , optVerbose                   = defaultVerbosity
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -441,7 +442,7 @@ unsafePragmaOptions clo opts =
 restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
 restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
-  , (B . not . optUseUnicode, "--no-unicode")
+  , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
   , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
@@ -605,8 +606,8 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
-  lift $ writeIORef unicodeOrAscii AsciiOnly
-  return $ o { optUseUnicode = False }
+  lift $ unsafeSetUnicodeOrAscii AsciiOnly
+  return $ o { optUseUnicode = AsciiOnly }
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
