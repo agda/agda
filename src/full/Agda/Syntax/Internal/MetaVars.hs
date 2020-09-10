@@ -56,6 +56,7 @@ allMetas' singl = foldTerm metas
   sortMetas SSet{}        = mempty
   sortMetas Inf{}         = mempty
   sortMetas SizeUniv{}    = mempty
+  sortMetas LockUniv{}    = mempty
   sortMetas (PiSort _ b)  = sortMetas $ unAbs b  -- the domain is a type so is covered by the fold
   sortMetas (FunSort a b) = sortMetas a <> sortMetas b
   sortMetas (UnivSort s)  = sortMetas s

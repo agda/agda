@@ -84,8 +84,8 @@ instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
-    (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 _ x2 =
+    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
@@ -102,6 +102,7 @@ instance LensHiding        (Dom' t e) where
 instance LensModality      (Dom' t e) where
 instance LensOrigin        (Dom' t e) where
 instance LensFreeVariables (Dom' t e) where
+instance LensAnnotation    (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -284,6 +285,7 @@ data Sort' t
   | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
+  | LockUniv    -- ^ @LockUniv@, a sort for locks.
   | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
@@ -1104,6 +1106,7 @@ instance TermSize Sort where
     Inf _ _   -> 1
     SSet l    -> 1 + tsize l
     SizeUniv  -> 1
+    LockUniv  -> 1
     PiSort a s -> 1 + tsize a + tsize s
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
@@ -1162,6 +1165,7 @@ instance KillRange Sort where
   killRange s = case s of
     Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     SSet a     -> killRange1 SSet a
@@ -1316,6 +1320,7 @@ instance Pretty Sort where
       Inf f n -> text $ addS f "Setω" ++ show n
       SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
+      LockUniv -> "LockUniv"
       PiSort a b -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
                       <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
@@ -1388,6 +1393,7 @@ instance NFData Sort where
     Inf _ _  -> ()
     SSet l   -> rnf l
     SizeUniv -> ()
+    LockUniv -> ()
     PiSort a b -> rnf (a, unAbs b)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a

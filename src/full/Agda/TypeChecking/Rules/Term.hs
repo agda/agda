@@ -329,6 +329,10 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
 
     t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
 
+    -- Andrea TODO: also make sure that LockUniv implies IsLock
+    when (any (\ x -> getLock x == IsLock) xs) $
+        equalSort (getSort t) LockUniv
+
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
     List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
@@ -541,8 +545,8 @@ checkLambda' cmp b xps typ body target = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: LensModality dom => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -581,6 +585,18 @@ lambdaQuantityCheck dom info
       let qLam = getQuantity info -- quantity of lambda
       unless (qPi `moreQuantity` qLam) $ do
         typeError WrongQuantityInLambda
+      return info
+
+lambdaAnnotationCheck :: LensAnnotation dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaAnnotationCheck dom info
+    -- Case: no specific user annotation: use annotation of function type
+  | getAnnotation info == defaultAnnotation = return $ setAnnotation (getAnnotation dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let aPi  = getAnnotation dom  -- annotation of function type
+      let aLam = getAnnotation info -- annotation of lambda
+      unless (aPi == aLam) $ do
+        typeError $ GenericError $ "Wrong annotation in lambda"
       return info
 
 -- | Check that cohesion info in lambda is compatible with cohesion

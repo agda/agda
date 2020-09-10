@@ -415,6 +415,7 @@ instance PrettyTCM NLPSort where
     PProp l   -> parens $ "Prop" <+> prettyTCM l
     PInf f n  -> prettyTCM (Inf f n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
+    PLockUniv -> prettyTCM (LockUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

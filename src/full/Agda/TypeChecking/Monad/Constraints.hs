@@ -212,6 +212,7 @@ addConstraintTo bucket unblock c = do
       CheckFunDef{}    -> True
       UnquoteTactic{}  -> True
       CheckMetaInst{}  -> True
+      CheckLockedVars{} -> True
 
 -- | Start solving constraints
 nowSolvingConstraints :: MonadTCEnv m => m a -> m a

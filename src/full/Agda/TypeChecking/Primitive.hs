@@ -663,6 +663,11 @@ mkPrimSetOmega f = do
   let t = sort $ Inf f 1
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf f 0
 
+primLockUniv' :: TCM PrimitiveImpl
+primLockUniv' = do
+  let t = sort $ Type $ levelSuc $ Max 0 []
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
+
 -- mkPrimStrictSet :: TCM PrimitiveImpl
 -- mkPrimStrictSet = do
 --   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ var 0])
@@ -961,6 +966,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , builtinSubOut         |-> primSubOut'
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
+  , builtinLockUniv       |-> primLockUniv'
   ]
   where
     (|->) = (,)

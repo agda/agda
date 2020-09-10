@@ -131,6 +131,7 @@ instance TermLike Sort where
     Inf _ _    -> pure s
     SSet l     -> SSet <$> traverseTermM f l
     SizeUniv   -> pure s
+    LockUniv   -> pure s
     PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
@@ -144,6 +145,7 @@ instance TermLike Sort where
     Inf _ _    -> mempty
     SSet l     -> foldTerm f l
     SizeUniv   -> mempty
+    LockUniv   -> mempty
     PiSort a b -> foldTerm f a <> foldTerm f b
     FunSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a

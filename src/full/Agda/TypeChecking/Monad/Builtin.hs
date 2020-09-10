@@ -186,6 +186,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
+    primLockUniv,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
@@ -303,6 +304,7 @@ primLevelMax                          = getBuiltin builtinLevelMax
 primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
+primLockUniv                          = getPrimitiveTerm builtinLockUniv
 primSSetOmega                         = getBuiltin builtinSSetOmega
 primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat

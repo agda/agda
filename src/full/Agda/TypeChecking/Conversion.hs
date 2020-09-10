@@ -1236,6 +1236,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
+      (_       , LockUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
@@ -1246,6 +1247,10 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
       (SizeUniv, SSet{}  ) -> no
+      (LockUniv, Type{}  ) -> no
+      (LockUniv, Prop{}  ) -> no
+      (LockUniv , Inf{}  ) -> no
+      (LockUniv, SSet{}  ) -> no
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
@@ -1622,6 +1627,7 @@ equalSort s1 s2 = do
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
+            (LockUniv   , LockUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
               if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no

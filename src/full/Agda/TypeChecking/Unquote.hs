@@ -180,7 +180,7 @@ instance Unquote ArgInfo where
       Con c _ es | Just [h,r] <- allApplyElims es ->
         choice
           [(c `isCon` primArgArgInfo,
-              ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables)]
+              ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables <*> pure defaultAnnotation)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "arg info" t

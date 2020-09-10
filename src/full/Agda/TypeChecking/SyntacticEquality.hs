@@ -119,6 +119,7 @@ instance SynEq Sort where
       (FunSort a b, FunSort a' b') -> funSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
+      (LockUniv, LockUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
       (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
@@ -164,6 +165,6 @@ instance SynEq a => SynEq (Dom a) where
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where
-  synEq ai@(ArgInfo h r o _) ai'@(ArgInfo h' r' o' _)
-    | h == h', r == r' = pure2 ai
+  synEq ai@(ArgInfo h r o _ a) ai'@(ArgInfo h' r' o' _ a')
+    | h == h', r == r', a == a' = pure2 ai
     | otherwise        = inequal (ai, ai')

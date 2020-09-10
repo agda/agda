@@ -176,6 +176,7 @@ instance AbsTerm Sort where
     Inf f n    -> s
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     PiSort a s -> PiSort (absS a) (absS s)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
@@ -292,8 +293,8 @@ instance (Subst a, EqualSy a) => EqualSy (Abs a) where
 
 -- | Ignore origin and free variables.
 instance EqualSy ArgInfo where
-  equalSy (ArgInfo h m _o _fv) (ArgInfo h' m' _o' _fv') =
-    h == h' && m == m'
+  equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
+    h == h' && m == m' && a == a'
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
@@ -307,7 +308,7 @@ instance EqualSy a => EqualSy (Dom a) where
 -- | Ignores irrelevant arguments and modality.
 --   (And, of course, origin and free variables).
 instance EqualSy a => EqualSy (Arg a) where
-  equalSy (Arg (ArgInfo h m _o _fv) v) (Arg (ArgInfo h' m' _o' _fv') v') =
+  equalSy (Arg (ArgInfo h m _o _fv a) v) (Arg (ArgInfo h' m' _o' _fv' a') v') =
     h == h' && (isIrrelevant m || isIrrelevant m' || equalSy v v')
     -- Andreas, 2017-10-04, issue #2775,
     -- ignore irrelevant arguments during with-abstraction.

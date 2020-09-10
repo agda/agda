@@ -403,7 +403,7 @@ instance EmbPrj a => EmbPrj (Ranged a) where
   value = valueN Ranged
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r o fv) = icodeN' ArgInfo h r o fv
+  icod_ (ArgInfo h r o fv ann) = icodeN' ArgInfo h r o fv ann
 
   value = valueN ArgInfo
 
@@ -542,6 +542,21 @@ instance EmbPrj Relevance where
   value 0 = return Relevant
   value 1 = return Irrelevant
   value 2 = return NonStrict
+  value _ = malformed
+
+instance EmbPrj Annotation where
+  icod_ (Annotation l) = icodeN' Annotation l
+
+  value = vcase $ \case
+    [l] -> valuN Annotation l
+    _ -> malformed
+
+instance EmbPrj Lock where
+  icod_ IsNotLock = return 0
+  icod_ IsLock    = return 1
+
+  value 0 = return IsNotLock
+  value 1 = return IsLock
   value _ = malformed
 
 instance EmbPrj Origin where

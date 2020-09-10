@@ -80,6 +80,7 @@ instance PrecomputeFreeVars Sort where
       Inf _ _    -> pure s
       SSet a     -> SSet <$> precomputeFreeVars a
       SizeUniv   -> pure s
+      LockUniv   -> pure s
       PiSort a s -> uncurry PiSort <$> precomputeFreeVars (a, s)
       FunSort s1 s2 -> uncurry FunSort <$> precomputeFreeVars (s1, s2)
       UnivSort s -> UnivSort <$> precomputeFreeVars s

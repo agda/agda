@@ -30,6 +30,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
+  builtinLockUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported,
@@ -153,6 +154,7 @@ builtinLevelSuc                          = "LEVELSUC"
 builtinSet                               = "TYPE"
 builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
+builtinLockUniv                          = "primLockUniv"
 builtinSSetOmega                         = "STRICTSETOMEGA"
 builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"

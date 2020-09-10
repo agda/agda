@@ -680,6 +680,7 @@ instance ExtractCalls Sort where
     case s of
       Inf f n    -> return empty
       SizeUniv   -> return empty
+      LockUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
       SSet t     -> terUnguarded $ extract t

@@ -210,6 +210,8 @@ instance Instantiate Constraint where
   instantiate' c@CheckFunDef{}      = return c
   instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
   instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
+  instantiate' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> instantiate' a <*> instantiate' b <*> instantiate' c <*> instantiate' d
   instantiate' (UnquoteTactic t h g) = UnquoteTactic <$> instantiate' t <*> instantiate' h <*> instantiate' g
   instantiate' c@CheckMetaInst{}    = return c
 
@@ -324,6 +326,7 @@ instance Reduce Sort where
         Inf f n    -> return $ Inf f n
         SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
@@ -782,6 +785,8 @@ instance Reduce Constraint where
   reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
   reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
   reduce' (UnquoteTactic t h g) = UnquoteTactic <$> reduce' t <*> reduce' h <*> reduce' g
+  reduce' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> reduce' a <*> reduce' b <*> reduce' c <*> reduce' d
   reduce' c@CheckMetaInst{}     = return c
 
 instance Reduce CompareAs where
@@ -889,6 +894,7 @@ instance Simplify Sort where
         Inf _ _    -> return s
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
+        LockUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
@@ -937,6 +943,8 @@ instance Simplify Constraint where
   simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
   simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
   simplify' (UnquoteTactic t h g) = UnquoteTactic <$> simplify' t <*> simplify' h <*> simplify' g
+  simplify' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> simplify' a <*> simplify' b <*> simplify' c <*> simplify' d
   simplify' c@CheckMetaInst{}     = return c
 
 instance Simplify CompareAs where
@@ -1031,6 +1039,7 @@ instance Normalise Sort where
         Inf _ _    -> return s
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
@@ -1110,6 +1119,8 @@ instance Normalise Constraint where
   normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
   normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
   normalise' (UnquoteTactic t h g) = UnquoteTactic <$> normalise' t <*> normalise' h <*> normalise' g
+  normalise' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> normalise' a <*> normalise' b <*> normalise' c <*> normalise' d
   normalise' c@CheckMetaInst{}     = return c
 
 instance Normalise CompareAs where
@@ -1231,6 +1242,7 @@ instance InstantiateFull Sort where
             UnivSort s -> univSort <$> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
+            LockUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
@@ -1321,6 +1333,8 @@ instance InstantiateFull Constraint where
     HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
     HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
     UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    CheckLockedVars a b c d ->
+      CheckLockedVars <$> instantiateFull' a <*> instantiateFull' b <*> instantiateFull' c <*> instantiateFull' d
     c@CheckMetaInst{}   -> return c
 
 instance InstantiateFull CompareAs where
@@ -1362,6 +1376,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
+  instantiateFull' PLockUniv = return PLockUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =

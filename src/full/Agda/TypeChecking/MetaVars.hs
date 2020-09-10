@@ -10,6 +10,7 @@ import Control.Monad.Reader
 
 import Data.Function
 import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -25,6 +26,8 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
+-- import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
@@ -32,6 +35,7 @@ import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Lock
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -862,6 +866,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         case res of
           -- all args are variables
           Right ids -> do
+            reportSDoc "tc.meta.assign" 60 $
+              "inverseSubst returns:" <+> sep (map pretty ids)
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
             let boundVars = VarSet.fromList $ map fst ids
@@ -891,6 +897,19 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
               -- using non-linear variables need to be solved).
               Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
+
+          -- Check ids is time respecting.
+          () <- do
+            let idvars = map (mapSnd allFreeVars) ids
+            -- earlierThan α v := v "arrives" before α
+            let earlierThan l j = j > l
+            TelV tel' _ <- telViewUpToPath (length args) t
+            forM_ ids $ \(i,u) -> do
+              d <- lookupBV i
+              when (getLock (getArgInfo d) == IsLock) $ do
+                let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
+                -- us Earlier than u
+                addContext tel' $ checkEarlierThan u us
 
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
@@ -1467,6 +1486,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        , argInfoFreeVariables = unknownFreeVariables
+                       , argInfoAnnotation    = argInfoAnnotation info'
                        }
                     vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 res <- loop $ zipWith aux vs fs

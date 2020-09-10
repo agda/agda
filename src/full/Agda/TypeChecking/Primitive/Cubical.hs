@@ -1062,10 +1062,17 @@ primTransHComp cmd ts nelims = do
         let (x,f) = case ab of
               IsFam (a,_) -> (a, \ a -> runNames [] $ lam "i" (const (pure a)))
               IsNot (a,_) -> (a, id)
-        lx <- toLevel' x
-        caseMaybe lx (return Nothing) $ \ lx -> Just <$>
-          mapM (open . f) [Level lx, unEl . unDom $ x]
-      caseMaybe labA (return Nothing) $ \ [la,bA] -> Just <$> do
+        s <- reduce $ getSort x
+        case s of
+          Type lx -> do
+            [la,bA] <- mapM (open . f) [Level lx, unEl . unDom $ x]
+            pure $ Just $ \ iOrNot phi a0 -> pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
+                                                         <@> lam "j" (\ j -> bA <@> iOrNot j)
+                                                         <@> phi
+                                                         <@> a0
+          LockUniv -> return $ Just $ \ _ _ a0 -> a0
+          _       -> return Nothing
+      caseMaybe labA (return Nothing) $ \ trA -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)
 
@@ -1083,10 +1090,8 @@ primTransHComp cmd ts nelims = do
             let v i = do
                        let
                          iOrNot j = pure tIMax <@> i <@> (pure tINeg <@> j)
-                       pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
-                                 <@> lam "j" (\ j -> bA <@> iOrNot j)
-                                 <@> (pure tIMax <@> phi <@> i)
-                                 <@> u1
+                       trA iOrNot (pure tIMax <@> phi <@> i)
+                                  u1
                 -- Γ , u1 : A[i1] , i : I
                 bB v = consS v (liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
                 tLam = Lam defaultArgInfo

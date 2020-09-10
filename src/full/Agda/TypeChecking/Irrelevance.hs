@@ -324,6 +324,7 @@ instance UsableRelevance Sort where
     Inf f n -> return True
     SSet l -> usableRel rel l
     SizeUniv -> return True
+    LockUniv -> return True
     PiSort a s -> usableRel rel (a,s)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
@@ -484,6 +485,7 @@ isFibrant a = reduce (getSort a) <&> \case
   Inf f _    -> f == IsFibrant
   SSet{}     -> False
   SizeUniv{} -> False
+  LockUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False

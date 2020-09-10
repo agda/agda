@@ -375,7 +375,7 @@ instance Hilite a => Hilite (Arg a) where
   hilite (Arg ai e) = hilite ai <> hilite e
 
 instance Hilite ArgInfo where
-  hilite (ArgInfo _hiding modality _origin _fv) = hilite modality
+  hilite (ArgInfo _hiding modality _origin _fv _a) = hilite modality
 
 instance Hilite Modality where
   hilite (Modality _relevance quantity _cohesion) = hilite quantity

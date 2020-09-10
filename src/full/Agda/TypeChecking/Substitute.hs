@@ -827,6 +827,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     Inf f n    -> Inf f n
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort $ coerce $ sub s
@@ -934,6 +935,7 @@ instance Subst NLPSort where
     PProp l   -> PProp $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
+    PLockUniv -> PLockUniv
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
@@ -983,6 +985,7 @@ instance Subst Constraint where
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
+    CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
@@ -1474,6 +1477,7 @@ univSort' (Prop l) = Just $ Type $ levelSuc l
 univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf IsFibrant 0
+univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1487,6 +1491,7 @@ isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
 isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
 isSmallSort SizeUniv   = Just (True,IsFibrant)
+isSmallSort LockUniv   = Just (True,IsFibrant)
 isSmallSort (Inf f _)  = Just (False,f)
 isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
@@ -1509,6 +1514,9 @@ funSort' a b = case (a, b) of
   (Inf af m      , b            ) | Just (True,bf) <- isSmallSort b -> Just $ Inf (fibrantLub af bf) m
   (a             , Inf bf n     ) | Just (True,af) <- isSmallSort a -> Just $ Inf (fibrantLub af bf) n
   (Type a        , Type b       ) -> Just $ Type $ levelLub a b
+  (LockUniv      , b            ) -> Just b
+  -- No functions into lock types
+  (a             , LockUniv     ) -> Nothing
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b

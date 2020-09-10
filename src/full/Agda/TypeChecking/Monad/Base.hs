@@ -1030,6 +1030,7 @@ data Constraint
   | CheckFunDef Delayed A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
   deriving (Show)
 
 instance HasRange Constraint where
@@ -1060,6 +1061,7 @@ instance Free Constraint where
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
+      CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
       CheckMetaInst m       -> mempty
 
@@ -1074,6 +1076,7 @@ instance TermLike Constraint where
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
+      CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
@@ -1248,7 +1251,7 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
+  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
@@ -1596,6 +1599,7 @@ data NLPSort
   | PProp NLPat
   | PInf IsFibrant Integer
   | PSizeUniv
+  | PLockUniv
   deriving (Data, Show)
 
 type RewriteRules = [RewriteRule]
@@ -3019,6 +3023,27 @@ data Candidate  = Candidate { candidateKind :: CandidateKind
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
 
+
+---------------------------------------------------------------------------
+-- ** Checking arguments
+---------------------------------------------------------------------------
+
+data ArgsCheckState a = ACState
+       { acRanges :: [Maybe Range]
+         -- ^ Ranges of checked arguments, where present.
+         -- e.g. inserted implicits have no correponding abstract syntax.
+       , acElims  :: Elims
+         -- ^ Checked and inserted arguments so far.
+       , acConstraints :: [Maybe (Abs Constraint)]
+         -- ^ Constraints for the head so far,
+         -- i.e. before applying the correponding elim.
+       , acType   :: Type
+         -- ^ Type for the rest of the application.
+       , acData   :: a
+       }
+  deriving (Show)
+
+
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
 ---------------------------------------------------------------------------
@@ -4294,6 +4319,7 @@ instance KillRange NLPSort where
   killRange (PProp l) = killRange1 PProp l
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
+  killRange PLockUniv = PLockUniv
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =

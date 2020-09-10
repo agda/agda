@@ -153,8 +153,13 @@ permuteTel perm tel =
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.
 varDependencies :: Telescope -> IntSet -> IntSet
-varDependencies tel = allDependencies IntSet.empty
+varDependencies tel = addLocks . allDependencies IntSet.empty
   where
+    addLocks s | IntSet.null s = s
+               | otherwise = IntSet.union s $ IntSet.fromList $ filter (>= m) locks
+      where
+        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, getLock a == IsLock]
+        m = IntSet.findMin s
     n  = size tel
     ts = flattenTel tel
 

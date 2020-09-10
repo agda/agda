@@ -62,6 +62,7 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
 
@@ -196,6 +197,7 @@ instance Match () NLPSort Sort where
       (PInf fp np , Inf f n)
         | fp == f, np == n   -> yes
       (PSizeUniv , SizeUniv) -> yes
+      (PLockUniv , LockUniv) -> yes
 
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b

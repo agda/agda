@@ -53,6 +53,7 @@ instance MentionsMeta Sort where
     Inf _ _    -> False
     SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
+    LockUniv   -> False
     PiSort a s -> mentionsMetas xs (a, s)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)
     UnivSort s -> mentionsMetas xs s
@@ -116,6 +117,7 @@ instance MentionsMeta Constraint where
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
+    CheckLockedVars a b c d -> mm ((a, b), (c, d))
     where
       mm v = mentionsMetas xs v
 

@@ -460,6 +460,7 @@ data OutputConstraint a b
       | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
       | PostponedCheckFunDef QName a TCErr
+      | CheckLock b b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

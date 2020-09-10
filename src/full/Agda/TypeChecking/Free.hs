@@ -47,6 +47,7 @@ module Agda.TypeChecking.Free
     , runFree, rigidVars, stronglyRigidVars, unguardedVars, allVars
     , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
+    , freeVarsIgnore
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , FlexRig'(..), FlexRig
