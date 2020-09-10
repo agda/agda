@@ -251,7 +251,7 @@ checkRewriteRule q = do
 
       addContext gamma1 $ do
 
-        checkNoLhsReduction f es
+        checkNoLhsReduction f hd es
 
         unless (noMetas (es, rhs, b)) $ do
           reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetasList es)
@@ -284,27 +284,29 @@ checkRewriteRule q = do
     _ -> failureWrongTarget
 
   where
-    checkNoLhsReduction :: QName -> Elims -> TCM ()
-    checkNoLhsReduction f es = do
+    checkNoLhsReduction :: QName -> (Elims -> Term)  -> Elims -> TCM ()
+    checkNoLhsReduction f hd es = do
       -- Skip this check when global confluence check is enabled, as
       -- redundant rewrite rules may be required to prove confluence.
       unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
-      let v = Def f es
+      let v = hd es
       v' <- reduce v
-      let fail = do
+      let fail :: TCM a
+          fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
             typeError . GenericDocError =<< fsep
               [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
               , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
-      case v' of
-        Def f' es' | f == f' -> do
-          a   <- computeElimHeadType f es es'
-          pol <- getPolarity' CmpEq f
-          ok  <- dontAssignMetas $ tryConversion $
-                   compareElims pol [] a (Def f []) es es'
-          unless ok fail
-        _ -> fail
+      es' <- case v' of
+        Def f' es'   | f == f'         -> return es'
+        Con c' _ es' | f == conName c' -> return es'
+        _                              -> fail
+      a   <- computeElimHeadType f es es'
+      pol <- getPolarity' CmpEq f
+      ok  <- dontAssignMetas $ tryConversion $
+               compareElims pol [] a (Def f []) es es'
+      unless ok fail
 
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of

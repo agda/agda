@@ -69,16 +69,19 @@ jobs:
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH &&
           travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         # Set up arguments and flags for stack compilation
-        - ARGS=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
-        - FLAGS=(--flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
+        - stack_base_args=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
+        # Arguments to normal stack exec/stack path etc.
+        - ARGS=("${stack_base_args[@]}")
+        # Arguments to 'stack build':
+        - BUILD_ARGS=("${stack_base_args[@]}" --flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
         - echo "*** GHC version ***"     && ghc     --version &&
           echo "*** Stack version ***"   && stack   --version &&
           echo "*** Haddock version ***" && haddock --version &&
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install:
-        - stack build Agda "${ARGS[@]}" "${FLAGS[@]}" --test --no-run-tests --only-dependencies
+        - stack build Agda "${BUILD_ARGS[@]}" --test --no-run-tests --only-dependencies
       script:
-        - stack build Agda "${ARGS[@]}" "${FLAGS[@]}" --test --no-run-tests
+        - stack build Agda "${BUILD_ARGS[@]}" --test --no-run-tests
         # shelltestrunner is used by `make test-size-solver`
         # we need to cache it first.
         - stack install shelltestrunner "${ARGS[@]}"
@@ -119,9 +122,10 @@ jobs:
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-
-        - FLAGS=(--flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
-        - ARGS=(--silent --stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
+        - stack_base_args=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
+        # Avoid including --silent when running `stack build`, so that Travis doesn't time out if no output.
+        - ARGS=(--silent "${stack_base_args[@]}")
+        - BUILD_ARGS=("${stack_base_args[@]}" --flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
         - PARALLEL_TESTS=2
         - AGDA_TESTS_OPTIONS=("-j${PARALLEL_TESTS}" --hide-successes)
         - BUILD_DIR=$(pwd)/$(stack "${ARGS[@]}" path --dist-dir)
@@ -167,7 +171,7 @@ jobs:
         # due to the string _beginning_ with a quote that we wish to be literal.
         - '"${MAKE_CMD[@]}" TAGS'
         # Build & install size-solver
-        - stack build "${ARGS[@]}" "${FLAGS[@]}" size-solver
+        - stack build size-solver "${BUILD_ARGS[@]}"
         - mkdir -p src/size-solver/dist/build/size-solver &&
           cp $(stack path "${ARGS[@]}" --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
         # Test size-solver

@@ -8,7 +8,7 @@ open import Agda.Builtin.Float
 data ⊥ : Set where
 
 _/_ = primFloatDiv
-_<_ = primFloatNumericalLess
+_<_ = primFloatLess
 
 cong : {A B : Set} {x y : A} (f : A → B) → x ≡ y → f x ≡ f y
 cong f refl = refl

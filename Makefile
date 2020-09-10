@@ -73,11 +73,21 @@ CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
 STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
                           $(SLOW_STACK_INSTALL_OPTS)
 
+# Depending on your machine and ghc version you might want to tweak the amount of memory
+# given to ghc to compile Agda. To do this set GHC_RTS_OPTS in mk/config.mk (gitignored).
+ifeq ($(GHC_RTS_OPTS),)
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
-GHC_OPTS           = "+RTS -M1.7G -RTS"
+GHC_RTS_OPTS := -M2.3G
 else
-GHC_OPTS           = "+RTS -M4G -RTS"
+ifeq ($(GHC_VERSION),8.10)
+GHC_RTS_OPTS := -M6G
+else
+GHC_RTS_OPTS := -M4G
 endif
+endif
+endif
+GHC_OPTS = "+RTS $(GHC_RTS_OPTS) -RTS"
+
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
@@ -159,16 +169,23 @@ endif
 
 # Type check the Agda source only (-fno-code).
 # Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
+#
+# Might "fail" with errors like
+#
+#   ar: ./dist-2.6.2-no-code/build/Agda/Auto/Auto.o: No such file or directory
+#   ...
+#
+# Thus, ignore exit code.
 
 .PHONY: type-check
 type-check:
 	@echo "================= Type checking using Cabal with -fno-code ==============="
-	time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
-	  --ghc-options=-fno-code \
-	  --ghc-options=-fwrite-interface \
-	  2>&1 \
-	  | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
-	           -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+	-time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
+          --ghc-options=-fno-code \
+          --ghc-options=-fwrite-interface \
+          2>&1 \
+          | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
+                   -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.

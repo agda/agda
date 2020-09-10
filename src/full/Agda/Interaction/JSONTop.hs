@@ -52,8 +52,9 @@ instance ToJSON NameInScope where
 instance EncodeTCM Status where
 instance ToJSON Status where
   toJSON status = object
-    [ "showImplicitArguments" .= sShowImplicitArguments status
-    , "checked"               .= sChecked status
+    [ "showImplicitArguments"   .= sShowImplicitArguments status
+    , "showIrrelevantArguments" .= sShowIrrelevantArguments status
+    , "checked"                 .= sChecked status
     ]
 
 instance EncodeTCM CommandState where

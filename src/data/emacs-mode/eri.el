@@ -1,6 +1,12 @@
 ;;; eri.el --- Enhanced relative indentation (eri)
 
+;; SPDX-License-Identifier: MIT License
+;; URL: https://github.com/agda/agda
+;; Version: 1.0
+
 ;;; Commentary:
+
+;; Cycle between indentation points with enhanced relative indentation.
 
 ;;; Code:
 

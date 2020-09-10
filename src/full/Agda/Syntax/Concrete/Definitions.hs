@@ -180,6 +180,7 @@ data DeclarationException'
   = MultipleEllipses Pattern
   | InvalidName Name
   | DuplicateDefinition Name
+  | DuplicateAnonDeclaration Range
   | MissingWithClauses Name LHS
   | WrongDefinition Name DataRecOrFun DataRecOrFun
   | DeclarationPanic String
@@ -345,6 +346,7 @@ instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
+  getRange (DuplicateAnonDeclaration r)         = r
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -441,6 +443,8 @@ instance Pretty DeclarationException' where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
+  pretty (DuplicateAnonDeclaration _) = fsep $
+    pwords "Duplicate declaration of _"
   pretty (MissingWithClauses x lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -746,7 +750,8 @@ addLoneSig r x k = do
     let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
     case mr of
       Nothing -> return s'
-      Just{}  -> declarationException $ DuplicateDefinition x
+      Just{}  -> declarationException $
+        if not $ isNoName x then DuplicateDefinition x else DuplicateAnonDeclaration r
   return x'
 
 -- | Remove a lone signature from the state.
@@ -920,8 +925,10 @@ replaceSigs ps = if Map.null ps then id else \case
     -- @Axiom@ out of it.
     replaceable :: NiceDeclaration -> Maybe (Name, NiceDeclaration)
     replaceable = \case
-      FunSig r acc abst inst _ argi _ _ x e ->
-        Just (x, Axiom r acc abst inst argi x e)
+      FunSig r acc abst inst _ argi _ _ x' e ->
+        -- #4881: Don't use the unique NameId for NoName lookups.
+        let x = if isNoName x' then noName (nameRange x') else x' in
+        Just (x, Axiom r acc abst inst argi x' e)
       NiceRecSig r acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)

@@ -153,6 +153,8 @@ data ResponseContextEntry = ResponseContextEntry
 data Status = Status
   { sShowImplicitArguments :: Bool
     -- ^ Are implicit arguments displayed?
+  , sShowIrrelevantArguments :: Bool
+    -- ^ Are irrelevant arguments displayed?
   , sChecked               :: Bool
     -- ^ Has the module been successfully type checked?
   }

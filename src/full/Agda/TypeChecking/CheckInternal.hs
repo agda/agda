@@ -447,7 +447,6 @@ checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 cmptype :: (MonadCheckInternal m) => Comparison -> Type -> Type -> m ()
 cmptype cmp t1 t2 = do
-  ifIsSort t1 (\ s1 -> (compareSort cmp s1) =<< shouldBeSort t2) $ do
     -- Andreas, 2017-03-09, issue #2493
     -- Only check subtyping, do not solve any metas!
     dontAssignMetas $ compareType cmp t1 t2

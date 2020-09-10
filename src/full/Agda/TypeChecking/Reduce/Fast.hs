@@ -149,7 +149,7 @@ compactDef bEnv def rewr = do
       PrimitiveSort{}                -> pure COther -- TODO
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
-          -- "primShowInteger" -- integers are not literals
+          -- "primShowInteger"            -- integers are not literals
 
           -- Natural numbers
           "primNatPlus"                -> mkPrim 2 $ natOp (+)
@@ -164,35 +164,53 @@ compactDef bEnv def rewr = do
           "primWord64ToNat"            -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
           "primWord64FromNat"          -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
 
-          -- Levels are not literals
-          -- "primLevelZero"
-          -- "primLevelSuc"
-          -- "primLevelMax"
+          -- Levels
+          -- "primLevelZero"              -- levels are not literals
+          -- "primLevelSuc"               -- levels are not literals
+          -- "primLevelMax"               -- levels are not literals
 
           -- Floats
+          "primFloatInequality"        -> mkPrim 2 $ floatRel (<=)
+          "primFloatEquality"          -> mkPrim 2 $ floatRel (==)
+          "primFloatLess"              -> mkPrim 2 $ floatRel (<)
+          "primFloatIsInfinite"        -> mkPrim 1 $ floatPred isInfinite
+          "primFloatIsNaN"             -> mkPrim 1 $ floatPred isNaN
+          "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
+          "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
+          "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
+          "primFloatToWord64"          -> mkPrim 1 $ \ [LitFloat a] -> word (doubleToWord64 a)
+          -- "primFloatToWord64Injective" -- identities are not literals
           "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
+          -- "primIntToFloat"             -- integers are not literals
+          -- "primFloatRound"             -- integers and maybe are not literals
+          -- "primFloatFloor"             -- integers and maybe are not literals
+          -- "primFloatCeiling"           -- integers and maybe are not literals
+          -- "primFloatToRatio"           -- integers and sigma are not literals
+          -- "primRatioToFloat"           -- integers are not literals
+          -- "primFloatDecode"            -- integers and sigma are not literals
+          -- "primFloatEncode"            -- integers are not literals
           "primFloatPlus"              -> mkPrim 2 $ floatOp (+)
           "primFloatMinus"             -> mkPrim 2 $ floatOp (-)
           "primFloatTimes"             -> mkPrim 2 $ floatOp (*)
           "primFloatNegate"            -> mkPrim 1 $ floatFun negate
           "primFloatDiv"               -> mkPrim 2 $ floatOp (/)
-          "primFloatEquality"          -> mkPrim 2 $ floatRel floatEq
-          "primFloatLess"              -> mkPrim 2 $ floatRel floatLt
-          "primFloatNumericalEquality" -> mkPrim 2 $ floatRel (==)
-          "primFloatNumericalLess"     -> mkPrim 2 $ floatRel (<)
           "primFloatSqrt"              -> mkPrim 1 $ floatFun sqrt
-          -- "primRound"    -- Integers are not literals
-          -- "primFloor"
-          -- "primCeiling"
-          "primExp"                    -> mkPrim 1 $ floatFun exp
-          "primLog"                    -> mkPrim 1 $ floatFun log
-          "primSin"                    -> mkPrim 1 $ floatFun sin
-          "primCos"                    -> mkPrim 1 $ floatFun cos
-          "primTan"                    -> mkPrim 1 $ floatFun tan
-          "primASin"                   -> mkPrim 1 $ floatFun asin
-          "primACos"                   -> mkPrim 1 $ floatFun acos
-          "primATan"                   -> mkPrim 1 $ floatFun atan
-          "primATan2"                  -> mkPrim 2 $ floatOp atan2
+          "primFloatExp"               -> mkPrim 1 $ floatFun exp
+          "primFloatLog"               -> mkPrim 1 $ floatFun log
+          "primFloatSin"               -> mkPrim 1 $ floatFun sin
+          "primFloatCos"               -> mkPrim 1 $ floatFun cos
+          "primFloatTan"               -> mkPrim 1 $ floatFun tan
+          "primFloatASin"              -> mkPrim 1 $ floatFun asin
+          "primFloatACos"              -> mkPrim 1 $ floatFun acos
+          "primFloatATan"              -> mkPrim 1 $ floatFun atan
+          "primFloatATan2"             -> mkPrim 2 $ floatOp atan2
+          "primFloatSinh"              -> mkPrim 1 $ floatFun sinh
+          "primFloatCosh"              -> mkPrim 1 $ floatFun cosh
+          "primFloatTanh"              -> mkPrim 1 $ floatFun tanh
+          "primFloatASinh"             -> mkPrim 1 $ floatFun asinh
+          "primFloatACosh"             -> mkPrim 1 $ floatFun acosh
+          "primFloatATanh"             -> mkPrim 1 $ floatFun atanh
+          "primFloatPow"               -> mkPrim 2 $ floatOp (**)
           "primShowFloat"              -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
 
           -- Characters
@@ -212,8 +230,8 @@ compactDef bEnv def rewr = do
           "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
-          -- "primStringToList"     -- We don't have the list builtins (but could have, TODO)
-          -- "primStringFromList"   -- and they are not literals
+          -- "primStringToList"           -- lists are not literals (TODO)
+          -- "primStringFromList"         -- lists are not literals (TODO)
           "primStringAppend"           -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
           "primStringEquality"         -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
           "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
@@ -224,7 +242,7 @@ compactDef bEnv def rewr = do
           "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
           "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
           "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
-          -- "primQNameFixity"  -- We don't have fixity builtins (TODO)
+          -- "primQNameFixity"            -- fixities are not literals (TODO)
           "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
           "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
           "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
@@ -264,6 +282,9 @@ compactDef bEnv def rewr = do
 
           floatOp f [LitFloat a, LitFloat b] = float (f b a)
           floatOp _ _ = __IMPOSSIBLE__
+
+          floatPred f [LitFloat a] = bool (f a)
+          floatPred _ _ = __IMPOSSIBLE__
 
           floatRel f [LitFloat a, LitFloat b] = bool (f b a)
           floatRel _ _ = __IMPOSSIBLE__

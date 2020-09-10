@@ -9,5 +9,5 @@ NaN = primFloatDiv 0.0 0.0
 defNaN : NaN ≡ NaN
 defNaN = refl
 
-primEqNaN : primFloatEquality NaN NaN ≡ true
+primEqNaN : primFloatEquality NaN NaN ≡ false
 primEqNaN = refl

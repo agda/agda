@@ -224,7 +224,6 @@ library
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.2.3 && < 0.9
-                , ieee754 >= 0.7.8 && < 0.9
                 -- monad-control-1.0.1.0 is the first to contain liftThrough
                 , monad-control >= 1.0.1.0 && < 1.1
                 -- mtl-2.1 contains a severe bug.
@@ -346,7 +345,6 @@ library
                     Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Help
-                    Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
                     Agda.Interaction.Options.Warnings
                     Agda.Main
@@ -362,6 +360,7 @@ library
                     Agda.Syntax.Concrete.Definitions
                     Agda.Syntax.Concrete.Fixity
                     Agda.Syntax.Concrete.Generic
+                    Agda.Syntax.Concrete.Glyph
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators.Parser.Monad

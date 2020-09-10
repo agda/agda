@@ -1,44 +1,140 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > 123.4 = 123.4
-out > -42.9 = -42.9
-out > NaN   = NaN
-out > Inf   = Infinity
-out > -Inf  = -Infinity
-out > Inf == Inf = true
-out > NaN == NaN = true
-out > NaN == -NaN = true
-out > 0.0 == -0.0 = false
-out > isZero  0.0 = pos
-out > isZero -0.0 = neg
-out > isZero  1.0 = nonzero
-out > NaN =N= NaN  = false
-out > 0.0 =N= -0.0 = true
-out > 0.0 =N= 12.0 = false
-out > NaN  < -Inf = false
-out > -Inf < NaN  = true
-out > 0.0  < -0.0 = false
-out > -0.0 < 0.0  = true
-out > NaN  < NaN  = false
-out > -NaN < -NaN = false
-out > NaN  < -NaN = false
-out > -NaN < NaN  = false
-out > NaN  < -5.0 = true
-out > -5.0 < NaN  = false
-out > NaN  <N -Inf = false
-out > -Inf <N NaN  = false
-out > 0.0  <N -0.0 = false
-out > -0.0 <N 0.0  = false
-out > NaN  <N NaN  = false
-out > -NaN <N -NaN = false
-out > NaN  <N -NaN = false
-out > -NaN <N NaN  = false
-out > NaN  <N -5.0 = false
-out > -5.0 <N NaN  = false
-out > e                   = 2.718281828459045
-out > sin (asin 0.6)      = 0.6
-out > cos (acos 0.6)      = 0.6
-out > tan (atan 0.4)      = 0.4
-out > tan (atan2 0.4 1.0) = 0.4
+out >  NaN      ≡ᵇ  NaN      = false = false
+out > -NaN      ≡ᵇ  NaN      = false = false
+out >  NaN      ≡ᵇ -NaN      = false = false
+out > -NaN      ≡ᵇ -NaN      = false = false
+out >  Infinity ≡ᵇ  Infinity = true = true
+out > -Infinity ≡ᵇ  Infinity = false = false
+out >  Infinity ≡ᵇ -Infinity = false = false
+out > -Infinity ≡ᵇ -Infinity = true = true
+out >  MaxFloat ≡ᵇ  MaxFloat = true = true
+out >  MinFloat ≡ᵇ  MinFloat = true = true
+out >  1.0      ≡ᵇ  1.5      = false = false
+out >  1.0      ≡ᵇ  1.0      = true = true
+out >  1.5      ≡ᵇ  1.5      = true = true
+out >  NaN      ≤ᵇ  NaN      = false = false
+out > -NaN      ≤ᵇ  NaN      = false = false
+out >  NaN      ≤ᵇ -NaN      = false = false
+out > -NaN      ≤ᵇ -NaN      = false = false
+out >  NaN      ≤ᵇ  5.0      = false = false
+out > -NaN      ≤ᵇ  5.0      = false = false
+out >  5.0      ≤ᵇ -NaN      = false = false
+out > -5.0      ≤ᵇ -NaN      = false = false
+out >  NaN      ≤ᵇ  Infinity = false = false
+out > -NaN      ≤ᵇ  Infinity = false = false
+out >  Infinity ≤ᵇ -NaN      = false = false
+out > -Infinity ≤ᵇ -NaN      = false = false
+out >  Infinity ≤ᵇ  Infinity = true = true
+out > -Infinity ≤ᵇ  Infinity = true = true
+out >  Infinity ≤ᵇ -Infinity = false = false
+out > -Infinity ≤ᵇ -Infinity = true = true
+out >  MaxFloat ≤ᵇ  MaxFloat = true = true
+out >  MinFloat ≤ᵇ  MinFloat = true = true
+out >  1.0      ≤ᵇ  1.5      = true = true
+out >  1.0      ≤ᵇ  1.0      = true = true
+out >  1.5      ≤ᵇ  1.5      = true = true
+out >  NaN      <ᵇ  NaN      = false = false
+out > -NaN      <ᵇ  NaN      = false = false
+out >  NaN      <ᵇ -NaN      = false = false
+out > -NaN      <ᵇ -NaN      = false = false
+out >  NaN      <ᵇ  5.0      = false = false
+out > -NaN      <ᵇ  5.0      = false = false
+out >  5.0      <ᵇ -NaN      = false = false
+out > -5.0      <ᵇ -NaN      = false = false
+out >  NaN      <ᵇ  Infinity = false = false
+out > -NaN      <ᵇ  Infinity = false = false
+out >  Infinity <ᵇ -NaN      = false = false
+out > -Infinity <ᵇ -NaN      = false = false
+out >  Infinity <ᵇ  Infinity = false = false
+out > -Infinity <ᵇ  Infinity = true = true
+out >  Infinity <ᵇ -Infinity = false = false
+out > -Infinity <ᵇ -Infinity = false = false
+out >  MaxFloat <ᵇ  MaxFloat = false = false
+out >  MinFloat <ᵇ  MinFloat = false = false
+out >  1.0      <ᵇ  1.5      = true = true
+out >  1.0      <ᵇ  1.0      = false = false
+out >  1.5      <ᵇ  1.5      = false = false
+out > isNaN  NaN                 = true = true
+out > isNaN -NaN                 = true = true
+out > isNaN  Infinity            = false = false
+out > isNaN -Infinity            = false = false
+out > isNaN  0.0                 = false = false
+out > isNaN -0.0                 = false = false
+out > isNaN  1.0                 = false = false
+out > isNaN  1.5                 = false = false
+out > isInfinite  NaN            = false = false
+out > isInfinite -NaN            = false = false
+out > isInfinite  Infinity       = true = true
+out > isInfinite -Infinity       = true = true
+out > isInfinite  0.0            = false = false
+out > isInfinite -0.0            = false = false
+out > isInfinite  1.0            = false = false
+out > isInfinite  1.5            = false = false
+out > isNegativeZero  NaN        = false = false
+out > isNegativeZero -NaN        = false = false
+out > isNegativeZero  Infinity   = false = false
+out > isNegativeZero -Infinity   = false = false
+out > isNegativeZero  0.0        = false = false
+out > isNegativeZero -0.0        = true = true
+out > isNegativeZero  1.0        = false = false
+out > isNegativeZero  1.5        = false = false
+out > isSafeInteger 1.0          = true = true
+out > isSafeInteger 1.5          = false = false
+out > isSafeInteger MaxFloat     = false = false
+out > isSafeInteger MinFloat     = false = false
+out > isSafeInteger MaxSafeIntF  = true = true
+out > show  NaN      = NaN = NaN
+out > show -NaN      = NaN = NaN
+out > show  0.0      = 0.0 = 0.0
+out > show -0.0      = -0.0 = -0.0
+out > show  Infinity = Infinity = Infinity
+out > show -Infinity = -Infinity = -Infinity
+out > show  1.0      = 1.0 = 1.0
+out > show  1.5      = 1.5 = 1.5
+out > round 1.0       = (just (1)) = (just (1))
+out > round 1.5       = (just (2)) = (just (2))
+out > round NaN       = nothing = nothing
+out > round -NaN      = nothing = nothing
+out > round Infinity  = nothing = nothing
+out > round -Infinity = nothing = nothing
+out > round MinFloat  = (just (0)) = (just (0))
+out > floor 1.0       = (just (1)) = (just (1))
+out > floor 1.5       = (just (1)) = (just (1))
+out > floor NaN       = nothing = nothing
+out > floor -NaN      = nothing = nothing
+out > floor Infinity  = nothing = nothing
+out > floor -Infinity = nothing = nothing
+out > floor MinFloat  = (just (0)) = (just (0))
+out > ceiling 1.0       = (just (1)) = (just (1))
+out > ceiling 1.5       = (just (2)) = (just (2))
+out > ceiling NaN       = nothing = nothing
+out > ceiling -NaN      = nothing = nothing
+out > ceiling Infinity  = nothing = nothing
+out > ceiling -Infinity = nothing = nothing
+out > ceiling MinFloat  = (just (1)) = (just (1))
+out > decode  NaN      = nothing = nothing
+out > decode  Infinity = nothing = nothing
+out > decode -Infinity = nothing = nothing
+out > decode  1.0      = (just ((1 , 0))) = (just ((1 , 0)))
+out > decode  1.5      = (just ((3 , -1))) = (just ((3 , -1)))
+out > decode  MinFloat = (just ((1 , -1022))) = (just ((1 , -1022)))
+out > encode  (pos     1) (pos       0) = (just (1.0)) = (just (1.0))
+out > encode  (pos     3) (negsuc    0) = (just (1.5)) = (just (1.5))
+out > toRatio  NaN      = (0 , 0) = (0 , 0)
+out > toRatio  Infinity = (1 , 0) = (1 , 0)
+out > toRatio -Infinity = (-1 , 0) = (-1 , 0)
+out > toRatio  1.0      = (1 , 1) = (1 , 1)
+out > toRatio  1.5      = (3 , 2) = (3 , 2)
+out > fromRatio (pos 0)    (pos 0) = NaN = NaN
+out > fromRatio (pos 1)    (pos 0) = Infinity = Infinity
+out > fromRatio (negsuc 0) (pos 0) = -Infinity = -Infinity
+out > fromRatio (pos 1)    (pos 1) = 1.0 = 1.0
+out > fromRatio (pos 3)    (pos 2) = 1.5 = 1.5
+out > e^ 1.0              = 2.718281828459045 = 2.718281828459045
+out > sin (asin 0.6)      = 0.6 = 0.6
+out > cos (acos 0.6)      = 0.6 = 0.6
+out > tan (atan 0.4)      = 0.4 = 0.4
+out > tan (atan2 0.4 1.0) = 0.4 = 0.4
 out >

@@ -758,17 +758,31 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
--- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
-toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
-toAbstractDot prec e = do
-    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ render (pretty e)
+-- | Parse a possibly dotted and braced @C.Expr@ as @A.Expr@,
+--   interpreting dots as relevance and braces as hiding.
+--   Only accept a layer of dotting/bracing if the respective accumulator is @Nothing@.
+toAbstractDotHiding :: Maybe Relevance -> Maybe Hiding -> Precedence -> C.Expr -> ScopeM (A.Expr, Relevance, Hiding)
+toAbstractDotHiding mr mh prec e = do
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDotHiding: " ++ render (pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
-      C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
-      C.Paren _ e     -> toAbstractDot TopCtx e
-      C.Dot _ e       -> (,Irrelevant) <$> toAbstractCtx prec e
-      C.DoubleDot _ e -> (,NonStrict)  <$> toAbstractCtx prec e
-      e               -> (,Relevant)   <$> toAbstractCtx prec e
+      C.RawApp _ es     -> toAbstractDotHiding mr mh prec =<< parseApplication es
+      C.Paren _ e       -> toAbstractDotHiding mr mh TopCtx e
+
+      C.Dot _ e
+        | Nothing <- mr -> toAbstractDotHiding (Just Irrelevant) mh prec e
+
+      C.DoubleDot _ e
+        | Nothing <- mr -> toAbstractDotHiding (Just NonStrict) mh prec e
+
+      C.HiddenArg _ (Named Nothing e)
+        | Nothing <- mh -> toAbstractDotHiding mr (Just Hidden) TopCtx e
+
+      C.InstanceArg _ (Named Nothing e)
+        | Nothing <- mh -> toAbstractDotHiding mr (Just $ Instance NoOverlap) TopCtx e
+
+      e                 -> (, fromMaybe Relevant mr, fromMaybe NotHidden mh) <$>
+                             toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -921,11 +935,21 @@ instance ToAbstract C.Expr where
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
-        Arg info (e1', rel) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
+        let arg = mkArg' info1 e1
+        let mr = case getRelevance arg of
+              Relevant  -> Nothing
+              r         -> Just r
+        let mh = case getHiding arg of
+              NotHidden -> Nothing
+              h         -> Just h
+        Arg info (e1', rel, hid) <- traverse (toAbstractDotHiding mr mh FunctionSpaceDomainCtx) arg
         let updRel = case rel of
               Relevant -> id
               rel      -> setRelevance rel
-        A.Fun (ExprRange r) (Arg (updRel info) e1') <$> toAbstractCtx TopCtx e2
+        let updHid = case hid of
+              NotHidden -> id
+              hid       -> setHiding hid
+        A.Fun (ExprRange r) (Arg (updRel $ updHid info) e1') <$> toAbstractCtx TopCtx e2
 
   -- Dependent function type
       e0@(C.Pi tel e) -> do

@@ -1,0 +1,2 @@
+-- This file needs to exist because the Makefile dependencies require a *.agda file.
+-- The actual test is in Issue2937.sh which uses two files under Issue2737/*.agda

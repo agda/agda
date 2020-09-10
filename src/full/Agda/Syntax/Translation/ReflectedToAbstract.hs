@@ -19,6 +19,7 @@ import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
 
+import Agda.Interaction.Options (optUseUnicode, UnicodeOrAscii(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
@@ -47,11 +48,17 @@ type MonadReflectedToAbstract m =
   )
 
 -- | Adds a new unique name to the current context.
+--   NOTE: See @chooseName@ in @Agda.Syntax.Translation.AbstractToConcrete@ for similar logic.
+--   NOTE: See @freshConcreteName@ in @Agda.Syntax.Scope.Monad@ also for similar logic.
 withName :: MonadReflectedToAbstract m => String -> (Name -> m a) -> m a
 withName s f = do
   name <- freshName_ s
   ctx  <- asks $ map nameConcrete
-  let name' = head $ filter (notTaken ctx) $ iterate nextName name
+  glyphMode <- optUseUnicode <$> M.pragmaOptions
+  let freshNameMode = case glyphMode of
+        UnicodeOk -> A.UnicodeSubscript
+        AsciiOnly -> A.AsciiCounter
+  let name' = head $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
   local (name:) $ f name'
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
