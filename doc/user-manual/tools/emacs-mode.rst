@@ -99,6 +99,9 @@ Global commands
 :kbd:`C-c C-x C-h`
      Toggle display of **h**\ idden arguments
 
+:kbd:`C-c C-x C-i`
+     Toggle display of **i**\ rrelevant arguments
+
 :kbd:`C-c C-=`
      Show constraints
 

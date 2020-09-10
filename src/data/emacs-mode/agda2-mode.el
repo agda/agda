@@ -212,6 +212,7 @@ constituents.")
     (agda2-abort                             "\C-c\C-x\C-a"       (global)       "Abort a command")
     (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
+    (agda2-display-irrelevant-arguments      "\C-c\C-x\C-i"       (global)       "Toggle display of irrelevant arguments")
     (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
     (agda2-solve-maybe-all                   ,(kbd "C-c C-s")     (local global) "Solve constraints")
     (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
@@ -1900,6 +1901,21 @@ the argument is a positive number, otherwise turn it off."
    ((and (numberp arg) (> arg 0))
       (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "False"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Irrelevant arguments
+
+(defun agda2-display-irrelevant-arguments (&optional arg)
+  "Toggle display of irrelevant arguments.
+With prefix argument, turn on display of irrelevant arguments if
+the argument is a positive number, otherwise turn it off."
+  (interactive "P")
+  (cond
+   ((eq arg nil)
+      (agda2-go nil t 'not-so-busy t "ToggleIrrelevantArgs"))
+   ((and (numberp arg) (> arg 0))
+      (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "True"))
+   (t (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
