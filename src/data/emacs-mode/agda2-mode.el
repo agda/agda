@@ -1933,7 +1933,7 @@ the argument is a positive number, otherwise turn it off."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Switching to a different version of Agda
 
-(defun get-agda-program-versions ()
+(defun agda2-get-agda-program-versions ()
   "Get \"version strings\" of executables starting with
 'agda-mode' in current path."
   (delete-dups
@@ -1962,7 +1962,7 @@ Agda version VERSION are called agda-VERSION and
 agda-mode-VERSION, and that they are located on the PATH. (If
 VERSION is empty, then agda and agda-mode are used instead.)"
   (interactive
-   (list (completing-read "Version: " (get-agda-program-versions))))
+   (list (completing-read "Version: " (agda2-get-agda-program-versions))))
 
   (let*
       ((agda-buffers
