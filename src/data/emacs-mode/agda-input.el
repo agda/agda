@@ -52,8 +52,6 @@ removing all space and newline characters."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions used to tweak translation pairs
 
-;; lexical-let is used since Elisp lacks lexical scoping.
-
 (defun agda-input-compose (f g)
   "\x -> concatMap F (G x)"
     (lambda (x) (agda-input-concat-map f (funcall g x))))
