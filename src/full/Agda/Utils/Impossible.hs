@@ -15,10 +15,10 @@ import GHC.Stack
 
 data Impossible
 
-  = Impossible  String Integer
+  = Impossible  String Int
     -- ^ We reached a program point which should be unreachable.
 
-  | Unreachable String Integer
+  | Unreachable String Int
     -- ^ @Impossible@ with a different error message.
     --   Used when we reach a program point which can in principle
     --   be reached, but not for a certain run.
@@ -77,7 +77,7 @@ instance CatchImpossible IO where
 
 -- | Create something with a callstack's file and line number
 
-withFileAndLine' :: Integral a => CallStack -> (String -> a -> b) -> b
+withFileAndLine' :: CallStack -> (String -> Int -> a) -> a
 withFileAndLine' cs ctor = ctor file line
   where
     callSiteList = getCallStack cs
@@ -89,7 +89,7 @@ withFileAndLine' cs ctor = ctor file line
 
 -- | Create something with the call site's file and line number
 
-withFileAndLine :: (HasCallStack, Integral a) => (String -> a -> b) -> b
+withFileAndLine :: HasCallStack => (String -> Int -> a) -> a
 withFileAndLine = withFileAndLine' (freezeCallStack callStack)
 
 -- | Throw an "Impossible" error reporting the *caller's* call site.
