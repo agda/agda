@@ -766,9 +766,10 @@ dontCare v =
 dummyTerm' :: String -> Int -> Term
 dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
 
--- | Aux: A dummy level to constitute a level/sort.
-dummyLevel' :: String -> Int -> Level
-dummyLevel' file line = atomicLevel $ dummyTerm' file line
+-- | A dummy level to constitute a level/sort created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: String -> Int -> Level
+dummyLevel file line = atomicLevel $ dummyTerm' ("dummyLevel: " ++ file) line
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
@@ -777,11 +778,6 @@ dummyTerm file = dummyTerm' ("dummyTerm: " ++ file)
 
 __DUMMY_TERM__ :: HasCallStack => Term
 __DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
-
--- | A dummy level created at location.
---   Note: use macro __DUMMY_LEVEL__ !
-dummyLevel :: String -> Int -> Level
-dummyLevel file = dummyLevel' ("dummyLevel: " ++ file)
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
 __DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
