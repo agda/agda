@@ -855,10 +855,7 @@ isSort v = case v of
   _      -> Nothing
 
 impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = flip Dummy [] $ unlines
-  [ "An internal error has occurred. Please report this as a bug."
-  , "Location of the error: " ++ file ++ ":" ++ show line
-  ]
+impossibleTerm file line = flip Dummy [] (show $ Impossible file line)
 
 ---------------------------------------------------------------------------
 -- * Telescopes.
