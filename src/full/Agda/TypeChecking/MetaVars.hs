@@ -910,6 +910,9 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
                 let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
                 -- us Earlier than u
                 addContext tel' $ checkEarlierThan u us
+                  `catchError` \case
+                     TypeError{} -> patternViolation (unblockOnMeta x) -- If the earlier check hard-fails we need to
+                     err         -> throwError err                     -- solve this meta in some other way.
 
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
