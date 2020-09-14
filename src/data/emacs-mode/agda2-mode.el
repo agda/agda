@@ -425,6 +425,45 @@ agda2-include-dirs is not bound." :warning))
  ;; seem to remove the text properties set by the Agda mode.
  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
+
+(defvar agda2-command-wrapper-function #'identity
+  "Agda command wrapper function.
+
+Receives and return a list with at least 1 element:
+car. The program name
+cdr. It's arguments
+
+You can for example run inside a nix-shell with a function which
+transforms the argument to:
+
+Ex: '(\"agda\" \"--version\") => '(\"nix-shell\" \"--run\" \"agda --version\")
+
+A function which always returns a valid command (but not
+necessarily guaranteed to run) is `identity'.
+")
+
+(defun agda2-wrap-command (program arguments)
+  "Agda command builder function.
+
+See `agda2-command-wrapper-function'"
+ (funcall agda2-command-wrapper-function (cons program arguments)))
+
+(defun agda2-call-process (program &optional infile destination display &rest arguments)
+ "Call process with an agda wrapped command.
+
+See `agda2-command-wrapper-function'"
+ (destructuring-bind (program . arguments)
+   (agda2-wrap-command program arguments)
+  (apply #'call-process program infile destination display arguments)))
+
+(defun agda2-start-process (name buffer program &rest arguments)
+ "Start process with an agda wrapped command.
+
+  See `agda2-command-wrapper-function'"
+ (destructuring-bind (program . arguments)
+   (agda2-wrap-command program arguments)
+  (apply #'start-process name buffer program arguments)))
+
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
   (interactive)
@@ -437,7 +476,7 @@ agda2-include-dirs is not bound." :warning))
   ;; Check that the right version of Agda is used.
   (let* ((coding-system-for-read 'utf-8)
          (output (with-output-to-string
-                   (call-process agda2-program-name
+                   (agda2-call-process agda2-program-name
                                  nil standard-output nil "--version")))
          (version (and (string-match "^Agda version \\([0-9.]+\\)" output)
                        (match-string 1 output))))
@@ -454,7 +493,7 @@ agda2-include-dirs is not bound." :warning))
            (output
             (with-output-to-string
               (setq status
-                    (apply 'call-process agda2-program-name
+                    (apply 'agda2-call-process agda2-program-name
                            nil standard-output nil all-program-args)))))
       (unless (equal status 0)
         (error "Failed to start the Agda process:\n%s" output)))
@@ -464,7 +503,7 @@ agda2-include-dirs is not bound." :warning))
 
       (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
         (setq agda2-process
-              (apply 'start-process "Agda2" agda2-bufname
+              (apply 'agda2-start-process "Agda2" agda2-bufname
                      agda2-program-name all-program-args)))
 
       (set-process-coding-system agda2-process 'utf-8 'utf-8)
@@ -1985,7 +2024,7 @@ VERSION is empty, then agda and agda-mode are used instead.)"
         (condition-case nil
             (with-temp-buffer
               (unless
-                  (equal 0 (call-process agda-mode-prog
+                  (equal 0 (agda2-call-process agda-mode-prog
                                          nil (current-buffer) nil
                                          "locate"))
                 (error "%s" (concat "Error when running "
