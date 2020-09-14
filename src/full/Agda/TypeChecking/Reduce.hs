@@ -285,7 +285,9 @@ ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
     Blocked m t     -> blocked m t
-    NotBlocked nb t -> unblocked nb t
+    NotBlocked nb t -> case isMeta t of -- #4899: MetaS counts as NotBlocked at the moment
+      Just m    -> blocked (unblockOnMeta m) t
+      Nothing   -> unblocked nb t
 
 -- | Throw pattern violation if blocked or a meta.
 abortIfBlocked :: (MonadReduce m, MonadTCError m, IsMeta t, Reduce t) => t -> m t
