@@ -295,27 +295,27 @@ mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
+cleanOutput' :: FilePath -> Text -> Text
+cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
+  where
+    rgxs = map (first mkRegex)
+      [ ("[^ (]*test.Fail.", "")
+      , ("[^ (]*test.Succeed.", "")
+      , ("[^ (]*test.Common.", "")
+      , ("[^ (]*test.Bugs.", "")
+      , ("[^ (]*test.LibSucceed.", "")
+      , (T.pack pwd `T.append` ".test", "..")
+      , ("\\\\", "/")
+      , (":[[:digit:]]+:$", "")
+      , ("\\.hs:[[:digit:]]+", ".hs")
+      , ("[^ (]*lib.prim", "agda-default-include-path")
+      , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
+      ]
+
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
-
-  return $ clean' pwd inp
-  where
-    clean' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
-      where
-        rgxs = map (first mkRegex)
-          [ ("[^ (]*test.Fail.", "")
-          , ("[^ (]*test.Succeed.", "")
-          , ("[^ (]*test.Common.", "")
-          , ("[^ (]*test.Bugs.", "")
-          , ("[^ (]*test.LibSucceed.", "")
-          , (T.pack pwd `T.append` ".test", "..")
-          , ("\\\\", "/")
-          , (":[[:digit:]]+:$", "")
-          , ("\\.hs:[[:digit:]]+", ".hs")
-          , ("[^ (]*lib.prim", "agda-default-include-path")
-          , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
-          ]
+  return $ cleanOutput' pwd inp
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
