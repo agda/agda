@@ -154,6 +154,13 @@ Language
 * Binary integer literals with prefix `0b` (for instance, `0b11001001`) are now
   supported.
 
+* Overloaded literals now require the conversion function (fromNat, fromNeg, or
+  fromString) to be in scope *unqualified* to take effect.
+
+  Previously, it was enough for the function to be in scope at all, which meant
+  you couldn't import the corresponding builtin module without having overloaded
+  literals turned on.
+
 Builtins
 --------
 
