@@ -205,8 +205,12 @@ sortOf t = do
        , "  e  = " <+> prettyTCM e
        ]
      case e of
-      Apply (Arg ai v) -> ifNotPiType a __IMPOSSIBLE__ $ \b c -> do
-        sortOfE (c `absApp` v) (hd . (e:)) es
+      Apply (Arg ai v) -> do
+        ba <- reduceB a
+        case unEl (ignoreBlocking ba) of
+          Pi b c -> sortOfE (c `absApp` v) (hd . (e:)) es
+          _ | Blocked m _ <- ba -> patternViolation m
+            | otherwise         -> __IMPOSSIBLE__
       Proj o f -> do
         a <- reduce a
         ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a

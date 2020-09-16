@@ -693,30 +693,32 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   cumulativity <- optCumulativity <$> pragmaOptions
 
-  let checkSolutionSort cmp0 t = do
-
-        let cmp = if cumulativity then cmp0 else CmpEq
-
-        let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-        t' <- piApplyM' abort t args
-        s <- shouldBeSort t'
-
+  let checkSolutionSort cmp s v = do
         s' <- sortOf v
-
         reportSDoc "tc.meta.assign" 40 $
           "Instantiating sort" <+> prettyTCM s <+>
           "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
         traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
           compareSort cmp s' s
 
-
   case (target , mvJudgement mvar) of
     -- Case 1 (comparing term to meta as types)
-    (AsTypes{}   , HasType _ cmp t) -> checkSolutionSort cmp t
+    (AsTypes{}   , HasType _ cmp0 t) -> do
+        let cmp   = if cumulativity then cmp0 else CmpEq
+            abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+        t' <- piApplyM' abort t args
+        s <- shouldBeSort t'
+        checkSolutionSort cmp s v
 
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
     (AsTermsOf{} , HasType _ cmp t)
-      | cumulativity -> ifIsSort t (\s -> checkSolutionSort cmp $ sort s) (return ())
+      | cumulativity -> do
+          let abort = patternViolation $ unblockOnAnyMetaIn t
+          t' <- piApplyM' abort t args
+          TelV tel t'' <- telView t'
+          addContext tel $ ifNotSort t'' (return ()) $ \s -> do
+            let v' = raise (size tel) v `apply` teleArgs tel
+            checkSolutionSort cmp s v'
 
     (AsTypes{}   , IsSort{}       ) -> return ()
     (AsTermsOf{} , _              ) -> return ()
