@@ -656,13 +656,13 @@ instance EmbPrj CallStack where
   value = fmap fromCallSiteList . value
 
 instance EmbPrj Impossible where
-  icod_ (Impossible a b)  = icodeN 0 Impossible a b
-  icod_ (Unreachable a b) = icodeN 1 Unreachable a b
+  icod_ (Impossible a)              = icodeN 0 Impossible a
+  icod_ (Unreachable a)             = icodeN 1 Unreachable a
   icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
 
   value = vcase valu where
-    valu [0, a, b] = valuN Impossible  a b
-    valu [1, a, b] = valuN Unreachable a b
+    valu [0, a]    = valuN Impossible  a
+    valu [1, a]    = valuN Unreachable a
     valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu _         = malformed
 

@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Debug
   , Verbosity, VerboseKey, VerboseLevel
   ) where
 
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
-
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
 import Control.Monad.Except
@@ -23,6 +21,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Response (Response(..))
 
+import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -196,7 +195,7 @@ __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
   where
     -- Create the "Impossible" error using *our* caller as the call site.
-    err = withFileAndLine' (freezeCallStack callStack) Impossible
+    err = withCallerCallStack Impossible
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
@@ -292,7 +291,7 @@ __CRASH_WHEN__ :: (HasCallStack, MonadTCM m, MonadDebug m) => VerboseKey -> Verb
 __CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
   where
     -- Create the "Unreachable" error using *our* caller as the call site.
-    err = withFileAndLine' (freezeCallStack callStack) Unreachable
+    err = withCallerCallStack Unreachable
 
 -- | Run a computation if a certain verbosity level is activated.
 --

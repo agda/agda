@@ -6,7 +6,6 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (null)
-import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Arrow ((***))
 import Control.Monad
@@ -49,6 +48,7 @@ import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 import Agda.TypeChecking.Warnings ( warning, warning' )
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -78,10 +78,11 @@ printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
+scopeWarning' :: CallStack -> DeclarationWarning' -> ScopeM ()
+scopeWarning' loc = warning' loc . NicifierIssue . DeclarationWarning loc
+
 scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
-scopeWarning d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  warning' (AgdaSourceErrorLocation file line)  $ NicifierIssue $
-    DeclarationWarning (AgdaSourceErrorLocation file line) $ d
+scopeWarning = withCallerCallStack scopeWarning'
 
 ---------------------------------------------------------------------------
 -- * General operations

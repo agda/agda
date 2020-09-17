@@ -40,6 +40,7 @@ import qualified Text.Regex.TDFA.Text as RT ( compile )
 import Agda.Interaction.ExitCode (AgdaError(..), agdaErrorFromInt)
 import Agda.Utils.Maybe
 import Agda.Utils.Environment
+import qualified Agda.Version (package)
 
 data ProgramResult = ProgramResult
   { exitCode :: ExitCode
@@ -306,8 +307,8 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("[^ (]*test.LibSucceed.", "")
       , (T.pack pwd `T.append` ".test", "..")
       , ("\\\\", "/")
-      , (":[[:digit:]]+:$", "")
-      , ("\\.hs:[[:digit:]]+", ".hs")
+      , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
+      , (T.pack Agda.Version.package, "«Agda-package»")
       , ("[^ (]*lib.prim", "agda-default-include-path")
       , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
       ]

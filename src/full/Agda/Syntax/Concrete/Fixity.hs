@@ -8,7 +8,6 @@ module Agda.Syntax.Concrete.Fixity
   ) where
 
 import Prelude hiding (null)
-import GHC.Stack (HasCallStack)
 
 import Control.Monad
 import Data.Map (Map)
@@ -25,6 +24,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 
+import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.Functor
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
