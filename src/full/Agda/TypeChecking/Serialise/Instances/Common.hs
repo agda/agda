@@ -53,6 +53,7 @@ import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+import Agda.Utils.CallStack
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
@@ -646,14 +647,22 @@ instance EmbPrj Delayed where
     valu []  = valuN NotDelayed
     valu _   = malformed
 
+instance EmbPrj SrcLoc where
+  icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec
+  value = valueN SrcLoc
+
+instance EmbPrj CallStack where
+  icod_ = icode . getCallStack
+  value = fmap fromCallSiteList . value
+
 instance EmbPrj Impossible where
-  icod_ (Impossible a b)  = icodeN 0 Impossible a b
-  icod_ (Unreachable a b) = icodeN 1 Unreachable a b
+  icod_ (Impossible a)              = icodeN 0 Impossible a
+  icod_ (Unreachable a)             = icodeN 1 Unreachable a
   icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
 
   value = vcase valu where
-    valu [0, a, b] = valuN Impossible  a b
-    valu [1, a, b] = valuN Unreachable a b
+    valu [0, a]    = valuN Impossible  a
+    valu [1, a]    = valuN Unreachable a
     valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu _         = malformed
 

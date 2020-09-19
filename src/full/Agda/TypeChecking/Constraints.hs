@@ -32,6 +32,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.Lock
 
+import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -145,9 +146,9 @@ noConstraints problem = do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
-    withFileAndLine $ \ file line -> do
-      w <- warning'_ (AgdaSourceErrorLocation file line) (UnsolvedConstraints cs)
-      typeError' (AgdaSourceErrorLocation file line) $ NonFatalErrors [ w ]
+    withCurrentCallStack $ \loc -> do
+      w <- warning'_ loc (UnsolvedConstraints cs)
+      typeError' loc $ NonFatalErrors [ w ]
   return x
 
 -- | Run a computation that should succeeds without constraining

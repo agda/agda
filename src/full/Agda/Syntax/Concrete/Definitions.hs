@@ -44,7 +44,6 @@ module Agda.Syntax.Concrete.Definitions
     ) where
 
 import Prelude hiding (null)
-import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -70,6 +69,7 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
+import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf)
@@ -165,15 +165,14 @@ type NiceTypeSignature  = NiceDeclaration
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Data, Show)
 
--- | Exception with File and Line source
+-- | Exception with internal source code callstack
 data DeclarationException = DeclarationException
-  { deFileLine   :: AgdaSourceErrorLocation
-  , deExceptiion :: DeclarationException'
+  { deLocation  :: CallStack
+  , deException :: DeclarationException'
   }
 
 declarationException :: HasCallStack => DeclarationException' -> Nice a
-declarationException e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  throwError (DeclarationException (AgdaSourceErrorLocation file line) e)
+declarationException e = withCallerCallStack $ throwError . flip DeclarationException e
 
 -- | The exception type.
 data DeclarationException'
@@ -196,16 +195,15 @@ data DeclarationException'
 
 
 data DeclarationWarning = DeclarationWarning
-  { dwFileLine :: AgdaSourceErrorLocation
+  { dwLocation :: CallStack
   , dwWarning  :: DeclarationWarning'
-  } deriving (Show, Data)
+  } deriving (Show)
 
-declarationWarning' :: AgdaSourceErrorLocation -> DeclarationWarning' -> Nice ()
-declarationWarning' fl w = niceWarning (DeclarationWarning fl w)
+declarationWarning' :: DeclarationWarning' -> CallStack -> Nice ()
+declarationWarning' w loc = niceWarning $ DeclarationWarning loc w
 
 declarationWarning :: HasCallStack => DeclarationWarning' -> Nice ()
-declarationWarning w = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  declarationWarning' (AgdaSourceErrorLocation file line) w
+declarationWarning = withCallerCallStack . declarationWarning'
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
@@ -1025,8 +1023,8 @@ niceDeclarations fixs ds = do
     nice1 (d:ds) = do
       let justWarning :: HasCallStack => DeclarationWarning' -> Nice ([NiceDeclaration], [Declaration])
           justWarning w = do
-            withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-              declarationWarning' (AgdaSourceErrorLocation file line) w
+            -- NOTE: This is the location of the invoker of justWarning, not here.
+            withCallerCallStack $ declarationWarning' w
             nice1 ds
 
       case d of

@@ -11,7 +11,6 @@ module Agda.Syntax.Internal
     ) where
 
 import Prelude hiding (null)
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Monad.Identity
 import Control.DeepSeq
@@ -33,6 +32,14 @@ import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Internal.Elim
+
+import Agda.Utils.CallStack
+    ( CallStack
+    , HasCallStack
+    , prettyCallSite
+    , headCallSite
+    , withCallerCallStack
+    )
 
 import Agda.Utils.Empty
 
@@ -762,53 +769,55 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
--- | Aux: A dummy term to constitute a dummy term/level/sort/type.
-dummyTerm' :: String -> Int -> Term
-dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
+type DummyTermKind = String
 
--- | Aux: A dummy level to constitute a level/sort.
-dummyLevel' :: String -> Int -> Level
-dummyLevel' file line = atomicLevel $ dummyTerm' file line
+-- | Construct a string representing the call-site that created the dummy thing.
+dummyLocName :: CallStack -> String
+dummyLocName cs = maybe __IMPOSSIBLE__ prettyCallSite (headCallSite cs)
+
+-- | Aux: A dummy term to constitute a dummy term/level/sort/type.
+dummyTermWith :: DummyTermKind -> CallStack -> Term
+dummyTermWith kind cs = flip Dummy [] $ concat [kind, ": ", dummyLocName cs]
+
+-- | A dummy level to constitute a level/sort created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: CallStack -> Level
+dummyLevel = atomicLevel . dummyTermWith "dummyLevel"
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
-dummyTerm :: String -> Int -> Term
-dummyTerm file = dummyTerm' ("dummyTerm: " ++ file)
+dummyTerm :: CallStack -> Term
+dummyTerm = dummyTermWith "dummyTerm"
 
 __DUMMY_TERM__ :: HasCallStack => Term
-__DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
-
--- | A dummy level created at location.
---   Note: use macro __DUMMY_LEVEL__ !
-dummyLevel :: String -> Int -> Level
-dummyLevel file = dummyLevel' ("dummyLevel: " ++ file)
+__DUMMY_TERM__ = withCallerCallStack dummyTerm
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
-__DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
+__DUMMY_LEVEL__ = withCallerCallStack dummyLevel
 
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
-dummySort :: String -> Int -> Sort
-dummySort file line = DummyS $ file ++ ":" ++ show line
+dummySort :: CallStack -> Sort
+dummySort = DummyS . dummyLocName
 
 __DUMMY_SORT__ :: HasCallStack => Sort
-__DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
+__DUMMY_SORT__ = withCallerCallStack dummySort
 
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
-dummyType :: String -> Int -> Type
-dummyType file line = El (dummySort file line) $ dummyTerm' ("dummyType: " ++ file) line
+dummyType :: CallStack -> Type
+dummyType cs = El (dummySort cs) $ dummyTermWith "dummyType" cs
 
 __DUMMY_TYPE__ :: HasCallStack => Type
-__DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType
+__DUMMY_TYPE__ = withCallerCallStack dummyType
 
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
-dummyDom :: String -> Int -> Dom Type
-dummyDom file line = defaultDom $ dummyType file line
+dummyDom :: CallStack -> Dom Type
+dummyDom = defaultDom . dummyType
 
 __DUMMY_DOM__ :: HasCallStack => Dom Type
-__DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
+__DUMMY_DOM__ = withCallerCallStack dummyDom
 
 -- | Constant level @n@
 pattern ClosedLevel :: Integer -> Level
@@ -854,11 +863,8 @@ isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
 
-impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = flip Dummy [] $ unlines
-  [ "An internal error has occurred. Please report this as a bug."
-  , "Location of the error: " ++ file ++ ":" ++ show line
-  ]
+impossibleTerm :: CallStack -> Term
+impossibleTerm = flip Dummy [] . show . Impossible
 
 ---------------------------------------------------------------------------
 -- * Telescopes.

@@ -18,7 +18,6 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
-import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Applicative hiding ( empty )
 import Control.Monad.Except
@@ -82,6 +81,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.CallStack ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -106,23 +106,17 @@ import Agda.ImpossibleTest (impossibleTest)
     Exceptions
  --------------------------------------------------------------------------}
 
--- notAModuleExpr e = typeError $ NotAModuleExpr e
+notAnExpression :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+notAnExpression = locatedTypeError NotAnExpression
 
-notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
-notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NotAnExpression e
+nothingAppliedToHiddenArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+nothingAppliedToHiddenArg = locatedTypeError NothingAppliedToHiddenArg
 
-nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
-nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToHiddenArg e
+nothingAppliedToInstanceArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+nothingAppliedToInstanceArg = locatedTypeError NothingAppliedToInstanceArg
 
-nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
-nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToInstanceArg e
-
-notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
-notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NotAValidLetBinding d
+notAValidLetBinding :: (HasCallStack, MonadTCError m) => C.NiceDeclaration -> m a
+notAValidLetBinding = locatedTypeError NotAValidLetBinding
 
 {--------------------------------------------------------------------------
     Helpers
@@ -1384,10 +1378,10 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
+    mapM_ (\ w -> warning' (dwLocation w) $ NicifierIssue w) warns
   case result of
-    Left (DeclarationException fl e) -> do
-      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+    Left (DeclarationException loc e) -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
       throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 

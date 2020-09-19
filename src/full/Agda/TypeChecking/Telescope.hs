@@ -24,6 +24,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.CallStack ( withCallerCallStack )
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -66,7 +67,7 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) (withFileAndLine impossibleTerm))
+    rho  = parallelS (replicate (size tel + 1) (withCallerCallStack impossibleTerm))
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 

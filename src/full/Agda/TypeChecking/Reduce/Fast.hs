@@ -68,6 +68,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Interaction.Options
 
+import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -781,7 +782,7 @@ buildEnv xs spine = go xs spine emptyEnv
         _            -> __IMPOSSIBLE__
 
 unusedPointerString :: Text
-unusedPointerString = T.pack (show (withFileAndLine Impossible))
+unusedPointerString = T.pack (show (withCurrentCallStack Impossible))
 
 unusedPointer :: Pointer s
 unusedPointer = Pure (Closure (Value $ notBlocked ())

@@ -6,19 +6,22 @@
 module Agda.Utils.Impossible where
 
 import Control.Exception (Exception(..), throw, catchJust)
-import GHC.Stack
-  (CallStack, HasCallStack, callStack, getCallStack, freezeCallStack
-  , srcLocModule, srcLocFile, srcLocStartLine)
+import Agda.Utils.CallStack.Base
+    ( CallStack
+    , HasCallStack
+    , prettyCallStack
+    , withCallerCallStack
+    )
 
 -- | \"Impossible\" errors, annotated with a file name and a line
 -- number corresponding to the source code location of the error.
 
 data Impossible
 
-  = Impossible  String Integer
+  = Impossible CallStack
     -- ^ We reached a program point which should be unreachable.
 
-  | Unreachable String Integer
+  | Unreachable CallStack
     -- ^ @Impossible@ with a different error message.
     --   Used when we reach a program point which can in principle
     --   be reached, but not for a certain run.
@@ -29,13 +32,13 @@ data Impossible
     -- @ImpMissingDefinitions neededDefs forThis@
 
 instance Show Impossible where
-  show (Impossible file line) = unlines
+  show (Impossible loc) = unlines
     [ "An internal error has occurred. Please report this as a bug."
-    , "Location of the error: " ++ file ++ ":" ++ show line
+    , "Location of the error: " ++ prettyCallStack loc
     ]
-  show (Unreachable file line) = unlines
+  show (Unreachable loc) = unlines
     [ "We reached a program point we did not want to reach."
-    , "Location of the error: " ++ file ++ ":" ++ show line
+    , "Location of the error: " ++ prettyCallStack loc
     ]
   show (ImpMissingDefinitions needed forthis) = unlines
     [ "The following builtins or primitives need to be bound to use " ++ forthis ++ ":"
@@ -75,31 +78,14 @@ class CatchImpossible m where
 instance CatchImpossible IO where
   catchImpossibleJust = catchJust
 
--- | Create something with a callstack's file and line number
-
-withFileAndLine' :: Integral a => CallStack -> (String -> a -> b) -> b
-withFileAndLine' cs ctor = ctor file line
-  where
-    callSiteList = getCallStack cs
-    notHere (_, loc) = srcLocModule loc /= "Agda.Utils.Impossible"
-    stackLocations = filter notHere callSiteList
-    (file, line) = case stackLocations of
-      (_, loc) : _ -> (srcLocFile loc, fromIntegral (srcLocStartLine loc))
-      [] -> ("?", -1)
-
--- | Create something with the call site's file and line number
-
-withFileAndLine :: (HasCallStack, Integral a) => (String -> a -> b) -> b
-withFileAndLine = withFileAndLine' (freezeCallStack callStack)
-
 -- | Throw an "Impossible" error reporting the *caller's* call site.
 
 __IMPOSSIBLE__ :: HasCallStack => a
-__IMPOSSIBLE__ = throwImpossible (withFileAndLine Impossible)
+__IMPOSSIBLE__ = withCallerCallStack $ throwImpossible . Impossible
 
 -- | Throw an "Unreachable" error reporting the *caller's* call site.
 -- Note that this call to "withFileAndLine" will be filtered out
 -- due its filter on the srcLocModule.
 
 __UNREACHABLE__ :: HasCallStack => a
-__UNREACHABLE__ = throwImpossible (withFileAndLine Unreachable)
+__UNREACHABLE__ = withCallerCallStack $ throwImpossible . Unreachable

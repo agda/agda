@@ -263,14 +263,14 @@ instance PrettyTCM TCErr where
     -- Gallais, 2016-05-14
     -- Given where `NonFatalErrors` are created, we know for a
     -- fact that ̀ws` is non-empty.
-    TypeError fl _ Closure{ clValue = NonFatalErrors ws } -> do
-      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+    TypeError loc _ Closure{ clValue = NonFatalErrors ws } -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
       foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of withTCState seems ok since we do not collect
     -- Benchmark info during printing errors.
-    TypeError fl s e -> withTCState (const s) $ do
-      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+    TypeError loc s e -> withTCState (const s) $ do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
     Exception r s     -> sayWhere r $ return s
     IOException _ r e -> sayWhere r $ fwords $ show e

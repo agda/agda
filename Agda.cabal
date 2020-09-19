@@ -545,6 +545,7 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
+                    Agda.Utils.CallStack
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment
@@ -609,6 +610,8 @@ library
                     Agda.VersionCommit
 
   other-modules:    Paths_Agda
+                    Agda.Utils.CallStack.Base
+                    Agda.Utils.CallStack.Pretty
 
   -- NOTE: If adding flags, also add to `.ghci-8.0`
   if impl(ghc <= 8.0.2)
