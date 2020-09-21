@@ -83,7 +83,7 @@ raise :: Subst a => Nat -> a -> a
 raise = raiseFrom 0
 
 raiseFrom :: Subst a => Nat -> Nat -> a -> a
-raiseFrom n k = applySubst (liftS n $ raiseS k)
+raiseFrom n k = applySubst (raiseFromS n k)
 
 -- | Replace de Bruijn index i by a 'Term' in something.
 subst :: Subst a => Int -> SubstArg a -> a -> a
@@ -242,6 +242,10 @@ lookupS rho i = case rho of
 listS :: EndoSubst a => [(Int,a)] -> Substitution' a
 listS ((i,t):ts) = singletonS i t `composeS` listS ts
 listS []         = IdS
+
+-- | @Γ, Ξ, Δ ⊢ raiseFromS |Δ| |Ξ| : Γ, Δ@
+raiseFromS :: Nat -> Nat -> Substitution' a
+raiseFromS n k = liftS n $ raiseS k
 
 
 ---------------------------------------------------------------------------
