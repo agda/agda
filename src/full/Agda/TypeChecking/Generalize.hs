@@ -234,6 +234,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                   setMetaNameSuggestion m (parentName ++ "." ++ show i)
                   suggestNames (i + 1) ms
                 _  -> suggestNames i ms
+        unless (null metas) $
+          reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
         Set.fromList metas <$ suggestNames 1 metas
       _ -> __IMPOSSIBLE__
 

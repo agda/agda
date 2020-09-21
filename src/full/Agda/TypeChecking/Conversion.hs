@@ -1292,6 +1292,14 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
       (a, b) <- reduce (a, b)
       ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+
+      let notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
+          postpone = patternViolation (unblockOnAnyMetaIn (a, b))
+
+          wrap m = m `catchError` \case
+            TypeError{} -> notok
+            err         -> throwError err
+
       reportSDoc "tc.conv.level" 60 $
         "checkSyntacticEquality returns" <+> prettyTCM equal
       unless equal $ do
@@ -1311,18 +1319,18 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       wrap $ case (levelMaxView aB, levelMaxView bB) of
 
         -- 0 ≤ any
-        (SingleClosed 0 :| [] , _) -> ok
+        (SingleClosed 0 :| [] , _) -> return ()
 
         -- any ≤ 0
         (as , SingleClosed 0 :| []) ->
           forM_ as $ \ a' -> equalLevel (unSingleLevel $ fmap ignoreBlocking a') (ClosedLevel 0)
 
         -- closed ≤ closed
-        (SingleClosed m :| [], SingleClosed n :| []) -> if m <= n then ok else notok
+        (SingleClosed m :| [], SingleClosed n :| []) -> unless (m <= n) notok
 
         -- closed ≤ b
         (SingleClosed m :| [] , _)
-          | m <= levelLowerBound b -> ok
+          | m <= levelLowerBound b -> return ()
 
         -- as ≤ neutral/closed
         (as, bs)
@@ -1393,14 +1401,6 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         _ | noMetas (a, b) -> notok
           | otherwise      -> postpone
       where
-        ok       = return ()
-        notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
-        postpone = patternViolation (unblockOnAnyMetaIn (a, b))
-
-        wrap m = m `catchError` \case
-            TypeError{} -> notok
-            err         -> throwError err
-
         neutralOrClosed (SingleClosed _)                   = True
         neutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
         neutralOrClosed _                                  = False
@@ -1445,7 +1445,14 @@ equalLevel a b = do
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
-  let (a',b') = removeSubsumed a b
+  let (a', b') = removeSubsumed a b
+
+  let notok    = unlessM typeInType notOk
+      notOk    = typeError $ UnequalLevel CmpEq a' b'
+      postpone = do
+        reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a' <+> "==") 0 (pretty b')
+        patternViolation (unblockOnAnyMetaIn (a', b'))
+
   reportSDoc "tc.conv.level" 50 $
     sep [ "equalLevel (w/o subsumed)"
         , vcat [ nest 2 $ sep [ prettyTCM a' <+> "=="
@@ -1482,7 +1489,7 @@ equalLevel a b = do
 
         -- closed == closed
         (SingleClosed m :| [], SingleClosed n :| [])
-          | m == n    -> ok
+          | m == n    -> return ()
           | otherwise -> notok
 
         -- closed == neutral
@@ -1541,25 +1548,12 @@ equalLevel a b = do
           lvl <- levelType
           equalAtom (AsTermsOf lvl) a b
 
-        ok       = return ()
-        notok    = unlessM typeInType notOk
-        notOk    = typeError $ UnequalLevel CmpEq a b
-        postpone = do
-          reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
-          patternViolation (unblockOnAnyMetaIn (a, b))
-
         -- perform assignment (MetaV x as) := b
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
           lvl <- levelType
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
-
-        -- NB:: Defined but not used: wrap
-        -- Make sure to give a sensible error message
-        wrap m = m `catchError` \case
-            TypeError{} -> notok
-            err         -> throwError err
 
         isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
         isNeutral _                                  = False
