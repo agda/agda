@@ -1251,7 +1251,9 @@ primTransHComp cmd ts nelims = do
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
                      bs' = (Map.toAscList $ Map.map boolToI bs)
-                 let weaken = foldr ((composeS . (\ j -> liftS j (raiseS 1))) . fst) idS bs'
+                     -- Γ₁, i : I, Γ₂, j : I, Γ₃  ⊢ weaken : Γ₁, Γ₂, Γ₃   for bs' = [(j,_),(i,_)]
+                     -- ordering of "j,i,.." matters.
+                 let weaken = foldr (\ j s -> s `composeS` raiseFromS j 1) idS (map fst bs')
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
