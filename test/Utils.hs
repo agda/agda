@@ -4,6 +4,7 @@ module Utils (module Utils,
 
 import Control.Applicative
 import Control.Arrow ((&&&))
+import Control.Exception (finally)
 import Control.Monad
 
 import Data.Array
@@ -115,7 +116,7 @@ runAgdaWithOptions testName opts mflag mvars = do
     else runAgda []
 
   -- reinstating the old environment
-  mapM_ (uncurry setEnv) backup
+   `finally` mapM_ (uncurry setEnv) backup
 
   cleanedStdOut <- cleanOutput stdOut
   cleanedStdErr <- cleanOutput stdErr
