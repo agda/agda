@@ -87,19 +87,24 @@ runAgdaWithOptions testName opts mflag mvars = do
   backup <- case mvars of
     Nothing      -> pure []
     Just varFile -> do
-      addEnv <- maybe [] T.lines <$> readTextFileMaybe varFile
-      backup <- if addEnv /= [] then getEnvironment else pure []
+      addEnv <- maybe [] (lines . T.unpack) <$> readTextFileMaybe varFile
+      backup <- if null addEnv then pure [] else getEnvironment
       forM_ addEnv $ \ assgnmt -> do
-        let (var, eqval) = T.break (== '=') assgnmt
-        let val = T.unpack $ T.drop 1 eqval
+        let (var, eqval) = break (== '=') assgnmt
+        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
+        -- a missing '=' might mean to set the variable to the empty string.
+        -- -- Andreas, 2020-09-22.  Don't just gloss over malformed lines!
+        -- when (null eqval) $ fail $ unlines
+        --   [ "Malformed line", assgnmt, "in file " ++ varFile ]
+        let val = drop 1 eqval  -- drop the '=' sign, unless eqval is null
         val <- expandEnvironmentVariables val
-        setEnv (T.unpack var) val
+        setEnv var val
       pure backup
 
   let agdaArgs = opts ++ words flags
   let runAgda  = \ extraArgs -> let args = agdaArgs ++ extraArgs in
                                 readAgdaProcessWithExitCode args T.empty
-  (ret, stdOut, stdErr) <-
+  (ret, stdOut, stdErr) <- do
     if "--compile" `elem` agdaArgs
       -- Andreas, 2017-04-14, issue #2317
       -- Create temporary files in system temp directory.
