@@ -1130,13 +1130,13 @@ solutionStep retry s
   (p, bound) <- patternBindingForcedVars forcedVars u
 
   -- To maintain the invariant that each variable in varTel is bound exactly once in the pattern
-  -- subtitution we need to turn the bound variables in `p` into dot patterns in the rest of the
+  -- substitution we need to turn the bound variables in `p` into dot patterns in the rest of the
   -- substitution.
   let dotSub = foldr composeS idS [ inplaceS i (dotP (Var i [])) | i <- IntMap.keys bound ]
 
   -- We moved the binding site of some forced variables, so we need to update their modalities in
   -- the telescope. The new modality is the combination of the modality of the variable we are
-  -- instantiating and the modality of the binding site in the pattern (return by
+  -- instantiating and the modality of the binding site in the pattern (returned by
   -- patternBindingForcedVars).
   let updModality md vars tel
         | IntMap.null vars = tel
@@ -1249,7 +1249,7 @@ unify s strategy = if isUnifyStateSolved s
     failure :: UnifyM (UnificationResult' a)
     failure = return $ DontKnow []
 
--- | Turn a term into a pattern binding as many of the given forced variables as possible (in
+-- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
 patternBindingForcedVars :: (HasConstInfo m, MonadReduce m) => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
