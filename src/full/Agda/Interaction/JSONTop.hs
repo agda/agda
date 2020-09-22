@@ -73,7 +73,7 @@ instance EncodeTCM ResponseContextEntry where
   encodeTCM entry = obj
     [ "originalName" @= encodePretty (respOrigName entry)
     , "reifiedName"  @= encodePretty (respReifName entry)
-    , "binding"      #= encodePrettyTCM (respType entry)
+    , "binding"      #= prettyATop (unArg (respType entry))
     , "inScope"      @= respInScope entry
     ]
 
