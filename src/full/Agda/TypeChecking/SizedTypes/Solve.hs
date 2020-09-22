@@ -528,7 +528,7 @@ solveCluster flag ccs = do
   --  ms = unsolved size metas from cluster
   let ms = Set.fromList (map sizeMetaId metas) Set.\\ solved
   --  Make sure they do not contain an interaction point
-  let noIP = Set.null $ Set.intersection ims ms
+  let noIP = Set.disjoint ims ms
 
   unless (null ms) $ reportSDoc "tc.size.solve" 30 $ fsep $
     "cluster did not solve these size metas: " : map prettyTCM (Set.toList ms)

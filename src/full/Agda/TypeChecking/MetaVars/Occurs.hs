@@ -918,6 +918,7 @@ killedType args b = do
           (zs, b) <- go args ys (mkPi ((name, a) <$ arg) b)
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
+
 reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
 reallyNotFreeIn xs a | IntSet.null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
@@ -925,7 +926,7 @@ reallyNotFreeIn xs a = do
       anywhere = allVars fvs
       rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
       nonrigid = IntSet.difference anywhere rigid
-      hasNo    = IntSet.null . IntSet.intersection xs
+      hasNo    = IntSet.disjoint xs
   if hasNo nonrigid
     then
        -- No non-rigid occurrences. We can't do anything about the rigid

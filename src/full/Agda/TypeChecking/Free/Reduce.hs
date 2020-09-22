@@ -72,7 +72,7 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
-      notfree = IntSet.null $ IntSet.intersection xs fvs
+      notfree = IntSet.disjoint xs fvs
   if notfree
     then return a
     else k . precomputeFreeVars_ =<< reduce a

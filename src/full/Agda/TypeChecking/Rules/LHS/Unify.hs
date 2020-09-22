@@ -1256,7 +1256,7 @@ patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go defaultModality v') forced)
   where
-    noForced v = gets (IntSet.null . IntSet.intersection (precomputedFreeVars v) . IntMap.keysSet)
+    noForced v = gets $ IntSet.disjoint (precomputedFreeVars v) . IntMap.keysSet
 
     bind md i = do
       Just md' <- gets $ IntMap.lookup i
