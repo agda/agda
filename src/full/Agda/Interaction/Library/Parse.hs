@@ -83,6 +83,7 @@ agdaLibFields =
   [ optionalField "name"    parseName                      libName
   , optionalField "include" (pure . concatMap parsePaths)  libIncludes
   , optionalField "depend"  (pure . concatMap splitCommas) libDepends
+  , optionalField "flags"   (pure . concatMap parseFlags)  libPragmas
   ]
   where
     parseName :: [String] -> P LibName
@@ -97,6 +98,9 @@ agdaLibFields =
       go acc ('\\' : '\\' :cs) = go (acc . ('\\':)) cs
       go acc (       ' '  :cs) = fixup acc ++ go id cs
       go acc (c           :cs) = go (acc . (c:)) cs
+
+    parseFlags :: String -> [String]
+    parseFlags = words
 
 -- | Parse @.agda-lib@ file.
 --
