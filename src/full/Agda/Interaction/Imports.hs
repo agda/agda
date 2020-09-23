@@ -392,7 +392,7 @@ getInterface' x isMain msi =
              (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
      -- We remember but reset the pragma options locally
      -- For the main interface, we also remember the pragmas from the file
-     let mpragmas = fst . siModule <$> msi
+     let mpragmas = C.modPragmas . siModule <$> msi
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- setCurrentRange mpragmas $ do
        when (includeStateChanges isMain) $ do
@@ -865,7 +865,7 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    (source, fileType, (pragmas, top)) <- do
+    (source, fileType, C.Mod pragmas top) <- do
       si <- case msi of
         Nothing -> sourceInfo file
         Just si -> return si
