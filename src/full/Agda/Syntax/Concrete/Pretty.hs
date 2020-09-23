@@ -53,6 +53,7 @@ deriving instance Show LamClause
 deriving instance Show WhereClause
 deriving instance Show ModuleApplication
 deriving instance Show DoStmt
+deriving instance Show Module
 
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @

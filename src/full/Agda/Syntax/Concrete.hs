@@ -49,7 +49,7 @@ module Agda.Syntax.Concrete
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
   , Pragma(..)
-  , Module
+  , Module(..)
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
   , topLevelModuleName
@@ -498,7 +498,10 @@ data Pragma
 
 -- | Modules: Top-level pragmas plus other top-level declarations.
 
-type Module = ([Pragma], [Declaration])
+data Module = Mod
+  { modPragmas :: [Pragma]
+  , modDecls   :: [Declaration]
+  }
 
 -- | Computes the top-level module name.
 --
@@ -508,8 +511,8 @@ type Module = ([Pragma], [Declaration])
 -- See 'spanAllowedBeforeModule'.
 
 topLevelModuleName :: Module -> TopLevelModuleName
-topLevelModuleName (_, []) = __IMPOSSIBLE__
-topLevelModuleName (_, ds) = case spanAllowedBeforeModule ds of
+topLevelModuleName (Mod _ []) = __IMPOSSIBLE__
+topLevelModuleName (Mod _ ds) = case spanAllowedBeforeModule ds of
   (_, Module _ n _ _ : _) -> toTopLevelModuleName n
   _ -> __IMPOSSIBLE__
 
