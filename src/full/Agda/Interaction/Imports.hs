@@ -26,7 +26,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeDirectory)
 
 import Agda.Benchmarking
 
@@ -59,6 +59,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise  ( compress )
 import Agda.Interaction.Highlighting.Vim
+import Agda.Interaction.Library
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
@@ -85,6 +86,7 @@ data SourceInfo = SourceInfo
   , siFileType   :: FileType              -- ^ Source file type
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
+  , siProjectLibs :: [AgdaLibFile]        -- ^ The .agda-lib file(s) of the project this file belongs to.
   }
 
 -- | Computes a 'SourceInfo' record for the given file.
@@ -95,11 +97,14 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   moduleName            <- moduleName f parsedMod
+  let sourceDir = takeDirectory $ filePath f
+  libs <- libToTCM $ getAgdaLibFiles sourceDir
   return SourceInfo
     { siSource     = source
     , siFileType   = fileType
     , siModule     = parsedMod
     , siModuleName = moduleName
+    , siProjectLibs = libs
     }
 
 -- | Is the aim to type-check the top-level module, or only to
