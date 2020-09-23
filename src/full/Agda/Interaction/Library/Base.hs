@@ -54,6 +54,7 @@ data AgdaLibFile = AgdaLibFile
   , _libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
+  , _libPragmas  :: [String]    -- ^ Default pragma options for all files in the library.
   }
   deriving (Show)
 
@@ -63,6 +64,7 @@ emptyLibFile = AgdaLibFile
   , _libFile     = ""
   , _libIncludes = []
   , _libDepends  = []
+  , _libPragmas  = []
   }
 
 -- | Lenses for AgdaLibFile
@@ -78,6 +80,9 @@ libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
 
 libDepends :: Lens' [LibName] AgdaLibFile
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }
+
+libPragmas :: Lens' [String] AgdaLibFile
+libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 
 ------------------------------------------------------------------------

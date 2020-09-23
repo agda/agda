@@ -98,7 +98,9 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
                            parseFile moduleParser f $ TL.unpack source
   moduleName            <- moduleName f parsedMod
   let sourceDir = takeDirectory $ filePath f
-  libs <- libToTCM $ getAgdaLibFiles sourceDir
+  useLibs <- optUseLibs <$> commandLineOptions
+  libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
+             | otherwise -> return []
   return SourceInfo
     { siSource     = source
     , siFileType   = fileType
@@ -106,6 +108,13 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , siModuleName = moduleName
     , siProjectLibs = libs
     }
+
+sourcePragmas :: SourceInfo -> TCM [OptionsPragma]
+sourcePragmas SourceInfo{..} = do
+  let defaultPragmas = map _libPragmas siProjectLibs
+  let cpragmas = C.modPragmas siModule
+  pragmas <- concreteOptionsToOptionPragmas cpragmas
+  return $ defaultPragmas ++ pragmas
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -397,12 +406,12 @@ getInterface' x isMain msi =
              (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
      -- We remember but reset the pragma options locally
      -- For the main interface, we also remember the pragmas from the file
-     let mpragmas = C.modPragmas . siModule <$> msi
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
-     currentOptions <- setCurrentRange mpragmas $ do
+     currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
        when (includeStateChanges isMain) $ do
-         let pragmas = fromMaybe __IMPOSSIBLE__ mpragmas
-         mapM_ setOptionsFromPragma =<< concreteOptionsToOptionPragmas pragmas
+         let si = fromMaybe __IMPOSSIBLE__ msi
+         pragmas <- sourcePragmas si
+         mapM_ setOptionsFromPragma pragmas
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -870,12 +879,12 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    (source, fileType, C.Mod pragmas top) <- do
-      si <- case msi of
-        Nothing -> sourceInfo file
-        Just si -> return si
-      case si of
-        SourceInfo {..} -> return (siSource, siFileType, siModule)
+    si <- case msi of
+      Nothing -> sourceInfo file
+      Just si -> return si
+    let source   = siSource si
+        fileType = siFileType si
+        top      = C.modDecls $ siModule si
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
@@ -883,7 +892,7 @@ createInterface file mname isMain msi =
                          (srcFilePath file) (TL.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
-    options <- concreteOptionsToOptionPragmas pragmas
+    options <- sourcePragmas si
     mapM_ setOptionsFromPragma options
 
     verboseS "import.iface.create" 15 $ do
