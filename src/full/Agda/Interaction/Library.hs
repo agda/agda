@@ -22,7 +22,9 @@ module Agda.Interaction.Library
   , getInstalledLibraries
   , getTrustedExecutables
   , libraryIncludePaths
+  , getAgdaLibFiles
   , LibName
+  , AgdaLibFile(..)
   , ExeName
   , LibM
   , LibWarning(..)
@@ -185,6 +187,15 @@ findAgdaLibFiles
   -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
 findAgdaLibFiles root = maybe [] snd <$> findProjectConfig root
 
+-- | Get the contents of @.agda-lib@ files in the given project root.
+getAgdaLibFiles :: FilePath -> LibM [AgdaLibFile]
+getAgdaLibFiles root = mkLibM [] $ getAgdaLibFiles' root
+
+getAgdaLibFiles' :: FilePath -> LibErrorIO [AgdaLibFile]
+getAgdaLibFiles' root = do
+  libs <- lift $ findAgdaLibFiles root
+  parseLibFiles Nothing (map (0,) libs)
+
 -- | Get dependencies and include paths for given project root:
 --
 --   Look for @.agda-lib@ files according to 'findAgdaLibFiles'.
@@ -196,10 +207,10 @@ getDefaultLibraries
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
   -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
-  libs <- lift $ findAgdaLibFiles root
+  libs <- getAgdaLibFiles' root
   if null libs
     then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
-    else libsAndPaths <$> parseLibFiles Nothing (map (0,) libs)
+    else return $ libsAndPaths libs
   where
     libsAndPaths ls = ( concatMap _libDepends ls
                       , nubOn id (concatMap _libIncludes ls)
