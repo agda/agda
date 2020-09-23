@@ -250,8 +250,8 @@ splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String
 stripComments "" = ""
-stripComments ('-':'-':_) = ""
-stripComments (c : s)     = cons c (stripComments s)
+stripComments ('-':'-':c:_) | isSpace c = ""
+stripComments (c : s) = cons c (stripComments s)
   where
     cons c "" | isSpace c = ""
     cons c s = c : s
