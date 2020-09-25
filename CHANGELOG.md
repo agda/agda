@@ -301,6 +301,22 @@ Reflection
 
   The builtin is only available when `--allow-exec` is passed. (Note that `--allow-exec` is incompatible with ``--safe``.) To make an executable available to Agda, add the absolute path on a new line in `~/.agda/executables`.
 
+Library management
+------------------
+
+- `.agda-lib` files can now contain an extra field `flags:` with
+  default flags for the library. Flags can be any flags that are
+  accepted as part of an `{-# OPTIONS ... #-}` pragma. For example,
+  file `my-library.agda-lib` with
+
+  ```
+  flags: --without-K
+  ```
+
+  will apply the `--without-K` flag to all Agda files in the current
+  directory and (recursive) subdirectories that do not themselves
+  contain an `.agda-lib` file.
+
 
 Emacs mode
 ----------
