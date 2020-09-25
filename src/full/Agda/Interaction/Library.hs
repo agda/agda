@@ -30,19 +30,22 @@ module Agda.Interaction.Library
   , LibWarning(..)
   , LibPositionInfo(..)
   , libraryWarningName
+  , ProjectConfig(..)
   -- * Exported for testing
   , VersionView(..), versionView, unVersionView
   , findLib'
   ) where
 
+import Control.Arrow ( first , second )
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Monad.Writer
 
 import Data.Char
 import Data.Data ( Data )
 import Data.Either
-import Data.Bifunctor ( first )
 import Data.Function
+import Data.Functor
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -58,6 +61,7 @@ import Agda.Interaction.Library.Parse
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
+import Agda.Utils.FileName
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1 )
@@ -87,7 +91,7 @@ data VersionView = VersionView
 --
 mkLibM :: [AgdaLibFile] -> LibErrorIO a -> LibM a
 mkLibM libs m = do
-  (x, ews) <- liftIO $ runWriterT m
+  (x, ews) <- lift $ lift $ runWriterT m
   let (errs, warns) = partitionEithers ews
   tell warns
   unless (null errs) $ do
@@ -153,48 +157,64 @@ defaultExecutableFiles = List1.fromList ["executables-" ++ version, "executables
 
 findProjectConfig
   :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
-  -> IO (Maybe (FilePath, [FilePath])) -- ^ Actual root and @.agda-lib@ files for this project
-findProjectConfig root = do
-  libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-  case libs of
-    []    -> do
-      -- Note that "going up" one directory is OS dependent
-      -- if the directory is a symlink.
-      --
-      -- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
-      --
-      --   Note that on Windows parent directories .. are always fully
-      --   expanded before the symbolic links, as consistent with the
-      --   rest of the Windows API (such as GetFullPathName). In
-      --   contrast, on POSIX systems parent directories .. are
-      --   expanded alongside symbolic links from left to right. To
-      --   put this more concretely: if L is a symbolic link for R/P,
-      --   then on Windows L\.. refers to ., whereas on other
-      --   operating systems L/.. refers to R.
+  -> LibM ProjectConfig                -- ^ Actual root and @.agda-lib@ files for this project
+findProjectConfig root = mkLibM [] $ findProjectConfig' root
+
+findProjectConfig'
+  :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
+  -> LibErrorIO ProjectConfig          -- ^ Actual root and @.agda-lib@ files for this project
+findProjectConfig' root = do
+  getCachedProjectConfig root >>= \case
+    Just conf -> return conf
+    Nothing   -> do
+      libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+      case libFiles of
+        []     -> liftIO (upPath root) >>= \case
+          Just up -> do
+            conf <- findProjectConfig' up
+            storeCachedProjectConfig root conf
+            return conf
+          Nothing -> return DefaultProjectConfig
+        files -> do
+          let conf = ProjectConfig root files
+          storeCachedProjectConfig root conf
+          return conf
+
+  where
+    -- Note that "going up" one directory is OS dependent
+    -- if the directory is a symlink.
+    --
+    -- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
+    --
+    --   Note that on Windows parent directories .. are always fully
+    --   expanded before the symbolic links, as consistent with the
+    --   rest of the Windows API (such as GetFullPathName). In
+    --   contrast, on POSIX systems parent directories .. are
+    --   expanded alongside symbolic links from left to right. To
+    --   put this more concretely: if L is a symbolic link for R/P,
+    --   then on Windows L\.. refers to ., whereas on other
+    --   operating systems L/.. refers to R.
+    upPath :: FilePath -> IO (Maybe FilePath)
+    upPath root = do
       up <- canonicalizePath $ root </> ".."
-      if up == root then return Nothing else findProjectConfig up
-    files -> return (Just (root, files))
+      if up == root then return Nothing else return $ Just up
+
 
 -- | Get project root
 
-findProjectRoot :: FilePath -> IO (Maybe FilePath)
-findProjectRoot root = fmap fst <$> findProjectConfig root
-
--- | Get pathes of @.agda-lib@ files in given project root.
-
-findAgdaLibFiles
-  :: FilePath       -- ^ Project root.
-  -> IO [FilePath]  -- ^ Pathes of @.agda-lib@ files for this project (if any).
-findAgdaLibFiles root = maybe [] snd <$> findProjectConfig root
+findProjectRoot :: FilePath -> LibM (Maybe FilePath)
+findProjectRoot root = findProjectConfig root <&> \case
+  ProjectConfig p _    -> Just p
+  DefaultProjectConfig -> Nothing
 
 -- | Get the contents of @.agda-lib@ files in the given project root.
 getAgdaLibFiles :: FilePath -> LibM [AgdaLibFile]
 getAgdaLibFiles root = mkLibM [] $ getAgdaLibFiles' root
 
 getAgdaLibFiles' :: FilePath -> LibErrorIO [AgdaLibFile]
-getAgdaLibFiles' root = do
-  libs <- lift $ findAgdaLibFiles root
-  parseLibFiles Nothing (map (0,) libs)
+getAgdaLibFiles' path = findProjectConfig' path >>= \case
+  DefaultProjectConfig    -> return []
+  ProjectConfig root libs -> parseLibFiles Nothing $ map ((0,) . (root </>)) libs
 
 -- | Get dependencies and include paths for given project root:
 --
@@ -222,10 +242,10 @@ getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
 --
 readDefaultsFile :: LibErrorIO [LibName]
 readDefaultsFile = do
-    agdaDir <- lift $ getAgdaAppDir
+    agdaDir <- liftIO getAgdaAppDir
     let file = agdaDir </> defaultsFile
-    ifNotM (lift $ doesFileExist file) (return []) $ {-else-} do
-      ls <- lift $ map snd . stripCommentLines <$> readFile file
+    ifNotM (liftIO $ doesFileExist file) (return []) $ {-else-} do
+      ls <- liftIO $ map snd . stripCommentLines <$> readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
@@ -260,10 +280,10 @@ getInstalledLibraries
   :: Maybe FilePath     -- ^ Override the default @libraries@ file?
   -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
-    file <- lift $ getLibrariesFile overrideLibFile
+    file <- liftIO $ getLibrariesFile overrideLibFile
     if not (lfExists file) then return [] else do
-      ls    <- lift $ stripCommentLines <$> readFile (lfPath file)
-      files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
+      ls    <- liftIO $ stripCommentLines <$> readFile (lfPath file)
+      files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
       parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
@@ -276,10 +296,22 @@ parseLibFiles
   -> [(LineNumber, FilePath)]  -- ^ Library files paired with their line number in @libraries@.
   -> LibErrorIO [AgdaLibFile]  -- ^ Content of library files.  (Might have empty @LibName@s.)
 parseLibFiles mlibFile files = do
-  rs' <- lift $ mapM (parseLibFile . snd) files
-  let ann (ln, fp) (e, ws) = (first (Just pos,) e, map (LibWarning (Just pos)) ws)
-        where pos = LibPositionInfo (lfPath <$> mlibFile) ln fp
-  let (xs, warns) = unzip $ zipWith ann files (map runP rs')
+
+  anns <- forM files $ \(ln, file) -> do
+    getCachedAgdaLibFile file >>= \case
+      Just lib -> return (Right lib, [])
+      Nothing  -> do
+        (e, ws) <- liftIO $ runP <$> parseLibFile file
+        let pos = LibPositionInfo (lfPath <$> mlibFile) ln file
+            ws' = map (LibWarning (Just pos)) ws
+        case e of
+          Left err -> do
+            return (Left (Just pos, err), ws')
+          Right lib -> do
+            storeCachedAgdaLibFile file lib
+            return (Right lib, ws')
+
+  let (xs, warns) = unzip anns
       (errs, als) = partitionEithers xs
 
   unless (null warns) $ warnings $ concat warns
@@ -317,10 +349,10 @@ getExecutablesFile = do
 getTrustedExecutables
   :: LibM (Map ExeName FilePath)  -- ^ Content of @executables@ files.
 getTrustedExecutables = mkLibM [] $ do
-    file <- lift $ getExecutablesFile
+    file <- liftIO getExecutablesFile
     if not (efExists file) then return Map.empty else do
-      es    <- lift $ stripCommentLines <$> readFile (efPath file)
-      files <- lift $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
+      es    <- liftIO $ stripCommentLines <$> readFile (efPath file)
+      files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
   `catchIO` \ e -> do
@@ -337,14 +369,14 @@ parseExecutablesFile ef files =
   fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
 
     -- Check if the executable exists.
-    fpExists <- lift $ doesFileExist fp
+    fpExists <- liftIO $ doesFileExist fp
     if not fpExists
       then do warnings' [ExeNotFound ef fp]
               return Nothing
       else do
 
       -- Check if the executable is executable.
-      fpPerms <- lift $ getPermissions fp
+      fpPerms <- liftIO $ getPermissions fp
       if not (executable fpPerms)
         then do warnings' [ExeNotExecutable ef fp]
                 return Nothing
@@ -354,7 +386,7 @@ parseExecutablesFile ef files =
         let strExeName  = takeFileName fp
         let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
         let txtExeName  = T.pack strExeName'
-        exePath <- lift $ makeAbsolute fp
+        exePath <- liftIO $ makeAbsolute fp
         return $ Just (txtExeName, exePath)
 
 ------------------------------------------------------------------------
@@ -368,7 +400,7 @@ libraryIncludePaths
   -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
   -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
-    file <- getLibrariesFile overrideLibFile
+    file <- liftIO $ getLibrariesFile overrideLibFile
     return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0

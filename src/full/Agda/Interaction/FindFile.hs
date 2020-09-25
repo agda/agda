@@ -39,6 +39,7 @@ import Agda.Interaction.Options ( optLocalInterfaces )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Monad.Options (libToTCM)
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Version ( version )
@@ -76,12 +77,12 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: (HasOptions m, MonadIO m) => SourceFile -> m AbsolutePath
+toIFile :: SourceFile -> TCM AbsolutePath
 toIFile (SourceFile src) = do
   let fp = filePath src
   mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
                {- then -} (pure Nothing)
-               {- else -} (liftIO $ findProjectRoot $ takeDirectory fp)
+               {- else -} (libToTCM $ findProjectRoot (takeDirectory fp))
   pure $ replaceModuleExtension ".agdai" $ case mroot of
     Nothing   -> src
     Just root ->
@@ -173,9 +174,8 @@ findFile'' dirs m modFile =
 -- Raises 'Nothing' if the the interface file cannot be found.
 
 findInterfaceFile'
-  :: (HasOptions m, MonadIO m)
-  => SourceFile                 -- ^ Path to the source file
-  -> m (Maybe InterfaceFile)    -- ^ Maybe path to the interface file
+  :: SourceFile                 -- ^ Path to the source file
+  -> TCM (Maybe InterfaceFile)  -- ^ Maybe path to the interface file
 findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 
 -- | Finds the interface file corresponding to a given top-level
