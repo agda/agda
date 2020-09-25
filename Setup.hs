@@ -105,7 +105,7 @@ generateInterfaces pd lbi = do
     removeFile fullpathi `catch` handleExists
 
     putStrLn $ "... " ++ fullpath
-    ok <- rawSystem' ddir agda [ "--no-libraries", "--local-interfaces"
+    ok <- rawSystem' ddir agda [ "--no-libraries"
                                , "-Werror"
                                , fullpath, "-v0"
                                ]
