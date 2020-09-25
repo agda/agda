@@ -25,23 +25,26 @@ tests = testGroup "Interactive"
     runAgda ["--no-libraries", testDir </> "Issue1430.agda"] "Issue1430"
   , testCase "Load" $ do
     runAgda ["--no-libraries"] "Load"
+  , testCase "LoadTwice" $ do
+    runAgda ["--no-libraries"] "LoadTwice"
   ]
   where
     agdaArgs = [ "-I", "-i.", "-i..", "-itest/Interactive", "--ignore-interfaces" ]
     runAgda :: [String] -> FilePath -> IO ()
     runAgda extraArgs testName = do
-      inp <- TIO.readFile (testDir </> testName <.> "in")
+      let testFile suffix = testDir </> testName <.> suffix
+      inp <- TIO.readFile (testFile "in")
       ret@(c, stdout, stderr) <- readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) inp
       assertBool ("Agda returned error code: " ++ show ret) (c == ExitSuccess)
-      let stdoutFp = testDir </> testName <.> "stdout" <.> "expected"
-          stderrFp = testDir </> testName <.> "stderr" <.> "expected"
+      let stdoutFp = testFile "stdout.expected"
+          stderrFp = testFile "stderr.expected"
 
       -- Check that every line in testName.stdout.expected (if exists) is a substring of stdout. Same for stderr.
-      whenM (doesFileExist $ testDir </> testName <.> "stdout" <.> "expected") $ do
+      whenM (doesFileExist stdoutFp) $ do
         expected <- TIO.readFile stdoutFp
         for_ (Text.lines expected) $
           assertBool ("Invalid stdout: " ++ show stdout) . (`Text.isInfixOf` stdout)
-      whenM (doesFileExist $ testDir </> testName <.> "stderr" <.> "expected") $ do
+      whenM (doesFileExist stderrFp) $ do
         expected <- TIO.readFile stderrFp
         for_ (Text.lines expected) $
           assertBool ("Invalid stderr: " ++ show stderr) . (`Text.isInfixOf` stderr)
