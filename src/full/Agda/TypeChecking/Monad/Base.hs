@@ -297,6 +297,11 @@ data PersistentTCState = PersistentTCSt
     --   Should be @Nothing@ when checking imports.
   , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
+  , stPersistProjectConfigs :: !(Map FilePath ProjectConfig)
+    -- ^ Map from directories to paths of closest enclosing .agda-lib
+    --   files (or @Nothing@ if there are none).
+  , stPersistAgdaLibFiles   :: !(Map FilePath AgdaLibFile)
+    -- ^ Contents of .agda-lib files that have already been parsed.
   }
 
 data LoadedFileCache = LoadedFileCache
@@ -341,6 +346,8 @@ initPersistentState = PersistentTCSt
   , stAccumStatistics           = Map.empty
   , stPersistLoadedFileCache    = empty
   , stPersistBackends           = []
+  , stPersistProjectConfigs     = Map.empty
+  , stPersistAgdaLibFiles       = Map.empty
   }
 
 -- | Empty state of type checker.
@@ -524,6 +531,16 @@ stBackends :: Lens' [Backend] TCState
 stBackends f s =
   f (stPersistBackends (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
+
+stProjectConfigs :: Lens' (Map FilePath ProjectConfig) TCState
+stProjectConfigs f s =
+  f (stPersistProjectConfigs (stPersistentState s)) <&>
+  \ x -> s {stPersistentState = (stPersistentState s) {stPersistProjectConfigs = x}}
+
+stAgdaLibFiles :: Lens' (Map FilePath AgdaLibFile) TCState
+stAgdaLibFiles f s =
+  f (stPersistAgdaLibFiles (stPersistentState s)) <&>
+  \ x -> s {stPersistentState = (stPersistentState s) {stPersistAgdaLibFiles = x}}
 
 stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =
