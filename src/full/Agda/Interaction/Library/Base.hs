@@ -180,7 +180,7 @@ getCachedProjectConfig
   => FilePath -> m (Maybe ProjectConfig)
 getCachedProjectConfig path = do
   path <- liftIO $ canonicalizePath path
-  cache <- fst <$> get
+  cache <- gets fst
   return $ Map.lookup path cache
 
 storeCachedProjectConfig
@@ -195,7 +195,7 @@ getCachedAgdaLibFile
   => FilePath -> m (Maybe AgdaLibFile)
 getCachedAgdaLibFile path = do
   path <- liftIO $ canonicalizePath path
-  Map.lookup path . snd <$> get
+  gets $ Map.lookup path . snd
 
 storeCachedAgdaLibFile
   :: (MonadState LibState m, MonadIO m)
