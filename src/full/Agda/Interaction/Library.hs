@@ -45,7 +45,6 @@ import Data.Char
 import Data.Data ( Data )
 import Data.Either
 import Data.Function
-import Data.Functor
 import Data.Map ( Map )
 import qualified Data.Map as Map
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -62,6 +61,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Environment
 import Agda.Utils.FileName
+import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1 )
