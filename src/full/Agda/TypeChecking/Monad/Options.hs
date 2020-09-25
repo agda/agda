@@ -7,7 +7,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
-import Data.Functor
 import Data.Maybe
 
 import System.Directory
@@ -22,6 +21,7 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.WithDefault
