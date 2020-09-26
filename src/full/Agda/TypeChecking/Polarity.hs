@@ -1,9 +1,22 @@
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
-module Agda.TypeChecking.Polarity where
+-- | Computing the polarity (variance) of function arguments,
+--   for the sake of subtyping.
+
+module Agda.TypeChecking.Polarity
+  ( -- * Polarity computation
+    computePolarity
+    -- * Auxiliary functions
+  , composePol
+  , nextPolarity
+  , purgeNonvariant
+  , polFromOcc
+  ) where
 
 import Control.Monad.State
 
 import Data.Maybe
+import Data.Semigroup (Semigroup(..))
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -23,6 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -326,70 +340,83 @@ checkSizeIndex d i a = do
         _ -> return False
     _ -> __IMPOSSIBLE__
 
--- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
+-- | @polarity i a@ computes the least polarity of de Bruijn index @i@
 --   in syntactic entity @a@.
-class HasPolarity a where
-  polarities :: (HasConstInfo m, MonadReduce m) => Nat -> a -> m [Polarity]
-
--- | @polarity i a@ computes the polarity of de Bruijn index @i@
---   in syntactic entity @a@ by taking the infimum of all 'polarities'.
 polarity
   :: (HasPolarity a, HasConstInfo m, MonadReduce m)
   => Nat -> a -> m Polarity
-polarity i x = do
-  ps <- polarities i x
-  case ps of
-    [] -> return Nonvariant
-    ps -> return $ foldr1 (/\) ps
+polarity i x = getLeastPolarity $ polarity' i Covariant x
 
-instance HasPolarity a => HasPolarity (Arg a) where
-  polarities i = polarities i . unArg
+-- | A monoid for lazily computing the infimum of the polarities of a variable in some object.
+-- Allows short-cutting.
 
-instance HasPolarity a => HasPolarity (Dom a) where
-  polarities i = polarities i . unDom
+newtype LeastPolarity m = LeastPolarity { getLeastPolarity :: m Polarity}
 
-instance HasPolarity a => HasPolarity (Abs a) where
-  polarities i (Abs   _ b) = polarities (i + 1) b
-  polarities i (NoAbs _ v) = polarities i v
+instance Monad m => Singleton Polarity (LeastPolarity m) where
+  singleton = LeastPolarity . return
 
-instance HasPolarity a => HasPolarity [a] where
-  polarities i xs = concat <$> mapM (polarities i) xs
+instance Monad m => Semigroup (LeastPolarity m) where
+  LeastPolarity mp <> LeastPolarity mq = LeastPolarity $ do
+    mp >>= \case
+      Invariant  -> return Invariant  -- Shortcut for the absorbing element.
+      Nonvariant -> mq                -- The neutral element.
+      p          -> (p /\) <$> mq
+
+instance Monad m => Monoid (LeastPolarity m) where
+  mempty  = singleton Nonvariant
+  mappend = (<>)
+
+-- | Bind for 'LeastPolarity'.
+(>>==) :: Monad m => m a -> (a -> LeastPolarity m) -> LeastPolarity m
+m >>== k = LeastPolarity $ m >>= getLeastPolarity . k
+
+-- | @polarity' i p a@ computes the least polarity of de Bruijn index @i@
+--   in syntactic entity @a@, where root occurrences count as @p@.
+--
+--   Ignores occurrences in sorts.
+class HasPolarity a where
+  polarity'
+    :: (HasConstInfo m, MonadReduce m)
+    => Nat -> Polarity -> a -> LeastPolarity m
+
+  default polarity'
+    :: (HasConstInfo m, MonadReduce m, HasPolarity b, Foldable t, t b ~ a)
+    => Nat -> Polarity -> a -> LeastPolarity m
+  polarity' i = foldMap . polarity' i
+
+instance HasPolarity a => HasPolarity [a]
+instance HasPolarity a => HasPolarity (Arg a)
+instance HasPolarity a => HasPolarity (Dom a)
+instance HasPolarity a => HasPolarity (Elim' a)
+instance HasPolarity a => HasPolarity (Level' a)
+instance HasPolarity a => HasPolarity (PlusLevel' a)
+
+-- | Does not look into sort.
+instance HasPolarity a => HasPolarity (Type'' t a)
 
 instance (HasPolarity a, HasPolarity b) => HasPolarity (a, b) where
-  polarities i (x, y) = (++) <$> polarities i x <*> polarities i y
+  polarity' i p (x, y) = polarity' i p x <> polarity' i p y
 
-instance HasPolarity Type where
-  polarities i (El _ v) = polarities i v
-
-instance HasPolarity a => HasPolarity (Elim' a) where
-  polarities i Proj{}    = return []
-  polarities i (Apply a) = polarities i a
-  polarities i (IApply x y a) = polarities i (x,(y,a))
+instance HasPolarity a => HasPolarity (Abs a) where
+  polarity' i p (Abs   _ b) = polarity' (i + 1) p b
+  polarity' i p (NoAbs _ v) = polarity' i p v
 
 instance HasPolarity Term where
-  polarities i v = do
-   v <- instantiate v
-   case v of
-    -- Andreas, 2012-09-06: taking the polarities of the arguments
+  polarity' i p v = instantiate v >>== \case
+    -- Andreas, 2012-09-06: taking the polarity' of the arguments
     -- without taking the variance of the function into account seems wrong.
-    Var n ts  | n == i -> (Covariant :) . map (const Invariant) <$> polarities i ts
-              | otherwise -> map (const Invariant) <$> polarities i ts
-    Lam _ t    -> polarities i t
-    Lit _      -> return []
-    Level l    -> polarities i l
-    Def x ts   -> do
-      pols <- getPolarity x
-      let compose p ps = map (composePol p) ps
-      concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
-    Con _ _ ts -> polarities i ts -- constructors can be seen as monotone in all args.
-    Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
-    Sort s     -> return [] -- polarities i s -- return []
-    MetaV _ ts -> map (const Invariant) <$> polarities i ts
-    DontCare t -> polarities i t -- return []
-    Dummy{}    -> return []
-
-instance HasPolarity Level where
-  polarities i (Max _ as) = polarities i as
-
-instance HasPolarity PlusLevel where
-  polarities i (Plus _ l) = polarities i l
+    Var n ts
+      | n == i    -> singleton p <> polarity' i Invariant ts
+      | otherwise -> polarity' i Invariant ts
+    Lam _ t       -> polarity' i p t
+    Lit _         -> mempty
+    Level l       -> polarity' i p l
+    Def x ts      -> getPolarity x >>== \ pols ->
+                       let ps = map (composePol p) pols ++ repeat Invariant
+                       in  mconcat $ zipWith (polarity' i) ps ts
+    Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
+    Pi a b        -> polarity' i (neg p) a <> polarity' i p b
+    Sort s        -> mempty -- polarity' i p s -- mempty
+    MetaV _ ts    -> polarity' i Invariant ts
+    DontCare t    -> polarity' i p t -- mempty
+    Dummy{}       -> mempty
