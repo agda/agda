@@ -1,0 +1,6 @@
+{"status":{"checked":false,"showIrrelevantArguments":false,"showImplicitArguments":false},"kind":"Status"}
+{"kind":"ClearRunningInfo"}
+{"kind":"ClearHighlighting","tokenBased":"NotOnlyTokenBased"}
+{"status":{"checked":true,"showIrrelevantArguments":false,"showImplicitArguments":false},"kind":"Status"}
+{"kind":"DisplayInfo","info":{"visibleGoals":[],"kind":"AllGoalsWarnings","warnings":"","invisibleGoals":[],"errors":""}}
+{"kind":"InteractionPoints","interactionPoints":[]}

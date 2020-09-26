@@ -1,0 +1,8 @@
+{"status":{"checked":false,"showIrrelevantArguments":false,"showImplicitArguments":false},"kind":"Status"}
+{"kind":"ClearRunningInfo"}
+{"kind":"ClearHighlighting","tokenBased":"NotOnlyTokenBased"}
+{"status":{"checked":false,"showIrrelevantArguments":false,"showImplicitArguments":false},"kind":"Status"}
+{"kind":"DisplayInfo","info":{"visibleGoals":[{"constraintObj":{"range":[{"start":{"line":15,"pos":103,"col":5},"end":{"line":15,"pos":104,"col":6}}],"id":0},"kind":"OfType","type":"⊤"}],"kind":"AllGoalsWarnings","warnings":"","invisibleGoals":[],"errors":""}}
+{"kind":"InteractionPoints","interactionPoints":[{"range":[{"start":{"line":15,"pos":103,"col":5},"end":{"line":15,"pos":104,"col":6}}],"id":0}]}
+{"status":{"checked":false,"showIrrelevantArguments":false,"showImplicitArguments":false},"kind":"Status"}
+{"kind":"DisplayInfo","info":{"kind":"GoalSpecific","goalInfo":{"typeAux":{"kind":"GoalOnly"},"entries":[{"reifiedName":"A","inScope":false,"originalName":"A","binding":"Set"},{"reifiedName":"x","inScope":false,"originalName":"x","binding":"⊤"}],"boundary":[],"kind":"GoalType","outputForms":[],"rewrite":"Normalised","type":"⊤"},"interactionPoint":{"range":[{"start":{"line":15,"pos":103,"col":5},"end":{"line":15,"pos":104,"col":6}}],"id":0}}}

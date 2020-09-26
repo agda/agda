@@ -1,0 +1,2 @@
+module Trivial where
+

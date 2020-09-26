@@ -306,6 +306,7 @@ test : check-whitespace \
        fail \
        bugs \
        interaction \
+       interaction-json \
        examples \
        std-lib-test \
        cubical-test \
@@ -362,6 +363,11 @@ fail :
 interaction :
 	@$(call decorate, "Suite of interaction tests", \
 		$(MAKE) -C test/interaction)
+
+.PHONY : interaction-json ##
+interaction-json :
+	@$(call decorate, "Suite of interaction-json tests", \
+		$(MAKE) -C test/interaction-json)
 
 .PHONY : interactive ##
 interactive :
