@@ -470,7 +470,7 @@ instance Reify Constraint where
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
     pretty c <?>
-      sep [ prange r, parens (sep [blockedOn unblock, prPids pids]) ]
+      sep [ prange r, parensNonEmpty (sep [blockedOn unblock, prPids pids]) ]
     where
       prPids []    = empty
       prPids [pid] = "belongs to problem" <+> pretty pid
