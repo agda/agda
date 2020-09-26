@@ -278,32 +278,38 @@ sizePolarity d pol0 = do
                   addContext (telFromList parTel) $ do
                     let pars = map (defaultArg . var) $ downFrom np
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
-                    case conTel of
-                      EmptyTel  -> return False  -- no size argument
-                      ExtendTel arg  tel ->
-                        ifM ((/= Just BoundedNo) <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
-                          -- First constructor argument has type Size
+                    loop target conTel
+                  where
+                  loop :: Type -> Telescope -> m Bool
+                  -- no suitable size argument
+                  loop _ EmptyTel = do
+                    reportSDoc "tc.polarity.size" 15 $
+                      "constructor" <+> prettyTCM c <+> "fails size polarity check"
+                    return False
+
+                  -- try argument @dom@
+                  loop target (ExtendTel dom tel) = do
+                    isSz <- isSizeType dom
+                    underAbstraction dom tel $ \ tel -> do
+                      let continue = loop target tel
+
+                      -- check that dom == Size
+                      if isSz /= Just BoundedNo then continue else do
+
+                        -- check that the size argument appears in the
+                        -- right spot in the target type
+                        let sizeArg = size tel
+                        isLin <- addContext tel $ checkSizeIndex d sizeArg target
+                        if not isLin then continue else do
 
                           -- check that only positive occurences in tel
-                          let isPos :: m Bool
-                              isPos = underAbstraction arg tel $ \ tel -> do
-                                pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
-                                reportSDoc "tc.polarity.size" 25 $
-                                  text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ prettyShow pols
-                                return $ all (`elem` [Nonvariant, Covariant]) pols
-
-                          -- check that the size argument appears in the
-                          -- right spot in the target type
-                          let sizeArg = size tel
-                              isLin :: m Bool
-                              isLin = addContext conTel $ checkSizeIndex d sizeArg target
-
-                          ok <- isPos `and2M` isLin
-                          reportSDoc "tc.polarity.size" 15 $
-                            "constructor" <+> prettyTCM c <+>
-                            text (if ok then "passes" else "fails") <+>
-                            "size polarity check"
-                          return ok
+                          pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
+                          reportSDoc "tc.polarity.size" 25 $
+                            text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ prettyShow pols
+                          if any (`notElem` [Nonvariant, Covariant]) pols then continue else do
+                            reportSDoc "tc.polarity.size" 15 $
+                              "constructor" <+> prettyTCM c <+> "passes size polarity check"
+                            return True
 
             ifNotM (andM $ map check cons)
                 (return polIn) -- no, does not conform to the rules of sized types
