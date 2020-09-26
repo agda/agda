@@ -224,10 +224,10 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 
 -- ** Lens for 'stSignature' and 'stImports'
 
-modifySignature :: (Signature -> Signature) -> TCM ()
+modifySignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifySignature f = stSignature `modifyTCLens` f
 
-modifyImportedSignature :: (Signature -> Signature) -> TCM ()
+modifyImportedSignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifyImportedSignature f = stImports `modifyTCLens` f
 
 getSignature :: ReadTCState m => m Signature
@@ -237,16 +237,16 @@ getSignature = useR stSignature
 --   definitions (during type checking) will not persist outside the current
 --   module. This function is currently used to update the compiled
 --   representation of a function during compilation.
-modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM ()
+modifyGlobalDefinition :: MonadTCState m => QName -> (Definition -> Definition) -> m ()
 modifyGlobalDefinition q f = do
   modifySignature         $ updateDefinition q f
   modifyImportedSignature $ updateDefinition q f
 
-setSignature :: Signature -> TCM ()
+setSignature :: MonadTCState m => Signature -> m ()
 setSignature sig = modifySignature $ const sig
 
 -- | Run some computation in a different signature, restore original signature.
-withSignature :: Signature -> TCM a -> TCM a
+withSignature :: (ReadTCState m, MonadTCState m) => Signature -> m a -> m a
 withSignature sig m = do
   sig0 <- getSignature
   setSignature sig

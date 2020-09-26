@@ -775,7 +775,7 @@ getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return [
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
 -- | Set the polarity of a definition.
-setPolarity :: QName -> [Polarity] -> TCM ()
+setPolarity :: (MonadTCState m, MonadDebug m) => QName -> [Polarity] -> m ()
 setPolarity q pol = do
   reportSDoc "tc.polarity.set" 20 $
     "Setting polarity of" <+> pretty q <+> "to" <+> pretty pol <> "."
@@ -795,10 +795,10 @@ getArgOccurrence d i = do
 
 -- | Sets the 'defArgOccurrences' for the given identifier (which
 -- should already exist in the signature).
-setArgOccurrences :: QName -> [Occurrence] -> TCM ()
+setArgOccurrences :: MonadTCState m => QName -> [Occurrence] -> m ()
 setArgOccurrences d os = modifyArgOccurrences d $ const os
 
-modifyArgOccurrences :: QName -> ([Occurrence] -> [Occurrence]) -> TCM ()
+modifyArgOccurrences :: MonadTCState m => QName -> ([Occurrence] -> [Occurrence]) -> m ()
 modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 

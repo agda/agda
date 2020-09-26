@@ -255,7 +255,7 @@ trySizeUniv cmp t m n x els1 y els2 = do
 
 -- | Compute the deep size view of a term.
 --   Precondition: sized types are enabled.
-deepSizeView :: Term -> TCM DeepSizeView
+deepSizeView :: (HasBuiltins m, MonadReduce m, MonadTCError m) => Term -> m DeepSizeView
 deepSizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
