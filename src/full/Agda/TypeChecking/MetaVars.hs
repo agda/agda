@@ -883,7 +883,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
+          Left ProjVar{}   -> Just <$> attemptPruning x args fvs
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
         Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
@@ -1288,7 +1288,7 @@ expandProjectedVars args v ret = loop (args, v) where
         reportSDoc "tc.meta.assign.proj" 40 $
           "no projected var found in args: " <+> prettyTCM args
         done
-      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
+      Left (ProjectedVar i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
 etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
@@ -1304,28 +1304,27 @@ etaExpandProjectedVar i v fail succeed = do
 
 -- | Check whether one of the meta args is a projected var.
 class NoProjectedVar a where
-  noProjectedVar :: a -> Either ProjVarExc ()
+  noProjectedVar :: a -> Either ProjectedVar ()
 
-data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
+  default noProjectedVar
+    :: (NoProjectedVar b, Foldable t, t b ~ a)
+    => a -> Either ProjectedVar ()
+  noProjectedVar = Fold.mapM_ noProjectedVar
+
+instance NoProjectedVar a => NoProjectedVar (Arg a)
+instance NoProjectedVar a => NoProjectedVar [a]
 
 instance NoProjectedVar Term where
   noProjectedVar = \case
       Var i es
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es
-        -> Left $ ProjVarExc i qs
+        -> Left $ ProjectedVar i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
       Con (ConHead _ IsRecord{} Inductive _) _ es
         | Just vs <- allApplyElims es
         -> noProjectedVar vs
       _ -> return ()
-
-instance NoProjectedVar a => NoProjectedVar (Arg a) where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
-instance NoProjectedVar a => NoProjectedVar [a] where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
 
 -- | Normalize just far enough to be able to eta-contract maximally.
 class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
@@ -1336,8 +1335,8 @@ class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 
-instance ReduceAndEtaContract a => ReduceAndEtaContract [a] where
-instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a) where
+instance ReduceAndEtaContract a => ReduceAndEtaContract [a]
+instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a)
 
 instance ReduceAndEtaContract Term where
   reduceAndEtaContract u = do
@@ -1430,7 +1429,7 @@ type Res = [(Arg Nat, Term)]
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
-  | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
+  | ProjVar ProjectedVar      -- ^ Try to eta-expand var to remove projs.
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -1466,7 +1465,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- π i := x  try to eta-expand projection π away!
         Var i es | Just qs <- mapM isProjElim es ->
-          throwError $ ProjectedVar i qs
+          throwError $ ProjVar $ ProjectedVar i qs
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied

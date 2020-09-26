@@ -341,7 +341,7 @@ checkSizeIndex d i a = do
       let (pars, Apply ix : ixs) = splitAt np es
       s <- deepSizeView $ unArg ix
       case s of
-        DSizeVar j _ | i == j
+        DSizeVar (ProjectedVar j []) _ | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
     _ -> __IMPOSSIBLE__

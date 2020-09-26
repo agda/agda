@@ -22,9 +22,10 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Reduce
-import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (MonadCheckInternal, infer)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
@@ -172,7 +173,7 @@ checkSizeVarNeverZero i = do
               -- Variable 0 has bound @(< j + m)@
               -- meaning that @minval(j) > n - m@, i.e., @minval(j) >= n+1-m@.
               -- Thus, we update the min value for @j@ with function @(max (n+1-m))@.
-              DSizeVar j m -> do
+              DSizeVar (ProjectedVar j []) m -> do
                 reportSLn "tc.size" 60 $ "minSizeVal upper bound v = " ++ show v
                 let ns' = List.updateAt j (max $ n+1-m) ns
                 reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
@@ -182,11 +183,21 @@ checkSizeVarNeverZero i = do
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.
-isBounded :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
-          => Nat -> m BoundedSize
-isBounded i = do
-  t <- reduce =<< typeOfBV i
-  case unEl t of
+isBounded
+  :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
+  => Nat -> m BoundedSize
+isBounded i = isBoundedSizeType =<< typeOfBV i
+
+isBoundedProjVar
+  :: (MonadCheckInternal m, MonadReduce m, MonadTCEnv m, HasBuiltins m)
+  => ProjectedVar -> m BoundedSize
+isBoundedProjVar pv = isBoundedSizeType =<< infer (unviewProjectedVar pv)
+
+isBoundedSizeType
+  :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
+  => Type -> m BoundedSize
+isBoundedSizeType t =
+  reduce (unEl t) >>= \case
     Def x [Apply u] -> do
       sizelt <- getBuiltin' builtinSizeLt
       return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
@@ -259,14 +270,15 @@ deepSizeView :: (HasBuiltins m, MonadReduce m, MonadTCError m) => Term -> m Deep
 deepSizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
-  let loop v = do
-        v <- reduce v
-        case v of
+  let loop v =
+        reduce v >>= \case
           Def x []        | x == inf -> return $ DSizeInf
           Def x [Apply u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
-          Var i []                   -> return $ DSizeVar i 0
+
+          Var i es | Just pv <- ProjectedVar i <$> mapM isProjElim es
+                                     -> return $ DSizeVar pv 0
           MetaV x us                 -> return $ DSizeMeta x us 0
-          _                          -> return $ DOtherSize v
+          v                          -> return $ DOtherSize v
   loop v
 
 sizeMaxView :: (MonadReduce m, HasBuiltins m) => Term -> m SizeMaxView
@@ -280,7 +292,8 @@ sizeMaxView v = do
           Def x []                   | Just x == inf -> return $ singleton $ DSizeInf
           Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
           Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
-          Var i []                      -> return $ singleton $ DSizeVar i 0
+          Var i es | Just pv <- ProjectedVar i <$> mapM isProjElim es
+                                        -> return $ singleton $ DSizeVar pv 0
           MetaV x us                    -> return $ singleton $ DSizeMeta x us 0
           _                             -> return $ singleton $ DOtherSize v
   loop v
@@ -366,7 +379,7 @@ compareSizeViews cmp s1' s2' = do
     (_    ,  DSizeInf,     _         ) -> continue CmpEq
     (CmpLeq, DSizeVar i n, DSizeVar j m) | i == j -> unless (n <= m) failure
     (CmpLeq, DSizeVar i n, DSizeVar j m) | i /= j -> do
-       res <- isBounded i
+       res <- isBoundedProjVar i
        case res of
          BoundedNo -> failure
          BoundedLt u' -> do
