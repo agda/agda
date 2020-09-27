@@ -290,7 +290,7 @@ ifBlocked t blocked unblocked = do
       Nothing   -> unblocked nb t
 
 -- | Throw pattern violation if blocked or a meta.
-abortIfBlocked :: (MonadReduce m, MonadTCError m, IsMeta t, Reduce t) => t -> m t
+abortIfBlocked :: (MonadReduce m, MonadBlock m, IsMeta t, Reduce t) => t -> m t
 abortIfBlocked t = ifBlocked t (const . patternViolation) (const return)
 
 isBlocked

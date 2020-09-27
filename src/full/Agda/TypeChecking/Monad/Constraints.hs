@@ -136,6 +136,7 @@ buildConstraint unblock c = do
 class ( MonadTCEnv m
       , ReadTCState m
       , MonadError TCErr m
+      , MonadBlock m
       , HasOptions m
       , MonadDebug m
       ) => MonadConstraint m where
@@ -144,10 +145,6 @@ class ( MonadTCEnv m
 
   -- | Add constraint as awake constraint.
   addAwakeConstraint :: Blocker -> Constraint -> m ()
-
-  -- | `catchPatternErr handle m` runs m, handling pattern violations
-  --    with `handle` (doesn't roll back the state)
-  catchPatternErr :: (Blocker -> m a) -> m a -> m a
 
   solveConstraint :: Constraint -> m ()
 
@@ -171,9 +168,6 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
   stealConstraints          = lift . stealConstraints
   modifyAwakeConstraints    = lift . modifyAwakeConstraints
   modifySleepingConstraints = lift . modifySleepingConstraints
-
-  catchPatternErr h m = ReaderT $ \ e ->
-    let run = flip runReaderT e in catchPatternErr (run . h) (run m)
   wakeConstraints = lift . wakeConstraints
 
 addAndUnblocker :: MonadConstraint m => Blocker -> m a -> m a

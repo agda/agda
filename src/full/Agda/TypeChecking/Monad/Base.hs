@@ -3960,6 +3960,27 @@ stateTCLensM l f = do
   putTC $ set l x s
   return result
 
+
+---------------------------------------------------------------------------
+-- ** Monad with capability to block a computation
+---------------------------------------------------------------------------
+
+class Monad m => MonadBlock m where
+
+  -- | `patternViolation b` aborts the current computation
+  patternViolation :: Blocker -> m a
+
+  default patternViolation :: (MonadTrans t, MonadBlock n, m ~ t n) => Blocker -> m a
+  patternViolation = lift . patternViolation
+
+  -- | `catchPatternErr handle m` runs m, handling pattern violations
+  --    with `handle` (doesn't roll back the state)
+  catchPatternErr :: (Blocker -> m a) -> m a -> m a
+
+instance MonadBlock m => MonadBlock (ReaderT e m) where
+  catchPatternErr h m = ReaderT $ \ e ->
+    let run = flip runReaderT e in catchPatternErr (run . h) (run m)
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
@@ -4053,6 +4074,19 @@ instance MonadIO m => MonadTCState (TCMT m) where
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
+
+instance MonadBlock TCM where
+  patternViolation b = throwError (PatternErr b)
+  catchPatternErr handle v =
+       catchError_ v $ \err ->
+       case err of
+            -- Not putting s (which should really be the what's already there) makes things go
+            -- a lot slower (+20% total time on standard library). How is that possible??
+            -- The problem is most likely that there are internal catchErrors which forgets the
+            -- state. catchError should preserve the state on pattern violations.
+           PatternErr u -> handle u
+           _            -> throwError err
+
 
 instance MonadError TCErr TCM where
   throwError = liftIO . E.throwIO
@@ -4172,9 +4206,6 @@ instance MonadBench TCM where
 instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
-
-patternViolation :: MonadError TCErr m => Blocker -> m a
-patternViolation b = throwError (PatternErr b)
 
 internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
 internalError s = withCallerCallStack $ \ loc ->

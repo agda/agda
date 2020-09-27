@@ -57,6 +57,9 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   return result
 
+instance MonadTrans PureConversionT where
+  lift = PureConversionT . lift . lift
+
 deriving instance MonadFail       m => MonadFail       (PureConversionT m)
 deriving instance HasBuiltins     m => HasBuiltins     (PureConversionT m)
 deriving instance HasConstInfo    m => HasConstInfo    (PureConversionT m)
@@ -77,13 +80,16 @@ instance Monad m => Null (PureConversionT m Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
+instance Monad m => MonadBlock (PureConversionT m) where
+  patternViolation = throwError . PatternErr
+  catchPatternErr handle m = m `catchError` \case
+    PatternErr u -> handle u
+    err          -> throwError err
+
 instance (MonadTCEnv m, ReadTCState m, HasOptions m, MonadDebug m)
   => MonadConstraint (PureConversionT m) where
   addConstraint u _ = patternViolation u
   addAwakeConstraint u _ = patternViolation u
-  catchPatternErr handle m = m `catchError` \case
-    PatternErr u -> handle u
-    err          -> throwError err
   solveConstraint c = patternViolation alwaysUnblock
   solveSomeAwakeConstraints _ _ = return ()
   wakeConstraints _ = return ()

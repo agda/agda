@@ -139,7 +139,7 @@ checkTelePiSort :: Type -> TCM ()
 --  underAbstraction a b checkTelePiSort
 checkTelePiSort _ = return ()
 
-ifIsSort :: (MonadReduce m, MonadError TCErr m) => Type -> (Sort -> m a) -> m a -> m a
+ifIsSort :: (MonadReduce m, MonadBlock m) => Type -> (Sort -> m a) -> m a -> m a
 ifIsSort t yes no = do
   -- Jesper, 2020-09-06, subtle: do not use @abortIfBlocked@ here
   -- since we want to take the yes branch whenever the type is a sort,
@@ -150,12 +150,12 @@ ifIsSort t yes no = do
     _      | Blocked m _ <- bt -> patternViolation m
            | otherwise         -> no
 
-ifNotSort :: (MonadReduce m, MonadError TCErr m) => Type -> m a -> (Sort -> m a) -> m a
+ifNotSort :: (MonadReduce m, MonadBlock m) => Type -> m a -> (Sort -> m a) -> m a
 ifNotSort t = flip $ ifIsSort t
 
 -- | Result is in reduced form.
 shouldBeSort
-  :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadError TCErr m)
+  :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadBlock m, MonadError TCErr m)
   => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
@@ -163,7 +163,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (MonadReduce m, MonadError TCErr m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (MonadReduce m, MonadBlock m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
@@ -221,6 +221,6 @@ sortOf t = do
 
 -- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
 sortOfType
-  :: forall m. (MonadReduce m, MonadError TCErr m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (MonadReduce m, MonadBlock m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
   => Type -> m Sort
 sortOfType = sortOf . unEl
