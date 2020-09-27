@@ -52,6 +52,7 @@ import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
@@ -881,7 +882,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       t' <- reduce =<< instantiateFull eqt
       (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
         eqt@(EqualityType _s _eq _params (Arg _ dom) a b) -> do
-          s <- inferSort dom
+          s <- sortOf dom
           return (eqt, El s dom, unArg a, unArg b)
           -- Note: the sort _s of the equality need not be the sort of the type @dom@!
         OtherType{} -> typeError . GenericDocError =<< do

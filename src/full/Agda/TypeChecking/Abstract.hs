@@ -18,6 +18,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Sort
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
@@ -52,7 +53,7 @@ piAbstractTerm h v a b = do
 piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
 piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
 piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
-  s <- inferSort a
+  s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
