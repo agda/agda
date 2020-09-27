@@ -401,13 +401,13 @@ checkSort action s =
     SSet l   -> SSet <$> checkLevel action l
     SizeUniv -> return SizeUniv
     LockUniv -> return LockUniv
-    PiSort dom s2 -> do
-      let El s1 a = unDom dom
+    PiSort dom s1 s2 -> do
+      let a = unDom dom
       s1' <- checkSort action s1
       a' <- checkInternal' action a CmpLeq $ sort s1'
-      let dom' = dom $> El s1' a'
-      s2' <- mapAbstraction dom' (checkSort action) s2
-      return $ PiSort dom' s2'
+      let dom' = dom $> a'
+      s2' <- mapAbstraction (El s1' <$> dom') (checkSort action) s2
+      return $ PiSort dom' s1' s2'
     FunSort s1 s2 -> do
       s1' <- checkSort action s1
       s2' <- checkSort action s2

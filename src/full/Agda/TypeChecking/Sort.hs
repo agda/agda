@@ -89,8 +89,7 @@ inferPiSort
   => Dom Type -> Abs Sort -> m Sort
 inferPiSort a s2 = do
   s1' <- reduce $ getSort a
-  let a' = set lensSort s1' a
-  s2' <- mapAbstraction a' reduce s2
+  s2' <- mapAbstraction a reduce s2
   -- we do instantiateFull here to perhaps remove some (flexible)
   -- dependencies of s2 on var 0, thus allowing piSort' to reduce
   s2' <- instantiateFull s2'
@@ -104,7 +103,7 @@ inferPiSort a s2 = do
   --    addConstraint $ HasPTSRule s1 s2
   --    return $ PiSort s1 s2
 
-  return $ piSort a' s2'
+  return $ piSort (unEl <$> a) s1' s2'
 
 -- | As @inferPiSort@, but for a nondependent function type.
 inferFunSort :: Sort -> Sort -> TCM Sort
@@ -177,7 +176,7 @@ sortOf t = do
         let a = unEl $ unDom adom
         sa <- sortOf a
         sb <- mapAbstraction adom (sortOf . unEl) b
-        return $ piSort (adom $> El sa a) sb
+        return $ piSort (unEl <$> adom) sa sb
       Sort s     -> return $ univSort s
       Var i es   -> do
         a <- typeOfBV i

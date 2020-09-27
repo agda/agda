@@ -146,7 +146,7 @@ instance EmbPrj I.Sort where
   icod_ (Prop  a  ) = icodeN 1 Prop a
   icod_ SizeUniv    = icodeN 2 SizeUniv
   icod_ (Inf f a)   = icodeN 3 Inf f a
-  icod_ (PiSort a b) = icodeN 4 PiSort a b
+  icod_ (PiSort a b c) = icodeN 4 PiSort a b c
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
@@ -162,7 +162,7 @@ instance EmbPrj I.Sort where
     valu [1, a]    = valuN Prop  a
     valu [2]       = valuN SizeUniv
     valu [3, f, a] = valuN Inf f a
-    valu [4, a, b] = valuN PiSort a b
+    valu [4, a, b, c] = valuN PiSort a b c
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
     valu [7, a, b] = valuN DefS a b

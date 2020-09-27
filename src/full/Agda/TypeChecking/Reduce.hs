@@ -313,10 +313,9 @@ instance Reduce Sort where
     reduce' s = do
       s <- instantiate' s
       case s of
-        PiSort a s2 -> do
-          (s1' , s2') <- reduce' (getSort a , s2)
-          let a' = set lensSort s1' a
-          maybe (return $ PiSort a' s2') reduce' $ piSort' a' s2'
+        PiSort a s1 s2 -> do
+          (s1' , s2') <- reduce' (s1 , s2)
+          maybe (return $ PiSort a s1' s2') reduce' $ piSort' a s1' s2'
         FunSort s1 s2 -> do
           (s1' , s2') <- reduce (s1 , s2)
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
@@ -888,7 +887,7 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s -> piSort <$> simplify' a <*> simplify' s
+        PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
@@ -1033,7 +1032,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s -> piSort <$> normalise' a <*> normalise' s
+        PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
@@ -1239,7 +1238,7 @@ instance InstantiateFull Sort where
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
             SSet n     -> SSet <$> instantiateFull' n
-            PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
+            PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
             Inf _ _    -> return s

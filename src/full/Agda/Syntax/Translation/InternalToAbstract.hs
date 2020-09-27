@@ -1368,9 +1368,9 @@ instance Reify Sort where
         I.LockUniv  -> do
           I.Def lockU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLockUniv
           return $ A.Def lockU
-        I.PiSort a s -> do
+        I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
-          (e1,e2) <- reify (getSort a, I.Lam defaultArgInfo $ fmap Sort s)
+          (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
           let app x y = A.App defaultAppInfo_ x (defaultNamedArg y)
           return $ A.Var pis `app` e1 `app` e2
         I.FunSort s1 s2 -> do

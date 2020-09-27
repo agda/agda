@@ -178,7 +178,7 @@ instance AbsTerm Sort where
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
-    PiSort a s -> PiSort (absS a) (absS s)
+    PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
@@ -263,7 +263,7 @@ instance EqualSy Sort where
     (Inf f m   , Inf f' n    ) -> f == f' && m == n
     (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
-    (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
+    (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'

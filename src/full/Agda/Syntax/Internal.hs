@@ -293,7 +293,7 @@ data Sort' t
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
-  | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
@@ -1113,7 +1113,7 @@ instance TermSize Sort where
     SSet l    -> 1 + tsize l
     SizeUniv  -> 1
     LockUniv  -> 1
-    PiSort a s -> 1 + tsize a + tsize s
+    PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1175,7 +1175,7 @@ instance KillRange Sort where
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     SSet a     -> killRange1 SSet a
-    PiSort a s -> killRange2 PiSort a s
+    PiSort a s1 s2 -> killRange3 PiSort a s1 s2
     FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
@@ -1327,10 +1327,10 @@ instance Pretty Sort where
       SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
-      PiSort a b -> mparens (p > 9) $
-        "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
-                      <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
-                                      , nest 2 $ pretty (unAbs b) ])
+      PiSort a s1 s2 -> mparens (p > 9) $
+        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
+                      <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
+                                      , nest 2 $ pretty (unAbs s2) ])
       FunSort a b -> mparens (p > 9) $
         "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
@@ -1400,7 +1400,7 @@ instance NFData Sort where
     SSet l   -> rnf l
     SizeUniv -> ()
     LockUniv -> ()
-    PiSort a b -> rnf (a, unAbs b)
+    PiSort a b c -> rnf (a, b, unAbs c)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es

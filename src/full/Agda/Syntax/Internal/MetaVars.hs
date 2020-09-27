@@ -57,7 +57,7 @@ allMetas' singl = foldTerm metas
   sortMetas Inf{}         = mempty
   sortMetas SizeUniv{}    = mempty
   sortMetas LockUniv{}    = mempty
-  sortMetas (PiSort _ b)  = sortMetas $ unAbs b  -- the domain is a type so is covered by the fold
+  sortMetas (PiSort _ s1 s2)  = sortMetas s1 <> sortMetas (unAbs s2)  -- the domain is a term so is covered by the fold
   sortMetas (FunSort a b) = sortMetas a <> sortMetas b
   sortMetas (UnivSort s)  = sortMetas s
   sortMetas (MetaS x _)   = singl x
@@ -90,4 +90,3 @@ unblockOnAnyMetaIn t = unblockOnAnyMeta $ allMetas Set.singleton t
 -- | A blocker that unblocks if any of the metas in a term are solved.
 unblockOnAllMetasIn :: AllMetas t => t -> Blocker
 unblockOnAllMetasIn t = unblockOnAllMetas $ allMetas Set.singleton t
-

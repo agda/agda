@@ -1634,8 +1634,8 @@ equalSort s1 s2 = do
               | typeInTypeEnabled      -> yes
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b) -> piSortEquals s1 a b
-            (PiSort a b , s2) -> piSortEquals s2 a b
+            (s1 , PiSort a b c) -> piSortEquals s1 a b c
+            (PiSort a b c , s2) -> piSortEquals s2 a b c
 
             -- equating @FunSort a b@ to another sort
             (s1 , FunSort a b) -> funSortEquals s1 a b
@@ -1716,29 +1716,31 @@ equalSort s1 s2 = do
           _          -> synEq s1 (UnivSort s2)
 
 
-      -- Equate a sort @s@ to @piSort a b@
-      -- Precondition: @s@ and @piSort a b@ are already reduced.
-      piSortEquals :: Sort -> Dom Type -> Abs Sort -> m ()
-      piSortEquals s a NoAbs{} = __IMPOSSIBLE__
-      piSortEquals s a bAbs@(Abs x b) = do
+      -- Equate a sort @s@ to @piSort a s1 s2@
+      -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
+      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> m ()
+      piSortEquals s a s1 NoAbs{} = __IMPOSSIBLE__
+      piSortEquals s a s1 s2Abs@(Abs x s2) = do
+        let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
-          , "  s =" <+> prettyTCM s
-          , "  a =" <+> prettyTCM a
-          , "  b =" <+> addContext (x,a) (prettyTCM b)
+          , "  s  =" <+> prettyTCM s
+          , "  a  =" <+> prettyTCM adom
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
           ]
         propEnabled <- isPropEnabled
-           -- If @b@ is dependent, then @piSort a b@ computes to
-           -- @Setω@. Hence, if @s@ is small, then @b@
+           -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
+           -- @Setωi@. Hence, if @s@ is small, then @s2@
            -- cannot be dependent.
         if | Just (True,_) <- isSmallSort s -> do
-               -- We force @b@ to be non-dependent by unifying it with
+               -- We force @s2@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
-               b' <- newSortMeta
-               addContext (x,a) $ equalSort b (raise 1 b')
-               funSortEquals s (getSort a) b'
+               s2' <- newSortMeta
+               addContext (x , adom) $ equalSort s2 (raise 1 s2')
+               funSortEquals s s1 s2'
            -- Otherwise: postpone
-           | otherwise                  -> synEq (PiSort a bAbs) s
+           | otherwise                  -> synEq (PiSort a s1 s2Abs) s
 
       -- Equate a sort @s@ to @funSort s1 s2@
       -- Precondition: @s@ and @funSort s1 s2@ are already reduced

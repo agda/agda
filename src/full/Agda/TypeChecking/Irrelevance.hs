@@ -325,7 +325,7 @@ instance UsableRelevance Sort where
     SSet l -> usableRel rel l
     SizeUniv -> return True
     LockUniv -> return True
-    PiSort a s -> usableRel rel (a,s)
+    PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
@@ -343,6 +343,9 @@ instance UsableRelevance a => UsableRelevance [a] where
 
 instance (UsableRelevance a, UsableRelevance b) => UsableRelevance (a,b) where
   usableRel rel (a,b) = usableRel rel a `and2M` usableRel rel b
+
+instance (UsableRelevance a, UsableRelevance b, UsableRelevance c) => UsableRelevance (a,b,c) where
+  usableRel rel (a,b,c) = usableRel rel a `and2M` usableRel rel b `and2M` usableRel rel c
 
 instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Apply a) = usableRel rel a

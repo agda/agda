@@ -531,11 +531,11 @@ instance Occurs Type where
 instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
-      PiSort a s2 -> do
-        s1' <- flexibly $ occurs $ getSort a
-        a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (flexibly . underBinder . occurs) s2
-        return $ PiSort a' s2'
+      PiSort a s1 s2 -> do
+        s1' <- flexibly $ occurs s1
+        a'  <- (a $>) <$> do flexibly $ occurs $ unDom a
+        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs) s2
+        return $ PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs s1) <*> flexibly (occurs s2)
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
@@ -555,7 +555,7 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort a s -> metaOccurs m (a,s)
+      PiSort a s1 s2 -> metaOccurs m (a,s1,s2)
       FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
@@ -596,6 +596,11 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
   occurs (x,y) = (,) <$> occurs x <*> occurs y
 
   metaOccurs m (x,y) = metaOccurs m x >> metaOccurs m y
+
+instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
+  occurs (x,y,z) = (,,) <$> occurs x <*> occurs y <*> occurs z
+
+  metaOccurs m (x,y,z) = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
@@ -770,7 +775,7 @@ instance AnyRigid Sort where
       SSet l     -> anyRigid f l
       SizeUniv   -> return False
       LockUniv   -> return False
-      PiSort a s -> return False
+      PiSort a s1 s2 -> return False
       FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
       MetaS{}    -> return False
