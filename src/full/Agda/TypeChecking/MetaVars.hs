@@ -578,12 +578,9 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                       noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
               if Records `elem` kinds then
                 expand
-               else if (SingletonRecords `elem` kinds) then do
-                 singleton <- isSingletonRecord r ps
-                 case singleton of
-                   Left x      -> waitFor x
-                   Right False -> dontExpand
-                   Right True  -> expand
+               else if (SingletonRecords `elem` kinds) then
+                catchPatternErr (\x -> waitFor x) $ do
+                 ifM (isSingletonRecord r ps) expand dontExpand
                 else dontExpand
             ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
                             , typeInType
@@ -1418,7 +1415,7 @@ checkLinearity ids0 = do
     makeLinear []            = __IMPOSSIBLE__
     makeLinear grp@[_]       = return grp
     makeLinear (p@(i,t) : _) =
-      ifM ((Right True ==) <$> do lift . isSingletonTypeModuloRelevance =<< typeOfBV i)
+      ifM ((Right True ==) <$> do lift . runBlocked . isSingletonTypeModuloRelevance =<< typeOfBV i)
         (return [p])
         (throwError ())
 

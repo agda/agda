@@ -3815,6 +3815,7 @@ instance MonadReduce m => MonadReduce (MaybeT m)
 instance MonadReduce m => MonadReduce (ReaderT r m)
 instance MonadReduce m => MonadReduce (StateT w m)
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
+instance MonadReduce m => MonadReduce (BlockT m)
 
 ---------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
@@ -3976,6 +3977,19 @@ class Monad m => MonadBlock m where
   -- | `catchPatternErr handle m` runs m, handling pattern violations
   --    with `handle` (doesn't roll back the state)
   catchPatternErr :: (Blocker -> m a) -> m a -> m a
+
+newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
+  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, MonadFail
+           , ReadTCState, HasOptions
+           , MonadTCEnv, MonadTCState, MonadTCM
+           )
+
+instance Monad m => MonadBlock (BlockT m) where
+  patternViolation = BlockT . throwError
+  catchPatternErr h f = BlockT $ catchError (unBlockT f) (unBlockT . h)
+
+runBlocked :: Monad m => BlockT m a -> m (Either Blocker a)
+runBlocked = runExceptT . unBlockT
 
 instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->

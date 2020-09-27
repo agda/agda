@@ -751,64 +751,64 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                  => QName -> Args -> m (Either Blocker Bool)
-isSingletonRecord r ps = mapRight isJust <$> isSingletonRecord' False r ps
+isSingletonRecord :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                  => QName -> Args -> m Bool
+isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps
 
-isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                                 => QName -> Args -> m (Either Blocker Bool)
-isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' True r ps
+isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                                 => QName -> Args -> m Bool
+isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                   => Bool -> QName -> Args -> m (Either Blocker (Maybe Term))
+isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                   => Bool -> QName -> Args -> m (Maybe Term)
 isSingletonRecord' regardIrrelevance r ps = do
   reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
   isRecord r >>= \case
-    Nothing  -> return $ Right Nothing
+    Nothing  -> return Nothing
     Just def -> do
-      emap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
+      fmap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
-  check :: Telescope -> m (Either Blocker (Maybe [Arg Term]))
+  check :: Telescope -> m (Maybe [Arg Term])
   check tel = do
     reportSDoc "tc.meta.eta" 30 $
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
-      EmptyTel -> return $ Right $ Just []
+      EmptyTel -> return $ Just []
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
+          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
         {-else-} $ do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
-            Left mid       -> return $ Left mid
-            Right Nothing  -> return $ Right Nothing
-            Right (Just v) -> underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) v :)) . check
+            Nothing  -> return Nothing
+            (Just v) -> underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
-isSingletonType :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                => Type -> m (Either Blocker (Maybe Term))
+isSingletonType :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                => Type -> m (Maybe Term)
 isSingletonType = isSingletonType' False
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
-isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                               => Type -> m (Either Blocker Bool)
-isSingletonTypeModuloRelevance t = mapRight isJust <$> isSingletonType' True t
+isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                               => Type -> m Bool
+isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t
 
-isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                 => Bool -> Type -> m (Either Blocker (Maybe Term))
+isSingletonType' :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+                 => Bool -> Type -> m (Maybe Term)
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
-    ifBlocked t (\ m _ -> return $ Left m) $ \ _ t -> addContext tel $ do
+    t <- abortIfBlocked t
+    addContext tel $ do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | YesEta <- recEtaEquality def -> do
-          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-        _ -> return $ Right Nothing
+          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+        _ -> return Nothing
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,
@@ -881,10 +881,6 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
       _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []
       areEtaVarElims (u `apply` [fmap var i]) (cod `absApp` var (unArg i)) es es'
 
-
--- | Auxiliary function.
-emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
-emap = mapRight . fmap
 
 -- | Replace projection patterns by the original projections.
 --

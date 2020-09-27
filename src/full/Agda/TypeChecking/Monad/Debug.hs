@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.Monad.Debug
   ( module Agda.TypeChecking.Monad.Debug
@@ -164,6 +165,8 @@ instance MonadDebug m => MonadDebug (IdentityT m) where
   isDebugPrinting           = lift $ isDebugPrinting
   nowDebugPrinting          = mapIdentityT $ nowDebugPrinting
   verboseBracket k n s      = mapIdentityT $ verboseBracket k n s
+
+deriving instance MonadDebug m => MonadDebug (BlockT m)
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.

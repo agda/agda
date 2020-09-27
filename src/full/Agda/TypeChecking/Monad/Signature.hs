@@ -759,6 +759,7 @@ instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
+instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}
 getConInfo :: HasConstInfo m => ConHead -> m Definition

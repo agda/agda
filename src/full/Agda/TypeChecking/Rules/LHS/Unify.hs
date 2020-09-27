@@ -723,7 +723,7 @@ etaExpandVarStrategy k s = do
       guard =<< orM
         [ pure $ not $ null ps
         , liftTCM $ isRecCon v  -- is the other term a record constructor?
-        , liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+        , liftTCM $ (Right True ==) <$> runBlocked (isSingletonRecord d pars)
         ]
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
         "with projections " <+> prettyTCM (map snd ps)
@@ -741,7 +741,7 @@ etaExpandEquationStrategy k s = do
   Equal Dom{unDom = a} u v <- reduce $ getEqualityUnraised k s
   (d, pars) <- catMaybesMP $ liftTCM $ addContext tel $ isEtaRecordType a
   guard =<< orM
-    [ liftTCM $ (Right True ==) <$> isSingletonRecord d pars
+    [ liftTCM $ (Right True ==) <$> runBlocked (isSingletonRecord d pars)
     , liftTCM $ shouldProject u
     , liftTCM $ shouldProject v
     ]

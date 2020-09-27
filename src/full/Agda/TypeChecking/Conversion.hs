@@ -304,11 +304,9 @@ compareTerm' cmp a m n =
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    isSing <- isSingletonRecordModuloRelevance r ps
-                    case isSing of
-                      Right True -> return ()
+                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
                       -- do not eta-expand if comparing two neutrals
-                      _ -> compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n

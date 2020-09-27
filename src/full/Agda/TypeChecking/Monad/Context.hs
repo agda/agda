@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -203,6 +204,7 @@ instance MonadAddContext m => MonadAddContext (ExceptT e m)
 instance MonadAddContext m => MonadAddContext (ReaderT r m)
 instance MonadAddContext m => MonadAddContext (StateT r m)
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
+deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a

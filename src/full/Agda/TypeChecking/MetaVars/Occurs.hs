@@ -384,17 +384,15 @@ instance Occurs Term where
               isST <- isSingletonType t
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
-                -- cannot decide, blocked by meta-var
-                Left b -> patternViolation' b 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
-                Right Nothing ->
+                Nothing ->
                   -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
                   -- could potentially be salvaged by eta expansion.
                   ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
                       (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
                       (strongly $ abort neverUnblock $ MetaCannotDependOn m i)
                 -- is a singleton type with unique inhabitant sv
-                Right (Just sv) -> return $ sv `applyE` es
+                (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occurs f
           Level l     -> Level <$> occurs l
           Lit l       -> return v

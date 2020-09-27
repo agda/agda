@@ -67,15 +67,15 @@ initialInstanceCandidates t = do
       "Instance search cannot be used to find elements in an explicit function type"
     OutputTypeVar    -> do
       reportSDoc "tc.instance.cands" 30 $ "Instance type is a variable. "
-      runExceptT getContextVars
+      runBlocked getContextVars
     OutputTypeName n -> do
       reportSDoc "tc.instance.cands" 30 $ "Found instance type head: " <+> prettyTCM n
-      runExceptT getContextVars >>= \case
+      runBlocked getContextVars >>= \case
         Left b -> return $ Left b
         Right ctxVars -> Right . (ctxVars ++) <$> getScopeDefs n
   where
     -- get a list of variables with their type, relative to current context
-    getContextVars :: ExceptT Blocker TCM [Candidate]
+    getContextVars :: BlockT TCM [Candidate]
     getContextVars = do
       ctx <- getContext
       reportSDoc "tc.instance.cands" 40 $ hang "Getting candidates from context" 2 (inTopContext $ prettyTCM $ PrettyContext ctx)
@@ -126,12 +126,12 @@ initialInstanceCandidates t = do
                 else return Nothing
         r -> return r
 
-    instanceFields :: (CandidateKind,Term,Type) -> ExceptT Blocker TCM [Candidate]
+    instanceFields :: (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
     instanceFields = instanceFields' True
 
-    instanceFields' :: Bool -> (CandidateKind,Term,Type) -> ExceptT Blocker TCM [Candidate]
+    instanceFields' :: Bool -> (CandidateKind,Term,Type) -> BlockT TCM [Candidate]
     instanceFields' etaOnce (q, v, t) =
-      ifBlocked t (\ m _ -> throwError m) $ \ _ t -> do
+      ifBlocked t (\ m _ -> patternViolation m) $ \ _ t -> do
       caseMaybeM (etaExpand etaOnce t) (return []) $ \ (r, pars) -> do
         (tel, args) <- lift $ forceEtaExpandRecord r pars v
         let types = map unDom $ applySubst (parallelS $ reverse $ map unArg args) (flattenTel tel)
