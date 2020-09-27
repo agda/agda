@@ -159,7 +159,7 @@ shouldBeSort
   => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
--- | Reconstruct the sort of a type.
+-- | Reconstruct the sort of a term.
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
@@ -218,3 +218,9 @@ sortOf t = do
       IApply x y r -> do
         (b , c) <- fromMaybe __IMPOSSIBLE__ <$> isPath a
         sortOfE (c `absApp` r) (hd . (e:)) es
+
+-- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
+sortOfType
+  :: forall m. (MonadReduce m, MonadError TCErr m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  => Type -> m Sort
+sortOfType = sortOf . unEl
