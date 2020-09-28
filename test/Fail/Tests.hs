@@ -28,9 +28,18 @@ testDir = "test" </> "Fail"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  return $ testGroup "Fail" $ concat
-    [ map mkFailTest inpFiles
-    , [ testGroup "customised" [ issue2649, nestedProjectRoots ]]
+  return $ testGroup "Fail" $ concat $
+    -- A list written with ':' to quickly switch lines
+    customizedTests :
+    map mkFailTest inpFiles :
+    []
+  where
+  customizedTests =
+    [ testGroup "customised" $
+        issue4671 :
+        issue2649 :
+        nestedProjectRoots :
+        []
     ]
 
 data TestResult
@@ -76,6 +85,27 @@ mkFailTest agdaFile =
         return $ DiffText Nothing t1 t2
 
 
+issue4671 :: TestTree
+issue4671 =
+  goldenTest1 "Issue4671" (readTextFileMaybe =<< goldenFile)
+    doRun resDiff resShow (\ res -> goldenFile >>= (`writeTextFile` res))
+  where
+    dir = testDir </> "customised"
+    goldenFileSens    = dir </> "Issue4671.err.case-sensitive"
+    goldenFileInsens  = dir </> "Issue4671.err.case-insensitive"
+    goldenFileInsens' = dir </> "Issue4671.err.cAsE-inSensitive" -- case variant, to test file system
+    goldenFile = do
+      -- Query case-variant to detect case-sensitivity of the FS.
+      -- Note: since we expect the .err file to exists, we cannot
+      -- use this test to interactively create a non-existing golden value.
+      doesFileExist goldenFileInsens' <&> \case
+        True  -> goldenFileInsens
+        False -> goldenFileSens
+    doRun = do
+      let agdaArgs file = [ "-v0", "--no-libraries", "-i" ++ dir, dir </> file ]
+      runAgdaWithOptions "Issue4671" (agdaArgs "Issue4671.agda") Nothing Nothing
+        <&> printTestResult . expectFail
+
 issue2649 :: TestTree
 issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
   doRun resDiff resShow (writeTextFile goldenFile)
@@ -97,16 +127,19 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
     goldenFile = dir </> "NestedProjectRoots.err"
     doRun = do
       let agdaArgs file = ["--no-libraries", "-i" ++ dir </> "Imports", dir </> file]
-      r1 <- runAgdaWithOptions "NestedProjectRoots"
-              ("--ignore-interfaces" : ("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
+      let run extra = do
+            runAgdaWithOptions "NestedProjectRoots"
+              (extra ++ [ "-i" ++ dir ] ++ agdaArgs "NestedProjectRoots.agda")
               Nothing Nothing
               <&> printTestResult . expectFail
-      r2 <- runAgdaWithOptions "Imports.A" (agdaArgs ("Imports" </> "A.agda")) Nothing Nothing
+      -- Run without interfaces; should fail.
+      r1 <- run [ "--ignore-interfaces" ]
+      -- Create interface file
+      r2 <- runAgdaWithOptions "Imports.A"
+              ("-v 0" : agdaArgs ("Imports" </> "A.agda")) Nothing Nothing
               <&> expectOk
-      r3 <- runAgdaWithOptions "NestedProjectRoots"
-              (("-i" ++ dir) : agdaArgs "NestedProjectRoots.agda")
-              Nothing Nothing
-              <&> printTestResult . expectFail
+      -- Run again with interface; should still fail.
+      r3 <- run []
       return $ r1 `T.append` r2 `T.append` r3
 
 expectOk :: (ProgramResult, AgdaResult) -> T.Text

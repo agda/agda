@@ -753,11 +753,24 @@ instance PrettyTCM TypeError where
       pwords "However, according to the include path this module should" ++
       pwords "be defined in" ++ [text (filePath file') <> "."]
 
-    ModuleNameUnexpected given expected -> fsep $
-      pwords "The name of the top level module does not match the file name. The module" ++
-      [ pretty given ] ++
-      pwords "should probably be named" ++
-      [ pretty expected ]
+    ModuleNameUnexpected given expected
+      | canon dGiven == canon dExpected -> fsep $ concat
+          [ pwords "Case mismatch between the actual module name"
+          , [ pure dGiven ]
+          , pwords "and the expected module name"
+          , [ pure dExpected ]
+          ]
+      | otherwise -> fsep $ concat
+          [ pwords "The name of the top level module does not match the file name. The module"
+          , [ pure dGiven ]
+          , pwords "should probably be named"
+          , [ pure dExpected ]
+          ]
+      where
+      canon = CaseInsens.mk . P.render
+      dGiven    = P.pretty given
+      dExpected = P.pretty expected
+
 
     ModuleNameDoesntMatchFileName given files ->
       fsep (pwords "The name of the top level module does not match the file name. The module" ++

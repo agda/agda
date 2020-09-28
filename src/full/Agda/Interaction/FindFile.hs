@@ -200,7 +200,7 @@ checkModuleName
   -> Maybe TopLevelModuleName
      -- ^ The expected name, coming from an import statement.
   -> TCM ()
-checkModuleName name (SourceFile file) mexpected =
+checkModuleName name (SourceFile file) mexpected = do
   findFile' name >>= \case
 
     Left (NotFound files)  -> typeError $
@@ -216,6 +216,18 @@ checkModuleName name (SourceFile file) mexpected =
       file <- liftIO $ absolute (filePath file)
       unlessM (liftIO $ sameFile file file') $
         typeError $ ModuleDefinedInOtherFile name file file'
+
+  -- Andreas, 2020-09-28, issue #4671:  In any case, make sure
+  -- that we do not end up with a mismatch between expected
+  -- and actual module name.
+
+  forM_ mexpected $ \ expected ->
+    unless (name == expected) $
+      typeError $ OverlappingProjects file name expected
+      -- OverlappingProjects is the correct error for
+      -- test/Fail/customized/NestedProjectRoots
+      -- -- typeError $ ModuleNameUnexpected name expected
+
 
 -- | Computes the module name of the top-level module in the given
 -- file.
