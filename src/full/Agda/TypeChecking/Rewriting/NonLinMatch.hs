@@ -430,13 +430,11 @@ nonLinMatch gamma t p v = do
 --   (where b contains information about possible metas blocking the comparison)
 equal :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
       => Type -> Term -> Term -> m (Maybe Blocked_)
-equal a u v = pureEqualTerm a u v >>= \case
-  True -> return Nothing
-  False -> traceSDoc "rewriting.match" 10 (sep
+equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
+  Left b      -> return $ Just $ Blocked b ()
+  Right True  -> return Nothing
+  Right False -> traceSDoc "rewriting.match" 10 (sep
       [ "mismatch between " <+> prettyTCM u
       , " and " <+> prettyTCM v
       ]) $ do
-    return $ Just block
-
-  where
-    block = blockedOn (unblockOnAllMetasIn (u, v)) ()
+    return $ Just $ NotBlocked ReallyNotBlocked ()
