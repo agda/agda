@@ -112,7 +112,7 @@ nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenF
 expectOk :: (ProgramResult, AgdaResult) -> T.Text
 expectOk (res, ret) = case ret of
   AgdaSuccess{} -> stdOut res
-  _             -> "UNEXPECTED_SUCCESS\n\n" <> printProgramResult res
+  AgdaFailure{} -> "AGDA_UNEXPECTED_FAILURE\n\n" <> printProgramResult res
 
 expectFail :: (ProgramResult, AgdaResult) -> TestResult
 expectFail (res, ret) = case ret of
