@@ -143,7 +143,6 @@ errorString err = case err of
   GenericError{}                           -> "GenericError"
   GenericDocError{}                        -> "GenericDocError"
   InstanceNoCandidate{}                    -> "InstanceNoCandidate"
-  IlltypedPattern{}                        -> "IlltypedPattern"
   IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
   CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
   IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
@@ -379,11 +378,6 @@ instance PrettyTCM TypeError where
     ForcedConstructorNotInstantiated p -> fsep $
       pwords "Failed to infer that constructor pattern "
       ++ [prettyA p] ++ pwords " is forced"
-
-    IlltypedPattern p a -> do
-      let ho _ _ = fsep $ pwords "Cannot pattern match on functions"
-      ifPiType a ho $ {- else -} \ _ -> do
-        fsep $ pwords "Type mismatch"
 
     IllformedProjectionPattern p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]

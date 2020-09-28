@@ -803,7 +803,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
 --
 --   * If successful, that's it, we are done.
 --
---   * If @IlltypedPattern p a@, @NotADatatype a@ or @CannotEliminateWithPattern p a@
+--   * If @NotADatatype a@ or @CannotEliminateWithPattern p a@
 --     is thrown and type @a@ is blocked on some meta @x@,
 --     reset any changes to the state and pass (the error and) @x@ to the handler.
 --
@@ -834,8 +834,6 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         TypeError _ s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
-            IlltypedPattern p a -> isBlocked a
-
             SortOfSplitVarError m _ -> return m
 
             SplitError (UnificationStuck c tel us vs _) -> do
