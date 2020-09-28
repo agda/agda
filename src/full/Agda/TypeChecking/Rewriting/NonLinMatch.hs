@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.
@@ -22,6 +23,7 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 
 import Prelude hiding (null, sequence)
 
+import Control.Applicative (Alternative)
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -64,7 +66,13 @@ import Agda.Utils.Impossible
 
 
 -- | Monad for non-linear matching.
-type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
+newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
+  deriving ( Functor, Applicative, Monad, MonadFail
+           , Alternative, MonadPlus
+           , MonadError Blocked_, MonadState NLMState
+           , HasBuiltins, HasConstInfo, HasOptions, ReadTCState
+           , MonadTCEnv, MonadReduce, MonadAddContext, MonadDebug
+           )
 
 data NLMState = NLMState
   { _nlmSub   :: Sub
@@ -83,7 +91,7 @@ nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 runNLM :: (MonadReduce m) => NLM () -> m (Either Blocked_ NLMState)
 runNLM nlm = do
-  (ok,out) <- liftReduce $ runStateT (runExceptT nlm) empty
+  (ok,out) <- liftReduce $ runStateT (runExceptT $ unNLM nlm) empty
   case ok of
     Left block -> return $ Left block
     Right _    -> return $ Right out
