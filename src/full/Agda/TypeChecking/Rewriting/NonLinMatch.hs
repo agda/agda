@@ -237,7 +237,7 @@ instance Match Type NLPat Term where
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
     etaRecord <- addContext k $ isEtaRecordType t
-    prop <- addContext k $ isPropM t
+    prop <- fromRight __IMPOSSIBLE__ <.> runBlocked . addContext k $ isPropM t
     let r = if prop then Irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat

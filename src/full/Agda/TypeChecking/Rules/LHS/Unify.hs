@@ -820,8 +820,9 @@ injectivePragmaStrategy k s = do
 
 skipIrrelevantStrategy :: Int -> UnifyStrategy
 skipIrrelevantStrategy k s = do
-  let Equal a _ _ = getEquality k s  -- reduce not necessary
-  guard =<< isIrrelevantOrPropM a    -- reduction takes place here
+  let Equal a _ _ = getEquality k s                               -- reduce not necessary
+  guard . (== Right True) =<< runBlocked (isIrrelevantOrPropM a)  -- reduction takes place here
+  -- TODO: do something in case the above is blocked (i.e. `Left b`)
   return $ SkipIrrelevantEquation k
 
 

@@ -1416,8 +1416,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
   -- Andreas, 2018-10-27, issue #3324; use isPropM.
   -- Need to reduce sort to decide on Prop.
   -- Cannot split if domain is a Prop but target is relevant.
-  propArrowRel <- isPropM t `and2M`
-    maybe (return True) (not <.> isPropM) target
+  propArrowRel <- fromRight __IMPOSSIBLE__ <.> runBlocked $
+    isPropM t `and2M` maybe (return True) (not <.> isPropM) target
 
   mHCompName <- getPrimitiveName' builtinHComp
   withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions

@@ -131,8 +131,11 @@ newMetaArg
   -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x cmp a = do
-  prp <- isPropM a
-  let irrelevantIfProp = if prp then applyRelevanceToContext Irrelevant else id
+  prp <- runBlocked $ isPropM a
+  let irrelevantIfProp =
+        if prp == Right True
+        then applyRelevanceToContext Irrelevant
+        else id
   applyModalityToContext info $ irrelevantIfProp $
     newMeta (getHiding info) (argNameToString x) a
   where

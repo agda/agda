@@ -8,6 +8,7 @@ module Agda.TypeChecking.Rewriting.NonLinPattern where
 
 import Control.Monad.Reader
 
+import Data.Either
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
@@ -109,7 +110,7 @@ instance PatternFrom Type Term NLPat where
   patternFrom r0 k t v = do
     t <- reduce t
     etaRecord <- isEtaRecordType t
-    prop <- isPropM t
+    prop <- fromRight __IMPOSSIBLE__ <.> runBlocked $ isPropM t
     let r = if prop then Irrelevant else r0
     v <- unLevel =<< reduce v
     reportSDoc "rewriting.build" 60 $ sep

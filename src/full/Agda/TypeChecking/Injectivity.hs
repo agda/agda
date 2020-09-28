@@ -49,6 +49,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
+import Data.Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -190,7 +191,8 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
-        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
+        maybeIrr <- fromRight True <.> runBlocked $ isIrrelevantOrPropM tbody
+        h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
               addContext (clauseTel c) $

@@ -1879,20 +1879,18 @@ checkSortOfSplitVar dr a tel mtarget = do
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> do
           reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
-          unlessM (isFibrant target) $ splitOnFibrantError mtarget
+          checkIsFibrant target
           forM_ (telToList tel) $ \ d -> do
             let ty = snd $ unDom d
-            unlessM (isFibrant ty) $
-              unlessM (isInterval ty) $
-                splitOnFibrantError' ty
+            checkIsFibrantOrInterval ty
       | otherwise              -> do
           reportSDoc "tc.sort.check" 20 $ "no target"
-          splitOnFibrantError mtarget
+          splitOnFibrantError Nothing
     Prop{}
       | IsRecord _ _ <- dr     -> return ()
       | Just target <- mtarget -> do
         reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
-        unlessM (isPropM target) splitOnPropError
+        checkIsProp target
       | otherwise              -> do
           reportSDoc "tc.sort.check" 20 $ "no target prop"
           splitOnPropError
@@ -1903,17 +1901,33 @@ checkSortOfSplitVar dr a tel mtarget = do
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
 
   where
+    checkIsProp t = runBlocked (isPropM t) >>= \case
+      Left b      -> splitOnPropError -- TODO
+      Right False -> splitOnPropError
+      Right True  -> return ()
+
+    checkIsFibrantOrInterval t = runBlocked (isFibrant t) >>= \case
+      Left b      -> splitOnFibrantError' t $ Just b
+      Right False -> unlessM (isInterval t) $
+                       splitOnFibrantError' t $ Nothing
+      Right True  -> return ()
+
+    checkIsFibrant t = runBlocked (isFibrant t) >>= \case
+      Left b      -> splitOnFibrantError $ Just b
+      Right False -> splitOnFibrantError Nothing
+      Right True  -> return ()
+
     splitOnPropError = softTypeError $ GenericError
       "Cannot split on datatype in Prop unless target is in Prop"
 
-    splitOnFibrantError' t = softTypeError =<< do
-      liftTCM $ SortOfSplitVarError <$> (mplus <$> isBlocked (getSort t) <*> isBlocked t) <*> fsep
+    splitOnFibrantError' t mb = softTypeError =<< do
+      liftTCM $ SortOfSplitVarError mb <$> fsep
         [ "Cannot eliminate fibrant type" , prettyTCM a
         , "unless context type", prettyTCM t, "is also fibrant."
         ]
 
-    splitOnFibrantError tgt = softTypeError =<< do
-      liftTCM $ SortOfSplitVarError <$> (maybe (return Nothing) (isBlocked . getSort) tgt) <*> fsep
+    splitOnFibrantError mb = softTypeError =<< do
+      liftTCM $ SortOfSplitVarError mb <$> fsep
         [ "Cannot eliminate fibrant type" , prettyTCM a
         , "unless target type is also fibrant"
         ]

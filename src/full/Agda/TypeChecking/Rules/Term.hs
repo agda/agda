@@ -1145,11 +1145,11 @@ checkExpr' cmp e t =
 
     e <- scopedExpr e
 
-    irrelevantIfProp <- isPropM t >>= \case
-      True  -> do
+    irrelevantIfProp <- (runBlocked $ isPropM t) >>= \case
+      Right True  -> do
         let mod = defaultModality { modRelevance = Irrelevant }
         return $ fmap dontCare . applyModalityToContext mod
-      False -> return id
+      _ -> return id
 
     irrelevantIfProp $ tryInsertHiddenLambda e tReduced $ case e of
 
