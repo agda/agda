@@ -3988,8 +3988,17 @@ instance Monad m => MonadBlock (BlockT m) where
   patternViolation = BlockT . throwError
   catchPatternErr h f = BlockT $ catchError (unBlockT f) (unBlockT . h)
 
+instance Monad m => MonadBlock (ExceptT TCErr m) where
+  patternViolation = throwError . PatternErr
+  catchPatternErr h f = catchError f $ \case
+    PatternErr b -> h b
+    err          -> throwError err
+
 runBlocked :: Monad m => BlockT m a -> m (Either Blocker a)
 runBlocked = runExceptT . unBlockT
+
+instance MonadBlock m => MonadBlock (MaybeT m) where
+  catchPatternErr h m = MaybeT $ catchPatternErr (runMaybeT . h) $ runMaybeT m
 
 instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->

@@ -74,6 +74,12 @@ newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
            , MonadTCEnv, MonadReduce, MonadAddContext, MonadDebug
            )
 
+instance MonadBlock NLM where
+  patternViolation b = throwError $ Blocked b ()
+  catchPatternErr h f = catchError f $ \case
+    Blocked b _      -> h b
+    err@NotBlocked{} -> throwError err
+
 data NLMState = NLMState
   { _nlmSub   :: Sub
   , _nlmEqs   :: PostponedEquations
