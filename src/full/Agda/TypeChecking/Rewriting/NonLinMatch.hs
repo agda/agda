@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.

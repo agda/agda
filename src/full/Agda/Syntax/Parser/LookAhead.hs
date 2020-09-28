@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| When lexing by hand (for instance string literals) we need to do some
     looking ahead. The 'LookAhead' monad keeps track of the position we are

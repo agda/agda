@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.Monad.Debug
   ( module Agda.TypeChecking.Monad.Debug

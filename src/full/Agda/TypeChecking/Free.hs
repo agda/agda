@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances       #-} -- Due to underdetermined var in IsVarSet multi-param typeclass
 
 -- | Computing the free variables of a term.

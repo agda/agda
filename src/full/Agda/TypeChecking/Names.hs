@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| EDSL to construct terms without touching De Bruijn indices.
 

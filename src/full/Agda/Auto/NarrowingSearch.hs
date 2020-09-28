@@ -1,5 +1,4 @@
 {-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Auto.NarrowingSearch where
 

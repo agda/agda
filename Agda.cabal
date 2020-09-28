@@ -722,6 +722,7 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , FunctionalDependencies
+                    , GeneralizedNewtypeDeriving
                     , InstanceSigs
                     , LambdaCase
                     , MultiParamTypeClasses
@@ -913,6 +914,7 @@ test-suite agda-tests
                      , FlexibleContexts
                      , FlexibleInstances
                      , FunctionalDependencies
+                     , GeneralizedNewtypeDeriving
                      , InstanceSigs
                      , LambdaCase
                      , MultiParamTypeClasses
