@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Auxiliary functions to handle patterns in the abstract syntax.
 --

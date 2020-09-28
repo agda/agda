@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies             #-}
 
 -- | Solving size constraints under hypotheses.
 --

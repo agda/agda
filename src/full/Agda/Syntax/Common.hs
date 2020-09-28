@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}

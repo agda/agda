@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 module Agda.TypeChecking.Warnings
   ( MonadWarning(..)

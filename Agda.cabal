@@ -735,6 +735,7 @@ library
                     , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
+                    , TypeFamilies
                     , TypeSynonymInstances
 
 executable agda
@@ -927,6 +928,7 @@ test-suite agda-tests
                      , ScopedTypeVariables
                      , StandaloneDeriving
                      , TupleSections
+                     , TypeFamilies
                      , TypeSynonymInstances
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.0`

@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies         #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Agda-specific benchmarking structure.

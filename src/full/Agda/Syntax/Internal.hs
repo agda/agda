@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal

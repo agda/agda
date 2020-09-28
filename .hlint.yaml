@@ -90,6 +90,7 @@
   -XScopedTypeVariables,
   -XStandaloneDeriving,
   -XTupleSections,
+  -XTypeFamilies,
   -XTypeSynonymInstances,
   # hlint (3.1.6, anyway), seems to assume -XTypeApplications,
   # which causes a parsing error in some cases.

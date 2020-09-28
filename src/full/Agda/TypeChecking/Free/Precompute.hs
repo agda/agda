@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 -- | Precompute free variables in a term (and store in 'ArgInfo').
 module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars

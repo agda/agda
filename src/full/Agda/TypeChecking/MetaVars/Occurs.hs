@@ -1,6 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
-{-# LANGUAGE TypeFamilies              #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 

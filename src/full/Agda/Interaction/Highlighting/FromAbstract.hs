@@ -2,8 +2,6 @@
 --
 -- Implements one big fold over abstract syntax.
 
-{-# LANGUAGE TypeFamilies #-}  -- for type equality
-
 -- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Data.Semigroup is redundant in later GHC versions
 {-# OPTIONS_GHC -fwarn-unused-binds   #-}
 

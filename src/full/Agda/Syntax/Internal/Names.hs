@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Extract all names from things.
 

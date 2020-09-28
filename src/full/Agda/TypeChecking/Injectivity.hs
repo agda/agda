@@ -1,3 +1,5 @@
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
+
 {- |
 
 "Injectivity", or more precisely, "constructor headedness", is a

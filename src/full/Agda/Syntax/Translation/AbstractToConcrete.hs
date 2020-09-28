@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP          #-}
-{-# LANGUAGE TypeFamilies #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 

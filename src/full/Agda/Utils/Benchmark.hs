@@ -1,5 +1,4 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeFamilies              #-}
 
 -- | Tools for benchmarking and accumulating results.
 --   Nothing Agda-specific in here.

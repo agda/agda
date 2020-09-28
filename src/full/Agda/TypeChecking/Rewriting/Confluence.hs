@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Checking local or global confluence of rewrite rules.

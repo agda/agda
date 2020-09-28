@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP          #-}
 
 -- | Tree traversal for internal syntax.

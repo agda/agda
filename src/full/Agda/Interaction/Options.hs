@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)

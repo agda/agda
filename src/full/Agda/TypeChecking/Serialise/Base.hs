@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass

@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | The monad for the termination checker.
 --

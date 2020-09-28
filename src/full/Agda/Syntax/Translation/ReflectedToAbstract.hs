@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.Syntax.Translation.ReflectedToAbstract where

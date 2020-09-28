@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs        #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds    #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where

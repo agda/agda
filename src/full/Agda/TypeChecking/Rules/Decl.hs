@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Rules.Decl where
 

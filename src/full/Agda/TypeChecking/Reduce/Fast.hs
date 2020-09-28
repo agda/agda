@@ -1,7 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
 
-{-# LANGUAGE TypeFamilies  #-}
-
 {-|
 
 This module implements the Agda Abstract Machine used for compile-time reduction. It's a

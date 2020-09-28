@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
 
 {- | Various utility functions dealing with the non-linear, higher-order
      patterns used for rewrite rules.

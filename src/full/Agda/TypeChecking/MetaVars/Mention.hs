@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.MetaVars.Mention where
 

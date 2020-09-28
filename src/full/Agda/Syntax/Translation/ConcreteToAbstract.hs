@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.

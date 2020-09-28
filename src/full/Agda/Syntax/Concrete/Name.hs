@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).

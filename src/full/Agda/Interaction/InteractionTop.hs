@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}

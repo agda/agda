@@ -67,4 +67,5 @@
 :set -XScopedTypeVariables
 :set -XStandaloneDeriving
 :set -XTupleSections
+:set -XTypeFamilies
 :set -XTypeSynonymInstances

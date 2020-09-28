@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | Syntax of size expressions and constraints.
 

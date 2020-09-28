@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation   #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
