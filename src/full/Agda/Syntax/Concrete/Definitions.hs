@@ -1032,7 +1032,10 @@ niceDeclarations fixs ds = do
         TypeSig info _tac x t -> do
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
-          let r = getRange d
+          -- Andreas, 2020-09-28, issue #4950: take only range of identifier,
+          -- since parser expands type signatures with several identifiers
+          -- (like @x y z : A@) into several type signatures (with imprecise ranges).
+          let r = getRange x
           -- register x as lone type signature, to recognize clauses later
           x' <- addLoneSig r x $ FunName termCheck covCheck
           return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)
