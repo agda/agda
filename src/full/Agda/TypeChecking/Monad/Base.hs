@@ -3976,7 +3976,7 @@ class Monad m => MonadBlock m where
   catchPatternErr :: (Blocker -> m a) -> m a -> m a
 
 newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
-  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, MonadFail
+  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, Fail.MonadFail
            , ReadTCState, HasOptions
            , MonadTCEnv, MonadTCState, MonadTCM
            )
