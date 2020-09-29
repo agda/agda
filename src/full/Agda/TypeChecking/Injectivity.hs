@@ -191,7 +191,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
-        maybeIrr <- fromRight True <.> runBlocked $ isIrrelevantOrPropM tbody
+        maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
