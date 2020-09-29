@@ -8,7 +8,6 @@ module Agda.TypeChecking.Rewriting.NonLinPattern where
 
 import Control.Monad.Reader
 
-import Data.Either
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
@@ -28,6 +27,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List

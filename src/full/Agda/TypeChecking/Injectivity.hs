@@ -49,7 +49,6 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
 
-import Data.Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -71,6 +70,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
