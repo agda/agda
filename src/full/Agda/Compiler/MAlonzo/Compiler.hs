@@ -2,6 +2,7 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Arrow ((***), first, second)
+import Control.Monad.Except (throwError)
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
@@ -94,6 +95,8 @@ ghcBackend' = Backend'
 data GHCOptions = GHCOptions
   { optGhcCompile :: Bool
   , optGhcCallGhc :: Bool
+  , optGhcBin     :: Maybe FilePath
+    -- ^ Use the compiler at PATH instead of "ghc"
   , optGhcFlags   :: [String]
   }
 
@@ -101,6 +104,7 @@ defaultGHCOptions :: GHCOptions
 defaultGHCOptions = GHCOptions
   { optGhcCompile = False
   , optGhcCallGhc = True
+  , optGhcBin     = Nothing
   , optGhcFlags   = []
   }
 
@@ -112,11 +116,18 @@ ghcCommandLineFlags =
                     "don't call GHC, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC"
+    , Option []     ["with-compiler"] (ReqArg withCompilerFlag "PATH")
+                    "use the compiler available at PATH"
     ]
   where
     enable      o = pure o{ optGhcCompile = True }
     dontCallGHC o = pure o{ optGhcCallGhc = False }
     ghcFlag f   o = pure o{ optGhcFlags   = optGhcFlags o ++ [f] }
+
+withCompilerFlag :: FilePath -> Flag GHCOptions
+withCompilerFlag fp o = case optGhcBin o of
+ Nothing -> pure o { optGhcBin = Just fp }
+ Just{}  -> throwError "only one compiler path allowed"
 
 --- Context types ---
 
@@ -924,10 +935,10 @@ callGHC opts modIsMain mods = do
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
 
-  compiler <- fromMaybeM (pure "ghc") (optWithCompiler <$> commandLineOptions)
+  let ghcBin = fromMaybe "ghc" (optGhcBin opts)
 
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  callCompiler doCall compiler args
+  callCompiler doCall ghcBin args
