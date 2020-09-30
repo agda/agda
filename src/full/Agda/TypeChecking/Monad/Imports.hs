@@ -1,5 +1,24 @@
 
-module Agda.TypeChecking.Monad.Imports where
+module Agda.TypeChecking.Monad.Imports
+  ( addImport
+  , addImportCycleCheck
+  , checkForImportCycle
+  , dropDecodedModule
+  , getDecodedModule
+  , getDecodedModules
+  , getImportPath
+  , getImports
+  , getVisitedModule
+  , getVisitedModules
+  , isImported
+  , isVisited
+  , mapVisitedModule
+  , setDecodedModules
+  , setVisitedModules
+  , storeDecodedModule
+  , visitModule
+  , withImportPath
+  ) where
 
 import Control.Monad.State
 
