@@ -135,7 +135,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
 
 
-import Agda.Interaction.Options (optInjectiveTypeConstructors, optCubical)
+import Agda.Interaction.Options (optInjectiveTypeConstructors, optCubical, optWithoutK)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -178,6 +178,7 @@ import Agda.Utils.PartialOrd
 import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -186,6 +187,7 @@ data NoLeftInv
   = UnsupportedYet {badStep :: UnifyStep}
   | Illegal        {badStep :: UnifyStep}
   | NoCubical
+  | WithK
   deriving Show
 
 -- | Result of 'unifyIndices'.
@@ -254,7 +256,10 @@ unifyIndices' tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Che
       Unifies s -> do
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
         let ps = applySubst (unifyProof output) $ teleNamedArgs (eqTel initialState)
-        tauInv <- buildLeftInverse initialState log
+        tauInv <- do
+          withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
+          if withoutK then buildLeftInverse initialState log
+                      else return (Left WithK)
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
         return $ Unifies $ (varTel s, unifySubst output, ps, tauInv)
       NoUnify ni -> return $ NoUnify ni

@@ -2024,6 +2024,15 @@ hiddenInserted ai
   | visible ai = setOrigin UserWritten ai
   | otherwise  = setOrigin Inserted ai
 
+
+-- | Checks if a type in this sort supports hcomp.
+--   currently all such types will have a Level.
+--   precondition: Sort in whnf and not blocked.
+hasHComp :: Sort -> Maybe Level
+hasHComp (Type l) = Just l
+hasHComp _        = Nothing
+
+
 computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -> PatVarName                   -- ^ Name of pattern variable at split point.
   -> Telescope                    -- ^ Telescope after split point.
@@ -2037,13 +2046,18 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
+  withK   <- not . collapseDefault . optWithoutK <$> pragmaOptions
+  if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype
   dsort <- liftTCM $ (parallelS (reverse $ map unArg pars) `applySubst`) . dataSort . theDef <$> getConstInfo d
   hCompName <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinHComp
   theHCompT <- defType <$> getConstInfo hCompName
+
+  -- TODO can dsort be blocked or not in whnf?
+  caseMaybe (hasHComp dsort) (return Nothing) $ \ dlvl' -> do
   let
-    dlvl = Level . (\ (Type s) -> s) $ dsort
+    dlvl = Level dlvl'
     dterm = Def d [] `apply` (pars ++ ixs)
   -- Δ1 ⊢ gamma
   TelV gamma _ <- lift $ telView (theHCompT `piApply` [setHiding Hidden $ defaultArg $ dlvl , defaultArg $ dterm])
@@ -2428,7 +2442,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if (isHIT || size ixs > 0) && inserttrailing == DoInsertTrailing
+        hcompsc <- if (isHIT || size ixs > 0) && not (null mns) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         return ( dr
