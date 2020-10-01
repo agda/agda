@@ -284,6 +284,8 @@ quotingKit = do
       quoteDefn def =
         case theDef def of
           Function{funClauses = cs} ->
+           do
+            cs <- return $ filter (not . generatedClause) cs
             agdaDefinitionFunDef !@ quoteList quoteClause cs
           Datatype{dataPars = np, dataCons = cs} ->
             agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
