@@ -12,12 +12,10 @@ import Data.Maybe
 import qualified Data.Set as S
 import Data.Set (Set)
 
-import Agda.Interaction.Options
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Pretty
-import Agda.Utils.Impossible
 
 -- | Internal module identifiers for construction of dependency graph.
 type ModuleId = String
@@ -80,11 +78,10 @@ dottify inter = do
 -- | Generate a .dot file for the import graph starting with the
 --   given 'Interface' and write it to the file specified by the
 --   command line option.
-generateDot :: Interface -> TCM ()
-generateDot inter = do
+generateDot :: Interface -> FilePath -> TCM ()
+generateDot inter fp = do
     (top, state) <- flip runStateT initialDotState $ do
         dottify inter
-    fp <- fromMaybe __IMPOSSIBLE__ . optDependencyGraph <$> commandLineOptions
     liftIO $ writeFile fp $ mkDot state
   where
     mkDot :: DotState -> String
