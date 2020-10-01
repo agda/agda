@@ -118,7 +118,6 @@ data CommandLineOptions = Options
   , optGenerateLaTeX         :: Bool
   , optGenerateHTML          :: Bool
   , optHTMLHighlight         :: HtmlHighlight
-  , optDependencyGraph       :: Maybe FilePath
   , optLaTeXDir              :: FilePath
   , optHTMLDir               :: FilePath
   , optCSSFile               :: Maybe FilePath
@@ -260,7 +259,6 @@ defaultOptions = Options
   , optGenerateLaTeX         = False
   , optGenerateHTML          = False
   , optHTMLHighlight         = HighlightAll
-  , optDependencyGraph       = Nothing
   , optLaTeXDir              = defaultLaTeXDir
   , optHTMLDir               = defaultHTMLDir
   , optCSSFile               = Nothing
@@ -373,7 +371,6 @@ checkOpts opts
 
   atMostOne =
     [ optGenerateHTML
-    , isJust . optDependencyGraph
     ] ++
     map fst exclusive
 
@@ -396,7 +393,7 @@ checkOpts opts
   exclusiveMessage = unlines $
     [ "The options --interactive, --interaction, --interaction-json and"
     , "--only-scope-checking cannot be combined with each other or"
-    , "with --html or --dependency-graph. Furthermore"
+    , "with --html. Furthermore"
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
     , "--vim."
@@ -838,9 +835,6 @@ htmlHighlightFlag "auto" o = return $ o { optHTMLHighlight = HighlightAuto  }
 htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
   ++ ">, expected <all>, <auto> or <code>"
 
-dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
-dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
-
 htmlDirFlag :: FilePath -> Flag CommandLineOptions
 htmlDirFlag d o = return $ o { optHTMLDir = d }
 
@@ -957,8 +951,6 @@ standardOptions =
                     ("whether to highlight only the code parts (code) or " ++
                      "the file as a whole (all) or " ++
                      "decide by source file type (auto)")
-    , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
-                    "generate a Dot file with a module dependency graph"
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)

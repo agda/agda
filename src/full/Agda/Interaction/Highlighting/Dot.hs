@@ -1,5 +1,5 @@
 module Agda.Interaction.Highlighting.Dot
-  ( generateDot
+  ( dotBackend
   ) where
 
-import Agda.Interaction.Highlighting.Dot.Backend ( generateDot )
+import Agda.Interaction.Highlighting.Dot.Backend ( dotBackend )

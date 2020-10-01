@@ -1,59 +1,154 @@
 
 module Agda.Interaction.Highlighting.Dot.Backend
-  ( generateDot
+  ( dotBackend
   ) where
 
 import Agda.Interaction.Highlighting.Dot.Base
   ( dottify
   , renderDotToFile
   , Env(Env, deConnections, deLabel)
-  , DotGraph
   )
 
-import qualified Data.Map as M
+import Control.Monad.Except
+  ( MonadIO
+  , ExceptT
+  , runExceptT
+  , MonadError(throwError)
+  )
+
+import Data.Map ( Map )
+import Data.Set ( Set )
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Maybe
 import qualified Data.Text.Lazy as L
 
-import Agda.Syntax.Abstract
-  ( ModuleName
-  , mnameToConcrete
-  , toTopLevelModuleName
+import Agda.Compiler.Backend (Backend(..), Backend'(..), Definition, Recompile(..))
+import Agda.Compiler.Common (curIF, IsMain)
+
+import Agda.Interaction.Options
+  ( ArgDescr(ReqArg)
+  , Flag
+  , OptDescr(..)
   )
+
+import Agda.Syntax.Abstract ( ModuleName )
 
 import Agda.TypeChecking.Monad
   ( Interface(iImportedModules, iModuleName)
-  , getVisitedModules
-  , miInterface
-  , TCM
-  , VisitedModules
+  , MonadTCError
+  , ReadTCState
+  , genericError
   )
-
-import Agda.Utils.Functor
 
 import Agda.Utils.Pretty ( prettyShow )
 
--- * Module import graph generation
+-- ------------------------------------------------------------------------
 
--- | Recursively build import graph, starting from given 'Interface'.
---   Modifies the state in 'DotM' and returns the 'NodeId' of the 'Interface'.
+data DotFlags = DotFlags
+  { dotFlagDestination :: Maybe FilePath
+  } deriving Eq
 
-dottifyModuleImports :: VisitedModules -> ModuleName -> DotGraph
-dottifyModuleImports visitedModules = dottify Env
-  { deConnections = maybe [] getConnectedNames . getInterfaceByName
-  , deLabel       = L.pack . prettyShow . mnameToConcrete
+defaultDotFlags :: DotFlags
+defaultDotFlags = DotFlags
+  { dotFlagDestination = Nothing
   }
-  where
-  getInterfaceByName = miInterface <.> (flip M.lookup visitedModules . toTopLevelModuleName)
-  getConnectedNames = fst <.> iImportedModules
 
-getDot :: Interface -> TCM DotGraph
-getDot iface = do
-  visitedModules <- getVisitedModules
-  return (dottifyModuleImports visitedModules (iModuleName iface))
+dotFlagsDescriptions :: [OptDescr (Flag DotFlags)]
+dotFlagsDescriptions =
+  [ Option [] ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
+              "generate a Dot file with a module dependency graph"
+  ]
 
--- | Generate a .dot file for the import graph starting with the
---   given 'Interface' and write it to the file specified by the
---   command line option.
-generateDot :: Interface -> FilePath -> TCM ()
-generateDot iface fp = do
-  dot <- getDot iface
+dependencyGraphFlag :: FilePath -> Flag DotFlags
+dependencyGraphFlag f o = return $ o { dotFlagDestination = Just f }
+
+data DotCompileEnv = DotCompileEnv
+  { _dotCompileEnvDestination :: FilePath
+  }
+
+-- Currently unused
+data DotModuleEnv = DotModuleEnv
+
+data DotModule = DotModule
+  { _dotModuleName :: ModuleName
+  , dotModuleImportedNames :: Set ModuleName
+  }
+
+-- | Currently unused
+data DotDef = DotDef
+
+dotBackend :: Backend
+dotBackend = Backend dotBackend'
+
+dotBackend' :: Backend' DotFlags DotCompileEnv DotModuleEnv DotModule DotDef
+dotBackend' = Backend'
+  { backendName           = "Dot"
+  , backendVersion        = Nothing
+  , options               = defaultDotFlags
+  , commandLineFlags      = dotFlagsDescriptions
+  , isEnabled             = isJust . dotFlagDestination
+  , preCompile            = asTCErrors . preCompileDot
+  , preModule             = preModuleDot
+  , compileDef            = compileDefDot
+  , postModule            = postModuleDot
+  , postCompile           = postCompileDot
+  , scopeCheckingSuffices = False
+  , mayEraseType          = const $ return True
+  }
+
+-- | Convert a general "MonadError String m" into "MonadTCError m".
+asTCErrors :: MonadTCError m => ExceptT String m b -> m b
+asTCErrors t = either genericError return =<< runExceptT t
+
+preCompileDot
+  :: MonadError String m
+  => DotFlags
+  -> m DotCompileEnv
+preCompileDot (DotFlags (Just dest)) = return $ DotCompileEnv dest
+preCompileDot (DotFlags Nothing)     = throwError "The Dot backend was invoked without being enabled!"
+
+preModuleDot
+  :: Applicative m
+  => DotCompileEnv
+  -> IsMain
+  -> ModuleName
+  -> FilePath
+  -> m (Recompile DotModuleEnv DotModule)
+preModuleDot _cenv _main _moduleName _ifacePath = pure $ Recompile DotModuleEnv
+
+compileDefDot
+  :: Applicative m
+  => DotCompileEnv
+  -> DotModuleEnv
+  -> IsMain
+  -> Definition
+  -> m DotDef
+compileDefDot _cenv _menv _main _def = pure DotDef
+
+postModuleDot
+  :: (MonadIO m, ReadTCState m)
+  => DotCompileEnv
+  -> DotModuleEnv
+  -> IsMain
+  -> ModuleName
+  -> [DotDef]
+  -> m DotModule
+postModuleDot _cenv DotModuleEnv _main moduleName _defs = do
+  i <- curIF
+  let importedModuleNames = Set.fromList $ fst <$> (iImportedModules i)
+  return $ DotModule moduleName importedModuleNames
+
+postCompileDot
+  :: (MonadIO m, ReadTCState m)
+  => DotCompileEnv
+  -> IsMain
+  -> Map ModuleName DotModule
+  -> m ()
+postCompileDot (DotCompileEnv fp) _main modulesByName = do
+  let env = Env
+        { deConnections = (maybe [] (Set.toList . dotModuleImportedNames) . (flip Map.lookup modulesByName))
+        , deLabel       = L.pack . prettyShow
+        }
+  dot <- dottify env . iModuleName <$> curIF
   renderDotToFile dot fp

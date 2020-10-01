@@ -25,7 +25,6 @@ import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
-import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
 
@@ -219,9 +218,6 @@ runAgdaWithOptions generateHTML interactor progName opts = do
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML
-
-          forMM_ (optDependencyGraph <$> commandLineOptions) $
-            Dot.generateDot i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
             LaTeX.generateLaTeX i
