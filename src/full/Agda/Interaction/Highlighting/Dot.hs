@@ -1,13 +1,13 @@
-
+{-# LANGUAGE GADTs #-}
 -- | Generate an import dependency graph for a given module.
 
 module Agda.Interaction.Highlighting.Dot where
 
+import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Data.Map as M
 import Data.Map(Map)
-import Data.Maybe
 
 import qualified Data.Set as S
 import Data.Set (Set)
@@ -19,87 +19,132 @@ import qualified Data.ByteString.Lazy as BS
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.Functor
 import Agda.Utils.Pretty
 
 -- | Internal module identifiers for construction of dependency graph.
-type ModuleId = L.Text
+type NodeId = L.Text
 
-data DotState = DotState
-  { dsModules    :: Map ModuleName ModuleId
-    -- ^ Records already processed modules
+-- | Graph structure
+data DotGraph = DotGraph
+  { dgNodeLabels :: Map NodeId L.Text
+  , dgEdges      :: Set (NodeId, NodeId)
+  }
+
+-- * Graph construction monad
+
+-- Read-only environment when constructing the graph.
+data Env n where
+  Env :: Ord n =>
+    { deConnections :: n -> [n]
+    -- ^ Names connected to an entity
+    , deLabel       :: n -> L.Text
+    -- ^ Rendering that entity's name to a label
+    } -> Env n
+
+data DotState n = DotState
+  { dsNodeIds      :: Map n NodeId
+    -- ^ Records already processed entities
     --   and maps them to an internal identifier.
-  , dsNameSupply :: [ModuleId]
+  , dsNodeIdSupply :: [NodeId]
     -- ^ Supply of internal identifiers.
-  , dsConnection :: Set (ModuleId, ModuleId)
-    -- ^ Edges of dependency graph.
+  , dsGraph        :: DotGraph
   }
 
-initialDotState :: DotState
+initialDotState :: DotState n
 initialDotState = DotState
-  { dsModules    = mempty
-  , dsNameSupply = map (L.pack . ('m':) . show) [0..]
-  , dsConnection = mempty
+  { dsNodeIds      = M.empty
+  , dsNodeIdSupply = map (L.pack . ('m':) . show) [0..]
+  , dsGraph        = DotGraph mempty mempty
   }
 
-type DotM = State DotState
+type DotM n a = Ord n => ReaderT (Env n) (State (DotState n)) a
 
--- | Translate a 'ModuleName' to an internal 'ModuleId'.
+runDotM :: Env n -> DotM n x -> DotGraph
+runDotM env@Env{} = dsGraph . flip execState initialDotState . flip runReaderT env
+
+getLabel :: n -> DotM n L.Text
+getLabel = liftM2 deLabel ask . pure
+
+getConnections :: n -> DotM n [n]
+getConnections = liftM2 deConnections ask . pure
+
+-- | Translate an entity name into an internal 'NodeId'.
 --   Returns @True@ if the 'ModuleName' is new, i.e., has not been
 --   encountered before and is thus added to the map of processed modules.
-addModule :: ModuleName -> DotM (ModuleId, Bool)
-addModule m = do
-    s <- get
-    case M.lookup m (dsModules s) of
-        Just r  -> return (r, False)
+addEntity :: n -> DotM n (NodeId, Bool)
+addEntity name = do
+    s@(DotState nodeIds nodeIdSupply graph) <- get
+    case M.lookup name nodeIds of
+        Just nodeId  -> return (nodeId, False)
         Nothing -> do
-            let newName:nameSupply = dsNameSupply s
+            let newNodeId:remainingNodeIdSupply = nodeIdSupply
+            label <- getLabel name
             put s
-              { dsModules = M.insert m newName (dsModules s)
-              , dsNameSupply = nameSupply
+              { dsNodeIds      = M.insert name newNodeId nodeIds
+              , dsNodeIdSupply = remainingNodeIdSupply
+              , dsGraph        = graph
+                { dgNodeLabels = M.insert newNodeId label . dgNodeLabels $ graph
+                }
               }
-            return (newName, True)
+            return (newNodeId, True)
 
 -- | Add an arc from importer to imported.
-addConnection :: ModuleId -> ModuleId -> DotM ()
-addConnection m1 m2 = modify $ \s -> s {dsConnection = S.insert (m1,m2) (dsConnection s)}
+addConnection :: NodeId -> NodeId -> DotM n ()
+addConnection m1 m2 = modify $ \s -> s
+  { dsGraph = (dsGraph s)
+    { dgEdges = S.insert (m1, m2) . dgEdges . dsGraph $ s
+    }
+  }
 
--- | Recursively build import graph, starting from given 'Interface'.
---   Modifies the state in 'DotM' and returns the 'ModuleId' of the 'Interface'.
-dottify :: VisitedModules -> Interface -> DotState
-dottify visitedModules iface = execState (dottify' visitedModules iface) initialDotState
+dottify :: Env n -> n -> DotGraph
+dottify env root = runDotM env (dottify' root)
 
-dottify' :: VisitedModules -> Interface -> DotM ModuleId
-dottify' visitedModules iface = do
-    let curModule = iModuleName iface
-    (name, continue) <- addModule curModule
-    -- If we have not visited this interface yet,
-    -- process its imports recursively and
-    -- add them as connections to the graph.
-    when continue $ do
-      let importedModuleNames = map (toTopLevelModuleName . fst) (iImportedModules iface)
-      let importedModuleInfos = mapMaybe (flip M.lookup visitedModules) importedModuleNames
-      let importedIfaces = map miInterface importedModuleInfos
-      imports <- mapM (dottify' visitedModules) importedIfaces
-      mapM_ (addConnection name) imports
-    return name
+dottify' :: n -> DotM n NodeId
+dottify' entity = do
+  (nodeId, continue) <- addEntity entity
+  -- If we have not visited this interface yet,
+  -- process its imports recursively and
+  -- add them as connections to the graph.
+  when continue $ do
+    connectedEntities <- getConnections entity
+    connectedNodeIds <- mapM dottify' connectedEntities
+    mapM_ (addConnection nodeId) connectedNodeIds
+  return nodeId
 
-renderDot :: DotState -> L.Text
-renderDot st = L.unlines $ concat
+-- * Graph rendering
+
+renderDot :: DotGraph -> L.Text
+renderDot g = L.unlines $ concat
   [ [ "digraph dependencies {" ]
-  , [ L.concat ["   ", repr, "[label=\"", L.pack (prettyShow (mnameToConcrete modulename)), "\"];"]
-    | (modulename, repr) <- M.toList (dsModules st) ]
+  , [ L.concat ["   ", nodeId, "[label=\"", label, "\"];"]
+    | (nodeId, label) <- M.toList (dgNodeLabels g) ]
   , [ L.concat ["   ", r1, " -> ", r2, ";"]
-    | (r1 , r2) <- S.toList (dsConnection st) ]
+    | (r1 , r2) <- S.toList (dgEdges g) ]
   , ["}"]
   ]
 
-renderDotToFile :: MonadIO m => DotState -> FilePath -> m ()
+renderDotToFile :: MonadIO m => DotGraph -> FilePath -> m ()
 renderDotToFile dot fp = liftIO $ BS.writeFile fp $ E.encodeUtf8 $ renderDot dot
 
-getDot :: Interface -> TCM DotState
+-- * Module import graph generation
+
+-- | Recursively build import graph, starting from given 'Interface'.
+--   Modifies the state in 'DotM' and returns the 'NodeId' of the 'Interface'.
+
+dottifyModuleImports :: VisitedModules -> ModuleName -> DotGraph
+dottifyModuleImports visitedModules = dottify Env
+  { deConnections = maybe [] getConnectedNames . getInterfaceByName
+  , deLabel       = L.pack . prettyShow . mnameToConcrete
+  }
+  where
+  getInterfaceByName = miInterface <.> (flip M.lookup visitedModules . toTopLevelModuleName)
+  getConnectedNames = fst <.> iImportedModules
+
+getDot :: Interface -> TCM DotGraph
 getDot iface = do
   visitedModules <- getVisitedModules
-  return (dottify visitedModules iface)
+  return (dottifyModuleImports visitedModules (iModuleName iface))
 
 -- | Generate a .dot file for the import graph starting with the
 --   given 'Interface' and write it to the file specified by the
