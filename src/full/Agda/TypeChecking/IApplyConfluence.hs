@@ -51,7 +51,7 @@ checkIApplyConfluence_ f = whenM (optCubical <$> pragmaOptions) $ do
       modifySignature $ updateDefinition f $ updateTheDef
         $ updateCovering (const [])
 
-      traceCall (CheckFunDefCall (getRange f) f []) $
+      traceCall (CheckFunDefCall (getRange f) f [] False) $
         forM_ cls $ checkIApplyConfluence f
     _ -> return ()
 

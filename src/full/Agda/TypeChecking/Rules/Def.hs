@@ -88,7 +88,7 @@ checkFunDef delayed i name cs = do
         let info = getArgInfo def
         case isAlias cs t of
           Just (e, mc, x) ->
-            traceCall (CheckFunDefCall (getRange i) name cs) $ do
+            traceCall (CheckFunDefCall (getRange i) name cs True) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
@@ -226,7 +226,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs = do
 
-    traceCall (CheckFunDefCall (getRange i) name cs) $ do
+    traceCall (CheckFunDefCall (getRange i) name cs True) $ do
         reportSDoc "tc.def.fun" 10 $
           sep [ "checking body of" <+> prettyTCM name
               , nest 2 $ ":" <+> prettyTCM t

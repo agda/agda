@@ -162,7 +162,7 @@ traceClosureCall cl m = do
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
     CheckConstructorFitsIn{}  -> False
-    CheckFunDefCall{}         -> True
+    CheckFunDefCall _ _ _ h   -> h
     CheckPragma{}             -> True
     CheckPrimitive{}          -> True
     CheckIsEmpty{}            -> True

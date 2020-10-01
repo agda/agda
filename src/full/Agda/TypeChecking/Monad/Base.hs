@@ -2429,7 +2429,8 @@ data Call
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
   | CheckConstructor QName Telescope Sort A.Constructor
   | CheckConstructorFitsIn QName Type Sort
-  | CheckFunDefCall Range QName [A.Clause]
+  | CheckFunDefCall Range QName [A.Clause] Bool
+    -- ^ Highlight (interactively) if and only if the boolean is 'True'.
   | CheckPragma Range A.Pragma
   | CheckPrimitive Range QName A.Expr
   | CheckIsEmpty Range Type
@@ -2503,7 +2504,7 @@ instance HasRange Call where
     getRange (CheckRecDef i _ _ _)           = getRange i
     getRange (CheckConstructor _ _ _ c)      = getRange c
     getRange (CheckConstructorFitsIn c _ _)  = getRange c
-    getRange (CheckFunDefCall i _ _)         = getRange i
+    getRange (CheckFunDefCall i _ _ _)       = getRange i
     getRange (CheckPragma r _)               = r
     getRange (CheckPrimitive i _ _)          = getRange i
     getRange CheckWithFunctionType{}         = noRange
