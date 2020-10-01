@@ -167,16 +167,19 @@ data ConstructorInfo
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
-getConstructorInfo c = do
+getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
+
+getConstructorInfo' :: HasConstInfo m => QName -> m (Maybe ConstructorInfo)
+getConstructorInfo' c = do
   (theDef <$> getConstInfo c) >>= \case
-    Constructor{ conData = d, conArity = n } -> do
+    Constructor{ conData = d, conArity = n } -> Just <$> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
            return $ RecordCon (recPatternMatching r) (recEtaEquality r) fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
+    _ -> return Nothing
 
 ---------------------------------------------------------------------------
 -- * Data types

@@ -176,8 +176,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
               -- inferred eta.
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
-            getConstructorInfo c >>= \ case
-              RecordCon pm YesEta fs -> yesEtaCase b $
+            getConstructorInfo' c >>= \ case
+              Just (RecordCon pm YesEta fs) -> yesEtaCase b $
                 ConHead c (IsRecord pm) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
