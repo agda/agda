@@ -322,6 +322,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unDom) target
     ]
   reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
+  reportSLn "tc.cover.matching" 20 $ "clauses when matching:"
+  forM_ cs $ \ c -> do
+    let gamma = clauseTel c
+        ps = namedClausePats c
+    reportSDoc "tc.cover.matching" 20 $ addContext gamma $
+        "ps   :" <+> prettyTCM (fmap namedArg ps)
+
   match cs ps >>= \case
     Yes (i,mps) -> do
       exact <- allM (map snd mps) isTrivialPattern
@@ -463,16 +470,22 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           return $ CoverResult (SplittingDone (size tel)) empty [] qs empty
         Right (Covering n scs', x) -> do
           let scs = map (\(t,(sc,i)) -> (t,sc)) scs'
-          cs <- do
-            let fallback = return cs
+
+          (results_trX, cs) <- createMissingIndexedClauses f n x sc scs' cs
+          (scs, cs, results_hc) <- do
+            let fallback = return (scs, cs, [])
             caseMaybeM (getPrimitiveName' builtinHComp) fallback $ \ comp -> do
             let isComp = \case
                   SplitCon c -> comp == c
                   _ -> False
-            caseMaybe (List.find (isComp . fst) scs) fallback $ \ (_, newSc) -> do
-            snoc cs <$> createMissingHCompClause f n x sc newSc
-          (mtrees,cs) <- fmap (cs ++) <$> createMissingIndexedClauses f n x sc scs'
-          results <- mapM ((cover f cs) . snd) scs
+            caseMaybe (List.find (isComp . fst) scs) fallback $ \ (sp, newSc) -> do
+            (res,cs') <- createMissingHCompClause f n x sc newSc cs
+            scs2 <- return $ filter (not . isComp . fst) scs
+            return (scs2,cs',res)
+          let results_extra = results_hc ++ results_trX
+              trees_extra = map (\(sp,cr) -> (sp, coverSplitTree cr)) results_extra
+
+          results <- (++ map snd (results_extra)) <$> mapM ((cover f cs) . snd) scs
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
@@ -490,7 +503,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
               ]
             ]
           let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
-              tree   = SplitAt n StrictSplit (trees' ++ mtrees) -- TODO: Lazy?
+              tree   = SplitAt n StrictSplit (trees' ++ trees_extra) -- TODO: Lazy?
           return $ CoverResult tree (IntSet.unions useds) (concat psss) (concat qsss) (IntSet.unions noex)
 
     -- Try to split result
@@ -598,12 +611,17 @@ createMissingIndexedClauses :: QName
                             -> BlockingVar
                             -> SplitClause
                             -> [(SplitTag,(SplitClause,IInfo))]
-                            -> TCM ([(SplitTag,SplitTree)],[Clause])
-createMissingIndexedClauses f n x old_sc scs = do
+                            -> [Clause]
+                            -> TCM ([(SplitTag,CoverResult)],[Clause])
+createMissingIndexedClauses f n x old_sc scs cs = do
   reflId <- getName' builtinReflId
   let infos = [(c,i) | (SplitCon c, (_,TheInfo i)) <- scs ]
   case scs of
-    [(SplitCon c,(_newSc,i@TheInfo{}))] | Just c == reflId -> unzip . maybeToList <$> createMissingConIdClause f n x old_sc i
+    [(SplitCon c,(_newSc,i@TheInfo{}))] | Just c == reflId -> do
+      mc <- createMissingConIdClause f n x old_sc i
+      caseMaybe mc (return ([],cs)) $ \ ((sp,tree),cl) -> do
+      let res = CoverResult tree (IntSet.singleton (length cs)) [] [cl] IntSet.empty
+      return ([(sp,res)],snoc cs cl)
     xs | not $ null infos -> do
          reportSDoc "tc.cover.indexed" 20 $ text "size (xs,infos):" <+> pretty (size xs,size infos)
          reportSDoc "tc.cover.indexed" 20 $ text "xs :" <+> pretty (map fst xs)
@@ -626,16 +644,23 @@ createMissingIndexedClauses f n x old_sc scs = do
                  --  = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl) ]
              extraCl = [trX_cl, hcomp_cl]
                  --  = [trX_cl]
-         let tree = (SplitCon trX,) $ SplitAt ((+(pars+nixs+1)) <$> n) StrictSplit $
+         let clauses = extraCl ++ cls
+         let tree = SplitAt ((+(pars+nixs+1)) <$> n) StrictSplit $
                                            trees
                                         ++ extra
+             res = CoverResult
+               { coverSplitTree      = tree
+               , coverUsedClauses    = IntSet.fromList (map (length cs +) [0..length clauses-1])
+               , coverMissingClauses = []
+               , coverPatterns       = clauses
+               , coverNoExactClauses = IntSet.empty
+               }
          reportSDoc "tc.cover.indexed" 20 $
            "tree:" <+> pretty tree
-         let clauses = extraCl ++ cls
          addClauses f clauses
-         return $ ([tree],clauses)
+         return $ ([(SplitCon trX,res)],cs++clauses)
 --         return $ ([],[])
-    xs | otherwise -> return ([],[])
+    xs | otherwise -> return ([],cs)
 
 createMissingTrXTrXClause :: QName -- ^ trX
                             -> QName -- ^ f defined
@@ -1635,8 +1660,9 @@ createMissingHCompClause
   -> SplitClause -- ^ Clause before the hcomp split
   -> SplitClause
        -- ^ Clause to add.
-   -> TCM Clause
-createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = setCurrentRange f $ do
+  -> [Clause]
+   -> TCM ([(SplitTag,CoverResult)], [Clause])
+createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs = setCurrentRange f $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
   reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel
@@ -1856,8 +1882,16 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) = s
                     , clauseEllipsis  = NoEllipsis
                     }
   addClauses f [cl]  -- Important: add at the end.
-  return cl
-createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) = __IMPOSSIBLE__
+  let result = CoverResult
+          { coverSplitTree      = SplittingDone (size (clauseTel cl))
+          , coverUsedClauses    = IntSet.singleton (length cs)
+          , coverMissingClauses = []
+          , coverPatterns       = [cl]
+          , coverNoExactClauses = IntSet.empty
+          }
+  hcompName <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinHComp
+  return ([(SplitCon hcompName,result)],cs++[cl])
+createMissingHCompClause _ _ _ _ (SClause _ _ _ _ Nothing) _ = __IMPOSSIBLE__
 
 -- | Append a instance clause to the clauses of a function.
 inferMissingClause
