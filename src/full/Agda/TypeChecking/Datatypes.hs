@@ -32,6 +32,9 @@ getConHead c = runExceptT $ do
     Record     { recConHead = c' } -> return c'
     _ -> throwError $ SigUnknown $ prettyShow c ++ " is not a constructor"
 
+isConstructor :: (HasConstInfo m) => QName -> m Bool
+isConstructor q = isRight <$> getConHead q
+
 -- | Get true constructor with fields, expanding literals to constructors
 --   if possible.
 getConForm :: QName -> TCM (Either SigError ConHead)

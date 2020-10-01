@@ -19,6 +19,7 @@ import Agda.Syntax.Treeless (TTerm, EvaluationStrategy)
 
 import Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Pretty
@@ -236,6 +237,8 @@ casetree cc = do
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg _ n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
+      -- TODO: revise when compiling --cubical
+      conBrs <- fmap Map.fromList $ filterM (isConstructor . fst) (Map.toList conBrs)
                     -- We can treat eta-matches as regular matches here.
       let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
       if Map.null conBrs' && Map.null litBrs then do
