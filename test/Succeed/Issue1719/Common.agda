@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --without-K --rewriting #-}
 
 module Issue1719.Common where
 
@@ -28,6 +28,7 @@ PathOver B idp u v = (u == v)
 
 syntax PathOver B p u v =
   u == v [ B ↓ p ]
+
 
 postulate
   PathOver-rewr : ∀ {i j} {A : Set i} {B : Set j} {x y : A} (p : x == y) (u v : B) →
