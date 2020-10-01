@@ -2526,14 +2526,22 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
     (_ : _ : _) | not erased && not (usableQuantity t) ->
-      erasedError False
+     do
+           -- If exactly one constructor matches and the K rule is turned
+           -- off, then we only allow erasure for non-indexed data types
+           -- (#4172).
+           -- Andrea 01/10/2020: In fact you'll also get an hcomp split for indexed datatypes.
+           -- If the check would have passed without such a split,
+           -- we blame the error on the missing K rule.
+      b <- if not isIndexed then return False else do
+           let ns' = flip filter ns $ \case
+                       (SplitCon c,_) -> Just c /= mHCompName
+                       _              -> True
+           return $ case ns' of
+             [_] -> True
+             _   -> False
+      erasedError b
 
-    -- If exactly one constructor matches and the K rule is turned
-    -- off, then we only allow erasure for non-indexed data types
-    -- (#4172).
-    [_] | not erased && not (usableQuantity t) &&
-          withoutK && isIndexed ->
-      erasedError True
 
     _ -> do
 
