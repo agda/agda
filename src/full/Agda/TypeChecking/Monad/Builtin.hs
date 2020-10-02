@@ -147,9 +147,11 @@ getTerm use name = flip fromMaybeM (getTerm' name) $
 
 
 -- | Rewrite a literal to constructor form if possible.
-constructorForm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-                => Term -> m Term
-constructorForm v = constructorForm' primZero primSuc v
+constructorForm :: HasBuiltins m => Term -> m Term
+constructorForm v = do
+  let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+      pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  constructorForm' pZero pSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
