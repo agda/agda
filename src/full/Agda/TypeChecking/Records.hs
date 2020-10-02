@@ -813,16 +813,18 @@ isSingletonType' regardIrrelevance t = do
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,
 --   or nothing otherwise.
-isEtaVar :: Term -> Type -> TCM (Maybe Int)
+isEtaVar
+  :: forall m. (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, HasBuiltins m, HasConstInfo m)
+  => Term -> Type -> m (Maybe Int)
 isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
   where
     -- Checks whether the term u (of type a) is beta-eta-equivalent to
     -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
     -- then i and i' are also required to be equal (else Nothing is returned).
-    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
+    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT m Int
     isEtaVarG u a mi es = do
-      (u, a) <- liftTCM $ reduce (u, a)
-      liftTCM $ reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
+      (u, a) <- reduce (u, a)
+      reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
         [ "u  = " <+> text (show u)
         , "a  = " <+> prettyTCM a
         , "mi = " <+> text (show mi)
@@ -831,12 +833,12 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
       case (u, unEl a) of
         (Var i' es', _) -> do
           guard $ mi == (i' <$ mi)
-          b <- liftTCM $ typeOfBV i'
+          b <- typeOfBV i'
           areEtaVarElims (var i') b es' es
           return i'
         (_, Def d pars) -> do
-          guard =<< do liftTCM $ isEtaRecord d
-          fs <- liftTCM $ map unDom . recFields . theDef <$> getConstInfo d
+          guard =<< do isEtaRecord d
+          fs <- map unDom . recFields . theDef <$> getConstInfo d
           is <- forM fs $ \f -> do
             let o = ProjSystem
             (_, _, fa) <- MaybeT $ projectTyped u a o f
@@ -856,13 +858,13 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
     -- to the term u of type a) are beta-eta-equal to either projections or
     -- variables with de Bruijn indices given by es'.
-    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT TCM ()
+    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT m ()
     areEtaVarElims u a []    []    = return ()
     areEtaVarElims u a []    (_:_) = mzero
     areEtaVarElims u a (_:_) []    = mzero
     areEtaVarElims u a (Proj o f : es) (Proj _ f' : es') = do
       guard $ f == f'
-      a       <- liftTCM $ reduce a
+      a       <- reduce a
       (_, _, fa) <- MaybeT $ projectTyped u a o f
       areEtaVarElims (u `applyE` [Proj o f]) fa es es'
     -- These two cases can occur only when we're looking at two different
