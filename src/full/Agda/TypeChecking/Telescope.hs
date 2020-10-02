@@ -506,7 +506,7 @@ pathViewAsPi'whnf = do
 
 -- | returns Left (a,b) in case the type is @Pi a b@ or @PathP b _ _@
 --   assumes the type is in whnf.
-piOrPath :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+piOrPath :: HasBuiltins m => Type -> m (Either (Dom Type, Abs Type) Type)
 piOrPath t = do
   t <- pathViewAsPi'whnf <*> pure t
   case t of
