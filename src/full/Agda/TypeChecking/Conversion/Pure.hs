@@ -38,6 +38,12 @@ pureEqualTerm
 pureEqualTerm a u v =
   isRight <$> runPureConversion (equalTerm a u v)
 
+pureEqualType
+  :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasBuiltins m, HasConstInfo m)
+  => Type -> Type -> m Bool
+pureEqualType a b =
+  isRight <$> runPureConversion (equalType a b)
+
 pureCompareAs
   :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasBuiltins m, HasConstInfo m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
