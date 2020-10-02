@@ -964,9 +964,9 @@ checkProjApp cmp e o ds args0 t = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjAppToKnownPrincipalArg'.
 
-checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> TCM Term
-checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt = do
-  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> (Args, Type) -> TCM Term
+checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt at = do
+  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt (Just at)
   coerce' cmp targetCheck v ti t
 
 -- | Inferring or Checking an overloaded projection application.
@@ -1044,23 +1044,23 @@ inferOrCheckProjApp e o ds args mt = do
         [ "  principal arg " <+> prettyTCM arg
         , "  has type "      <+> prettyTCM ta
         ]
-      inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta
+      inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta Nothing
 
 -- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
 --   value and type of the principal argument.
 inferOrCheckProjAppToKnownPrincipalArg ::
   A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Maybe (Comparison, Type) ->
-  Int -> Term -> Type -> TCM (Term, Type, CheckedTarget)
-inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta = do
+  Int -> Term -> Type -> Maybe (Args, Type) -> TCM (Term, Type, CheckedTarget)
+inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mat = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone b = do
+      postpone b at = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta) b
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta at) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
-  (vargs, ta) <- implicitArgs (-1) (not . visible) ta
+  (vargs, ta) <- caseMaybe mat (implicitArgs (-1) (not . visible) ta) return
   let v = v0 `apply` vargs
-  ifBlocked ta (\ m _ -> postpone m) {-else-} $ \ _ ta -> do
+  ifBlocked ta (\ m _ -> postpone m (vargs, ta)) {-else-} $ \ _ ta -> do
   caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
