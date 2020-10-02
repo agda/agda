@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Maybe
 
@@ -103,7 +104,11 @@ initLHSState delta eqs ps a ret = do
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
-updateProblemRest :: LHSState a -> TCM (LHSState a)
+updateProblemRest
+  :: forall m a. (ReadTCState m, MonadReduce m, MonadAddContext m, MonadTCEnv m,
+                  MonadError TCErr m, MonadTrace m, MonadDebug m, HasBuiltins m,
+                  MonadFresh NameId m, HasConstInfo m)
+  => LHSState a -> m (LHSState a)
 updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
