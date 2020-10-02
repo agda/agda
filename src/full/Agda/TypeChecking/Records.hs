@@ -632,7 +632,7 @@ curryAt t n = do
 
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
-etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
+etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m)
                 => QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord = etaExpandRecord' False
 
@@ -641,10 +641,10 @@ forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError
                      => QName -> Args -> Term -> m (Telescope, Args)
 forceEtaExpandRecord = etaExpandRecord' True
 
-etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
+etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m)
                  => Bool -> QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord' forceEta r pars u = do
-  def <- getRecordDef r
+  def <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
