@@ -49,7 +49,10 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom
 
-useNamesFromProblemEqs :: [ProblemEq] -> Telescope -> TCM Telescope
+useNamesFromProblemEqs
+  :: forall m. (ReadTCState m, MonadReduce m, MonadAddContext m, MonadTCEnv m,
+                MonadDebug m, HasBuiltins m, HasConstInfo m)
+  => [ProblemEq] -> Telescope -> m Telescope
 useNamesFromProblemEqs eqs tel = addContext tel $ do
   names <- fst . getUserVariableNames tel . patternVariables <$> getLeftoverPatterns eqs
   let argNames = map (fmap nameToArgName) names
