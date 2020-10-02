@@ -637,7 +637,7 @@ generateLaTeX i = do
       ]
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
-      liftIO $ copyFile styFile (dir </> defaultStyFile)
+      copyFile styFile (dir </> defaultStyFile)
   let outPath = modToFile moduleName
   inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile moduleName)
   liftIO $ do
