@@ -5,6 +5,8 @@
 module Agda.TypeChecking.Implicit where
 
 import Control.Monad
+import Control.Monad.Except
+import Control.Monad.IO.Class
 
 import Agda.Syntax.Position (beginningOf, getRange)
 import Agda.Syntax.Common
@@ -30,18 +32,22 @@ import Agda.Utils.Tuple
 
 -- | Insert implicit binders in a list of binders, but not at the end.
 insertImplicitBindersT
-  :: [NamedArg Binder]     -- ^ Should be non-empty, otherwise nothing happens.
+  :: (HasBuiltins m, MonadReduce m, MonadAddContext m, MonadError TCErr m,
+      MonadFresh NameId m, MonadTrace m, MonadDebug m)
+  => [NamedArg Binder]     -- ^ Should be non-empty, otherwise nothing happens.
   -> Type                  -- ^ Function type eliminated by arguments given by binders.
-  -> TCM [NamedArg Binder] -- ^ Padded binders.
+  -> m [NamedArg Binder] -- ^ Padded binders.
 insertImplicitBindersT = \case
   []     -> \ _ -> return []
   b : bs -> List1.toList <.> insertImplicitBindersT1 (b :| bs)
 
 -- | Insert implicit binders in a list of binders, but not at the end.
 insertImplicitBindersT1
-  :: List1 (NamedArg Binder)        -- ^ Non-empty.
+  :: (HasBuiltins m, MonadReduce m, MonadAddContext m, MonadError TCErr m,
+      MonadFresh NameId m, MonadTrace m, MonadDebug m)
+  => List1 (NamedArg Binder)        -- ^ Non-empty.
   -> Type                           -- ^ Function type eliminated by arguments given by binders.
-  -> TCM (List1 (NamedArg Binder))  -- ^ Padded binders.
+  -> m (List1 (NamedArg Binder))  -- ^ Padded binders.
 insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
   TelV tel ty0 <- telViewUpTo' (-1) (not . visible) a
   reportSDoc "tc.term.lambda.imp" 20 $
