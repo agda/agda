@@ -287,7 +287,9 @@ wakeIrrelevantVars
 --   (irrelevant) definitions.
 --
 class UsableRelevance a where
-  usableRel :: Relevance -> a -> TCM Bool
+  usableRel
+    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
   usableRel rel u = case u of
@@ -379,7 +381,9 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
 --   definitions.
 --
 class UsableModality a where
-  usableMod :: Modality -> a -> TCM Bool
+  usableMod
+    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    => Modality -> a -> m Bool
 
 instance UsableModality Term where
   usableMod mod u = case u of
