@@ -288,23 +288,26 @@ enterCode = do
 leaveCode :: LaTeX ()
 leaveCode = return ()
 
-logHelper :: Debug -> Text -> [String] -> LaTeX ()
+tshow :: Show a => a -> Text
+tshow = T.pack . show
+
+logHelper :: Debug -> Text -> [Text] -> LaTeX ()
 logHelper debug text extra =
   when (debug `elem` debugs) $ do
     lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
       "'" <+> text <+> "' " <+>
       if null extra
          then T.empty
-         else "(" <+> T.pack (unwords extra) <+> ")"
+         else "(" <+> (T.unwords extra) <+> ")"
 
 log :: Debug -> Text -> LaTeX ()
 log MoveColumn text = do
   cols <- gets columns
-  logHelper MoveColumn text ["columns=", show cols]
+  logHelper MoveColumn text ["columns=", tshow cols]
 log Code text = do
   cols <- gets columns
   col <- gets column
-  logHelper Code text ["columns=", show cols, "col=", show col]
+  logHelper Code text ["columns=", tshow cols, "col=", tshow col]
 log debug text = logHelper debug text []
 
 output :: Output -> LaTeX ()
