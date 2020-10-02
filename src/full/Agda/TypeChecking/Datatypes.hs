@@ -56,7 +56,7 @@ getConstructorData c = do
 
 -- | Is the datatype of this constructor a Higher Inductive Type?
 --   Precondition: The argument must refer to a constructor of a datatype or record.
-consOfHIT :: QName -> TCM Bool
+consOfHIT :: HasConstInfo m => QName -> m Bool
 consOfHIT c = do
   d <- getConstructorData c
   def <- theDef <$> getConstInfo d
