@@ -6,7 +6,7 @@ module Agda.TypeChecking.Monad.State where
 import qualified Control.Exception as E
 
 import Control.Monad.State (void)
-import Control.Monad.Trans (liftIO)
+import Control.Monad.Trans (MonadIO, liftIO)
 
 import Data.Maybe
 
@@ -358,7 +358,7 @@ addForeignCode backend code = do
 -- * Interaction output callback
 ---------------------------------------------------------------------------
 
-getInteractionOutputCallback :: TCM InteractionOutputCallback
+getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
 getInteractionOutputCallback
   = getsTC $ stInteractionOutputCallback . stPersistentState
 
