@@ -60,12 +60,12 @@ import Agda.Utils.Impossible
 -- * Datatypes.
 
 -- | The @LaTeX@ monad is a combination of @ExceptT@, @RWST@ and
--- @IO@. The error part is just used to keep track whether we finished
--- or not, the reader part isn't used, the writer is where the output
--- goes and the state is for keeping track of the tokens and some other
--- useful info, and the I/O part is used for printing debugging info.
+-- @IO@. The error part is just used to keep track whether we finished or
+-- not, the reader part contains static options used, the writer is where the
+-- output goes and the state is for keeping track of the tokens and some
+-- other useful info, and the I/O part is used for printing debugging info.
 
-type LaTeX = RWST () [Output] State IO
+type LaTeX = RWST Env [Output] State IO
 
 -- | Output items.
 
@@ -109,6 +109,11 @@ data AlignmentColumn = AlignmentColumn
 
 type TextWidthEstimator = Text -> Int
 
+data Env = Env
+  { estimateTextWidth :: !TextWidthEstimator
+    -- ^ How to estimate the column width of text (i.e. Count extended grapheme clusters vs. code points).
+  }
+
 data State = State
   { codeBlock     :: !Int   -- ^ The number of the current code block.
   , column        :: !Int   -- ^ The current column number.
@@ -127,8 +132,6 @@ data State = State
                             -- ^ Indentation columns that have
                             -- actually
                             --   been used.
-  , estimateTextWidth :: !TextWidthEstimator
-    -- ^ How to estimate the column width of text (i.e. Count extended grapheme clusters vs. code points).
   }
 
 type Tokens = [Token]
@@ -152,21 +155,24 @@ debugs = []
 
 -- | Run function for the @LaTeX@ monad.
 runLaTeX ::
-  LaTeX a -> () -> State -> IO (a, State, [Output])
+  LaTeX a -> Env -> State -> IO (a, State, [Output])
 runLaTeX = runRWST
 
-emptyState
-  :: TextWidthEstimator  -- ^ Count extended grapheme clusters?
-  -> State
-emptyState cc = State
+emptyState :: State
+emptyState = State
   { codeBlock     = 0
   , column        = 0
   , columns       = []
   , columnsPrev   = []
   , nextId        = 0
   , usedColumns   = Set.empty
-  , estimateTextWidth = cc
   }
+
+emptyEnv
+  :: TextWidthEstimator  -- ^ Count extended grapheme clusters?
+  -> Env
+emptyEnv = Env
+
 
 ------------------------------------------------------------------------
 -- * Some helpers.
@@ -177,7 +183,7 @@ emptyState cc = State
 
 size :: Text -> LaTeX Int
 size t = do
-  f <- estimateTextWidth <$> get
+  f <- estimateTextWidth <$> ask
   return $ f t
 
 (<+>) :: Text -> Text -> Text
@@ -654,7 +660,7 @@ generateLaTeX i = do
   let outPath = modToFile moduleName
   liftIO $ do
     latex <- E.encodeUtf8 <$> toLaTeX
-                textWidthEstimator
+                (emptyEnv textWidthEstimator)
                 (mkAbsolute $ filePath sourceFile)
                 (iSource i)
                 (iHighlighting i)
@@ -676,15 +682,14 @@ groupByFst =
 
 -- | Transforms the source code into LaTeX.
 toLaTeX
-  :: TextWidthEstimator
-     -- ^ Count extended grapheme clusters?
+  :: Env
   -> AbsolutePath
   -> L.Text
   -> HighlightingInfo
   -> IO L.Text
-toLaTeX cc path source hi =
+toLaTeX env path source hi =
 
-  processTokens cc
+  processTokens env
 
     . map
       ( ( \(role, tokens) ->
@@ -758,12 +763,11 @@ toLaTeX cc path source hi =
 
 
 processTokens
-  :: TextWidthEstimator
-     -- ^ Count extended grapheme clusters?
+  :: Env
   -> [(LayerRole, Tokens)]
   -> IO L.Text
-processTokens cc ts = do
-  ((), s, os) <- runLaTeX (processLayers ts) () (emptyState cc)
+processTokens env ts = do
+  ((), s, os) <- runLaTeX (processLayers ts) env emptyState
   return $ L.fromChunks $ map (render s) os
   where
     render _ (Text s)        = s
