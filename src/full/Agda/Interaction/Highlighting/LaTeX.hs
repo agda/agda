@@ -112,6 +112,8 @@ type TextWidthEstimator = Text -> Int
 data Env = Env
   { estimateTextWidth :: !TextWidthEstimator
     -- ^ How to estimate the column width of text (i.e. Count extended grapheme clusters vs. code points).
+  , debugs :: [Debug]
+    -- ^ Says what debug information should printed.
   }
 
 data State = State
@@ -148,11 +150,6 @@ withTokenText f tok@Token{text = t} = tok{text = f t}
 data Debug = MoveColumn | NonCode | Code | Spaces | Output
   deriving (Eq, Show)
 
--- | Says what debug information should printed.
-
-debugs :: [Debug]
-debugs = []
-
 -- | Run function for the @LaTeX@ monad.
 runLaTeX ::
   LaTeX a -> Env -> State -> IO (a, State, [Output])
@@ -171,7 +168,7 @@ emptyState = State
 emptyEnv
   :: TextWidthEstimator  -- ^ Count extended grapheme clusters?
   -> Env
-emptyEnv = Env
+emptyEnv twe = Env twe []
 
 
 ------------------------------------------------------------------------
@@ -296,8 +293,9 @@ tshow :: Show a => a -> Text
 tshow = T.pack . show
 
 logHelper :: Debug -> Text -> [Text] -> LaTeX ()
-logHelper debug text extra =
-  when (debug `elem` debugs) $ do
+logHelper debug text extra = do
+  logLevels <- debugs <$> ask
+  when (debug `elem` logLevels) $ do
     lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
       "'" <+> text <+> "' " <+>
       if null extra
