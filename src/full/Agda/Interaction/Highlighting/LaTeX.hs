@@ -611,11 +611,11 @@ defaultStyFile = "agda.sty"
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
+  sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
   options <- TCM.commandLineOptions
   dir <-
     if O.optGHCiInteraction options
       then do
-             sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
              return $ filePath (projectRoot sourceFile moduleName) </> O.optLaTeXDir options
       else
              return $ O.optLaTeXDir options
@@ -639,11 +639,10 @@ generateLaTeX i = do
       styFile <- getDataFileName defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
   let outPath = modToFile moduleName
-  inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile moduleName)
   liftIO $ do
     latex <- E.encodeUtf8 <$> toLaTeX
                 (O.optCountClusters $ O.optPragmaOptions options)
-                (mkAbsolute inAbsPath)
+                (mkAbsolute $ filePath sourceFile)
                 (iSource i)
                 (iHighlighting i)
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
