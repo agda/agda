@@ -307,12 +307,9 @@ log Code text = do
   logHelper Code text ["columns=", show cols, "col=", show col]
 log debug text = logHelper debug text []
 
-log' :: Debug -> String -> LaTeX ()
-log' d = log d . T.pack
-
 output :: Output -> LaTeX ()
 output item = do
-  log' Output (show item)
+  log Output (T.pack $ show item)
   tell [item]
 
 ------------------------------------------------------------------------
@@ -558,13 +555,13 @@ spaces [ s ] = do
   column <- registerColumn kind
 
   if col /= 0
-  then log' Spaces "col /= 0"
+  then log Spaces "col /= 0"
   else do
     columns    <- gets columnsPrev
     codeBlock  <- gets codeBlock
 
-    log' Spaces $
-      "col == 0: " ++ show (len, columns)
+    log Spaces $
+      "col == 0: " <+> T.pack (show (len, columns))
 
     case filter ((<= len) . columnColumn) columns of
       c : _ | columnColumn c == len, isJust (columnKind c) -> do
