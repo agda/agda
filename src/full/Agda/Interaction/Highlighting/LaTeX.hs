@@ -613,12 +613,11 @@ generateLaTeX i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
   sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
   options <- TCM.commandLineOptions
-  dir <-
-    if O.optGHCiInteraction options
-      then do
-             return $ filePath (projectRoot sourceFile moduleName) </> O.optLaTeXDir options
-      else
-             return $ O.optLaTeXDir options
+  let latexDir = O.optLaTeXDir options
+  let dir = if O.optGHCiInteraction options
+      then filePath (projectRoot sourceFile moduleName) </> latexDir
+      else latexDir
+
   liftIO $ createDirectoryIfMissing True dir
   (code, _, _) <-
     liftIO $
