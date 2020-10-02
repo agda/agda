@@ -104,9 +104,9 @@ import Agda.Utils.Impossible
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
 class IsFlexiblePattern a where
-  maybeFlexiblePattern :: a -> MaybeT TCM FlexibleVarKind
+  maybeFlexiblePattern :: (HasConstInfo m, MonadDebug m) => a -> MaybeT m FlexibleVarKind
 
-  isFlexiblePattern :: a -> TCM Bool
+  isFlexiblePattern :: (HasConstInfo m, MonadDebug m) => a -> m Bool
   isFlexiblePattern p =
     maybe False notOtherFlex <$> runMaybeT (maybeFlexiblePattern p)
     where
