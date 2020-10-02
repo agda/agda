@@ -105,6 +105,10 @@ data AlignmentColumn = AlignmentColumn
     -- identifier.
   } deriving Show
 
+-- | Type of function for estimating column width of text.
+
+type TextWidthEstimator = Text -> Int
+
 data State = State
   { codeBlock     :: !Int   -- ^ The number of the current code block.
   , column        :: !Int   -- ^ The current column number.
@@ -123,7 +127,8 @@ data State = State
                             -- ^ Indentation columns that have
                             -- actually
                             --   been used.
-  , countClusters :: !Bool  -- ^ Count extended grapheme clusters?
+  , estimateTextWidth :: !TextWidthEstimator
+    -- ^ How to estimate the column width of text (i.e. Count extended grapheme clusters vs. code points).
   }
 
 type Tokens = [Token]
@@ -151,7 +156,7 @@ runLaTeX ::
 runLaTeX = runRWST
 
 emptyState
-  :: Bool  -- ^ Count extended grapheme clusters?
+  :: TextWidthEstimator  -- ^ Count extended grapheme clusters?
   -> State
 emptyState cc = State
   { codeBlock     = 0
@@ -160,7 +165,7 @@ emptyState cc = State
   , columnsPrev   = []
   , nextId        = 0
   , usedColumns   = Set.empty
-  , countClusters = cc
+  , estimateTextWidth = cc
   }
 
 ------------------------------------------------------------------------
@@ -172,15 +177,8 @@ emptyState cc = State
 
 size :: Text -> LaTeX Int
 size t = do
-  cc <- countClusters <$> get
-  if cc then
-#ifdef COUNT_CLUSTERS
-    return $ length $ ICU.breaks (ICU.breakCharacter ICU.Root) t
-#else
-    __IMPOSSIBLE__
-#endif
-   else
-    return $ T.length t
+  f <- estimateTextWidth <$> get
+  return $ f t
 
 (<+>) :: Text -> Text -> Text
 (<+>) = T.append
@@ -603,6 +601,16 @@ stringLiteral t = [t]
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
+getTextWidthEstimator :: Bool -> TextWidthEstimator
+getTextWidthEstimator _countClusters =
+#ifdef COUNT_CLUSTERS
+  if _countClusters
+    then length . (ICU.breaks (ICU.breakCharacter ICU.Root))
+    else T.length
+#else
+  T.length
+#endif
+
 -- | Generates a LaTeX file for the given interface.
 --
 -- The underlying source file is assumed to match the interface, but
@@ -620,6 +628,9 @@ generateLaTeX i = do
   let dir = if O.optGHCiInteraction options
       then filePath (projectRoot sourceFile moduleName) </> latexDir
       else latexDir
+
+  let countClusters = (O.optCountClusters . O.optPragmaOptions) options
+  let textWidthEstimator = getTextWidthEstimator countClusters
 
   liftIO $ createDirectoryIfMissing True dir
   (code, _, _) <-
@@ -643,7 +654,7 @@ generateLaTeX i = do
   let outPath = modToFile moduleName
   liftIO $ do
     latex <- E.encodeUtf8 <$> toLaTeX
-                (O.optCountClusters $ O.optPragmaOptions options)
+                textWidthEstimator
                 (mkAbsolute $ filePath sourceFile)
                 (iSource i)
                 (iHighlighting i)
@@ -665,7 +676,7 @@ groupByFst =
 
 -- | Transforms the source code into LaTeX.
 toLaTeX
-  :: Bool
+  :: TextWidthEstimator
      -- ^ Count extended grapheme clusters?
   -> AbsolutePath
   -> L.Text
@@ -746,9 +757,8 @@ toLaTeX cc path source hi =
   whenMoreThanOne _ xs         = xs
 
 
-
 processTokens
-  :: Bool
+  :: TextWidthEstimator
      -- ^ Count extended grapheme clusters?
   -> [(LayerRole, Tokens)]
   -> IO L.Text
