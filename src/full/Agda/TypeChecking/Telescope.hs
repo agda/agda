@@ -379,12 +379,12 @@ telViewUpTo' n p t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
-telViewPath :: Type -> TCM TelView
+telViewPath :: (MonadReduce m, HasBuiltins m) => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
 
 -- | @telViewUpToPath n t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
-telViewUpToPath :: Int -> Type -> TCM TelView
+telViewUpToPath :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m TelView
 telViewUpToPath 0 t = return $ TelV EmptyTel t
 telViewUpToPath n t = do
   vt <- pathViewAsPi $ t
