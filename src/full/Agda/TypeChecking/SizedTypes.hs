@@ -184,19 +184,15 @@ checkSizeVarNeverZero i = do
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.
-isBounded
-  :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
-  => Nat -> m BoundedSize
+isBounded :: PureTCM m => Nat -> m BoundedSize
 isBounded i = isBoundedSizeType =<< typeOfBV i
 
 isBoundedProjVar
-  :: (MonadCheckInternal m, MonadReduce m, MonadTCEnv m, HasBuiltins m)
+  :: (MonadCheckInternal m, PureTCM m)
   => ProjectedVar -> m BoundedSize
 isBoundedProjVar pv = isBoundedSizeType =<< infer (unviewProjectedVar pv)
 
-isBoundedSizeType
-  :: (MonadReduce m, MonadTCEnv m, HasBuiltins m)
-  => Type -> m BoundedSize
+isBoundedSizeType :: PureTCM m => Type -> m BoundedSize
 isBoundedSizeType t =
   reduce (unEl t) >>= \case
     Def x [Apply u] -> do
@@ -267,7 +263,7 @@ trySizeUniv cmp t m n x els1 y els2 = do
 
 -- | Compute the deep size view of a term.
 --   Precondition: sized types are enabled.
-deepSizeView :: (HasBuiltins m, MonadReduce m, MonadTCError m) => Term -> m DeepSizeView
+deepSizeView :: (PureTCM m, MonadTCError m) => Term -> m DeepSizeView
 deepSizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
@@ -282,7 +278,7 @@ deepSizeView v = do
           v                          -> return $ DOtherSize v
   loop v
 
-sizeMaxView :: (MonadReduce m, HasBuiltins m) => Term -> m SizeMaxView
+sizeMaxView :: PureTCM m => Term -> m SizeMaxView
 sizeMaxView v = do
   inf <- getBuiltinDefName builtinSizeInf
   suc <- getBuiltinDefName builtinSizeSuc
@@ -576,8 +572,7 @@ oldComputeSizeConstraint c =
 -- | Turn a term with de Bruijn indices into a size expression with offset.
 --
 --   Throws a 'patternViolation' if the term isn't a proper size expression.
-oldSizeExpr :: (MonadReduce m, MonadDebug m, MonadBlock m, HasBuiltins m)
-            => Term -> m (OldSizeExpr, Int)
+oldSizeExpr :: (PureTCM m, MonadBlock m) => Term -> m (OldSizeExpr, Int)
 oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.

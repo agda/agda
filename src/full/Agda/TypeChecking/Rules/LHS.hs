@@ -821,7 +821,7 @@ splitStrategy = filter shouldSplit
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
-  :: forall tcm a. (MonadTCM tcm, MonadReduce tcm, MonadAddContext tcm, MonadWriter Blocked_ tcm, HasConstInfo tcm, MonadError TCErr tcm, MonadTrace tcm, MonadDebug tcm, MonadReader Nat tcm, HasBuiltins tcm)
+  :: forall tcm a. (MonadTCM tcm, PureTCM tcm, MonadWriter Blocked_ tcm, MonadError TCErr tcm, MonadTrace tcm, MonadReader Nat tcm)
   => Maybe QName      -- ^ The name of the definition we are checking.
   -> LHSState a       -- ^ The current state.
   -> tcm a
@@ -1433,7 +1433,7 @@ data DataOrRecord
 --   a data/record type by instantiating a variable/metavariable, or fail hard
 --   otherwise.
 isDataOrRecordType
-  :: (MonadTCM m, MonadReduce m, MonadDebug m, ReadTCState m)
+  :: (MonadTCM m, PureTCM m)
   => Type
   -> ExceptT TCErr m (DataOrRecord, QName, Args, Args)
        -- ^ The 'Args' are parameters and indices.
@@ -1869,7 +1869,7 @@ checkParameters dc d pars = liftTCM $ do
       compareArgs [] [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 
-checkSortOfSplitVar :: (MonadTCM m, MonadReduce m, MonadError TCErr m, ReadTCState m, MonadDebug m,
+checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                         LensSort a, PrettyTCM a, LensSort ty, PrettyTCM ty)
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do

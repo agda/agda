@@ -26,13 +26,13 @@ import Agda.Utils.Monad
 -- | Run the given action. At the end take all new metavariables of
 --   type level for which the only constraints are upper bounds on the
 --   level, and instantiate them to the lowest level.
-defaultOpenLevelsToZero :: MonadMetaSolver m => m a -> m a
+defaultOpenLevelsToZero :: (PureTCM m, MonadMetaSolver m) => m a -> m a
 defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
   (result , newMetas) <- metasCreatedBy f
   defaultLevelsToZero newMetas
   return result
 
-defaultLevelsToZero :: forall m. (MonadMetaSolver m) => IntSet -> m ()
+defaultLevelsToZero :: forall m. (PureTCM m, MonadMetaSolver m) => IntSet -> m ()
 defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
   where
     loop :: [MetaId] -> m ()

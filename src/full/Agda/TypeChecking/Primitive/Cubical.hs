@@ -442,7 +442,7 @@ mkGComp s = do
                 <@> forward la bA (pure iz) u0
 
 
-unglueTranspGlue :: (HasConstInfo m, MonadReduce m, HasBuiltins m) =>
+unglueTranspGlue :: PureTCM m =>
                   Arg Term
                   -> Arg Term
                   -> FamilyOrNot
@@ -575,15 +575,14 @@ unglueTranspGlue _ _ _ = __IMPOSSIBLE__
 
 data TermPosition = Head | Eliminated deriving (Eq,Show)
 
-headStop :: (HasBuiltins m, MonadReduce m) =>
-                  TermPosition -> m Term -> m Bool
+headStop :: PureTCM m => TermPosition -> m Term -> m Bool
 headStop tpos phi
   | Head <- tpos = do
       phi <- intervalView =<< (reduce =<< phi)
       return $ not $ isIOne phi
   | otherwise = return False
 
-compGlue :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compGlue :: PureTCM m =>
                   TranspOrHComp
                   -> Arg Term
                   -> Maybe (Arg Term)
@@ -757,7 +756,7 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
           Eliminated -> a1'
 compGlue cmd phi u u0 _ _ = __IMPOSSIBLE__
 
-compHCompU :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compHCompU :: PureTCM m =>
                     TranspOrHComp
                     -> Arg Term
                     -> Maybe (Arg Term)

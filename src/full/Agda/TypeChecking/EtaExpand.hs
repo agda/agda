@@ -12,9 +12,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 -- | Eta-expand a term if its type is a function type or an eta-record type.
-etaExpandOnce
-  :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
-  => Type -> Term -> m Term
+etaExpandOnce :: PureTCM m => Type -> Term -> m Term
 etaExpandOnce a v = reduce a >>= \case
   El _ (Pi a b) -> return $
     Lam ai $ mkAbs (absName b) $ raise 1 v `apply` [ Arg ai $ var 0 ]
@@ -32,9 +30,7 @@ etaExpandOnce a v = reduce a >>= \case
 deepEtaExpand :: Term -> Type -> TCM Term
 deepEtaExpand v a = checkInternal' etaExpandAction v CmpLeq a
 
-etaExpandAction
-  :: (MonadReduce m, MonadTCEnv m, HasOptions m, HasConstInfo m, MonadDebug m)
-  => Action m
+etaExpandAction :: PureTCM m => Action m
 etaExpandAction = Action
   { preAction       = etaExpandOnce
   , postAction      = \ _ -> return

@@ -60,19 +60,14 @@ import Agda.Utils.WithDefault
 import Agda.Utils.Impossible
 
 type MonadConversion m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , MonadFail m
   )
 

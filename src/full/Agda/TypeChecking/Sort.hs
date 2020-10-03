@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad.Constraints (addConstraint, MonadConstraint)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.MetaVars (metaType)
+import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView)
@@ -58,7 +59,7 @@ import Agda.Utils.Monad
 --   straight away, return that. Otherwise, return @UnivSort s@ and add a
 --   constraint to ensure we can compute the sort eventually.
 inferUnivSort
-  :: (MonadReduce m, MonadConstraint m, HasOptions m)
+  :: (PureTCM m, MonadConstraint m)
   => Sort -> m Sort
 inferUnivSort s = do
   s <- reduce s
@@ -84,9 +85,7 @@ hasBiggerSort = void . inferUnivSort
 -- | Infer the sort of a pi type. If we can compute the sort straight away,
 --   return that. Otherwise, return @PiSort a s2@ and add a constraint to
 --   ensure we can compute the sort eventually.
-inferPiSort
-  :: (MonadReduce m, MonadAddContext m, MonadDebug m)
-  => Dom Type -> Abs Sort -> m Sort
+inferPiSort :: PureTCM m => Dom Type -> Abs Sort -> m Sort
 inferPiSort a s2 = do
   s1' <- reduce $ getSort a
   s2' <- mapAbstraction a reduce s2
@@ -155,7 +154,7 @@ ifNotSort t = flip $ ifIsSort t
 
 -- | Result is in reduced form.
 shouldBeSort
-  :: (MonadReduce m, MonadTCEnv m, ReadTCState m, MonadBlock m, MonadError TCErr m)
+  :: (PureTCM m, MonadBlock m, MonadError TCErr m)
   => Type -> m Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
@@ -163,7 +162,7 @@ shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 --
 --   Precondition: given term is a well-sorted type.
 sortOf
-  :: forall m. (MonadReduce m, MonadBlock m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (PureTCM m, MonadBlock m)
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
@@ -221,6 +220,6 @@ sortOf t = do
 
 -- | Reconstruct the minimal sort of a type (ignoring the sort annotation).
 sortOfType
-  :: forall m. (MonadReduce m, MonadBlock m, MonadTCEnv m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: forall m. (PureTCM m, MonadBlock m)
   => Type -> m Sort
 sortOfType = sortOf . unEl

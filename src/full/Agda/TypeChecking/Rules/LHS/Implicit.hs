@@ -32,17 +32,14 @@ implicitP info = Arg (setOrigin Inserted info) $ unnamed $ A.WildP $ PatRange $ 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
 insertImplicitPatterns
-  :: (HasBuiltins m, MonadReduce m, MonadAddContext m, MonadError TCErr m,
-      MonadFresh NameId m, MonadTrace m, MonadDebug m)
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
   => ExpandHidden -> [NamedArg A.Pattern]
   -> Telescope -> m [NamedArg A.Pattern]
 insertImplicitPatterns exh ps tel =
   insertImplicitPatternsT exh ps (telePi tel __DUMMY_TYPE__)
 
 -- | Insert trailing SizeLt patterns, if any.
-insertImplicitSizeLtPatterns
-  :: (HasBuiltins m, MonadReduce m, MonadAddContext m)
-  => Type -> m [NamedArg A.Pattern]
+insertImplicitSizeLtPatterns :: PureTCM m => Type -> m [NamedArg A.Pattern]
 insertImplicitSizeLtPatterns t = do
   -- Testing for SizeLt.  In case of blocked type, we return no.
   -- We assume that on the LHS, we know the type.  (TODO: Sufficient?)
@@ -61,8 +58,7 @@ insertImplicitSizeLtPatterns t = do
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
 insertImplicitPatternsT
-  :: (HasBuiltins m, MonadReduce m, MonadAddContext m, MonadError TCErr m,
-      MonadFresh NameId m, MonadTrace m, MonadDebug m)
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
   => ExpandHidden -> [NamedArg A.Pattern] -> Type
   -> m [NamedArg A.Pattern]
 insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a

@@ -73,6 +73,7 @@ newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
            , MonadError Blocked_, MonadState NLMState
            , HasBuiltins, HasConstInfo, HasOptions, ReadTCState
            , MonadTCEnv, MonadReduce, MonadAddContext, MonadDebug
+           , PureTCM
            )
 
 instance MonadBlock NLM where
@@ -401,7 +402,7 @@ makeSubstitution gamma sub =
                 Just (_         , v) -> Just v
                 Nothing              -> Nothing
 
-checkPostponedEquations :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m)
+checkPostponedEquations :: PureTCM m
                         => Substitution -> PostponedEquations -> m (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
   \ (PostponedEquation k a lhs rhs) -> do
@@ -412,7 +413,7 @@ checkPostponedEquations sub eqs = forM' eqs $
       addContext k $ equal a lhs' rhs
 
 -- main function
-nonLinMatch :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m, Match t a b)
+nonLinMatch :: (PureTCM m, Match t a b)
             => Telescope -> t -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
@@ -430,8 +431,7 @@ nonLinMatch gamma t p v = do
 -- | Typed βη-equality, also handles empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
-equal :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
-      => Type -> Term -> Term -> m (Maybe Blocked_)
+equal :: PureTCM m => Type -> Term -> Term -> m (Maybe Blocked_)
 equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
   Left b      -> return $ Just $ Blocked b ()
   Right True  -> return Nothing

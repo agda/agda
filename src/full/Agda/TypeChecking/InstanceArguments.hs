@@ -110,7 +110,7 @@ initialInstanceCandidates t = do
                  ]
       return $ vars ++ fields ++ lets
 
-    etaExpand :: (MonadTCM m, MonadReduce m, HasConstInfo m, HasBuiltins m)
+    etaExpand :: (MonadTCM m, PureTCM m)
               => Bool -> Type -> m (Maybe (QName, Args))
     etaExpand etaOnce t =
       isEtaRecordType t >>= \case
