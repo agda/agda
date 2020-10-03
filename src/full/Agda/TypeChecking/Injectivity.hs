@@ -127,7 +127,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
 headSymbol'
-  :: (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  :: (PureTCM m, MonadError TCErr m)
   => Term -> m (Maybe TermHead)
 headSymbol' v = do
   v <- traverse constructorForm =<< reduceB v
@@ -257,7 +257,7 @@ checkOverapplication es = updateHeads overapplied
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
 instantiateVarHeads
-  :: forall m c. (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  :: forall m c. (PureTCM m, MonadError TCErr m)
   => QName -> Elims -> InversionMap c -> m (Maybe (InversionMap c))
 instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
@@ -269,7 +269,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 
 -- | Argument should be in weak head normal form.
 functionInverse
-  :: (MonadReduce m, MonadError TCErr m, HasBuiltins m, HasConstInfo m)
+  :: (PureTCM m, MonadError TCErr m)
   => Term -> m InvView
 functionInverse v = case v of
   Def f es -> do

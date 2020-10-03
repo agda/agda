@@ -189,10 +189,7 @@ data UnificationResult' a
   deriving (Show, Functor, Foldable, Traversable)
 
 type MonadUnify m =
-  ( HasBuiltins m
-  , HasConstInfo m
-  , MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadBench m
   , BenchPhase m ~ Bench.Phase
   )
@@ -329,7 +326,7 @@ instance PrettyTCM UnifyState where
       prettyEquality x y = prettyTCM x <+> "=?=" <+> prettyTCM y
 
 initUnifyState
-  :: (MonadReduce m, MonadAddContext m)
+  :: PureTCM m
   => Telescope -> FlexibleVars -> Type -> Args -> Args -> m UnifyState
 initUnifyState tel flex a lhs rhs = do
   (tel, a, lhs, rhs) <- instantiateFull (tel, a, lhs, rhs)
@@ -1280,7 +1277,7 @@ unify s strategy = if isUnifyStateSolved s
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).
-patternBindingForcedVars :: (HasConstInfo m, MonadReduce m) => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
+patternBindingForcedVars :: PureTCM m => IntMap Modality -> Term -> m (DeBruijnPattern, IntMap Modality)
 patternBindingForcedVars forced v = do
   let v' = precomputeFreeVars_ v
   runWriterT (evalStateT (go defaultModality v') forced)

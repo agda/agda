@@ -289,8 +289,7 @@ instance PrettyTCM LeftoverPatterns where
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
 getLeftoverPatterns
-  :: forall m. (ReadTCState m, MonadReduce m, MonadAddContext m, MonadTCEnv m,
-                MonadDebug m, HasBuiltins m, HasConstInfo m)
+  :: forall m. PureTCM m
   => [ProblemEq] -> m LeftoverPatterns
 getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"

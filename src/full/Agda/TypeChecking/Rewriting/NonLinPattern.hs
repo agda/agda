@@ -180,13 +180,11 @@ instance PatternFrom Type Term NLPat where
 -- | Convert from a non-linear pattern to a term.
 
 class NLPatToTerm p a where
-  nlPatToTerm
-    :: (MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m)
-    => p -> m a
+  nlPatToTerm :: PureTCM m => p -> m a
 
   default nlPatToTerm ::
     ( NLPatToTerm p' a', Traversable f, p ~ f p', a ~ f a'
-    , MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m
+    , PureTCM m
     ) => p -> m a
   nlPatToTerm = traverse nlPatToTerm
 

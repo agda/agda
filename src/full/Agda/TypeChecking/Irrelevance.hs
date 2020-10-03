@@ -472,7 +472,7 @@ instance (Subst a, UsableModality a) => UsableModality (Abs a) where
 -- | Is a type a proposition?  (Needs reduction.)
 
 isPropM
-  :: (LensSort a, PrettyTCM a, MonadReduce m, MonadBlock m, MonadDebug m)
+  :: (LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
   => a -> m Bool
 isPropM a = do
   traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM (getSort a) <+> "in Prop?") $ do
@@ -481,7 +481,7 @@ isPropM a = do
     _      -> False
 
 isIrrelevantOrPropM
-  :: (LensRelevance a, LensSort a, PrettyTCM a, MonadReduce m, MonadBlock m, MonadDebug m)
+  :: (LensRelevance a, LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
   => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
 
@@ -490,7 +490,7 @@ isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
 -- | Is a type fibrant (i.e. Type, Prop)?
 
 isFibrant
-  :: (LensSort a, MonadReduce m, MonadBlock m)
+  :: (LensSort a, PureTCM m, MonadBlock m)
   => a -> m Bool
 isFibrant a = abortIfBlocked (getSort a) <&> \case
   Type{}     -> True

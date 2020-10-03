@@ -15,6 +15,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext)
 import Agda.TypeChecking.Monad.Debug (MonadDebug)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars (MonadInteractionPoints)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure (PureTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)
 
 import Agda.Utils.Null (Null)
@@ -33,14 +34,9 @@ prettyList_           :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m 
 -- Inlining definitions of MonadReify and MonadAbsToCon to avoid
 -- having to import them
 type MonadPretty m =
-  ( ( MonadReduce m
-    , MonadAddContext m
+  ( ( PureTCM m
     , MonadInteractionPoints m
     , MonadFresh NameId m
-    , HasConstInfo m
-    , HasOptions m
-    , HasBuiltins m
-    , MonadDebug m
     )
   , ( MonadTCEnv m
     , ReadTCState m

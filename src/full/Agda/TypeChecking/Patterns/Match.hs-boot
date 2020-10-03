@@ -14,12 +14,7 @@ data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow (Blocked ())
 
 buildSubstitution :: (DeBruijn a) => Empty -> Int -> IntMap (Arg a) -> Substitution' a
 
-type MonadMatch m =
-  ( MonadReduce m
-  , MonadDebug m
-  , HasBuiltins m
-  , HasConstInfo m
-  )
+type MonadMatch m = PureTCM m
 
 matchPatterns   :: MonadMatch m => [NamedArg DeBruijnPattern] -> Args -> m (Match Term, Args)
 matchCopatterns :: MonadMatch m => [NamedArg DeBruijnPattern] -> Elims -> m (Match Term, Elims)

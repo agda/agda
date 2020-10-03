@@ -128,12 +128,7 @@ mergeElim Proj{} _ = __IMPOSSIBLE__
 mergeElims :: [Elim] -> [Arg Term] -> [Elim]
 mergeElims = zipWith mergeElim
 
-type MonadMatch m =
-  ( MonadReduce m
-  , MonadDebug m
-  , HasBuiltins m
-  , HasConstInfo m
-  )
+type MonadMatch m = PureTCM m
 
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --

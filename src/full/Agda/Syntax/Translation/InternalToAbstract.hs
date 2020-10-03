@@ -144,14 +144,9 @@ reifyWhenE False t = return underscore
 -- Reification ------------------------------------------------------------
 
 type MonadReify m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadInteractionPoints m
   , MonadFresh NameId m
-  , HasConstInfo m
-  , HasOptions m
-  , HasBuiltins m
-  , MonadDebug m
   )
 
 class Reify i where

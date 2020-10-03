@@ -34,6 +34,7 @@ import Agda.TypeChecking.Monad.Caching
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure
 
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Common

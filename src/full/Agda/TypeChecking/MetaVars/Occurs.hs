@@ -612,7 +612,7 @@ instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
 prune
-  :: MonadMetaSolver m
+  :: (PureTCM m, MonadMetaSolver m)
   => MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
@@ -639,7 +639,7 @@ prune m' vs xs = do
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
 hasBadRigid
-  :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
+  :: PureTCM m
   => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
   -> Term               -- ^ Argument of meta variable.
   -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
@@ -704,7 +704,7 @@ isNeutral b f es = do
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
 rigidVarsNotContainedIn
-  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
+  :: (PureTCM m, AnyRigid a)
   => a
   -> (Nat -> Bool)   -- ^ Test for allowed variable (de Bruijn index).
   -> m Bool
@@ -730,7 +730,7 @@ rigidVarsNotContainedIn v is = do
 --   We need to successively reduce the expression to do this.
 
 class AnyRigid a where
-  anyRigid :: (MonadReduce tcm, MonadAddContext tcm)
+  anyRigid :: (PureTCM tcm)
            => (Nat -> tcm Bool) -> a -> tcm Bool
 
 instance AnyRigid Term where

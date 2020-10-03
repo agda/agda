@@ -618,8 +618,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: forall m. (MonadReduce m, HasConstInfo m, HasOptions m,
-                            ReadTCState m, MonadTCEnv m, MonadDebug m)
+reduceDefCopy :: forall m. PureTCM m
               => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do
   info <- getConstInfo f
@@ -640,8 +639,7 @@ reduceDefCopy f es = do
             NoReduction{}        -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
-reduceHead :: (HasBuiltins m, HasConstInfo m, MonadReduce m, MonadDebug m)
-           => Term -> m (Blocked Term)
+reduceHead :: PureTCM m => Term -> m (Blocked Term)
 reduceHead v = do -- ignoreAbstractMode $ do
   -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
   -- see Issue 796
@@ -676,7 +674,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
     _ -> return $ notBlocked v
 
 -- | Unfold a single inlined function.
-unfoldInlined :: (HasConstInfo m, MonadReduce m) => Term -> m Term
+unfoldInlined :: PureTCM m => Term -> m Term
 unfoldInlined v = do
   inTypes <- viewTC eWorkingOnTypes
   case v of

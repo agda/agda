@@ -250,16 +250,14 @@ isRecord r = do
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
-             => Type -> m (Maybe (QName, Args, Defn))
+isRecordType :: PureTCM m => Type -> m (Maybe (QName, Args, Defn))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
-              => Type -> m (Either (Blocked Type) (QName, Args, Defn))
+tryRecordType :: PureTCM m => Type -> m (Either (Blocked Type) (QName, Args, Defn))
 tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
@@ -290,8 +288,7 @@ origProjection f = do
 --   Precondition: @t@ is reduced.
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
-getDefType :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
-           => QName -> Type -> m (Maybe Type)
+getDefType :: PureTCM m => QName -> Type -> m (Maybe Type)
 getDefType f t = do
   -- Andreas, Issue #1973: we need to take the original projection
   -- since the parameters from the reduced type t are correct for
@@ -355,8 +352,8 @@ getDefType f t = do
 --   Precondition: @t@ is reduced.
 --
 projectTyped
-  :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
-  =>  Term        -- ^ Head (record value).
+  :: PureTCM m
+  => Term        -- ^ Head (record value).
   -> Type        -- ^ Its type.
   -> ProjOrigin
   -> QName       -- ^ Projection.
@@ -751,18 +748,17 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                  => QName -> Args -> m Bool
+isSingletonRecord :: (PureTCM m, MonadBlock m) => QName -> Args -> m Bool
 isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps
 
-isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+isSingletonRecordModuloRelevance :: (PureTCM m, MonadBlock m)
                                  => QName -> Args -> m Bool
 isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
+isSingletonRecord' :: forall m. (PureTCM m, MonadBlock m)
                    => Bool -> QName -> Args -> m (Maybe Term)
 isSingletonRecord' regardIrrelevance r ps = do
   reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
@@ -788,18 +784,15 @@ isSingletonRecord' regardIrrelevance r ps = do
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
-isSingletonType :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                => Type -> m (Maybe Term)
+isSingletonType :: (PureTCM m, MonadBlock m) => Type -> m (Maybe Term)
 isSingletonType = isSingletonType' False
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
-isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                               => Type -> m Bool
+isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
 isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t
 
-isSingletonType' :: (MonadReduce m, MonadAddContext m, MonadBlock m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                 => Bool -> Type -> m (Maybe Term)
+isSingletonType' :: (PureTCM m, MonadBlock m) => Bool -> Type -> m (Maybe Term)
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
     t <- abortIfBlocked t
@@ -813,9 +806,7 @@ isSingletonType' regardIrrelevance t = do
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,
 --   or nothing otherwise.
-isEtaVar
-  :: forall m. (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, HasBuiltins m, HasConstInfo m)
-  => Term -> Type -> m (Maybe Int)
+isEtaVar :: forall m. PureTCM m => Term -> Type -> m (Maybe Int)
 isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
   where
     -- Checks whether the term u (of type a) is beta-eta-equivalent to
