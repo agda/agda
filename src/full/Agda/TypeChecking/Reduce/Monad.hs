@@ -91,3 +91,5 @@ instance HasConstInfo ReduceM where
   getConstInfo' q = do
     ReduceEnv env st <- askR
     defaultGetConstInfo st env q
+
+instance PureTCM ReduceM where
