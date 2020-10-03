@@ -1,13 +1,6 @@
 Release notes for Agda version 2.6.2
 ====================================
 
-Installation and infrastructure
--------------------------------
-
-* Added support for GHC 8.10.1
-  [Issue [#4242](https://github.com/agda/agda/issues/4242)] and GHC
-  8.8.3 [Issue [#4476](https://github.com/agda/agda/issues/4476)].
-
 Command-line interaction
 ------------------------
 
