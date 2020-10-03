@@ -24,7 +24,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: ["8.10.1"]
+        ghc-ver: ["8.10.2"]
         cabal-ver: ["3.2"]
 
     steps:
@@ -32,9 +32,9 @@ jobs:
       with:
         submodules: recursive
 
-    - uses: actions/setup-haskell@v1.1.2
+    - uses: actions/setup-haskell@v1.1.3
       with:
-        ghc-version: '8.10.1'
+        ghc-version: '8.10.2'
         cabal-version: '3.2'
 
     - name: Resolve dependencies

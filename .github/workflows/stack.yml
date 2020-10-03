@@ -34,7 +34,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.1, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [8.10.2, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
@@ -81,7 +81,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.1]
+        ghc-ver: [8.10.2]
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"

@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.1]
+        ghc-ver: [8.10.2]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
@@ -25,7 +25,7 @@ jobs:
       with:
         submodules: recursive
 
-    - uses: actions/setup-haskell@v1.1.2
+    - uses: actions/setup-haskell@v1.1.3
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
@@ -55,7 +55,7 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.1]
+        ghc-ver: [8.10.2]
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"

@@ -30,6 +30,7 @@ extra-deps:
 - cmdargs-0.10.20
 - colour-2.3.5
 - comonad-5.0.6
+- cpphs-1.20.9.1
 - data-default-0.7.1.1
 - data-default-class-0.1.2.0
 - data-default-instances-containers-0.0.1
@@ -59,6 +60,7 @@ extra-deps:
 - network-uri-2.6.3.0
 - old-locale-1.0.0.7
 - optparse-applicative-0.16.0.0
+- polyparse-1.13
 - pretty-show-1.10
 - primitive-0.7.1.0
 - process-extras-0.7.4
