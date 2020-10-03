@@ -188,12 +188,6 @@ data UnificationResult' a
   | DontKnow [UnificationFailure] -- ^ Some other error happened, unification got stuck.
   deriving (Show, Functor, Foldable, Traversable)
 
-type MonadUnify m =
-  ( PureTCM m
-  , MonadBench m
-  , BenchPhase m ~ Bench.Phase
-  )
-
 -- | Unify indices.
 --
 --   In @unifyIndices gamma flex a us vs@,
@@ -206,15 +200,27 @@ type MonadUnify m =
 --
 --   The result is the most general unifier of @us@ and @vs@.
 unifyIndices
-  :: MonadUnify m
+  :: (PureTCM m, MonadBench m, BenchPhase m ~ Bench.Phase)
   => Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
   -> Args          -- ^ @us@
   -> Args          -- ^ @vs@
   -> m UnificationResult
-unifyIndices tel flex a [] [] = return $ Unifies (tel, idS, [])
-unifyIndices tel flex a us vs = Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
+unifyIndices tel flex a us vs =
+  Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $
+    unifyIndices' tel flex a us vs
+
+unifyIndices'
+  :: PureTCM m
+  => Telescope     -- ^ @gamma@
+  -> FlexibleVars  -- ^ @flex@
+  -> Type          -- ^ @a@
+  -> Args          -- ^ @us@
+  -> Args          -- ^ @vs@
+  -> m UnificationResult
+unifyIndices' tel flex a [] [] = return $ Unifies (tel, idS, [])
+unifyIndices' tel flex a us vs = do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ "unifyIndices"
           , ("tel  =" <+>) $ nest 2 $ prettyTCM tel
@@ -593,7 +599,7 @@ instance PrettyTCM UnifyStep where
       , "rhs:        " <+> prettyList_ (map prettyTCM vs)
       ])
 
-type UnifyStrategy = forall m. (MonadUnify m, MonadPlus m) => UnifyState -> m UnifyStep
+type UnifyStrategy = forall m. (PureTCM m, MonadPlus m) => UnifyState -> m UnifyStep
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --leftToRightStrategy :: UnifyStrategy
@@ -757,7 +763,7 @@ etaExpandEquationStrategy k s = do
     ]
   return $ EtaExpandEquation k d pars
   where
-    shouldProject :: MonadUnify m => Term -> m Bool
+    shouldProject :: PureTCM m => Term -> m Bool
     shouldProject u = case u of
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
@@ -878,7 +884,7 @@ runUnifyLogT :: UnifyLogT m a -> m (a,UnifyOutput)
 runUnifyLogT = runWriterT
 
 unifyStep
-  :: (MonadUnify m, MonadWriter UnifyOutput m)
+  :: (PureTCM m, MonadWriter UnifyOutput m)
   => UnifyState -> UnifyStep -> m (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } = do
@@ -931,7 +937,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
   -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
   let hduTel = eqTel1 `abstract` ctel
       notforced = replicate (size hduTel) NotForced
-  res <- addContext (varTel s) $ unifyIndices
+  res <- addContext (varTel s) $ unifyIndices'
            hduTel
            (allFlexVars notforced hduTel)
            (raise (size ctel) dtype)
@@ -1125,7 +1131,7 @@ data RetryNormalised = RetryNormalised | DontRetryNormalised
   deriving (Eq, Show)
 
 solutionStep
-  :: (MonadUnify m, MonadWriter UnifyOutput m)
+  :: (PureTCM m, MonadWriter UnifyOutput m)
   => RetryNormalised
   -> UnifyState
   -> UnifyStep
@@ -1235,14 +1241,14 @@ solutionStep retry s
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify
-  :: (MonadUnify m, MonadWriter UnifyOutput m)
+  :: (PureTCM m, MonadWriter UnifyOutput m)
   => UnifyState -> UnifyStrategy -> m (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
                    else tryUnifyStepsAndContinue (strategy s)
   where
     tryUnifyStepsAndContinue
-      :: (MonadUnify m, MonadWriter UnifyOutput m)
+      :: (PureTCM m, MonadWriter UnifyOutput m)
       => ListT m UnifyStep -> m (UnificationResult' UnifyState)
     tryUnifyStepsAndContinue steps = do
       x <- foldListT tryUnifyStep failure steps
@@ -1251,7 +1257,7 @@ unify s strategy = if isUnifyStateSolved s
         NoUnify err  -> return $ NoUnify err
         DontKnow err -> return $ DontKnow err
 
-    tryUnifyStep :: (MonadUnify m, MonadWriter UnifyOutput m)
+    tryUnifyStep :: (PureTCM m, MonadWriter UnifyOutput m)
                  => UnifyStep
                  -> m (UnificationResult' UnifyState)
                  -> m (UnificationResult' UnifyState)
