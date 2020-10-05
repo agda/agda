@@ -226,7 +226,13 @@ compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
       {-else-} (return isMain0)
 
     env  <- preCompile backend (options backend)
-    mods <- doCompile isMain i $ \ isMain i -> Map.singleton (iModuleName i) <$> compileModule backend env isMain i
+    mods <- doCompile
+        -- This inner function is called for both `Agda.Primitive` and the module in question,
+        -- and all (distinct) imported modules. So avoid shadowing "isMain" or "i".
+        (\ifaceIsMain iface -> Map.singleton (iModuleName iface) <$> compileModule backend env ifaceIsMain iface)
+        isMain i
+    -- Note that `doCompile` calls `setInterface` for each distinct module in the graph prior to calling into
+    -- `compileModule`. This last one is just to ensure it's reset to _this_ module.
     setInterface i
     postCompile backend env isMain mods
 

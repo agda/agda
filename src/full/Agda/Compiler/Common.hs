@@ -45,28 +45,32 @@ instance Monoid IsMain where
   mempty = IsMain
   mappend = (<>)
 
-doCompile :: forall r. Monoid r => IsMain -> Interface -> (IsMain -> Interface -> TCM r) -> TCM r
-doCompile isMain i f = do
+doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
+doCompile f isMain i = do
   -- The Agda.Primitive module is implicitly assumed to be always imported,
   -- even though it not necesseraly occurs in iImportedModules.
   -- TODO: there should be a better way to get hold of Agda.Primitive?
   [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
     . map miInterface . Map.elems
       <$> getVisitedModules
-  flip evalStateT Set.empty $ mappend <$> comp NotMain agdaPrimInter <*> comp isMain i
-  where
-    comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM r
-    comp isMain i = do
-      alreadyDone <- gets (Set.member (iModuleName i))
-      if alreadyDone then return mempty else do
-        imps <- lift $
-          map miInterface . catMaybes <$>
-            mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
-        ri <- mconcat <$> mapM (comp NotMain) imps
-        lift $ setInterface i
-        r <- lift $ f isMain i
-        modify (Set.insert $ iModuleName i)
-        return $ mappend ri r
+  flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
+
+-- This helper function is called for both `Agda.Primitive` and the module in question.
+-- It's also called for each imported module, recursively. (Avoiding duplicates).
+doCompile'
+  :: Monoid r
+  => (IsMain -> Interface -> TCM r) -> (IsMain -> Interface -> StateT (Set ModuleName) TCM r)
+doCompile' f isMain i = do
+  alreadyDone <- gets (Set.member (iModuleName i))
+  if alreadyDone then return mempty else do
+    imps <- lift $
+      map miInterface . catMaybes <$>
+        mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
+    ri <- mconcat <$> mapM (doCompile' f NotMain) imps
+    lift $ setInterface i
+    r <- lift $ f isMain i
+    modify (Set.insert $ iModuleName i)
+    return $ mappend ri r
 
 setInterface :: Interface -> TCM ()
 setInterface i = do
