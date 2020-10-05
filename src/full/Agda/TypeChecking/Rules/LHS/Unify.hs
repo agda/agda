@@ -31,7 +31,7 @@
 --   - A *negative success* @NoUnify err@ means that a conflicting equation
 --     was found (e.g an equation between two distinct constructors or a cycle).
 --
---   - A *failure* @DontKnow err@ means that the unifier got stuck.
+--   - A *failure* @UnifyStuck err@ means that the unifier got stuck.
 --
 --   The unification algorithm itself consists of two parts:
 --
@@ -172,6 +172,7 @@ import Agda.Utils.PartialOrd
 import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -183,9 +184,10 @@ type UnificationResult = UnificationResult'
   )
 
 data UnificationResult' a
-  = Unifies  a                    -- ^ Unification succeeded.
-  | NoUnify  NegativeUnification  -- ^ Terms are not unifiable.
-  | DontKnow [UnificationFailure] -- ^ Some other error happened, unification got stuck.
+  = Unifies  a                        -- ^ Unification succeeded.
+  | NoUnify  NegativeUnification      -- ^ Terms are not unifiable.
+  | UnifyBlocked Blocker              -- ^ Unification got blocked on a metavariable
+  | UnifyStuck   [UnificationFailure] -- ^ Some other error happened, unification got stuck.
   deriving (Show, Functor, Foldable, Traversable)
 
 -- | Unify indices.
@@ -893,10 +895,10 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
     withoutK <- withoutKOption
     splitOnStrict <- asksTC envSplitOnStrict
     case isReflexive of
-      Left block   -> return $ DontKnow []
-      Right False  -> return $ DontKnow []
+      Left block   -> return $ UnifyBlocked block
+      Right False  -> return $ UnifyStuck []
       Right True | withoutK && not splitOnStrict
-                   -> return $ DontKnow [UnifyReflexiveEq (varTel s) a u]
+                   -> return $ UnifyStuck [UnifyReflexiveEq (varTel s) a u]
       Right True   -> do
         let (s', sigma) = solveEq k u s
         tellUnifyProof sigma
@@ -905,7 +907,7 @@ unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRig
 unifyStep s step@Solution{} = solutionStep RetryNormalised s step
 
 unifyStep s (Injectivity k a d pars ixs c) = do
-  ifM (consOfHIT $ conName c) (return $ DontKnow []) $ do
+  ifM (consOfHIT $ conName c) (return $ UnifyStuck []) $ do
   withoutK <- withoutKOption
 
   -- Split equation telescope into parts before and after current equation
@@ -949,10 +951,13 @@ unifyStep s (Injectivity k a d pars ixs c) = do
     -- same type for distinct constructors c1 and c2.
     NoUnify _ -> __IMPOSSIBLE__
 
+    -- Higher-dimensional unification is blocked: propagate
+    UnifyBlocked block -> return $ UnifyBlocked block
+
     -- Higher-dimensional unification has failed. If not --without-K,
     -- we can simply ignore the higher-dimensional equations and
     -- simplify the equation as in the non-indexed case.
-    DontKnow _ | not withoutK -> do
+    UnifyStuck _ | not withoutK -> do
       -- using the same variable names as in the case where hdu succeeds.
       let eqTel1' = eqTel1 `abstract` ctel
           rho1    = raiseS (size ctel)
@@ -980,11 +985,11 @@ unifyStep s (Injectivity k a d pars ixs c) = do
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
 
 
-    DontKnow _ -> let n           = eqCount s
-                      Equal Dom{unDom = a} u v = getEquality k s
-                  in return $ DontKnow [UnifyIndicesNotVars
-                       (varTel s `abstract` eqTel s) a
-                       (raise n u) (raise n v) (raise (n-k) ixs)]
+    UnifyStuck _ -> let n           = eqCount s
+                        Equal Dom{unDom = a} u v = getEquality k s
+                    in return $ UnifyStuck [UnifyIndicesNotVars
+                         (varTel s `abstract` eqTel s) a
+                         (raise n u) (raise n v) (raise (n-k) ixs)]
 
     Unifies (eqTel1', rho0, _) -> do
       -- Split ps0 into parts for eqTel1 and ctel
@@ -1020,7 +1025,7 @@ unifyStep s Conflict
   } =
   case u of
     Con h _ _ -> do
-      ifM (consOfHIT $ conName h) (return $ DontKnow []) $ do
+      ifM (consOfHIT $ conName h) (return $ UnifyStuck []) $ do
         return $ NoUnify $ UnifyConflict (varTel s) u v
     _ -> __IMPOSSIBLE__
 unifyStep s Cycle
@@ -1029,7 +1034,7 @@ unifyStep s Cycle
   } =
   case u of
     Con h _ _ -> do
-      ifM (consOfHIT $ conName h) (return $ DontKnow []) $ do
+      ifM (consOfHIT $ conName h) (return $ UnifyStuck []) $ do
         return $ NoUnify $ UnifyCycle (varTel s) i u
     _ -> __IMPOSSIBLE__
 
@@ -1216,11 +1221,11 @@ solutionStep retry s
 
   -- We need a Flat equality to solve a Flat variable.
   -- This also ought to take care of the need for a usableCohesion check.
-  if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ DontKnow [] else do
+  if not (getCohesion eqmod `moreCohesion` getCohesion varmod) then return $ UnifyStuck [] else do
 
   case equalTypes of
-    Left block  -> return $ DontKnow []
-    Right False -> return $ DontKnow []
+    Left block  -> return $ UnifyBlocked block
+    Right False -> return $ UnifyStuck []
     Right True | usable ->
       case solveVar (m - 1 - i) p s of
         Nothing | retry == RetryNormalised -> do
@@ -1228,7 +1233,7 @@ solutionStep retry s
           s <- lensVarTel normalise s
           solutionStep DontRetryNormalised s step{ solutionTerm = u }
         Nothing ->
-          return $ DontKnow [UnifyRecursiveEq (varTel s) a i u]
+          return $ UnifyStuck [UnifyRecursiveEq (varTel s) a i u]
         Just (s', sub) -> do
           let rho = sub `composeS` dotSub
           tellUnifySubst rho
@@ -1237,7 +1242,7 @@ solutionStep retry s
           return $ Unifies s''
           -- Andreas, 2019-02-23, issue #3578: do not eagerly reduce
           -- Unifies <$> liftTCM (reduce s'')
-    Right True -> return $ DontKnow [UnifyUnusableModality (varTel s) a i u mod]
+    Right True -> return $ UnifyStuck [UnifyUnusableModality (varTel s) a i u mod]
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify
@@ -1253,9 +1258,10 @@ unify s strategy = if isUnifyStateSolved s
     tryUnifyStepsAndContinue steps = do
       x <- foldListT tryUnifyStep failure steps
       case x of
-        Unifies s'   -> unify s' strategy
-        NoUnify err  -> return $ NoUnify err
-        DontKnow err -> return $ DontKnow err
+        Unifies s'     -> unify s' strategy
+        NoUnify err    -> return $ NoUnify err
+        UnifyBlocked b -> return $ UnifyBlocked b
+        UnifyStuck err -> return $ UnifyStuck err
 
     tryUnifyStep :: (PureTCM m, MonadWriter UnifyOutput m)
                  => UnifyStep
@@ -1271,15 +1277,21 @@ unify s strategy = if isUnifyStateSolved s
           reportSDoc "tc.lhs.unify" 20 $ "new unifyState:" <+> prettyTCM s'
           writeUnifyLog $ UnificationStep s step
           return x
-        NoUnify{}     -> return x
-        DontKnow err1 -> do
+        NoUnify{}       -> return x
+        UnifyBlocked b1 -> do
           y <- fallback
           case y of
-            DontKnow err2 -> return $ DontKnow $ err1 ++ err2
-            _             -> return y
+            UnifyStuck _    -> return $ UnifyBlocked b1
+            UnifyBlocked b2 -> return $ UnifyBlocked $ unblockOnEither b1 b2
+            _               -> return y
+        UnifyStuck err1 -> do
+          y <- fallback
+          case y of
+            UnifyStuck err2 -> return $ UnifyStuck $ err1 ++ err2
+            _               -> return y
 
     failure :: Monad m => m (UnificationResult' a)
-    failure = return $ DontKnow []
+    failure = return $ UnifyStuck []
 
 -- | Turn a term into a pattern while binding as many of the given forced variables as possible (in
 --   non-forced positions).

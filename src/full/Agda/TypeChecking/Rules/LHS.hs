@@ -1304,14 +1304,18 @@ checkLHS mf = updateModality checkLHS_ where
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a
 
+      let stuck errs = softTypeError $ SplitError $
+            UnificationStuck (conName c) (delta1 `abstract` gamma) cixs ixs' errs
+
       liftTCM (withKIfStrict $ unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
         NoUnify neg -> hardTypeError $ ImpossibleConstructor (conName c) neg
 
+        UnifyBlocked block -> stuck [] -- TODO: postpone and retry later
+
         -- Unclear situation.  Try next split.
-        DontKnow errs -> softTypeError $ SplitError $
-          UnificationStuck (conName c) (delta1 `abstract` gamma) cixs ixs' errs
+        UnifyStuck errs -> stuck errs
 
         -- Success.
         Unifies (delta1',rho0,es) -> do
