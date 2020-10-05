@@ -26,7 +26,6 @@ import Agda.Interaction.Imports (MaybeWarnings'(..))
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
-import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -71,7 +70,7 @@ runAgda' backends = do
       MainModePrintAgdaDir   -> printAgdaDir
       MainModeRun interactor -> runTCMPrettyErrors $ do
         setTCLens stBackends bs
-        runAgdaWithOptions generateHTML interactor progName opts
+        runAgdaWithOptions interactor progName opts
 
 -- | Main execution mode
 data MainMode
@@ -159,14 +158,13 @@ getInteractor configuredBackends maybeInputFile opts =
     errorInteraction inputFile suffix = throwError $
       concat [ "Must not specify an input file (", filePath inputFile, ") with --interaction", suffix ]
 
--- | Run Agda with parsed command line options and with a custom HTML generator
+-- | Run Agda with parsed command line options
 runAgdaWithOptions
-  :: TCM ()             -- ^ HTML generating action
-  -> Interactor a       -- ^ Backend interaction
+  :: Interactor a       -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM a
-runAgdaWithOptions generateHTML interactor progName opts = do
+runAgdaWithOptions interactor progName opts = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
           UtilsBench.setBenchmarking UtilsBench.BenchmarkOn
@@ -215,9 +213,6 @@ runAgdaWithOptions generateHTML interactor progName opts = do
               ifNotNullM (applyFlagsToTCWarnings ws) {-then-} tcWarningsToError {-else-} $ return Nothing
 
           reportSDoc "main" 50 $ pretty i
-
-          whenM (optGenerateHTML <$> commandLineOptions) $
-            generateHTML
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
             LaTeX.generateLaTeX i

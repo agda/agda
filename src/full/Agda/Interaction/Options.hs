@@ -8,7 +8,6 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM, OptDescr(..), ArgDescr(..)
     , Verbosity, VerboseKey, VerboseLevel
-    , HtmlHighlight(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
     , UnicodeOrAscii(..)
@@ -41,7 +40,6 @@ import Control.Monad.Except
 import Control.Monad.Trans
 
 import Data.IORef
-import Data.Function
 import Data.Maybe
 import Data.Map                 ( Map )
 import qualified Data.Map as Map
@@ -83,9 +81,6 @@ type VerboseKey   = String
 type VerboseLevel = Int
 type Verbosity    = Trie VerboseKey VerboseLevel
 
-data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
-  deriving (Show, Eq)
-
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
 -- if you make changes to the command-line options!
@@ -116,12 +111,7 @@ data CommandLineOptions = Options
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile       :: Bool
   , optGenerateLaTeX         :: Bool
-  , optGenerateHTML          :: Bool
-  , optHTMLHighlight         :: HtmlHighlight
   , optLaTeXDir              :: FilePath
-  , optHTMLDir               :: FilePath
-  , optCSSFile               :: Maybe FilePath
-  , optHighlightOccurrences  :: Bool
   , optIgnoreInterfaces      :: Bool
   , optIgnoreAllInterfaces   :: Bool
   , optLocalInterfaces       :: Bool
@@ -257,14 +247,7 @@ defaultOptions = Options
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
   , optGenerateLaTeX         = False
-  , optGenerateHTML          = False
-  , optHTMLHighlight         = HighlightAll
   , optLaTeXDir              = defaultLaTeXDir
-  , optHTMLDir               = defaultHTMLDir
-  , optCSSFile               = Nothing
-  -- Don't enable by default because it causes potential
-  -- performance problems
-  , optHighlightOccurrences  = False
   , optIgnoreInterfaces      = False
   , optIgnoreAllInterfaces   = False
   , optLocalInterfaces       = False
@@ -341,11 +324,6 @@ defaultCutOff = CutOff 0 -- minimum value
 defaultLaTeXDir :: String
 defaultLaTeXDir = "latex"
 
--- | The default output directory for HTML.
-
-defaultHTMLDir :: String
-defaultHTMLDir = "html"
-
 type OptM = ExceptT String IO
 
 runOptM :: OptM a -> IO (Either String a)
@@ -361,18 +339,12 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | htmlRelated = throwError htmlRelatedMessage
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
       throwError exclusiveMessage
   | otherwise = return opts
   where
   matches = length . filter ($ opts)
-  optionChanged opt = ((/=) `on` opt) opts defaultOptions
-
-  atMostOne =
-    [ optGenerateHTML
-    ] ++
-    map fst exclusive
+  atMostOne = map fst exclusive
 
   exclusive =
     [ ( optOnlyScopeChecking
@@ -392,23 +364,11 @@ checkOpts opts
 
   exclusiveMessage = unlines $
     [ "The options --interactive, --interaction, --interaction-json and"
-    , "--only-scope-checking cannot be combined with each other or"
-    , "with --html. Furthermore"
+    , "--only-scope-checking cannot be combined with each other."
+    , "Furthermore"
     , "--interactive and --interaction cannot be combined with"
     , "--latex, and --only-scope-checking cannot be combined with"
     , "--vim."
-    ]
-
-  htmlRelated = not (optGenerateHTML opts) &&
-    (  optionChanged optHTMLDir
-    || optionChanged optHTMLHighlight
-    || optionChanged optCSSFile
-    || optionChanged optHighlightOccurrences
-    )
-
-  htmlRelatedMessage = unlines $
-    [ "The options --html-highlight, --css-dir, --highlight-occurrences"
-    , "and --html-dir only be used along with --html flag."
     ]
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
@@ -825,25 +785,6 @@ compileFlagNoMain o = return $ o { optCompileNoMain = True }
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 
-htmlFlag :: Flag CommandLineOptions
-htmlFlag o = return $ o { optGenerateHTML = True }
-
-htmlHighlightFlag :: String -> Flag CommandLineOptions
-htmlHighlightFlag "code" o = return $ o { optHTMLHighlight = HighlightCode }
-htmlHighlightFlag "all"  o = return $ o { optHTMLHighlight = HighlightAll  }
-htmlHighlightFlag "auto" o = return $ o { optHTMLHighlight = HighlightAuto  }
-htmlHighlightFlag opt    o = throwError $ "Invalid option <" ++ opt
-  ++ ">, expected <all>, <auto> or <code>"
-
-htmlDirFlag :: FilePath -> Flag CommandLineOptions
-htmlDirFlag d o = return $ o { optHTMLDir = d }
-
-cssFlag :: FilePath -> Flag CommandLineOptions
-cssFlag f o = return $ o { optCSSFile = Just f }
-
-highlightOccurrencesFlag :: Flag CommandLineOptions
-highlightOccurrencesFlag o = return $ o { optHighlightOccurrences = True }
-
 includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
@@ -937,20 +878,6 @@ standardOptions =
     , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
                     ("directory in which LaTeX files are placed (default: " ++
                      defaultLaTeXDir ++ ")")
-    , Option []     ["html"] (NoArg htmlFlag)
-                    "generate HTML files with highlighted source code"
-    , Option []     ["html-dir"] (ReqArg htmlDirFlag "DIR")
-                    ("directory in which HTML files are placed (default: " ++
-                     defaultHTMLDir ++ ")")
-    , Option []     ["highlight-occurrences"] (NoArg highlightOccurrencesFlag)
-                    ("highlight all occurrences of hovered symbol in generated " ++
-                     "HTML files")
-    , Option []     ["css"] (ReqArg cssFlag "URL")
-                    "the CSS file used by the HTML files (can be relative)"
-    , Option []     ["html-highlight"] (ReqArg htmlHighlightFlag "[code,all,auto]")
-                    ("whether to highlight only the code parts (code) or " ++
-                     "the file as a whole (all) or " ++
-                     "decide by source file type (auto)")
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)
