@@ -1134,12 +1134,18 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          conIxs
          givenIxs
 
+  let stuck errs = do
+        debugCantSplit
+        throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
+
+
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
 
-    DontKnow errs -> do
-      debugCantSplit
-      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
+    UnifyBlocked block -> stuck [] -- TODO: postpone and retry later
+
+    UnifyStuck errs -> stuck errs
+
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
