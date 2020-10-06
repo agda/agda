@@ -54,13 +54,14 @@ $nonalpha    = $idchar # $alpha
 $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
-@number       = $digit+ | "0x" $hexdigit+
 @prettynumber = $digit+ ([_] $digit+)*
               | "0x" $hexdigit+ ([_] $hexdigit+)*
               | "0b" $binarydigit+ ([_] $binarydigit+)*
 @integer      = [\-]? @prettynumber
-@exponent     = [eE] [\-\+]? @number
-@float        = @integer \. @number @exponent? | @number @exponent
+@decimal      = $digit+
+@exponent     = [eE] [\-\+]? @decimal
+@float        = [\-]? @decimal \. @decimal @exponent?
+              | [\-]? @decimal @exponent
 
 -- A name can't start with \x (to allow \x -> x).
 -- Bug in alex: [ _ op ]+ doesn't seem to work!
