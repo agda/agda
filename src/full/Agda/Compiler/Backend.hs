@@ -178,9 +178,8 @@ parseBackendOptions backends argv opts0 =
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
-backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
-backendInteraction [] fallback check = fallback check
-backendInteraction backends _ check = do
+backendInteraction :: [Backend] -> TCM (Maybe Interface) -> TCM ()
+backendInteraction backends check = do
   opts   <- commandLineOptions
   let backendNames = [ backendName b | Backend b <- backends ]
       err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ List.intercalate ", " backendNames ++ ")"
