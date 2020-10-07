@@ -249,28 +249,31 @@ specify where it is the identity function.
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for a usage of ``transp`` to type-check.
-In a call ``transp A r a``, where ``A`` and ``r`` can both depend on any other interval variables currently in scope,
-Agda will try to convert ``A`` to a constant function in those cases where
-the constraint ``r = i1`` is satisfied. This must succeed for the call to ``transp`` to type-check,
-as it is necessary for the computation rule of ``transp`` to make sense:
-When``r`` is ``i1``, ``transp A r`` will compute as the identity function, requiring ``A i0`` to be convertible to ``A i1``.
+There is an additional side condition to be satisfied for a usage of ``transp`` to type-check: ``A`` should be a constant function whenever the constraint ``r = i1`` is satisfied. By constant here we mean that ``A`` is definitionally equal to ``λ _ → A i0``, which in turn requires ``A i0`` and ``A i1`` to be definitionally equal as well.
 
-For example:
-
-* If ``r`` is ``i0`` then ``A`` can be anything, since this side
-  condition is vacuously true.
-
-* If ``r`` is ``i1`` then ``A`` must be a constant function.
-
-* If ``r`` is some in-scope variable ``i`` on which ``A`` depends as well, then ``A`` only needs to be
-  a constant function when substituting ``i1`` for ``i``.
+When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
 .. code-block:: agda
 
    transp A i1 a = a
 
-This requires ``A`` to be constant for it to be well-typed.
+This is only sound if in such a case ``A`` is a trivial path, as the side condition requires.
+
+It might seems strange that the side condition expects ``r`` and
+``A`` to interact, but both of them can depend on any of the
+interval variables in scope, so assuming a specific value for ``r``
+can affect what ``A`` looks like.
+
+Some examples of the side condition for different values of ``r``:
+
+* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend as well, then ``A`` only needs to be
+  a constant function when substituting ``i1`` for ``i``.
+
+* If ``r`` is ``i0`` then there is no restrition on ``A``, since the side
+  condition is vacuously true.
+
+* If ``r`` is ``i1`` then ``A`` must be a constant function.
+
 
 We can use ``transp`` to define regular transport:
 
