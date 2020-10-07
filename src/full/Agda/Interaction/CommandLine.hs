@@ -1,5 +1,7 @@
 
-module Agda.Interaction.CommandLine where
+module Agda.Interaction.CommandLine
+  ( runInteractionLoop
+  ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -75,6 +77,9 @@ interaction prompt cmds eval = loop
                 do  s <- liftTCM $ prettyError e
                     liftIO $ putStrLn s
                     loop
+
+runInteractionLoop :: TCM (Maybe Interface) -> TCM ()
+runInteractionLoop = runIM . interactionLoop
 
 -- | The interaction loop.
 interactionLoop :: TCM (Maybe Interface) -> IM ()
