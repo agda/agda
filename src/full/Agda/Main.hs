@@ -4,7 +4,6 @@
 module Agda.Main where
 
 import Control.Monad.Except
-import Control.Monad.State
 
 import Data.Maybe
 
@@ -16,7 +15,6 @@ import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
-import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.Imports (MaybeWarnings'(..))
@@ -63,31 +61,36 @@ runAgda' backends = runTCMPrettyErrors $ do
             bs' -> backendInteraction bs'
       () <$ runAgdaWithOptions backends generateHTML interactor progName opts
 
+type Interactor a
+    -- Setup/initialization action.
+    -- This is separated so that errors can be reported in the appropriate format.
+    = TCM ()
+    -- Type-checking action
+    -> TCM (Maybe Interface)
+    -- Main transformed action.
+    -> TCM a
 
-defaultInteraction :: CommandLineOptions -> TCM (Maybe Interface) -> TCM ()
-defaultInteraction opts
-  | i         = runInteractionLoop
-  | ghci      = mimicGHCi . (failIfInt =<<)
-  | json      = jsonREPL . (failIfInt =<<)
-  | otherwise = (() <$)
+defaultInteraction :: CommandLineOptions -> Interactor ()
+defaultInteraction opts setup check
+  | i         = runInteractionLoop setup check
+  -- Emacs and JSON interaction call typeCheck directly.
+  | ghci      = mimicGHCi setup
+  | json      = jsonREPL setup
+  | otherwise = setup >> void check
   where
     i    = optInteractive     opts
     ghci = optGHCiInteraction opts
     json = optJSONInteraction opts
 
-    failIfInt Nothing  = return ()
-    failIfInt (Just _) = __IMPOSSIBLE__
-
-
 -- | Run Agda with parsed command line options and with a custom HTML generator
 runAgdaWithOptions
   :: [Backend]          -- ^ Backends only for printing usage and version information
   -> TCM ()             -- ^ HTML generating action
-  -> (TCM (Maybe Interface) -> TCM a) -- ^ Backend interaction
+  -> Interactor a       -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM (Maybe a)
-runAgdaWithOptions backends generateHTML interaction progName opts
+runAgdaWithOptions backends generateHTML interactor progName opts
       | Just hp <- optShowHelp opts = Nothing <$ liftIO (printUsage backends hp)
       | optShowVersion opts         = Nothing <$ liftIO (printVersion backends)
       | isNothing (optInputFile opts)
@@ -104,21 +107,28 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             -- on e.g. LaTeX-code generation.
             -- Benchmarking might be turned off later by setCommandlineOptions
 
-          Bench.billTo [] checkFile `finally_` do
-
+          Bench.billTo [] $
+            interactor initialSetup checkFile
+          `finally_` do
             -- Print benchmarks.
             Bench.print
 
             -- Print accumulated statistics.
             printStatistics 1 Nothing =<< useTC lensAccumStatistics
   where
-    checkFile = do
+    -- Options are fleshed out here so that (most) errors like
+    -- "bad library path" are validated within the interactor,
+    -- so that they are reported with the appropriate protocol/formatting.
+    -- Additionally, the repl (`optInteractive`) mutates `optInputFile` (via continuation)
+    -- and invokes the check block multiple times, and otherwise required special-casing
+    -- to avoid clobbering its own state in between those loops.
+    initialSetup :: TCM ()
+    initialSetup = do
       opts <- addTrustedExecutables opts
-      when (optInteractive opts) $ do
-        setCommandLineOptions opts
-        liftIO $ putStr splashScreen
-      interaction $ do
-        unless (optInteractive opts) $ setCommandLineOptions opts
+      setCommandLineOptions opts
+
+    checkFile :: TCM (Maybe Interface)
+    checkFile = do
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).

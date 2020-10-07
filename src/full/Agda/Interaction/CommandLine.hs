@@ -78,14 +78,16 @@ interaction prompt cmds eval = loop
                     liftIO $ putStrLn s
                     loop
 
-runInteractionLoop :: TCM (Maybe Interface) -> TCM ()
-runInteractionLoop = runIM . interactionLoop
+runInteractionLoop :: TCM () -> TCM (Maybe Interface) -> TCM ()
+runInteractionLoop doSetup doCheck = runIM $ interactionLoop doSetup doCheck
 
 -- | The interaction loop.
-interactionLoop :: TCM (Maybe Interface) -> IM ()
-interactionLoop doTypeCheck =
-    do  liftTCM reload
-        interaction "Main> " commands evalTerm
+interactionLoop :: TCM () -> TCM (Maybe Interface) -> IM ()
+interactionLoop doSetup doTypeCheck = do
+    liftTCM doSetup
+    liftIO $ putStr splashScreen
+    liftTCM reload
+    interaction "Main> " commands evalTerm
     where
         reload = do
             mi <- doTypeCheck
