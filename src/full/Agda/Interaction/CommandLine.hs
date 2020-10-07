@@ -130,7 +130,7 @@ continueAfter m = withCurrentFile $ do
 -- | Set 'envCurrentPath' to 'optInputFile'.
 withCurrentFile :: TCM a -> TCM a
 withCurrentFile cont = do
-  mpath <- getInputFile'
+  mpath <- getInputFile
   localTC (\ e -> e { envCurrentPath = mpath }) cont
 
 loadFile :: TCM () -> [String] -> TCM ()

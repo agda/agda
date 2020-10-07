@@ -35,6 +35,7 @@ import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
+import Agda.Utils.Maybe (caseMaybeM)
 import Agda.Utils.Monad
 import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -128,19 +129,17 @@ runAgdaWithOptions backends generateHTML interactor progName opts
       setCommandLineOptions opts
 
     checkFile :: TCM (Maybe Interface)
-    checkFile = do
-        hasFile <- hasInputFile
+    checkFile = caseMaybeM getInputFile (return Nothing) $ \inputFile -> do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).
         -- 'resetState' here does not seem to serve any purpose,
         -- thus, I am removing it.
         -- resetState
-        if not hasFile then return Nothing else do
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
                      else Imp.TypeCheck RegularInteraction
 
-          file    <- SourceFile <$> getInputFile
+          let file = SourceFile inputFile
           (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
 
           -- An interface is only generated if the mode is

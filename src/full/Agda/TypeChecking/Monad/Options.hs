@@ -228,18 +228,10 @@ setInputFile file =
         setCommandLineOptions $
           opts { optInputFile = Just file }
 
--- | Should only be run if 'hasInputFile'.
-getInputFile :: TCM AbsolutePath
-getInputFile = fromMaybeM __IMPOSSIBLE__ $
-  getInputFile'
-
 -- | Return the 'optInputFile' as 'AbsolutePath', if any.
-getInputFile' :: TCM (Maybe AbsolutePath)
-getInputFile' = mapM (liftIO . absolute) =<< do
+getInputFile :: TCM (Maybe AbsolutePath)
+getInputFile = mapM (liftIO . absolute) =<< do
   optInputFile <$> commandLineOptions
-
-hasInputFile :: HasOptions m => m Bool
-hasInputFile = isJust . optInputFile <$> commandLineOptions
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
