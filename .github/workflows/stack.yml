@@ -123,6 +123,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
+        # We can not use 8.10.2 because #4965.
         ghc-ver: [8.10.1]
         icu-ver: [65.1-1]
 
