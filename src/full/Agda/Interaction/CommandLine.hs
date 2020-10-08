@@ -237,15 +237,10 @@ parseExpr s = do
 evalTerm :: String -> TCM (ExitCode a)
 evalTerm s =
     do  e <- parseExpr s
-        v <- evalInCurrent e
+        v <- evalInCurrent DefaultCompute e
         e <- prettyTCM v
         liftIO $ print e
         return Continue
-    where
-        evalInCurrent e = do
-          (v,t) <- inferExpr e
-          normalise v
-
 
 typeOf :: [String] -> TCM ()
 typeOf s =
