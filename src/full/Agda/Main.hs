@@ -94,7 +94,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
           && not (optGHCiInteraction opts)
           && not (optJSONInteraction opts)
                             = Nothing <$ liftIO (printUsage backends GeneralHelp)
-      | otherwise           = do
+      | otherwise           = Just <$> do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
           UtilsBench.setBenchmarking UtilsBench.BenchmarkOn
@@ -111,7 +111,7 @@ runAgdaWithOptions backends generateHTML interaction progName opts
             -- Print accumulated statistics.
             printStatistics 1 Nothing =<< useTC lensAccumStatistics
   where
-    checkFile = Just <$> do
+    checkFile = do
       opts <- addTrustedExecutables opts
       when (optInteractive opts) $ do
         setCommandLineOptions opts
