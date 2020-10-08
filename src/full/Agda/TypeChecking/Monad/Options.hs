@@ -222,17 +222,6 @@ setIncludeDirs incs root = do
 
   Lens.putAbsoluteIncludePaths incs
 
-setInputFile :: FilePath -> TCM ()
-setInputFile file =
-    do  opts <- commandLineOptions
-        setCommandLineOptions $
-          opts { optInputFile = Just file }
-
--- | Return the 'optInputFile' as 'AbsolutePath', if any.
-getInputFile :: TCM (Maybe AbsolutePath)
-getInputFile = mapM (liftIO . absolute) =<< do
-  optInputFile <$> commandLineOptions
-
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
 

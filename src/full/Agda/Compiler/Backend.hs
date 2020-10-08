@@ -178,8 +178,8 @@ parseBackendOptions backends argv opts0 =
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
-backendInteraction :: [Backend] -> TCM () -> TCM (Maybe Interface) -> TCM ()
-backendInteraction backends setup check = do
+backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> TCM ()
+backendInteraction mainFile backends setup check = do
   opts   <- commandLineOptions
   let backendNames = [ backendName b | Backend b <- backends ]
       err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ List.intercalate ", " backendNames ++ ")"
@@ -188,7 +188,7 @@ backendInteraction backends setup check = do
   when (optJSONInteraction opts) $ err "interaction-json"
 
   setup
-  mi <- check
+  mi <- check mainFile
 
   -- reset warnings
   stTCWarnings `setTCLens` []

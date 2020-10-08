@@ -4,6 +4,7 @@ module Agda.Interaction.CommandLine
   ) where
 
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Monad.Reader
 
 import qualified Data.List as List
@@ -25,7 +26,6 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Abstract.Pretty
 
-import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
@@ -34,22 +34,40 @@ import Agda.TypeChecking.Pretty ( PrettyTCM(prettyTCM) )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Warnings (runPM)
 
-import Agda.Utils.Monad
+import Agda.Utils.FileName (absolute, AbsolutePath)
+import Agda.Utils.Maybe (caseMaybeM)
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+data ReplEnv = ReplEnv
+    { replSetupAction     :: TCM ()
+    , replTypeCheckAction :: AbsolutePath -> TCM (Maybe Interface)
+    }
+
+data ReplState = ReplState
+    { currentFile :: Maybe AbsolutePath
+    }
+
+type ReplM = ReaderT ReplEnv (StateT ReplState IM)
+
+runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> ReplM () -> TCM ()
+runReplM initialFile setup checkInterface
+    = runIM
+    . flip evalStateT (ReplState initialFile)
+    . flip runReaderT (ReplEnv setup checkInterface)
+
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
-type Command a = (String, [String] -> TCM (ExitCode a))
+type Command a = (String, [String] -> ReplM (ExitCode a))
 
-matchCommand :: String -> [Command a] -> Either [String] ([String] -> TCM (ExitCode a))
+matchCommand :: String -> [Command a] -> Either [String] ([String] -> ReplM (ExitCode a))
 matchCommand x cmds =
     case List.filter (List.isPrefixOf x . fst) cmds of
         [(_,m)] -> Right m
         xs      -> Left $ List.map fst xs
 
-interaction :: String -> [Command a] -> (String -> TCM (ExitCode a)) -> IM a
+interaction :: String -> [Command a] -> (String -> TCM (ExitCode a)) -> ReplM a
 interaction prompt cmds eval = loop
     where
         go (Return x)       = return x
@@ -57,13 +75,13 @@ interaction prompt cmds eval = loop
         go (ContinueIn env) = localTC (const env) loop
 
         loop =
-            do  ms <- readline prompt
+            do  ms <- lift $ lift $ readline prompt
                 case fmap words ms of
                     Nothing               -> return $ error "** EOF **"
                     Just []               -> loop
                     Just ((':':cmd):args) ->
                         do  case matchCommand cmd cmds of
-                                Right c -> go =<< liftTCM (c args)
+                                Right c -> go =<< (c args)
                                 Left [] ->
                                     do  liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
                                         loop
@@ -78,64 +96,76 @@ interaction prompt cmds eval = loop
                     liftIO $ putStrLn s
                     loop
 
-runInteractionLoop :: TCM () -> TCM (Maybe Interface) -> TCM ()
-runInteractionLoop doSetup doCheck = runIM $ interactionLoop doSetup doCheck
+runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> TCM ()
+runInteractionLoop initialFile setup check = runReplM initialFile setup check interactionLoop
+
+replSetup :: ReplM ()
+replSetup = do
+    liftTCM =<< asks replSetupAction
+    liftIO $ putStr splashScreen
+
+checkCurrentFile :: ReplM (Maybe Interface)
+checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) checkFile
+
+checkFile :: AbsolutePath -> ReplM (Maybe Interface)
+checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
 
 -- | The interaction loop.
-interactionLoop :: TCM () -> TCM (Maybe Interface) -> IM ()
-interactionLoop doSetup doTypeCheck = do
-    liftTCM doSetup
-    liftIO $ putStr splashScreen
-    liftTCM reload
-    interaction "Main> " commands evalTerm
+interactionLoop :: ReplM ()
+interactionLoop = do
+    -- Run the setup action
+    replSetup
+    reload
+    interaction "Main> " commands (liftTCM . evalTerm)
     where
-        reload = do
-            mi <- doTypeCheck
+        reload :: ReplM () = do
+            mi <- checkCurrentFile
             -- Note that mi is Nothing if (1) there is no input file or
             -- (2) the file type checked with unsolved metas and
             -- --allow-unsolved-metas was used. In the latter case the
             -- behaviour of agda -I may be surprising. If agda -I ever
             -- becomes properly supported again, then this behaviour
             -- should perhaps be fixed.
-            setScope $ maybe emptyScopeInfo iInsideScope mi
+            liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope mi
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s
             liftIO $ putStrLn "Failed."
 
         commands =
-            [ "quit"        |>  \_ -> return $ Return ()
+            [ "quit"        |>  \_ -> lift $ return $ Return ()
             , "?"           |>  \_ -> continueAfter $ liftIO $ help commands
             , "reload"      |>  \_ -> do reload
                                          ContinueIn <$> askTC
-            , "constraints" |> \args -> continueAfter $ showConstraints args
-            , "Context"     |> \args -> continueAfter $ showContext args
-            , "give"        |> \args -> continueAfter $ giveMeta args
-            , "Refine"      |> \args -> continueAfter $ refineMeta args
-            , "metas"       |> \args -> continueAfter $ showMetas args
+            , "constraints" |> \args -> continueAfter $ liftTCM $ showConstraints args
+            , "Context"     |> \args -> continueAfter $ liftTCM $ showContext args
+            , "give"        |> \args -> continueAfter $ liftTCM $ giveMeta args
+            , "Refine"      |> \args -> continueAfter $ liftTCM $ refineMeta args
+            , "metas"       |> \args -> continueAfter $ liftTCM $ showMetas args
             , "load"        |> \args -> continueAfter $ loadFile reload args
-            , "eval"        |> \args -> continueAfter $ evalIn args
-            , "typeOf"      |> \args -> continueAfter $ typeOf args
-            , "typeIn"      |> \args -> continueAfter $ typeIn args
-            , "wakeup"      |> \_ -> continueAfter $ retryConstraints
-            , "scope"       |> \_ -> continueAfter $ showScope
+            , "eval"        |> \args -> continueAfter $ liftTCM $ evalIn args
+            , "typeOf"      |> \args -> continueAfter $ liftTCM $ typeOf args
+            , "typeIn"      |> \args -> continueAfter $ liftTCM $ typeIn args
+            , "wakeup"      |> \_ -> continueAfter $ liftTCM $ retryConstraints
+            , "scope"       |> \_ -> continueAfter $ liftTCM $ showScope
             ]
             where
                 (|>) = (,)
 
-continueAfter :: TCM a -> TCM (ExitCode b)
+continueAfter :: ReplM a -> ReplM (ExitCode b)
 continueAfter m = withCurrentFile $ do
   m >> return Continue
 
--- | Set 'envCurrentPath' to 'optInputFile'.
-withCurrentFile :: TCM a -> TCM a
+-- | Set 'envCurrentPath' to the repl's current file
+withCurrentFile :: ReplM a -> ReplM a
 withCurrentFile cont = do
-  mpath <- getInputFile
+  mpath <- gets currentFile
   localTC (\ e -> e { envCurrentPath = mpath }) cont
 
-loadFile :: TCM () -> [String] -> TCM ()
+loadFile :: ReplM () -> [String] -> ReplM ()
 loadFile reload [file] = do
-  setInputFile file
+  absPath <- liftIO $ absolute file
+  modify (\(ReplState _prevFile) -> ReplState (Just absPath))
   withCurrentFile reload
 loadFile _ _ = liftIO $ putStrLn ":load file"
 

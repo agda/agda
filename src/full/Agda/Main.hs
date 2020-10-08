@@ -35,7 +35,8 @@ import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
-import Agda.Utils.Maybe (caseMaybeM)
+import Agda.Utils.FileName (absolute, AbsolutePath)
+import Agda.Utils.Maybe (caseMaybe)
 import Agda.Utils.Monad
 import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -57,9 +58,13 @@ runAgda' backends = runTCMPrettyErrors $ do
     Right (bs, opts) -> do
       setTCLens stBackends bs
       let enabled (Backend b) = isEnabled b (options b)
-          interactor = case filter enabled bs of
-            []  -> defaultInteraction opts
-            bs' -> backendInteraction bs'
+      interactor <- case filter enabled bs of
+            []  -> return $ defaultInteraction opts
+            bs' -> do
+              -- NOTE: The existence of optInputFile is checked in @runAgdaWithOptions@
+              -- before this block is executed.
+              file <- liftIO $ caseMaybe (optInputFile opts) __IMPOSSIBLE__ absolute
+              return $ backendInteraction file bs'
       () <$ runAgdaWithOptions backends generateHTML interactor progName opts
 
 type Interactor a
@@ -67,17 +72,27 @@ type Interactor a
     -- This is separated so that errors can be reported in the appropriate format.
     = TCM ()
     -- Type-checking action
-    -> TCM (Maybe Interface)
+    -> (AbsolutePath -> TCM (Maybe Interface))
     -- Main transformed action.
     -> TCM a
 
 defaultInteraction :: CommandLineOptions -> Interactor ()
 defaultInteraction opts setup check
-  | i         = runInteractionLoop setup check
+  | i         = do
+      maybeFile <- liftIO $ case (optInputFile opts) of
+                Nothing -> return Nothing
+                Just rel -> Just <$> absolute rel
+      runInteractionLoop maybeFile setup check
   -- Emacs and JSON interaction call typeCheck directly.
   | ghci      = mimicGHCi setup
   | json      = jsonREPL setup
-  | otherwise = setup >> void check
+  -- The default type-checking mode.
+  | otherwise = do
+      -- NOTE: The existence of optInputFile is checked in @runAgdaWithOptions@
+      -- before this block is executed.
+      file <- liftIO $ caseMaybe (optInputFile opts) __IMPOSSIBLE__ absolute
+      setup
+      void $ check file
   where
     i    = optInteractive     opts
     ghci = optGHCiInteraction opts
@@ -120,16 +135,13 @@ runAgdaWithOptions backends generateHTML interactor progName opts
     -- Options are fleshed out here so that (most) errors like
     -- "bad library path" are validated within the interactor,
     -- so that they are reported with the appropriate protocol/formatting.
-    -- Additionally, the repl (`optInteractive`) mutates `optInputFile` (via continuation)
-    -- and invokes the check block multiple times, and otherwise required special-casing
-    -- to avoid clobbering its own state in between those loops.
     initialSetup :: TCM ()
     initialSetup = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
-    checkFile :: TCM (Maybe Interface)
-    checkFile = caseMaybeM getInputFile (return Nothing) $ \inputFile -> do
+    checkFile :: AbsolutePath -> TCM (Maybe Interface)
+    checkFile inputFile = do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).
         -- 'resetState' here does not seem to serve any purpose,
