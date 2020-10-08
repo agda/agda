@@ -115,7 +115,7 @@ jobs:
   #     matrix:
   #       ghc-ver: ["8.10.1"]
   #       cabal-ver: ["3.2"]
-  #       icu-ver: [58.2-3]
+  #       icu-ver: [65.1-1]
 
   #   env:
   #     FLAGS: "-f enable-cluster-counting"
