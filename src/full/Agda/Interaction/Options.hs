@@ -48,7 +48,6 @@ import qualified Data.Set as Set
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
-import System.Directory         ( doesFileExist )
 import Text.EditDistance
 import Text.Read                ( readMaybe )
 
@@ -68,7 +67,6 @@ import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
-import Agda.Utils.Monad         ( ifM )
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -852,12 +850,11 @@ libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
-overrideLibrariesFileFlag s o = do
-  ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s
-                         , optUseLibs = True
-                         })
-    {-else-} (throwError $ "Libraries file not found: " ++ s)
+overrideLibrariesFileFlag s o =
+  return $ o
+    { optOverrideLibrariesFile = Just s
+    , optUseLibs = True
+    }
 
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }

@@ -273,14 +273,18 @@ readDefaultsFile = do
 --   Note: file may not exist.
 --
 getLibrariesFile
-  :: Maybe FilePath -- ^ Override the default @libraries@ file?
-  -> IO LibrariesFile
-getLibrariesFile (Just overrideLibFile) =
-  return $ LibrariesFile overrideLibFile True  -- Existence checked in cmdline option parser.
+  :: (MonadIO m, MonadError String m)
+  => Maybe FilePath -- ^ Override the default @libraries@ file?
+  -> m LibrariesFile
+getLibrariesFile (Just overrideLibFile) = do
+  -- A user-specified override file must exist.
+  ifM (liftIO $ doesFileExist overrideLibFile)
+    {-then-} (return $ LibrariesFile overrideLibFile True)
+    {-else-} (throwError $ "Libraries file not found: " ++ overrideLibFile)
 getLibrariesFile Nothing = do
-  agdaDir <- getAgdaAppDir
+  agdaDir <- liftIO $ getAgdaAppDir
   let defaults = List1.map (agdaDir </>) defaultLibraryFiles -- NB: very short list
-  files <- filterM doesFileExist (List1.toList defaults)
+  files <- liftIO $ filterM doesFileExist (List1.toList defaults)
   case files of
     file : _ -> return $ LibrariesFile file True
     []       -> return $ LibrariesFile (List1.last defaults) False -- doesn't exist, but that's ok
@@ -293,11 +297,14 @@ getInstalledLibraries
   :: Maybe FilePath     -- ^ Override the default @libraries@ file?
   -> LibM [AgdaLibFile] -- ^ Content of library files.  (Might have empty @LibName@s.)
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
-    file <- liftIO $ getLibrariesFile overrideLibFile
-    if not (lfExists file) then return [] else do
-      ls    <- liftIO $ stripCommentLines <$> readFile (lfPath file)
-      files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
-      parseLibFiles (Just file) $ nubOn snd files
+    filem <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
+    case filem of
+      Left err -> raiseErrors' [OtherError err] >> return []
+      Right file -> do
+        if not (lfExists file) then return [] else do
+          ls    <- liftIO $ stripCommentLines <$> readFile (lfPath file)
+          files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
+          parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
     return []
@@ -413,8 +420,10 @@ libraryIncludePaths
   -> [LibName]       -- ^ (Non-empty) library names to be resolved to (lists of) pathes.
   -> LibM [FilePath] -- ^ Resolved pathes (no duplicates).  Contains "." if @[LibName]@ does.
 libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
-    file <- liftIO $ getLibrariesFile overrideLibFile
-    return $ runWriter $ (dot ++) . incs <$> find file [] xs
+    efile <- liftIO $ runExceptT $ getLibrariesFile overrideLibFile
+    case efile of
+      Left err -> return ([], [Left $ LibError Nothing $ OtherError err])
+      Right file -> return $ runWriter $ (dot ++) . incs <$> find file [] xs
   where
     (dots, xs) = List.partition (== libNameForCurrentDir) $ map trim xs0
     incs       = nubOn id . concatMap _libIncludes
