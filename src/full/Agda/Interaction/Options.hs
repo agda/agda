@@ -35,9 +35,9 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad ( when, void )
-import Control.Monad.Except ( ExceptT, MonadError(throwError), runExceptT )
-import Control.Monad.Trans ( MonadIO(liftIO), MonadTrans(lift) )
+import Control.Monad.Except ( Except, MonadError(throwError), runExcept )
 
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 import Data.Function ( on )
 import Data.Maybe
 import Data.Map                 ( Map )
@@ -340,10 +340,10 @@ defaultLaTeXDir = "latex"
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
-type OptM = ExceptT String IO
+type OptM = Except String
 
-runOptM :: OptM a -> IO (Either String a)
-runOptM = runExceptT
+runOptM :: Monad m => OptM opts -> m (Either String opts)
+runOptM = pure . runExcept
 
 {- | @f :: Flag opts@  is an action on the option record that results from
      parsing an option.  @f opts@ produces either an error message or an
@@ -607,8 +607,8 @@ showIdentitySubstitutionsFlag :: Flag PragmaOptions
 showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
-asciiOnlyFlag o = do
-  lift $ unsafeSetUnicodeOrAscii AsciiOnly
+asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
+  unsafeSetUnicodeOrAscii AsciiOnly
   return $ o { optUseUnicode = AsciiOnly }
 
 ghciInteractionFlag :: Flag CommandLineOptions

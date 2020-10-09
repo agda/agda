@@ -36,7 +36,7 @@ setPragmaOptions opts = do
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions clo opts
   when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
-  ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
+  ok <- runOptM $ checkOpts (clo { optPragmaOptions = opts })
   case ok of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -64,7 +64,7 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  z <- liftIO $ runOptM $ checkOpts opts
+  z <- runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -143,7 +143,7 @@ addTrustedExecutables o
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    z    <- liftIO $ runOptM (parsePragmaOptions ps opts)
+    z    <- runOptM (parsePragmaOptions ps opts)
     case z of
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
