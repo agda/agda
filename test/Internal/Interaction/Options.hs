@@ -2,6 +2,7 @@
 
 module Internal.Interaction.Options ( tests ) where
 
+import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 

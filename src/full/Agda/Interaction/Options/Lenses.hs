@@ -15,6 +15,7 @@ import System.FilePath ((</>))
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
+import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 
 import Agda.Utils.Lens

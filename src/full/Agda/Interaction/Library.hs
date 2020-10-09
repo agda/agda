@@ -23,6 +23,7 @@ module Agda.Interaction.Library
   , getTrustedExecutables
   , libraryIncludePaths
   , getAgdaLibFiles
+  , getPrimitiveLibDir
   , LibName
   , AgdaLibFile(..)
   , ExeName
@@ -73,6 +74,9 @@ import Agda.Utils.String ( trim )
 
 import Agda.Version
 
+-- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
+import Paths_Agda ( getDataFileName )
+
 ------------------------------------------------------------------------
 -- * Types and Monads
 ------------------------------------------------------------------------
@@ -119,6 +123,15 @@ getAgdaAppDir = do
         d <- agdaDir
         putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
+
+-- | Returns the absolute default lib dir. This directory is used to
+-- store the Primitive.agda file.
+getPrimitiveLibDir :: IO FilePath
+getPrimitiveLibDir = do
+  libdir <- filePath <$> (absolute =<< getDataFileName "lib")
+  ifM (doesDirectoryExist libdir)
+      (return $ libdir </> "prim")
+      (error $ "The lib directory " ++ libdir ++ " does not exist")
 
 -- | The @~/.agda/libraries@ file lists the libraries Agda should know about.
 --   The content of @libraries@ is a list of paths to @.agda-lib@ files.

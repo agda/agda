@@ -29,7 +29,6 @@ module Agda.Interaction.Options
     , safeFlag
     , mapFlag
     , usage
-    , getPrimitiveLibDir
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions, deadStandardOptions
@@ -51,9 +50,7 @@ import qualified Data.Set as Set
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
-import System.Directory         ( doesFileExist, doesDirectoryExist )
-import System.FilePath          ( (</>) )
-
+import System.Directory         ( doesFileExist )
 import Text.EditDistance
 import Text.Read                ( readMaybe )
 
@@ -64,7 +61,7 @@ import Agda.Interaction.Options.Help
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
-import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
+import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
@@ -75,8 +72,6 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
 
 import Agda.Version
--- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
-import Paths_Agda ( getDataFileName )
 
 -- OptDescr is a Functor --------------------------------------------------
 
@@ -1266,15 +1261,3 @@ stripRTS (arg : argv)
   | otherwise     = arg : stripRTS argv
   where
     is x arg = [x] == take 1 (words arg)
-
-------------------------------------------------------------------------
--- Some paths
-
--- | Returns the absolute default lib dir. This directory is used to
--- store the Primitive.agda file.
-getPrimitiveLibDir :: IO FilePath
-getPrimitiveLibDir = do
-  libdir <- filePath <$> (absolute =<< getDataFileName "lib")
-  ifM (doesDirectoryExist libdir)
-      (return $ libdir </> "prim")
-      (error $ "The lib directory " ++ libdir ++ " does not exist")
