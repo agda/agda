@@ -1535,7 +1535,7 @@ funSort a b = fromMaybe (FunSort a b) $ funSort' a b
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
 piSort' :: Dom Term -> Sort -> Abs Sort -> Maybe Sort
-piSort' a s1       (NoAbs _ s2) = funSort' s1 s2
+piSort' a s1       (NoAbs _ s2) = Just $ funSort s1 s2
 piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
   Nothing -> Just $ funSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
   Just o | Just (True, f1) <- isSmallSort s1, Just (True, f2) <- isSmallSort s2 -> case o of
