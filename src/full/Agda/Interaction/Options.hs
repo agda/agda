@@ -29,7 +29,7 @@ module Agda.Interaction.Options
     , safeFlag
     , mapFlag
     , usage
-    , defaultLibDir
+    , getPrimitiveLibDir
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions, deadStandardOptions
@@ -52,6 +52,7 @@ import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
 import System.Directory         ( doesFileExist, doesDirectoryExist )
+import System.FilePath          ( (</>) )
 
 import Text.EditDistance
 import Text.Read                ( readMaybe )
@@ -1271,9 +1272,9 @@ stripRTS (arg : argv)
 
 -- | Returns the absolute default lib dir. This directory is used to
 -- store the Primitive.agda file.
-defaultLibDir :: IO FilePath
-defaultLibDir = do
-  libdir <- fmap filePath (absolute =<< getDataFileName "lib")
+getPrimitiveLibDir :: IO FilePath
+getPrimitiveLibDir = do
+  libdir <- filePath <$> (absolute =<< getDataFileName "lib")
   ifM (doesDirectoryExist libdir)
-      (return libdir)
+      (return $ libdir </> "prim")
       (error $ "The lib directory " ++ libdir ++ " does not exist")

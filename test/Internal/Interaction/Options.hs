@@ -44,7 +44,7 @@ prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
   where
     helper :: IO Bool
     helper = do
-      libdirPrim <- (</> "prim") <$> defaultLibDir
+      libdirPrim <- getPrimitiveLibDir
       allFiles <- getAgdaFilesInDir Rec libdirPrim
       let builtinFiles = Set.map (libdirPrim </>) builtinModules
       let diff = Set.difference (Set.fromList allFiles) builtinFiles

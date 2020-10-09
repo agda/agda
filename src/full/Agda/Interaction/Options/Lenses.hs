@@ -196,12 +196,12 @@ builtinModules = builtinModulesWithSafePostulates `Set.union`
 
 isBuiltinModule :: FilePath -> TCM Bool
 isBuiltinModule file = do
-  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  libdirPrim <- liftIO getPrimitiveLibDir
   return (file `Set.member` Set.map (libdirPrim </>) builtinModules)
 
 isBuiltinModuleWithSafePostulates :: FilePath -> TCM Bool
 isBuiltinModuleWithSafePostulates file = do
-  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  libdirPrim <- liftIO getPrimitiveLibDir
   let safeBuiltins   = Set.map (libdirPrim </>) builtinModulesWithSafePostulates
   return (file `Set.member` safeBuiltins)
 
