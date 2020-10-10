@@ -5,6 +5,7 @@ module Agda.Main where
 
 import Control.Monad.Except
 
+import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
@@ -35,8 +36,7 @@ import Agda.Compiler.Builtin
 
 import Agda.VersionCommit
 
-import Agda.Utils.FileName (absolute, AbsolutePath)
-import Agda.Utils.Maybe (caseMaybe)
+import Agda.Utils.FileName (absolute, filePath, AbsolutePath)
 import Agda.Utils.Monad
 import Agda.Utils.String
 import qualified Agda.Utils.Benchmark as UtilsBench
@@ -52,20 +52,38 @@ runAgda' :: [Backend] -> IO ()
 runAgda' backends = runTCMPrettyErrors $ do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
-  opts     <- liftIO $ runOptM $ parseBackendOptions backends argv defaultOptions
-  case opts of
-    Left  err        -> liftIO $ optionError err
-    Right (bs, opts) -> do
-      setTCLens stBackends bs
-      let enabled (Backend b) = isEnabled b (options b)
-      interactor <- case filter enabled bs of
-            []  -> return $ defaultInteraction opts
-            bs' -> do
-              -- NOTE: The existence of optInputFile is checked in @runAgdaWithOptions@
-              -- before this block is executed.
-              file <- liftIO $ caseMaybe (optInputFile opts) __IMPOSSIBLE__ absolute
-              return $ backendInteraction file bs'
-      () <$ runAgdaWithOptions backends generateHTML interactor progName opts
+  conf     <- liftIO $ runOptM $ do
+    (bs, opts) <- parseBackendOptions backends argv defaultOptions
+    -- The absolute path of the input file, if provided
+    inputFile <- maybe (pure Nothing) (fmap Just . liftIO . absolute) (optInputFile opts)
+    mode      <- getMainMode bs inputFile opts
+    return (bs, opts, mode)
+
+  case conf of
+    Left err -> liftIO $ optionError err
+    Right (bs, opts, mode) -> case mode of
+      MainModeShowHelp hp  -> liftIO $ printUsage bs hp
+      MainModePrintVersion -> liftIO $ printVersion bs
+      MainModeRun interactor -> do
+        setTCLens stBackends bs
+        () <$ runAgdaWithOptions generateHTML interactor progName opts
+
+-- | Main execution mode
+data MainMode
+  = MainModeRun (Interactor ())
+  | MainModeShowHelp Help
+  | MainModePrintVersion
+
+-- | Determine the main execution mode to run, based on the configured backends and command line options.
+-- | This is pure.
+getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
+getMainMode configuredBackends maybeInputFile opts
+  | Just hp <- optShowHelp opts = return $ MainModeShowHelp hp
+  | optShowVersion opts         = return $ MainModePrintVersion
+  | otherwise                   = do
+      mi <- getInteractor configuredBackends maybeInputFile opts
+      -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
+      return $ maybe (MainModeShowHelp GeneralHelp) MainModeRun mi
 
 type Interactor a
     -- Setup/initialization action.
@@ -76,45 +94,69 @@ type Interactor a
     -- Main transformed action.
     -> TCM a
 
-defaultInteraction :: CommandLineOptions -> Interactor ()
-defaultInteraction opts setup check
-  | i         = do
-      maybeFile <- liftIO $ case (optInputFile opts) of
-                Nothing -> return Nothing
-                Just rel -> Just <$> absolute rel
-      runInteractionLoop maybeFile setup check
-  -- Emacs and JSON interaction call typeCheck directly.
-  | ghci      = mimicGHCi setup
-  | json      = jsonREPL setup
-  -- The default type-checking mode.
-  | otherwise = do
-      -- NOTE: The existence of optInputFile is checked in @runAgdaWithOptions@
-      -- before this block is executed.
-      file <- liftIO $ caseMaybe (optInputFile opts) __IMPOSSIBLE__ absolute
-      setup
-      void $ check file
+data FrontendType
+  = FrontEndEmacs
+  | FrontEndJson
+  | FrontEndRepl
+
+-- Emacs mode. Note that it ignores the "check" action because it calls typeCheck directly.
+emacsModeInteractor :: Interactor ()
+emacsModeInteractor setup _check = mimicGHCi setup
+
+-- JSON mode. Note that it ignores the "check" action because it calls typeCheck directly.
+jsonModeInteractor :: Interactor ()
+jsonModeInteractor setup _check = jsonREPL setup
+
+-- The deprecated repl mode.
+replInteractor :: Maybe AbsolutePath -> Interactor ()
+replInteractor = runInteractionLoop
+
+-- The interactor to use when there are no frontends or backends specified.
+defaultInteractor :: AbsolutePath -> Interactor ()
+defaultInteractor file setup check = setup >> (void $ check file)
+
+getInteractor :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m (Maybe (Interactor ()))
+getInteractor configuredBackends maybeInputFile opts = case (maybeInputFile, enabledFrontends, enabledBackends) of
+  (Just inputFile, [],             _:_) -> return $ Just $ backendInteraction inputFile enabledBackends
+  (Just inputFile, [],              []) -> return $ Just $ defaultInteractor inputFile
+  (Nothing,        [],              []) -> return Nothing -- No backends, frontends, or input files specified.
+  (Nothing,        [],             _:_) -> throwError $ concat ["No input file specified for ", enabledBackendNames]
+  (_,              _:_,            _:_) -> throwError $ concat ["Cannot mix ", enabledFrontendNames, " with ", enabledBackendNames]
+  (_,              _:_:_,           []) -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
+  (_,              [FrontEndRepl],  []) -> return $ Just $ replInteractor maybeInputFile
+  (Nothing,        [FrontEndEmacs], []) -> return $ Just $ emacsModeInteractor
+  (Nothing,        [FrontEndJson],  []) -> return $ Just $ jsonModeInteractor
+  (Just inputFile, [FrontEndEmacs], []) -> throwError $ concat ["Must not specify an input file (", filePath inputFile, ") with --interaction"]
+  (Just inputFile, [FrontEndJson],  []) -> throwError $ concat ["Must not specify an input file (", filePath inputFile, ") with --interaction-json"]
   where
-    i    = optInteractive     opts
-    ghci = optGHCiInteraction opts
-    json = optJSONInteraction opts
+    -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
+    -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
+    isBackendEnabled (Backend b) = isEnabled b (options b)
+    enabledBackends = filter isBackendEnabled configuredBackends
+    enabledFrontends = [ name | (name, enabled) <-
+      [ (FrontEndRepl, optInteractive opts)
+      , (FrontEndEmacs, optGHCiInteraction opts)
+      , (FrontEndJson, optJSONInteraction opts)
+      ], enabled ]
+    -- Constructs messages like "(no backend)", "backend ghc", "backends (ghc, ocaml)"
+    pluralize w [] = concat ["(no ", w, ")"]
+    pluralize w [x] = concat [w, " ", x]
+    pluralize w xs = concat [w, "s (", List.intercalate ", " xs, ")"]
+    enabledBackendNames = pluralize "backend" [ backendName b | Backend b <- enabledBackends ]
+    enabledFrontendNames = pluralize "frontend" (frontendFlagName <$> enabledFrontends)
+    frontendFlagName = ("--" ++) . \case
+      FrontEndEmacs -> "interaction"
+      FrontEndJson -> "interaction-json"
+      FrontEndRepl -> "interactive"
 
 -- | Run Agda with parsed command line options and with a custom HTML generator
 runAgdaWithOptions
-  :: [Backend]          -- ^ Backends only for printing usage and version information
-  -> TCM ()             -- ^ HTML generating action
+  :: TCM ()             -- ^ HTML generating action
   -> Interactor a       -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM (Maybe a)
-runAgdaWithOptions backends generateHTML interactor progName opts
-      | Just hp <- optShowHelp opts = Nothing <$ liftIO (printUsage backends hp)
-      | optShowVersion opts         = Nothing <$ liftIO (printVersion backends)
-      | isNothing (optInputFile opts)
-          && not (optInteractive opts)
-          && not (optGHCiInteraction opts)
-          && not (optJSONInteraction opts)
-                            = Nothing <$ liftIO (printUsage backends GeneralHelp)
-      | otherwise           = Just <$> do
+runAgdaWithOptions generateHTML interactor progName opts = Just <$> do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
           UtilsBench.setBenchmarking UtilsBench.BenchmarkOn

@@ -360,8 +360,6 @@ type Flag opts = opts -> OptM opts
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | htmlRelated = throwError htmlRelatedMessage
-  | matches [optGHCiInteraction, optJSONInteraction, isJust . optInputFile] > 1 =
-      throwError "Choose at most one: input file, --interactive, or --interaction-json.\n"
   | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
       throwError exclusiveMessage
   | otherwise = return opts
