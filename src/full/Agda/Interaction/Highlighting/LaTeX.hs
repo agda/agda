@@ -605,6 +605,14 @@ stringLiteral t = [t]
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
+data LaTeXOptions = LaTeXOptions
+  { latexOptOutDir        :: FilePath
+  , latexOptSourceFile    :: AbsolutePath
+  , latexOptCountClusters :: Bool
+    -- ^ Count extended grapheme clusters rather than code points when
+    -- generating LaTeX.
+  }
+
 getTextWidthEstimator :: Bool -> TextWidthEstimator
 getTextWidthEstimator _countClusters =
 #ifdef COUNT_CLUSTERS
@@ -622,20 +630,32 @@ getTextWidthEstimator _countClusters =
 -- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
+  latexOpts <- getLaTeXOptionsFromTCM i
+  generateLaTeX' latexOpts i
+
+getLaTeXOptionsFromTCM :: Interface -> TCM LaTeXOptions
+getLaTeXOptionsFromTCM i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
   sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
   options <- TCM.commandLineOptions
-  let latexDir = O.optLaTeXDir options
-  -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
-  -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
-  -- And it prevents us from doing a real "one-time" setup.
-  let dir = if O.optGHCiInteraction options
-      then filePath (projectRoot sourceFile moduleName) </> latexDir
-      else latexDir
+  let
+    countClusters = (O.optCountClusters . O.optPragmaOptions) options
+    latexDir = O.optLaTeXDir options
+    -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
+    -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
+    -- And it prevents us from doing a real "one-time" setup.
+    outDir = if O.optGHCiInteraction options
+        then filePath (projectRoot sourceFile moduleName) </> latexDir
+        else latexDir
+  return LaTeXOptions
+    { latexOptOutDir        = outDir
+    , latexOptSourceFile    = sourceFile
+    , latexOptCountClusters = countClusters
+    }
 
-  let countClusters = (O.optCountClusters . O.optPragmaOptions) options
-  let textWidthEstimator = getTextWidthEstimator countClusters
-
+generateLaTeX' :: LaTeXOptions -> Interface -> TCM ()
+generateLaTeX' opts i = do
+  let dir = latexOptOutDir opts
   liftIO $ createDirectoryIfMissing True dir
   (code, _, _) <-
     liftIO $
@@ -655,7 +675,10 @@ generateLaTeX i = do
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
-  let outPath = modToFile moduleName
+
+  let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
+  let sourceFile = latexOptSourceFile opts
+  let outPath = modToFile $ toTopLevelModuleName $ iModuleName i
   liftIO $ do
     latex <- E.encodeUtf8 <$> toLaTeX
                 (emptyEnv textWidthEstimator)
