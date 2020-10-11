@@ -1,6 +1,8 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-| The scope monad with operations.
+
+Pure functions go to ''Agda.Syntax.Scope.Base''.
 -}
 
 module Agda.Syntax.Scope.Monad where
@@ -45,7 +47,7 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
-import Agda.TypeChecking.Warnings ( warning, warning' )
+import Agda.TypeChecking.Warnings ( warning, warning', raiseWarningsOnUsage )
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
@@ -805,6 +807,17 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
           ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  $ look x modulesInScope'
 
     let adir = mapImportDir namesA definedA dir
+
+    -- Andreas, 2020-10-11, issue #4958
+    -- Emit deprecation warnings for names mentioned in the using and renaming parts.
+    let (mentionedANames, mentionedAModules) = partitionImportedNames $ case adir of
+          ImportDirective _ useA _ renA _ ->
+            map renFrom renA ++
+            case useA of
+              UseEverything -> []
+              Using ns      -> ns
+    mapM_ raiseWarningsOnUsage $ List.sortOn getRange mentionedANames
+
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
@@ -878,15 +891,15 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
 -- | Translation of @ImportDirective@.
 mapImportDir
-  :: (Ord n1, Ord m1)
+  :: (Ord n1, Ord m1, HasRange n1, HasRange m1, SetRange n2, SetRange m2)
   => [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of imported names.
   -> [ImportedName' (n1,n2) (m1,m2)]  -- ^ Translation of names defined by this import.
   -> ImportDirective' n1 m1
   -> ImportDirective' n2 m2
 mapImportDir src0 tgt0 (ImportDirective r u h ren open) =
   ImportDirective r
-    (mapUsing (map (lookupImportedName src)) u)
-    (map (lookupImportedName src) h)
+    (mapUsing (map (\ x -> setRange (getRange x) $ lookupImportedName src x)) u)
+    (map (\ x -> setRange (getRange x) $ lookupImportedName src x) h)
     (map (mapRenaming src tgt) ren)
     open
   where
@@ -913,17 +926,17 @@ importedNameMapFromList = foldr (flip add) $ ImportedNameMap Map.empty Map.empty
 
 -- | Apply a 'ImportedNameMap'.
 lookupImportedName
-  :: (Ord n1, Ord m1)
+  :: (Ord n1, Ord m1, HasRange n1, HasRange m1, SetRange n2, SetRange m2)
   => ImportedNameMap n1 n2 m1 m2
   -> ImportedName' n1 m1
   -> ImportedName' n2 m2
 lookupImportedName (ImportedNameMap nm mm) = \case
-    ImportedName   x -> ImportedName   $ Map.findWithDefault __IMPOSSIBLE__ x nm
-    ImportedModule x -> ImportedModule $ Map.findWithDefault __IMPOSSIBLE__ x mm
+    ImportedName   x -> ImportedName   $ setRange (getRange x) $ Map.findWithDefault __IMPOSSIBLE__ x nm
+    ImportedModule x -> ImportedModule $ setRange (getRange x) $ Map.findWithDefault __IMPOSSIBLE__ x mm
 
 -- | Translation of @Renaming@.
 mapRenaming
-  ::  (Ord n1, Ord m1)
+  ::  (Ord n1, Ord m1, HasRange n1, HasRange m1, SetRange n2, SetRange m2)
   => ImportedNameMap n1 n2 m1 m2  -- ^ Translation of 'renFrom' names and module names.
   -> ImportedNameMap n1 n2 m1 m2  -- ^ Translation of 'rento'   names and module names.
   -> Renaming' n1 m1  -- ^ Renaming before translation (1).

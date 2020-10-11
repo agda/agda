@@ -2461,6 +2461,12 @@ instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
   getRange (ImportedName   x) = getRange x
   getRange (ImportedModule x) = getRange x
 
+-- ** SetRange instances
+
+instance (SetRange a, SetRange b) => SetRange (ImportedName' a b) where
+  setRange r (ImportedName   x) = ImportedName   $ setRange r x
+  setRange r (ImportedModule x) = ImportedModule $ setRange r x
+
 -- ** KillRange instances
 
 instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
