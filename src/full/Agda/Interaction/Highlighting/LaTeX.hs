@@ -13,6 +13,7 @@ import Data.Char
 import Data.Maybe
 import Data.Function
 import Data.Foldable (toList)
+import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT) )
 import Control.Monad.RWS.Strict
 import Control.Arrow (second)
 import System.Directory
@@ -24,7 +25,6 @@ import qualified Data.Text               as T
 #ifdef COUNT_CLUSTERS
 import qualified Data.Text.ICU           as ICU
 #endif
-import qualified Data.Text.IO            as T
 import qualified Data.Text.Lazy          as L
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.ByteString.Lazy    as BS
@@ -48,8 +48,13 @@ import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Interaction.Options as O
 
-import Agda.TypeChecking.Monad (TCM, Interface(..))
-import qualified Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Monad
+  ( Interface(..)
+  , MonadDebug
+  , reportS
+  , commandLineOptions
+  , TCM
+  )
 
 import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
 import qualified Agda.Utils.List1 as List1
@@ -57,17 +62,52 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
+-- * Logging
+
+class Monad m => MonadLogLaTeX m where
+  logLaTeX :: LogMessage -> m ()
+
+-- | Log LaTeX messages using a provided action.
+--
+-- This could be accomplished by putting logs into the RWST output and splitting it
+-- into a WriterT, but that becomes slightly more complicated to reason about in
+-- the presence of IO exceptions.
+--
+-- We want the logging to be reasonbly polymorphic, avoid space leaks that can occur
+-- with WriterT, and also be usable during outer phases such as directory preparation.
+--
+-- I'm not certain this is the best way to do it, but whatever.
+type LogLaTeXT m = ReaderT (LogMessage -> m ()) m
+
+instance Monad m => MonadLogLaTeX (LogLaTeXT m) where
+  logLaTeX message = do
+    doLog <- ask
+    lift $ doLog message
+
+runLogLaTeXTWith :: Monad m => (LogMessage -> m ()) -> LogLaTeXT m a -> m a
+runLogLaTeXTWith = flip runReaderT
+
+runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
+runLogLaTeXWithMonadDebug = runLogLaTeXTWith $ (reportS "compile.latex" 1) . T.unpack . logMsgToText
+
+-- Not currently used, but for example:
+-- runLogLaTeXWithIO :: MonadIO m => LogLaTeXT m a -> m a
+-- runLogLaTeXWithIO = runLogLaTeXTWith $ liftIO . T.putStrLn . logMsgToText
+
+------------------------------------------------------------------------
 -- * Datatypes.
 
 -- | The @LaTeX@ monad is a combination of @ExceptT@, @RWST@ and
--- @IO@. The error part is just used to keep track whether we finished or
+-- a logger @m@. The error part is just used to keep track whether we finished or
 -- not, the reader part contains static options used, the writer is where the
 -- output goes and the state is for keeping track of the tokens and some
--- other useful info, and the I/O part is used for printing debugging info.
+-- other useful info, and the MonadLogLaTeX part is used for printing debugging info.
 
-type LaTeX = RWST Env [Output] State IO
+type LaTeX a = forall m. MonadLogLaTeX m => RWST Env [Output] State m a
 
 -- | Output items.
+
+data LogMessage = LogMessage Debug Text [Text] deriving Show
 
 data Output
   = Text !Text
@@ -147,12 +187,12 @@ data Token = Token
 withTokenText :: (Text -> Text) -> Token -> Token
 withTokenText f tok@Token{text = t} = tok{text = f t}
 
-data Debug = MoveColumn | NonCode | Code | Spaces | Output
+data Debug = MoveColumn | NonCode | Code | Spaces | Output | FileSystem
   deriving (Eq, Show)
 
 -- | Run function for the @LaTeX@ monad.
-runLaTeX ::
-  LaTeX a -> Env -> State -> IO (a, State, [Output])
+runLaTeX :: MonadLogLaTeX m =>
+  LaTeX a -> Env -> State -> m (a, State, [Output])
 runLaTeX = runRWST
 
 emptyState :: State
@@ -292,15 +332,16 @@ leaveCode = return ()
 tshow :: Show a => a -> Text
 tshow = T.pack . show
 
+logMsgToText :: LogMessage -> Text
+logMsgToText (LogMessage messageLabel text extra) = T.concat $
+  [ tshow messageLabel, ": '", text, "' "
+  ] ++ if null extra then [] else ["(", T.unwords extra, ")"]
+
 logHelper :: Debug -> Text -> [Text] -> LaTeX ()
 logHelper debug text extra = do
   logLevels <- debugs <$> ask
   when (debug `elem` logLevels) $ do
-    lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
-      "'" <+> text <+> "' " <+>
-      if null extra
-         then T.empty
-         else "(" <+> (T.unwords extra) <+> ")"
+    lift $ logLaTeX (LogMessage debug text extra)
 
 log :: Debug -> Text -> LaTeX ()
 log MoveColumn text = do
@@ -631,14 +672,15 @@ getTextWidthEstimator _countClusters =
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   latexOpts <- getLaTeXOptionsFromTCM i
-  prepareCommonAssets (latexOptOutDir latexOpts)
-  generateLaTeXIO latexOpts i
+  runLogLaTeXWithMonadDebug $ do
+    prepareCommonAssets (latexOptOutDir latexOpts)
+    generateLaTeXIO latexOpts i
 
 getLaTeXOptionsFromTCM :: Interface -> TCM LaTeXOptions
 getLaTeXOptionsFromTCM i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
   sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
-  options <- TCM.commandLineOptions
+  options <- commandLineOptions
   let
     countClusters = (O.optCountClusters . O.optPragmaOptions) options
     latexDir = O.optLaTeXDir options
@@ -655,7 +697,7 @@ getLaTeXOptionsFromTCM i = do
     }
 
 -- | Create the common base output directory and check for/install the style file.
-prepareCommonAssets :: (TCM.MonadDebug m, MonadIO m) => FilePath -> m ()
+prepareCommonAssets :: (MonadLogLaTeX m, MonadIO m) => FilePath -> m ()
 prepareCommonAssets dir = do
   liftIO $ createDirectoryIfMissing True dir
   (code, _, _) <-
@@ -665,30 +707,25 @@ prepareCommonAssets dir = do
         ["--path=" ++ dir, defaultStyFile]
         ""
   when (code /= ExitSuccess) $ do
-    TCM.reportS
-      "compile.latex"
-      1
-      [ defaultStyFile
-          ++ " was not found. Copying a default version of "
-          ++ defaultStyFile,
-        "into " ++ dir ++ "."
-      ]
+    logLaTeX $ LogMessage FileSystem
+      (T.concat $ T.pack <$> [defaultStyFile, " was not found. Copying a default version of ", defaultStyFile, "into ", dir])
+      []
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
 
-generateLaTeXIO :: MonadIO m => LaTeXOptions -> Interface -> m ()
+generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> m ()
 generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
   let baseDir = latexOptOutDir opts
   let sourceFile = latexOptSourceFile opts
   let outPath = baseDir </> (latexOutRelativeFilePath $ toTopLevelModuleName $ iModuleName i)
+  latex <- E.encodeUtf8 <$> toLaTeX
+              (emptyEnv textWidthEstimator)
+              (mkAbsolute $ filePath sourceFile)
+              (iSource i)
+              (iHighlighting i)
   liftIO $ do
-    latex <- E.encodeUtf8 <$> toLaTeX
-                (emptyEnv textWidthEstimator)
-                (mkAbsolute $ filePath sourceFile)
-                (iSource i)
-                (iHighlighting i)
     createDirectoryIfMissing True (takeDirectory outPath)
     BS.writeFile outPath latex
 
@@ -706,11 +743,12 @@ groupByFst =
 
 -- | Transforms the source code into LaTeX.
 toLaTeX
-  :: Env
+  :: MonadLogLaTeX m
+  => Env
   -> AbsolutePath
   -> L.Text
   -> HighlightingInfo
-  -> IO L.Text
+  -> m L.Text
 toLaTeX env path source hi =
 
   processTokens env
@@ -787,9 +825,10 @@ toLaTeX env path source hi =
 
 
 processTokens
-  :: Env
+  :: MonadLogLaTeX m
+  => Env
   -> [(LayerRole, Tokens)]
-  -> IO L.Text
+  -> m L.Text
 processTokens env ts = do
   ((), s, os) <- runLaTeX (processLayers ts) env emptyState
   return $ L.fromChunks $ map (render s) os
