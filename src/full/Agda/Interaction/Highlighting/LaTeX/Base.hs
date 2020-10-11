@@ -4,7 +4,7 @@
 -- | Function for generating highlighted and aligned LaTeX from literate
 -- Agda source.
 
-module Agda.Interaction.Highlighting.LaTeX
+module Agda.Interaction.Highlighting.LaTeX.Base
   ( generateLaTeX
   ) where
 
