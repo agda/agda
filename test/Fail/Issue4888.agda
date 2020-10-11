@@ -4,4 +4,4 @@ impor Agda.Builtin.Nat
 
 import Agda.Builtin.Sigma
 
-module issue4888 where
+module Issue4888 where
