@@ -611,7 +611,6 @@ defaultStyFile = "agda.sty"
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
-      hi  = iHighlighting i
   options <- TCM.commandLineOptions
   dir <-
     if O.optGHCiInteraction options
@@ -646,7 +645,7 @@ generateLaTeX i = do
                 (O.optCountClusters $ O.optPragmaOptions options)
                 (mkAbsolute inAbsPath)
                 (iSource i)
-                hi
+                (iHighlighting i)
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
