@@ -7,7 +7,7 @@ module Agda.Interaction.Highlighting.HTML
   -- Reused by PandocAgda
   , defaultCSSFile
   , generateHTMLWithPageGen
-  , generatePage
+  , renderPageToFile
   , page
   , tokenStream
   , code
@@ -134,7 +134,7 @@ generateHTML = generateHTMLWithPageGen pageGen
   where
   pageGen :: PageGen
   pageGen dir ft ho pc ext mod contents hinfo =
-    generatePage (renderer ho pc ft) ext dir mod
+    renderPageToFile (renderer ho pc ft) ext dir mod
     where
     renderer :: Bool -> Bool
              -> FileType -> FilePath -> FilePath
@@ -200,14 +200,14 @@ modToFile m ext =
 
 -- | Generates a highlighted, hyperlinked version of the given module.
 
-generatePage
+renderPageToFile
   :: (FilePath -> FilePath -> Text)  -- ^ Page renderer.
   -> String                          -- ^ Output file extension.
   -> FilePath                        -- ^ Directory in which to create
                                      --   files.
   -> C.TopLevelModuleName            -- ^ Module to be highlighted.
   -> TCM ()
-generatePage renderPage ext dir mod = do
+renderPageToFile renderPage ext dir mod = do
   f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
   css <- fromMaybe defaultCSSFile . optCSSFile <$> TCM.commandLineOptions
   let target = dir </> modToFile mod ext
