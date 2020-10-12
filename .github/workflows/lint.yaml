@@ -1,0 +1,50 @@
+name: Lint
+
+on:
+  push:
+    paths:
+      - '.github/workflows/lint.yaml'
+      - '.hlint.yaml'
+      - 'Agda.cabal'
+      - 'src/**'
+      - 'test/**'
+
+  pull_request:
+    # See: https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/lint.yaml'
+      - '.hlint.yaml'
+      - 'Agda.cabal'
+      - 'src/**'
+      - 'test/**'
+
+jobs:
+  hlint:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2.3.1
+    # NOTE: Because `src/fix-whitespace` currently has lint warnings, (See
+    # https://github.com/agda/fix-whitespace/pull/8), we do not checking out
+    # submodules recursively here like we normally do. Perhaps the submodule
+    # should be moved to a separate non-linted directory like lib/.
+
+    - name: Set up hlint
+      uses: rwe/actions-hlint-setup@v1
+      with:
+        version: '3.1.6'
+
+    - name: Run hlint
+      uses: rwe/actions-hlint-run@v2
+      with:
+        path: '["src/", "test/"]'
+        fail-on: warning

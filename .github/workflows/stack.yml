@@ -1,4 +1,4 @@
-name: stack build
+name: Stack build
 
 on:
   push:
@@ -8,6 +8,9 @@ on:
     - '.github/*'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
+    - 'Setup.hs'
+    - 'test/**.hs'
+
   pull_request:
     paths:
     - 'src/**'
@@ -15,88 +18,144 @@ on:
     - '.github/*'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
+    - 'Setup.hs'
+    - 'test/**.hs'
+
 
 jobs:
-  linux:
-    runs-on: ubuntu-16.04
+  Ubuntu:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [8.10.2, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
-      FLAGS_1: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
-      FLAGS_2: "--flag Agda:enable-cluster-counting"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.3
       with:
         ghc-version: ${{ matrix.ghc-ver }}
-    - name: Install dependencies
-      run: |
-        stack build ${ARGS} ${FLAGS_1} --only-dependencies
-    - name: Build Agda with -fenable-cluster-counting -fcpphs -fdebug
-      run: |
-        stack build ${ARGS} ${FLAGS_1}
-    - name: Build Agda with -fenable-cluster-counting
-      run: |
-        stack build ${ARGS} ${FLAGS_2}
-    - name: Pack artifacts
-      run: |
-        mkdir -p upload
-        mkdir -p upload/bin
-        cp -av .stack-work/dist/x86_64-linux/**/build/agda/agda upload/bin
-        cp -av .stack-work/dist/x86_64-linux/**/build/agda-mode/agda-mode upload/bin
-        # cp -av .stack-work/dist/x86_64-linux/**/build/size-solver/size-solver upload/bin
-        cp -avr src/data upload
-        cp -av .github/*.sh upload
-    - uses: actions/upload-artifact@master
-      with:
-        name: agda-linux-${{ matrix.ghc-ver }}
-        path: upload
 
-  windows:
+    - uses: actions/cache@v2.1.0
+      name: Cache dependencies
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-new-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+
+    - name: Install needed Ubuntu packages
+      run: |
+        sudo apt-get update && sudo apt-get install libicu-dev
+
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+      run: |
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
+      run: |
+        stack build ${ARGS} --test --no-run-tests
+    - name: Build Agda with the non-default flags Agda.cabal.
+      run: |
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS}
+
+  macOS:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        ghc-ver: [8.10.2]
+
+    env:
+      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc --fast"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+
+    steps:
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
+    - name: Install stack
+      run: |
+        brew install haskell-stack
+        stack update --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc
+
+    - name: Add text-icu path to stack configuration
+      run: |
+        printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
+
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+      run: |
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
+      run: |
+        stack build ${ARGS} --test --no-run-tests
+
+    - name: Build Agda with the non-default flags Agda.cabal
+      run: |
+        stack build ${ARGS} ${NON_DEFAULT_FLAGS}
+
+  Windows:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
     runs-on: windows-latest
     strategy:
       matrix:
-        ghc-ver: [8.8.2]
-        icu-ver: [58.2-3]
+        # We can not use 8.10.2 because #4965.
+        ghc-ver: [8.10.1]
+        icu-ver: [65.1-1]
+
     env:
-      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
-      FLAGS: "--flag Agda:enable-cluster-counting"
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+
     steps:
-    - uses: actions/checkout@v2
-    - name: Install stack and wget
-      run: |
-        choco install haskell-stack --no-progress
-        choco install wget --no-progress
-    - name: Install text-icu ${{ matrix.icu-ver }}
-      shell: bash
-      run: |
-        wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
-        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
-    - name: Install dependencies
-      shell: bash
-      run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
-    - name: Build with -fenable-cluster-counting
-      shell: bash
-      run: |
-        stack build ${ARGS} ${FLAGS}
-    - name: Pack artifacts
-      shell: bash
-      run: |
-        mkdir -p upload
-        mkdir -p upload/bin
-        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
-        cp -av .stack-work/install/**/bin/agda.exe upload/bin
-        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
-        cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
-        cp -avr src/data upload
-        cp -av .github/*.bat upload
-    - uses: actions/upload-artifact@master
+    - uses: actions/checkout@v2.3.2
       with:
-        name: agda-windows-${{ matrix.ghc-ver }}
-        path: upload
+        submodules: recursive
+
+    - name: Download ICU ${{ matrix.icu-ver }}
+      run: |
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- wget -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
+
+    - name: Install text-icu ${{ matrix.icu-ver }}
+      run: |
+        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${env:ICU_FILE}
+        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
+
+    # I [Ed Nutting] don't understand how to make Powershell treat a string from ${env:ARGS}
+    #  as a list of arguments to pass to an executable. Anything I try causes Powershell
+    #  to wrap the thing in quotation marks when it calls stack - thus making stack think
+    #  it's a path to a package. So for now, I've written out the arguments explicitly.
+    - name: Install dependencies for Agda.
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug --only-dependencies
+
+    - name: Build Agda with the default flags in Agda.cabal.
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
+
+    - name: Build Agda with the non-default flags in Agda.cabal.
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug

@@ -4,7 +4,8 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-author:          Agda 2 was originally written by Ulf Norell, partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama, and from Agdalight by Ulf Norell and Andreas Abel. Agda 2 is currently actively developed mainly by Andreas Abel, Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan, Andrés Sicard-Ramírez, and Andrea Vezzosi. Further, Agda 2 has received contributions by, amongst others, Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie, James Chapman, Liang-Ting Chen, Dominique Devriese, Péter Diviánszky, Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad, Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin, Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, and Makoto Takeyama and many more.
+copyright:       (c) 2005-2020 The Agda Team.
+author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
@@ -78,9 +79,6 @@ extra-source-files: CHANGELOG.md
                     stack-8.10.1.yaml
                     stack-8.8.4.yaml
                     stack-8.8.3.yaml
--- ASR (2020-03-09). I'll keep the below file until a resolver for GHC8.8.3
--- is available.
-                    stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
                     stack-8.2.2.yaml
@@ -192,7 +190,7 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
-  build-depends:  aeson >= 1.1.2.0 && < 1.5
+  build-depends:  aeson >= 1.1.2.0 && < 1.6
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.9.0.0 && < 4.15
@@ -243,7 +241,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.11)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.3)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -598,80 +596,107 @@ library
 
   other-modules:    Paths_Agda
 
-  -- NOTE: If adding flags, also add to `.ghci800`
-  ghc-options: -fexpose-all-unfoldings
-               -fspecialise-aggressively
-               -- Initially, we disable all the warnings.
-               -w
-               -Werror
-               -- This option must be the first one after disabling the
-               -- warnings. See Issue #2094.
-               -Wunrecognised-warning-flags
-               -Wdeprecated-flags
-               -Wderiving-typeable
-               -Wdodgy-exports
-               -Wdodgy-foreign-imports
-               -Wdodgy-imports
-               -Wduplicate-exports
-               -Wempty-enumerations
-               -Widentities
-               -Wincomplete-patterns
-               -Winline-rule-shadowing
-               -Wmissing-fields
-               -Wmissing-methods
-               -Wmissing-pattern-synonym-signatures
-               -Wmissing-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Woverflowed-literals
-               -Woverlapping-patterns
-               -Wsemigroup
-               -Wtabs
-               -Wtyped-holes
-               -Wunrecognised-pragmas
-               -Wunticked-promoted-constructors
-               -Wunused-do-bind
-               -Wunused-foralls
-               -Wwarnings-deprecations
-               -Wwrong-do-bind
+  -- NOTE: If adding flags, also add to `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -fprint-potential-instances
+                 -- Initially, we disable all the warnings.
+                 -w
+                 -Werror
+                 -- This option must be the first one after disabling the
+                 -- warnings. See Issue #2094.
+                 -Wunrecognised-warning-flags
+                 -Wdeprecated-flags
+                 -Wderiving-typeable
+                 -Wdodgy-exports
+                 -Wdodgy-foreign-imports
+                 -Wdodgy-imports
+                 -Wduplicate-exports
+                 -Wempty-enumerations
+                 -Widentities
+                 -Wincomplete-patterns
+                 -Winline-rule-shadowing
+                 -Wmissing-fields
+                 -Wmissing-methods
+                 -Wmissing-pattern-synonym-signatures
+                 -Wmissing-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Woverflowed-literals
+                 -Woverlapping-patterns
+                 -Wsemigroup
+                 -Wtabs
+                 -Wtyped-holes
+                 -Wunrecognised-pragmas
+                 -Wunticked-promoted-constructors
+                 -Wunused-do-bind
+                 -Wunused-foralls
+                 -Wwarnings-deprecations
+                 -Wwrong-do-bind
+  else
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -fprint-potential-instances
+                 -Werror=unrecognised-warning-flags
+                 -Werror=deprecated-flags
+                 -Werror=deriving-typeable
+                 -Werror=dodgy-exports
+                 -Werror=dodgy-foreign-imports
+                 -Werror=dodgy-imports
+                 -Werror=duplicate-exports
+                 -Werror=empty-enumerations
+                 -Werror=identities
+                 -Werror=incomplete-patterns
+                 -Werror=inline-rule-shadowing
+                 -Werror=missing-fields
+                 -Werror=missing-methods
+                 -Werror=missing-pattern-synonym-signatures
+                 -Werror=missing-signatures
+                 -Werror=noncanonical-monad-instances
+                 -Werror=noncanonical-monoid-instances
+                 -Werror=overflowed-literals
+                 -Werror=overlapping-patterns
+                 -Werror=semigroup
+                 -Werror=tabs
+                 -Werror=typed-holes
+                 -Werror=unrecognised-pragmas
+                 -Werror=unticked-promoted-constructors
+                 -Werror=unused-do-bind
+                 -Werror=unused-foralls
+                 -Werror=warnings-deprecations
+                 -Werror=wrong-do-bind
 
-  -- NOTE: If adding flags, also add to `.ghci820`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
                  -- this flag is on.
                  -- -Wmissing-home-modules
-                 -Wsimplifiable-class-constraints
-                 -Wunbanged-strict-patterns
+                 -Werror=simplifiable-class-constraints
+                 -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci860`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
-                 -Wstar-binder
-                 -Wstar-is-type
-
-  if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). This warning was deprecated in
-    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- it (Issue #4242).
-    ghc-options: -Wimplicit-kind-vars
-
-  if impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). This warning was deprecated in
-    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- it (Issue #4242).
-    ghc-options: -Whi-shadowing
+    ghc-options: -Werror=inaccessible-code
+                 -Werror=star-binder
+                 -Werror=star-is-type
 
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
+  -- This should also use the same extensions as the `test-suite` target below.
   default-extensions: ConstraintKinds
                     --L-T Chen (2019-07-15):
                     -- Enabling DataKinds only locally makes the compile time
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
                     , DefaultSignatures
+                    , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
                     , DeriveTraversable
@@ -679,11 +704,14 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , FunctionalDependencies
+                    , GeneralizedNewtypeDeriving
+                    , InstanceSigs
                     , LambdaCase
                     , MultiParamTypeClasses
                     , MultiWayIf
                     , NamedFieldPuns
                     , OverloadedStrings
+                    , PatternSynonyms
                     , RankNTypes
                     , RecordWildCards
                     , ScopedTypeVariables
@@ -845,9 +873,17 @@ test-suite agda-tests
 
   default-language:  Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
+  -- This should also use the same extensions as the `library` target above.
   default-extensions:  ConstraintKinds
-                     , DataKinds
+                     --L-T Chen (2019-07-15):
+                     -- Enabling DataKinds only locally makes the compile time
+                     -- slightly shorter, see PR #3920.
+                     --, DataKinds
                      , DefaultSignatures
+                     , DeriveDataTypeable
                      , DeriveFoldable
                      , DeriveFunctor
                      , DeriveTraversable
@@ -855,11 +891,14 @@ test-suite agda-tests
                      , FlexibleContexts
                      , FlexibleInstances
                      , FunctionalDependencies
+                     , GeneralizedNewtypeDeriving
+                     , InstanceSigs
                      , LambdaCase
                      , MultiParamTypeClasses
                      , MultiWayIf
                      , NamedFieldPuns
                      , OverloadedStrings
+                     , PatternSynonyms
                      , RankNTypes
                      , RecordWildCards
                      , ScopedTypeVariables
@@ -867,66 +906,87 @@ test-suite agda-tests
                      , TupleSections
                      , TypeSynonymInstances
 
-  -- NOTE: If adding flags, also add to `.ghci800`
-  ghc-options: -fexpose-all-unfoldings
-               -fspecialise-aggressively
-               -threaded
-               -- Initially, we disable all the warnings.
-               -w
-               -Werror
-               -- This option must be the first one after disabling the
-               -- warnings. See Issue #2094.
-               -Wunrecognised-warning-flags
-               -Wdeprecated-flags
-               -Wderiving-typeable
-               -Wdodgy-exports
-               -Wdodgy-foreign-imports
-               -Wdodgy-imports
-               -Wduplicate-exports
-               -Wempty-enumerations
-               -Widentities
-               -Wincomplete-patterns
-               -Winline-rule-shadowing
-               -Wmissing-fields
-               -Wmissing-methods
-               -Wmissing-pattern-synonym-signatures
-               -Wmissing-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Woverflowed-literals
-               -Woverlapping-patterns
-               -Wsemigroup
-               -Wtabs
-               -Wtyped-holes
-               -Wunrecognised-pragmas
-               -Wunticked-promoted-constructors
-               -Wunused-do-bind
-               -Wunused-foralls
-               -Wwarnings-deprecations
-               -Wwrong-do-bind
+  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -threaded
+                 -- Initially, we disable all the warnings.
+                 -w
+                 -Werror
+                 -- This option must be the first one after disabling the
+                 -- warnings. See Issue #2094.
+                 -Wunrecognised-warning-flags
+                 -Wdeprecated-flags
+                 -Wderiving-typeable
+                 -Wdodgy-exports
+                 -Wdodgy-foreign-imports
+                 -Wdodgy-imports
+                 -Wduplicate-exports
+                 -Wempty-enumerations
+                 -Widentities
+                 -Wincomplete-patterns
+                 -Winline-rule-shadowing
+                 -Wmissing-fields
+                 -Wmissing-methods
+                 -Wmissing-pattern-synonym-signatures
+                 -Wmissing-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Woverflowed-literals
+                 -Woverlapping-patterns
+                 -Wsemigroup
+                 -Wtabs
+                 -Wtyped-holes
+                 -Wunrecognised-pragmas
+                 -Wunticked-promoted-constructors
+                 -Wunused-do-bind
+                 -Wunused-foralls
+                 -Wwarnings-deprecations
+                 -Wwrong-do-bind
+  else
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -threaded
+                 -Werror=unrecognised-warning-flags
+                 -Werror=deprecated-flags
+                 -Werror=deriving-typeable
+                 -Werror=dodgy-exports
+                 -Werror=dodgy-foreign-imports
+                 -Werror=dodgy-imports
+                 -Werror=duplicate-exports
+                 -Werror=empty-enumerations
+                 -Werror=identities
+                 -Werror=incomplete-patterns
+                 -Werror=inline-rule-shadowing
+                 -Werror=missing-fields
+                 -Werror=missing-methods
+                 -Werror=missing-pattern-synonym-signatures
+                 -Werror=missing-signatures
+                 -Werror=noncanonical-monad-instances
+                 -Werror=noncanonical-monoid-instances
+                 -Werror=overflowed-literals
+                 -Werror=overlapping-patterns
+                 -Werror=semigroup
+                 -Werror=tabs
+                 -Werror=typed-holes
+                 -Werror=unrecognised-pragmas
+                 -Werror=unticked-promoted-constructors
+                 -Werror=unused-do-bind
+                 -Werror=unused-foralls
+                 -Werror=warnings-deprecations
+                 -Werror=wrong-do-bind
 
-  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
   -- error.
-  -- NOTE: If adding flags, also add to `.ghci820`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
-    ghc-options: -Wcpp-undef
-                 -Wsimplifiable-class-constraints
-                 -Wunbanged-strict-patterns
+    ghc-options: -Werror=cpp-undef
+                 -Werror=simplifiable-class-constraints
+                 -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci860`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
-                 -Wstar-binder
-                 -Wstar-is-type
-
-  if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). This warning was deprecated in
-    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- it (Issue #4242).
-    ghc-options: -Wimplicit-kind-vars
-
-  if impl(ghc < 8.10)
-    -- ASR TODO (2020-02-03). This warning was deprecated in
-    -- GHC 8.10.1-rc1. I'm waiting the final release for removing
-    -- it (Issue #4242).
-    ghc-options: -Whi-shadowing
+    ghc-options: -Werror=inaccessible-code
+                 -Werror=star-binder
+                 -Werror=star-is-type

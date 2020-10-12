@@ -4,11 +4,10 @@
 # NB: don't set `language: haskell` here.
 language: c
 
-# Request Ubuntu Trusty (14.04 LTS).
-dist: trusty
+os: linux
 
-# Explicitly request sudo-enabled virtual environments [Issue #1992].
-sudo: required
+# Request Ubuntu Bionic (18.04 LTS).  20.04 is not yet available
+dist: bionic
 
 ##############################################################################
 # Every master and maintenance branches >= 2.5 or >= maint-2.4 must
@@ -17,21 +16,23 @@ sudo: required
 
 branches:
   only:
+    - monoid
     - master
     - future
     - maint-2.4
     - stable-2.5
     - /^release-.*/
-    # Test all issue* branches. Saves you opening a PR.
+    # Test all issue* and future-.* branches. Saves you opening a PR.
     - /^issue.*/
+    - /^future-.*/
 
 ##############################################################################
-# The submodules are only needed by the tests using the standard library
-# and the cubical library, so they are fetched manually in the
-# `install` section.
+# The submodules are needed by tests using the standard library and the cubical
+# library, but also needed for stack to find fix-whitespace. Even if it doesn't
+# need it, stack expects it to be there.
 #
 git:
-  submodules: false
+  submodules: true
 
 ##############################################################################
 # Stages:
@@ -68,20 +69,22 @@ jobs:
         - mkdir -p ~/.local/bin && export PATH=$HOME/.local/bin:$PATH &&
           travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         # Set up arguments and flags for stack compilation
-        - export ARGS="--stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc" &&
-          export FLAGS="--flag Agda:enable-cluster-counting"
-
+        - stack_base_args=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
+        # Arguments to normal stack exec/stack path etc.
+        - ARGS=("${stack_base_args[@]}")
+        # Arguments to 'stack build':
+        - BUILD_ARGS=("${stack_base_args[@]}" --flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
         - echo "*** GHC version ***"     && ghc     --version &&
           echo "*** Stack version ***"   && stack   --version &&
           echo "*** Haddock version ***" && haddock --version &&
           echo "*** Emacs version ***"   && emacs   --version | sed 2q
       install:
-        - stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests --only-dependencies
+        - stack build Agda "${BUILD_ARGS[@]}" --test --no-run-tests --only-dependencies
       script:
-        - stack build Agda ${ARGS} ${FLAGS} --test --no-run-tests
+        - stack build Agda "${BUILD_ARGS[@]}" --test --no-run-tests
         # shelltestrunner is used by `make test-size-solver`
         # we need to cache it first.
-        - stack install shelltestrunner ${ARGS}
+        - stack install shelltestrunner "${ARGS[@]}"
       before_cache:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
 
@@ -94,7 +97,7 @@ jobs:
         apt:
           packages:
             - ghc-8.10.2
-            - cabal-install-3.0
+            - cabal-install-3.2
             - texlive-binaries
             - librsvg2-bin
           sources:
@@ -105,9 +108,10 @@ jobs:
           - ${TRAVIS_BUILD_DIR}/.stack-work
           - $HOME/.local/bin
       before_install:
-        # Test suites shouldn't touch global stack packages, so we try to avoid changing its database.
-        - cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori
-        - cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori
+        # Test suites shouldn't touch global stack packages, so we try
+        # to avoid changing its database.
+        - if [[ -a ${HOME}/.stack/stack.sqlite3 ]]; then cp ${HOME}/.stack/stack.sqlite3 $HOME/stack.sqlite3.ori; fi
+        - if [[ -a ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 ]]; then cp ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3 $HOME/stack-work.sqlite3.ori; fi
 
         - # Setup ghc & cabal path
         - export PATH=/opt/ghc/$GHC_VER/bin:$PATH
@@ -118,66 +122,66 @@ jobs:
         - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
         - export PATH=$HOME/.local/bin:$PATH
         - export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
-
-        - export PARALLEL_TESTS=2
-        - export FLAGS="--flag Agda:enable-cluster-counting"
-        - export ARGS="--silent --stack-yaml stack-${GHC_VER}.yaml --no-terminal --system-ghc"
-        - export AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes"
-        - export BUILD_DIR=$(pwd)/$(stack ${ARGS} path --dist-dir)
-        - export MAKE_CMD="make AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS} TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR"
-        - echo "*** Agda version ***" && stack ${ARGS} exec -- agda --version
+        - stack_base_args=(--stack-yaml "stack-${GHC_VER}.yaml" --no-terminal --system-ghc)
+        # Avoid including --silent when running `stack build`, so that Travis doesn't time out if no output.
+        - ARGS=(--silent "${stack_base_args[@]}")
+        - BUILD_ARGS=("${stack_base_args[@]}" --flag Agda:enable-cluster-counting --ghc-options '+RTS -M4G -RTS')
+        - PARALLEL_TESTS=2
+        - AGDA_TESTS_OPTIONS=("-j${PARALLEL_TESTS}" --hide-successes)
+        - BUILD_DIR=$(pwd)/$(stack "${ARGS[@]}" path --dist-dir)
+        - MAKE_CMD=(make "AGDA_TESTS_OPTIONS=${ARGA_TESTS_OPTIONS[*]}" TASTY_ANSI_TRICKS=false "BUILD_DIR=${BUILD_DIR}")
+        - echo "*** Agda version ***" && stack "${ARGS[@]}" exec -- agda --version
       script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} bugs
-        - stack ${ARGS} exec -- ${MAKE_CMD} succeed
-        - stack ${ARGS} exec -- ${MAKE_CMD} fail
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" bugs
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" common
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" succeed
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" fail
       before_cache:
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agdai' -delete
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.elc' -delete
         - find ${TRAVIS_BUILD_DIR}/.stack-work -type f -name '*.agda.vim' -delete
-        - rm $(stack ${ARGS} path --local-install-root)/bin/size-solver
-        - mv $HOME/stack-work.sqlite3.ori ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3
-        - mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3
+        - rm $(stack "${ARGS[@]}" path --local-install-root)/bin/size-solver
+        - if [[ -a $HOME/stack-work.sqlite3.ori ]]; then mv $HOME/stack-work.sqlite3.ori ${TRAVIS_BUILD_DIR}/.stack-work/stack.sqlite3; fi
+        - if [[ -a $HOME/stack.sqlite3.ori ]]; then mv $HOME/stack.sqlite3.ori ${HOME}/.stack/stack.sqlite3; fi
 
     - <<: *main-job
       name: "Test suites using the standard library and the cubical library"
-      git:
-        submodules: true
       script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} cubical-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} benchmark-without-logs
-        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-compiler-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-succeed
-        - stack ${ARGS} exec -- ${MAKE_CMD} std-lib-interaction
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" cubical-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" benchmark-without-logs
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-compiler-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-succeed
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" std-lib-interaction
     - <<: *main-job
-      name: "Compiler tests, benchmark, and other test suites"
-      git:
-        submodules: true
+      name: "Compiler tests, benchmark summary, and other test suites"
       script:
-        - stack ${ARGS} exec -- ${MAKE_CMD} compiler-test
-
-        - stack ${ARGS} exec -- ${MAKE_CMD} interaction
-        - stack ${ARGS} exec -- ${MAKE_CMD} interactive
-        - stack ${ARGS} exec -- ${MAKE_CMD} DONT_RUN_LATEX="Y" latex-html-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} examples
-        - stack ${ARGS} exec -- ${MAKE_CMD} api-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} user-manual-test
-        - stack ${ARGS} exec -- ${MAKE_CMD} internal-tests
-        - stack ${ARGS} exec -- ${MAKE_CMD} testing-emacs-mode
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" compiler-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" interaction
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" interactive
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" DONT_RUN_LATEX="Y" latex-html-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" examples
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" api-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" user-manual-test
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" internal-tests
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" testing-emacs-mode
+        - stack "${ARGS[@]}" exec -- "${MAKE_CMD[@]}" benchmark-summary
         - travis_retry cabal v1-update
-        - ${MAKE_CMD} TAGS
+        # This is surrounded by single quotes to avoid confusing the YAML parsing,
+        # due to the string _beginning_ with a quote that we wish to be literal.
+        - '"${MAKE_CMD[@]}" TAGS'
         # Build & install size-solver
-        - stack build ${ARGS} ${FLAGS} size-solver
+        - stack build size-solver "${BUILD_ARGS[@]}"
         - mkdir -p src/size-solver/dist/build/size-solver &&
-          cp $(stack path ${ARGS} --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
+          cp $(stack path "${ARGS[@]}" --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
         # Test size-solver
-        - ${MAKE_CMD} -C src/size-solver/ test
+        - '"${MAKE_CMD[@]}" -C src/size-solver/ test'
         # Build agda-bisect
-        - ${MAKE_CMD} install-agda-bisect
+        - '"${MAKE_CMD[@]}" install-agda-bisect'
 
     - &complete-job
       stage: complete
-      env: GHC_VER=8.10.2 CABAL_VER=3.0
+      env: GHC_VER=8.10.2 CABAL_VER=3.2
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
@@ -194,6 +198,7 @@ jobs:
         - .travis/cabal_install
       ##############################################################################
       script:
+        - make BUILD_DIR=$BUILD_DIR common
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR succeed
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR fail
         - make BUILD_DIR=$BUILD_DIR interaction
@@ -209,6 +214,7 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR user-manual-test
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR internal-tests
         - make BUILD_DIR=$BUILD_DIR benchmark-without-logs
+        - make BUILD_DIR=$BUILD_DIR benchmark-summary
 
         ##################################################################################
         # Andreas, 2019-08-20: disable compiler test on ghc 8.0 since it takes too long,
@@ -225,7 +231,7 @@ jobs:
         - make install-agda-bisect
 
     - <<: *complete-job
-      env: GHC_VER=8.8.4 CABAL_VER=3.0
+      env: GHC_VER=8.8.4 CABAL_VER=3.2
     - <<: *complete-job
       env: GHC_VER=8.6.5 CABAL_VER=2.4
     - <<: *complete-job
