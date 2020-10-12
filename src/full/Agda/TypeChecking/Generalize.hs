@@ -290,7 +290,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     args <- getContextArgs
     fmap concat $ forM sortedMetas $ \ m -> do
       mv   <- lookupMeta m
-      let info = getArgInfo $ miGeneralizable $ mvInfo mv
+      let info = hideOrKeepInstance $ getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
           perm = mvPermutation mv
       t' <- piApplyM t $ permute (takeP (length args) perm) args
