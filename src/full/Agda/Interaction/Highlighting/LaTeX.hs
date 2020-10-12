@@ -46,15 +46,25 @@ import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
 
 import Agda.Interaction.Highlighting.Precise
-import qualified Agda.Interaction.Options as O
+import Agda.Interaction.Options
+  ( CommandLineOptions
+    ( optGenerateLaTeX
+    , optLaTeXDir
+    , optInputFile
+    , optPragmaOptions
+    , optGHCiInteraction
+    )
+  , PragmaOptions ( optCountClusters )
+  )
 
 import Agda.TypeChecking.Monad
-  ( Interface(..)
+  ( HasOptions(commandLineOptions)
+  , Interface(..)
   , MonadDebug
   , reportS
-  , commandLineOptions
   , stModuleToSource
   , useTC
+  , ReadTCState
   , TCM
   )
 
@@ -645,6 +655,14 @@ stringLiteral t = [t]
 ------------------------------------------------------------------------
 -- * Main.
 
+-- Command-line flag options, prior to e.g. path resolution and validation.
+data LaTeXFlags = LaTeXFlags
+  { latexFlagOutDir        :: FilePath
+  , latexFlagSourceFile    :: Maybe FilePath
+  , latexFlagGenerateLaTeX :: Bool
+    -- ^ Are we going to try to generate LaTeX at all?
+  } deriving Eq
+
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
@@ -677,24 +695,34 @@ getTextWidthEstimator _countClusters =
 -- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
-  latexOpts <- getLaTeXOptionsFromTCM i
+  let moduleName = toTopLevelModuleName $ iModuleName i
+  latexFlags <- laTeXFlagsFromCommandLineOpts <$> commandLineOptions
+  latexOpts <- resolveLaTeXOptions latexFlags moduleName
   runLogLaTeXWithMonadDebug $ do
     prepareCommonAssets (latexOptOutDir latexOpts)
     generateLaTeXIO latexOpts i
 
-getLaTeXOptionsFromTCM :: Interface -> TCM LaTeXOptions
-getLaTeXOptionsFromTCM i = do
-  let moduleName = toTopLevelModuleName $ iModuleName i
+-- Extract the LaTeX-specific command line options from the global ones.
+laTeXFlagsFromCommandLineOpts :: CommandLineOptions -> LaTeXFlags
+laTeXFlagsFromCommandLineOpts opts = LaTeXFlags
+  { latexFlagOutDir        = optLaTeXDir opts
+  , latexFlagSourceFile    = optInputFile opts
+  , latexFlagGenerateLaTeX = optGenerateLaTeX opts
+  }
+
+-- Resolve the raw flags into usable LaTeX options.
+resolveLaTeXOptions :: (HasOptions m, ReadTCState m) => LaTeXFlags -> TopLevelModuleName -> m LaTeXOptions
+resolveLaTeXOptions flags moduleName = do
   options <- commandLineOptions
   modFiles <- useTC stModuleToSource
   let
     mSrcFileName = (mkAbsolute . filePath) <$> Map.lookup moduleName modFiles
-    countClusters = (O.optCountClusters . O.optPragmaOptions) options
-    latexDir = O.optLaTeXDir options
+    countClusters = optCountClusters . optPragmaOptions $ options
+    latexDir = latexFlagOutDir flags
     -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
     -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
     -- And it prevents us from doing a real "one-time" setup.
-    outDir = case (mSrcFileName, O.optGHCiInteraction options) of
+    outDir = case (mSrcFileName, optGHCiInteraction options) of
       (Just sourceFile, True) -> filePath (projectRoot sourceFile moduleName) </> latexDir
       _ -> latexDir
   return LaTeXOptions
