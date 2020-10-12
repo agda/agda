@@ -5,7 +5,14 @@
 -- Agda source.
 
 module Agda.Interaction.Highlighting.LaTeX.Base
-  ( generateLaTeX
+  ( generateLaTeXIO
+  , prepareCommonAssets
+  , runLogLaTeXTWith
+  , logMsgToText
+  , LogMessage(..)
+  , MonadLogLaTeX
+  , LogLaTeXT
+  , LaTeXOptions(..)
   ) where
 
 import Prelude hiding (log)
@@ -33,42 +40,21 @@ import Data.HashSet (HashSet)
 import qualified Data.HashSet as Set
 import qualified Data.IntMap  as IntMap
 import qualified Data.List    as List
-import qualified Data.Map     as Map
 
 import Paths_Agda
 
 import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete
-  (TopLevelModuleName, moduleNameParts, projectRoot)
+import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
 
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Options
-  ( CommandLineOptions
-    ( optGenerateLaTeX
-    , optLaTeXDir
-    , optInputFile
-    , optPragmaOptions
-    , optGHCiInteraction
-    )
-  , PragmaOptions ( optCountClusters )
-  )
 
-import Agda.TypeChecking.Monad
-  ( HasOptions(commandLineOptions)
-  , Interface(..)
-  , MonadDebug
-  , reportS
-  , stModuleToSource
-  , useTC
-  , ReadTCState
-  , TCM
-  )
+import Agda.TypeChecking.Monad (Interface(..))
 
-import Agda.Utils.FileName (AbsolutePath, filePath, mkAbsolute)
+import Agda.Utils.FileName (AbsolutePath)
 import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
@@ -98,9 +84,6 @@ instance Monad m => MonadLogLaTeX (LogLaTeXT m) where
 
 runLogLaTeXTWith :: Monad m => (LogMessage -> m ()) -> LogLaTeXT m a -> m a
 runLogLaTeXTWith = flip runReaderT
-
-runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
-runLogLaTeXWithMonadDebug = runLogLaTeXTWith $ (reportS "compile.latex" 1) . T.unpack . logMsgToText
 
 -- Not currently used, but for example:
 -- runLogLaTeXWithIO :: MonadIO m => LogLaTeXT m a -> m a
@@ -655,14 +638,6 @@ stringLiteral t = [t]
 ------------------------------------------------------------------------
 -- * Main.
 
--- Command-line flag options, prior to e.g. path resolution and validation.
-data LaTeXFlags = LaTeXFlags
-  { latexFlagOutDir        :: FilePath
-  , latexFlagSourceFile    :: Maybe FilePath
-  , latexFlagGenerateLaTeX :: Bool
-    -- ^ Are we going to try to generate LaTeX at all?
-  } deriving Eq
-
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
@@ -688,49 +663,6 @@ getTextWidthEstimator _countClusters =
   T.length
 #endif
 
--- | Generates a LaTeX file for the given interface.
---
--- The underlying source file is assumed to match the interface, but
--- this is not checked. TODO: Fix this problem, perhaps by storing the
--- source code in the interface.
-generateLaTeX :: Interface -> TCM ()
-generateLaTeX i = do
-  let moduleName = toTopLevelModuleName $ iModuleName i
-  latexFlags <- laTeXFlagsFromCommandLineOpts <$> commandLineOptions
-  latexOpts <- resolveLaTeXOptions latexFlags moduleName
-  runLogLaTeXWithMonadDebug $ do
-    prepareCommonAssets (latexOptOutDir latexOpts)
-    generateLaTeXIO latexOpts i
-
--- Extract the LaTeX-specific command line options from the global ones.
-laTeXFlagsFromCommandLineOpts :: CommandLineOptions -> LaTeXFlags
-laTeXFlagsFromCommandLineOpts opts = LaTeXFlags
-  { latexFlagOutDir        = optLaTeXDir opts
-  , latexFlagSourceFile    = optInputFile opts
-  , latexFlagGenerateLaTeX = optGenerateLaTeX opts
-  }
-
--- Resolve the raw flags into usable LaTeX options.
-resolveLaTeXOptions :: (HasOptions m, ReadTCState m) => LaTeXFlags -> TopLevelModuleName -> m LaTeXOptions
-resolveLaTeXOptions flags moduleName = do
-  options <- commandLineOptions
-  modFiles <- useTC stModuleToSource
-  let
-    mSrcFileName = (mkAbsolute . filePath) <$> Map.lookup moduleName modFiles
-    countClusters = optCountClusters . optPragmaOptions $ options
-    latexDir = latexFlagOutDir flags
-    -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
-    -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
-    -- And it prevents us from doing a real "one-time" setup.
-    outDir = case (mSrcFileName, optGHCiInteraction options) of
-      (Just sourceFile, True) -> filePath (projectRoot sourceFile moduleName) </> latexDir
-      _ -> latexDir
-  return LaTeXOptions
-    { latexOptOutDir         = outDir
-    , latexOptSourceFileName = mSrcFileName
-    , latexOptCountClusters  = countClusters
-    }
-
 -- | Create the common base output directory and check for/install the style file.
 prepareCommonAssets :: (MonadLogLaTeX m, MonadIO m) => FilePath -> m ()
 prepareCommonAssets dir = do
@@ -749,6 +681,7 @@ prepareCommonAssets dir = do
       styFile <- getDataFileName defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
 
+-- | Generates a LaTeX file for the given interface.
 generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> m ()
 generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)

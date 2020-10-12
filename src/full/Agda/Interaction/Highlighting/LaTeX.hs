@@ -4,6 +4,6 @@ module Agda.Interaction.Highlighting.LaTeX
   ( module Exports
   ) where
 
-import Agda.Interaction.Highlighting.LaTeX.Base as Exports
+import Agda.Interaction.Highlighting.LaTeX.Backend as Exports
   ( generateLaTeX
   )

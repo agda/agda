@@ -613,6 +613,7 @@ library
                     Agda.VersionCommit
 
   other-modules:    Paths_Agda
+                    Agda.Interaction.Highlighting.LaTeX.Backend
                     Agda.Interaction.Highlighting.LaTeX.Base
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
