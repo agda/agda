@@ -694,8 +694,8 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
-defaultGetRewriteRulesFor :: (Monad m) => m TCState -> QName -> m RewriteRules
-defaultGetRewriteRulesFor getTCState q = do
+defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
+defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
   let sig = st^.stSignature
       imp = st^.stImports
@@ -708,7 +708,7 @@ getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
-  getRewriteRulesFor = defaultGetRewriteRulesFor getTC
+  getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC

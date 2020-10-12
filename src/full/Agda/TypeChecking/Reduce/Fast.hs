@@ -121,9 +121,11 @@ compactDef bEnv def rewr = do
         _      -> False
   let irr = isPrp || isIrrelevant (defArgInfo def)
 
+  dontReduce <- not <$> shouldReduceDef (defName def)
+
   cdefn <-
     case theDef def of
-      _ | irr -> pure CAxiom
+      _ | irr || dontReduce -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of

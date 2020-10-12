@@ -2281,6 +2281,18 @@ allReductions = SmallSet.delete NonTerminatingReductions reallyAllReductions
 reallyAllReductions :: AllowedReductions
 reallyAllReductions = SmallSet.total
 
+data ReduceDefs
+  = OnlyReduceDefs (Set QName)
+  | DontReduceDefs (Set QName)
+  deriving (Data)
+
+reduceAllDefs :: ReduceDefs
+reduceAllDefs = DontReduceDefs empty
+
+shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
+shouldReduceDef f = asksTC envReduceDefs <&> \case
+  OnlyReduceDefs defs -> f `Set.member` defs
+  DontReduceDefs defs -> not $ f `Set.member` defs
 
 -- | Primitives
 
@@ -2692,6 +2704,7 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envReduceDefs :: ReduceDefs
           , envInjectivityDepth :: Int
                 -- ^ Injectivity can cause non-termination for unsolvable contraints
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
@@ -2787,6 +2800,7 @@ initEnv = TCEnv { envContext             = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envReduceDefs             = reduceAllDefs
                 , envInjectivityDepth       = 0
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False

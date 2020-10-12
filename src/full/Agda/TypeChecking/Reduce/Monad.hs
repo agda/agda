@@ -87,7 +87,7 @@ instance MonadDebug ReduceM where
     bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
 instance HasConstInfo ReduceM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor getTCState
+  getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     ReduceEnv env st <- askR
     defaultGetConstInfo st env q
