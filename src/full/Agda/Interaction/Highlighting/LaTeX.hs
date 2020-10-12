@@ -216,13 +216,13 @@ moveColumnForToken t = do
 resetColumn :: LaTeX ()
 resetColumn = modify $ \s ->
   s { column      = 0
-    , columnsPrev = merge (columns s) (columnsPrev s)
+    , columnsPrev = mergeCols (columns s) (columnsPrev s)
     , columns     = []
     }
   where
   -- Remove shadowed columns from old.
-  merge []  old = old
-  merge new old = new ++ filter ((< leastNew) . columnColumn) old
+  mergeCols []  old = old
+  mergeCols new old = new ++ filter ((< leastNew) . columnColumn) old
     where
     leastNew = columnColumn (last new)
 
@@ -235,7 +235,7 @@ registerColumn :: Kind -> LaTeX AlignmentColumn
 registerColumn kind = do
   column    <- gets column
   codeBlock <- gets codeBlock
-  kind      <- case kind of
+  colKind   <- case kind of
                  Alignment   -> return Nothing
                  Indentation -> do
                    nextId <- gets nextId
@@ -243,7 +243,7 @@ registerColumn kind = do
                    return (Just nextId)
   let c = AlignmentColumn { columnColumn    = column
                           , columnCodeBlock = codeBlock
-                          , columnKind      = kind
+                          , columnKind      = colKind
                           }
   modify $ \s -> s { columns = c : columns s }
   return c
@@ -485,21 +485,21 @@ processCode toks' = do
       Name (Just kind) isOp ->
         (\c -> if isOp then ["Operator", c] else [c]) $
         case kind of
-          Bound                     -> s
-          Generalizable             -> s
+          Bound                     -> sk
+          Generalizable             -> sk
           Constructor Inductive     -> "InductiveConstructor"
           Constructor CoInductive   -> "CoinductiveConstructor"
-          Datatype                  -> s
-          Field                     -> s
-          Function                  -> s
-          Module                    -> s
-          Postulate                 -> s
-          Primitive                 -> s
-          Record                    -> s
-          Argument                  -> s
-          Macro                     -> s
+          Datatype                  -> sk
+          Field                     -> sk
+          Function                  -> sk
+          Module                    -> sk
+          Postulate                 -> sk
+          Primitive                 -> sk
+          Record                    -> sk
+          Argument                  -> sk
+          Macro                     -> sk
         where
-        s = show kind
+        sk = show kind
 
 -- | Escapes special characters.
 escape :: Text -> Text
@@ -507,7 +507,7 @@ escape (T.uncons -> Nothing)     = T.empty
 escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
   where
   replace :: Char -> String
-  replace c = case c of
+  replace char = case char of
     '_'  -> "\\AgdaUnderscore{}"
     '{'  -> "\\{"
     '}'  -> "\\}"
@@ -518,7 +518,7 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '~'  -> "\\textasciitilde{}"
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
-    _    -> [ c ]
+    _    -> [ char ]
 #if __GLASGOW_HASKELL__ < 810
 escape _                         = __IMPOSSIBLE__
 #endif
@@ -592,8 +592,8 @@ stringLiteral t | aspect (info t) == Just String =
           $ T.lines (text t)
   where
   leadingSpaces :: Text -> [Text]
-  leadingSpaces t = [pre, suf]
-    where (pre , suf) = T.span isSpaceNotNewline t
+  leadingSpaces tok = [pre, suf]
+    where (pre , suf) = T.span isSpaceNotNewline tok
 
 stringLiteral t = [t]
 
@@ -610,14 +610,14 @@ defaultStyFile = "agda.sty"
 -- source code in the interface.
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
-  let mod = toTopLevelModuleName $ iModuleName i
+  let moduleName = toTopLevelModuleName $ iModuleName i
       hi  = iHighlighting i
   options <- TCM.commandLineOptions
   dir <-
     if O.optGHCiInteraction options
       then do
-             sourceFile <- Find.srcFilePath <$> Find.findFile mod
-             return $ filePath (projectRoot sourceFile mod) </> O.optLaTeXDir options
+             sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
+             return $ filePath (projectRoot sourceFile moduleName) </> O.optLaTeXDir options
       else
              return $ O.optLaTeXDir options
   liftIO $ createDirectoryIfMissing True dir
@@ -639,8 +639,8 @@ generateLaTeX i = do
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
       liftIO $ copyFile styFile (dir </> defaultStyFile)
-  let outPath = modToFile mod
-  inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile mod)
+  let outPath = modToFile moduleName
+  inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile moduleName)
   liftIO $ do
     latex <-
       E.encodeUtf8
@@ -733,7 +733,7 @@ toLaTeX cc path source hi =
 
   -- | This function preserves laziness of the list
   withLast :: (a -> a) -> [a] -> [a]
-  withLast f [] = []
+  withLast _ [] = []
   withLast f [a] = [f a]
   withLast f (a:as) = a:withLast f as
 
