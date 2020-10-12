@@ -32,4 +32,3 @@ deepEtaExpand v a = checkInternal' etaExpandAction v CmpLeq a
 
 etaExpandAction :: PureTCM m => Action m
 etaExpandAction = defaultAction { preAction = etaExpandOnce  }
-

@@ -116,9 +116,9 @@ data Action m = Action
     -- ^ Called on each subterm before the checker runs.
   , postAction :: Type -> Term -> m Term
     -- ^ Called on each subterm after the type checking.
-  , relevanceAction :: Relevance -> Relevance -> Relevance
+  , modalityAction :: Modality -> Modality -> Modality
     -- ^ Called for each @ArgInfo@.
-    --   The first 'Relevance' is from the type,
+    --   The first 'Modality' is from the type,
     --   the second from the term.
   , elimViewAction :: Term -> m Term
     -- ^ Called for bringing projection-like funs in post-fix form
@@ -130,7 +130,7 @@ defaultAction :: PureTCM m => Action m
 defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
-  , relevanceAction = \ _ -> id
+  , modalityAction  = \ _ -> id
   , elimViewAction  = elimView EvenLone
   }
 
@@ -299,8 +299,8 @@ checkSpine action a self es cmp t = do
 checkArgInfo :: (MonadCheckInternal m) => Action m -> ArgInfo -> ArgInfo -> m ArgInfo
 checkArgInfo action ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
-  r <- checkRelevance action (getRelevance ai)  (getRelevance ai')
-  return $ setRelevance r ai
+  mod <- checkModality action (getModality ai)  (getModality ai')
+  return $ setModality mod ai
 
 checkHiding    :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
 checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
@@ -308,10 +308,15 @@ checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 -- | @checkRelevance action term type@.
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
-checkRelevance :: (MonadCheckInternal m) => Action m -> Relevance -> Relevance -> m Relevance
-checkRelevance action r r' = do
-  unless (r == r') $ typeError $ RelevanceMismatch r r'
-  return $ relevanceAction action r' r  -- Argument order for actions: @type@ @term@
+checkModality :: (MonadCheckInternal m) => Action m -> Modality -> Modality -> m Modality
+checkModality action mod mod' = do
+  let (r,r') = (getRelevance mod, getRelevance mod')
+      (q,q') = (getQuantity  mod, getQuantity  mod')
+  unless (mod == mod') $ typeError $ if
+    | r /= r'   -> RelevanceMismatch r r'
+    | q /= q'   -> QuantityMismatch  q q'
+    | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
+  return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
