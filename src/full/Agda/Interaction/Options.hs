@@ -110,8 +110,6 @@ data CommandLineOptions = Options
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile       :: Bool
-  , optGenerateLaTeX         :: Bool
-  , optLaTeXDir              :: FilePath
   , optIgnoreInterfaces      :: Bool
   , optIgnoreAllInterfaces   :: Bool
   , optLocalInterfaces       :: Bool
@@ -246,8 +244,6 @@ defaultOptions = Options
   , optOptimSmashing         = True
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
-  , optGenerateLaTeX         = False
-  , optLaTeXDir              = defaultLaTeXDir
   , optIgnoreInterfaces      = False
   , optIgnoreAllInterfaces   = False
   , optLocalInterfaces       = False
@@ -319,11 +315,6 @@ defaultPragmaOptions = PragmaOptions
 defaultCutOff :: CutOff
 defaultCutOff = CutOff 0 -- minimum value
 
--- | The default output directory for LaTeX.
-
-defaultLaTeXDir :: String
-defaultLaTeXDir = "latex"
-
 type OptM = ExceptT String IO
 
 runOptM :: OptM a -> IO (Either String a)
@@ -351,24 +342,12 @@ checkOpts opts
       , optGenerateVimFile :
         atMostOne
       )
-    , ( optInteractive
-      , optGenerateLaTeX : atMostOne
-      )
-    , ( optGHCiInteraction
-      , optGenerateLaTeX : atMostOne
-      )
-    , ( optJSONInteraction
-      , optGenerateLaTeX : atMostOne
-      )
     ]
 
   exclusiveMessage = unlines $
     [ "The options --interactive, --interaction, --interaction-json and"
     , "--only-scope-checking cannot be combined with each other."
-    , "Furthermore"
-    , "--interactive and --interaction cannot be combined with"
-    , "--latex, and --only-scope-checking cannot be combined with"
-    , "--vim."
+    , "Furthermore --only-scope-checking cannot be combined with --vim."
     ]
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
@@ -584,9 +563,6 @@ jsonInteractionFlag o = return $ o { optJSONInteraction = True }
 vimFlag :: Flag CommandLineOptions
 vimFlag o = return $ o { optGenerateVimFile = True }
 
-latexFlag :: Flag CommandLineOptions
-latexFlag o = return $ o { optGenerateLaTeX = True }
-
 onlyScopeCheckingFlag :: Flag CommandLineOptions
 onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
@@ -613,9 +589,6 @@ noFastReduceFlag o = return $ o { optFastReduce = False }
 
 callByNameFlag :: Flag PragmaOptions
 callByNameFlag o = return $ o { optCallByName = True }
-
-latexDirFlag :: FilePath -> Flag CommandLineOptions
-latexDirFlag d o = return $ o { optLaTeXDir = d }
 
 noPositivityFlag :: Flag PragmaOptions
 noPositivityFlag o = do
@@ -873,11 +846,6 @@ standardOptions =
 
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
-    , Option []     ["latex"] (NoArg latexFlag)
-                    "generate LaTeX with highlighted source code"
-    , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
-                    ("directory in which LaTeX files are placed (default: " ++
-                     defaultLaTeXDir ++ ")")
     , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
                     "ignore interface files (re-type check everything)"
     , Option []     ["local-interfaces"] (NoArg localInterfacesFlag)

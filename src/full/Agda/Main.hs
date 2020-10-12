@@ -24,7 +24,6 @@ import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -208,9 +207,6 @@ runAgdaWithOptions interactor progName opts = do
 
           let i = crInterface result
           reportSDoc "main" 50 $ pretty i
-
-          whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
           unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do

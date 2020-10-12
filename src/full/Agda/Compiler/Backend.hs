@@ -121,7 +121,7 @@ callBackend name iMain checkResult = lookupBackend name >>= \case
 --   to the user.
 
 otherBackends :: [String]
-otherBackends = ["GHCNoMain", "LaTeX", "QuickLaTeX"]
+otherBackends = ["GHCNoMain", "QuickLaTeX"]
 
 -- | Look for a backend of the given name.
 

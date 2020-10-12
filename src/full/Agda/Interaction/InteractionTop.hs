@@ -65,7 +65,6 @@ import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton
 import Agda.Interaction.Imports  ( Mode(..) )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
 import Agda.Compiler.Backend
 
@@ -506,10 +505,9 @@ interpret (Cmd_compile backend file argv) =
     mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
     case mw of
       [] -> do
-        let i = crInterface checkResult
         lift $ case backend of
-          LaTeX                    -> LaTeX.generateLaTeX i
-          QuickLaTeX               -> LaTeX.generateLaTeX i
+          LaTeX                    -> callBackend "LaTeX" IsMain checkResult
+          QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
