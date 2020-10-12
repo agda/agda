@@ -15,9 +15,9 @@ module Agda.Interaction.Highlighting.HTML
 
 import Prelude hiding ((!!), concatMap)
 import Control.Monad
-import Control.Monad.Trans
+import Control.Monad.Trans ( MonadIO(..) )
 
-import Data.Function
+import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
@@ -32,10 +32,17 @@ import qualified Network.URI.Encode
 import System.FilePath
 import System.Directory
 
-import Text.Blaze.Html5 hiding (code, map, title)
+import Text.Blaze.Html5
+    ( preEscapedToHtml
+    , toHtml
+    , stringValue
+    , Html
+    , (!)
+    , Attribute
+    )
 import qualified Text.Blaze.Html5 as Html5
-import Text.Blaze.Html5.Attributes as Attr
-import Text.Blaze.Html.Renderer.Text
+import qualified Text.Blaze.Html5.Attributes as Attr
+import Text.Blaze.Html.Renderer.Text ( renderHtml )
   -- The imported operator (!) attaches an Attribute to an Html value
   -- The defined operator (!!) attaches a list of such Attributes
 
@@ -231,24 +238,24 @@ page css
      pageContent =
   renderHtml $ if htmlHighlight
                then pageContent
-               else docTypeHtml $ hdr <> rest
+               else Html5.docTypeHtml $ hdr <> rest
   where
 
     hdr = Html5.head $ mconcat
-      [ meta !! [ charset "utf-8" ]
+      [ Html5.meta !! [ Attr.charset "utf-8" ]
       , Html5.title (toHtml . render $ pretty modName)
-      , link !! [ rel "stylesheet"
-                , href $ stringValue css
-                ]
+      , Html5.link !! [ Attr.rel "stylesheet"
+                      , Attr.href $ stringValue css
+                      ]
       , if highlightOccurrences
-        then script mempty !!
-          [ type_ "text/javascript"
-          , src $ stringValue occurrenceHighlightJsFile
+        then Html5.script mempty !!
+          [ Attr.type_ "text/javascript"
+          , Attr.src $ stringValue occurrenceHighlightJsFile
           ]
         else mempty
       ]
 
-    rest = body $ (pre ! class_ "Agda") pageContent
+    rest = Html5.body $ (Html5.pre ! Attr.class_ "Agda") pageContent
 
 -- | Position, Contents, Infomation
 
@@ -322,7 +329,7 @@ code onlyCode fileType = mconcat . if onlyCode
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
       go [a, b] = [ mconcat $ work <$> a
-                  , pre ! class_ "Agda" $ mconcat $ work <$> b
+                  , Html5.pre ! Attr.class_ "Agda" $ mconcat $ work <$> b
                   ]
       go [a]    = work <$> a
       go _      = __IMPOSSIBLE__
@@ -352,14 +359,14 @@ code onlyCode fileType = mconcat . if onlyCode
     where
     -- | Warp an anchor (<A> tag) with the given attributes around some HTML.
     anchorage :: [Attribute] -> Html -> Html
-    anchorage attrs html = a html !! attrs
+    anchorage attrs html = Html5.a html !! attrs
 
     -- | File position anchor (unique, reliable).
     posAttributes :: [Attribute]
     posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
       , toList $ link <$> definitionSite mi
-      , class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
+      , Attr.class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
     -- | Named anchor (not reliable, but useful in the general case for outside refs).
@@ -405,11 +412,11 @@ code onlyCode fileType = mconcat . if onlyCode
     mDefSiteAnchor  :: Maybe String
     mDefSiteAnchor  = maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite
 
-    link (DefinitionSite m pos _here _aName) = href $ stringValue $
+    link (DefinitionSite m defPos _here _aName) = Attr.href $ stringValue $
       -- If the definition site points to the top of a file,
       -- we drop the anchor part and just link to the file.
-      applyUnless (pos <= 1)
+      applyUnless (defPos <= 1)
         (++ "#" ++
-         Network.URI.Encode.encode (show pos))
-         -- Network.URI.Encode.encode (fromMaybe (show pos) aName)) -- Named links disabled
+         Network.URI.Encode.encode (show defPos))
+         -- Network.URI.Encode.encode (fromMaybe (show defPos) aName)) -- Named links disabled
         (Network.URI.Encode.encode $ modToFile m "html")
