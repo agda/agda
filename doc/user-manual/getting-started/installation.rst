@@ -244,30 +244,28 @@ To configure the way of editing agda files, follow the section
 Installation of the Development Version
 =======================================
 
-After getting the development version following the instructions in
-the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+After getting the development version from the Git `repository
+<https://github.com/agda/agda>`_
 
 * Install the :ref:`prerequisites <prerequisites>`
 
-* In the top-level directory of the Agda source tree
+* In the top-level directory of the Agda source tree, run:
 
-  * Follow the :ref:`instructions <installation-from-hackage>` for
-    installing Agda from Hackage (except run ``cabal install``
-    instead of ``cabal install Agda``) or
+  .. code-block:: bash
 
-  * You can try to install Agda (including a compiled Emacs mode) by
-    running the following command:
+    cabal update
+    make install
+    agda-mode setup
 
-    .. code-block:: bash
+  Note that on a Mac, because ICU is installed in a non-standard location,
+  you need to specify this location on the command line:
 
-      make install
+  .. code-block:: bash
 
-    Note that on a Mac, because ICU is installed in a non-standard location,
-    you need to specify this location on the command line:
+    make install CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
 
-    .. code-block:: bash
-
-      make install-bin CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
+  You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
+  ``HACKING.md``) instead of passing it via the command line.
 
 .. _installation-flags:
 
