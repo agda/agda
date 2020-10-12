@@ -294,6 +294,26 @@ Reflection
 
   The builtin is only available when `--allow-exec` is passed. (Note that `--allow-exec` is incompatible with ``--safe``.) To make an executable available to Agda, add the absolute path on a new line in `~/.agda/executables`.
 
+- Two new operations in the `TC` monad, `onlyReduceDefs` and
+  `dontReduceDefs`:
+  ```agda
+  onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+  dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+  ```
+  These functions allow picking a specific set of functions that
+  should (resp. should not) be reduced while executing the given `TC`
+  computation.
+
+  For example, the following macro unifies the current hole with the
+  term `3 - 3`:
+  ```agda
+  macro₁ : Term -> TC ⊤
+  macro₁ goal = do
+    u   ← quoteTC ((1 + 2) - 3)
+    u'  ← onlyReduceDefs (quote _+_ ∷ []) (normalise u)
+    unify u' goal
+  ```
+
 Library management
 ------------------
 
