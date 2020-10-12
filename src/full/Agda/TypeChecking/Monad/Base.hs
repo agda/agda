@@ -2289,6 +2289,12 @@ data ReduceDefs
 reduceAllDefs :: ReduceDefs
 reduceAllDefs = DontReduceDefs empty
 
+locallyReduceDefs :: MonadTCEnv m => ReduceDefs -> m a -> m a
+locallyReduceDefs = locallyTC eReduceDefs . const
+
+locallyReduceAllDefs :: MonadTCEnv m => m a -> m a
+locallyReduceAllDefs = locallyReduceDefs reduceAllDefs
+
 shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
 shouldReduceDef f = asksTC envReduceDefs <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs

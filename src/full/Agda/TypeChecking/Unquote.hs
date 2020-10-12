@@ -622,8 +622,8 @@ evalTCM v = do
 
     tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
-      (u, a) <- inferExpr        =<< toAbstract_ u
-      v      <- flip checkExpr a =<< toAbstract_ v
+      (u, a) <- locallyReduceAllDefs $ inferExpr        =<< toAbstract_ u
+      v      <- locallyReduceAllDefs $ flip checkExpr a =<< toAbstract_ v
       equalTerm a u v
       primUnitUnit
 
@@ -659,7 +659,7 @@ evalTCM v = do
 
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
-      a <- isType_ =<< toAbstract_ a
+      a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
       quoteTerm =<< process v
@@ -674,12 +674,12 @@ evalTCM v = do
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
+      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       quoteTerm =<< normalise v
 
     tcReduce :: R.Term -> TCM Term
     tcReduce v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
+      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       quoteTerm =<< reduce =<< instantiateFull v
 
     tcGetContext :: UnquoteM Term
@@ -690,7 +690,7 @@ evalTCM v = do
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
-      a <- liftTCM $ traverse (isType_ <=< toAbstract_) a
+      a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
       liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
@@ -744,7 +744,7 @@ evalTCM v = do
           [ "declare" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
-        a <- isType_ =<< toAbstract_ a
+        a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
@@ -765,7 +765,7 @@ evalTCM v = do
           [ "declare Postulate" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
-        a <- isType_ =<< toAbstract_ a
+        a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a Axiom
@@ -781,7 +781,7 @@ evalTCM v = do
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-      checkFunDef NotDelayed i x cs
+      locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
       primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term
