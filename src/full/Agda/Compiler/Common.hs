@@ -75,7 +75,7 @@ setInterface i = do
   stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
   stCurrentModule   `setTCLens` Just (iModuleName i)
 
-curIF :: TCM Interface
+curIF :: ReadTCState m => m Interface
 curIF = do
   mName <- useTC stCurrentModule
   case mName of
@@ -110,7 +110,7 @@ sigMName sig = case Map.keys (sig ^. sigSections) of
   m : _ -> m
 
 
-compileDir :: TCM FilePath
+compileDir :: HasOptions m => m FilePath
 compileDir = do
   mdir <- optCompileDir <$> commandLineOptions
   maybe __IMPOSSIBLE__ return mdir
@@ -162,7 +162,7 @@ inCompilerEnv mainI cont = do
   stTCWarnings `setTCLens` newWarnings
   return a
 
-topLevelModuleName :: ModuleName -> TCM ModuleName
+topLevelModuleName :: ReadTCState m => ModuleName -> m ModuleName
 topLevelModuleName m = do
   -- get the names of the visited modules
   visited <- List.map (iModuleName . miInterface) . Map.elems <$>

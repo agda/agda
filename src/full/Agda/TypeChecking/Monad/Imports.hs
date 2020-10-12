@@ -40,14 +40,15 @@ visitModule mi =
 setVisitedModules :: VisitedModules -> TCM ()
 setVisitedModules ms = setTCLens stVisitedModules ms
 
-getVisitedModules :: TCM VisitedModules
+getVisitedModules :: ReadTCState m => m VisitedModules
 getVisitedModules = useTC stVisitedModules
 
 isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = Map.member x <$> useTC stVisitedModules
 
-getVisitedModule :: C.TopLevelModuleName
-                 -> TCM (Maybe ModuleInfo)
+getVisitedModule :: ReadTCState m
+                 => C.TopLevelModuleName
+                 -> m (Maybe ModuleInfo)
 getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
 
 mapVisitedModule :: C.TopLevelModuleName
