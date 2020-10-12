@@ -113,6 +113,7 @@ instance Instantiate t => Instantiate (Abs t)
 instance Instantiate t => Instantiate (Arg t)
 instance Instantiate t => Instantiate (Elim' t)
 instance Instantiate t => Instantiate (Tele t)
+instance Instantiate t => Instantiate (IPBoundary' t)
 
 instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
     instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
@@ -1181,6 +1182,7 @@ instance InstantiateFull t => InstantiateFull (Elim' t)
 instance InstantiateFull t => InstantiateFull (Named name t)
 instance InstantiateFull t => InstantiateFull (Open t)
 instance InstantiateFull t => InstantiateFull (WithArity t)
+instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
 -- Tuples:
 

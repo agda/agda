@@ -326,11 +326,11 @@ evalInMeta ii cmode e =
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
 --
-normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
+normalForm :: (Reduce t, Simplify t, Instantiate t, Normalise t) => Rewrite -> t -> TCM t
 normalForm = \case
-  AsIs         -> return
-  Instantiated -> return   -- reify does instantiation
-  HeadNormal   -> reduce
+  AsIs         -> instantiate   -- #4975: reify will also instantiate by for goal-type-and-context-and-check
+  Instantiated -> instantiate   --        we get a top-level fresh meta which has disappeared from state by the
+  HeadNormal   -> reduce        --        time we get to reification. Hence instantiate here.
   Simplified   -> simplify
   Normalised   -> normalise
 
