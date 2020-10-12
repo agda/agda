@@ -118,6 +118,7 @@ simplify FunctionKit{..} = simpl
       TCase x t d bs -> do
         v <- lookupVar x
         let (lets, u) = tLetView v
+        (d, bs) <- pruneBoolGuards d <$> traverse (simplAlt x) bs
         case u of                          -- TODO: also for literals
           _ | Just (c, as)     <- conView u   -> simpl $ matchCon lets c as d bs
             | Just (k, TVar y) <- plusKView u -> simpl . mkLets lets . TCase y t d =<< mapM (matchPlusK y x k) bs
@@ -139,8 +140,7 @@ simplify FunctionKit{..} = simpl
               distrCase v (TAGuard g b) = TAGuard g $ TLet b v
 
           _ -> do
-            d  <- simpl d
-            bs <- traverse (simplAlt x) bs
+            d <- simpl d
             tCase x t d bs
 
       t@TUnit    -> pure t
@@ -210,6 +210,9 @@ simplify FunctionKit{..} = simpl
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
         k == j = tOp PLt u v
+      | Just (PSub, k, u) <- constArithView u,
+        Just (PSub, j, v) <- constArithView v,
+        k == j = tOp PLt v u
       | Just (PAdd, k, v) <- constArithView v,
         TApp (TPrim P64ToI) [u] <- u,
         k >= 2^64, Just trueCon <- true = TCon trueCon
@@ -217,6 +220,17 @@ simplify FunctionKit{..} = simpl
       , Just j <- intView v
       , Just trueCon <- true
       , Just falseCon <- false = if k < j then TCon trueCon else TCon falseCon
+    simplPrim' (TApp (TPrim PGeq) [u, v])
+      | Just (PAdd, k, u) <- constArithView u,
+        Just (PAdd, j, v) <- constArithView v,
+        k == j = tOp PGeq u v
+      | Just (PSub, k, u) <- constArithView u,
+        Just (PSub, j, v) <- constArithView v,
+        k == j = tOp PGeq v u
+      | Just k <- intView u
+      , Just j <- intView v
+      , Just trueCon <- true
+      , Just falseCon <- false = if k >= j then TCon trueCon else TCon falseCon
     simplPrim' (TApp (TPrim op) [u, v])
       | op `elem` [PGeq, PLt, PEqI]
       , Just (PAdd, k, u) <- constArithView u
@@ -372,6 +386,15 @@ simplify FunctionKit{..} = simpl
     pruneLitCases x t d bs
       | CTInt == caseType t = return $ TCase x t d bs -- TODO
       | otherwise           = return $ TCase x t d bs
+
+    -- Drop 'false' branches and drop everything after 'true' branches (including the default
+    -- branch)
+    pruneBoolGuards d [] = (d, [])
+    pruneBoolGuards d (b@(TAGuard (TCon c) _) : bs)
+      | Just c == true  = (tUnreachable, [b])
+      | Just c == false = pruneBoolGuards d bs
+    pruneBoolGuards d (b : bs) =
+      second (b :) $ pruneBoolGuards d bs
 
     tCase' x t d [] = return d
     tCase' x t d bs = pruneLitCases x t d bs
