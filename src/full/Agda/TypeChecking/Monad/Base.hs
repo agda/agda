@@ -2294,6 +2294,16 @@ shouldReduceDef f = asksTC envReduceDefs <&> \case
   OnlyReduceDefs defs -> f `Set.member` defs
   DontReduceDefs defs -> not $ f `Set.member` defs
 
+instance Semigroup ReduceDefs where
+  OnlyReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.intersection qs1 qs2
+  OnlyReduceDefs qs1 <> DontReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs1 qs2
+  DontReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs2 qs1
+  DontReduceDefs qs1 <> DontReduceDefs qs2 = DontReduceDefs $ Set.union        qs1 qs2
+
+instance Monoid ReduceDefs where
+  mempty  = reduceAllDefs
+  mappend = (<>)
+
 -- | Primitives
 
 data PrimitiveImpl = PrimImpl Type PrimFun
@@ -2944,6 +2954,9 @@ eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification =
 
 eAllowedReductions :: Lens' AllowedReductions TCEnv
 eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
+
+eReduceDefs :: Lens' ReduceDefs TCEnv
+eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
 
 eInjectivityDepth :: Lens' Int TCEnv
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
