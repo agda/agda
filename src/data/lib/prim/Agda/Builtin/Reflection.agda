@@ -277,6 +277,12 @@ postulate
   -- on (with the -v flag to Agda).
   debugPrint : String → Nat → List ErrorPart → TC ⊤
 
+  -- Only allow reduction of specific definitions while executing the TC computation
+  onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
+  -- Don't allow reduction of specific definitions while executing the TC computation
+  dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
   -- Fail if the given computation gives rise to new, unsolved
   -- "blocking" constraints.
   noConstraints : ∀ {a} {A : Set a} → TC A → TC A
@@ -313,5 +319,7 @@ postulate
 {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+{-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
+{-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}

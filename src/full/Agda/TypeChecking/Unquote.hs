@@ -11,6 +11,8 @@ import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
@@ -545,7 +547,10 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v)) ]
+             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             ]
              failEval
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
@@ -573,6 +578,15 @@ evalTCM v = do
     tcWithNormalisation b m = do
       v <- unquote b
       liftU1 (locallyTC eUnquoteNormalise $ const v) (evalTCM m)
+
+    tcOnlyReduceDefs = tcDoReduceDefs OnlyReduceDefs
+    tcDontReduceDefs = tcDoReduceDefs DontReduceDefs
+
+    tcDoReduceDefs :: (Set QName -> ReduceDefs) -> Term -> Term -> UnquoteM Term
+    tcDoReduceDefs reduceDefs v m = do
+      qs <- unquote v
+      let defs = reduceDefs $ Set.fromList qs
+      liftU1 (locallyTC eReduceDefs (<> defs)) (evalTCM m)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
