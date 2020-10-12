@@ -2,7 +2,7 @@
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.
 
-module Agda.Interaction.Highlighting.HTML
+module Agda.Interaction.Highlighting.HTML.Base
   ( generateHTML
   ) where
 
