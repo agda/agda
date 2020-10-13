@@ -186,7 +186,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
 * If you are tracking ``nixos-unstable`` or ``nixpkgs-unstable`` (the
   default on MacOS) or are using a version of NixOS newer than 20.03
-  then you should be able to install via:
+  then you should be able to install Agda via:
 
   .. code-block:: bash
 
